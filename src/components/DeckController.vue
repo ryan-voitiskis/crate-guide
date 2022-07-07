@@ -122,7 +122,7 @@
 import { defineComponent } from "vue";
 
 export default defineComponent({
-  name: "HelloWorld",
+  name: "DeckController",
   props: {
     msg: String,
   },
