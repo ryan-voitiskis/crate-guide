@@ -1,0 +1,327 @@
+/**
+ * Name:         base.scss
+ * Description:  base style for vinylbox. modified from skeleton: http://getskeleton.com/
+ */
+
+@font-face {
+  font-family: "Manrope";
+  font-weight: 400;
+  font-style: normal;
+  src: local("Manrope"),
+    url("../../../public/fonts/manrope/Manrope-Regular.otf") format("otf")
+}
+
+html {
+  font-size: 62.5%; // 1.5rem = 15px
+}
+
+header {
+  background-color: var(--header-bg);
+}
+
+body {
+  margin: 0;
+  background-color: var(--page-bg);
+  color: var(--dark-text);
+  font: 400 1.5rem/1.6 Manrope, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font: 400 1.6rem/1.6 Manrope, sans-serif;
+  margin-top: 0;
+  margin-bottom: 1.4rem;
+}
+
+h1 {
+  font-size: 3rem;
+}
+
+h2 {
+  font-size: 2.2rem;
+}
+
+h3 {
+  font-size: 2rem;
+}
+
+h4 {
+  font-size: 1.8rem;
+}
+
+h5 {
+  font-size: 1.7rem;
+}
+
+h6 {
+  font-size: 1.6rem;
+}
+
+p {
+  margin-top: 0;
+}
+
+a {
+  text-decoration: none;
+}
+
+ul {
+  list-style: circle inside;
+}
+
+ol {
+  list-style: decimal inside;
+}
+
+ol,
+ul {
+  padding-left: 0;
+  margin-top: 0;
+}
+
+ul ul,
+ul ol,
+ol ol,
+ol ul {
+  margin: 1.5rem 0 1.5rem 3rem;
+  font-size: 90%;
+}
+
+li {
+  margin-bottom: 1rem;
+}
+
+input,
+textarea,
+select,
+fieldset {
+  margin-bottom: 1.5rem;
+}
+
+pre,
+blockquote,
+dl,
+figure,
+table,
+p,
+ul,
+ol,
+form {
+  margin-bottom: 2.5rem;
+}
+
+hr {
+  width: 100%; // flex compatability
+  margin-top: 2.8rem;
+  margin-bottom: 2.8rem;
+  border-width: 0;
+  border-top: 1px solid var(--hr);
+}
+
+abbr[title],
+acronym[title] {
+  color: var(--abbr-title);
+}
+
+input,
+textarea,
+select,
+fieldset {
+  margin-bottom: 1.6rem;
+}
+
+pre,
+blockquote,
+dl,
+figure,
+table,
+p,
+ul,
+ol,
+form {
+  margin-bottom: 2.4rem;
+}
+
+th {
+  font-weight: 500;
+}
+
+th,
+td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid var(--table-border);
+}
+
+table.clean td,
+table.clean th {
+  border: none;
+  padding: 0 8px;
+}
+
+table.clean th:first-child,
+table.clean td:first-child,
+th:first-child,
+td:first-child {
+  padding-left: 0;
+}
+
+table.clean th:last-child,
+table.clean td:last-child,
+th:last-child,
+td:last-child {
+  padding-right: 0;
+}
+
+// todo: is this reqd
+input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset !important; //removes webkit autofill yellow background
+}
+
+.btn,
+button,
+input[type="submit"],
+input[type="button"] {
+  display: flex;
+  justify-content: center;
+  height: 38px;
+  padding: 0 12px;
+  color: var(--btn-dark);
+  text-align: center;
+  font-size: 1.6rem;
+  font-weight: 400;
+  line-height: 38px;
+  letter-spacing: 0.1rem;
+  text-decoration: none;
+  white-space: nowrap;
+  background-color: transparent;
+  border-radius: 4px;
+  border: 1px solid var(--btn-border);
+  cursor: pointer;
+  box-sizing: border-box;
+  margin-bottom: 1rem;
+  svg {
+    align-self: center;
+    height: 2.2rem;
+    path {
+      fill: var(--btn-dark);
+    }
+  }
+}
+
+input,
+select {
+  line-height: 38px;
+}
+
+input[type="email"],
+input[type="number"],
+input[type="search"],
+input[type="text"],
+input[type="tel"],
+input[type="url"],
+input[type="password"],
+textarea,
+select {
+  height: 38px;
+  padding: 0 10px;
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
+  font: 400 1.5rem/1.6 Manrope, sans-serif;
+  color: var(--input-text);
+  border-radius: 4px;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+textarea {
+  min-height: 65px;
+  padding-top: 6px;
+  line-height: 1.7rem;
+}
+
+input[type="email"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="text"]:focus,
+input[type="tel"]:focus,
+input[type="url"]:focus,
+input[type="password"]:focus,
+textarea:focus,
+select:focus {
+  border: 1px solid var(--input-border-focus);
+  outline: 0;
+}
+
+label,
+legend {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--label-text);
+}
+
+fieldset {
+  padding: 0;
+  border-width: 0;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  display: inline;
+}
+
+label > .label-body {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-weight: normal;
+}
+
+.no-label {
+  margin-top: 2.4rem !important;
+}
+
+// non-default styling, background url is svg images/cheveron-down-lighter.svg
+// converted to base64 as per https://stackoverflow.com/questions/10768451/inline-svg-in-css
+select {
+  background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyMCAyMCc+PHBhdGggZmlsbD0nIzg4OCcgZD0nTTkuMjkzIDEyLjk1bC43MDcuNzA3TDE1LjY1NyA4bC0xLjQxNC0xLjQxNEwxMCAxMC44MjggNS43NTcgNi41ODYgNC4zNDMgOHonLz48L3N2Zz4=")
+    100% / 20px no-repeat #eee !important;
+  padding-right: 36px;
+  border: 1px solid --input-border;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+select::-ms-expand {
+  display: none;
+}
+
+select:-moz-focusring {
+  color: transparent;
+  text-shadow: 0 0 0 #000;
+}
+
+*:focus,
+a:hover,
+a:active,
+input[type="submit"]::-moz-focus-inner,
+input[type="button"]::-moz-focus-inner {
+  outline: none;
+}
+
+/* Hiding class, making content visible only to screen readers but not visually
+from: https://css-tricks.com/video-screencasts/142-hiding-things-with-css/ */
+.screen-reader-only:not(:focus):not(:active) {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}

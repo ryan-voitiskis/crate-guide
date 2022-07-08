@@ -1,16 +1,14 @@
 <template>
-  <RecordDeck />
-  <RecordDeck />
+  <p>deck</p>
 </template>
 
 <script lang="ts">
 import { defineComponent } from "vue";
-import RecordDeck from "@/components/RecordDeck.vue"; // @ is an alias to /src
 
 export default defineComponent({
-  name: "SessionView",
-  components: {
-    RecordDeck,
+  name: "RecordDeck",
+  props: {
+    msg: String,
   },
 });
 </script>

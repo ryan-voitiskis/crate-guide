@@ -1,29 +1,35 @@
 <template>
-  <nav>
-    <router-link to="/">Session</router-link> |
-    <router-link to="/collection">Collection</router-link>
-  </nav>
-  <router-view />
+  <div class="container">
+    <nav>
+      <router-link class="btn" to="/">Session</router-link>
+      <router-link class="btn" to="/collection">Collection</router-link>
+      <router-link class="btn" to="/settings"><CogIcon /></router-link>
+    </nav>
+    <router-view />
+  </div>
 </template>
 
-<style lang="scss">
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-}
+<script lang="ts">
+import { defineComponent } from "vue";
+import CogIcon from "@/components/svg/CogIcon.vue";
 
+export default defineComponent({
+  name: "App",
+  components: {
+    CogIcon,
+  },
+});
+</script>
+
+<style lang="scss">
 nav {
   padding: 30px;
-
   a {
-    font-weight: bold;
-    color: #2c3e50;
-
     &.router-link-exact-active {
-      color: #42b983;
+      color: #bb7e45;
+      svg path {
+        fill: #bb7e45;
+      }
     }
   }
 }

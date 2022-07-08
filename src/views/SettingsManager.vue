@@ -1,16 +1,16 @@
 <template>
-  <RecordDeck />
-  <RecordDeck />
+  <SettingControl />
+  <SettingControl />
 </template>
 
 <script lang="ts">
 import { defineComponent } from "vue";
-import RecordDeck from "@/components/RecordDeck.vue"; // @ is an alias to /src
+import SettingControl from "@/components/SettingControl.vue"; // @ is an alias to /src
 
 export default defineComponent({
-  name: "SessionView",
+  name: "SettingsManager",
   components: {
-    RecordDeck,
+    SettingControl,
   },
 });
 </script>
