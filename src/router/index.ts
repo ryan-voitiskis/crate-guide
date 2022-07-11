@@ -1,5 +1,5 @@
-import { createRouter, createWebHistory, RouteRecordRaw } from "vue-router";
-import SessionView from "../views/SessionView.vue";
+import { createRouter, createWebHistory, RouteRecordRaw } from "vue-router"
+import SessionView from "../views/SessionView.vue"
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -25,11 +25,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () =>
       import(/* webpackChunkName: "about" */ "../views/SettingsManager.vue"),
   },
-];
+]
 
 const router = createRouter({
   history: createWebHistory(process.env.BASE_URL),
   routes,
-});
+})
 
-export default router;
+export default router

@@ -10,15 +10,15 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue";
-import CogIcon from "@/components/svg/CogIcon.vue";
+import { defineComponent } from "vue"
+import CogIcon from "@/components/svg/CogIcon.vue"
 
 export default defineComponent({
   name: "App",
   components: {
     CogIcon,
   },
-});
+})
 </script>
 
 <style lang="scss">

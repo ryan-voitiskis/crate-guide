@@ -6,7 +6,6 @@
   "settings": {
     "turntablePitchRange": 8,
     "turntableColour": "#1B1919",
-    "has78": false,
     "keyFormat": "Alphanumeric"
   }
 }

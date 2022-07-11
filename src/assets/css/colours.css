@@ -72,6 +72,10 @@
   --btn-delete: hsl(359, 56%, 62%); /* delete button. */
   --btn-delete-hover: hsl(359, 87%, 62%); /* delete button . */
 
+  /* decks */
+  --deck-black: #333;
+  --deck-silver: #ccc;
+
   /* todo: delete this if not used after implementing notifications */
   /* display msg / toast notifications / iziToast */
   --msg-notify: #abdef5;
