@@ -3,15 +3,23 @@
     <div class="deck-wrapper-inner">
       <div class="deck">
         <StartStopButton />
-        <RpmSwitch speed="33" />
-        <RpmSwitch speed="45" />
+        <RpmSwitch
+          :speed="33"
+          :isActive="this.rpm == 33"
+          @activate="switchRPM"
+        />
+        <RpmSwitch
+          :speed="45"
+          :isActive="this.rpm == 45"
+          @activate="switchRPM"
+        />
       </div>
     </div>
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue"
+import { defineComponent, reactive, toRefs } from "vue"
 import StartStopButon from "@/components/StartStopButon.vue"
 import StartStopButton from "./StartStopButton.vue"
 import RpmSwitch from "./RpmSwitch.vue"
@@ -19,24 +27,27 @@ import RpmSwitch from "./RpmSwitch.vue"
 export default defineComponent({
   components: { StartStopButton, RpmSwitch },
   name: "RecordDeck",
-  props: {
-    msg: String,
-  },
-  data() {
-    return {
+  setup() {
+    const state = reactive({
       isPlaying: false,
       isLoaded: false,
       rpm: 33,
       pitch: 0,
+    })
+
+    const start = () => {
+      console.log("Deck started.")
     }
-  },
-  methods: {
-    start() {
-      console.log("Deck is playing.")
-    },
-    stop() {
-      console.log("Deck is not playing.")
-    },
+
+    const stop = () => {
+      console.log("Deck stopped.")
+    }
+
+    const switchRPM = (speed: number) => {
+      state.rpm = speed
+    }
+
+    return { ...toRefs(state), switchRPM }
   },
 })
 </script>

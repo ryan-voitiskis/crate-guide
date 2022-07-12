@@ -1,7 +1,7 @@
 <template>
   <button class="start">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-      <text x="0" y="50">start • stop</text>
+      <text x="6" y="52">start • stop</text>
     </svg>
   </button>
 </template>
