@@ -1,5 +1,5 @@
 <template>
-  <button class="start">
+  <button class="start" @click="$emit('stopStart')">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
       <text x="6" y="52">start • stop</text>
     </svg>

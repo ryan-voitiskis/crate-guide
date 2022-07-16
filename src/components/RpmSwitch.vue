@@ -1,7 +1,7 @@
 <template>
   <button
     class="rpm-switch"
-    :class="this.speed == 45 ? 'second' : ''"
+    :class="speed == 45 ? 'second' : ''"
     @click="$emit('activate', speed)"
   >
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
@@ -9,7 +9,7 @@
     </svg>
     <div
       class="indicator-light"
-      :class="this.isActive == true ? 'active' : ''"
+      :class="isActive == true ? 'active' : ''"
     ></div>
   </button>
 </template>
@@ -26,11 +26,11 @@ export default defineComponent({
       type: Number,
     },
   },
-  method: {
-    activate() {
-      this.$emit("switchRPM", this.speed)
-    },
-  },
+  // method: {
+  //   activate() {
+  //     this.$emit("switchRPM", this.speed)
+  //   },
+  // },
 })
 </script>
 

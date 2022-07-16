@@ -2,17 +2,10 @@
   <div class="deck-wrapper-outer">
     <div class="deck-wrapper-inner">
       <div class="deck">
-        <StartStopButton />
-        <RpmSwitch
-          :speed="33"
-          :isActive="this.rpm == 33"
-          @activate="switchRPM"
-        />
-        <RpmSwitch
-          :speed="45"
-          :isActive="this.rpm == 45"
-          @activate="switchRPM"
-        />
+        <StartStopButton @stopStart="stopStart" />
+        <RpmSwitch :speed="33" :isActive="rpm == 33" @activate="switchRPM" />
+        <RpmSwitch :speed="45" :isActive="rpm == 45" @activate="switchRPM" />
+        <PitchFader :pitch="pitch" @changePitch="changePitch" />
       </div>
     </div>
   </div>
@@ -20,12 +13,12 @@
 
 <script lang="ts">
 import { defineComponent, reactive, toRefs } from "vue"
-import StartStopButon from "@/components/StartStopButon.vue"
 import StartStopButton from "./StartStopButton.vue"
 import RpmSwitch from "./RpmSwitch.vue"
+import PitchFader from "./PitchFader.vue"
 
 export default defineComponent({
-  components: { StartStopButton, RpmSwitch },
+  components: { StartStopButton, RpmSwitch, PitchFader },
   name: "RecordDeck",
   setup() {
     const state = reactive({
@@ -35,19 +28,16 @@ export default defineComponent({
       pitch: 0,
     })
 
-    const start = () => {
-      console.log("Deck started.")
+    const stopStart = () => {
+      state.isPlaying = !state.isPlaying
+      console.log("Deck " + (state.isPlaying ? "playing." : "stopped."))
     }
 
-    const stop = () => {
-      console.log("Deck stopped.")
-    }
+    const switchRPM = (speed: number) => (state.rpm = speed)
 
-    const switchRPM = (speed: number) => {
-      state.rpm = speed
-    }
+    const changePitch = (pitch: number) => (state.pitch = pitch)
 
-    return { ...toRefs(state), switchRPM }
+    return { ...toRefs(state), switchRPM, changePitch, stopStart }
   },
 })
 </script>
