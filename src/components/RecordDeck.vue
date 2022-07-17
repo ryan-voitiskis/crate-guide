@@ -25,7 +25,7 @@ export default defineComponent({
       isPlaying: false,
       isLoaded: false,
       rpm: 33,
-      pitch: 0,
+      pitch: 0, // range of -100 (-8% of rpm) to 100 (+8% of rpm)
     })
 
     const stopStart = () => {

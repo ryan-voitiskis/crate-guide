@@ -1,0 +1,213 @@
+$track-w: 30em;
+$track-h: 0.5em;
+
+$thumb-w: 8em;
+$thumb-h: 5.5em;
+
+$scheme: (
+  normal: #6b6b6b #939393 /* border grad */ #606060 #808080 /* padding grad */
+    #7d7d7d #000 #6d6d6d #202020 #adadad /* content grad */ #404040 #272727
+    #7b7b7b #cfd0d2 #898989 /* top */,
+  active: #e13d3c #e82a2a #ea5a5a #e9292f #f86a69 #ab0101 #f05551 #dc2828
+    #fb9997 #e70809 #fa3030 #f30100 #fc8986 #fe6566,
+);
+
+$top-w: 0.4 * $thumb-w;
+$top-h: $thumb-h - 0.5em;
+$base-bg-s: 100% 100%, 100% 100%, 100% calc(100% - 0.375em);
+$top-bg-s: ($top-w - 0.25em) ($thumb-h - 0.75em),
+  ($top-w - 0.125em) ($thumb-h - 0.625em), $top-w $top-h;
+$line-w: 0.375em;
+$line-h: $thumb-h - 1.5em;
+$line-bg-s: $line-w $line-h;
+$line-grad: linear-gradient(#f1f1f1, #b5b5b5);
+$line: $line-grad 50% calc(100% - 0.5em) border-box;
+
+$ruler-line-w: 0.125em;
+$ruler-line-major-h: 8em;
+$ruler-line-minor-h: 4em;
+$ruler-div-major: 7em;
+$ruler-div-minor: $ruler-div-major/4;
+
+@function get-base-bg($state: normal) {
+  $curr-s: map-get($scheme, $state);
+
+  @return linear-gradient(
+        90deg,
+        nth($curr-s, 5),
+        nth($curr-s, 6) 25%,
+        nth($curr-s, 6) 65%,
+        nth($curr-s, 7) 75%,
+        nth($curr-s, 8) 92%,
+        nth($curr-s, 9) 98%
+      )
+      content-box,
+    linear-gradient(
+        90deg,
+        nth($curr-s, 3),
+        nth($curr-s, 6),
+        nth($curr-s, 6),
+        nth($curr-s, 4)
+      )
+      padding-box,
+    linear-gradient(
+        90deg,
+        nth($curr-s, 1),
+        nth($curr-s, 6),
+        nth($curr-s, 6),
+        nth($curr-s, 2)
+      )
+      border-box;
+}
+
+@function get-top-bg($state: normal) {
+  $curr-s: map-get($scheme, $state);
+
+  @return linear-gradient(nth($curr-s, 11), nth($curr-s, 12)) 50%
+      calc(100% - 0.125em) border-box,
+    linear-gradient(
+        135deg,
+        nth($curr-s, 10),
+        nth($curr-s, 11),
+        nth($curr-s, 12),
+        nth($curr-s, 13)
+      )
+      50% calc(100% - 1px) border-box,
+    linear-gradient(
+        135deg,
+        nth($curr-s, 10),
+        nth($curr-s, 11),
+        nth($curr-s, 12),
+        nth($curr-s, 14)
+      )
+      50% 100% border-box;
+}
+
+@mixin track() {
+  width: $track-w;
+  height: $track-h;
+  border-radius: $track-h/2;
+  background: #000;
+}
+
+@mixin thumb() {
+  box-sizing: border-box;
+  border: solid 0.125em transparent;
+  border-bottom-width: 0.375em;
+  padding: 0.125em;
+  padding-bottom: 0;
+  border-right-width: 0;
+  width: $thumb-w;
+  height: $thumb-h;
+  border-radius: 0;
+  cursor: ns-resize;
+}
+
+@mixin thumb-scheme($state: normal) {
+  background: $line, get-top-bg($state), get-base-bg($state);
+  background-repeat: no-repeat;
+  background-size: $line-bg-s, $top-bg-s, $base-bg-s;
+}
+
+.fader {
+  &,
+  &::-webkit-slider-runnable-track,
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+  }
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  padding: 0;
+  width: $track-w;
+  height: 1.25 * $thumb-h;
+  transform: translate(-50%, -50%) rotate(-90deg);
+  background: repeating-linear-gradient(
+        -90deg,
+        #a7a7a7,
+        #d8d8d8 $ruler-line-w,
+        transparent $ruler-line-w,
+        transparent $ruler-div-major
+      )
+      50% 50%,
+    repeating-linear-gradient(
+        -90deg,
+        #a7a7a7,
+        #d8d8d8 $ruler-line-w,
+        transparent $ruler-line-w,
+        transparent $ruler-div-minor
+      )
+      50% 50%;
+  background-repeat: no-repeat;
+  background-size: 4 * $ruler-div-major + $ruler-line-w $ruler-line-major-h,
+    4 * $ruler-div-major + $ruler-line-w $ruler-line-minor-h;
+  font-size: 1em;
+  cursor: pointer;
+
+  &::-webkit-slider-runnable-track {
+    @include track();
+  }
+  &::-moz-range-track {
+    @include track();
+  }
+  &::-ms-track {
+    border: none;
+    @include track();
+    color: transparent;
+  }
+
+  &::-webkit-slider-thumb {
+    position: relative;
+    margin-top: ($track-h - $thumb-h)/2;
+    @include thumb();
+    background: get-base-bg();
+    background-repeat: no-repeat;
+    background-size: $base-bg-s;
+  }
+  &::-moz-range-thumb {
+    @include thumb();
+    @include thumb-scheme();
+  }
+  &::-ms-thumb {
+    @include thumb();
+    @include thumb-scheme();
+  }
+
+  &::-ms-fill-lower,
+  &::-ms-tooltip {
+    display: none;
+  }
+
+  &::-webkit-slider-thumb,
+  #thumb {
+    &:before,
+    &:after {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      margin-top: 0.375em;
+      transform: translate(-50%, -50%);
+      content: "";
+    }
+    &:before {
+      box-sizing: border-box;
+      border: solid 1px transparent;
+      padding: 1px;
+      width: $top-w;
+      height: $top-h;
+      border-radius: 0.25em;
+      box-shadow: 0 0 0.125em #808080;
+      background: get-top-bg();
+      background-clip: content-box, padding-box, border-box;
+      background-repeat: no-repeat;
+      background-size: 100% 100%;
+    }
+    &:after {
+      width: $line-w;
+      height: $line-h;
+      border-radius: $line-h/2;
+      background: $line-grad;
+    }
+  }
+}
