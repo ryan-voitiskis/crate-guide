@@ -6,6 +6,7 @@
         <RpmSwitch :speed="33" :isActive="rpm == 33" @activate="switchRPM" />
         <RpmSwitch :speed="45" :isActive="rpm == 45" @activate="switchRPM" />
         <PitchFader :pitch="pitch" @changePitch="changePitch" />
+        <RecordIcon :isPlaying="isPlaying" :pitch="pitch" :rpm="rpm" />
       </div>
     </div>
   </div>
@@ -16,11 +17,13 @@ import { defineComponent, reactive, toRefs } from "vue"
 import StartStopButton from "./StartStopButton.vue"
 import RpmSwitch from "./RpmSwitch.vue"
 import PitchFader from "./PitchFader.vue"
+import RecordIcon from "@/components/svg/RecordIcon.vue"
 
 export default defineComponent({
-  components: { StartStopButton, RpmSwitch, PitchFader },
+  components: { StartStopButton, RpmSwitch, PitchFader, RecordIcon },
   name: "RecordDeck",
-  setup() {
+  props: ["deckID"],
+  setup(props) {
     const state = reactive({
       isPlaying: false,
       isLoaded: false,
@@ -30,7 +33,9 @@ export default defineComponent({
 
     const stopStart = () => {
       state.isPlaying = !state.isPlaying
-      console.log("Deck " + (state.isPlaying ? "playing." : "stopped."))
+      console.log(
+        `Deck ${props.deckID} ${state.isPlaying ? "playing." : "stopped."}`
+      )
     }
 
     const switchRPM = (speed: number) => (state.rpm = speed)

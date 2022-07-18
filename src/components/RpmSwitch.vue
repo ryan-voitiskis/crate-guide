@@ -26,11 +26,6 @@ export default defineComponent({
       type: Number,
     },
   },
-  // method: {
-  //   activate() {
-  //     this.$emit("switchRPM", this.speed)
-  //   },
-  // },
 })
 </script>
 
@@ -45,6 +40,7 @@ export default defineComponent({
   left: 59/450 * 100%;
   padding: 0;
   margin: 0;
+  z-index: 2;
   svg {
     font-size: 8rem;
     width: 100%;

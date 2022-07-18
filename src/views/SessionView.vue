@@ -2,8 +2,8 @@
   <div class="session">
     <div class="suggestions"></div>
     <div class="decks">
-      <RecordDeck />
-      <RecordDeck />
+      <RecordDeck :deckID="1" />
+      <RecordDeck :deckID="2" />
     </div>
   </div>
 </template>

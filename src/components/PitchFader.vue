@@ -18,7 +18,7 @@
         v-bind:key="label.value"
       ></option>
     </datalist>
-    <div class="readable">{{ pitchReadable }}%</div>
+    <!-- <div class="readable">{{ pitchReadable }}%</div> -->
   </div>
 </template>
 
@@ -31,14 +31,14 @@ export default defineComponent({
   setup(props, { emit }) {
     const pitchOptions = [{}]
     const pitchLabels = [
-      { text: "-8", value: 0 },
-      { text: "6", value: 12.5 },
-      { text: "4", value: 25 },
-      { text: "2", value: 37.5 },
-      { text: "0", value: 50 },
-      { text: "2", value: 62.5 },
-      { text: "4", value: 75 },
-      { text: "6", value: 87.5 },
+      { text: "-8", value: -100 },
+      { text: "6", value: -75 },
+      { text: "4", value: -50 },
+      { text: "2", value: -25 },
+      { text: "0", value: 0 },
+      { text: "2", value: 25 },
+      { text: "4", value: 50 },
+      { text: "6", value: 75 },
       { text: "+8", value: 100 },
     ]
     const emitPitch = (event: Event) => {
@@ -54,14 +54,12 @@ export default defineComponent({
 
 <style scoped lang="scss">
 datalist {
-  height: 28%;
-  width: 4%;
   display: block;
   position: absolute;
-  bottom: 10%;
-  right: 39/450 * 100%;
+  bottom: 7.6%;
+  right: 10%;
   option {
-    height: 10%;
+    padding: 0;
   }
 }
 
@@ -112,6 +110,7 @@ input[type="range"] {
   background-color: #aaa;
   font-size: 1em;
   cursor: pointer;
+  z-index: 2;
 
   &::-webkit-slider-runnable-track {
     @include track();
@@ -120,8 +119,8 @@ input[type="range"] {
     @include track();
   }
   &::-ms-track {
-    border: none;
     @include track();
+    border: none;
     color: transparent;
   }
 
