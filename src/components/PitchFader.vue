@@ -1,81 +1,76 @@
 <template>
   <div class="fader-container">
     <input
-      id="fader"
+      ref="faderEl"
+      value="0"
       type="range"
       min="-100"
       max="100"
       class="fader"
-      value="0"
       list="fader_labels"
       @input="emitPitch"
     />
-    <datalist id="fader_labels">
-      <option
-        v-for="label in pitchLabels"
-        v-bind:label="label.text"
-        v-bind:value="label.value"
-        v-bind:key="label.value"
-      ></option>
-    </datalist>
-    <!-- <div class="readable">{{ pitchReadable }}%</div> -->
+
+    <label class="reset-fader" @click="emitPitchReset">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="50" />
+      </svg>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80">
+        <text dominant-baseline="middle" x="50%" y="50%">reset</text>
+      </svg>
+    </label>
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, computed } from "vue"
+import { defineComponent, ref, onMounted } from "vue"
 
 export default defineComponent({
   name: "PitchFader",
-  props: ["pitch"],
+  props: ["pitch", "faderValue"],
   setup(props, { emit }) {
-    const pitchOptions = [{}]
-    const pitchLabels = [
-      { text: "-8", value: -100 },
-      { text: "6", value: -75 },
-      { text: "4", value: -50 },
-      { text: "2", value: -25 },
-      { text: "0", value: 0 },
-      { text: "2", value: 25 },
-      { text: "4", value: 50 },
-      { text: "6", value: 75 },
-      { text: "+8", value: 100 },
-    ]
+    const faderEl = ref<HTMLInputElement | null>(null)
     const emitPitch = (event: Event) => {
       const target = event.target as HTMLInputElement
       if (target) emit("changePitch", Number(target.value) * -1) // * -1 as input could not be reversed when vertical
     }
-    const pitchReadable = computed(() => (props.pitch * 0.08).toFixed(1))
-
-    return { emitPitch, pitchReadable, pitchLabels }
+    const emitPitchReset = () => {
+      emit("resetPitch")
+      faderEl!.value!.value = "0"
+    }
+    return { emitPitch, emitPitchReset, faderEl }
   },
 })
 </script>
 
 <style scoped lang="scss">
-datalist {
-  display: block;
+label.reset-fader {
   position: absolute;
-  bottom: 7.6%;
-  right: 10%;
-  option {
-    padding: 0;
+  width: 3%;
+  bottom: 7%;
+  right: 18%;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  button {
+    height: unset;
+    width: 100%;
+    background: #333;
+    border: none;
+    border-radius: 50%;
+    aspect-ratio: 1;
+    margin: 0;
+  }
+  svg {
+    font-size: 2.2em;
+    text {
+      text-anchor: middle;
+    }
   }
 }
 
-$thumb-w: 2.25em;
-$track-w: 19.75em;
-$track-h: 0.5em;
-$thumb-h: 4 * $track-h;
-$track-pad: 0.125em;
-$thumb-sh-c: #111;
-$track-bg: #999;
-
-$diff-h: ($thumb-h - $track-h)/2;
-
 @mixin track() {
   box-sizing: border-box;
-  padding: $track-pad;
   width: 100%;
   height: 30/350 * 100%;
   background: #222;
@@ -88,7 +83,10 @@ $diff-h: ($thumb-h - $track-h)/2;
   background: #333;
   border: none;
   border-radius: 0;
-  cursor: ns-resize;
+  cursor: grab;
+  &:active {
+    cursor: grabbing;
+  }
 }
 
 input[type="range"] {

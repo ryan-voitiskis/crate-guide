@@ -5,7 +5,11 @@
         <StartStopButton @stopStart="stopStart" />
         <RpmSwitch :speed="33" :isActive="rpm == 33" @activate="switchRPM" />
         <RpmSwitch :speed="45" :isActive="rpm == 45" @activate="switchRPM" />
-        <PitchFader :pitch="pitch" @changePitch="changePitch" />
+        <PitchFader
+          :pitch="pitch"
+          @changePitch="changePitch"
+          @resetPitch="resetPitch"
+        />
         <RecordIcon :isPlaying="isPlaying" :pitch="pitch" :rpm="rpm" />
       </div>
     </div>
@@ -17,7 +21,7 @@ import { defineComponent, reactive, toRefs } from "vue"
 import StartStopButton from "./StartStopButton.vue"
 import RpmSwitch from "./RpmSwitch.vue"
 import PitchFader from "./PitchFader.vue"
-import RecordIcon from "@/components/svg/RecordIcon.vue"
+import RecordIcon from "@/components/RecordIcon.vue"
 
 export default defineComponent({
   components: { StartStopButton, RpmSwitch, PitchFader, RecordIcon },
@@ -42,7 +46,9 @@ export default defineComponent({
 
     const changePitch = (pitch: number) => (state.pitch = pitch)
 
-    return { ...toRefs(state), switchRPM, changePitch, stopStart }
+    const resetPitch = () => (state.pitch = 0)
+
+    return { ...toRefs(state), switchRPM, changePitch, stopStart, resetPitch }
   },
 })
 </script>
