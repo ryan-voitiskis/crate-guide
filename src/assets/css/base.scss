@@ -5,10 +5,53 @@
 
 @font-face {
   font-family: "Manrope";
+  font-weight: 200;
+  font-style: light;
+  font-display: auto;
+  src: local("Manrope"), url("../fonts/manrope/Manrope-Light.otf") format("otf");
+}
+
+@font-face {
+  font-family: "Manrope";
   font-weight: 400;
   font-style: normal;
+  font-display: auto;
   src: local("Manrope"),
-    url("../../../public/fonts/manrope/Manrope-Regular.otf") format("otf");
+    url("../fonts/manrope/Manrope-Regular.otf") format("otf");
+}
+
+@font-face {
+  font-family: "Manrope";
+  font-weight: 500;
+  font-style: medium;
+  font-display: auto;
+  src: local("Manrope"),
+    url("../fonts/manrope/Manrope-Medium.otf") format("otf");
+}
+
+@font-face {
+  font-family: "Manrope";
+  font-weight: 600;
+  font-display: auto;
+  src: local("Manrope"),
+    url("../fonts/manrope/Manrope-SemiBold.otf") format("otf");
+}
+
+@font-face {
+  font-family: "Manrope";
+  font-weight: 700;
+  font-style: bold;
+  font-display: auto;
+  src: local("Manrope"), url("../fonts/manrope/Manrope-Bold.otf") format("otf");
+}
+
+@font-face {
+  font-family: "Digital7";
+  font-weight: 400;
+  font-style: normal;
+  font-display: auto;
+  src: local("Digital7"),
+    url("../fonts/digital7/Digital7Mono-B1g5.ttf") format("truetype");
 }
 
 html {

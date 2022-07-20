@@ -19,26 +19,32 @@
         <text dominant-baseline="middle" x="50%" y="50%">reset</text>
       </svg>
     </label>
+    <span class="pitch-readable">
+      {{ (pitchReadable >= 0 ? "+" : "") + pitchReadable }}%
+    </span>
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, onMounted } from "vue"
+import { defineComponent, ref, computed } from "vue"
 
 export default defineComponent({
   name: "PitchFader",
   props: ["pitch", "faderValue"],
   setup(props, { emit }) {
     const faderEl = ref<HTMLInputElement | null>(null)
+    // cmt
     const emitPitch = (event: Event) => {
       const target = event.target as HTMLInputElement
       if (target) emit("changePitch", Number(target.value) * -1) // * -1 as input could not be reversed when vertical
     }
+    // cmt
     const emitPitchReset = () => {
       emit("resetPitch")
       faderEl!.value!.value = "0"
     }
-    return { emitPitch, emitPitchReset, faderEl }
+    const pitchReadable = computed(() => (props.pitch * 0.08).toFixed(1))
+    return { emitPitch, emitPitchReset, faderEl, pitchReadable }
   },
 })
 </script>
@@ -67,6 +73,14 @@ label.reset-fader {
       text-anchor: middle;
     }
   }
+}
+.pitch-readable {
+  position: absolute;
+  width: 3%;
+  bottom: 11%;
+  right: 13%;
+  color: rgb(189, 49, 49);
+  font: 400 1.5rem/1.6 Digital7, sans-serif;
 }
 
 @mixin track() {
