@@ -14,9 +14,7 @@ import RecordDeck from "@/components/RecordDeck.vue"
 
 export default defineComponent({
   name: "SessionView",
-  components: {
-    RecordDeck,
-  },
+  components: { RecordDeck },
 })
 </script>
 

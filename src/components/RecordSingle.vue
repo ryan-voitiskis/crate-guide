@@ -1,15 +1,12 @@
 <template>
-  <SettingControl />
-  <SettingControl />
+  <p>record</p>
 </template>
 
 <script lang="ts">
 import { defineComponent } from "vue"
-import SettingControl from "@/components/SettingControl.vue"
 
 export default defineComponent({
-  name: "SettingsManager",
-  components: { SettingControl },
+  name: "RecordSingle",
 })
 </script>
 

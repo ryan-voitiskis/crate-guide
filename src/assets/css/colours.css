@@ -32,23 +32,9 @@
   --label-text: #5a6975;
   --input-text: #708391;
 
-  /* backgrounds */
-  --page-bg: #f1f1ef; /* page background. */
-  --header-bg: #fff; /* header background. */
-  --footer-bg: #f8ebda; /* footer background. */
-  --panel-bg: #fff; /* panels within the main content section, inc. widget, post etc. background. */
-  --nav-bg: #424d55; /* nav bar/top level nav background. */
-  --nav-bg-hover: #5b6b76; /* top level nav item hovered background. */
-  --nav-sub-bg: rgba(66, 77, 85, 0.86); /* sub nav item (dropdown) background. */
-  --nav-sub-bg-hover: rgba(41, 51, 56, 0.86); /* sub nav item (dropdown) hovered background. */
-  --nav-sub-bg-sd: #363f46; /* sub nav item background on small display. */
-  --nav-sub-bg-sd-hover: #2f373d; /* sub nav hovered background on small display. */
-  --admin-panel-complete-bg: #11abfe; /* admin panel complete record state background. */
-  --admin-panel-incomplete-bg: #fe955d; /* admin panel incomplete record state background. */
-
   /* forms */
   --input-bg: #fff; /* form input background. */
-  --input-border: #8d9ca7; /* form input border. */
+  --input-border: #c0c5c8; /* form input border. */
   --input-border-focus: #50a5e5; /* form input focused border. */
   --search-border: #8d9ca7; /* search form border. */
   --search-border-active: #708391; /* search border when focused + search submit button border when hovered. */
@@ -58,19 +44,12 @@
   --search-submit-bg-hover: #ccc; /* search submit button hover background. */
 
   /* buttons */
-  --btn-dark: #666; /* default button text. */
-  --btn-darker: #444; /* default button text. */
-  --btn-light: #fff; /* dark background buttons text. */
-  --btn-border: #aaa; /* default button border. */
-  --btn-border-hover: #666; /* default button border. */
-  --btn-primary-bg: #4cb6d7; /* primary button background. */
-  --btn-primary-border: #4cb6d7; /* primary button border. */
-  --btn-primary-hover: #278faf; /* primary button hover. */
-  --btn-secondary: #278faf; /* secondary button background. */
+  --btn-primary: #4793cd; /* primary button background. */
+  --btn-primary-hover: #50a5e5; /* primary button background. */
+  --btn-secondary: #f5f4f7; /* default button border. */
+  --btn-secondary-hover: #e7e7e7; /* default button border. */
   --btn-edit: hsl(35, 84%, 62%); /* edit button. */
-  --btn-edit-hover: hsl(35, 84%, 51%); /* edit button hover. */
   --btn-delete: hsl(359, 56%, 62%); /* delete button. */
-  --btn-delete-hover: hsl(359, 87%, 62%); /* delete button . */
 
   /* decks */
   --deck-black: #333;

@@ -6,7 +6,7 @@
         <RpmSwitch :speed="33" :isActive="rpm == 33" @activate="switchRPM" />
         <RpmSwitch :speed="45" :isActive="rpm == 45" @activate="switchRPM" />
         <PitchFader
-          :pitch="pitch"
+          :pitch:number="pitch"
           @changePitch="changePitch"
           @resetPitch="resetPitch"
         />
