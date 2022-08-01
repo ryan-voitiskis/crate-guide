@@ -4,14 +4,8 @@
   <RecordSingle />
 </template>
 
-<script lang="ts">
-import { defineComponent } from "vue"
+<script setup lang="ts">
 import RecordSingle from "@/components/RecordSingle.vue"
-
-export default defineComponent({
-  name: "RecordList",
-  components: { RecordSingle },
-})
 </script>
 
 <style scoped lang="scss"></style>

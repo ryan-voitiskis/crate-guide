@@ -14,19 +14,13 @@
   </button>
 </template>
 
-<script lang="ts">
-import { defineComponent, reactive } from "vue"
+<script setup lang="ts">
+import { defineProps } from "vue"
 
-export default defineComponent({
-  name: "RpmSwitch",
-  props: {
-    isActive: Boolean,
-    speed: {
-      required: true,
-      type: Number,
-    },
-  },
-})
+const props = defineProps<{
+  isActive: boolean
+  speed: number
+}>()
 </script>
 
 <style scoped lang="scss">

@@ -59,24 +59,22 @@
   </svg>
 </template>
 
-<script lang="ts">
-import { defineComponent, computed } from "vue"
+<script setup lang="ts">
+import { defineProps, computed } from "vue"
 
-export default defineComponent({
-  name: "RecordIcon",
-  props: ["isPlaying", "pitch", "rpm"],
-  setup(props) {
-    const spinStatus = computed(() => (props.isPlaying ? "running" : "paused"))
+const props = defineProps<{
+  isPlaying: boolean
+  pitch: number
+  rpm: number
+}>()
 
-    // spinRate is duration of rotaion in seconds: req'd for rotate animation eg. 1.82s for 33rpm with 0% pitch adjustment
-    const spinRate = computed(
-      () =>
-        (((props.pitch * -0.0008 + 1) * 60) / props.rpm).toFixed(2).toString() +
-        "s"
-    )
-    return { spinStatus, spinRate }
-  },
-})
+const spinStatus = computed(() => (props.isPlaying ? "running" : "paused"))
+
+// spinRate is duration of rotaion in seconds: req'd for rotate animation eg. 1.82s for 33rpm with 0% pitch adjustment
+const spinRate = computed(
+  () =>
+    (((props.pitch * -0.0008 + 1) * 60) / props.rpm).toFixed(2).toString() + "s"
+)
 </script>
 
 <style scoped lang="scss">

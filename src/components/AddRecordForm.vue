@@ -8,6 +8,7 @@
         type="text"
         placeholder="CAT001"
         ref="firstField"
+        :focused="true"
       />
       <BaseInput
         v-model="record.artist"
@@ -42,6 +43,7 @@
       </label>
     </div>
     <div class="form-controls">
+      <button type="reset">Clear</button>
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Close
       </button>

@@ -6,13 +6,14 @@
     :placeholder="placeholder"
     :value="modelValue"
     @input="$emit('update:modelValue', handleInputChange($event))"
+    v-focus
   />
 </template>
 
 <script setup lang="ts">
 import { defineProps } from "vue"
 
-defineProps({
+const props = defineProps({
   label: String,
   id: String,
   placeholder: {
@@ -23,7 +24,18 @@ defineProps({
     type: [String, Number],
     default: "",
   },
+  focused: {
+    type: Boolean,
+    default: false,
+  },
 })
+
+// custom directive to focus input el if focused prop is true
+const vFocus = {
+  mounted: (el: any) => {
+    if (props.focused) el.focus()
+  },
+}
 
 const handleInputChange = (event: Event) =>
   (event.target as HTMLInputElement).value

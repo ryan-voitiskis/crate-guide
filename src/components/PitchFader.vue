@@ -20,33 +20,40 @@
       </svg>
     </label>
     <span class="pitch-readable">
-      {{ (pitchReadable >= 0 ? "+" : "") + pitchReadable }}%
+      {{ pitchReadable }}
     </span>
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, ref, computed } from "vue"
+<script setup lang="ts">
+import { ref, computed, defineProps, defineEmits } from "vue"
 
-export default defineComponent({
-  name: "PitchFader",
-  props: ["pitch", "faderValue"],
-  setup(props, { emit }) {
-    const faderEl = ref<HTMLInputElement | null>(null)
-    // cmt
-    const emitPitch = (event: Event) => {
-      const target = event.target as HTMLInputElement
-      if (target) emit("changePitch", Number(target.value) * -1) // * -1 as input could not be reversed when vertical
-    }
-    // cmt
-    const emitPitchReset = () => {
-      emit("resetPitch")
-      faderEl!.value!.value = "0"
-    }
-    const pitchReadable = computed(() => (props.pitch * 0.08).toFixed(1))
-    return { emitPitch, emitPitchReset, faderEl, pitchReadable }
-  },
-})
+const props = defineProps<{
+  pitch: number
+}>()
+
+const emit = defineEmits<{
+  (e: "changePitch", pitch: number): void
+  (e: "resetPitch"): void
+}>()
+
+const faderEl = ref<HTMLInputElement | null>(null)
+
+// emits pitch change on @input event
+const emitPitch = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target) emit("changePitch", Number(target.value) * -1) // * -1 as input could not be reversed when vertical
+}
+
+// emits pitch reset when reset button clicked
+const emitPitchReset = () => {
+  emit("resetPitch")
+  faderEl!.value!.value = "0"
+}
+
+const pitchReadable = computed(
+  () => (props.pitch >= 0 ? "+" : "") + (props.pitch * 0.08).toFixed(1) + "%"
+)
 </script>
 
 <style scoped lang="scss">

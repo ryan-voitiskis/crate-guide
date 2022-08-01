@@ -12,7 +12,7 @@
   </div>
 </template>
 
-<script lang="ts" setup>
+<script setup lang="ts">
 import { defineProps } from "vue"
 import XIcon from "@/components/svg/XIcon.vue"
 
@@ -42,14 +42,13 @@ defineProps({
     }
     button {
       margin: 0;
-      &.close {
-        background: var(--btn-secondary);
-        border: none;
-        &:hover {
-          background: var(--btn-secondary-hover);
-        }
+      background: var(--btn-secondary);
+      border: none;
+      color: var(--dark-text);
+      &:hover {
+        background: var(--btn-secondary-hover);
+        color: var(--darker-text);
       }
-
       &.primary {
         background: var(--btn-primary);
         font: 600 1.6rem/3.8rem Manrope, sans-serif;
@@ -116,6 +115,9 @@ defineProps({
       justify-content: end;
       background: var(--btn-secondary);
       border-radius: 0 0 1rem 1rem;
+      button[type="reset"] {
+        margin-right: auto;
+      }
     }
   }
 }

@@ -3,14 +3,8 @@
   <SettingControl />
 </template>
 
-<script lang="ts">
-import { defineComponent } from "vue"
+<script setup lang="ts">
 import SettingControl from "@/components/SettingControl.vue"
-
-export default defineComponent({
-  name: "SettingsManager",
-  components: { SettingControl },
-})
 </script>
 
 <style scoped lang="scss"></style>

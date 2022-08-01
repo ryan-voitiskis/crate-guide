@@ -8,14 +8,8 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from "vue"
+<script setup lang="ts">
 import RecordDeck from "@/components/RecordDeck.vue"
-
-export default defineComponent({
-  name: "SessionView",
-  components: { RecordDeck },
-})
 </script>
 
 <style scoped lang="scss">

@@ -13,10 +13,4 @@
   </svg>
 </template>
 
-<script lang="ts">
-import { defineComponent } from "vue"
-
-export default defineComponent({
-  name: "CogIcon",
-})
-</script>
+<script setup lang="ts"></script>

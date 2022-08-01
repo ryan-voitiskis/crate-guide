@@ -3,54 +3,61 @@
     <div class="deck-wrapper-inner">
       <div class="deck">
         <StartStopButton @stopStart="stopStart" />
-        <RpmSwitch :speed="33" :isActive="rpm == 33" @activate="switchRPM" />
-        <RpmSwitch :speed="45" :isActive="rpm == 45" @activate="switchRPM" />
+        <RpmSwitch
+          :speed="33"
+          :isActive="state.rpm == 33"
+          @activate="switchRPM"
+        />
+        <RpmSwitch
+          :speed="45"
+          :isActive="state.rpm == 45"
+          @activate="switchRPM"
+        />
         <PitchFader
-          :pitch:number="pitch"
+          :pitch="state.pitch"
           @changePitch="changePitch"
           @resetPitch="resetPitch"
         />
-        <RecordIcon :isPlaying="isPlaying" :pitch="pitch" :rpm="rpm" />
+        <RecordIcon
+          :isPlaying="state.isPlaying"
+          :pitch="state.pitch"
+          :rpm="state.rpm"
+        />
       </div>
     </div>
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, reactive, toRefs } from "vue"
+<script setup lang="ts">
+import { defineProps, reactive, toRefs } from "vue"
 import StartStopButton from "./StartStopButton.vue"
 import RpmSwitch from "./RpmSwitch.vue"
 import PitchFader from "./PitchFader.vue"
 import RecordIcon from "@/components/RecordIcon.vue"
 
-export default defineComponent({
-  components: { StartStopButton, RpmSwitch, PitchFader, RecordIcon },
-  name: "RecordDeck",
-  props: ["deckID"],
-  setup(props) {
-    const state = reactive({
-      isPlaying: false,
-      isLoaded: false,
-      rpm: 33,
-      pitch: 0, // range of -100 (-8% of rpm) to 100 (+8% of rpm)
-    })
+const props = defineProps<{
+  deckID: number
+}>()
 
-    const stopStart = () => {
-      state.isPlaying = !state.isPlaying
-      console.log(
-        `Deck ${props.deckID} ${state.isPlaying ? "playing." : "stopped."}`
-      )
-    }
-
-    const switchRPM = (speed: number) => (state.rpm = speed)
-
-    const changePitch = (pitch: number) => (state.pitch = pitch)
-
-    const resetPitch = () => (state.pitch = 0)
-
-    return { ...toRefs(state), switchRPM, changePitch, stopStart, resetPitch }
-  },
+const state = reactive({
+  isPlaying: false,
+  isLoaded: false,
+  rpm: 33,
+  pitch: 0, // range of -100 (-8% of rpm) to 100 (+8% of rpm)
 })
+
+const stopStart = () => {
+  state.isPlaying = !state.isPlaying
+  console.log(
+    `Deck ${props.deckID} ${state.isPlaying ? "playing." : "stopped."}`
+  )
+}
+
+const switchRPM = (speed: number) => (state.rpm = speed)
+
+const changePitch = (pitch: number) => (state.pitch = pitch)
+
+const resetPitch = () => (state.pitch = 0)
 </script>
 
 <style scoped lang="scss">

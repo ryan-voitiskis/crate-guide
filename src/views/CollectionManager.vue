@@ -1,6 +1,6 @@
 <template>
   <h1>Collection</h1>
-  <div v-show="showAddRecord">
+  <div v-if="showAddRecord">
     <FormModal @close="showAddRecord = !showAddRecord" title="Add record">
       <AddRecordForm />
     </FormModal>
@@ -17,7 +17,7 @@ import AddRecordForm from "@/components/AddRecordForm.vue"
 import RecordsList from "@/components/RecordsList.vue"
 import FormModal from "@/components/FormModal.vue"
 
-const showAddRecord = ref(true)
+const showAddRecord = ref(false)
 const toggleAddRecord = () => (showAddRecord.value = !showAddRecord.value)
 </script>
 

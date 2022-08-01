@@ -30,7 +30,7 @@
   --light-bg-trans-icon: rgba(0, 0, 0, .14);; /* fill for dark icon on light background w/ transparency. */
   --abbr-title: rgba(12, 12, 12, 0.74); /* <abbr title=""> text. */
   --label-text: #5a6975;
-  --input-text: #708391;
+  --input-text: #404a52;
 
   /* forms */
   --input-bg: #fff; /* form input background. */
