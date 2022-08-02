@@ -29,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, reactive, toRefs } from "vue"
+import { defineProps, reactive } from "vue"
 import StartStopButton from "./StartStopButton.vue"
 import RpmSwitch from "./RpmSwitch.vue"
 import PitchFader from "./PitchFader.vue"
