@@ -10,8 +10,11 @@
   "author": "Ryan Voitiskis",
   "license": "MIT",
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "dotenv": "^16.0.1",
     "express": "^4.18.1",
+    "express-async-handler": "^1.2.0",
+    "jsonwebtoken": "^8.5.1",
     "mongoose": "^6.5.0"
   },
   "devDependencies": {
