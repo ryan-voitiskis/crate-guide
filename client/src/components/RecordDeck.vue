@@ -33,7 +33,7 @@ import { defineProps, reactive } from "vue"
 import StartStopButton from "./StartStopButton.vue"
 import RpmSwitch from "./RpmSwitch.vue"
 import PitchFader from "./PitchFader.vue"
-import RecordIcon from "@/components/RecordIcon.vue"
+import RecordIcon from "@/components/svg/RecordIcon.vue"
 
 const props = defineProps<{
   deckID: number

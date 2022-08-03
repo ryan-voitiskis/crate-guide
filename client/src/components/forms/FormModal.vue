@@ -18,6 +18,7 @@ import XIcon from "@/components/svg/XIcon.vue"
 
 defineProps({
   title: String,
+  modalWidth: String,
 })
 </script>
 
@@ -32,10 +33,12 @@ defineProps({
   display: flex;
   justify-content: center;
   align-items: center;
+  z-index: 99;
   .modal {
     background: #fff;
     border-radius: 1rem;
-    width: 440px;
+    width: v-bind(modalWidth);
+    z-index: 100;
     form {
       width: 100%;
       margin: 0;
@@ -50,6 +53,7 @@ defineProps({
         color: var(--darker-text);
       }
       &.primary {
+        margin-top: 2rem;
         background: var(--btn-primary);
         font: 600 1.6rem/3.8rem Manrope, sans-serif;
         color: var(--white-text);
@@ -63,7 +67,7 @@ defineProps({
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
-      padding: 1.8rem 4rem;
+      padding: 3rem 4rem;
       h2 {
         font-weight: 500;
         color: var(--darkest-text);
@@ -78,35 +82,53 @@ defineProps({
         }
       }
     }
-    .form-fields {
+    .form-body {
       box-sizing: border-box;
       padding: 0 4rem;
-      display: grid;
-      gap: 1.4rem 2.8rem;
-      grid-template-columns: [labels] auto [inputs] 1fr;
-      width: 100%;
-      margin-bottom: 2rem;
+      margin-bottom: 4rem;
+      p {
+        text-align: center;
+      }
       label {
-        margin: 0;
-        line-height: 3.8rem;
-        align-self: center;
+        display: inline-block;
         font-weight: 300;
         color: var(--darker-text);
-        grid-column: labels;
-        &.checkbox {
-          grid-column: 1 / 3;
-          text-align: center;
-        }
       }
       input {
-        margin: 0;
-        grid-column: inputs;
-        &[type="checkbox"] {
-          justify-self: start;
+        width: 100%;
+      }
+      // for simple form modals without a separate controls div
+      button.primary {
+        width: 100%;
+      }
+      &.inline-labels {
+        display: grid;
+        gap: 1.4rem 2.8rem;
+        grid-template-columns: [labels] auto [inputs] 1fr;
+        width: 100%;
+        label {
+          margin: 0;
+          line-height: 3.8rem;
+          align-self: center;
+          grid-column: labels;
+          &.checkbox {
+            grid-column: 1 / 3;
+            text-align: center;
+          }
+        }
+        input {
+          margin: 0;
+          grid-column: inputs;
+          &[type="checkbox"] {
+            width: unset;
+            justify-self: start;
+          }
         }
       }
     }
+    // for more complex forms with multiple control buttons
     .form-controls {
+      margin-top: -2rem;
       gap: 2rem;
       padding: 2rem 4rem;
       box-sizing: border-box;
@@ -117,6 +139,9 @@ defineProps({
       border-radius: 0 0 1rem 1rem;
       button[type="reset"] {
         margin-right: auto;
+      }
+      button.primary {
+        margin-top: unset;
       }
     }
   }

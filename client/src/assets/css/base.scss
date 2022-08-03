@@ -278,6 +278,10 @@ select:focus {
   outline: 0;
 }
 
+label {
+  cursor: pointer;
+}
+
 label,
 legend {
   display: block;
@@ -293,6 +297,7 @@ fieldset {
 
 input[type="checkbox"],
 input[type="radio"] {
+  cursor: pointer;
   display: inline;
 }
 
@@ -302,6 +307,7 @@ label > .label-body {
   font-weight: normal;
 }
 
+// todo: remove if unused after form ui complete
 .no-label {
   margin-top: 2.4rem !important;
 }
@@ -345,4 +351,12 @@ from: https://css-tricks.com/video-screencasts/142-hiding-things-with-css/ */
   position: absolute;
   white-space: nowrap;
   width: 1px;
+}
+
+.link-text {
+  color: var(--link-text);
+  cursor: pointer;
+  &:hover {
+    color: var(--link-text-hover);
+  }
 }

@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent="submitAddRecord">
-    <div class="form-fields">
+    <div class="form-body inline-labels">
       <BaseInput
         v-model="record.catno"
         id="catno"
@@ -54,7 +54,7 @@
 
 <script setup lang="ts">
 import { reactive } from "vue"
-import BaseInput from "@/components/BaseInput.vue"
+import BaseInput from "@/components/forms/BaseInput.vue"
 
 const record = reactive({
   catno: "",
