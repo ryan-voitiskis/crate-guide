@@ -11,6 +11,7 @@
     y="0px"
     width="366.047px"
     height="366.046px"
+    fill="#161616"
     viewBox="0 0 366.047 366.046"
     xml:space="preserve"
     class="record-icon"

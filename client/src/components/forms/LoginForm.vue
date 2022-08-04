@@ -35,9 +35,7 @@ import { userStore } from "@/stores/user"
 
 // todo: set up env or global var for this
 const API_URL = "http://localhost:5005/api/users/"
-
 const user = userStore()
-
 const form = reactive({
   email: "",
   password: "",

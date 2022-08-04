@@ -21,16 +21,16 @@
   --black-text: #000;
   --link-text: hsl(216, 76%, 39%);
   --link-text-hover: hsl(216, 70%, 56%);
-  --dark-bg-icon: #aaa;
-  --dark-bg-icon-hover: #fff;
   --light-bg-icon: #454241;
-  --nav-text: #fff; 
-  --post-meta-icon: #aaa;
-  --dark-bg-trans-icon: rgba(255, 255, 255, 0.6);; /* fill for light icon on dark background w/ transparency. */
-  --light-bg-trans-icon: rgba(0, 0, 0, .14);; /* fill for dark icon on light background w/ transparency. */
   --abbr-title: rgba(12, 12, 12, 0.74); /* <abbr title=""> text. */
   --label-text: #5a6975;
   --input-text: #404a52;
+
+  /* navs */
+  --nav-active-bg:#c7884d;
+  --nav-inactive-bg:#eaeaea;
+  --nav-inactive-text:#7a7a7a;
+  --nav-inactive-border:#ababab;
 
   /* forms */
   --input-bg: #fff; /* form input background. */

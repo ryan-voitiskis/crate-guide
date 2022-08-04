@@ -1,27 +1,34 @@
 <template>
   <div class="container">
-    <nav>
-      <span class="welcome" v-if="user.id != 0">Welcome {{ user.name }}</span>
-      <button
-        class="login"
-        type="button"
-        v-if="user.id == 0"
-        @click="openLogin"
-      >
-        Log in
-      </button>
-      <button
-        class="login"
-        type="button"
-        v-if="user.id == 0"
-        @click="openSignUp"
-      >
-        Register an account
-      </button>
-      <router-link class="btn" to="/">Session</router-link>
-      <router-link class="btn" to="/collection">Collection</router-link>
-      <router-link class="btn" to="/settings"><CogIcon /></router-link>
-    </nav>
+    <header>
+      <nav class="radio">
+        <router-link class="btn" to="/">Session</router-link>
+        <router-link class="btn" to="/collection">Collection</router-link>
+      </nav>
+
+      <nav class="account">
+        <span class="welcome" v-if="user.name != ''"
+          >Welcome {{ user.name }}</span
+        >
+        <button
+          class="login"
+          type="button"
+          v-if="user.id == 0"
+          @click="openSignUp"
+        >
+          Create account
+        </button>
+        <button
+          class="login"
+          type="button"
+          v-if="user.id == 0"
+          @click="openLogin"
+        >
+          Log in
+        </button>
+        <button class="btn"><CogIcon /></button>
+      </nav>
+    </header>
     <router-view />
   </div>
 
@@ -93,16 +100,50 @@ const openRecovery = () => {
 </script>
 
 <style lang="scss">
-nav {
+header {
   display: flex;
-  padding: 30px;
-  a {
-    &.router-link-exact-active {
-      color: #bb7e45;
-      svg path {
-        fill: #bb7e45;
+  nav {
+    margin: 2rem 0;
+    &.radio {
+      $border-radius: 1.4rem;
+      a {
+        background: var(--nav-inactive-bg);
+        border: 1px var(--nav-inactive-border) solid;
+        border-radius: none;
+        color: var(--nav-inactive-text);
+        font-weight: 500;
+        z-index: 50;
+        &:first-child {
+          border-radius: $border-radius 0 0 $border-radius;
+          border-right: none;
+          margin-right: calc($border-radius * -0.5);
+          padding: 0 calc($border-radius * 2) 0 $border-radius;
+        }
+        &:last-child {
+          border-left: none;
+          border-radius: 0 $border-radius $border-radius 0;
+          margin-left: calc($border-radius * -0.5);
+          padding: 0 $border-radius 0 calc($border-radius * 2);
+        }
+        &.router-link-exact-active {
+          background: var(--nav-active-bg);
+          border-color: var(--nav-active-bg);
+          border-radius: $border-radius;
+          color: #fff;
+          z-index: 51;
+          svg path {
+            fill: var(--nav-active-bg);
+          }
+          &:first-child,
+          &:last-child {
+            padding: 0 $border-radius;
+          }
+        }
       }
     }
+  }
+  nav.account {
+    margin-left: auto;
   }
 }
 </style>

@@ -18,5 +18,6 @@ import RecordDeck from "@/components/RecordDeck.vue"
   flex-wrap: wrap;
   justify-content: space-around;
   width: 100%;
+  gap: 1rem;
 }
 </style>

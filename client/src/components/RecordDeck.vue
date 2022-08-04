@@ -62,7 +62,6 @@ const resetPitch = () => (state.pitch = 0)
 
 <style scoped lang="scss">
 .deck-wrapper-outer {
-  margin: 1rem;
   flex-grow: 1;
   min-width: 600px;
   max-width: 900px;
