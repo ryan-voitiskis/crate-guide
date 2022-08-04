@@ -1,8 +1,21 @@
 <template>
   <div class="container">
     <nav>
-      <button class="login" type="button" @click="openLogin">Log in</button>
-      <button class="login" type="button" @click="openSignUp">
+      <span class="welcome" v-if="user.id != 0">Welcome {{ user.name }}</span>
+      <button
+        class="login"
+        type="button"
+        v-if="user.id == 0"
+        @click="openLogin"
+      >
+        Log in
+      </button>
+      <button
+        class="login"
+        type="button"
+        v-if="user.id == 0"
+        @click="openSignUp"
+      >
         Register an account
       </button>
       <router-link class="btn" to="/">Session</router-link>
@@ -20,6 +33,7 @@
   >
     <LoginForm @openSignUp="openSignUp" @openRecovery="openRecovery" />
   </FormModal>
+
   <FormModal
     v-if="modalState.signUp"
     @close="modalState.signUp = false"
@@ -28,6 +42,7 @@
   >
     <SignUpForm @openLogin="openLogin" />
   </FormModal>
+
   <FormModal
     v-if="modalState.recovery"
     @close="modalState.recovery = false"
@@ -45,6 +60,9 @@ import FormModal from "./components/forms/FormModal.vue"
 import LoginForm from "./components/forms/LoginForm.vue"
 import SignUpForm from "./components/forms/SignUpForm.vue"
 import RecoveryForm from "./components/forms/RecoveryForm.vue"
+import { userStore } from "@/stores/user"
+
+const user = userStore()
 
 const modalState = reactive({
   login: false,
@@ -76,6 +94,7 @@ const openRecovery = () => {
 
 <style lang="scss">
 nav {
+  display: flex;
   padding: 30px;
   a {
     &.router-link-exact-active {

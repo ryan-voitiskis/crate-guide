@@ -24,21 +24,8 @@ defineProps({
 
 <style lang="scss">
 .modal-backdrop {
-  position: fixed;
-  background: rgba(0, 0, 0, 0.4);
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 99;
   .modal {
-    background: #fff;
-    border-radius: 1rem;
     width: v-bind(modalWidth);
-    z-index: 100;
     form {
       width: 100%;
       margin: 0;

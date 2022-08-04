@@ -16,7 +16,7 @@
 
 <script setup lang="ts">
 import { reactive } from "vue"
-import BaseInput from "@/components/forms/BaseInput.vue"
+import BaseInput from "@/components/forms/BasicInput.vue"
 
 const user = reactive({
   email: "",

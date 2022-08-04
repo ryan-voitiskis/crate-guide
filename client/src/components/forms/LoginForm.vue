@@ -5,7 +5,7 @@
         Don't have an account? <span class="link-text">Sign up</span>
       </p>
       <BaseInput
-        v-model="user.email"
+        v-model="form.email"
         id="email"
         label="Email"
         type="email"
@@ -13,7 +13,7 @@
         :focused="true"
       />
       <PasswordInput
-        v-model="user.password"
+        v-model="form.password"
         id="password"
         label="Password"
         placeholder="Enter your password"
@@ -29,16 +29,39 @@
 
 <script setup lang="ts">
 import { reactive } from "vue"
-import BaseInput from "@/components/forms/BaseInput.vue"
+import BaseInput from "@/components/forms/BasicInput.vue"
 import PasswordInput from "@/components/forms/PasswordInput.vue"
+import { userStore } from "@/stores/user"
 
-const user = reactive({
+// todo: set up env or global var for this
+const API_URL = "http://localhost:5005/api/users/"
+
+const user = userStore()
+
+const form = reactive({
   email: "",
   password: "",
 })
 
 const submitLogin = () => {
-  console.log("login form submitted")
+  const urlencoded = new URLSearchParams()
+  urlencoded.append("email", form.email)
+  urlencoded.append("password", form.password)
+
+  const options = {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: urlencoded,
+  }
+  fetch(API_URL + "login", options)
+    .then((response) => response.json())
+    .then((data) => {
+      user.login(data._id, data.name, data.email, data.token)
+    })
+    .catch((error) => console.log("error", error))
 }
 </script>
 

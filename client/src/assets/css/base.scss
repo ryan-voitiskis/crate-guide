@@ -360,3 +360,22 @@ from: https://css-tricks.com/video-screencasts/142-hiding-things-with-css/ */
     color: var(--link-text-hover);
   }
 }
+
+// not in vue SFC because used in multiple components
+.modal-backdrop {
+  position: fixed;
+  background: rgba(0, 0, 0, 0.4);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 99;
+  .modal {
+    background: #fff;
+    border-radius: 1rem;
+    z-index: 100;
+  }
+}
