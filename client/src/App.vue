@@ -10,21 +10,14 @@
         <span class="welcome" v-if="user.name != ''"
           >Welcome {{ user.name }}</span
         >
-        <button
-          class="login"
-          type="button"
-          v-if="user.id == 0"
-          @click="openSignUp"
-        >
+        <button type="button" v-if="user.id == 0" @click="openSignUp">
           Create account
         </button>
-        <button
-          class="login"
-          type="button"
-          v-if="user.id == 0"
-          @click="openLogin"
-        >
+        <button type="button" v-if="user.id == 0" @click="openLogin">
           Log in
+        </button>
+        <button type="button" v-if="user.id != 0" @click="user.logout">
+          Log out
         </button>
         <button class="btn"><CogIcon /></button>
       </nav>
@@ -38,7 +31,12 @@
     title="Log in"
     modal-width="360px"
   >
-    <LoginForm @openSignUp="openSignUp" @openRecovery="openRecovery" />
+    <!-- closeModals not targeting single modal. see https://github.com/ryan-voitiskis/vinylbox/issues/2  -->
+    <LoginForm
+      @openSignUp="openSignUp"
+      @openRecovery="openRecovery"
+      @closeModal="closeModals"
+    />
   </FormModal>
 
   <FormModal
@@ -47,7 +45,8 @@
     title="Sign up"
     modal-width="360px"
   >
-    <SignUpForm @openLogin="openLogin" />
+    <!-- closeModals not targeting single modal. see https://github.com/ryan-voitiskis/vinylbox/issues/2  -->
+    <SignUpForm @openLogin="openLogin" @closeModal="closeModals" />
   </FormModal>
 
   <FormModal
@@ -129,7 +128,7 @@ header {
           background: var(--nav-active-bg);
           border-color: var(--nav-active-bg);
           border-radius: $border-radius;
-          color: #fff;
+          color: var(--white-text);
           z-index: 51;
           svg path {
             fill: var(--nav-active-bg);
@@ -144,6 +143,14 @@ header {
   }
   nav.account {
     margin-left: auto;
+    button:hover {
+      color: var(--nav-active-bg);
+    }
+    .welcome {
+      color: var(--welcome-text);
+      font: italic 500 1.6rem/3.8rem Manrope, sans-serif;
+      padding: 0 2.4rem;
+    }
   }
 }
 </style>

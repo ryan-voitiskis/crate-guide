@@ -5,7 +5,7 @@
         Already have an account? <span class="link-text">Log in</span>
       </p>
       <BaseInput
-        v-model="user.name"
+        v-model="form.name"
         id="name"
         label="Name"
         type="text"
@@ -13,14 +13,14 @@
         :focused="true"
       />
       <BaseInput
-        v-model="user.email"
+        v-model="form.email"
         id="email"
         label="Email"
         type="email"
         placeholder="name@example.com"
       />
       <PasswordInput
-        v-model="user.password"
+        v-model="form.password"
         id="password"
         label="Password"
         placeholder="Enter a password"
@@ -31,18 +31,48 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from "vue"
+import { reactive, defineEmits } from "vue"
 import BaseInput from "@/components/forms/BasicInput.vue"
 import PasswordInput from "@/components/forms/PasswordInput.vue"
+import { userStore } from "@/stores/user"
 
-const user = reactive({
+// TODO: set up env or global var for this
+const API_URL = "http://localhost:5005/api/users/"
+
+const emit = defineEmits<{
+  (e: "openLogin"): void
+  (e: "closeModal"): void
+}>()
+
+const user = userStore()
+
+const form = reactive({
   name: "",
   email: "",
   password: "",
 })
 
 const submitSignUp = () => {
-  console.log("sign up form submitted")
+  const urlencoded = new URLSearchParams()
+  urlencoded.append("name", form.name)
+  urlencoded.append("email", form.email)
+  urlencoded.append("password", form.password)
+
+  const options = {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: urlencoded,
+  }
+  fetch(API_URL, options)
+    .then((response) => response.json())
+    .then((data) => {
+      user.login(data._id, data.name, data.email, data.token)
+      emit("closeModal")
+    })
+    .catch((error) => console.log("error", error))
 }
 </script>
 

@@ -25,6 +25,11 @@
   --abbr-title: rgba(12, 12, 12, 0.74); /* <abbr title=""> text. */
   --label-text: #5a6975;
   --input-text: #404a52;
+  --welcome-text: #b3a986;
+
+  /* error */
+  --error-text: #d05d5f;
+  --error-bg: #feeceb;
 
   /* navs */
   --nav-active-bg:#c7884d;

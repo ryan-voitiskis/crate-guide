@@ -9,5 +9,11 @@ export const userStore = defineStore("user", {
       this.email = email
       this.token = token
     },
+    logout() {
+      this.id = 0
+      this.name = ""
+      this.email = ""
+      this.token = ""
+    },
   },
 })
