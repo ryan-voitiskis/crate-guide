@@ -26,6 +26,7 @@ defineProps({
 .modal-backdrop {
   .modal {
     width: v-bind(modalWidth);
+    margin: 1rem;
     form {
       width: 100%;
       margin: 0;
@@ -81,7 +82,7 @@ defineProps({
         font-weight: 300;
         color: var(--darker-text);
       }
-      input {
+      input[type="text"] {
         width: 100%;
       }
       // for simple form modals without a separate controls div

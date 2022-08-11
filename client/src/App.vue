@@ -19,7 +19,9 @@
         <button type="button" v-if="user.id != 0" @click="user.logout">
           Log out
         </button>
-        <button class="btn"><CogIcon /></button>
+        <button type="button" @click="openSettings">
+          <CogIcon />
+        </button>
       </nav>
     </header>
     <router-view />
@@ -57,6 +59,15 @@
   >
     <RecoveryForm @openLogin="openLogin" />
   </FormModal>
+
+  <FormModal
+    v-if="modalState.settings"
+    @close="modalState.settings = false"
+    title="Settings"
+    modal-width="540px"
+  >
+    <SettingsForm />
+  </FormModal>
 </template>
 
 <script setup lang="ts">
@@ -67,6 +78,7 @@ import LoginForm from "./components/forms/LoginForm.vue"
 import SignUpForm from "./components/forms/SignUpForm.vue"
 import RecoveryForm from "./components/forms/RecoveryForm.vue"
 import { userStore } from "@/stores/user"
+import SettingsForm from "./components/forms/SettingsForm.vue"
 
 const user = userStore()
 
@@ -74,6 +86,7 @@ const modalState = reactive({
   login: false,
   signUp: false,
   recovery: false,
+  settings: false,
 })
 
 const closeModals = () => {
@@ -95,6 +108,11 @@ const openLogin = () => {
 const openRecovery = () => {
   closeModals()
   modalState.recovery = true
+}
+
+const openSettings = () => {
+  closeModals()
+  modalState.settings = true
 }
 </script>
 
