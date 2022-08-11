@@ -37,7 +37,7 @@ import PasswordInput from "@/components/forms/PasswordInput.vue"
 import { userStore } from "@/stores/user"
 
 // TODO: set up env or global var for this
-const API_URL = "http://localhost:5005/api/users/"
+const API_URL = "http://localhost:5000/api/users/"
 
 const emit = defineEmits<{
   (e: "openLogin"): void

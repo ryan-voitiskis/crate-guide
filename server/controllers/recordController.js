@@ -56,7 +56,7 @@ const updateRecord = asyncHandler(async (req, res) => {
     req.params.id,
     req.body,
     {
-      new: true,
+      new: true, // TODO: remove this if unnecessary
     }
   )
 

@@ -16,9 +16,18 @@ const userSchema = mongoose.Schema(
       required: [true, "Please add a password"],
     },
     settings: {
-      theme: String,
-      turntableTheme: String,
-      turntablePitchRange: String,
+      theme: {
+        type: String,
+        default: "light",
+      },
+      turntableTheme: {
+        type: String,
+        default: "silver",
+      },
+      turntablePitchRange: {
+        type: String,
+        default: "8",
+      },
     },
   },
   {

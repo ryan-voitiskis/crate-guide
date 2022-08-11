@@ -43,7 +43,7 @@ import { userStore } from "@/stores/user"
 import ExclamationIcon from "../svg/ExclamationIcon.vue"
 
 // TODO: set up env or global var for this
-const API_URL = "http://localhost:5005/api/users/"
+const API_URL = "http://localhost:5000/api/users/"
 
 const emit = defineEmits<{
   (e: "openSignUp"): void
@@ -82,7 +82,15 @@ const submitLogin = () => {
     .then((response) => response.json())
     .then((data) => {
       if (data._id !== undefined) {
-        user.login(data._id, data.name, data.email, data.token)
+        user.login(
+          data._id,
+          data.name,
+          data.email,
+          data.token,
+          data.settings.theme,
+          data.settings.turntableTheme,
+          data.settings.turntablePitchRange
+        )
         emit("closeModal")
       } else {
         form.invalidCredsWrapper = true

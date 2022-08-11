@@ -82,7 +82,9 @@ defineProps({
         font-weight: 300;
         color: var(--darker-text);
       }
-      input[type="text"] {
+      input[type="text"],
+      input[type="email"],
+      input[type="password"] {
         width: 100%;
       }
       // for simple form modals without a separate controls div
