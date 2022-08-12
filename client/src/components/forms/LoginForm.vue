@@ -41,6 +41,7 @@ import BaseInput from "@/components/forms/BasicInput.vue"
 import PasswordInput from "@/components/forms/PasswordInput.vue"
 import { userStore } from "@/stores/user"
 import ExclamationIcon from "../svg/ExclamationIcon.vue"
+import User from "../../interfaces/User"
 
 // TODO: set up env or global var for this
 const API_URL = "http://localhost:5000/api/users/"
@@ -82,15 +83,18 @@ const submitLogin = () => {
     .then((response) => response.json())
     .then((data) => {
       if (data._id !== undefined) {
-        user.login(
-          data._id,
-          data.name,
-          data.email,
-          data.token,
-          data.settings.theme,
-          data.settings.turntableTheme,
-          data.settings.turntablePitchRange
-        )
+        const loggingInUser: User = {
+          id: data._id,
+          name: data.name,
+          email: data.email,
+          token: data.token,
+          settings: {
+            theme: data.settings.theme,
+            turntableTheme: data.settings.turntableTheme,
+            turntablePitchRange: data.settings.turntablePitchRange,
+          },
+        }
+        user.login(loggingInUser)
         emit("closeModal")
       } else {
         form.invalidCredsWrapper = true

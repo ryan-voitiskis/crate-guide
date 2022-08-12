@@ -10,13 +10,13 @@
         <span class="welcome" v-if="user.name != ''"
           >Welcome {{ user.name }}</span
         >
-        <button type="button" v-if="user.id == 0" @click="openSignUp">
+        <button type="button" v-if="user.id == ''" @click="openSignUp">
           Create account
         </button>
-        <button type="button" v-if="user.id == 0" @click="openLogin">
+        <button type="button" v-if="user.id == ''" @click="openLogin">
           Log in
         </button>
-        <button type="button" v-if="user.id != 0" @click="user.logout">
+        <button type="button" v-if="user.id != ''" @click="user.$reset()">
           Log out
         </button>
         <button type="button" @click="openSettings">

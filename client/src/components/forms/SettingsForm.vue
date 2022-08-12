@@ -1,7 +1,7 @@
 <template>
   <form>
     <div class="form-body">
-      <p v-if="user.id == 0">
+      <p v-if="user.id == ''">
         <b>You are not logged in.</b><br />Settings changed here are for this
         session only.
       </p>
