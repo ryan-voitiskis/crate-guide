@@ -10,16 +10,16 @@
         <span class="welcome" v-if="user.name != ''"
           >Welcome {{ user.name }}</span
         >
-        <button type="button" v-if="user.id == ''" @click="openSignUp">
+        <button type="button" v-if="user.id == ''" @click="state.signUp = true">
           Create account
         </button>
-        <button type="button" v-if="user.id == ''" @click="openLogin">
+        <button type="button" v-if="user.id == ''" @click="state.login = true">
           Log in
         </button>
         <button type="button" v-if="user.id != ''" @click="user.$reset()">
           Log out
         </button>
-        <button type="button" @click="openSettings">
+        <button type="button" @click="state.settings = true">
           <CogIcon />
         </button>
       </nav>
@@ -28,41 +28,42 @@
   </div>
 
   <FormModal
-    v-if="modalState.login"
-    @close="modalState.login = false"
+    v-if="state.login"
+    @close="state.login = false"
     title="Log in"
     modal-width="360px"
   >
-    <!-- closeModals not targeting single modal. see https://github.com/ryan-voitiskis/vinylbox/issues/2  -->
     <LoginForm
-      @openSignUp="openSignUp"
-      @openRecovery="openRecovery"
-      @closeModal="closeModals"
+      @openSignUp=";(state.login = false), (state.signUp = true)"
+      @openRecovery=";(state.login = false), (state.recovery = true)"
+      @close="state.login = false"
     />
   </FormModal>
 
   <FormModal
-    v-if="modalState.signUp"
-    @close="modalState.signUp = false"
+    v-if="state.signUp"
+    @close="state.signUp = false"
     title="Sign up"
     modal-width="360px"
   >
-    <!-- closeModals not targeting single modal. see https://github.com/ryan-voitiskis/vinylbox/issues/2  -->
-    <SignUpForm @openLogin="openLogin" @closeModal="closeModals" />
+    <SignUpForm
+      @openLogin=";(state.login = true), (state.signUp = false)"
+      @close="state.signUp = false"
+    />
   </FormModal>
 
   <FormModal
-    v-if="modalState.recovery"
-    @close="modalState.recovery = false"
+    v-if="state.recovery"
+    @close="state.recovery = false"
     title="Forgot password?"
     modal-width="360px"
   >
-    <RecoveryForm @openLogin="openLogin" />
+    <RecoveryForm />
   </FormModal>
 
   <FormModal
-    v-if="modalState.settings"
-    @close="modalState.settings = false"
+    v-if="state.settings"
+    @close="state.settings = false"
     title="Settings"
     modal-width="540px"
   >
@@ -82,38 +83,12 @@ import SettingsForm from "./components/forms/SettingsForm.vue"
 
 const user = userStore()
 
-const modalState = reactive({
+const state = reactive({
   login: false,
   signUp: false,
   recovery: false,
   settings: false,
 })
-
-const closeModals = () => {
-  modalState.login = false
-  modalState.signUp = false
-  modalState.recovery = false
-}
-
-const openSignUp = () => {
-  closeModals()
-  modalState.signUp = true
-}
-
-const openLogin = () => {
-  closeModals()
-  modalState.login = true
-}
-
-const openRecovery = () => {
-  closeModals()
-  modalState.recovery = true
-}
-
-const openSettings = () => {
-  closeModals()
-  modalState.settings = true
-}
 </script>
 
 <style lang="scss">

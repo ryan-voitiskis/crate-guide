@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits } from "vue"
+import { reactive, defineEmits, onBeforeMount } from "vue"
 import BaseInput from "./BasicInput.vue"
 import PasswordInput from "./PasswordInput.vue"
 import { userStore } from "@/stores/user"
@@ -42,7 +42,7 @@ const API_URL = "http://localhost:5000/api/users/"
 
 const emit = defineEmits<{
   (e: "openLogin"): void
-  (e: "closeModal"): void
+  (e: "close"): void
 }>()
 
 const user = userStore()
@@ -82,7 +82,7 @@ const submitSignUp = () => {
         },
       }
       user.login(registeringUser)
-      emit("closeModal")
+      emit("close")
     })
     .catch((error) => console.log("error", error))
 }

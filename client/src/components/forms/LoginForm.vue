@@ -47,7 +47,7 @@ const API_URL = "http://localhost:5000/api/users/"
 const emit = defineEmits<{
   (e: "openSignUp"): void
   (e: "openRecovery"): void
-  (e: "closeModal"): void
+  (e: "close"): void
 }>()
 
 const user = userStore()
@@ -98,7 +98,7 @@ const submitLogin = () => {
           },
         }
         user.login(loggingInUser)
-        emit("closeModal")
+        emit("close")
       } else {
         state.invalidCreds = true
         state.loggingIn = false
