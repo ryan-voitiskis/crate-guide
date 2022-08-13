@@ -62,6 +62,8 @@
 
 <script setup lang="ts">
 import { defineProps, computed } from "vue"
+import { userStore } from "@/stores/user"
+const user = userStore()
 
 const props = defineProps<{
   isPlaying: boolean
@@ -74,7 +76,12 @@ const spinStatus = computed(() => (props.isPlaying ? "running" : "paused"))
 // spinRate is duration of rotaion in seconds: req'd for rotate animation eg. 1.82s for 33rpm with 0% pitch adjustment
 const spinRate = computed(
   () =>
-    (((props.pitch * -0.0008 + 1) * 60) / props.rpm).toFixed(2).toString() + "s"
+    (
+      ((props.pitch * -0.0001 * +user.settings.turntablePitchRange + 1) * 60) /
+      props.rpm
+    )
+      .toFixed(2)
+      .toString() + "s"
 )
 </script>
 

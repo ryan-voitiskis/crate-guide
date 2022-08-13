@@ -27,6 +27,8 @@
 
 <script setup lang="ts">
 import { ref, computed, defineProps, defineEmits } from "vue"
+import { userStore } from "@/stores/user"
+const user = userStore()
 
 const props = defineProps<{
   pitch: number
@@ -52,7 +54,10 @@ const emitPitchReset = () => {
 }
 
 const pitchReadable = computed(
-  () => (props.pitch >= 0 ? "+" : "") + (props.pitch * 0.08).toFixed(1) + "%"
+  () =>
+    (props.pitch >= 0 ? "+" : "") +
+    (props.pitch * 0.01 * +user.settings.turntablePitchRange).toFixed(1) +
+    "%"
 )
 </script>
 

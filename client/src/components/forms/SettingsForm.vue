@@ -77,8 +77,6 @@ const state = reactive({
 })
 
 const updateUserSettings = () => {
-  console.log("ran")
-
   state.failed = false
   state.saved = false
   state.saving = true
@@ -89,7 +87,6 @@ const updateUserSettings = () => {
     "settings.turntablePitchRange",
     user.settings.turntablePitchRange
   )
-
   const options = {
     method: "PUT",
     headers: {
@@ -99,7 +96,6 @@ const updateUserSettings = () => {
     },
     body: urlencoded,
   }
-  // comment this out to test animation
   fetch(API_URL + user.id, options)
     .then((response) => response.json())
     .then((data) => {
@@ -111,21 +107,6 @@ const updateUserSettings = () => {
     })
     .catch((error) => console.log("error", error))
   state.saving = false
-
-  // // this version of the fetch call for testing animation
-  // setTimeout(() => {
-  //   fetch(API_URL + user.id, options)
-  //     .then((response) => response.json())
-  //     .then((data) => {
-  //       if (data._id !== undefined) {
-  //         state.saved = true
-  //       } else {
-  //         state.failed = true
-  //       }
-  //     })
-  //     .catch((error) => console.log("error", error))
-  //   state.saving = false
-  // }, 2000)
 }
 </script>
 
