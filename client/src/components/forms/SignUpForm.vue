@@ -32,9 +32,10 @@
 
 <script setup lang="ts">
 import { reactive, defineEmits } from "vue"
-import BaseInput from "@/components/forms/BasicInput.vue"
-import PasswordInput from "@/components/forms/PasswordInput.vue"
+import BaseInput from "./BasicInput.vue"
+import PasswordInput from "./PasswordInput.vue"
 import { userStore } from "@/stores/user"
+import User from "@/interfaces/User"
 
 // TODO: set up env or global var for this
 const API_URL = "http://localhost:5000/api/users/"
@@ -69,7 +70,18 @@ const submitSignUp = () => {
   fetch(API_URL, options)
     .then((response) => response.json())
     .then((data) => {
-      user.login(data._id, data.name, data.email, data.token)
+      const registeringUser: User = {
+        id: data._id,
+        name: data.name,
+        email: data.email,
+        token: data.token,
+        settings: {
+          theme: data.settings.theme,
+          turntableTheme: data.settings.turntableTheme,
+          turntablePitchRange: data.settings.turntablePitchRange,
+        },
+      }
+      user.login(registeringUser)
       emit("closeModal")
     })
     .catch((error) => console.log("error", error))

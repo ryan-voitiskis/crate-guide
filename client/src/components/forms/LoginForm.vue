@@ -19,29 +19,27 @@
         label="Password"
         placeholder="Enter your password"
       >
-        <span @click="$emit('openRecovery')" class="link-text forgot-password">
+        <span @click="$emit('openRecovery')" class="forgot-password">
           Forgot password?
         </span>
       </PasswordInput>
-      <div class="invalid-creds-wrapper" v-show="form.invalidCredsWrapper">
-        <transition name="wobble">
-          <span class="invalid-creds" v-if="form.invalidCreds">
-            <ExclamationIcon /> Invalid credentials
-          </span>
-        </transition>
-      </div>
-      <button class="primary" type="submit">Log in</button>
+      <LoginFeedback :invalidCreds="state.invalidCreds" />
+      <button class="primary login" type="submit">
+        {{ state.loggingIn ? null : "Log in" }}
+        <LoaderIcon v-show="state.loggingIn" />
+      </button>
     </div>
   </form>
 </template>
 
 <script setup lang="ts">
 import { reactive, defineEmits } from "vue"
-import BaseInput from "@/components/forms/BasicInput.vue"
-import PasswordInput from "@/components/forms/PasswordInput.vue"
+import BaseInput from "./BasicInput.vue"
+import LoginFeedback from "./LoginFeedback.vue"
+import PasswordInput from "./PasswordInput.vue"
 import { userStore } from "@/stores/user"
-import ExclamationIcon from "../svg/ExclamationIcon.vue"
-import User from "../../interfaces/User"
+import User from "@/interfaces/User"
+import LoaderIcon from "../svg/LoaderIcon.vue"
 
 // TODO: set up env or global var for this
 const API_URL = "http://localhost:5000/api/users/"
@@ -57,8 +55,11 @@ const user = userStore()
 const form = reactive({
   email: "",
   password: "",
+})
+
+const state = reactive({
+  loggingIn: false,
   invalidCreds: false,
-  invalidCredsWrapper: false,
 })
 
 const submitLogin = () => {
@@ -77,8 +78,10 @@ const submitLogin = () => {
   /*
     invalidCreds set false so enter-active transition occurs on consecutive login fail
     invalidCredsWrapper exists to stop resize of LoginForm when invalidCreds toggles off and on
+    see LoginFeedback.vue
    */
-  form.invalidCreds = false
+  state.invalidCreds = false
+  state.loggingIn = true
   fetch(API_URL + "login", options)
     .then((response) => response.json())
     .then((data) => {
@@ -97,8 +100,8 @@ const submitLogin = () => {
         user.login(loggingInUser)
         emit("closeModal")
       } else {
-        form.invalidCredsWrapper = true
-        form.invalidCreds = true
+        state.invalidCreds = true
+        state.loggingIn = false
       }
     })
     .catch((error) => console.log("error", error))
@@ -108,28 +111,14 @@ const submitLogin = () => {
 <style scoped lang="scss">
 .forgot-password {
   float: right;
-  font-size: 1.3rem;
+  cursor: pointer;
+  font-size: 1.4rem;
+  color: var(--light-text);
   margin-top: 0.2rem;
 }
-
-.invalid-creds-wrapper {
-  height: 3.8rem;
-  .invalid-creds {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--error-text);
-    font: 600 1.6rem/3.8rem Manrope, sans-serif;
-    background: var(--error-bg);
-    border-radius: 1rem;
-    svg {
-      height: 2rem;
-      margin-right: 1rem;
-    }
+.login {
+  svg {
+    fill: #fff;
   }
-}
-
-.wobble-enter-active {
-  animation: wobble 1s ease;
 }
 </style>

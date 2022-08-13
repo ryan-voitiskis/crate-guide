@@ -27,8 +27,10 @@
   --input-text: #404a52;
   --welcome-text: #b3a986;
 
-  /* error */
-  --error-text: #d05d5f;
+  /* feedback */
+  --success: #00c06d;
+  --saving: #b7894a;
+  --error: #d05d5f;
   --error-bg: #feeceb;
 
   /* navs */

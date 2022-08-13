@@ -15,12 +15,12 @@
 <script setup lang="ts">
 import { defineProps } from "vue"
 
-const props = defineProps({
-  label: String,
-  name: String,
-  id: String,
-  modelValue: String,
-})
+const props = defineProps<{
+  label: string
+  name: string
+  id: string
+  modelValue: string
+}>()
 </script>
 
 <style scoped lang="scss">

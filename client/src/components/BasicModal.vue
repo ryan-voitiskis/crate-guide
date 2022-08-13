@@ -10,9 +10,9 @@
 <script setup lang="ts">
 import { defineProps } from "vue"
 
-defineProps({
-  modalWidth: String,
-})
+const props = defineProps<{
+  modalWidth: string
+}>()
 </script>
 
 <style scoped lang="scss">

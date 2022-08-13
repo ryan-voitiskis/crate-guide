@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import RecordSingle from "@/components/RecordSingle.vue"
+import RecordSingle from "./RecordSingle.vue"
 </script>
 
 <style scoped lang="scss"></style>

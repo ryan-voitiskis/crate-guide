@@ -65,6 +65,7 @@ label.reset-fader {
   display: flex;
   flex-direction: column;
   cursor: pointer;
+  z-index: 3;
   button {
     height: unset;
     width: 100%;

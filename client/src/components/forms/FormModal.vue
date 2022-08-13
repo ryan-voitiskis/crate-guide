@@ -16,10 +16,10 @@
 import { defineProps } from "vue"
 import XIcon from "@/components/svg/XIcon.vue"
 
-defineProps({
-  title: String,
-  modalWidth: String,
-})
+const props = defineProps<{
+  title: string
+  modalWidth: string
+}>()
 </script>
 
 <style lang="scss">
