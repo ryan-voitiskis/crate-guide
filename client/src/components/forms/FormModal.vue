@@ -90,6 +90,9 @@ const props = defineProps<{
       // for simple form modals without a separate controls div
       button.primary {
         width: 100%;
+        svg {
+          fill: #fff;
+        }
       }
       &.inline-labels {
         display: grid;

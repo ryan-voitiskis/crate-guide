@@ -55,11 +55,15 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, inject } from "vue"
+import { reactive, inject, defineEmits } from "vue"
 import BaseInput from "./BasicInput.vue"
 import { userStore } from "@/stores/user"
 const API_URL = inject("API_URL")
 const user = userStore()
+
+const emit = defineEmits<{
+  (e: "close"): void
+}>()
 
 const form = reactive({
   catno: "",
@@ -70,7 +74,7 @@ const form = reactive({
   mixable: true,
 })
 
-const submitAddRecord = () => {
+const submitAddRecordold = () => {
   const mixable = form.mixable ? "1" : "0" // string only in x-www-form-urlencode
   const body = new URLSearchParams()
   body.append("catno", form.catno)
@@ -95,6 +99,40 @@ const submitAddRecord = () => {
       console.log(data)
     })
     .catch((error) => console.log("error", error))
+}
+
+const submitAddRecord = async () => {
+  const mixable = form.mixable ? "1" : "0" // string only in x-www-form-urlencode
+  const body = new URLSearchParams()
+  body.append("catno", form.catno)
+  body.append("artist", form.artist)
+  body.append("title", form.title)
+  body.append("label", form.label)
+  body.append("year", form.year)
+  body.append("mixable", mixable)
+
+  const options = {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${user.token}`,
+    },
+    body: body,
+  }
+
+  try {
+    const response = await fetch(API_URL + "records", options)
+    if (response.status === 200) {
+      const data = await response.json()
+      emit("close")
+    } else if (response.status === 400) {
+      const data = await response.json()
+      console.error(data.message)
+    }
+  } catch (error) {
+    console.error(error)
+  }
 }
 </script>
 

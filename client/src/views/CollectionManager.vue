@@ -9,7 +9,7 @@
     title="Add record"
     modal-width="440px"
   >
-    <AddRecordForm />
+    <AddRecordForm @close="showAddRecord = false" />
   </FormModal>
 </template>
 

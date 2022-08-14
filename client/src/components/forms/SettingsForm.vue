@@ -74,17 +74,16 @@ const state = reactive({
   failed: false,
 })
 
-const updateUserSettings = () => {
+const updateUserSettings = async () => {
   state.failed = false
   state.saved = false
   state.saving = true
-  const urlencoded = new URLSearchParams()
-  urlencoded.append("settings.theme", user.settings.theme)
-  urlencoded.append("settings.turntableTheme", user.settings.turntableTheme)
-  urlencoded.append(
-    "settings.turntablePitchRange",
-    user.settings.turntablePitchRange
-  )
+
+  const body = new URLSearchParams()
+  body.append("settings.theme", user.settings.theme)
+  body.append("settings.turntableTheme", user.settings.turntableTheme)
+  body.append("settings.turntablePitchRange", user.settings.turntablePitchRange)
+
   const options = {
     method: "PUT",
     headers: {
@@ -92,18 +91,23 @@ const updateUserSettings = () => {
       "Content-Type": "application/x-www-form-urlencoded",
       Authorization: `Bearer ${user.token}`,
     },
-    body: urlencoded,
+    body: body,
   }
-  fetch(API_URL + "users/" + user.id, options)
-    .then((response) => response.json())
-    .then((data) => {
-      if (data._id !== undefined) {
-        state.saved = true
-      } else {
-        state.failed = true
-      }
-    })
-    .catch((error) => console.log("error", error))
+
+  try {
+    const response = await fetch(API_URL + "users/" + user.id, options)
+    if (response.status === 200) {
+      state.saved = true
+
+      // handle 400 and 401 status codes. see userController.js
+    } else {
+      const data = await response.json()
+      console.error(data.message)
+      state.failed = true
+    }
+  } catch (error) {
+    console.error(error)
+  }
   state.saving = false
 }
 </script>

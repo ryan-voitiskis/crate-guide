@@ -227,6 +227,22 @@ select:focus {
   outline: 0;
 }
 
+input[type="email"]:not(:focus):invalid,
+input[type="number"]:not(:focus):invalid,
+input[type="search"]:not(:focus):invalid,
+input[type="text"]:not(:focus):invalid,
+input[type="tel"]:not(:focus):invalid,
+input[type="url"]:not(:focus):invalid,
+input[type="password"]:not(:focus):invalid,
+textarea:not(:focus):invalid,
+select:not(:focus):invalid,
+input.invalid,
+textarea.invalid,
+select.invalid {
+  border: 1px solid var(--error);
+  outline: 0;
+}
+
 label {
   cursor: pointer;
 }

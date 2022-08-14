@@ -24,9 +24,9 @@
         </span>
       </PasswordInput>
       <LoginFeedback :invalidCreds="state.invalidCreds" />
-      <button class="primary login" type="submit">
-        {{ state.loggingIn ? null : "Log in" }}
-        <LoaderIcon v-show="state.loggingIn" />
+      <button class="primary" type="submit">
+        {{ state.waiting ? null : "Log in" }}
+        <LoaderIcon v-show="state.waiting" />
       </button>
     </div>
   </form>
@@ -55,14 +55,17 @@ const form = reactive({
 })
 
 const state = reactive({
-  loggingIn: false,
+  waiting: false,
   invalidCreds: false,
 })
 
-const submitLogin = () => {
-  const urlencoded = new URLSearchParams()
-  urlencoded.append("email", form.email)
-  urlencoded.append("password", form.password)
+const submitLogin = async () => {
+  state.invalidCreds = false
+  state.waiting = true
+
+  const body = new URLSearchParams()
+  body.append("email", form.email)
+  body.append("password", form.password)
 
   const options = {
     method: "POST",
@@ -70,38 +73,35 @@ const submitLogin = () => {
       Accept: "application/json",
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: urlencoded,
+    body: body,
   }
-  /*
-    invalidCreds set false so enter-active transition occurs on consecutive login fail
-    invalidCredsWrapper exists to stop resize of LoginForm when invalidCreds toggles off and on
-    see LoginFeedback.vue
-   */
-  state.invalidCreds = false
-  state.loggingIn = true
-  fetch(API_URL + "users/login", options)
-    .then((response) => response.json())
-    .then((data) => {
-      if (data._id !== undefined) {
-        const loggingInUser: User = {
-          id: data._id,
-          name: data.name,
-          email: data.email,
-          token: data.token,
-          settings: {
-            theme: data.settings.theme,
-            turntableTheme: data.settings.turntableTheme,
-            turntablePitchRange: data.settings.turntablePitchRange,
-          },
-        }
-        user.login(loggingInUser)
-        emit("close")
-      } else {
-        state.invalidCreds = true
-        state.loggingIn = false
+
+  try {
+    const response = await fetch(API_URL + "users/login", options)
+    if (response.status === 200) {
+      const data = await response.json()
+      const loggingInUser: User = {
+        id: data._id,
+        name: data.name,
+        email: data.email,
+        token: data.token,
+        settings: {
+          theme: data.settings.theme,
+          turntableTheme: data.settings.turntableTheme,
+          turntablePitchRange: data.settings.turntablePitchRange,
+        },
       }
-    })
-    .catch((error) => console.log("error", error))
+      user.login(loggingInUser)
+      emit("close")
+
+      // handle invalid credentials
+    } else if (response.status === 400) {
+      state.invalidCreds = true
+      state.waiting = false
+    }
+  } catch (error) {
+    console.error(error)
+  }
 }
 </script>
 
@@ -112,10 +112,5 @@ const submitLogin = () => {
   font-size: 1.4rem;
   color: var(--light-text);
   margin-top: 0.2rem;
-}
-.login {
-  svg {
-    fill: #fff;
-  }
 }
 </style>

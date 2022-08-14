@@ -40,31 +40,19 @@
   --nav-inactive-border:#ababab;
 
   /* forms */
-  --input-bg: #fff; /* form input background. */
-  --input-border: #c0c5c8; /* form input border. */
-  --input-border-focus: #50a5e5; /* form input focused border. */
-  --search-border: #8d9ca7; /* search form border. */
-  --search-border-active: #708391; /* search border when focused + search submit button border when hovered. */
-  --search-submit-icon: #708391; /* search submit button icon. */
-  --search-submit-icon-hover: #5c6c77; /* search submit button hover. */
-  --search-submit-bg: #ddd; /* search submit button background. */
-  --search-submit-bg-hover: #ccc; /* search submit button hover background. */
+  --input-bg: #fff;
+  --input-border: #c0c5c8;
+  --input-border-focus: #50a5e5;
 
   /* buttons */
-  --btn-primary: #4793cd; /* primary button background. */
-  --btn-primary-hover: #50a5e5; /* primary button background. */
-  --btn-secondary: #f5f4f7; /* default button border. */
-  --btn-secondary-hover: #e7e7e7; /* default button border. */
-  --btn-edit: hsl(35, 84%, 62%); /* edit button. */
-  --btn-delete: hsl(359, 56%, 62%); /* delete button. */
+  --btn-primary: #4793cd;
+  --btn-primary-hover: #50a5e5;
+  --btn-secondary: #f5f4f7;
+  --btn-secondary-hover: #e7e7e7;
+  --btn-edit: hsl(35, 84%, 62%);
+  --btn-delete: hsl(359, 56%, 62%);
 
   /* decks */
   --deck-black: #333;
   --deck-silver: #ccc;
-
-  /* todo: delete this if not used after implementing notifications */
-  /* display msg / toast notifications / iziToast */
-  --msg-notify: #abdef5;
-  --msg-save: #f5e7ab;
-  --msg-error: #f5abb9;
-}
+ }
