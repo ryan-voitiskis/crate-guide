@@ -4,12 +4,28 @@ const recordSchema = mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
+      required: [true, "Record model: No user provided."],
       ref: "User",
     },
-    text: {
+    catno: {
       type: String,
-      required: [true, "Please add a text value"],
+    },
+    artist: {
+      type: String,
+      required: [true, "Record model: No artist provided."],
+    },
+    title: {
+      type: String,
+      required: [true, "Record model: No title provided."],
+    },
+    label: {
+      type: String,
+    },
+    year: {
+      type: Number,
+    },
+    mixable: {
+      type: Boolean,
     },
   },
   {

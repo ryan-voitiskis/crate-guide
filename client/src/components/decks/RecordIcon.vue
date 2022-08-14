@@ -1,9 +1,5 @@
 <template>
   <svg
-    :style="{
-      animation: `rotation { spinRate } infinite linear`,
-      animationPlayState: spinStatus,
-    }"
     version="1.1"
     xmlns="http://www.w3.org/2000/svg"
     xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -71,7 +67,7 @@ const props = defineProps<{
   rpm: number
 }>()
 
-const spinStatus = computed(() => (props.isPlaying ? "running" : "paused"))
+const spinState = computed(() => (props.isPlaying ? "running" : "paused"))
 
 // spinRate is duration of rotaion in seconds: req'd for rotate animation eg. 1.82s for 33rpm with 0% pitch adjustment
 const spinRate = computed(
@@ -92,15 +88,7 @@ const spinRate = computed(
   left: 6%;
   position: absolute;
   z-index: 1;
-  animation: rotation v-bind(spinRate) infinite linear;
-}
-
-@keyframes rotation {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  animation: spin v-bind(spinRate) infinite linear;
+  animation-play-state: v-bind(spinState);
 }
 </style>

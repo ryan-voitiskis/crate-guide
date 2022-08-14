@@ -33,24 +33,21 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits } from "vue"
+import { reactive, defineEmits, inject } from "vue"
 import BaseInput from "./BasicInput.vue"
 import LoginFeedback from "./LoginFeedback.vue"
 import PasswordInput from "./PasswordInput.vue"
 import { userStore } from "@/stores/user"
 import User from "@/interfaces/User"
 import LoaderIcon from "../svg/LoaderIcon.vue"
-
-// TODO: set up env or global var for this
-const API_URL = "http://localhost:5000/api/users/"
+const API_URL = inject("API_URL")
+const user = userStore()
 
 const emit = defineEmits<{
   (e: "openSignUp"): void
   (e: "openRecovery"): void
   (e: "close"): void
 }>()
-
-const user = userStore()
 
 const form = reactive({
   email: "",
@@ -82,7 +79,7 @@ const submitLogin = () => {
    */
   state.invalidCreds = false
   state.loggingIn = true
-  fetch(API_URL + "login", options)
+  fetch(API_URL + "users/login", options)
     .then((response) => response.json())
     .then((data) => {
       if (data._id !== undefined) {

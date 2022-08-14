@@ -16,14 +16,34 @@ const getRecords = asyncHandler(async (req, res) => {
 // @route   POST /api/records
 // @access  Private
 const setRecord = asyncHandler(async (req, res) => {
-  if (!req.body.text) {
+  if (!req.user.id) {
     res.status(400)
-    throw new Error("Please add a text field")
+    throw new Error("Record controller: user not provided.")
   }
 
+  if (!req.body.artist) {
+    res.status(400)
+    throw new Error("Record controller: artist not provided.")
+  }
+
+  if (!req.body.title) {
+    res.status(400)
+    throw new Error("Record controller: title not provided.")
+  }
+
+  // TODO: validate
+  const year = req.body.year ? parseInt(req.body.year) : null
+
+  const mixable = req.body.mixable == "1" ? true : false
+
   const record = await Record.create({
-    text: req.body.text,
     user: req.user.id,
+    catno: req.body.catno,
+    artist: req.body.artist,
+    title: req.body.title,
+    label: req.body.label,
+    year: year,
+    mixable: mixable,
   })
 
   res.status(200).json(record)

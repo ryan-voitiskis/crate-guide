@@ -2,7 +2,7 @@
   <form @submit.prevent="submitAddRecord">
     <div class="form-body inline-labels">
       <BaseInput
-        v-model="record.catno"
+        v-model="form.catno"
         id="catno"
         label="Catalog #"
         type="text"
@@ -11,35 +11,37 @@
         :focused="true"
       />
       <BaseInput
-        v-model="record.artist"
+        v-model="form.artist"
         id="artist"
         label="Artist"
         type="text"
         placeholder="Artist"
+        required
       />
       <BaseInput
-        v-model="record.title"
+        v-model="form.title"
         id="title"
         label="Title"
         type="text"
         placeholder="Title"
+        required
       />
       <BaseInput
-        v-model="record.label"
+        v-model="form.label"
         id="label"
         label="Label"
         type="text"
         placeholder="Label"
       />
       <BaseInput
-        v-model="record.year"
+        v-model="form.year"
         id="year"
         label="Year"
-        type="text"
+        type="number"
         placeholder="Year"
       />
       <label class="checkbox">
-        <input type="checkbox" v-model="record.mixable" /> Mixable
+        <input type="checkbox" v-model="form.mixable" /> Mixable
       </label>
     </div>
     <div class="form-controls">
@@ -53,10 +55,13 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from "vue"
+import { reactive, inject } from "vue"
 import BaseInput from "./BasicInput.vue"
+import { userStore } from "@/stores/user"
+const API_URL = inject("API_URL")
+const user = userStore()
 
-const record = reactive({
+const form = reactive({
   catno: "",
   artist: "",
   title: "",
@@ -66,7 +71,30 @@ const record = reactive({
 })
 
 const submitAddRecord = () => {
-  console.log("add record form submitted")
+  const mixable = form.mixable ? "1" : "0" // string only in x-www-form-urlencode
+  const body = new URLSearchParams()
+  body.append("catno", form.catno)
+  body.append("artist", form.artist)
+  body.append("title", form.title)
+  body.append("label", form.label)
+  body.append("year", form.year)
+  body.append("mixable", mixable)
+
+  const options = {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${user.token}`,
+    },
+    body: body,
+  }
+  fetch(API_URL + "records", options)
+    .then((response) => response.json())
+    .then((data) => {
+      console.log(data)
+    })
+    .catch((error) => console.log("error", error))
 }
 </script>
 

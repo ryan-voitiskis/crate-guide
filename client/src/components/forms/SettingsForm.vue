@@ -61,14 +61,12 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from "vue"
+import { reactive, inject } from "vue"
 import { userStore } from "@/stores/user"
 import RadioInput from "./RadioInput.vue"
 import SubmitlessFeedback from "./SubmitlessFeedback.vue"
+const API_URL = inject("API_URL")
 const user = userStore()
-
-// TODO: set up env or global var for this
-const API_URL = "http://localhost:5000/api/users/"
 
 const state = reactive({
   saving: false,
@@ -96,7 +94,7 @@ const updateUserSettings = () => {
     },
     body: urlencoded,
   }
-  fetch(API_URL + user.id, options)
+  fetch(API_URL + "users/" + user.id, options)
     .then((response) => response.json())
     .then((data) => {
       if (data._id !== undefined) {

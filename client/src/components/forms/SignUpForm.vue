@@ -31,21 +31,18 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits, onBeforeMount } from "vue"
+import { reactive, defineEmits, inject } from "vue"
 import BaseInput from "./BasicInput.vue"
 import PasswordInput from "./PasswordInput.vue"
 import { userStore } from "@/stores/user"
 import User from "@/interfaces/User"
-
-// TODO: set up env or global var for this
-const API_URL = "http://localhost:5000/api/users/"
+const API_URL = inject("API_URL")
+const user = userStore()
 
 const emit = defineEmits<{
   (e: "openLogin"): void
   (e: "close"): void
 }>()
-
-const user = userStore()
 
 const form = reactive({
   name: "",
@@ -67,22 +64,27 @@ const submitSignUp = () => {
     },
     body: urlencoded,
   }
-  fetch(API_URL, options)
+  fetch(API_URL + "users/", options)
     .then((response) => response.json())
     .then((data) => {
-      const registeringUser: User = {
-        id: data._id,
-        name: data.name,
-        email: data.email,
-        token: data.token,
-        settings: {
-          theme: data.settings.theme,
-          turntableTheme: data.settings.turntableTheme,
-          turntablePitchRange: data.settings.turntablePitchRange,
-        },
+      if (!data.message) {
+        const registeringUser: User = {
+          id: data._id,
+          name: data.name,
+          email: data.email,
+          token: data.token,
+          settings: {
+            theme: data.settings.theme,
+            turntableTheme: data.settings.turntableTheme,
+            turntablePitchRange: data.settings.turntablePitchRange,
+          },
+        }
+        user.login(registeringUser)
+        emit("close")
+      } else {
+        // TODO: replace this with login form style notification
+        alert(data.message)
       }
-      user.login(registeringUser)
-      emit("close")
     })
     .catch((error) => console.log("error", error))
 }
