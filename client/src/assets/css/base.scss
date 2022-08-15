@@ -183,6 +183,27 @@ input[type="button"] {
   }
 }
 
+button {
+  margin: 0;
+  background: var(--btn-secondary);
+  border: none;
+  color: var(--dark-text);
+  &:hover {
+    background: var(--btn-secondary-hover);
+    color: var(--darker-text);
+  }
+  &.primary {
+    margin-top: 2rem;
+    background: var(--btn-primary);
+    font: 600 1.6rem/3.8rem Manrope, sans-serif;
+    color: var(--white-text);
+    border: none;
+    &:hover {
+      background: var(--btn-primary-hover);
+    }
+  }
+}
+
 input,
 select {
   line-height: 38px;
@@ -241,6 +262,9 @@ textarea.invalid,
 select.invalid {
   border: 1px solid var(--error);
   outline: 0;
+  &:required:placeholder-shown {
+    border: 1px solid var(--input-border);
+  }
 }
 
 label {

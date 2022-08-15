@@ -7,16 +7,24 @@
       </nav>
 
       <nav class="account">
-        <span class="welcome" v-if="user.name != ''"
-          >Welcome {{ user.name }}</span
+        <span class="welcome" v-if="user.hasUser()"
+          >Welcome {{ user.name != "" ? user.name : user.email }}</span
         >
-        <button type="button" v-if="user.id == ''" @click="state.signUp = true">
+        <button
+          type="button"
+          v-if="!user.hasUser()"
+          @click="state.signUp = true"
+        >
           Create account
         </button>
-        <button type="button" v-if="user.id == ''" @click="state.login = true">
+        <button
+          type="button"
+          v-if="!user.hasUser()"
+          @click="state.login = true"
+        >
           Log in
         </button>
-        <button type="button" v-if="user.id != ''" @click="user.$reset()">
+        <button type="button" v-if="user.hasUser()" @click="user.$reset()">
           Log out
         </button>
         <button type="button" @click="state.settings = true">
@@ -103,7 +111,7 @@ nav {
     a {
       background: var(--nav-inactive-bg);
       border: 1px var(--nav-inactive-border) solid;
-      border-radius: none;
+      border-radius: 0;
       color: var(--nav-inactive-text);
       font-weight: 500;
       z-index: 50;
@@ -138,8 +146,13 @@ nav {
 }
 nav.account {
   margin-left: auto;
-  button:hover {
-    color: var(--nav-active-bg);
+  button {
+    border-radius: 0;
+    background: transparent;
+    color: var(--dark-text);
+    &:hover {
+      color: var(--nav-active-bg);
+    }
   }
 }
 .welcome {

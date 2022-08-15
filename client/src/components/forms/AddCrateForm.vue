@@ -1,47 +1,15 @@
 <template>
-  <form @submit.prevent="submit" @reset.prevent="reset()">
+  <form @submit.prevent="submit">
     <div class="form-body inline-labels">
       <BaseInput
-        v-model="form.catno"
-        id="catno"
-        label="Catalog #"
+        v-model="form.name"
+        id="name"
+        label="Name"
         type="text"
-        placeholder="CAT001"
+        placeholder="Name"
         :focused="true"
-      />
-      <BaseInput
-        v-model="form.artist"
-        id="artist"
-        label="Artist"
-        type="text"
-        placeholder="Artist"
         required
       />
-      <BaseInput
-        v-model="form.title"
-        id="title"
-        label="Title"
-        type="text"
-        placeholder="Title"
-        required
-      />
-      <BaseInput
-        v-model="form.label"
-        id="label"
-        label="Label"
-        type="text"
-        placeholder="Label"
-      />
-      <BaseInput
-        v-model="form.year"
-        id="year"
-        label="Year"
-        type="number"
-        placeholder="Year"
-      />
-      <label class="checkbox">
-        <input type="checkbox" v-model="form.mixable" /> Mixable
-      </label>
     </div>
     <div class="form-controls">
       <button type="reset">Clear</button>
@@ -65,32 +33,12 @@ const emit = defineEmits<{
 }>()
 
 const form = reactive({
-  catno: "",
-  artist: "",
-  title: "",
-  label: "",
-  year: "",
-  mixable: true,
+  name: "",
 })
 
-const reset = () => {
-  form.catno = ""
-  form.artist = ""
-  form.title = ""
-  form.label = ""
-  form.year = ""
-  form.mixable = true
-}
-
 const submit = async () => {
-  const mixable = form.mixable ? "1" : "0" // string only in x-www-form-urlencode
   const body = new URLSearchParams()
-  body.append("catno", form.catno)
-  body.append("artist", form.artist)
-  body.append("title", form.title)
-  body.append("label", form.label)
-  body.append("year", form.year)
-  body.append("mixable", mixable)
+  body.append("name", form.name)
 
   const options = {
     method: "POST",
@@ -102,6 +50,7 @@ const submit = async () => {
     body: body,
   }
 
+  // TODO
   try {
     const response = await fetch(API_URL + "records", options)
     if (response.status === 200) {

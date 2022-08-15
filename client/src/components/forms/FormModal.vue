@@ -31,26 +31,6 @@ const props = defineProps<{
       width: 100%;
       margin: 0;
     }
-    button {
-      margin: 0;
-      background: var(--btn-secondary);
-      border: none;
-      color: var(--dark-text);
-      &:hover {
-        background: var(--btn-secondary-hover);
-        color: var(--darker-text);
-      }
-      &.primary {
-        margin-top: 2rem;
-        background: var(--btn-primary);
-        font: 600 1.6rem/3.8rem Manrope, sans-serif;
-        color: var(--white-text);
-        border: none;
-        &:hover {
-          background: var(--btn-primary-hover);
-        }
-      }
-    }
     .form-header {
       display: flex;
       flex-wrap: wrap;

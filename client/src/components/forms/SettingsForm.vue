@@ -1,7 +1,7 @@
 <template>
-  <form v-on="user.id != '' ? { change: updateUserSettings } : {}">
+  <form v-on="user.hasUser() ? { change: updateUserSettings } : {}">
     <div class="form-body">
-      <p v-if="user.id == ''">
+      <p v-if="!user.hasUser()">
         <b>You are not logged in.</b><br />Settings changed here are for this
         session only.
       </p>

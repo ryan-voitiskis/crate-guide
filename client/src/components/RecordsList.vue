@@ -1,6 +1,5 @@
 <template>
   <div class="record-list"></div>
-  <p>test</p>
   <RecordSingle />
 </template>
 

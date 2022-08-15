@@ -17,5 +17,8 @@ export const userStore = defineStore("user", {
     login(user: User) {
       Object.assign(this, user)
     },
+    hasUser() {
+      return this.id != ""
+    },
   },
 })
