@@ -18,6 +18,7 @@
         id="password"
         label="Password"
         placeholder="Enter your password"
+        required
       >
         <span @click="$emit('openRecovery')" class="forgot-password">
           Forgot password?

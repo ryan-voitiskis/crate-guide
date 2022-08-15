@@ -40,6 +40,7 @@ const props = defineProps<{
         font-weight: 500;
         color: var(--darkest-text);
         line-height: 3.8rem;
+        margin: 0 2rem 0 0;
       }
       .close {
         padding: 0 0.8rem;
@@ -54,8 +55,10 @@ const props = defineProps<{
       box-sizing: border-box;
       padding: 0 4rem;
       margin-bottom: 4rem;
+
       p {
         text-align: center;
+        color: var(--dark-text);
       }
       label {
         display: inline-block;

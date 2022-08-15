@@ -4,6 +4,10 @@
       <p @click="$emit('openLogin')">
         Already have an account? <span class="link-text">Log in</span>
       </p>
+      <div id="privacy-policy">
+        <h3>Privacy policy</h3>
+        <p>No data, aside from crates is stored. No emails.</p>
+      </div>
       <BaseInput
         v-model="form.name"
         id="name"
@@ -11,6 +15,7 @@
         type="text"
         placeholder="Your name"
         :focused="true"
+        required
       />
       <BaseInput
         v-model="form.email"
@@ -20,12 +25,14 @@
         placeholder="name@example.com"
         :class="{ invalid: state.duplicateEmail }"
         :error-msg="state.emailErrorMsg"
+        required
       />
       <PasswordInput
         v-model="form.password"
         id="password"
         label="Password"
         placeholder="Enter a password"
+        required
       />
       <button class="primary" type="submit">
         {{ state.waiting ? null : "Sign up" }}
@@ -112,4 +119,16 @@ const submitSignUp = async () => {
 }
 </script>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+#privacy-policy {
+  p,
+  h3 {
+    color: var(--privacy-policy);
+    text-align: left;
+  }
+  h3 {
+    font-weight: 600;
+    font-size: 1.5rem;
+  }
+}
+</style>

@@ -1,5 +1,10 @@
 <template>
   <form @submit.prevent="submit" @reset.prevent="reset()">
+    <InfoDropdown
+      text="Catalog #, label and year are optional.<br />Catalog # recommended for discogs integration."
+      class="form-body"
+      style="margin: -2rem 0 1rem 0"
+    />
     <div class="form-body inline-labels">
       <BaseInput
         v-model="form.catno"
@@ -56,6 +61,7 @@
 <script setup lang="ts">
 import { reactive, inject, defineEmits } from "vue"
 import BaseInput from "./BasicInput.vue"
+import InfoDropdown from "../InfoDropdown.vue"
 import { userStore } from "@/stores/user"
 const API_URL = inject("API_URL")
 const user = userStore()

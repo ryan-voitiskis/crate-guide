@@ -6,53 +6,54 @@
  :root {
 
   /* elements */
-  --hr: #ccc;
-  --table-border: #888;
+  --hr: hsl(0, 0%, 80%);
+  --table-border: hsl(0, 0%, 53%);
 
   /* text and icons */
-  --site-title-text: #424d55;
-  --white-text: #fff;
-  --lightest-text: #ddd;
-  --lighter-text: #ccc;
-  --light-text: #999;
-  --dark-text: #777;
-  --darker-text: #555;
-  --darkest-text: #444;
-  --black-text: #000;
+  --site-title-text: hsl(205, 13%, 30%);
+  --white-text: hsl(0, 0%, 100%);
+  --lightest-text: hsl(0, 0%, 87%);
+  --lighter-text: hsl(0, 0%, 80%);
+  --light-text: hsl(0, 0%, 68%);
+  --dark-text: hsl(0, 0%, 47%);
+  --darker-text: hsl(0, 0%, 33%);
+  --darkest-text: hsl(0, 0%, 27%);
+  --black-text: hsl(0, 0%, 0%);
   --link-text: hsl(216, 76%, 39%);
   --link-text-hover: hsl(216, 70%, 56%);
-  --light-bg-icon: #454241;
-  --abbr-title: rgba(12, 12, 12, 0.74); /* <abbr title=""> text. */
-  --label-text: #5a6975;
-  --input-text: #404a52;
-  --welcome-text: #b3a986;
+  --light-bg-icon: hsl(15, 3%, 26%);
+  --abbr-title: hsla(0, 0%, 5%, 0.74);
+  --label-text: hsl(207, 13%, 41%);
+  --input-text: hsl(207, 12%, 29%);
+  --welcome-text: hsl(47, 23%, 61%);
+  --privacy-policy: hsl(47, 12%, 66%);
 
   /* feedback */
-  --success: #00c06d;
-  --saving: #b7894a;
-  --error: #d05d5f;
-  --error-bg: #feeceb;
+  --success: hsl(154, 100%, 38%);
+  --saving: hsl(35, 43%, 50%);
+  --error: hsl(359, 55%, 59%);
+  --error-bg: hsl(3, 90%, 96%);
 
   /* navs */
-  --nav-active-bg:#c7884d;
-  --nav-inactive-bg:#eaeaea;
-  --nav-inactive-text:#7a7a7a;
-  --nav-inactive-border:#ababab;
+  --nav-active-bg:hsl(29, 52%, 54%);
+  --nav-inactive-bg:hsl(0, 0%, 92%);
+  --nav-inactive-text:hsl(0, 0%, 48%);
+  --nav-inactive-border:hsl(0, 0%, 67%);
 
   /* forms */
-  --input-bg: #fff;
-  --input-border: #c0c5c8;
-  --input-border-focus: #50a5e5;
+  --input-bg: hsl(0, 0%, 100%);
+  --input-border: hsl(202, 7%, 77%);
+  --input-border-focus: hsl(206, 74%, 61%);
 
   /* buttons */
-  --btn-primary: #4793cd;
-  --btn-primary-hover: #50a5e5;
-  --btn-secondary: #f5f4f7;
-  --btn-secondary-hover: #e7e7e7;
+  --btn-primary: hsl(206, 57%, 54%);
+  --btn-primary-hover: hsl(206, 74%, 61%);
+  --btn-secondary: hsl(260, 16%, 96%);
+  --btn-secondary-hover: hsl(0, 0%, 91%);
   --btn-edit: hsl(35, 84%, 62%);
   --btn-delete: hsl(359, 56%, 62%);
 
   /* decks */
-  --deck-black: #333;
-  --deck-silver: #ccc;
+  --deck-black: hsl(0, 0%, 20%);
+  --deck-silver: hsl(0, 0%, 80%);
  }
