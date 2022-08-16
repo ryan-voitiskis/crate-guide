@@ -330,6 +330,13 @@ input[type="button"]::-moz-focus-inner {
   outline: none;
 }
 
+.container {
+  max-width: 1800px;
+  position: relative;
+  margin: 0 auto;
+  padding: 0 1rem 1rem;
+}
+
 /* Hiding class, making content visible only to screen readers but not visually
 from: https://css-tricks.com/video-screencasts/142-hiding-things-with-css/ */
 .screen-reader-only:not(:focus):not(:active) {
@@ -366,5 +373,11 @@ from: https://css-tricks.com/video-screencasts/142-hiding-things-with-css/ */
     background: #fff;
     border-radius: 1rem;
     z-index: 100;
+  }
+}
+
+.icon-button {
+  svg {
+    margin-right: 1rem;
   }
 }

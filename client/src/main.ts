@@ -5,9 +5,8 @@ import "./registerServiceWorker"
 import router from "./router"
 import "./assets/css/colours.css"
 import "./assets/css/keyframes.css"
-import "./assets/css/fonts.scss"
+import "./assets/css/fonts.css"
 import "./assets/css/base.scss"
-import "./assets/css/app.scss"
 
 // globals
 const API_URL = "http://localhost:5000/api/"
@@ -34,6 +33,7 @@ const loggingInUser: User = {
     theme: "light",
     turntableTheme: "8",
     turntablePitchRange: "silver",
+    selectedCrate: "all",
   },
 }
 user.login(loggingInUser)

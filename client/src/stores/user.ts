@@ -11,6 +11,7 @@ export const userStore = defineStore("user", {
       theme: "light",
       turntableTheme: "silver",
       turntablePitchRange: "8",
+      selectedCrate: "all",
     },
   }),
   actions: {

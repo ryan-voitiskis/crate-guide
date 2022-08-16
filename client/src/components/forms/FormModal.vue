@@ -44,12 +44,13 @@ const props = defineProps<{
       }
       .close {
         padding: 0 0.8rem;
-        svg {
-          path {
-            fill: var(--darkest-text);
-          }
-        }
       }
+    }
+    .form-hint {
+      box-sizing: border-box;
+      padding: 0 4rem;
+      margin-bottom: 4rem;
+      display: block;
     }
     .form-body {
       box-sizing: border-box;

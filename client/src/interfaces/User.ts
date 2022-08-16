@@ -7,5 +7,6 @@ export default interface User {
     theme: string
     turntableTheme: string
     turntablePitchRange: string
+    selectedCrate: string
   }
 }

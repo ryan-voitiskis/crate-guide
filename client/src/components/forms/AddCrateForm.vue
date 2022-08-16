@@ -1,5 +1,10 @@
 <template>
   <form @submit.prevent="submit">
+    <InfoDropdown
+      text="Crates are collections of records that, when selected, limit session recommendations. A crate could represent a crate of records taken to a gig."
+      class="form-body"
+      style="margin: -2rem 0 1rem 0"
+    />
     <div class="form-body inline-labels">
       <BaseInput
         v-model="form.name"
@@ -24,6 +29,7 @@
 <script setup lang="ts">
 import { reactive, inject, defineEmits } from "vue"
 import BaseInput from "./BasicInput.vue"
+import InfoDropdown from "../InfoDropdown.vue"
 import { userStore } from "@/stores/user"
 const API_URL = inject("API_URL")
 const user = userStore()
@@ -52,7 +58,7 @@ const submit = async () => {
 
   // TODO
   try {
-    const response = await fetch(API_URL + "records", options)
+    const response = await fetch(API_URL + "crates", options)
     if (response.status === 200) {
       const data = await response.json()
       emit("close")

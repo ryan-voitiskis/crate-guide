@@ -105,6 +105,7 @@ header {
 }
 
 nav {
+  display: flex;
   margin: 2rem 0;
   &.radio {
     $border-radius: 1.4rem;
