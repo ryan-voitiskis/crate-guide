@@ -4,13 +4,17 @@
     <label for="crate_select"
       >Select crate
       <select v-model="user.settings.selectedCrate" id="crate_select">
-        <option value="all">My collection</option>
-        <!-- v-for="crate in crates" -->
-        <option value="crate 1">crate 1</option>
-        <option value="crate 2">crate 2</option>
-        <option value="crate 3">crate 3</option>
+        <option value="all">Collection</option>
+        <option
+          v-for="crate in crates.crateList"
+          :key="crate._id"
+          :value="crate._id"
+        >
+          {{ crate.name }}
+        </option>
       </select>
     </label>
+
     <button
       class="icon-button"
       @click="state.duplicateCrate = true"
@@ -18,6 +22,7 @@
     >
       <DuplicateIcon /> Duplicate
     </button>
+
     <button
       class="icon-button"
       @click="state.deleteCrate = true"
@@ -25,6 +30,7 @@
     >
       <TrashIcon /> Delete
     </button>
+
     <button class="icon-button" @click="state.addCrate = true">
       <FolderAddIcon /> Add new
     </button>
@@ -56,10 +62,7 @@
     title="Delete crate"
     modal-width="440px"
   >
-    <DeleteCrateForm
-      @close="state.deleteCrate = false"
-      :crate="user.settings.selectedCrate"
-    />
+    <DeleteCrateForm @close="state.deleteCrate = false" />
   </FormModal>
 
   <FormModal
@@ -92,12 +95,20 @@ import DuplicateCrateForm from "@/components/forms/DuplicateCrateForm.vue"
 import AddRecordForm from "@/components/forms/AddRecordForm.vue"
 import RecordsList from "@/components/RecordsList.vue"
 import FormModal from "@/components/forms/FormModal.vue"
-import { userStore } from "@/stores/user"
+import { userStore } from "@/stores/userStore"
+import { crateStore } from "@/stores/crateStore"
 import DuplicateIcon from "@/components/svg/DuplicateIcon.vue"
 import TrashIcon from "@/components/svg/TrashIcon.vue"
 import FolderAddIcon from "@/components/svg/FolderAddIcon.vue"
 import PlusCircleIcon from "@/components/svg/PlusCircleIcon.vue"
 const user = userStore()
+const crates = crateStore()
+
+const testt = [
+  { id: 1, name: "1" },
+  { id: 2, name: "2" },
+  { id: 3, name: "3" },
+]
 
 const state = reactive({
   addCrate: false,
@@ -106,7 +117,8 @@ const state = reactive({
   addRecord: false,
 })
 
-// const crates = getCrates
+// TODO: update database when crate is selected either w watch or $subscribe:
+// https://pinia.vuejs.org/core-concepts/state.html#subscribing-to-the-state
 </script>
 
 <style scoped lang="scss">

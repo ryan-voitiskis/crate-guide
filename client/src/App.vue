@@ -86,7 +86,7 @@ import FormModal from "./components/forms/FormModal.vue"
 import LoginForm from "./components/forms/LoginForm.vue"
 import SignUpForm from "./components/forms/SignUpForm.vue"
 import RecoveryForm from "./components/forms/RecoveryForm.vue"
-import { userStore } from "@/stores/user"
+import { userStore } from "@/stores/userStore"
 import SettingsForm from "./components/forms/SettingsForm.vue"
 
 const user = userStore()

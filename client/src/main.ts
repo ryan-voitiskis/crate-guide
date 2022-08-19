@@ -20,9 +20,11 @@ app.use(pinia)
 app.mount("#app")
 
 // log into ryannn automatically.
-import { userStore } from "@/stores/user"
+import { userStore } from "@/stores/userStore"
+import { crateStore } from "@/stores/crateStore"
 import User from "@/interfaces/User"
 const user = userStore()
+const crates = crateStore()
 const loggingInUser: User = {
   id: "62eb63d26b84b573564b68ba",
   name: "ryannn",
@@ -33,7 +35,13 @@ const loggingInUser: User = {
     theme: "light",
     turntableTheme: "8",
     turntablePitchRange: "silver",
-    selectedCrate: "all",
+    selectedCrate: "62ff707f5be5118ea127e74a",
   },
 }
-user.login(loggingInUser)
+
+// handle state for automatically logged in ryannn
+const getState = async () => {
+  await user.login(loggingInUser)
+  crates.fetchCrates(user.token)
+}
+getState()

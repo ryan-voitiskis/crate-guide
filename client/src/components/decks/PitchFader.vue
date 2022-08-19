@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 import { ref, computed, defineProps, defineEmits } from "vue"
-import { userStore } from "@/stores/user"
+import { userStore } from "@/stores/userStore"
 const user = userStore()
 
 const props = defineProps<{

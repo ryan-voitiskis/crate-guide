@@ -1,7 +1,8 @@
 <template>
-  <form @submit.prevent="submit">
+  <form @submit.prevent="submit" v-if="crate !== null">
     <span class="form-hint">
-      Enter the name &quot;<i>{{ crate }}</i> &quot; to delete crate.<br />
+      Enter the name &quot;<i>{{ crate.name }}</i
+      >&quot; to delete crate.<br />
       <b>This can't be undone.</b>
     </span>
     <div class="form-body inline-labels">
@@ -14,12 +15,13 @@
         :focused="true"
         required
       />
+      <InvalidFeedback :invalid="state.invalid" :msg="state.invalidMsg" />
     </div>
     <div class="form-controls">
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Close
       </button>
-      <button class="primary" type="submit">Save</button>
+      <button class="primary" type="submit">Delete</button>
     </div>
   </form>
 </template>
@@ -27,46 +29,37 @@
 <script setup lang="ts">
 import { reactive, inject, defineEmits, defineProps } from "vue"
 import BaseInput from "./BasicInput.vue"
-import { userStore } from "@/stores/user"
+import InvalidFeedback from "./InvalidFeedback.vue"
+import { userStore } from "@/stores/userStore"
+import { crateStore } from "@/stores/crateStore"
 const API_URL = inject("API_URL")
 const user = userStore()
+const crates = crateStore()
+
+const crate = crates.getById(user.settings.selectedCrate)
 
 const emit = defineEmits<{
   (e: "close"): void
-}>()
-
-const props = defineProps<{
-  crate: string
 }>()
 
 const form = reactive({
   name: "",
 })
 
-const submit = async () => {
-  // const body = new URLSearchParams()
-  // body.append("name", form.name)
-  // const options = {
-  //   method: "DELETE",
-  //   headers: {
-  //     Accept: "application/json",
-  //     "Content-Type": "application/x-www-form-urlencoded",
-  //     Authorization: `Bearer ${user.token}`,
-  //   },
-  //   body: body,
-  // }
-  // try {
-  //   const response = await fetch(API_URL + "crates", options)
-  //   if (response.status === 200) {
-  //     const data = await response.json()
-  //     emit("close")
-  //   } else if (response.status === 400) {
-  //     const data = await response.json()
-  //     console.error(data.message)
-  //   }
-  // } catch (error) {
-  //   console.error(error)
-  // }
+const state = reactive({
+  invalid: false,
+  invalidMsg: "Name doesn't match",
+})
+
+const submit = () => {
+  state.invalid = false
+  if (form.name === crate?.name) {
+    if (crate._id) {
+      crates.deleteCrate(crate._id, user.token)
+      user.settings.selectedCrate = "all"
+      emit("close")
+    }
+  } else state.invalid = true
 }
 </script>
 

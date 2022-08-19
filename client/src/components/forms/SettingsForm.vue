@@ -62,7 +62,7 @@
 
 <script setup lang="ts">
 import { reactive, inject } from "vue"
-import { userStore } from "@/stores/user"
+import { userStore } from "@/stores/userStore"
 import RadioInput from "./RadioInput.vue"
 import SubmitlessFeedback from "./SubmitlessFeedback.vue"
 const API_URL = inject("API_URL")

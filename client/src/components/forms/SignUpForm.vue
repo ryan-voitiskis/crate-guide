@@ -47,7 +47,7 @@ import { reactive, defineEmits, inject } from "vue"
 import BaseInput from "./BasicInput.vue"
 import PasswordInput from "./PasswordInput.vue"
 import LoaderIcon from "../svg/LoaderIcon.vue"
-import { userStore } from "@/stores/user"
+import { userStore } from "@/stores/userStore"
 import User from "@/interfaces/User"
 const API_URL = inject("API_URL")
 const user = userStore()
@@ -101,6 +101,7 @@ const submitSignUp = async () => {
           theme: data.settings.theme,
           turntableTheme: data.settings.turntableTheme,
           turntablePitchRange: data.settings.turntablePitchRange,
+          selectedCrate: "all",
         },
       }
       user.login(registeringUser)

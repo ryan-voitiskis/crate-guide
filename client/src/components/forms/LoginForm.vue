@@ -24,7 +24,10 @@
           Forgot password?
         </span>
       </PasswordInput>
-      <LoginFeedback :invalidCreds="state.invalidCreds" />
+      <InvalidFeedback
+        :invalid="state.invalidCreds"
+        msg="Invalid credentials"
+      />
       <button class="primary" type="submit">
         {{ state.waiting ? null : "Log in" }}
         <LoaderIcon v-show="state.waiting" />
@@ -36,13 +39,15 @@
 <script setup lang="ts">
 import { reactive, defineEmits, inject } from "vue"
 import BaseInput from "./BasicInput.vue"
-import LoginFeedback from "./LoginFeedback.vue"
+import InvalidFeedback from "./InvalidFeedback.vue"
 import PasswordInput from "./PasswordInput.vue"
-import { userStore } from "@/stores/user"
+import { userStore } from "@/stores/userStore"
+import { crateStore } from "@/stores/crateStore"
 import User from "@/interfaces/User"
 import LoaderIcon from "../svg/LoaderIcon.vue"
 const API_URL = inject("API_URL")
 const user = userStore()
+const crates = crateStore()
 
 const emit = defineEmits<{
   (e: "openSignUp"): void
@@ -90,9 +95,11 @@ const submitLogin = async () => {
           theme: data.settings.theme,
           turntableTheme: data.settings.turntableTheme,
           turntablePitchRange: data.settings.turntablePitchRange,
+          selectedCrate: data.settings.selectedCrate,
         },
       }
       user.login(loggingInUser)
+      crates.fetchCrates(loggingInUser.token)
       emit("close")
 
       // handle invalid credentials

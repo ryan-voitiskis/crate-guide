@@ -62,7 +62,7 @@
 import { reactive, inject, defineEmits } from "vue"
 import BaseInput from "./BasicInput.vue"
 import InfoDropdown from "../InfoDropdown.vue"
-import { userStore } from "@/stores/user"
+import { userStore } from "@/stores/userStore"
 const API_URL = inject("API_URL")
 const user = userStore()
 

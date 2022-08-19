@@ -1,8 +1,8 @@
 <template>
-  <div class="invalid-creds-wrapper">
+  <div class="invalid-wrapper">
     <transition name="fade">
-      <span class="invalid-creds" v-if="invalidCreds">
-        <ExclamationIcon /> Invalid credentials
+      <span class="invalid" v-if="invalid">
+        <ExclamationIcon /> {{ msg }}
       </span>
     </transition>
   </div>
@@ -13,15 +13,16 @@ import { defineProps } from "vue"
 import ExclamationIcon from "../svg/ExclamationIcon.vue"
 
 const props = defineProps<{
-  invalidCreds: boolean
+  invalid: boolean
+  msg: string
 }>()
 </script>
 
 <style scoped lang="scss">
-.invalid-creds-wrapper {
+.invalid-wrapper {
   margin-top: 1rem;
   height: 2.4rem;
-  .invalid-creds {
+  .invalid {
     position: fixed;
     margin: 0 auto;
     left: 0;

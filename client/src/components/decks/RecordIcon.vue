@@ -58,7 +58,7 @@
 
 <script setup lang="ts">
 import { defineProps, computed } from "vue"
-import { userStore } from "@/stores/user"
+import { userStore } from "@/stores/userStore"
 const user = userStore()
 
 const props = defineProps<{

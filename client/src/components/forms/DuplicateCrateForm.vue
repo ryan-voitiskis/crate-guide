@@ -25,9 +25,12 @@
 <script setup lang="ts">
 import { reactive, inject, defineEmits } from "vue"
 import BaseInput from "./BasicInput.vue"
-import { userStore } from "@/stores/user"
-const API_URL = inject("API_URL")
+import { userStore } from "@/stores/userStore"
+import { crateStore } from "@/stores/crateStore"
+import Crate from "@/interfaces/Crate"
 const user = userStore()
+const crates = crateStore()
+const API_URL = inject("API_URL")
 
 const emit = defineEmits<{
   (e: "close"): void
@@ -37,32 +40,14 @@ const form = reactive({
   name: "",
 })
 
-// TODO from here
-const submit = async () => {
-  // const body = new URLSearchParams()
-  // body.append("name", form.name)
-  // const options = {
-  //   method: "POST",
-  //   headers: {
-  //     Accept: "application/json",
-  //     "Content-Type": "application/x-www-form-urlencoded",
-  //     Authorization: `Bearer ${user.token}`,
-  //   },
-  //   body: body,
-  // }
-  // // TODO
-  // try {
-  //   const response = await fetch(API_URL + "crates", options)
-  //   if (response.status === 200) {
-  //     const data = await response.json()
-  //     emit("close")
-  //   } else if (response.status === 400) {
-  //     const data = await response.json()
-  //     console.error(data.message)
-  //   }
-  // } catch (error) {
-  //   console.error(error)
-  // }
+const submit = () => {
+  const newCrate: Crate = {
+    user: user.id,
+    name: form.name,
+    // TODO: inc records
+  }
+  crates.addCrate(newCrate, user.token)
+  emit("close")
 }
 </script>
 
