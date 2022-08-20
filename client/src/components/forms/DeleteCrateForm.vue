@@ -36,7 +36,7 @@ const API_URL = inject("API_URL")
 const user = userStore()
 const crates = crateStore()
 
-const crate = crates.getById(user.settings.selectedCrate)
+const crate = crates.getById(user.loggedIn.settings.selectedCrate)
 
 const emit = defineEmits<{
   (e: "close"): void
@@ -55,8 +55,8 @@ const submit = () => {
   state.invalid = false
   if (form.name === crate?.name) {
     if (crate._id) {
-      crates.deleteCrate(crate._id, user.token)
-      user.settings.selectedCrate = "all"
+      crates.deleteCrate(crate._id, user.loggedIn.token)
+      user.loggedIn.settings.selectedCrate = "all"
       emit("close")
     }
   } else state.invalid = true

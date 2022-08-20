@@ -48,6 +48,8 @@ const handleInputChange = (event: Event) =>
 
 <style scoped lang="scss">
 .error-msg {
+  width: 100%;
+  box-sizing: border-box;
   background: var(--error);
   padding: 0.5rem 1.5rem;
   margin: -0.5rem 0 1.5rem;

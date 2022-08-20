@@ -10,14 +10,14 @@ const addCrate = async (crate: Crate, token: string) => {
     },
   }
   try {
-    const { data } = await axios.post<Crate>(API_URL, crate, config)
+    const { data } = await axios.post<Response>(API_URL, crate, config)
     return data
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      console.error("Crate service: ", error.message)
+      console.error("crateService: ", error.message)
       return null
     } else {
-      console.error("Crate service (unexpected error): ", error)
+      console.error("crateService (unexpected error): ", error)
       return null
     }
   }
@@ -35,10 +35,10 @@ const getCrates = async (token: string) => {
     return data
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      console.error("Crate service: ", error.message)
+      console.error("crateService: ", error.message)
       return null
     } else {
-      console.error("Crate service (unexpected error): ", error)
+      console.error("crateService (unexpected error): ", error)
       return null
     }
   }
@@ -56,10 +56,10 @@ const deleteCrate = async (id: string, token: string) => {
     return data
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      console.error("Crate service: ", error.message)
+      console.error("crateService: ", error.message)
       return null
     } else {
-      console.error("Crate service (unexpected error): ", error)
+      console.error("crateService (unexpected error): ", error)
       return null
     }
   }

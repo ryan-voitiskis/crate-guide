@@ -50,7 +50,7 @@ const submit = () => {
     user: user.id,
     name: form.name,
   }
-  crates.addCrate(newCrate, user.token)
+  crates.addCrate(newCrate, user.loggedIn.token)
   emit("close")
 }
 </script>

@@ -3,10 +3,10 @@ const bcrypt = require("bcryptjs")
 const asyncHandler = require("express-async-handler")
 const User = require("../models/userModel")
 
-// @desc    Register new user
+// @desc    Add new user
 // @route   POST /api/users
 // @access  Public
-const registerUser = asyncHandler(async (req, res) => {
+const addUser = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body
 
   if (!name || !email || !password) {
@@ -38,7 +38,7 @@ const registerUser = asyncHandler(async (req, res) => {
       _id: user.id,
       name: user.name,
       email: user.email,
-      settings: user.settings,
+      settings: user.loggedIn.settings,
       token: generateToken(user._id),
     })
   } else {
@@ -70,6 +70,8 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 })
 
+// ? will this ever be used?
+// TODO: delete if not
 // @desc    Get user data
 // @route   GET /api/users/me
 // @access  Private
@@ -97,7 +99,7 @@ const updateUser = asyncHandler(async (req, res) => {
 
   // Check for user
   if (!req.user) {
-    res.status(401)
+    res.status(400)
     throw new Error("User not found")
   }
 
@@ -115,7 +117,7 @@ const updateUser = asyncHandler(async (req, res) => {
 })
 
 module.exports = {
-  registerUser,
+  addUser,
   loginUser,
   getMe,
   updateUser,

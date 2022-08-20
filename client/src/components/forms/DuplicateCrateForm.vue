@@ -46,7 +46,7 @@ const submit = () => {
     name: form.name,
     // TODO: inc records
   }
-  crates.addCrate(newCrate, user.token)
+  crates.addCrate(newCrate, user.loggedIn.token)
   emit("close")
 }
 </script>

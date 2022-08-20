@@ -1,5 +1,5 @@
 <template>
-  <form @submit.prevent="submitLogin">
+  <form @submit.prevent="submit">
     <div class="form-body">
       <p @click="$emit('openSignUp')">
         Don't have an account? <span class="link-text">Sign up</span>
@@ -24,28 +24,23 @@
           Forgot password?
         </span>
       </PasswordInput>
-      <InvalidFeedback
-        :invalid="state.invalidCreds"
-        msg="Invalid credentials"
-      />
+      <InvalidFeedback :invalid="user.invalidCreds" msg="Invalid credentials" />
       <button class="primary" type="submit">
-        {{ state.waiting ? null : "Log in" }}
-        <LoaderIcon v-show="state.waiting" />
+        {{ user.loading ? null : "Log in" }}
+        <LoaderIcon v-show="user.loading" />
       </button>
     </div>
   </form>
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits, inject } from "vue"
+import { reactive, defineEmits } from "vue"
 import BaseInput from "./BasicInput.vue"
 import InvalidFeedback from "./InvalidFeedback.vue"
 import PasswordInput from "./PasswordInput.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
-import User from "@/interfaces/User"
 import LoaderIcon from "../svg/LoaderIcon.vue"
-const API_URL = inject("API_URL")
 const user = userStore()
 const crates = crateStore()
 
@@ -65,50 +60,13 @@ const state = reactive({
   invalidCreds: false,
 })
 
-const submitLogin = async () => {
-  state.invalidCreds = false
-  state.waiting = true
-
-  const body = new URLSearchParams()
-  body.append("email", form.email)
-  body.append("password", form.password)
-
-  const options = {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: body,
-  }
-
-  try {
-    const response = await fetch(API_URL + "users/login", options)
-    if (response.status === 200) {
-      const data = await response.json()
-      const loggingInUser: User = {
-        id: data._id,
-        name: data.name,
-        email: data.email,
-        token: data.token,
-        settings: {
-          theme: data.settings.theme,
-          turntableTheme: data.settings.turntableTheme,
-          turntablePitchRange: data.settings.turntablePitchRange,
-          selectedCrate: data.settings.selectedCrate,
-        },
-      }
-      user.login(loggingInUser)
-      crates.fetchCrates(loggingInUser.token)
-      emit("close")
-
-      // handle invalid credentials
-    } else if (response.status === 400) {
-      state.invalidCreds = true
-      state.waiting = false
-    }
-  } catch (error) {
-    console.error(error)
+const submit = async () => {
+  const response = await user.login(form.email, form.password)
+  if (response === 400) {
+    console.error(`LoginForm: user.login returned status ${response}`)
+  } else if (response === 200) {
+    crates.fetchCrates(user.loggedIn.token)
+    emit("close")
   }
 }
 </script>

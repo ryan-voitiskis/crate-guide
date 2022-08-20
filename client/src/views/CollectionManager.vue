@@ -3,8 +3,8 @@
   <div id="crate_controls" v-if="user.hasUser()">
     <label for="crate_select"
       >Select crate
-      <select v-model="user.settings.selectedCrate" id="crate_select">
-        <option value="all">Collection</option>
+      <select v-model="user.loggedIn.settings.selectedCrate" id="crate_select">
+        <option value="all" color="red">Collection (all)</option>
         <option
           v-for="crate in crates.crateList"
           :key="crate._id"
@@ -18,7 +18,7 @@
     <button
       class="icon-button"
       @click="state.duplicateCrate = true"
-      v-if="user.settings.selectedCrate !== 'all'"
+      v-if="user.loggedIn.settings.selectedCrate !== 'all'"
     >
       <DuplicateIcon /> Duplicate
     </button>
@@ -26,7 +26,7 @@
     <button
       class="icon-button"
       @click="state.deleteCrate = true"
-      v-if="user.settings.selectedCrate !== 'all'"
+      v-if="user.loggedIn.settings.selectedCrate !== 'all'"
     >
       <TrashIcon /> Delete
     </button>
@@ -73,7 +73,7 @@
   >
     <DuplicateCrateForm
       @close="state.duplicateCrate = false"
-      :crate="user.settings.selectedCrate"
+      :crate="user.loggedIn.settings.selectedCrate"
     />
   </FormModal>
 
@@ -88,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from "vue"
+import { reactive, watchEffect } from "vue"
 import AddCrateForm from "@/components/forms/AddCrateForm.vue"
 import DeleteCrateForm from "@/components/forms/DeleteCrateForm.vue"
 import DuplicateCrateForm from "@/components/forms/DuplicateCrateForm.vue"
@@ -115,6 +115,10 @@ const state = reactive({
   duplicateCrate: false,
   deleteCrate: false,
   addRecord: false,
+})
+
+watchEffect(async () => {
+  // TODO: update db w user.loggedIn.settings.selectedCrate
 })
 
 // TODO: update database when crate is selected either w watch or $subscribe:

@@ -1,17 +1,17 @@
 <template>
   <div class="feedback-container">
     <transition name="fade">
-      <span class="feedback saving" v-if="state.saving">
+      <span class="feedback saving" v-if="saving">
         <LoaderIcon /> Saving settings
       </span>
     </transition>
     <transition name="fade">
-      <span class="feedback saved" v-if="state.saved">
+      <span class="feedback saved" v-if="saved">
         <CheckIcon /> Settings Saved
       </span>
     </transition>
     <transition name="fade">
-      <span class="feedback failed" v-if="state.failed">
+      <span class="feedback failed" v-if="failed">
         <ExclamationIcon /> Failed to save settings
       </span>
     </transition>
@@ -25,11 +25,9 @@ import ExclamationIcon from "../svg/ExclamationIcon.vue"
 import LoaderIcon from "../svg/LoaderIcon.vue"
 
 const props = defineProps<{
-  state: {
-    saving: boolean
-    saved: boolean
-    failed: boolean
-  }
+  saving: boolean
+  saved: boolean
+  failed: boolean
 }>()
 </script>
 

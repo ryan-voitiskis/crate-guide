@@ -14,17 +14,20 @@ export const crateStore = defineStore("crate", {
     async fetchCrates(token: string) {
       const crates = (await crateService.getCrates(token)) as Crate[]
       if (crates !== null) this.crateList = crates
-      else console.error("crateService.fetchCrates() returned null")
+      else console.error("crateStore.fetchCrates() returned null")
     },
     async addCrate(crate: Crate, token: string) {
-      const newCrate = (await crateService.addCrate(crate, token)) as Crate
+      const newCrate = (await crateService.addCrate(
+        crate,
+        token
+      )) as Crate | null
       if (newCrate !== null) this.crateList.push(newCrate)
-      else console.error("crateService.addCrate() returned null")
+      else console.error("crateStore.addCrate() returned null")
     },
     async deleteCrate(id: string, token: string) {
       const response = await crateService.deleteCrate(id, token)
       if (response !== null) this.fetchCrates(token) // if deleted, fetchCrates
-      else console.error("crateService.deleteCrate() returned null")
+      else console.error("crateStore.deleteCrate() returned null")
     },
   },
   getters: {

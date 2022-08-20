@@ -1,5 +1,5 @@
 <template>
-  <form @submit.prevent="submitSignUp">
+  <form @submit.prevent="submit">
     <div class="form-body">
       <p @click="$emit('openLogin')">
         Already have an account? <span class="link-text">Log in</span>
@@ -23,8 +23,12 @@
         label="Email"
         type="email"
         placeholder="name@example.com"
-        :class="{ invalid: state.duplicateEmail }"
-        :error-msg="state.emailErrorMsg"
+        :class="{ invalid: user.duplicateEmail }"
+        :error-msg="
+          user.duplicateEmail
+            ? 'An account with this email already exists.'
+            : undefined
+        "
         required
       />
       <PasswordInput
@@ -34,22 +38,23 @@
         placeholder="Enter a password"
         required
       />
+      <InvalidFeedback :invalid="user.errorMsg !== ''" :msg="user.errorMsg" />
       <button class="primary" type="submit">
-        {{ state.waiting ? null : "Sign up" }}
-        <LoaderIcon v-show="state.waiting" />
+        {{ user.loading ? null : "Sign up" }}
+        <LoaderIcon v-show="user.loading" />
       </button>
     </div>
   </form>
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits, inject } from "vue"
+import { reactive, defineEmits, onUnmounted } from "vue"
 import BaseInput from "./BasicInput.vue"
 import PasswordInput from "./PasswordInput.vue"
+import InvalidFeedback from "./InvalidFeedback.vue"
 import LoaderIcon from "../svg/LoaderIcon.vue"
 import { userStore } from "@/stores/userStore"
-import User from "@/interfaces/User"
-const API_URL = inject("API_URL")
+import UnregisteredUser from "@/interfaces/UnregisteredUser"
 const user = userStore()
 
 const emit = defineEmits<{
@@ -63,61 +68,21 @@ const form = reactive({
   password: "",
 })
 
-const state = reactive({
-  duplicateEmail: false,
-  emailErrorMsg: "",
-  waiting: false,
-})
-
-const submitSignUp = async () => {
-  state.duplicateEmail = false
-  state.emailErrorMsg = ""
-  state.waiting = true
-
-  const body = new URLSearchParams()
-  body.append("name", form.name)
-  body.append("email", form.email)
-  body.append("password", form.password)
-
-  const options = {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: body,
+const submit = async () => {
+  const newUser: UnregisteredUser = {
+    name: form.name,
+    email: form.email,
+    password: form.password,
   }
-
-  try {
-    const response = await fetch(API_URL + "users/", options)
-    if (response.status === 201) {
-      const data = await response.json()
-      const registeringUser: User = {
-        id: data._id,
-        name: data.name,
-        email: data.email,
-        token: data.token,
-        settings: {
-          theme: data.settings.theme,
-          turntableTheme: data.settings.turntableTheme,
-          turntablePitchRange: data.settings.turntablePitchRange,
-          selectedCrate: "all",
-        },
-      }
-      user.login(registeringUser)
-      emit("close")
-
-      // handle duplicate email
-    } else if (response.status === 409) {
-      const data = await response.json()
-      state.duplicateEmail = true
-      state.emailErrorMsg = data.message
-      state.waiting = false
-    }
-  } catch (error) {
-    console.error(error)
-  }
+  const response = await user.addUser(newUser)
+  if (response === 400 || response === 409) {
+    console.error(`SignUpForm: user.addUser returned status ${response}`)
+  } else if (response === 201) emit("close")
 }
+
+onUnmounted(() => {
+  user.errorMsg = ""
+})
 </script>
 
 <style scoped lang="scss">

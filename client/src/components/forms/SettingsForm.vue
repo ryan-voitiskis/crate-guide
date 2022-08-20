@@ -1,5 +1,5 @@
 <template>
-  <form v-on="user.hasUser() ? { change: updateUserSettings } : {}">
+  <form v-on="user.hasUser() ? { change: updateSettings } : {}">
     <div class="form-body">
       <p v-if="!user.hasUser()">
         <b>You are not logged in.</b><br />Settings changed here are for this
@@ -8,19 +8,19 @@
       <fieldset>
         <legend>Theme</legend>
         <RadioInput
-          v-model="user.settings.theme"
+          v-model="user.loggedIn.settings.theme"
           name="theme"
           id="light"
           label="Light"
         />
         <RadioInput
-          v-model="user.settings.theme"
+          v-model="user.loggedIn.settings.theme"
           name="theme"
           id="dark"
           label="Dark"
         />
         <RadioInput
-          v-model="user.settings.theme"
+          v-model="user.loggedIn.settings.theme"
           name="theme"
           id="contrast"
           label="High contrast"
@@ -30,13 +30,13 @@
       <fieldset>
         <legend>Turntable colour</legend>
         <RadioInput
-          v-model="user.settings.turntableTheme"
+          v-model="user.loggedIn.settings.turntableTheme"
           name="turntable_colour"
           id="silver"
           label="Silver"
         />
         <RadioInput
-          v-model="user.settings.turntableTheme"
+          v-model="user.loggedIn.settings.turntableTheme"
           name="turntable_colour"
           id="black"
           label="Black"
@@ -46,7 +46,7 @@
       <label for="turntable_pitch"
         >Turntable pitch range
         <select
-          v-model="user.settings.turntablePitchRange"
+          v-model="user.loggedIn.settings.turntablePitchRange"
           id="turntable_pitch"
         >
           <option value="8">±8%</option>
@@ -55,61 +55,30 @@
           <option value="50">±50%</option>
         </select>
       </label>
-      <SubmitlessFeedback :state="state" />
+      <SubmitlessFeedback
+        :saving="user.loading"
+        :saved="user.success"
+        :failed="user.error"
+      />
     </div>
   </form>
 </template>
 
 <script setup lang="ts">
-import { reactive, inject } from "vue"
+import { onUnmounted } from "vue"
 import { userStore } from "@/stores/userStore"
 import RadioInput from "./RadioInput.vue"
 import SubmitlessFeedback from "./SubmitlessFeedback.vue"
-const API_URL = inject("API_URL")
 const user = userStore()
 
-const state = reactive({
-  saving: false,
-  saved: false,
-  failed: false,
+// freaks out when called directly from <form v-on="">. cpu usage spike + browser non-responsive
+const updateSettings = () => user.updateSettings()
+
+onUnmounted(() => {
+  user.loading = false
+  user.error = false
+  user.success = false
 })
-
-const updateUserSettings = async () => {
-  state.failed = false
-  state.saved = false
-  state.saving = true
-
-  const body = new URLSearchParams()
-  body.append("settings.theme", user.settings.theme)
-  body.append("settings.turntableTheme", user.settings.turntableTheme)
-  body.append("settings.turntablePitchRange", user.settings.turntablePitchRange)
-
-  const options = {
-    method: "PUT",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Bearer ${user.token}`,
-    },
-    body: body,
-  }
-
-  try {
-    const response = await fetch(API_URL + "users/" + user.id, options)
-    if (response.status === 200) {
-      state.saved = true
-
-      // handle 400 and 401 status codes. see userController.js
-    } else {
-      const data = await response.json()
-      console.error(data.message)
-      state.failed = true
-    }
-  } catch (error) {
-    console.error(error)
-  }
-  state.saving = false
-}
 </script>
 
 <style scoped lang="scss"></style>

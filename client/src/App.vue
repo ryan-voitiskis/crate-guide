@@ -8,7 +8,10 @@
 
       <nav class="account">
         <span class="welcome" v-if="user.hasUser()"
-          >Welcome {{ user.name != "" ? user.name : user.email }}</span
+          >Welcome
+          {{
+            user.loggedIn.name != "" ? user.loggedIn.name : user.loggedIn.email
+          }}</span
         >
         <button
           type="button"
