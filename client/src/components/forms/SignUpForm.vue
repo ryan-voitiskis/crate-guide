@@ -38,7 +38,7 @@
         placeholder="Enter a password"
         required
       />
-      <InvalidFeedback :invalid="user.errorMsg !== ''" :msg="user.errorMsg" />
+      <ErrorFeedback :show="user.errorMsg !== ''" :msg="user.errorMsg" />
       <button class="primary" type="submit">
         {{ user.loading ? null : "Sign up" }}
         <LoaderIcon v-show="user.loading" />
@@ -51,7 +51,7 @@
 import { reactive, defineEmits, onUnmounted } from "vue"
 import BaseInput from "./BasicInput.vue"
 import PasswordInput from "./PasswordInput.vue"
-import InvalidFeedback from "./InvalidFeedback.vue"
+import ErrorFeedback from "./ErrorFeedback.vue"
 import LoaderIcon from "../svg/LoaderIcon.vue"
 import { userStore } from "@/stores/userStore"
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
@@ -75,9 +75,7 @@ const submit = async () => {
     password: form.password,
   }
   const response = await user.addUser(newUser)
-  if (response === 400 || response === 409) {
-    console.error(`SignUpForm: user.addUser returned status ${response}`)
-  } else if (response === 201) emit("close")
+  if (response === 201) emit("close")
 }
 
 onUnmounted(() => {

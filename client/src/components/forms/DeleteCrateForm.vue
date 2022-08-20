@@ -15,7 +15,7 @@
         :focused="true"
         required
       />
-      <InvalidFeedback :invalid="state.invalid" :msg="state.invalidMsg" />
+      <ErrorFeedback :show="state.invalid" :msg="state.invalidMsg" />
     </div>
     <div class="form-controls">
       <button class="close" type="button" @click="$parent!.$emit('close')">
@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { reactive, inject, defineEmits, defineProps } from "vue"
 import BaseInput from "./BasicInput.vue"
-import InvalidFeedback from "./InvalidFeedback.vue"
+import ErrorFeedback from "./ErrorFeedback.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 const API_URL = inject("API_URL")

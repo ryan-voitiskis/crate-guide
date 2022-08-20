@@ -24,7 +24,7 @@
           Forgot password?
         </span>
       </PasswordInput>
-      <InvalidFeedback :invalid="user.invalidCreds" msg="Invalid credentials" />
+      <ErrorFeedback :show="user.errorMsg != ''" :msg="user.errorMsg" />
       <button class="primary" type="submit">
         {{ user.loading ? null : "Log in" }}
         <LoaderIcon v-show="user.loading" />
@@ -34,9 +34,9 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits } from "vue"
+import { reactive, defineEmits, onUnmounted } from "vue"
 import BaseInput from "./BasicInput.vue"
-import InvalidFeedback from "./InvalidFeedback.vue"
+import ErrorFeedback from "./ErrorFeedback.vue"
 import PasswordInput from "./PasswordInput.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
@@ -69,6 +69,10 @@ const submit = async () => {
     emit("close")
   }
 }
+
+onUnmounted(() => {
+  user.errorMsg = ""
+})
 </script>
 
 <style scoped lang="scss">

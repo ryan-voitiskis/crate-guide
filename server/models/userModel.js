@@ -28,6 +28,10 @@ const userSchema = mongoose.Schema(
         type: String,
         default: "8",
       },
+      selectedCrate: {
+        type: String,
+        default: "all",
+      },
     },
   },
   {

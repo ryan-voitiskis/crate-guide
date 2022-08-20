@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler")
 
 const Crate = require("../models/crateModel")
-const User = require("../models/userModel")
+// const User = require("../models/userModel") // TODO: delete if unused
 
 // @desc    Get crates
 // @route   GET /api/crates
@@ -12,10 +12,10 @@ const getCrates = asyncHandler(async (req, res) => {
   res.status(200).json(crates)
 })
 
-// @desc    Set crate
+// @desc    Add crate
 // @route   POST /api/crates
 // @access  Private
-const setCrate = asyncHandler(async (req, res) => {
+const addCrate = asyncHandler(async (req, res) => {
   if (!req.user.id) {
     res.status(400)
     throw new Error("Crate controller: user not provided.")
@@ -31,7 +31,7 @@ const setCrate = asyncHandler(async (req, res) => {
     name: req.body.name,
   })
 
-  res.status(200).json(crate)
+  res.status(201).json(crate)
 })
 
 // @desc    Update crate
@@ -97,7 +97,7 @@ const deleteCrate = asyncHandler(async (req, res) => {
 
 module.exports = {
   getCrates,
-  setCrate,
+  addCrate,
   updateCrate,
   deleteCrate,
 }

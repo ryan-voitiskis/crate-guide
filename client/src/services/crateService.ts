@@ -1,68 +1,49 @@
-import axios from "axios"
-import Crate from "@/interfaces/Crate"
-const API_URL = "http://localhost:5000/api/crates"
+const API_URL = "http://localhost:5001/api/crates"
 
 // add new crate
-const addCrate = async (crate: Crate, token: string) => {
-  const config = {
+const addCrate = async (name: string, user: string, token: string) => {
+  const body = new URLSearchParams()
+  body.append("ntestaaaaaer", user)
+
+  const options = {
+    method: "POST",
     headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
       Authorization: `Bearer ${token}`,
     },
+    body: body,
   }
-  try {
-    const { data } = await axios.post<Response>(API_URL, crate, config)
-    return data
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      console.error("crateService: ", error.message)
-      return null
-    } else {
-      console.error("crateService (unexpected error): ", error)
-      return null
-    }
-  }
+  const response = await fetch(API_URL, options)
+  return response
 }
 
 // Get user crates
 const getCrates = async (token: string) => {
-  const config = {
+  const options = {
+    method: "GET",
     headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
       Authorization: `Bearer ${token}`,
     },
   }
-  try {
-    const { data } = await axios.get<Crate[]>(API_URL, config)
-    return data
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      console.error("crateService: ", error.message)
-      return null
-    } else {
-      console.error("crateService (unexpected error): ", error)
-      return null
-    }
-  }
+  const response = await fetch(API_URL, options)
+  return response
 }
 
 // Delete user crate
 const deleteCrate = async (id: string, token: string) => {
-  const config = {
+  const options = {
+    method: "DELETE",
     headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
       Authorization: `Bearer ${token}`,
     },
   }
-  try {
-    const { data } = await axios.delete<any>(API_URL + "/" + id, config)
-    return data
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      console.error("crateService: ", error.message)
-      return null
-    } else {
-      console.error("crateService (unexpected error): ", error)
-      return null
-    }
-  }
+  const response = await fetch(API_URL + "/" + id, options)
+  return response
 }
 
 const crateService = {

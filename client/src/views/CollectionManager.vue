@@ -3,7 +3,11 @@
   <div id="crate_controls" v-if="user.hasUser()">
     <label for="crate_select"
       >Select crate
-      <select v-model="user.loggedIn.settings.selectedCrate" id="crate_select">
+      <select
+        v-model="user.loggedIn.settings.selectedCrate"
+        id="crate_select"
+        :change="user.updateSettings()"
+      >
         <option value="all" color="red">Collection (all)</option>
         <option
           v-for="crate in crates.crateList"

@@ -2,32 +2,96 @@ import { defineStore } from "pinia"
 import Crate from "@/interfaces/Crate"
 import crateService from "@/services/crateService"
 
-interface State {
-  crateList: Crate[]
-}
-
 export const crateStore = defineStore("crate", {
-  state: (): State => ({
+  state: () => ({
     crateList: [] as Crate[],
+    loading: false,
+    errorMsg: "",
   }),
   actions: {
+    // TODO: test loading svg and display errors
+    async addCrate(name: string, user: string, token: string): Promise<number> {
+      this.loading = true
+      this.errorMsg = ""
+      try {
+        const response = await crateService.addCrate(name, user, token)
+
+        // push returned crate to crateList
+        if (response.status === 201) {
+          const newCrate = (await response.json()) as Crate
+          this.crateList.push(newCrate)
+          this.loading = false
+          return response.status
+
+          // handle errors
+        } else if (response.status === 400) {
+          this.errorMsg = "Unexpected error"
+          this.loading = false
+          const error = await response.json()
+          console.error("crateStore.addCrate():", error.message)
+        }
+        return response.status
+
+        // catch error, eg. TypeError: NetworkError when attempting to fetch resource.
+      } catch (error) {
+        this.errorMsg = "Unexpected error"
+        this.loading = false
+        console.error(error)
+        return 400
+      }
+    },
+
     async fetchCrates(token: string) {
-      const crates = (await crateService.getCrates(token)) as Crate[]
-      if (crates !== null) this.crateList = crates
-      else console.error("crateStore.fetchCrates() returned null")
+      try {
+        const response = await crateService.getCrates(token)
+
+        // push returned crate to crateList
+        if (response.status === 200) {
+          const crates = (await response.json()) as Crate[]
+          if (crates !== null) this.crateList = crates
+          return response.status
+
+          // handle errors
+        } else if (response.status === 400) {
+          const error = await response.json()
+          console.error("crateStore.fetchCrates():", error.message)
+        }
+        return response.status
+
+        // catch error, eg. TypeError: NetworkError when attempting to fetch resource.
+      } catch (error) {
+        console.error(error)
+        return 400
+      }
     },
-    async addCrate(crate: Crate, token: string) {
-      const newCrate = (await crateService.addCrate(
-        crate,
-        token
-      )) as Crate | null
-      if (newCrate !== null) this.crateList.push(newCrate)
-      else console.error("crateStore.addCrate() returned null")
-    },
+
+    // TODO: test loading svg and display errors
     async deleteCrate(id: string, token: string) {
-      const response = await crateService.deleteCrate(id, token)
-      if (response !== null) this.fetchCrates(token) // if deleted, fetchCrates
-      else console.error("crateStore.deleteCrate() returned null")
+      this.loading = true
+      this.errorMsg = ""
+      try {
+        const response = await crateService.deleteCrate(id, token)
+
+        // fetch crates if crate deleted successfully
+        if (response.status === 200) {
+          this.fetchCrates(token)
+          this.loading = false
+          return response.status
+
+          // handle errors
+        } else if (response.status === 400) {
+          this.errorMsg = "Unexpected error"
+          this.loading = false
+          const error = await response.json()
+          console.error("crateStore.deleteCrate():", error.message)
+        }
+        return response.status
+
+        // catch error, eg. TypeError: NetworkError when attempting to fetch resource.
+      } catch (error) {
+        console.error(error)
+        return 400
+      }
     },
   },
   getters: {

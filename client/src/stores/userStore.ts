@@ -17,17 +17,18 @@ export const userStore = defineStore("user", {
         selectedCrate: "all",
       },
     } as User,
-    duplicateEmail: false, // only for SignUpForm
-    invalidCreds: false, // only for LoginForm
-    loading: false, // for LoginForm, SignUp and SettingsForm
-    error: false, // only for SettingsForm
-    success: false, // only for SettingsForm
-    errorMsg: "", // only for SignUpForm
+    duplicateEmail: false, // used in SignUpForm
+    invalidCreds: false, // used in LoginForm
+    loading: false, // used in LoginForm, SignUp and SettingsForm
+    error: false, // used in SettingsForm
+    success: false, // used in SettingsForm
+    errorMsg: "", // used in SignUpForm
   }),
   actions: {
     async login(email: string, password: string): Promise<number> {
       this.invalidCreds = false
       this.loading = true
+      this.errorMsg = ""
       try {
         const response = await userService.login(email, password)
         if (response.status === 200) {
@@ -51,13 +52,16 @@ export const userStore = defineStore("user", {
           // handle invalid credentials
         } else if (response.status === 400) {
           this.invalidCreds = true
+          this.errorMsg = "Invalid credentials"
           this.loading = false
+          const error = await response.json()
+          console.error("userStore.login():", error.message)
         }
         return response.status
 
-        // catch error
-        // ? will this ever get hit if fetch occurs in userService?
+        // catch error, eg. TypeError: NetworkError when attempting to fetch resource.
       } catch (error) {
+        this.errorMsg = "Unexpected error"
         this.loading = false
         console.error(error)
         return 400
@@ -92,22 +96,24 @@ export const userStore = defineStore("user", {
 
           // handle duplicate email
         } else if (response.status === 409) {
-          const data = await response.json()
           this.duplicateEmail = true
-          this.errorMsg = data.message
           this.loading = false
+          const error = await response.json()
+          console.error("userStore.addUser():", error.message)
 
           // handle other errors
         } else if (response.status === 400) {
-          this.errorMsg = "Unexpected error"
           this.loading = false
+          const error = await response.json()
+          this.errorMsg = error.message
+          console.error("userStore.addUser():", error.message)
         }
         return response.status
 
-        // catch error
-        // ? will this ever get hit if fetch occurs in userService?
+        // catch error, eg. TypeError: NetworkError when attempting to fetch resource.
+        // TODO: represent this type of error in UI
       } catch (error) {
-        this.errorMsg = "Unexpected error (2)"
+        this.errorMsg = "Unexpected error"
         this.loading = false
         console.error(error)
         return 400
@@ -128,15 +134,15 @@ export const userStore = defineStore("user", {
 
           // handle 400 and 401 status codes. see userController.js
         } else {
-          const data = await response.json()
-          console.error(data.message)
           this.error = true
+          const error = await response.json()
+          console.error("userStore.updateSettings():", error.message)
         }
         this.loading = false
         return response.status
 
-        // catch error
-        // ? will this ever get hit if fetch occurs in userService?
+        // catch error, eg. TypeError: NetworkError when attempting to fetch resource.
+        // TODO: represent this type of error in UI, test by changing server port in userService
       } catch (error) {
         console.error(error)
         this.loading = false
