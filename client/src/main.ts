@@ -27,7 +27,7 @@ const crates = crateStore()
 
 // handle state for automatically logged in ryannn
 const getState = async () => {
-  await user.login("ryan@email.com", "password")
+  await user.login("ryan@ryan.com", "password")
   crates.fetchCrates(user.loggedIn.token)
 }
 getState()

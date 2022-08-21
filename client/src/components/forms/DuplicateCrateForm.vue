@@ -11,26 +11,31 @@
         :focused="true"
         required
       />
+      <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
     </div>
     <div class="form-controls">
       <button type="reset">Clear</button>
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Close
       </button>
-      <button class="primary" type="submit">Save</button>
+      <button class="primary" type="submit" style="width: 12rem">
+        {{ crates.loading ? null : "Save" }}
+        <LoaderIcon v-show="crates.loading" />
+      </button>
     </div>
   </form>
 </template>
 
 <script setup lang="ts">
-import { reactive, inject, defineEmits } from "vue"
+import { reactive, defineEmits } from "vue"
 import BaseInput from "./BasicInput.vue"
+import ErrorFeedback from "./ErrorFeedback.vue"
+import LoaderIcon from "../svg/LoaderIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 import Crate from "@/interfaces/Crate"
 const user = userStore()
 const crates = crateStore()
-const API_URL = inject("API_URL")
 
 const emit = defineEmits<{
   (e: "close"): void
@@ -40,14 +45,16 @@ const form = reactive({
   name: "",
 })
 
-const submit = () => {
+const submit = async () => {
   const newCrate: Crate = {
-    user: user.id,
+    user: user.loggedIn._id,
     name: form.name,
     // TODO: inc records
   }
-  crates.addCrate(newCrate, user.loggedIn.token)
-  emit("close")
+  const response = await crates.addCrate(newCrate, user.loggedIn.token)
+  if (response === 400) {
+    console.error(`AddCrateForm: crate.addCrate returned status ${response}`)
+  } else if (response === 201) emit("close")
 }
 </script>
 

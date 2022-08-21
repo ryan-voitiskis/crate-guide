@@ -35,11 +35,11 @@ const addUser = asyncHandler(async (req, res) => {
 
   if (user) {
     res.status(201).json({
-      _id: user.id,
+      id: user.id,
       name: user.name,
       email: user.email,
-      settings: user.loggedIn.settings,
-      token: generateToken(user._id),
+      settings: user.settings,
+      token: generateToken(user.id),
     })
   } else {
     res.status(400)
@@ -58,11 +58,11 @@ const loginUser = asyncHandler(async (req, res) => {
 
   if (user && (await bcrypt.compare(password, user.password))) {
     res.json({
-      _id: user.id,
+      id: user.id,
       name: user.name,
       email: user.email,
       settings: user.settings,
-      token: generateToken(user._id),
+      token: generateToken(user.id),
     })
   } else {
     res.status(400)
@@ -104,7 +104,7 @@ const updateUser = asyncHandler(async (req, res) => {
   }
 
   // Make sure the logged in user matches the user user
-  if (user._id.toString() !== req.user.id) {
+  if (user.id.toString() !== req.user.id) {
     res.status(401)
     throw new Error("User not authorized")
   }

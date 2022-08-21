@@ -1,14 +1,9 @@
 <template>
-  <!-- move to component -->
   <div id="crate_controls" v-if="user.hasUser()">
     <label for="crate_select"
       >Select crate
-      <select
-        v-model="user.loggedIn.settings.selectedCrate"
-        id="crate_select"
-        :change="user.updateSettings()"
-      >
-        <option value="all" color="red">Collection (all)</option>
+      <select v-model="user.loggedIn.settings.selectedCrate" id="crate_select">
+        <option value="all">Collection (all)</option>
         <option
           v-for="crate in crates.crateList"
           :key="crate._id"
@@ -40,7 +35,6 @@
     </button>
   </div>
 
-  <!-- move to component -->
   <div id="crate_manager" v-if="user.hasUser()">
     <button class="icon-button" @click="state.addRecord = true">
       <PlusCircleIcon /> Add record
@@ -92,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, watchEffect } from "vue"
+import { onMounted, reactive, watch } from "vue"
 import AddCrateForm from "@/components/forms/AddCrateForm.vue"
 import DeleteCrateForm from "@/components/forms/DeleteCrateForm.vue"
 import DuplicateCrateForm from "@/components/forms/DuplicateCrateForm.vue"
@@ -108,12 +102,6 @@ import PlusCircleIcon from "@/components/svg/PlusCircleIcon.vue"
 const user = userStore()
 const crates = crateStore()
 
-const testt = [
-  { id: 1, name: "1" },
-  { id: 2, name: "2" },
-  { id: 3, name: "3" },
-]
-
 const state = reactive({
   addCrate: false,
   duplicateCrate: false,
@@ -121,9 +109,15 @@ const state = reactive({
   addRecord: false,
 })
 
-watchEffect(async () => {
-  // TODO: update db w user.loggedIn.settings.selectedCrate
-})
+// when selectedCrate changes, update db
+watch(
+  () => user.loggedIn.settings.selectedCrate,
+  () => user.updateSettings()
+)
+
+// watchEffect(async () => {
+//   // TODO: update db w user.loggedIn.settings.selectedCrate
+// })
 
 // TODO: update database when crate is selected either w watch or $subscribe:
 // https://pinia.vuejs.org/core-concepts/state.html#subscribing-to-the-state

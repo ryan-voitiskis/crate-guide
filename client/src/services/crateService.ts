@@ -1,9 +1,11 @@
-const API_URL = "http://localhost:5001/api/crates"
+import Crate from "@/interfaces/Crate"
+const API_URL = "http://localhost:5000/api/crates"
 
 // add new crate
-const addCrate = async (name: string, user: string, token: string) => {
+const addCrate = async (crate: Crate, token: string) => {
   const body = new URLSearchParams()
-  body.append("ntestaaaaaer", user)
+  body.append("name", crate.name)
+  body.append("user", crate.user)
 
   const options = {
     method: "POST",

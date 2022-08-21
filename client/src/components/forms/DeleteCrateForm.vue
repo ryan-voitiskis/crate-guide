@@ -13,26 +13,29 @@
         type="text"
         placeholder="Name"
         :focused="true"
+        autocomplete="off"
         required
       />
-      <ErrorFeedback :show="state.invalid" :msg="state.invalidMsg" />
+      <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
     </div>
     <div class="form-controls">
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Close
       </button>
-      <button class="primary" type="submit">Delete</button>
+      <button class="primary" type="submit" style="width: 12rem">
+        {{ crates.loading ? null : "Delete" }}
+        <LoaderIcon v-show="crates.loading" />
+      </button>
     </div>
   </form>
 </template>
 
 <script setup lang="ts">
-import { reactive, inject, defineEmits, defineProps } from "vue"
+import { reactive, defineEmits } from "vue"
 import BaseInput from "./BasicInput.vue"
 import ErrorFeedback from "./ErrorFeedback.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
-const API_URL = inject("API_URL")
 const user = userStore()
 const crates = crateStore()
 

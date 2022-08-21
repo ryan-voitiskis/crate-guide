@@ -1,6 +1,6 @@
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
 import User from "@/interfaces/User"
-const API_URL = "http://localhost:5001/api/users/"
+const API_URL = "http://localhost:5000/api/users/"
 
 // add new user
 const addUser = async (user: UnregisteredUser) => {
@@ -55,7 +55,7 @@ const updateSettings = async (user: User) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL + user.id, options)
+  const response = await fetch(API_URL + user._id, options)
   return response
 }
 

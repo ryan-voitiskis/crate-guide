@@ -2,8 +2,7 @@
   <form @submit.prevent="submit" @reset.prevent="reset()">
     <InfoDropdown
       text="Catalog #, label and year are optional.<br />Catalog # recommended for discogs integration."
-      class="form-body"
-      style="margin: -2rem 0 1rem 0"
+      class="form-hint"
     />
     <div class="form-body inline-labels">
       <BaseInput

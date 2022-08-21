@@ -10,11 +10,11 @@ export const crateStore = defineStore("crate", {
   }),
   actions: {
     // TODO: test loading svg and display errors
-    async addCrate(name: string, user: string, token: string): Promise<number> {
+    async addCrate(crate: Crate, token: string): Promise<number> {
       this.loading = true
       this.errorMsg = ""
       try {
-        const response = await crateService.addCrate(name, user, token)
+        const response = await crateService.addCrate(crate, token)
 
         // push returned crate to crateList
         if (response.status === 201) {
@@ -28,7 +28,6 @@ export const crateStore = defineStore("crate", {
           this.errorMsg = "Unexpected error"
           this.loading = false
           const error = await response.json()
-          console.error("crateStore.addCrate():", error.message)
         }
         return response.status
 

@@ -46,11 +46,11 @@ const props = defineProps<{
         padding: 0 0.8rem;
       }
     }
+    // for InfoDropdown.vue and other similar elements within the form
     .form-hint {
       box-sizing: border-box;
       padding: 0 4rem;
-      margin-bottom: 4rem;
-      display: block;
+      margin: -2rem 0 1rem 0;
     }
     .form-body {
       box-sizing: border-box;

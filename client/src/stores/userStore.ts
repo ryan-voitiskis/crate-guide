@@ -2,11 +2,12 @@ import { defineStore } from "pinia"
 import User from "@/interfaces/User"
 import userService from "@/services/userService"
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
+import router from "@/router"
 
 export const userStore = defineStore("user", {
   state: () => ({
     loggedIn: {
-      id: "",
+      _id: "",
       name: "",
       email: "",
       token: "",
@@ -32,9 +33,11 @@ export const userStore = defineStore("user", {
       try {
         const response = await userService.login(email, password)
         if (response.status === 200) {
+          // nav to home page here to avoid extra call to user.updateSettings() from watch in CollectionManager
+          router.push("/")
           const data = await response.json()
           const authenticatedUser: User = {
-            id: data._id,
+            _id: data._id,
             name: data.name,
             email: data.email,
             token: data.token,
@@ -79,7 +82,7 @@ export const userStore = defineStore("user", {
         if (response.status === 201) {
           const data = await response.json()
           const registeringUser: User = {
-            id: data._id,
+            _id: data._id,
             name: data.name,
             email: data.email,
             token: data.token,
@@ -151,7 +154,7 @@ export const userStore = defineStore("user", {
     },
 
     hasUser(): boolean {
-      return this.loggedIn.id !== ""
+      return this.loggedIn._id !== ""
     },
   },
 })

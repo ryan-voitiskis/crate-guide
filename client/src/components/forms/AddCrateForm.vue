@@ -2,8 +2,7 @@
   <form @submit.prevent="submit">
     <InfoDropdown
       text="Crates are collections of records that, when selected, limit session recommendations. A crate could represent a crate of records taken to a gig."
-      class="form-body"
-      style="margin: -2rem 0 1rem 0"
+      class="form-hint"
     />
     <div class="form-body inline-labels">
       <BaseInput
@@ -15,16 +14,16 @@
         :focused="true"
         required
       />
-      <ErrorFeedback :show="crate.errorMsg !== ''" :msg="crate.errorMsg" />
+      <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
     </div>
     <div class="form-controls">
       <button type="reset">Clear</button>
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Close
       </button>
-      <button class="primary" type="submit">
-        {{ crate.loading ? null : "Save" }}
-        <LoaderIcon v-show="crate.loading" />
+      <button class="primary" type="submit" style="width: 12rem">
+        {{ crates.loading ? null : "Save" }}
+        <LoaderIcon v-show="crates.loading" />
       </button>
     </div>
   </form>
@@ -38,8 +37,10 @@ import InfoDropdown from "../InfoDropdown.vue"
 import LoaderIcon from "../svg/LoaderIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
+import Crate from "@/interfaces/Crate"
+
 const user = userStore()
-const crate = crateStore()
+const crates = crateStore()
 
 const emit = defineEmits<{
   (e: "close"): void
@@ -50,11 +51,11 @@ const form = reactive({
 })
 
 const submit = async () => {
-  const response = await crate.addCrate(
-    form.name,
-    user.loggedIn.id,
-    user.loggedIn.token
-  )
+  const newCrate: Crate = {
+    user: user.loggedIn._id,
+    name: form.name,
+  }
+  const response = await crates.addCrate(newCrate, user.loggedIn.token)
   if (response === 400) {
     console.error(`AddCrateForm: crate.addCrate returned status ${response}`)
   } else if (response === 201) emit("close")
