@@ -12,6 +12,7 @@
         type="text"
         placeholder="Name"
         :focused="true"
+        autocomplete="off"
         required
       />
       <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
@@ -33,8 +34,8 @@
 import { reactive, defineEmits } from "vue"
 import BaseInput from "./BasicInput.vue"
 import ErrorFeedback from "./ErrorFeedback.vue"
-import InfoDropdown from "../InfoDropdown.vue"
-import LoaderIcon from "../svg/LoaderIcon.vue"
+import InfoDropdown from "@/components/InfoDropdown.vue"
+import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 import Crate from "@/interfaces/Crate"

@@ -12,13 +12,14 @@
         type="text"
         placeholder="CAT001"
         :focused="true"
+        autocomplete="off"
       />
       <BaseInput
-        v-model="form.artist"
-        id="artist"
-        label="Artist"
+        v-model="form.artists"
+        id="artists"
+        label="Artists"
         type="text"
-        placeholder="Artist"
+        placeholder="Artists"
         required
       />
       <BaseInput
@@ -27,6 +28,7 @@
         label="Title"
         type="text"
         placeholder="Title"
+        autocomplete="off"
         required
       />
       <BaseInput
@@ -42,28 +44,36 @@
         label="Year"
         type="number"
         placeholder="Year"
+        autocomplete="off"
       />
       <label class="checkbox">
         <input type="checkbox" v-model="form.mixable" /> Mixable
       </label>
+      <ErrorFeedback :show="records.errorMsg !== ''" :msg="records.errorMsg" />
     </div>
     <div class="form-controls">
       <button type="reset">Clear</button>
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Close
       </button>
-      <button class="primary" type="submit">Save</button>
+      <button class="primary" type="submit" style="width: 12rem">
+        {{ records.loading ? null : "Save" }}
+        <LoaderIcon v-show="records.loading" />
+      </button>
     </div>
   </form>
 </template>
 
 <script setup lang="ts">
-import { reactive, inject, defineEmits } from "vue"
+import { reactive, defineEmits } from "vue"
 import BaseInput from "./BasicInput.vue"
-import InfoDropdown from "../InfoDropdown.vue"
+import InfoDropdown from "@/components/InfoDropdown.vue"
+import ErrorFeedback from "@/components/forms/ErrorFeedback.vue"
 import { userStore } from "@/stores/userStore"
-const API_URL = inject("API_URL")
+import { recordStore } from "@/stores/recordStore"
+import Record from "@/interfaces/Record"
 const user = userStore()
+const records = recordStore()
 
 const emit = defineEmits<{
   (e: "close"): void
@@ -71,54 +81,27 @@ const emit = defineEmits<{
 
 const form = reactive({
   catno: "",
-  artist: "",
+  artists: "",
   title: "",
   label: "",
   year: "",
   mixable: true,
 })
 
-const reset = () => {
-  form.catno = ""
-  form.artist = ""
-  form.title = ""
-  form.label = ""
-  form.year = ""
-  form.mixable = true
-}
-
 const submit = async () => {
-  const mixable = form.mixable ? "1" : "0" // string only in x-www-form-urlencode
-  const body = new URLSearchParams()
-  body.append("catno", form.catno)
-  body.append("artist", form.artist)
-  body.append("title", form.title)
-  body.append("label", form.label)
-  body.append("year", form.year)
-  body.append("mixable", mixable)
-
-  const options = {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Bearer ${user.loggedIn.token}`,
-    },
-    body: body,
+  const newRecord: Record = {
+    user: user.loggedIn._id,
+    catno: form.catno,
+    artists: form.artists,
+    title: form.title,
+    label: form.label,
+    year: form.year,
+    mixable: form.mixable,
   }
-
-  try {
-    const response = await fetch(API_URL + "records", options)
-    if (response.status === 200) {
-      const data = await response.json()
-      emit("close")
-    } else if (response.status === 400) {
-      const data = await response.json()
-      console.error(data.message)
-    }
-  } catch (error) {
-    console.error(error)
-  }
+  const response = await records.addRecord(newRecord, user.loggedIn.token)
+  if (response === 400) {
+    console.error(`AddRecordForm: record.addRecord returned status ${response}`)
+  } else if (response === 201) emit("close")
 }
 </script>
 

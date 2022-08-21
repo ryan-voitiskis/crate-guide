@@ -1,24 +1,24 @@
 import { defineStore } from "pinia"
-import Crate from "@/interfaces/Crate"
-import crateService from "@/services/crateService"
+import Record from "@/interfaces/Record"
+import recordService from "@/services/recordService"
 
-export const crateStore = defineStore("crate", {
+export const recordStore = defineStore("record", {
   state: () => ({
-    crateList: [] as Crate[],
+    recordList: [] as Record[],
     loading: false,
     errorMsg: "",
   }),
   actions: {
-    async addCrate(crate: Crate, token: string): Promise<number> {
+    async addRecord(record: Record, token: string): Promise<number> {
       this.loading = true
       this.errorMsg = ""
       try {
-        const response = await crateService.addCrate(crate, token)
+        const response = await recordService.addRecord(record, token)
 
-        // push returned crate to crateList
+        // push returned record to recordList
         if (response.status === 201) {
-          const newCrate = (await response.json()) as Crate
-          this.crateList.push(newCrate)
+          const newRecord = (await response.json()) as Record
+          this.recordList.push(newRecord)
           this.loading = false
           return response.status
 
@@ -40,20 +40,20 @@ export const crateStore = defineStore("crate", {
       }
     },
 
-    async fetchCrates(token: string) {
+    async fetchRecords(token: string) {
       try {
-        const response = await crateService.getCrates(token)
+        const response = await recordService.getRecords(token)
 
-        // push returned crate to crateList
+        // push returned record to recordList
         if (response.status === 200) {
-          const crates = (await response.json()) as Crate[]
-          if (crates !== null) this.crateList = crates
+          const records = (await response.json()) as Record[]
+          if (records !== null) this.recordList = records
           return response.status
 
           // handle errors
         } else if (response.status === 400) {
           const error = await response.json()
-          console.error("crateStore.fetchCrates():", error.message)
+          console.error("recordStore.fetchRecords():", error.message)
         }
         return response.status
 
@@ -64,15 +64,15 @@ export const crateStore = defineStore("crate", {
       }
     },
 
-    async deleteCrate(id: string, token: string) {
+    async deleteRecord(id: string, token: string) {
       this.loading = true
       this.errorMsg = ""
       try {
-        const response = await crateService.deleteCrate(id, token)
+        const response = await recordService.deleteRecord(id, token)
 
-        // fetch crates if crate deleted successfully
+        // fetch records if record deleted successfully
         if (response.status === 200) {
-          this.fetchCrates(token)
+          this.fetchRecords(token)
           this.loading = false
           return response.status
 
@@ -81,7 +81,7 @@ export const crateStore = defineStore("crate", {
           this.errorMsg = "Unexpected error"
           this.loading = false
           const error = await response.json()
-          console.error("crateStore.deleteCrate():", error.message)
+          console.error("recordStore.deleteRecord():", error.message)
         }
         return response.status
 
@@ -93,10 +93,10 @@ export const crateStore = defineStore("crate", {
     },
   },
   getters: {
-    // gets a crate by id. returns null if not found
+    // gets a record by id. returns null if not found
     getById: (state) => {
       return (id: string) =>
-        state.crateList.find((crate) => crate._id === id) || null
+        state.recordList.find((record) => record._id === id) || null
     },
   },
 })

@@ -10,13 +10,13 @@ const recordSchema = mongoose.Schema(
     catno: {
       type: String,
     },
-    artist: {
-      type: String,
-      required: [true, "Record model: No artist provided."],
-    },
     title: {
       type: String,
       required: [true, "Record model: No title provided."],
+    },
+    artists: {
+      type: String,
+      required: [true, "Record model: No artist provided."],
     },
     label: {
       type: String,

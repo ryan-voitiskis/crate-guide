@@ -8,7 +8,7 @@
 
 <script setup lang="ts">
 import { defineProps } from "vue"
-import ExclamationIcon from "../svg/ExclamationIcon.vue"
+import ExclamationIcon from "@/components/svg/ExclamationIcon.vue"
 
 const props = defineProps<{
   show: boolean

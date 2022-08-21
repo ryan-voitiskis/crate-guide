@@ -18,12 +18,12 @@ const getCrates = asyncHandler(async (req, res) => {
 const addCrate = asyncHandler(async (req, res) => {
   if (!req.user.id) {
     res.status(400)
-    throw new Error("Crate controller: user not provided.")
+    throw new Error("User not provided.")
   }
 
   if (!req.body.name) {
     res.status(400)
-    throw new Error("Crate controller: name not provided.")
+    throw new Error("Name not provided.")
   }
 
   const crate = await Crate.create({
@@ -58,9 +58,6 @@ const updateCrate = asyncHandler(async (req, res) => {
   }
 
   const updatedCrate = await Crate.findByIdAndUpdate(req.params.id, req.body, {
-    // TODO: remove this if unnecessary
-    // You should set the new option to true to return the document after update was applied.
-    // from https://mongoosejs.com/docs/tutorials/findoneandupdate.html
     new: true,
   })
 

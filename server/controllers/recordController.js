@@ -1,7 +1,7 @@
 const asyncHandler = require("express-async-handler")
 
 const Record = require("../models/recordModel")
-const User = require("../models/userModel")
+// const User = require("../models/userModel") // TODO: delete if unused
 
 // @desc    Get records
 // @route   GET /api/records
@@ -12,41 +12,36 @@ const getRecords = asyncHandler(async (req, res) => {
   res.status(200).json(records)
 })
 
-// @desc    Set record
+// @desc    Add record
 // @route   POST /api/records
 // @access  Private
-const setRecord = asyncHandler(async (req, res) => {
+const addRecord = asyncHandler(async (req, res) => {
   if (!req.user.id) {
     res.status(400)
-    throw new Error("Record controller: user not provided.")
-  }
-
-  if (!req.body.artist) {
-    res.status(400)
-    throw new Error("Record controller: artist not provided.")
+    throw new Error("User not provided.")
   }
 
   if (!req.body.title) {
     res.status(400)
-    throw new Error("Record controller: title not provided.")
+    throw new Error("Title not provided.")
   }
 
-  // TODO: validate
-  const year = req.body.year ? parseInt(req.body.year) : null
-
-  const mixable = req.body.mixable == "1" ? true : false
+  if (!req.body.artists) {
+    res.status(400)
+    throw new Error("Artists not provided.")
+  }
 
   const record = await Record.create({
     user: req.user.id,
     catno: req.body.catno,
-    artist: req.body.artist,
     title: req.body.title,
+    artists: req.body.artists,
     label: req.body.label,
-    year: year,
-    mixable: mixable,
+    year: req.body.year,
+    mixable: req.body.mixable == "1" ? true : false,
   })
 
-  res.status(200).json(record)
+  res.status(201).json(record)
 })
 
 // @desc    Update record
@@ -79,7 +74,7 @@ const updateRecord = asyncHandler(async (req, res) => {
       // TODO: remove this if unnecessary
       // You should set the new option to true to return the document after update was applied.
       // from https://mongoosejs.com/docs/tutorials/findoneandupdate.html
-      new: true, // TODO: remove this if unnecessary
+      new: true,
     }
   )
 
@@ -116,7 +111,7 @@ const deleteRecord = asyncHandler(async (req, res) => {
 
 module.exports = {
   getRecords,
-  setRecord,
+  addRecord,
   updateRecord,
   deleteRecord,
 }

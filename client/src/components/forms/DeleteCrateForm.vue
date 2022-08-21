@@ -66,4 +66,8 @@ const submit = () => {
 }
 </script>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+.form-hint {
+  display: block;
+}
+</style>

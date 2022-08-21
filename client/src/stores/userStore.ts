@@ -62,7 +62,7 @@ export const userStore = defineStore("user", {
         }
         return response.status
 
-        // catch error, eg. TypeError: NetworkError when attempting to fetch resource.
+        // catch error, eg. NetworkError
       } catch (error) {
         this.errorMsg = "Unexpected error"
         this.loading = false
@@ -113,7 +113,7 @@ export const userStore = defineStore("user", {
         }
         return response.status
 
-        // catch error, eg. TypeError: NetworkError when attempting to fetch resource.
+        // catch error, eg. NetworkError
         // TODO: represent this type of error in UI
       } catch (error) {
         this.errorMsg = "Unexpected error"
@@ -144,7 +144,7 @@ export const userStore = defineStore("user", {
         this.loading = false
         return response.status
 
-        // catch error, eg. TypeError: NetworkError when attempting to fetch resource.
+        // catch error, eg. NetworkError
         // TODO: represent this type of error in UI, test by changing server port in userService
       } catch (error) {
         console.error(error)

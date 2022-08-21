@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from "vue-router"
-import SessionView from "../views/SessionView.vue"
+import SessionView from "@/views/SessionView.vue"
 
 const routes: Array<RouteRecordRaw> = [
   {

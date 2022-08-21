@@ -1,4 +1,5 @@
 <template>
+  <p v-if="!user.hasUser()">Sign in to create collections.</p>
   <div id="crate_controls" v-if="user.hasUser()">
     <label for="crate_select"
       >Select crate
@@ -43,8 +44,6 @@
 
   <RecordsList v-if="user.hasUser()" />
 
-  <p v-if="!user.hasUser()">Sign in to create collections.</p>
-
   <FormModal
     v-if="state.addCrate"
     @close="state.addCrate = false"
@@ -86,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, watch } from "vue"
+import { reactive, watch } from "vue"
 import AddCrateForm from "@/components/forms/AddCrateForm.vue"
 import DeleteCrateForm from "@/components/forms/DeleteCrateForm.vue"
 import DuplicateCrateForm from "@/components/forms/DuplicateCrateForm.vue"
@@ -114,13 +113,6 @@ watch(
   () => user.loggedIn.settings.selectedCrate,
   () => user.updateSettings()
 )
-
-// watchEffect(async () => {
-//   // TODO: update db w user.loggedIn.settings.selectedCrate
-// })
-
-// TODO: update database when crate is selected either w watch or $subscribe:
-// https://pinia.vuejs.org/core-concepts/state.html#subscribing-to-the-state
 </script>
 
 <style scoped lang="scss">

@@ -20,9 +20,9 @@
 
 <script setup lang="ts">
 import { defineProps } from "vue"
-import CheckIcon from "../svg/CheckIcon.vue"
-import ExclamationIcon from "../svg/ExclamationIcon.vue"
-import LoaderIcon from "../svg/LoaderIcon.vue"
+import CheckIcon from "@/components/svg/CheckIcon.vue"
+import ExclamationIcon from "@/components/svg/ExclamationIcon.vue"
+import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 
 const props = defineProps<{
   saving: boolean

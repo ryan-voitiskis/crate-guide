@@ -52,7 +52,7 @@ import { reactive, defineEmits, onUnmounted } from "vue"
 import BaseInput from "./BasicInput.vue"
 import PasswordInput from "./PasswordInput.vue"
 import ErrorFeedback from "./ErrorFeedback.vue"
-import LoaderIcon from "../svg/LoaderIcon.vue"
+import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import { userStore } from "@/stores/userStore"
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
 const user = userStore()

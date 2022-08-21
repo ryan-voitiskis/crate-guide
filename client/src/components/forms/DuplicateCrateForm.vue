@@ -30,7 +30,7 @@
 import { reactive, defineEmits } from "vue"
 import BaseInput from "./BasicInput.vue"
 import ErrorFeedback from "./ErrorFeedback.vue"
-import LoaderIcon from "../svg/LoaderIcon.vue"
+import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 import Crate from "@/interfaces/Crate"
