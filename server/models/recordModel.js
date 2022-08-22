@@ -2,6 +2,9 @@ const mongoose = require("mongoose")
 
 const recordSchema = mongoose.Schema(
   {
+    discogsID: {
+      type: String,
+    },
     user: {
       type: mongoose.Schema.Types.ObjectId,
       required: [true, "Record model: No user provided."],

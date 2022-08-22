@@ -1,5 +1,6 @@
 export default interface User {
   _id: string
+  discogsUID?: string
   name: string
   email: string
   token: string

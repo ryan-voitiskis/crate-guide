@@ -47,11 +47,13 @@
 
   /* buttons */
   --btn-primary: hsl(206, 57%, 54%);
-  --btn-primary-hover: hsl(206, 74%, 61%);
+  --btn-primary-hover: hsl(206, 74%, 72%);
   --btn-secondary: hsl(260, 16%, 96%);
   --btn-secondary-hover: hsl(0, 0%, 91%);
-  --btn-edit: hsl(35, 84%, 62%);
-  --btn-delete: hsl(359, 56%, 62%);
+  --btn-edit: hsl(35, 84%, 54%);
+  --btn-edit-hover: hsl(35, 84%, 72%);
+  --btn-delete: hsl(359, 56%, 54%);
+  --btn-delete-hover: hsl(359, 56%, 72%);
 
   /* decks */
   --deck-black: hsl(0, 0%, 20%);

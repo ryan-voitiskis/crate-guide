@@ -2,6 +2,9 @@ const mongoose = require("mongoose")
 
 const userSchema = mongoose.Schema(
   {
+    discogsUID: {
+      type: String,
+    },
     name: {
       type: String,
       required: [true, "Please add a name"],

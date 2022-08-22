@@ -9,7 +9,7 @@ const addRecord = async (record: Record, token: string) => {
   body.append("title", record.title)
   body.append("artists", record.artists)
   body.append("label", record.label ? record.label : "")
-  body.append("year", record.year ? record.year : "")
+  body.append("year", record.year ? record.year.toString() : "")
   body.append("mixable", record.mixable ? "1" : "0")
   // ? append tracks as well?
 

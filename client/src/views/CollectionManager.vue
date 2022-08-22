@@ -126,4 +126,7 @@ watch(
     margin-bottom: 0;
   }
 }
+#crate_manager {
+  margin-bottom: 1rem;
+}
 </style>

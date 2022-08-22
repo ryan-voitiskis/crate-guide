@@ -1,7 +1,9 @@
 [
   {
-    "id": 1,
-    "discogsID": 10240459,
+    "discogsID": "10240459",
+    "user": {
+      "$oid": "630217bde5535e438eb74cb9"
+    },
     "catno": "TA003",
     "label": "Take Away",
     "title": "Got 2 Be Loved",
@@ -31,8 +33,10 @@
     ]
   },
   {
-    "id": 2,
-    "discogsID": 11426092,
+    "discogsID": "11426092",
+    "user": {
+      "$oid": "630217bde5535e438eb74cb9"
+    },
     "catno": "TRUE12100",
     "label": "Truesoul",
     "title": "In The Loop",
@@ -76,8 +80,10 @@
     ]
   },
   {
-    "id": 3,
-    "discogsID": 2156118,
+    "discogsID": "2156118",
+    "user": {
+      "$oid": "630217bde5535e438eb74cb9"
+    },
     "catno": "FW 013",
     "label": "Fachwerk",
     "title": "Serrage EP",
