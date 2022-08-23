@@ -12,7 +12,8 @@
     </transition>
     <transition name="fade">
       <span class="feedback failed" v-if="failed">
-        <ExclamationIcon /> Failed to save settings
+        <ExclamationIcon />
+        {{ user.errorMsg ? user.errorMsg : "Failed to save settings" }}
       </span>
     </transition>
   </div>
@@ -20,9 +21,11 @@
 
 <script setup lang="ts">
 import { defineProps } from "vue"
+import { userStore } from "@/stores/userStore"
 import CheckIcon from "@/components/svg/CheckIcon.vue"
 import ExclamationIcon from "@/components/svg/ExclamationIcon.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+const user = userStore()
 
 const props = defineProps<{
   saving: boolean

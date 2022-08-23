@@ -9,7 +9,7 @@ export const crateStore = defineStore("crate", {
     errorMsg: "",
   }),
   actions: {
-    async addCrate(crate: Crate, token: string): Promise<number> {
+    async addCrate(crate: Crate, token: string): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
       try {
@@ -24,10 +24,10 @@ export const crateStore = defineStore("crate", {
 
           // handle errors
         } else if (response.status === 400) {
-          this.errorMsg = "Unexpected error"
           this.loading = false
           const error = await response.json()
-          console.error(error)
+          const msg = error.message ? error.message : "Unexpected error"
+          this.errorMsg = msg
         }
         return response.status
 
@@ -36,11 +36,11 @@ export const crateStore = defineStore("crate", {
         this.errorMsg = "Unexpected error"
         this.loading = false
         console.error(error)
-        return 400
+        return null
       }
     },
 
-    async fetchCrates(token: string) {
+    async fetchCrates(token: string): Promise<number | null> {
       try {
         const response = await crateService.getCrates(token)
 
@@ -53,18 +53,19 @@ export const crateStore = defineStore("crate", {
           // handle errors
         } else if (response.status === 400) {
           const error = await response.json()
-          console.error("crateStore.fetchCrates():", error.message)
+          if (error.message) console.error(error.message)
+          else console.error("Unexpected error")
         }
         return response.status
 
         // catch error, eg. NetworkError
       } catch (error) {
         console.error(error)
-        return 400
+        return null
       }
     },
 
-    async deleteCrate(id: string, token: string) {
+    async deleteCrate(id: string, token: string): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
       try {
@@ -78,17 +79,19 @@ export const crateStore = defineStore("crate", {
 
           // handle errors
         } else if (response.status === 400) {
-          this.errorMsg = "Unexpected error"
           this.loading = false
           const error = await response.json()
-          console.error("crateStore.deleteCrate():", error.message)
+          const msg = error.message ? error.message : "Unexpected error"
+          this.errorMsg = msg
         }
         return response.status
 
         // catch error, eg. NetworkError
       } catch (error) {
+        this.errorMsg = "Unexpected error"
+        this.loading = false
         console.error(error)
-        return 400
+        return null
       }
     },
   },

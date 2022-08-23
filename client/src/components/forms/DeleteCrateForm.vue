@@ -49,20 +49,17 @@ const form = reactive({
   name: "",
 })
 
-const state = reactive({
-  invalid: false,
-  invalidMsg: "Name doesn't match",
-})
-
-const submit = () => {
-  state.invalid = false
+const submit = async () => {
+  crates.errorMsg = "" // TODO: this isnt resetting fade in animation
   if (form.name === crate?.name) {
     if (crate._id) {
-      crates.deleteCrate(crate._id, user.loggedIn.token)
-      user.loggedIn.settings.selectedCrate = "all"
-      emit("close")
+      const response = await crates.deleteCrate(crate._id, user.loggedIn.token)
+      if (response === 200) {
+        user.loggedIn.settings.selectedCrate = "all"
+        emit("close")
+      }
     }
-  } else state.invalid = true
+  } else crates.errorMsg = "Name doesn't match"
 }
 </script>
 

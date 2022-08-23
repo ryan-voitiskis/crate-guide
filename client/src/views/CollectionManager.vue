@@ -111,7 +111,9 @@ const state = reactive({
 // when selectedCrate changes, update db
 watch(
   () => user.loggedIn.settings.selectedCrate,
-  () => user.updateSettings()
+  () => {
+    if (user.hasUser()) user.updateSettings() // hasUser() check to avoid call on logout
+  }
 )
 </script>
 

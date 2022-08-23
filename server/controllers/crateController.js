@@ -1,7 +1,5 @@
 const asyncHandler = require("express-async-handler")
-
 const Crate = require("../models/crateModel")
-// const User = require("../models/userModel") // TODO: delete if unused
 
 // @desc    Get crates
 // @route   GET /api/crates

@@ -55,21 +55,15 @@ const form = reactive({
   password: "",
 })
 
-const state = reactive({
-  waiting: false,
-  invalidCreds: false,
-})
-
 const submit = async () => {
   const response = await user.login(form.email, form.password)
-  if (response === 400) {
-    console.error(`LoginForm: user.login returned status ${response}`)
-  } else if (response === 200) {
+  if (response === 200) {
     crates.fetchCrates(user.loggedIn.token)
     emit("close")
   }
 }
 
+// clear errorMsg for other user forms on unmount
 onUnmounted(() => {
   user.errorMsg = ""
 })

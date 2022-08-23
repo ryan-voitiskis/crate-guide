@@ -1,12 +1,16 @@
 <template>
   <div class="track">
-    <button class="inline-button edit"><PencilIcon /></button>
-    <button class="inline-button delete"><TrashIcon /></button>
-    <span class="position" v-if="position">{{ position }}</span>
-    <span class="bpm" v-if="bpm">{{ bpm }}</span>
-    <span class="title">{{ title }}</span>
-    <span class="duration" v-if="duration">"{{ duration }}"</span>
-    <span class="genre" v-if="genre">{{ genre }}</span>
+    <div class="details">
+      <span class="position" v-if="position">{{ position }}</span>
+      <span class="bpm" v-if="bpm">{{ bpm }}</span>
+      <span class="title">{{ title }}</span>
+      <span class="duration" v-if="duration">"{{ duration }}"</span>
+      <span class="genre" v-if="genre">{{ genre }}</span>
+    </div>
+    <div class="controls">
+      <button class="inline-button edit"><PencilIcon /></button>
+      <button class="inline-button delete"><TrashIcon /></button>
+    </div>
   </div>
 </template>
 
@@ -40,32 +44,39 @@ const bpmColour = computed(() => {
 <style scoped lang="scss">
 .track {
   height: 3rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  span {
-    line-height: 3rem;
+  display: flex;
+  .details {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    span {
+      line-height: 3rem;
+    }
+    .position {
+      color: var(--light-text);
+      line-height: 3rem;
+      margin: 0 0 0 1rem;
+    }
+    .bpm {
+      color: v-bind(bpmColour);
+      margin-left: 1rem;
+    }
+    .title {
+      margin-left: 1rem;
+    }
+    .duration {
+      color: var(--light-text);
+      margin-left: 1rem;
+    }
+    .genre {
+      color: var(--light-text);
+      font-style: italic;
+      margin-left: 1rem;
+    }
   }
-  .position {
-    color: var(--light-text);
-    line-height: 3rem;
-    margin: 0 0 0 1rem;
-  }
-  .bpm {
-    color: v-bind(bpmColour);
-    margin-left: 1rem;
-  }
-  .title {
-    margin-left: 1rem;
-  }
-  .duration {
-    color: var(--light-text);
-    margin-left: 1rem;
-  }
-  .genre {
-    color: var(--light-text);
-    font-style: italic;
-    margin-left: 1rem;
+  .controls {
+    margin-left: auto;
+    flex-shrink: 0;
   }
 }
 </style>

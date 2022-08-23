@@ -18,15 +18,15 @@ export const userStore = defineStore("user", {
         selectedCrate: "all",
       },
     } as User,
+    loading: false, // used in LoginForm, SignUpForm and SettingsForm
+    errorMsg: "", // used in LoginForm, SignUpForm and SettingsForm
     duplicateEmail: false, // used in SignUpForm
     invalidCreds: false, // used in LoginForm
-    loading: false, // used in LoginForm, SignUp and SettingsForm
     error: false, // used in SettingsForm
     success: false, // used in SettingsForm
-    errorMsg: "", // used in SignUpForm
   }),
   actions: {
-    async login(email: string, password: string): Promise<number> {
+    async login(email: string, password: string): Promise<number | null> {
       this.invalidCreds = false
       this.loading = true
       this.errorMsg = ""
@@ -34,6 +34,7 @@ export const userStore = defineStore("user", {
         const response = await userService.login(email, password)
         if (response.status === 200) {
           // nav to home page here to avoid extra call to user.updateSettings() from watch in CollectionManager
+          // ? can this be avoided?
           router.push("/")
           const data = await response.json()
           const authenticatedUser: User = {
@@ -53,25 +54,23 @@ export const userStore = defineStore("user", {
           return response.status
 
           // handle invalid credentials
-        } else if (response.status === 400) {
+        } else if (response.status === 401) {
           this.invalidCreds = true
           this.errorMsg = "Invalid credentials"
-          this.loading = false
-          const error = await response.json()
-          console.error("userStore.login():", error.message)
         }
+        this.loading = false
         return response.status
 
         // catch error, eg. NetworkError
       } catch (error) {
-        this.errorMsg = "Unexpected error"
+        this.errorMsg = "Unexpected error (Network error?)"
         this.loading = false
         console.error(error)
-        return 400
+        return null
       }
     },
 
-    async addUser(user: UnregisteredUser): Promise<number> {
+    async addUser(user: UnregisteredUser): Promise<number | null> {
       this.loading = true
       this.duplicateEmail = false
       this.errorMsg = ""
@@ -101,55 +100,52 @@ export const userStore = defineStore("user", {
         } else if (response.status === 409) {
           this.duplicateEmail = true
           this.loading = false
-          const error = await response.json()
-          console.error("userStore.addUser():", error.message)
 
           // handle other errors
         } else if (response.status === 400) {
           this.loading = false
           const error = await response.json()
-          this.errorMsg = error.message
-          console.error("userStore.addUser():", error.message)
+          const msg = error.message ? error.message : "Unexpected error"
+          this.errorMsg = msg
         }
         return response.status
 
         // catch error, eg. NetworkError
-        // TODO: represent this type of error in UI
       } catch (error) {
-        this.errorMsg = "Unexpected error"
+        this.errorMsg = "Unexpected error (Network error?)"
         this.loading = false
         console.error(error)
-        return 400
+        return null
       }
     },
 
-    async updateSettings(): Promise<number> {
+    async updateSettings(): Promise<number | null> {
       this.success = false
       this.error = false
       this.loading = true
-
+      this.errorMsg = ""
       try {
         const response = await userService.updateSettings(this.loggedIn)
 
         // handle successful update
-        if (response.status === 200) {
-          this.success = true
-
-          // handle 400 and 401 status codes. see userController.js
-        } else {
+        if (response.status === 200) this.success = true
+        // handle 400 and 401 status codes. see userController.js
+        else {
           this.error = true
           const error = await response.json()
-          console.error("userStore.updateSettings():", error.message)
+          const msg = error.message ? error.message : "Unexpected error"
+          console.error(msg)
         }
         this.loading = false
         return response.status
 
         // catch error, eg. NetworkError
-        // TODO: represent this type of error in UI, test by changing server port in userService
       } catch (error) {
-        console.error(error)
+        this.errorMsg = "Unexpected error (Network error?)"
+        this.error = true
         this.loading = false
-        return 400
+        console.error(error)
+        return null
       }
     },
 

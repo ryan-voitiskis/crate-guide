@@ -2,14 +2,8 @@
   <div class="record-list">
     <RecordSingle
       v-for="record in records.recordList"
+      v-bind="record"
       :key="record._id"
-      :catno="record.catno"
-      :title="record.title"
-      :artists="record.artists"
-      :label="record.label"
-      :year="record.year"
-      :mixable="record.mixable"
-      :tracks="record.tracks"
     />
   </div>
 </template>

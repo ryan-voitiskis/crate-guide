@@ -71,7 +71,7 @@ import RadioInput from "./RadioInput.vue"
 import SubmitlessFeedback from "./SubmitlessFeedback.vue"
 const user = userStore()
 
-// freaks out when called directly from <form v-on="">. cpu usage spike + browser non-responsive
+// ! freaks out when called directly from <form v-on="">. cpu usage spike + browser non-responsive
 const updateSettings = () => user.updateSettings()
 
 onUnmounted(() => {

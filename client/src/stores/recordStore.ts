@@ -9,7 +9,7 @@ export const recordStore = defineStore("record", {
     errorMsg: "",
   }),
   actions: {
-    async addRecord(record: Record, token: string): Promise<number> {
+    async addRecord(record: Record, token: string): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
       try {
@@ -24,10 +24,10 @@ export const recordStore = defineStore("record", {
 
           // handle errors
         } else if (response.status === 400) {
-          this.errorMsg = "Unexpected error"
           this.loading = false
           const error = await response.json()
-          console.error(error)
+          const msg = error.message ? error.message : "Unexpected error"
+          this.errorMsg = msg
         }
         return response.status
 
@@ -36,11 +36,11 @@ export const recordStore = defineStore("record", {
         this.errorMsg = "Unexpected error"
         this.loading = false
         console.error(error)
-        return 400
+        return null
       }
     },
 
-    async fetchRecords(token: string) {
+    async fetchRecords(token: string): Promise<number | null> {
       try {
         const response = await recordService.getRecords(token)
 
@@ -53,18 +53,19 @@ export const recordStore = defineStore("record", {
           // handle errors
         } else if (response.status === 400) {
           const error = await response.json()
-          console.error("recordStore.fetchRecords():", error.message)
+          if (error.message) console.error(error.message)
+          else console.error("Unexpected error")
         }
         return response.status
 
         // catch error, eg. NetworkError
       } catch (error) {
         console.error(error)
-        return 400
+        return null
       }
     },
 
-    async deleteRecord(id: string, token: string) {
+    async deleteRecord(id: string, token: string): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
       try {
@@ -78,17 +79,19 @@ export const recordStore = defineStore("record", {
 
           // handle errors
         } else if (response.status === 400) {
-          this.errorMsg = "Unexpected error"
           this.loading = false
           const error = await response.json()
-          console.error("recordStore.deleteRecord():", error.message)
+          const msg = error.message ? error.message : "Unexpected error"
+          this.errorMsg = msg
         }
         return response.status
 
         // catch error, eg. NetworkError
       } catch (error) {
+        this.errorMsg = "Unexpected error"
+        this.loading = false
         console.error(error)
-        return 400
+        return null
       }
     },
   },

@@ -8,22 +8,14 @@
     </div>
     <span class="artists">{{ artists }}</span>
     <div class="controls">
-      <button class="inline-button edit"><PencilIcon /></button>
-      <button class="inline-button delete"><TrashIcon /></button>
+      <button class="inline-button edit"><PencilIcon />Edit</button>
+      <button class="inline-button delete"><TrashIcon />Delete</button>
       <button class="inline-button add add-track">
         <PlusCircleIcon />Add track
       </button>
     </div>
     <div class="tracks">
-      <TrackSingle
-        v-for="track in tracks"
-        :key="track._id"
-        :position="track.position"
-        :bpm="track.bpm"
-        :title="track.title"
-        :duration="track.duration"
-        :genre="track.genre"
-      />
+      <TrackSingle v-for="track in tracks" v-bind="track" :key="track._id" />
     </div>
   </div>
 </template>
@@ -89,15 +81,19 @@ const props = defineProps<{
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .add-track {
-    float: right;
-    margin: 0 2rem 0 1rem;
-    font-size: 1.2rem;
+  .controls {
+    button {
+      margin: 0 1rem;
+      font-size: 1.2rem;
+      &.add-track {
+        float: right;
+      }
+    }
   }
   .tracks {
     grid-area: 1 / 3 / 5 / 4;
     overflow-y: scroll;
-    scrollbar-color: hsl(345, 46%, 67%) hsla(345, 46%, 84%, 0.437);
+    scrollbar-color: hsl(210, 46%, 67%) hsla(210, 46%, 84%, 0.437);
     scrollbar-gutter: stable both-edges;
   }
 }
