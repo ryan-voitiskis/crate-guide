@@ -4,7 +4,7 @@
       <p @click="$emit('openSignUp')">
         Don't have an account? <span class="link-text">Sign up</span>
       </p>
-      <BaseInput
+      <BasicInput
         v-model="form.email"
         id="email"
         label="Email"
@@ -35,7 +35,7 @@
 
 <script setup lang="ts">
 import { reactive, defineEmits, onUnmounted } from "vue"
-import BaseInput from "./BasicInput.vue"
+import BasicInput from "./BasicInput.vue"
 import ErrorFeedback from "./ErrorFeedback.vue"
 import PasswordInput from "./PasswordInput.vue"
 import { userStore } from "@/stores/userStore"

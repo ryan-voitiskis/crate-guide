@@ -5,7 +5,7 @@
       class="form-hint"
     />
     <div class="form-body inline-labels">
-      <BaseInput
+      <BasicInput
         v-model="form.name"
         id="name"
         label="Name"
@@ -32,7 +32,7 @@
 
 <script setup lang="ts">
 import { reactive, defineEmits } from "vue"
-import BaseInput from "./BasicInput.vue"
+import BasicInput from "./BasicInput.vue"
 import ErrorFeedback from "./ErrorFeedback.vue"
 import InfoDropdown from "@/components/InfoDropdown.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"

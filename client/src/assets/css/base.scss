@@ -257,6 +257,10 @@ select {
   border-radius: 0.8rem;
   box-shadow: none;
   box-sizing: border-box;
+  &.matched,
+  &.matched:focus {
+    border-color: var(--success);
+  }
 }
 
 textarea {

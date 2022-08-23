@@ -7,6 +7,7 @@ export const recordStore = defineStore("record", {
     recordList: [] as Record[],
     loading: false,
     errorMsg: "",
+    toDelete: "",
   }),
   actions: {
     async addRecord(record: Record, token: string): Promise<number | null> {
@@ -65,34 +66,41 @@ export const recordStore = defineStore("record", {
       }
     },
 
-    async deleteRecord(id: string, token: string): Promise<number | null> {
+    async deleteRecord(token: string): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
-      try {
-        const response = await recordService.deleteRecord(id, token)
+      if (this.toDelete) {
+        try {
+          const response = await recordService.deleteRecord(
+            this.toDelete,
+            token
+          )
 
-        // fetch records if record deleted successfully
-        if (response.status === 200) {
-          this.fetchRecords(token)
-          this.loading = false
+          // fetch records if record deleted successfully
+          if (response.status === 200) {
+            this.fetchRecords(token)
+            this.loading = false
+            this.toDelete = ""
+            return response.status
+
+            // handle errors
+          } else if (response.status === 400 || response.status === 401) {
+            this.loading = false
+            const error = await response.json()
+            const msg = error.message ? error.message : "Unexpected error"
+            this.errorMsg = msg
+          }
           return response.status
 
-          // handle errors
-        } else if (response.status === 400) {
+          // catch error, eg. NetworkError
+        } catch (error) {
+          this.errorMsg = "Unexpected error"
           this.loading = false
-          const error = await response.json()
-          const msg = error.message ? error.message : "Unexpected error"
-          this.errorMsg = msg
+          console.error(error)
+          return null
         }
-        return response.status
-
-        // catch error, eg. NetworkError
-      } catch (error) {
-        this.errorMsg = "Unexpected error"
-        this.loading = false
-        console.error(error)
-        return null
       }
+      return null
     },
   },
   getters: {

@@ -9,7 +9,9 @@
     <span class="artists">{{ artists }}</span>
     <div class="controls">
       <button class="inline-button edit"><PencilIcon />Edit</button>
-      <button class="inline-button delete"><TrashIcon />Delete</button>
+      <button class="inline-button delete" @click="records.toDelete = _id">
+        <TrashIcon />Delete
+      </button>
       <button class="inline-button add add-track">
         <PlusCircleIcon />Add track
       </button>
@@ -27,8 +29,11 @@ import PencilIcon from "./svg/PencilIcon.vue"
 import TrashIcon from "./svg/TrashIcon.vue"
 import PlusCircleIcon from "./svg/PlusCircleIcon.vue"
 import TrackSingle from "./TrackSingle.vue"
+import { recordStore } from "@/stores/recordStore"
+const records = recordStore()
 
 const props = defineProps<{
+  _id: string
   catno?: string
   title: string
   artists: string

@@ -2,7 +2,7 @@
   <form @submit.prevent="submitRecovery">
     <div class="form-body">
       <p>Enter your email for reset instructions.</p>
-      <BaseInput
+      <BasicInput
         v-model="user.email"
         id="email"
         label="Email"
@@ -16,7 +16,7 @@
 
 <script setup lang="ts">
 import { reactive } from "vue"
-import BaseInput from "./BasicInput.vue"
+import BasicInput from "./BasicInput.vue"
 
 const user = reactive({
   email: "",

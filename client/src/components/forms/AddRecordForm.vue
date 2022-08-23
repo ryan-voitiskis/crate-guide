@@ -5,7 +5,7 @@
       class="form-hint"
     />
     <div class="form-body inline-labels">
-      <BaseInput
+      <BasicInput
         v-model="form.catno"
         id="catno"
         label="Catalog #"
@@ -14,7 +14,7 @@
         :focused="true"
         autocomplete="off"
       />
-      <BaseInput
+      <BasicInput
         v-model="form.artists"
         id="artists"
         label="Artists"
@@ -22,7 +22,7 @@
         placeholder="Artists"
         required
       />
-      <BaseInput
+      <BasicInput
         v-model="form.title"
         id="title"
         label="Title"
@@ -31,14 +31,14 @@
         autocomplete="off"
         required
       />
-      <BaseInput
+      <BasicInput
         v-model="form.label"
         id="label"
         label="Label"
         type="text"
         placeholder="Label"
       />
-      <BaseInput
+      <BasicInput
         v-model="form.year"
         id="year"
         label="Year"
@@ -66,7 +66,7 @@
 
 <script setup lang="ts">
 import { reactive, defineEmits } from "vue"
-import BaseInput from "./BasicInput.vue"
+import BasicInput from "./BasicInput.vue"
 import InfoDropdown from "@/components/InfoDropdown.vue"
 import ErrorFeedback from "@/components/forms/ErrorFeedback.vue"
 import { userStore } from "@/stores/userStore"

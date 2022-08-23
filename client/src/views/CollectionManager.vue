@@ -82,30 +82,43 @@
   >
     <AddRecordForm @close="state.addRecord = false" />
   </FormModal>
+
+  <FormModal
+    v-if="state.deleteRecord"
+    @close="state.deleteRecord = false"
+    title="Delete record"
+    modal-width="440px"
+  >
+    <DeleteRecordForm @close="state.deleteRecord = false" />
+  </FormModal>
 </template>
 
 <script setup lang="ts">
 import { reactive, watch } from "vue"
 import AddCrateForm from "@/components/forms/AddCrateForm.vue"
 import DeleteCrateForm from "@/components/forms/DeleteCrateForm.vue"
+import DeleteRecordForm from "@/components/forms/DeleteRecordForm.vue"
 import DuplicateCrateForm from "@/components/forms/DuplicateCrateForm.vue"
 import AddRecordForm from "@/components/forms/AddRecordForm.vue"
 import RecordsList from "@/components/RecordsList.vue"
 import FormModal from "@/components/forms/FormModal.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
+import { recordStore } from "@/stores/recordStore"
 import DuplicateIcon from "@/components/svg/DuplicateIcon.vue"
 import TrashIcon from "@/components/svg/TrashIcon.vue"
 import FolderAddIcon from "@/components/svg/FolderAddIcon.vue"
 import PlusCircleIcon from "@/components/svg/PlusCircleIcon.vue"
 const user = userStore()
 const crates = crateStore()
+const records = recordStore()
 
 const state = reactive({
   addCrate: false,
   duplicateCrate: false,
   deleteCrate: false,
   addRecord: false,
+  deleteRecord: false,
 })
 
 // when selectedCrate changes, update db
@@ -113,6 +126,14 @@ watch(
   () => user.loggedIn.settings.selectedCrate,
   () => {
     if (user.hasUser()) user.updateSettings() // hasUser() check to avoid call on logout
+  }
+)
+
+// open DeleteRecordForm when records.toDelete has id
+watch(
+  () => records.toDelete,
+  () => {
+    if (records.toDelete) state.deleteRecord = true
   }
 )
 </script>

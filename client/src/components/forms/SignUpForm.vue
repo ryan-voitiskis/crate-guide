@@ -8,7 +8,7 @@
         <h3>Privacy policy</h3>
         <p>No data, aside from crates is stored. No emails.</p>
       </div>
-      <BaseInput
+      <BasicInput
         v-model="form.name"
         id="name"
         label="Name"
@@ -17,7 +17,7 @@
         :focused="true"
         required
       />
-      <BaseInput
+      <BasicInput
         v-model="form.email"
         id="email"
         label="Email"
@@ -49,7 +49,7 @@
 
 <script setup lang="ts">
 import { reactive, defineEmits, onUnmounted } from "vue"
-import BaseInput from "./BasicInput.vue"
+import BasicInput from "./BasicInput.vue"
 import PasswordInput from "./PasswordInput.vue"
 import ErrorFeedback from "./ErrorFeedback.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"

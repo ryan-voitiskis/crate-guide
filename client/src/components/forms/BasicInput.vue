@@ -57,6 +57,7 @@ const handleInputChange = (event: Event) =>
   position: relative;
   display: inline-block;
   color: var(--white-text);
+  grid-column: 1/3; // for inline form layouts
 }
 .error-msg:before {
   content: "";

@@ -78,7 +78,7 @@ export const crateStore = defineStore("crate", {
           return response.status
 
           // handle errors
-        } else if (response.status === 400) {
+        } else if (response.status === 400 || response.status === 401) {
           this.loading = false
           const error = await response.json()
           const msg = error.message ? error.message : "Unexpected error"
