@@ -8,6 +8,8 @@ export const recordStore = defineStore("record", {
     loading: false,
     errorMsg: "",
     toDelete: "",
+    // toDelete: [] as string[], // record id(s) to be deleted
+    toCrate: [] as string[], // record id(s) to be added to crate that is yet to be selected
   }),
   actions: {
     async addRecord(record: Record, token: string): Promise<number | null> {
@@ -54,8 +56,8 @@ export const recordStore = defineStore("record", {
           // handle errors
         } else if (response.status === 400) {
           const error = await response.json()
-          if (error.message) console.error(error.message)
-          else console.error("Unexpected error")
+          const msg = error.message ? error.message : "Unexpected error"
+          this.errorMsg = msg
         }
         return response.status
 
@@ -66,6 +68,7 @@ export const recordStore = defineStore("record", {
       }
     },
 
+    // todo: deleteRecord --> deleteRecords
     async deleteRecord(token: string): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
@@ -108,6 +111,10 @@ export const recordStore = defineStore("record", {
     getById: (state) => {
       return (id: string) =>
         state.recordList.find((record) => record._id === id) || null
+    },
+    getCatno: (state) => {
+      return (id: string) =>
+        state.recordList.find((record) => record._id === id)?.catno
     },
   },
 })

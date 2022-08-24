@@ -73,8 +73,7 @@ const spinState = computed(() => (props.isPlaying ? "running" : "paused"))
 const spinRate = computed(
   () =>
     (
-      ((props.pitch * -0.0001 * +user.loggedIn.settings.turntablePitchRange +
-        1) *
+      ((props.pitch * -0.0001 * +user.authd.settings.turntablePitchRange + 1) *
         60) /
       props.rpm
     )

@@ -14,6 +14,7 @@
 <script setup lang="ts">
 import { defineProps } from "vue"
 
+// todo: swap to TS defineProps pattern
 const props = defineProps({
   label: String,
   id: String,

@@ -1,24 +1,11 @@
 <template>
   <p v-if="!user.hasUser()">Sign in to create collections.</p>
   <div id="crate_controls" v-if="user.hasUser()">
-    <label for="crate_select"
-      >Select crate
-      <select v-model="user.loggedIn.settings.selectedCrate" id="crate_select">
-        <option value="all">Collection (all)</option>
-        <option
-          v-for="crate in crates.crateList"
-          :key="crate._id"
-          :value="crate._id"
-        >
-          {{ crate.name }}
-        </option>
-      </select>
-    </label>
-
+    <CrateSelect selectID="crate_select" />
     <button
       class="icon-button"
       @click="state.duplicateCrate = true"
-      v-if="user.loggedIn.settings.selectedCrate !== 'all'"
+      v-if="user.authd.settings.selectedCrate !== 'all'"
     >
       <DuplicateIcon /> Duplicate
     </button>
@@ -26,7 +13,7 @@
     <button
       class="icon-button"
       @click="state.deleteCrate = true"
-      v-if="user.loggedIn.settings.selectedCrate !== 'all'"
+      v-if="user.authd.settings.selectedCrate !== 'all'"
     >
       <TrashIcon /> Delete
     </button>
@@ -70,7 +57,7 @@
   >
     <DuplicateCrateForm
       @close="state.duplicateCrate = false"
-      :crate="user.loggedIn.settings.selectedCrate"
+      :crate="user.authd.settings.selectedCrate"
     />
   </FormModal>
 
@@ -91,6 +78,15 @@
   >
     <DeleteRecordForm @close="state.deleteRecord = false" />
   </FormModal>
+
+  <FormModal
+    v-if="state.selectCrate"
+    @close="state.selectCrate = false"
+    title="Select crate"
+    modal-width="440px"
+  >
+    <SelectCrateForm @close="state.selectCrate = false" />
+  </FormModal>
 </template>
 
 <script setup lang="ts">
@@ -103,14 +99,14 @@ import AddRecordForm from "@/components/forms/AddRecordForm.vue"
 import RecordsList from "@/components/RecordsList.vue"
 import FormModal from "@/components/forms/FormModal.vue"
 import { userStore } from "@/stores/userStore"
-import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
 import DuplicateIcon from "@/components/svg/DuplicateIcon.vue"
 import TrashIcon from "@/components/svg/TrashIcon.vue"
 import FolderAddIcon from "@/components/svg/FolderAddIcon.vue"
 import PlusCircleIcon from "@/components/svg/PlusCircleIcon.vue"
+import CrateSelect from "@/components/forms/CrateSelect.vue"
+import SelectCrateForm from "@/components/forms/SelectCrateForm.vue"
 const user = userStore()
-const crates = crateStore()
 const records = recordStore()
 
 const state = reactive({
@@ -119,11 +115,12 @@ const state = reactive({
   deleteCrate: false,
   addRecord: false,
   deleteRecord: false,
+  selectCrate: false,
 })
 
 // when selectedCrate changes, update db
 watch(
-  () => user.loggedIn.settings.selectedCrate,
+  () => user.authd.settings.selectedCrate,
   () => {
     if (user.hasUser()) user.updateSettings() // hasUser() check to avoid call on logout
   }
@@ -136,6 +133,14 @@ watch(
     if (records.toDelete) state.deleteRecord = true
   }
 )
+
+// open SelectCrateForm when records.toCrate has id(s)
+watch(
+  () => records.toCrate.length,
+  () => {
+    if (records.toCrate.length) state.selectCrate = true
+  }
+)
 </script>
 
 <style scoped lang="scss">
@@ -144,10 +149,6 @@ watch(
   flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 1rem;
-  select,
-  label {
-    margin-bottom: 0;
-  }
 }
 #crate_manager {
   margin-bottom: 1rem;

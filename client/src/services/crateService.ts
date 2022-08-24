@@ -34,6 +34,24 @@ const getCrates = async (token: string) => {
   return response
 }
 
+// update new crate
+const updateCrate = async (crate: Crate, token: string) => {
+  const body = new URLSearchParams()
+  body.append("crate", JSON.stringify(crate)) // send as string
+
+  const options = {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${token}`,
+    },
+    body: body,
+  }
+  const response = await fetch(API_URL + "/" + crate._id, options)
+  return response
+}
+
 // Delete user crate
 const deleteCrate = async (id: string, token: string) => {
   const options = {
@@ -51,6 +69,7 @@ const deleteCrate = async (id: string, token: string) => {
 const crateService = {
   addCrate,
   getCrates,
+  updateCrate,
   deleteCrate,
 }
 export default crateService

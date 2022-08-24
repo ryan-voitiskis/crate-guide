@@ -30,7 +30,7 @@ const records = recordStore()
 // handle state for automatically logged in ryannn
 const getState = async () => {
   await user.login("ryan@ryan.com", "password")
-  crates.fetchCrates(user.loggedIn.token)
-  records.fetchRecords(user.loggedIn.token)
+  crates.fetchCrates(user.authd.token)
+  records.fetchRecords(user.authd.token)
 }
 getState()

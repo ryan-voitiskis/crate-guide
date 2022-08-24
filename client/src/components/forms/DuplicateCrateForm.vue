@@ -47,11 +47,11 @@ const form = reactive({
 
 const submit = async () => {
   const newCrate: Crate = {
-    user: user.loggedIn._id,
+    user: user.authd._id,
     name: form.name,
     // TODO: inc records
   }
-  const response = await crates.addCrate(newCrate, user.loggedIn.token)
+  const response = await crates.addCrate(newCrate, user.authd.token)
   if (response === 400) {
     console.error(`AddCrateForm: crate.addCrate returned status ${response}`)
   } else if (response === 201) emit("close")

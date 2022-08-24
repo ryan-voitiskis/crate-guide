@@ -90,15 +90,15 @@ const form = reactive({
 
 const submit = async () => {
   const newRecord: Record = {
-    user: user.loggedIn._id,
+    user: user.authd._id,
     catno: form.catno,
     artists: form.artists,
     title: form.title,
     label: form.label,
-    year: form.year,
+    year: parseInt(form.year),
     mixable: form.mixable,
   }
-  const response = await records.addRecord(newRecord, user.loggedIn.token)
+  const response = await records.addRecord(newRecord, user.authd.token)
   if (response === 400) {
     console.error(`AddRecordForm: record.addRecord returned status ${response}`)
   } else if (response === 201) emit("close")

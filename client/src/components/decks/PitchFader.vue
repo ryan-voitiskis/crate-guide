@@ -56,9 +56,7 @@ const emitPitchReset = () => {
 const pitchReadable = computed(
   () =>
     (props.pitch >= 0 ? "+" : "") +
-    (props.pitch * 0.01 * +user.loggedIn.settings.turntablePitchRange).toFixed(
-      1
-    ) +
+    (props.pitch * 0.01 * +user.authd.settings.turntablePitchRange).toFixed(1) +
     "%"
 )
 </script>

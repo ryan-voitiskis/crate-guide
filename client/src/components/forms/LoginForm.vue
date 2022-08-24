@@ -58,7 +58,7 @@ const form = reactive({
 const submit = async () => {
   const response = await user.login(form.email, form.password)
   if (response === 200) {
-    crates.fetchCrates(user.loggedIn.token)
+    crates.fetchCrates(user.authd.token)
     emit("close")
   }
 }

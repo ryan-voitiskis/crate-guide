@@ -6,7 +6,7 @@ import router from "@/router"
 
 export const userStore = defineStore("user", {
   state: () => ({
-    loggedIn: {
+    authd: {
       _id: "",
       name: "",
       email: "",
@@ -49,7 +49,7 @@ export const userStore = defineStore("user", {
               selectedCrate: data.settings.selectedCrate,
             },
           }
-          Object.assign(this.loggedIn, authenticatedUser)
+          Object.assign(this.authd, authenticatedUser)
           this.loading = false
           return response.status
 
@@ -92,7 +92,7 @@ export const userStore = defineStore("user", {
               selectedCrate: "all",
             },
           }
-          Object.assign(this.loggedIn, registeringUser)
+          Object.assign(this.authd, registeringUser)
           this.loading = false
           return response.status
 
@@ -125,7 +125,7 @@ export const userStore = defineStore("user", {
       this.loading = true
       this.errorMsg = ""
       try {
-        const response = await userService.updateSettings(this.loggedIn)
+        const response = await userService.updateSettings(this.authd)
 
         // handle successful update
         if (response.status === 200) this.success = true
@@ -150,7 +150,7 @@ export const userStore = defineStore("user", {
     },
 
     hasUser(): boolean {
-      return this.loggedIn._id !== ""
+      return this.authd._id !== ""
     },
   },
 })

@@ -12,6 +12,9 @@
       <button class="inline-button delete" @click="records.toDelete = _id">
         <TrashIcon />Delete
       </button>
+      <button class="inline-button add" @click="records.toCrate.push(_id)">
+        <FolderDownIcon />Add to crate
+      </button>
       <button class="inline-button add add-track">
         <PlusCircleIcon />Add track
       </button>
@@ -30,6 +33,7 @@ import TrashIcon from "./svg/TrashIcon.vue"
 import PlusCircleIcon from "./svg/PlusCircleIcon.vue"
 import TrackSingle from "./TrackSingle.vue"
 import { recordStore } from "@/stores/recordStore"
+import FolderDownIcon from "./svg/FolderDownIcon.vue"
 const records = recordStore()
 
 const props = defineProps<{
@@ -46,14 +50,13 @@ const props = defineProps<{
 
 <style scoped lang="scss">
 .record {
-  background-color: antiquewhite;
+  background: linear-gradient(to right, hsl(10, 24%, 96%), hsl(35, 24%, 96%));
   display: grid;
   grid-template-columns: 12rem 4fr 6fr;
   grid-template-rows: 4rem 2rem 3rem 3rem;
-  background: linear-gradient(to right, hsl(45, 100%, 92%), #fff);
   width: 100%;
   .cover {
-    background-color: blanchedalmond;
+    background-color: hsl(36, 27%, 85%);
     grid-area: 1 / 1 / 5 / 2;
     overflow: hidden;
   }

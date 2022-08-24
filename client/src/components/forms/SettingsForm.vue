@@ -8,19 +8,19 @@
       <fieldset>
         <legend>Theme</legend>
         <RadioInput
-          v-model="user.loggedIn.settings.theme"
+          v-model="user.authd.settings.theme"
           name="theme"
           id="light"
           label="Light"
         />
         <RadioInput
-          v-model="user.loggedIn.settings.theme"
+          v-model="user.authd.settings.theme"
           name="theme"
           id="dark"
           label="Dark"
         />
         <RadioInput
-          v-model="user.loggedIn.settings.theme"
+          v-model="user.authd.settings.theme"
           name="theme"
           id="contrast"
           label="High contrast"
@@ -30,13 +30,13 @@
       <fieldset>
         <legend>Turntable colour</legend>
         <RadioInput
-          v-model="user.loggedIn.settings.turntableTheme"
+          v-model="user.authd.settings.turntableTheme"
           name="turntable_colour"
           id="silver"
           label="Silver"
         />
         <RadioInput
-          v-model="user.loggedIn.settings.turntableTheme"
+          v-model="user.authd.settings.turntableTheme"
           name="turntable_colour"
           id="black"
           label="Black"
@@ -46,7 +46,7 @@
       <label for="turntable_pitch"
         >Turntable pitch range
         <select
-          v-model="user.loggedIn.settings.turntablePitchRange"
+          v-model="user.authd.settings.turntablePitchRange"
           id="turntable_pitch"
         >
           <option value="8">±8%</option>

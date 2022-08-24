@@ -55,9 +55,13 @@ const updateCrate = asyncHandler(async (req, res) => {
     throw new Error("User not authorized")
   }
 
-  const updatedCrate = await Crate.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-  })
+  const updatedCrate = await Crate.findByIdAndUpdate(
+    req.params.id,
+    JSON.parse(req.body.crate), // req'd as crate needs to be sent as string
+    {
+      new: true,
+    }
+  )
 
   res.status(200).json(updatedCrate)
 })

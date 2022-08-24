@@ -1,5 +1,5 @@
 <template>
-  <form @submit.prevent="submit" v-if="crate !== null">
+  <form @submit.prevent="submit">
     <span class="form-hint">
       Enter the name &quot;<i>{{ crate.name }}</i
       >&quot; to delete crate.<br />
@@ -14,6 +14,8 @@
         :placeholder="crate.name"
         :focused="true"
         autocomplete="off"
+        :error-msg="state.mismatch ? `Name doesn't match` : undefined"
+        :class="{ matched: form.name === crate?.name }"
         required
       />
       <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
@@ -31,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits } from "vue"
+import { reactive, defineEmits, watch } from "vue"
 import BasicInput from "./BasicInput.vue"
 import ErrorFeedback from "./ErrorFeedback.vue"
 import { userStore } from "@/stores/userStore"
@@ -39,7 +41,7 @@ import { crateStore } from "@/stores/crateStore"
 const user = userStore()
 const crates = crateStore()
 
-const crate = crates.getById(user.loggedIn.settings.selectedCrate)
+const crate = crates.getById(user.authd.settings.selectedCrate)
 
 const emit = defineEmits<{
   (e: "close"): void
@@ -49,17 +51,25 @@ const form = reactive({
   name: "",
 })
 
+const state = reactive({
+  mismatch: false, // only true after a submit attempt
+})
+
+// when input text === catno, remove mismatch message
+watch(
+  () => form.name === crate?.name,
+  () => {
+    state.mismatch = false
+  }
+)
+
 const submit = async () => {
-  crates.errorMsg = "" // TODO: this isnt resetting fade in animation
   if (form.name === crate?.name) {
     if (crate._id) {
-      const response = await crates.deleteCrate(crate._id, user.loggedIn.token)
-      if (response === 200) {
-        user.loggedIn.settings.selectedCrate = "all"
-        emit("close")
-      }
+      const response = await crates.deleteCrate(crate._id, user.authd.token)
+      if (response === 200) emit("close")
     }
-  } else crates.errorMsg = "Name doesn't match"
+  } else state.mismatch = true
 }
 </script>
 

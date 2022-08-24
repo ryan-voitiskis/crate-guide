@@ -53,10 +53,10 @@ const form = reactive({
 
 const submit = async () => {
   const newCrate: Crate = {
-    user: user.loggedIn._id,
+    user: user.authd._id,
     name: form.name,
   }
-  const response = await crates.addCrate(newCrate, user.loggedIn.token)
+  const response = await crates.addCrate(newCrate, user.authd.token)
   if (response === 201) emit("close")
 }
 </script>

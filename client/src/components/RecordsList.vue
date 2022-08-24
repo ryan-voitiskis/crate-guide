@@ -19,6 +19,6 @@ const records = recordStore()
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-width: 895px;
+  max-width: 100%;
 }
 </style>

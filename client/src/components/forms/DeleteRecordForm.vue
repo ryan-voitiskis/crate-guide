@@ -66,7 +66,7 @@ watch(
 const submit = async () => {
   if (form.catno === record?.catno) {
     if (records.toDelete) {
-      const response = await records.deleteRecord(user.loggedIn.token)
+      const response = await records.deleteRecord(user.authd.token)
       if (response === 200) emit("close")
     }
   } else state.mismatch = true

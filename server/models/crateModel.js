@@ -10,6 +10,9 @@ const crateSchema = mongoose.Schema(
     name: {
       type: String,
     },
+    records: {
+      type: [String],
+    },
   },
   {
     timestamps: true,

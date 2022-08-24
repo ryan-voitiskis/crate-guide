@@ -1,4 +1,5 @@
 const mongoose = require("mongoose")
+// const Track = require("./trackModel")
 
 const recordSchema = mongoose.Schema(
   {
@@ -30,6 +31,9 @@ const recordSchema = mongoose.Schema(
     mixable: {
       type: Boolean,
     },
+    // tracks: {
+    //   type: [String],
+    // },
   },
   {
     timestamps: true,
