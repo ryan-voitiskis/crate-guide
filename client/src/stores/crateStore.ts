@@ -1,5 +1,6 @@
 import { defineStore } from "pinia"
 import Crate from "@/interfaces/Crate"
+import UnsavedCrate from "@/interfaces/UnsavedCrate"
 import crateService from "@/services/crateService"
 
 export const crateStore = defineStore("crate", {
@@ -9,7 +10,7 @@ export const crateStore = defineStore("crate", {
     errorMsg: "",
   }),
   actions: {
-    async addCrate(crate: Crate, token: string): Promise<number | null> {
+    async addCrate(crate: UnsavedCrate, token: string): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
       try {
@@ -106,11 +107,11 @@ export const crateStore = defineStore("crate", {
       try {
         const crate = this.getById(crateID) as Crate
         if (crate) {
-          const intersection = crate.records?.filter((i) => records.includes(i)) // records already in crate
-          const difference = records.filter((i) => !crate.records?.includes(i)) // records not yet in crate
+          const intersection = crate.records.filter((i) => records.includes(i)) // records already in crate
+          const difference = records.filter((i) => !crate.records.includes(i)) // records not yet in crate
 
           if (difference.length) {
-            crate.records?.push(...records)
+            crate.records.push(...records)
             const response = await crateService.updateCrate(crate, token)
 
             // handle success
@@ -119,7 +120,7 @@ export const crateStore = defineStore("crate", {
               this.loading = false
 
               // handle - successfully saved difference but some intersection
-              if (intersection?.length) {
+              if (intersection.length) {
                 // todo: test this works when group add implemented, maybe better ui than alert
                 alert(`
                 Records ${difference.join(", ")} succesfully added.
@@ -137,7 +138,7 @@ export const crateStore = defineStore("crate", {
             return response.status
 
             // handle - all records already in crate
-          } else if (intersection?.length) {
+          } else if (intersection.length) {
             const msg =
               records.length > 1
                 ? `All Records were already in crate.` // todo: test this works when group add implemented

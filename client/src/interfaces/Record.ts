@@ -10,7 +10,7 @@ export default interface Record {
   label?: string
   year?: number
   mixable: boolean
-  createdAt?: string // ? optional as not created yet, is this needed?
-  updatedAt?: string // ? optional as not created yet, is this needed?
-  tracks?: Track[]
+  createdAt: string
+  updatedAt: string
+  tracks: Track[]
 }

@@ -1,8 +1,8 @@
-import Record from "@/interfaces/Record"
-const API_URL = "http://localhost:5002/api/records"
+import UnsavedRecord from "@/interfaces/UnsavedRecord"
+const API_URL = "http://localhost:5006/api/records"
 
 // add new record
-const addRecord = async (record: Record, token: string) => {
+const addRecord = async (record: UnsavedRecord, token: string) => {
   const body = new URLSearchParams()
   body.append("user", record.user)
   body.append("catno", record.catno ? record.catno : "")
@@ -11,7 +11,7 @@ const addRecord = async (record: Record, token: string) => {
   body.append("label", record.label ? record.label : "")
   body.append("year", record.year ? record.year.toString() : "")
   body.append("mixable", record.mixable ? "1" : "0")
-  // ? append tracks as well?
+  // todo: append tracks
 
   const options = {
     method: "POST",
@@ -43,20 +43,6 @@ const getRecords = async (token: string) => {
 // todo: updateRecord()
 
 // Delete user record
-const deleteRecord = async (id: string, token: string) => {
-  const options = {
-    method: "DELETE",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Bearer ${token}`,
-    },
-  }
-  const response = await fetch(API_URL + "/" + id, options)
-  return response
-}
-
-// Delete user record
 const deleteRecords = async (records: string[], token: string) => {
   const body = new URLSearchParams()
   body.append("records", JSON.stringify(records)) // send as string
@@ -76,7 +62,6 @@ const deleteRecords = async (records: string[], token: string) => {
 const recordService = {
   addRecord,
   getRecords,
-  deleteRecord,
   deleteRecords,
 }
 export default recordService

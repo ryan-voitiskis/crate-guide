@@ -1,5 +1,6 @@
 import { defineStore } from "pinia"
 import Record from "@/interfaces/Record"
+import UnsavedRecord from "@/interfaces/UnsavedRecord"
 import recordService from "@/services/recordService"
 
 export const recordStore = defineStore("record", {
@@ -11,7 +12,10 @@ export const recordStore = defineStore("record", {
     toCrate: [] as string[], // record id(s) to be added to crate that is yet to be selected
   }),
   actions: {
-    async addRecord(record: Record, token: string): Promise<number | null> {
+    async addRecord(
+      record: UnsavedRecord,
+      token: string
+    ): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
       try {
@@ -120,7 +124,7 @@ export const recordStore = defineStore("record", {
     // gets a record by id. returns null if not found
     getById: (state) => {
       return (id: string) =>
-        state.recordList.find((record) => record._id === id) || null
+        state.recordList.find((record) => record._id === id) || null // todo: test this works
     },
     getCatno: (state) => {
       return (id: string) =>

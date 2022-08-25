@@ -76,7 +76,7 @@ const submit = async () => {
   if (form.crate) {
     if (records.toCrate.length) {
       const response = await crates.pushToCrate(
-        records.toCrate,
+        records.toCrate as string[],
         form.crate,
         user.authd.token
       )

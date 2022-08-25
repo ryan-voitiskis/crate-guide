@@ -71,7 +71,7 @@ import InfoDropdown from "@/components/InfoDropdown.vue"
 import ErrorFeedback from "@/components/forms/ErrorFeedback.vue"
 import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
-import Record from "@/interfaces/Record"
+import UnsavedRecord from "@/interfaces/UnsavedRecord"
 const user = userStore()
 const records = recordStore()
 
@@ -88,8 +88,17 @@ const form = reactive({
   mixable: true,
 })
 
+const reset = () => {
+  form.catno = ""
+  form.artists = ""
+  form.title = ""
+  form.label = ""
+  form.year = ""
+  form.mixable = true
+}
+
 const submit = async () => {
-  const newRecord: Record = {
+  const unsavedRecord: UnsavedRecord = {
     user: user.authd._id,
     catno: form.catno,
     artists: form.artists,
@@ -98,7 +107,7 @@ const submit = async () => {
     year: parseInt(form.year),
     mixable: form.mixable,
   }
-  const response = await records.addRecord(newRecord, user.authd.token)
+  const response = await records.addRecord(unsavedRecord, user.authd.token)
   if (response === 400) {
     console.error(`AddRecordForm: record.addRecord returned status ${response}`)
   } else if (response === 201) emit("close")

@@ -33,7 +33,7 @@ import ErrorFeedback from "./ErrorFeedback.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
-import Crate from "@/interfaces/Crate"
+import UnsavedCrate from "@/interfaces/UnsavedCrate"
 const user = userStore()
 const crates = crateStore()
 
@@ -46,12 +46,12 @@ const form = reactive({
 })
 
 const submit = async () => {
-  const newCrate: Crate = {
+  const unsavedCrate: UnsavedCrate = {
     user: user.authd._id,
     name: form.name,
-    // TODO: inc records
+    records: [], // todo: bring records over
   }
-  const response = await crates.addCrate(newCrate, user.authd.token)
+  const response = await crates.addCrate(unsavedCrate, user.authd.token)
   if (response === 400) {
     console.error(`AddCrateForm: crate.addCrate returned status ${response}`)
   } else if (response === 201) emit("close")

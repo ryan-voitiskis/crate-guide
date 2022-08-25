@@ -1,5 +1,4 @@
-export default interface Track {
-  _id: string
+export default interface UnsavedTrack {
   title: string
   artist?: string
   position?: string
