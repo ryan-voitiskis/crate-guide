@@ -1,6 +1,6 @@
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
 import User from "@/interfaces/User"
-const API_URL = "http://localhost:5000/api/users/"
+const API_URL = "http://localhost:5002/api/users/"
 
 // add new user
 const addUser = async (user: UnregisteredUser) => {

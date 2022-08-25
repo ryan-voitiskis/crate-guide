@@ -1,5 +1,5 @@
 import Record from "@/interfaces/Record"
-const API_URL = "http://localhost:5000/api/records"
+const API_URL = "http://localhost:5002/api/records"
 
 // add new record
 const addRecord = async (record: Record, token: string) => {
@@ -56,9 +56,27 @@ const deleteRecord = async (id: string, token: string) => {
   return response
 }
 
+// Delete user record
+const deleteRecords = async (records: string[], token: string) => {
+  const body = new URLSearchParams()
+  body.append("records", JSON.stringify(records)) // send as string
+  const options = {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${token}`,
+    },
+    body: body,
+  }
+  const response = await fetch(API_URL, options)
+  return response
+}
+
 const recordService = {
   addRecord,
   getRecords,
   deleteRecord,
+  deleteRecords,
 }
 export default recordService

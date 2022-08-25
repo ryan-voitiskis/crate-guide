@@ -126,11 +126,11 @@ watch(
   }
 )
 
-// open DeleteRecordForm when records.toDelete has id
+// open DeleteRecordForm when records.toDelete has id(s)
 watch(
-  () => records.toDelete,
+  () => records.toDelete.length,
   () => {
-    if (records.toDelete) state.deleteRecord = true
+    if (records.toDelete.length) state.deleteRecord = true
   }
 )
 

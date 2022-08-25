@@ -16,7 +16,7 @@
         </option>
       </select>
       <ErrorFeedback :show="state.noneSelected" msg="No crate selected" />
-      <ErrorFeedback :show="crates.errorMsg != ''" :msg="crates.errorMsg" />
+      <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
     </div>
     <div class="form-controls">
       <button class="close" type="button" @click="$parent!.$emit('close')">

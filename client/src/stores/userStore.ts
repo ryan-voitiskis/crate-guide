@@ -38,7 +38,7 @@ export const userStore = defineStore("user", {
           router.push("/")
           const data = await response.json()
           const authenticatedUser: User = {
-            _id: data._id,
+            _id: data.id,
             name: data.name,
             email: data.email,
             token: data.token,
@@ -64,8 +64,8 @@ export const userStore = defineStore("user", {
         // catch error, eg. NetworkError
       } catch (error) {
         this.errorMsg = "Unexpected error (Network error?)"
-        this.loading = false
         console.error(error)
+        this.loading = false
         return null
       }
     },
@@ -103,18 +103,18 @@ export const userStore = defineStore("user", {
 
           // handle other errors
         } else if (response.status === 400) {
-          this.loading = false
           const error = await response.json()
           const msg = error.message ? error.message : "Unexpected error"
           this.errorMsg = msg
+          this.loading = false
         }
         return response.status
 
         // catch error, eg. NetworkError
       } catch (error) {
         this.errorMsg = "Unexpected error (Network error?)"
-        this.loading = false
         console.error(error)
+        this.loading = false
         return null
       }
     },
@@ -143,8 +143,8 @@ export const userStore = defineStore("user", {
       } catch (error) {
         this.errorMsg = "Unexpected error (Network error?)"
         this.error = true
-        this.loading = false
         console.error(error)
+        this.loading = false
         return null
       }
     },

@@ -9,7 +9,7 @@
     <span class="artists">{{ artists }}</span>
     <div class="controls">
       <button class="inline-button edit"><PencilIcon />Edit</button>
-      <button class="inline-button delete" @click="records.toDelete = _id">
+      <button class="inline-button delete" @click="records.toDelete.push(_id)">
         <TrashIcon />Delete
       </button>
       <button class="inline-button add" @click="records.toCrate.push(_id)">

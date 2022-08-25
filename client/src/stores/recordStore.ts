@@ -7,8 +7,7 @@ export const recordStore = defineStore("record", {
     recordList: [] as Record[],
     loading: false,
     errorMsg: "",
-    toDelete: "",
-    // toDelete: [] as string[], // record id(s) to be deleted
+    toDelete: [] as string[], // record id(s) to be deleted
     toCrate: [] as string[], // record id(s) to be added to crate that is yet to be selected
   }),
   actions: {
@@ -27,18 +26,18 @@ export const recordStore = defineStore("record", {
 
           // handle errors
         } else if (response.status === 400) {
-          this.loading = false
           const error = await response.json()
           const msg = error.message ? error.message : "Unexpected error"
           this.errorMsg = msg
+          this.loading = false
         }
         return response.status
 
         // catch error, eg. NetworkError
       } catch (error) {
         this.errorMsg = "Unexpected error"
-        this.loading = false
         console.error(error)
+        this.loading = false
         return null
       }
     },
@@ -68,38 +67,49 @@ export const recordStore = defineStore("record", {
       }
     },
 
-    // todo: deleteRecord --> deleteRecords
-    async deleteRecord(token: string): Promise<number | null> {
+    async deleteRecords(token: string): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
-      if (this.toDelete) {
+      if (this.toDelete.length) {
         try {
-          const response = await recordService.deleteRecord(
+          const response = await recordService.deleteRecords(
             this.toDelete,
             token
           )
 
           // fetch records if record deleted successfully
           if (response.status === 200) {
-            this.fetchRecords(token)
+            const res = await response.json()
+
+            // if all records deleted: remove deleted records in store
+            if (res.deletedCount === this.toDelete.length)
+              this.recordList = this.recordList.filter(
+                (i) => !this.toDelete.includes(i._id)
+              )
+            // if not all records deleted, alert + fetch from server
+            else {
+              alert("Error: Some records were not deleted.")
+              this.fetchRecords(token)
+            }
+
+            // fetch crates.
             this.loading = false
-            this.toDelete = ""
             return response.status
 
             // handle errors
-          } else if (response.status === 400 || response.status === 401) {
-            this.loading = false
+          } else if (response.status === 401) {
             const error = await response.json()
             const msg = error.message ? error.message : "Unexpected error"
             this.errorMsg = msg
+            this.loading = false
           }
           return response.status
 
           // catch error, eg. NetworkError
         } catch (error) {
           this.errorMsg = "Unexpected error"
-          this.loading = false
           console.error(error)
+          this.loading = false
           return null
         }
       }

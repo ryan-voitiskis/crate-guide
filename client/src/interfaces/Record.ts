@@ -1,7 +1,7 @@
 import Track from "@/interfaces/Track"
 
 export default interface Record {
-  _id?: string // ? optional as not created yet for unsaved crate, is this a problem?
+  _id: string
   discogsID?: string
   user: string
   catno?: string

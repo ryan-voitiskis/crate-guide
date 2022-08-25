@@ -1,5 +1,5 @@
 import Crate from "@/interfaces/Crate"
-const API_URL = "http://localhost:5000/api/crates"
+const API_URL = "http://localhost:5002/api/crates"
 
 // add new crate
 const addCrate = async (crate: Crate, token: string) => {

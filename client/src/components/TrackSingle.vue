@@ -71,7 +71,7 @@ const bpmColour = computed(() => {
     .genre {
       color: var(--light-text);
       font-style: italic;
-      margin-left: 1rem;
+      margin-left: 1rem; // todo: move margin-left to span?
     }
   }
   .controls {

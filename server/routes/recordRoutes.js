@@ -5,12 +5,16 @@ const {
   getRecords,
   addRecord,
   updateRecord,
-  deleteRecord,
+  deleteRecords,
 } = require("../controllers/recordController")
 
 const { protect } = require("../middleware/authMiddleware")
 
-router.route("/").get(protect, getRecords).post(protect, addRecord)
-router.route("/:id").delete(protect, deleteRecord).put(protect, updateRecord)
+router
+  .route("/")
+  .get(protect, getRecords)
+  .post(protect, addRecord)
+  .delete(protect, deleteRecords)
+router.route("/:id").put(protect, updateRecord)
 
 module.exports = router

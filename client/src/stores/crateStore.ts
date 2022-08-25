@@ -24,18 +24,18 @@ export const crateStore = defineStore("crate", {
 
           // handle errors
         } else if (response.status === 400) {
-          this.loading = false
           const error = await response.json()
           const msg = error.message ? error.message : "Unexpected error"
           this.errorMsg = msg
+          this.loading = false
         }
         return response.status
 
         // catch error, eg. NetworkError
       } catch (error) {
         this.errorMsg = "Unexpected error"
-        this.loading = false
         console.error(error)
+        this.loading = false
         return null
       }
     },
@@ -79,18 +79,18 @@ export const crateStore = defineStore("crate", {
 
           // handle errors
         } else if (response.status === 400 || response.status === 401) {
-          this.loading = false
           const error = await response.json()
           const msg = error.message ? error.message : "Unexpected error"
           this.errorMsg = msg
+          this.loading = false
         }
         return response.status
 
         // catch error, eg. NetworkError
       } catch (error) {
         this.errorMsg = "Unexpected error"
-        this.loading = false
         console.error(error)
+        this.loading = false
         return null
       }
     },
@@ -129,10 +129,10 @@ export const crateStore = defineStore("crate", {
 
               // handle errors
             } else if (response.status === 400 || response.status === 401) {
-              this.loading = false
               const error = await response.json()
               const msg = error.message ? error.message : "Unexpected error"
               this.errorMsg = msg
+              this.loading = false
             }
             return response.status
 
@@ -146,13 +146,13 @@ export const crateStore = defineStore("crate", {
           }
           this.loading = false
           return 1
-        } else throw new Error("No crate with that ID") // ? unlikely/impossible? is this even req'd?
+        } else throw new Error("No crate with that ID") // ? unlikely/impossible? is this req'd?
 
         // catch error, eg. NetworkError
       } catch (error) {
         this.errorMsg = "Unexpected error"
-        this.loading = false
         console.error(error)
+        this.loading = false
         return null
       }
     },
@@ -161,7 +161,7 @@ export const crateStore = defineStore("crate", {
     // gets a crate by id. returns null if not found
     getById: (state) => {
       return (id: string) =>
-        state.crateList.find((crate) => crate._id === id) || null
+        state.crateList.find((crate) => crate._id === id) || null // todo: test this
     },
   },
 })
