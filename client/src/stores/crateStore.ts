@@ -116,7 +116,7 @@ export const crateStore = defineStore("crate", {
 
             // handle success
             if (response.status === 200) {
-              // this.fetchCrates(token) // ? would something like this ensure concurrency, probably not req'd
+              // this.fetchCrates(token) // ? would something like this help to ensure concurrency, probably not req'd
               this.loading = false
 
               // handle - successfully saved difference but some intersection
@@ -162,7 +162,7 @@ export const crateStore = defineStore("crate", {
     // gets a crate by id. returns null if not found
     getById: (state) => {
       return (id: string) =>
-        state.crateList.find((crate) => crate._id === id) || null // todo: test this
+        state.crateList.find((crate) => crate._id === id) || null
     },
   },
 })

@@ -27,6 +27,7 @@ const addCrate = asyncHandler(async (req, res) => {
   const crate = await Crate.create({
     user: req.user.id,
     name: req.body.name,
+    records: JSON.parse(req.body.records),
   })
 
   res.status(201).json(crate)

@@ -22,7 +22,7 @@ const props = defineProps<{
   placeholder: string
   modelValue: string | number
   focused: boolean
-  errorMsg: string
+  errorMsg?: string
 }>()
 
 // custom directive to focus input el if focused prop. used to focus first input.

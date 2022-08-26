@@ -7,6 +7,7 @@ const addCrate = async (crate: UnsavedCrate, token: string) => {
   const body = new URLSearchParams()
   body.append("name", crate.name)
   body.append("user", crate.user)
+  body.append("records", JSON.stringify(crate.records)) // send as string
 
   const options = {
     method: "POST",

@@ -124,7 +124,7 @@ export const recordStore = defineStore("record", {
     // gets a record by id. returns null if not found
     getById: (state) => {
       return (id: string) =>
-        state.recordList.find((record) => record._id === id) || null // todo: test this works
+        state.recordList.find((record) => record._id === id) || null
     },
     getCatno: (state) => {
       return (id: string) =>

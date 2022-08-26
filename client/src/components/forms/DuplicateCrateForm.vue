@@ -31,9 +31,9 @@ import { reactive, defineEmits } from "vue"
 import BasicInput from "./BasicInput.vue"
 import ErrorFeedback from "./ErrorFeedback.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import UnsavedCrate from "@/interfaces/UnsavedCrate"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
-import UnsavedCrate from "@/interfaces/UnsavedCrate"
 const user = userStore()
 const crates = crateStore()
 
@@ -46,10 +46,12 @@ const form = reactive({
 })
 
 const submit = async () => {
+  const records = crates.getById(user.authd.settings.selectedCrate)
+    ?.records as string[]
   const unsavedCrate: UnsavedCrate = {
     user: user.authd._id,
     name: form.name,
-    records: [], // todo: bring records over
+    records: records,
   }
   const response = await crates.addCrate(unsavedCrate, user.authd.token)
   if (response === 400) {
