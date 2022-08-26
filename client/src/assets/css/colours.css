@@ -52,8 +52,8 @@
   --btn-secondary-hover: hsl(0, 0%, 91%);
   --btn-edit: hsl(35, 84%, 54%);
   --btn-edit-hover: hsl(35, 84%, 72%);
-  --btn-delete: hsl(359, 56%, 54%);
-  --btn-delete-hover: hsl(359, 56%, 72%);
+  --btn-delete: hsl(356, 75%, 60%);
+  --btn-delete-hover: hsl(356, 75%, 72%);
 
   /* decks */
   --deck-black: hsl(0, 0%, 20%);

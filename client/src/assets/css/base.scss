@@ -209,13 +209,19 @@ button {
     color: var(--darker-text);
   }
   &.primary {
-    margin-top: 2rem;
     background: var(--btn-primary);
     font: 600 1.6rem/3.8rem Manrope, sans-serif;
     color: var(--white-text);
     border: none;
     &:hover {
       background: var(--btn-primary-hover);
+    }
+    &.delete {
+      background: var(--btn-delete);
+      &:hover {
+        background: var(--btn-delete-hover);
+        color: var(--white-text);
+      }
     }
   }
 }

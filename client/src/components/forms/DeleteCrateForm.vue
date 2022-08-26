@@ -14,10 +14,10 @@
         :placeholder="crate.name"
         :focused="true"
         autocomplete="off"
-        :error-msg="state.mismatch ? `Name doesn't match` : undefined"
-        :class="{ matched: form.name === crate?.name }"
+        :class="{ matched: matched }"
         required
       />
+      <ErrorFeedback :show="state.mismatch" msg="Name doesn't match" />
       <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
     </div>
     <div class="form-controls">
@@ -33,15 +33,16 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits, watch } from "vue"
+import { reactive, defineEmits, watch, computed } from "vue"
 import BasicInput from "./BasicInput.vue"
 import ErrorFeedback from "./ErrorFeedback.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
+import Crate from "@/interfaces/Crate"
 const user = userStore()
 const crates = crateStore()
 
-const crate = crates.getById(user.authd.settings.selectedCrate)
+const crate = crates.getById(user.authd.settings.selectedCrate) as Crate
 
 const emit = defineEmits<{
   (e: "close"): void
@@ -55,19 +56,30 @@ const state = reactive({
   mismatch: false, // only true after a submit attempt
 })
 
-// when input text === catno, remove mismatch message
+// input text matches crate name
+const matched = computed(
+  () =>
+    form.name.localeCompare(crate.name, "en", {
+      sensitivity: "accent",
+    }) === 0
+)
+
+// when input text matches crate name, remove mismatch message
 watch(
-  () => form.name === crate?.name,
+  () => matched.value,
   () => {
     state.mismatch = false
   }
 )
 
 const submit = async () => {
-  if (form.name === crate?.name) {
+  if (matched.value) {
     if (crate._id) {
       const response = await crates.deleteCrate(crate._id, user.authd.token)
-      if (response === 200) emit("close")
+      if (response === 200) {
+        user.authd.settings.selectedCrate = "all"
+        emit("close")
+      }
     }
   } else state.mismatch = true
 }

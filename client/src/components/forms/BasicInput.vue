@@ -8,33 +8,22 @@
     @input="$emit('update:modelValue', handleInputChange($event))"
     v-focus
   />
-  <span v-if="errorMsg != ''" class="error-msg">{{ errorMsg }}</span>
+  <span v-if="errorMsg != '' && errorMsg !== undefined" class="error-msg">{{
+    errorMsg
+  }}</span>
 </template>
 
 <script setup lang="ts">
 import { defineProps } from "vue"
 
-// todo: swap to TS defineProps pattern
-const props = defineProps({
-  label: String,
-  id: String,
-  placeholder: {
-    type: String,
-    default: "",
-  },
-  modelValue: {
-    type: [String, Number],
-    default: "",
-  },
-  focused: {
-    type: Boolean,
-    default: false,
-  },
-  errorMsg: {
-    type: String,
-    default: "",
-  },
-})
+const props = defineProps<{
+  label: string
+  id: string
+  placeholder: string
+  modelValue: string | number
+  focused: boolean
+  errorMsg: string
+}>()
 
 // custom directive to focus input el if focused prop. used to focus first input.
 const vFocus = {

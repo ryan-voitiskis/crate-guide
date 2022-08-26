@@ -98,14 +98,14 @@ import DuplicateCrateForm from "@/components/forms/DuplicateCrateForm.vue"
 import AddRecordForm from "@/components/forms/AddRecordForm.vue"
 import RecordsList from "@/components/RecordsList.vue"
 import FormModal from "@/components/forms/FormModal.vue"
-import { userStore } from "@/stores/userStore"
-import { recordStore } from "@/stores/recordStore"
 import DuplicateIcon from "@/components/svg/DuplicateIcon.vue"
 import TrashIcon from "@/components/svg/TrashIcon.vue"
 import FolderAddIcon from "@/components/svg/FolderAddIcon.vue"
 import PlusCircleIcon from "@/components/svg/PlusCircleIcon.vue"
 import CrateSelect from "@/components/forms/CrateSelect.vue"
 import SelectCrateForm from "@/components/forms/SelectCrateForm.vue"
+import { userStore } from "@/stores/userStore"
+import { recordStore } from "@/stores/recordStore"
 const user = userStore()
 const records = recordStore()
 

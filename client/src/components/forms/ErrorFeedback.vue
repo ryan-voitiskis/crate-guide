@@ -18,7 +18,7 @@ const props = defineProps<{
 
 <style scoped lang="scss">
 .invalid-wrapper {
-  margin-top: 1rem;
+  margin: 1rem 0;
   height: 2.4rem;
   .invalid {
     position: fixed;
