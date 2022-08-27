@@ -1,9 +1,10 @@
 <template>
   <div class="record">
-    <div class="cover">img</div>
+    <div class="cover"></div>
+    <input type="checkbox" v-model="checkbox.checked" />
     <h3 class="title">{{ title }}</h3>
     <div class="label">
-      <b>{{ catno }}</b> {{ label }}
+      <span class="catno">{{ catno }}</span> {{ label }}
       <span class="year">{{ year }}</span>
     </div>
     <span class="artists">{{ artists }}</span>
@@ -26,14 +27,14 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps } from "vue"
+import { defineProps, reactive, watch } from "vue"
 import Track from "@/interfaces/Track"
 import PencilIcon from "./svg/PencilIcon.vue"
 import TrashIcon from "./svg/TrashIcon.vue"
 import PlusCircleIcon from "./svg/PlusCircleIcon.vue"
 import TrackSingle from "./TrackSingle.vue"
-import { recordStore } from "@/stores/recordStore"
 import FolderDownIcon from "./svg/FolderDownIcon.vue"
+import { recordStore } from "@/stores/recordStore"
 const records = recordStore()
 
 const props = defineProps<{
@@ -46,6 +47,29 @@ const props = defineProps<{
   mixable: boolean
   tracks?: Track[]
 }>()
+
+const checkbox = reactive({
+  checked: false,
+})
+
+// when checkbox changed, either add or remove record from checkboxed array
+watch(
+  () => checkbox.checked,
+  () => {
+    if (checkbox.checked && records.checkboxed.indexOf(props._id) === -1)
+      records.checkboxed.push(props._id)
+    else if (!checkbox.checked && records.checkboxed.indexOf(props._id) !== -1)
+      records.checkboxed = records.checkboxed.filter((i) => i !== props._id)
+  }
+)
+
+// when checkbox changed, either add or remove record from checkboxed array
+watch(
+  () => records.checkboxed,
+  () => {
+    if (records.checkboxed.length === 0) checkbox.checked = false
+  }
+)
 </script>
 
 <style scoped lang="scss">
@@ -59,6 +83,13 @@ const props = defineProps<{
     background-color: hsl(36, 27%, 85%);
     grid-area: 1 / 1 / 5 / 2;
     overflow: hidden;
+    z-index: 0;
+  }
+  input[type="checkbox"] {
+    grid-area: 1 / 1 / 5 / 2;
+    height: 2rem;
+    width: 2rem;
+    z-index: 1;
   }
   h3.title {
     color: var(--darker-text);
@@ -77,6 +108,9 @@ const props = defineProps<{
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    .catno {
+      font-weight: 600;
+    }
     .year {
       color: var(--light-text);
     }

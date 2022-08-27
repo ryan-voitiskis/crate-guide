@@ -58,7 +58,7 @@ const state = reactive({
 
 // input text matches crate name
 const matched = computed(
-  () =>
+  (): boolean =>
     form.name.localeCompare(crate.name, "en", {
       sensitivity: "accent",
     }) === 0

@@ -22,10 +22,24 @@
       <FolderAddIcon /> Add new
     </button>
   </div>
-
+  <hr />
   <div id="crate_manager" v-if="user.hasUser()">
     <button class="icon-button" @click="state.addRecord = true">
-      <PlusCircleIcon /> Add record
+      <PlusCircleIcon /> Add new record
+    </button>
+    <button class="icon-button" @click="records.toCrate = records.checkboxed">
+      <FolderDownIcon />Add selected to
+      {{ user.authd.settings.selectedCrate !== "all" ? "another " : "" }}crate
+    </button>
+    <button
+      class="icon-button"
+      @click="records.fromCrate = records.checkboxed"
+      v-if="user.authd.settings.selectedCrate !== 'all'"
+    >
+      <FolderMinusIcon />Remove selected from crate
+    </button>
+    <button class="icon-button" @click="records.toDelete = records.checkboxed">
+      <TrashIcon />Delete Selected
     </button>
   </div>
 
@@ -104,6 +118,8 @@ import FolderAddIcon from "@/components/svg/FolderAddIcon.vue"
 import PlusCircleIcon from "@/components/svg/PlusCircleIcon.vue"
 import CrateSelect from "@/components/forms/CrateSelect.vue"
 import SelectCrateForm from "@/components/forms/SelectCrateForm.vue"
+import FolderDownIcon from "@/components/svg/FolderDownIcon.vue"
+import FolderMinusIcon from "@/components/svg/FolderMinusIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
 const user = userStore()
@@ -118,11 +134,12 @@ const state = reactive({
   selectCrate: false,
 })
 
-// when selectedCrate changes, update db
+// when selectedCrate changes, update db + clear checkboxed
 watch(
   () => user.authd.settings.selectedCrate,
   () => {
     if (user.hasUser()) user.updateSettings() // hasUser() check to avoid call on logout
+    records.checkboxed = []
   }
 )
 
@@ -144,13 +161,11 @@ watch(
 </script>
 
 <style scoped lang="scss">
-#crate_controls {
+#crate_controls,
+#crate_manager {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
-  margin-bottom: 1rem;
-}
-#crate_manager {
   margin-bottom: 1rem;
 }
 </style>

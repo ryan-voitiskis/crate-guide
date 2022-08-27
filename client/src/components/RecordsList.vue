@@ -1,7 +1,7 @@
 <template>
   <div class="record-list">
     <RecordSingle
-      v-for="record in records.recordList"
+      v-for="record in toDisplay"
       v-bind="record"
       :key="record._id"
     />
@@ -9,9 +9,24 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue"
 import RecordSingle from "./RecordSingle.vue"
+import { userStore } from "@/stores/userStore"
+import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
+import Record from "@/interfaces/Record"
+const user = userStore()
+const crates = crateStore()
 const records = recordStore()
+
+// returns records to display
+const toDisplay = computed((): Record[] =>
+  user.authd.settings.selectedCrate !== "all"
+    ? crates
+        .getRecordsByCrate(user.authd.settings.selectedCrate)
+        .map((i) => records.getById(i))
+    : records.recordList
+)
 </script>
 
 <style scoped lang="scss">

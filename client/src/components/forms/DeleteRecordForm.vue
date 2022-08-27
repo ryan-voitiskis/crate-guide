@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent="submit">
     <span class="form-question">
-      Are you sure you wish to delete {{ name }}?
+      Are you sure you wish to delete {{ recordNames.join(", ") }}?
     </span>
     <div class="form-body ctrd-btns">
       <button class="close" type="button" @click="$parent!.$emit('close')">
@@ -19,12 +19,11 @@
 import { defineEmits, onBeforeUnmount } from "vue"
 import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
-import Record from "@/interfaces/Record"
 const user = userStore()
 const records = recordStore()
 
-const record = records.getById(records.toDelete[0]) as Record
-const name = record.catno ? record.catno : record.title
+// array of either catno if available or title of records to be deleted
+const recordNames = records.toDelete.map((i) => records.getNameById(i))
 
 const emit = defineEmits<{
   (e: "close"): void
@@ -32,6 +31,7 @@ const emit = defineEmits<{
 
 onBeforeUnmount(() => {
   records.toDelete = []
+  records.checkboxed = []
 })
 
 const submit = async () => {

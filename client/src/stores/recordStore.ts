@@ -8,8 +8,10 @@ export const recordStore = defineStore("record", {
     recordList: [] as Record[],
     loading: false,
     errorMsg: "",
+    checkboxed: [] as string[], // record id(s) of records with checked checkboxes
     toDelete: [] as string[], // record id(s) to be deleted
-    toCrate: [] as string[], // record id(s) to be added to crate that is yet to be selected
+    toCrate: [] as string[], // record id(s) to be added to the to be selected crate
+    fromCrate: [] as string[], // record id(s) to be removed from to be selected crate
   }),
   actions: {
     async addRecord(
@@ -124,11 +126,17 @@ export const recordStore = defineStore("record", {
     // gets a record by id. returns null if not found
     getById: (state) => {
       return (id: string) =>
-        state.recordList.find((record) => record._id === id) || null
+        (state.recordList.find((record) => record._id === id) as Record) || null
     },
-    getCatno: (state) => {
-      return (id: string) =>
-        state.recordList.find((record) => record._id === id)?.catno
+    // returns record catno, if no catno returns title
+    getNameById: (state) => {
+      return (id: string) => {
+        const record = state.recordList.find(
+          (record) => record._id === id
+        ) as Record
+        const name = record.catno ? record.catno : record.title
+        return name
+      }
     },
   },
 })

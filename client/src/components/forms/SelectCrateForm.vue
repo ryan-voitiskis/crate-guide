@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent="submit">
     <span class="form-hint"
-      >Select the crate to add {{ catnos.join(", ") }} to.</span
+      >Select the crate to add {{ recordNames.join(", ") }} to.</span
     >
     <div class="form-body inline-labels">
       <label for="crate_select">Select crate </label>
@@ -53,7 +53,8 @@ const form = reactive({
   crate: "",
 })
 
-const catnos = records.toCrate.map((id) => records.getCatno(id))
+// array of either catno if available or title of records to be deleted
+const recordNames = records.toDelete.map((i) => records.getNameById(i))
 
 // when crate selected, remove "no crate selected" message
 watch(
@@ -69,6 +70,7 @@ watch(
 
 onBeforeUnmount(() => {
   records.toCrate = []
+  records.checkboxed = []
   crates.errorMsg = ""
 })
 

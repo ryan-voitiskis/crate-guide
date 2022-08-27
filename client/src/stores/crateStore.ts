@@ -2,6 +2,7 @@ import { defineStore } from "pinia"
 import Crate from "@/interfaces/Crate"
 import UnsavedCrate from "@/interfaces/UnsavedCrate"
 import crateService from "@/services/crateService"
+import { recordStore } from "@/stores/recordStore"
 
 export const crateStore = defineStore("crate", {
   state: () => ({
@@ -111,7 +112,7 @@ export const crateStore = defineStore("crate", {
           const difference = records.filter((i) => !crate.records.includes(i)) // records not yet in crate
 
           if (difference.length) {
-            crate.records.push(...records)
+            crate.records.push(...difference)
             const response = await crateService.updateCrate(crate, token)
 
             // handle success
@@ -121,10 +122,14 @@ export const crateStore = defineStore("crate", {
 
               // handle - successfully saved difference but some intersection
               if (intersection.length) {
-                // todo: test this works when group add implemented, maybe better ui than alert
+                // todo: better ui than alert
                 alert(`
-                Records ${difference.join(", ")} succesfully added.
-                Records ${intersection.join(", ")} were already in crate.`)
+                Records ${difference
+                  .map((i) => this.getRecordName(i))
+                  .join(", ")} succesfully added.
+                Records ${intersection
+                  .map((i) => this.getRecordName(i))
+                  .join(", ")} were already in crate.`)
               }
               return response.status
 
@@ -141,9 +146,9 @@ export const crateStore = defineStore("crate", {
           } else if (intersection.length) {
             const msg =
               records.length > 1
-                ? `All Records were already in crate.` // todo: test this works when group add implemented
+                ? `All Records were already in crate.`
                 : `Record was already in crate.`
-            alert(msg)
+            alert(msg) // todo: better ui than alert
           }
           this.loading = false
           return 1
@@ -163,6 +168,17 @@ export const crateStore = defineStore("crate", {
     getById: (state) => {
       return (id: string) =>
         state.crateList.find((crate) => crate._id === id) || null
+    },
+    // returns array of record IDs in a crate
+    getRecordsByCrate: (state) => {
+      return (id: string) =>
+        state.crateList.find((crate) => crate._id === id)?.records ||
+        ([] as string[])
+    },
+    // get name by id from record store
+    getRecordName(state) {
+      const recStore = recordStore()
+      return recStore.getNameById
     },
   },
 })
