@@ -31,15 +31,14 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits } from "vue"
+import { reactive, defineEmits, onBeforeUnmount } from "vue"
 import BasicInput from "./BasicInput.vue"
 import ErrorFeedback from "./ErrorFeedback.vue"
 import InfoDropdown from "@/components/InfoDropdown.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import UnsavedCrate from "@/interfaces/UnsavedCrate"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
-import UnsavedCrate from "@/interfaces/UnsavedCrate"
-
 const user = userStore()
 const crates = crateStore()
 
@@ -60,6 +59,10 @@ const submit = async () => {
   const response = await crates.addCrate(unsavedCrate, user.authd.token)
   if (response === 201) emit("close")
 }
+
+onBeforeUnmount(() => {
+  crates.errorMsg = ""
+})
 </script>
 
 <style scoped lang="scss"></style>

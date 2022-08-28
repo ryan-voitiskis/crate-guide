@@ -21,13 +21,13 @@
 
 <script setup lang="ts">
 import { defineProps } from "vue"
-import { userStore } from "@/stores/userStore"
 import CheckIcon from "@/components/svg/CheckIcon.vue"
 import ExclamationIcon from "@/components/svg/ExclamationIcon.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import { userStore } from "@/stores/userStore"
 const user = userStore()
 
-const props = defineProps<{
+defineProps<{
   saving: boolean
   saved: boolean
   failed: boolean

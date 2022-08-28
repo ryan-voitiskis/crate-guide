@@ -29,8 +29,8 @@ export const crateStore = defineStore("crate", {
           const error = await response.json()
           const msg = error.message ? error.message : "Unexpected error"
           this.errorMsg = msg
-          this.loading = false
         }
+        this.loading = false
         return response.status
 
         // catch error, eg. NetworkError
@@ -84,8 +84,8 @@ export const crateStore = defineStore("crate", {
           const error = await response.json()
           const msg = error.message ? error.message : "Unexpected error"
           this.errorMsg = msg
-          this.loading = false
         }
+        this.loading = false
         return response.status
 
         // catch error, eg. NetworkError
@@ -118,7 +118,6 @@ export const crateStore = defineStore("crate", {
             // handle success
             if (response.status === 200) {
               // this.fetchCrates(token) // ? would something like this help to ensure concurrency, probably not req'd
-              this.loading = false
 
               // handle - successfully saved difference but some intersection
               if (intersection.length) {
@@ -131,6 +130,7 @@ export const crateStore = defineStore("crate", {
                   .map((i) => this.getRecordName(i))
                   .join(", ")} were already in crate.`)
               }
+              this.loading = false
               return response.status
 
               // handle errors
@@ -138,8 +138,8 @@ export const crateStore = defineStore("crate", {
               const error = await response.json()
               const msg = error.message ? error.message : "Unexpected error"
               this.errorMsg = msg
-              this.loading = false
             }
+            this.loading = false
             return response.status
 
             // handle - all records already in crate
@@ -151,7 +151,52 @@ export const crateStore = defineStore("crate", {
             alert(msg) // todo: better ui than alert
           }
           this.loading = false
-          return 1
+          return 1 //  <- returns 1 if all records already in crate
+        } else throw new Error("No crate with that ID") // ? unlikely/impossible? is this req'd?
+
+        // catch error, eg. NetworkError
+      } catch (error) {
+        this.errorMsg = "Unexpected error"
+        console.error(error)
+        this.loading = false
+        return null
+      }
+    },
+
+    // remove array or single record from crate
+    async removeFromCrate(
+      records: string[],
+      crateID: string,
+      token: string
+    ): Promise<number | null> {
+      this.loading = true
+      this.errorMsg = ""
+      try {
+        const crate = this.getById(crateID) as Crate
+
+        // if crate, clone it, set its records to remainingRecords and send
+        if (crate) {
+          const clonedCrate = JSON.parse(JSON.stringify(this.getById(crateID)))
+          const remainingRecords = crate.records.filter(
+            (i) => !records.includes(i)
+          )
+          clonedCrate.records = remainingRecords
+          const response = await crateService.updateCrate(clonedCrate, token)
+
+          // handle success - if 200 update store with remaining records
+          if (response.status === 200) {
+            crate.records = remainingRecords // only updates locally if successful response
+
+            // handle errors
+          } else if (response.status === 400 || response.status === 401) {
+            const error = await response.json()
+            const msg = error.message ? error.message : "Unexpected error"
+            this.errorMsg = msg
+          }
+          this.loading = false
+          return response.status
+
+          // handle no crate with id
         } else throw new Error("No crate with that ID") // ? unlikely/impossible? is this req'd?
 
         // catch error, eg. NetworkError

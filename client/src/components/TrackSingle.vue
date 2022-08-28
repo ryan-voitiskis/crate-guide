@@ -29,6 +29,7 @@ const props = defineProps<{
 }>()
 
 // returns text colour for bpm between c1 and c2. bpm clamped min - max
+// todo: import and not computed
 const bpmColour = computed(() => {
   if (props.bpm) {
     const min = 80

@@ -33,16 +33,15 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits, watch, computed } from "vue"
+import { reactive, defineEmits, watch, computed, onBeforeUnmount } from "vue"
 import BasicInput from "./BasicInput.vue"
 import ErrorFeedback from "./ErrorFeedback.vue"
+import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import Crate from "@/interfaces/Crate"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
-import Crate from "@/interfaces/Crate"
 const user = userStore()
 const crates = crateStore()
-
-const crate = crates.getById(user.authd.settings.selectedCrate) as Crate
 
 const emit = defineEmits<{
   (e: "close"): void
@@ -56,20 +55,14 @@ const state = reactive({
   mismatch: false, // only true after a submit attempt
 })
 
+const crate = crates.getById(user.authd.settings.selectedCrate) as Crate
+
 // input text matches crate name
 const matched = computed(
   (): boolean =>
     form.name.localeCompare(crate.name, "en", {
       sensitivity: "accent",
     }) === 0
-)
-
-// when input text matches crate name, remove mismatch message
-watch(
-  () => matched.value,
-  () => {
-    state.mismatch = false
-  }
 )
 
 const submit = async () => {
@@ -83,6 +76,18 @@ const submit = async () => {
     }
   } else state.mismatch = true
 }
+
+// when input text matches crate name, remove mismatch message
+watch(
+  () => matched.value,
+  () => {
+    state.mismatch = false
+  }
+)
+
+onBeforeUnmount(() => {
+  crates.errorMsg = ""
+})
 </script>
 
 <style scoped lang="scss">

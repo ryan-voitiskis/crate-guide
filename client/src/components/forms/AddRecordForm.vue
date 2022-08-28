@@ -65,13 +65,14 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits } from "vue"
+import { reactive, defineEmits, onBeforeUnmount } from "vue"
 import BasicInput from "./BasicInput.vue"
 import InfoDropdown from "@/components/InfoDropdown.vue"
 import ErrorFeedback from "@/components/forms/ErrorFeedback.vue"
+import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import UnsavedRecord from "@/interfaces/UnsavedRecord"
 import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
-import UnsavedRecord from "@/interfaces/UnsavedRecord"
 const user = userStore()
 const records = recordStore()
 
@@ -112,6 +113,10 @@ const submit = async () => {
     console.error(`AddRecordForm: record.addRecord returned status ${response}`)
   } else if (response === 201) emit("close")
 }
+
+onBeforeUnmount(() => {
+  records.errorMsg = ""
+})
 </script>
 
 <style scoped lang="scss"></style>

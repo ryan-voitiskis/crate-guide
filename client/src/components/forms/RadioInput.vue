@@ -15,7 +15,7 @@
 <script setup lang="ts">
 import { defineProps } from "vue"
 
-const props = defineProps<{
+defineProps<{
   label: string
   name: string
   id: string

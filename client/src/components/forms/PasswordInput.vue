@@ -17,18 +17,12 @@
 <script setup lang="ts">
 import { defineProps, ref, computed } from "vue"
 
-const props = defineProps({
-  label: String,
-  id: String,
-  placeholder: {
-    type: String,
-    default: "",
-  },
-  modelValue: {
-    type: [String, Number],
-    default: "",
-  },
-})
+const props = defineProps<{
+  label: string
+  id: string
+  placeholder: string
+  modelValue: string | number
+}>()
 
 const showPassword = ref(false)
 const passwordType = computed(() => (showPassword.value ? "text" : "password"))

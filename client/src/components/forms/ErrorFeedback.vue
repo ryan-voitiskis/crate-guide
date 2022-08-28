@@ -10,7 +10,7 @@
 import { defineProps } from "vue"
 import ExclamationIcon from "@/components/svg/ExclamationIcon.vue"
 
-const props = defineProps<{
+defineProps<{
   show: boolean
   msg: string
 }>()

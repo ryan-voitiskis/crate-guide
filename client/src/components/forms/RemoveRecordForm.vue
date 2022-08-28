@@ -1,7 +1,8 @@
 <template>
   <form @submit.prevent="submit">
     <span class="form-question">
-      Are you sure you wish to delete {{ recordNames.join(", ") }}?
+      Are you sure you wish to remove
+      {{ recordNames.join(", ") }} from {{ crateName }}?
     </span>
     <div class="form-body ctrd-btns">
       <button class="close" type="button" @click="$parent!.$emit('close')">
@@ -14,7 +15,7 @@
     </div>
     <!--TODO: space not reserved for msg -->
     <div class="form-body">
-      <ErrorFeedback :show="records.errorMsg !== ''" :msg="records.errorMsg" />
+      <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
     </div>
   </form>
 </template>
@@ -24,27 +25,36 @@ import { defineEmits, onBeforeUnmount } from "vue"
 import ErrorFeedback from "@/components/forms/ErrorFeedback.vue"
 import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
+import { crateStore } from "@/stores/crateStore"
 const user = userStore()
 const records = recordStore()
+const crates = crateStore()
 
 const emit = defineEmits<{
   (e: "close"): void
 }>()
 
-// array of either catno if available or title of records to be deleted
-const recordNames = records.toDelete.map((i) => records.getNameById(i))
+// array of either catno if available or title of records to be removed
+const recordNames = records.fromCrate.map((i) => records.getNameById(i))
+
+// name of crate records are to be removed from
+const crateName = crates.getById(user.authd.settings.selectedCrate)?.name
 
 const submit = async () => {
-  if (records.toDelete) {
-    const response = await records.deleteRecords(user.authd.token)
-    if (response === 200) emit("close")
+  if (records.fromCrate.length) {
+    const response = await crates.removeFromCrate(
+      records.fromCrate as string[],
+      user.authd.settings.selectedCrate,
+      user.authd.token
+    )
+    if (response === 200 || response === 1) emit("close")
   }
 }
 
 onBeforeUnmount(() => {
-  records.toDelete = []
+  records.fromCrate = []
   records.checkboxed = []
-  records.errorMsg = ""
+  crates.errorMsg = ""
 })
 </script>
 

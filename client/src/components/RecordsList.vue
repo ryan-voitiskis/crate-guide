@@ -11,10 +11,10 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import RecordSingle from "./RecordSingle.vue"
+import Record from "@/interfaces/Record"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
-import Record from "@/interfaces/Record"
 const user = userStore()
 const crates = crateStore()
 const records = recordStore()

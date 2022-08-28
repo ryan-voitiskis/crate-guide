@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits } from "vue"
+import { reactive, defineEmits, onBeforeUnmount } from "vue"
 import BasicInput from "./BasicInput.vue"
 import ErrorFeedback from "./ErrorFeedback.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
@@ -58,6 +58,10 @@ const submit = async () => {
     console.error(`AddCrateForm: crate.addCrate returned status ${response}`)
   } else if (response === 201) emit("close")
 }
+
+onBeforeUnmount(() => {
+  crates.errorMsg = ""
+})
 </script>
 
 <style scoped lang="scss"></style>

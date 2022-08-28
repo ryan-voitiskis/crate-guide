@@ -65,14 +65,21 @@
 </template>
 
 <script setup lang="ts">
-import { onUnmounted } from "vue"
-import { userStore } from "@/stores/userStore"
+import { onBeforeMount, onUnmounted } from "vue"
 import RadioInput from "./RadioInput.vue"
 import SubmitlessFeedback from "./SubmitlessFeedback.vue"
+import { userStore } from "@/stores/userStore"
 const user = userStore()
 
 // ! freaks out when called directly from <form v-on="">. cpu usage spike + browser non-responsive
 const updateSettings = () => user.updateSettings()
+
+// req'd for when settings changed elsewhere, such as selected crate
+onBeforeMount(() => {
+  user.loading = false
+  user.error = false
+  user.success = false
+})
 
 onUnmounted(() => {
   user.loading = false

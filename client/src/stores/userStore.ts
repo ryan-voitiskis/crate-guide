@@ -99,15 +99,14 @@ export const userStore = defineStore("user", {
           // handle duplicate email
         } else if (response.status === 409) {
           this.duplicateEmail = true
-          this.loading = false
 
           // handle other errors
         } else if (response.status === 400) {
           const error = await response.json()
           const msg = error.message ? error.message : "Unexpected error"
           this.errorMsg = msg
-          this.loading = false
         }
+        this.loading = false
         return response.status
 
         // catch error, eg. NetworkError

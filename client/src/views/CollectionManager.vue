@@ -27,18 +27,28 @@
     <button class="icon-button" @click="state.addRecord = true">
       <PlusCircleIcon /> Add new record
     </button>
-    <button class="icon-button" @click="records.toCrate = records.checkboxed">
+    <button
+      class="icon-button"
+      @click="records.toCrate = records.checkboxed"
+      v-if="records.checkboxed.length"
+    >
       <FolderDownIcon />Add selected to
       {{ user.authd.settings.selectedCrate !== "all" ? "another " : "" }}crate
     </button>
     <button
       class="icon-button"
       @click="records.fromCrate = records.checkboxed"
-      v-if="user.authd.settings.selectedCrate !== 'all'"
+      v-if="
+        user.authd.settings.selectedCrate !== 'all' && records.checkboxed.length
+      "
     >
       <FolderMinusIcon />Remove selected from crate
     </button>
-    <button class="icon-button" @click="records.toDelete = records.checkboxed">
+    <button
+      class="icon-button"
+      @click="records.toDelete = records.checkboxed"
+      v-if="records.checkboxed.length"
+    >
       <TrashIcon />Delete Selected
     </button>
   </div>
@@ -101,6 +111,15 @@
   >
     <SelectCrateForm @close="state.selectCrate = false" />
   </FormModal>
+
+  <FormModal
+    v-if="state.removeRecord"
+    @close="state.removeRecord = false"
+    title="Remove from crate"
+    modal-width="440px"
+  >
+    <RemoveRecordForm @close="state.removeRecord = false" />
+  </FormModal>
 </template>
 
 <script setup lang="ts">
@@ -120,18 +139,20 @@ import CrateSelect from "@/components/forms/CrateSelect.vue"
 import SelectCrateForm from "@/components/forms/SelectCrateForm.vue"
 import FolderDownIcon from "@/components/svg/FolderDownIcon.vue"
 import FolderMinusIcon from "@/components/svg/FolderMinusIcon.vue"
+import RemoveRecordForm from "@/components/forms/RemoveRecordForm.vue"
 import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
 const user = userStore()
 const records = recordStore()
 
 const state = reactive({
-  addCrate: false,
-  duplicateCrate: false,
-  deleteCrate: false,
-  addRecord: false,
-  deleteRecord: false,
-  selectCrate: false,
+  addCrate: false, // shows AddCrateForm
+  duplicateCrate: false, // shows DuplicateCrateForm
+  deleteCrate: false, // shows DeleteCrateForm
+  addRecord: false, // shows AddRecordForm
+  deleteRecord: false, // shows DeleteRecordForm
+  selectCrate: false, // shows SelectCrateForm
+  removeRecord: false, // shows RemoveRecordForm (from crate, not deleted)
 })
 
 // when selectedCrate changes, update db + clear checkboxed
@@ -156,6 +177,14 @@ watch(
   () => records.toCrate.length,
   () => {
     if (records.toCrate.length) state.selectCrate = true
+  }
+)
+
+// open RemoveRecordForm when records.fromCrate has id(s)
+watch(
+  () => records.fromCrate.length,
+  () => {
+    if (records.fromCrate.length) state.removeRecord = true
   }
 )
 </script>

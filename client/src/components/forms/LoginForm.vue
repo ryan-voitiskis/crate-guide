@@ -38,9 +38,9 @@ import { reactive, defineEmits, onUnmounted } from "vue"
 import BasicInput from "./BasicInput.vue"
 import ErrorFeedback from "./ErrorFeedback.vue"
 import PasswordInput from "./PasswordInput.vue"
+import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
-import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 const user = userStore()
 const crates = crateStore()
 
@@ -63,7 +63,6 @@ const submit = async () => {
   }
 }
 
-// clear errorMsg for other user forms on unmount
 onUnmounted(() => {
   user.errorMsg = ""
 })

@@ -56,6 +56,19 @@ const form = reactive({
 // array of either catno if available or title of records to be deleted
 const recordNames = records.toDelete.map((i) => records.getNameById(i))
 
+const submit = async () => {
+  if (form.crate) {
+    if (records.toCrate.length) {
+      const response = await crates.pushToCrate(
+        records.toCrate as string[],
+        form.crate,
+        user.authd.token
+      )
+      if (response === 200 || response === 1) emit("close")
+    }
+  } else state.noneSelected = true
+}
+
 // when crate selected, remove "no crate selected" message
 watch(
   () => form.crate !== "",
@@ -73,19 +86,6 @@ onBeforeUnmount(() => {
   records.checkboxed = []
   crates.errorMsg = ""
 })
-
-const submit = async () => {
-  if (form.crate) {
-    if (records.toCrate.length) {
-      const response = await crates.pushToCrate(
-        records.toCrate as string[],
-        form.crate,
-        user.authd.token
-      )
-      if (response === 200 || response === 1) emit("close")
-    }
-  } else state.noneSelected = true
-}
 </script>
 
 <style scoped lang="scss">

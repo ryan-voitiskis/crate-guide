@@ -35,8 +35,8 @@ export const recordStore = defineStore("record", {
           const error = await response.json()
           const msg = error.message ? error.message : "Unexpected error"
           this.errorMsg = msg
-          this.loading = false
         }
+        this.loading = false
         return response.status
 
         // catch error, eg. NetworkError
@@ -83,7 +83,7 @@ export const recordStore = defineStore("record", {
             token
           )
 
-          // fetch records if record deleted successfully
+          // handle records deleted successfully
           if (response.status === 200) {
             const res = await response.json()
 
@@ -97,8 +97,7 @@ export const recordStore = defineStore("record", {
               alert("Error: Some records were not deleted.")
               this.fetchRecords(token)
             }
-
-            // fetch crates.
+            // todo: remove deleted records from crates
             this.loading = false
             return response.status
 
@@ -107,8 +106,8 @@ export const recordStore = defineStore("record", {
             const error = await response.json()
             const msg = error.message ? error.message : "Unexpected error"
             this.errorMsg = msg
-            this.loading = false
           }
+          this.loading = false
           return response.status
 
           // catch error, eg. NetworkError
@@ -119,6 +118,7 @@ export const recordStore = defineStore("record", {
           return null
         }
       }
+      this.loading = false
       return null
     },
   },

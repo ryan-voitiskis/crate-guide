@@ -21,7 +21,7 @@ const props = defineProps<{
   id: string
   placeholder: string
   modelValue: string | number
-  focused: boolean
+  focused?: boolean
   errorMsg?: string
 }>()
 
