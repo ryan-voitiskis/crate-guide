@@ -3,7 +3,7 @@
     <span class="form-hint"
       >Select the crate to add {{ recordNames.join(", ") }} to.</span
     >
-    <div class="form-body inline-labels">
+    <div class="modal-body inline-labels">
       <label for="crate_select">Select crate </label>
       <select v-model="form.crate" id="crate_select">
         <option value="">---</option>
@@ -18,7 +18,7 @@
       <ErrorFeedback :show="state.noneSelected" msg="No crate selected" />
       <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
     </div>
-    <div class="form-controls">
+    <div class="modal-controls">
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Close
       </button>
@@ -32,7 +32,7 @@
 
 <script setup lang="ts">
 import { reactive, defineEmits, watch, onBeforeUnmount } from "vue"
-import ErrorFeedback from "./ErrorFeedback.vue"
+import ErrorFeedback from "./feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
@@ -89,9 +89,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
-.form-hint {
-  display: block;
-}
 select {
   margin-bottom: 0;
   width: 100%;

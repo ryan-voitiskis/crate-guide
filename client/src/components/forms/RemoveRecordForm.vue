@@ -4,7 +4,7 @@
       Are you sure you wish to remove
       {{ recordNames.join(", ") }} from {{ crateName }}?
     </span>
-    <div class="form-body ctrd-btns">
+    <div class="modal-body ctrd-btns">
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Cancel
       </button>
@@ -14,7 +14,7 @@
       </button>
     </div>
     <!--TODO: space not reserved for msg -->
-    <div class="form-body">
+    <div class="modal-body">
       <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
     </div>
   </form>
@@ -22,7 +22,7 @@
 
 <script setup lang="ts">
 import { defineEmits, onBeforeUnmount } from "vue"
-import ErrorFeedback from "@/components/forms/ErrorFeedback.vue"
+import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
 import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
 import { crateStore } from "@/stores/crateStore"

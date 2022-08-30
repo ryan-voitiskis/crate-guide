@@ -36,7 +36,7 @@
     <router-view />
   </div>
 
-  <FormModal
+  <ModalContainer
     v-if="state.login"
     @close="state.login = false"
     title="Log in"
@@ -47,9 +47,9 @@
       @openRecovery=";(state.login = false), (state.recovery = true)"
       @close="state.login = false"
     />
-  </FormModal>
+  </ModalContainer>
 
-  <FormModal
+  <ModalContainer
     v-if="state.signUp"
     @close="state.signUp = false"
     title="Sign up"
@@ -59,31 +59,31 @@
       @openLogin=";(state.login = true), (state.signUp = false)"
       @close="state.signUp = false"
     />
-  </FormModal>
+  </ModalContainer>
 
-  <FormModal
+  <ModalContainer
     v-if="state.recovery"
     @close="state.recovery = false"
     title="Forgot password?"
     modal-width="360px"
   >
     <RecoveryForm />
-  </FormModal>
+  </ModalContainer>
 
-  <FormModal
+  <ModalContainer
     v-if="state.settings"
     @close="state.settings = false"
     title="Settings"
     modal-width="540px"
   >
     <SettingsForm />
-  </FormModal>
+  </ModalContainer>
 </template>
 
 <script setup lang="ts">
 import { reactive } from "vue"
 import CogIcon from "@/components/svg/CogIcon.vue"
-import FormModal from "./components/forms/FormModal.vue"
+import ModalContainer from "./components/ModalContainer.vue"
 import LoginForm from "./components/forms/LoginForm.vue"
 import SignUpForm from "./components/forms/SignUpForm.vue"
 import RecoveryForm from "./components/forms/RecoveryForm.vue"

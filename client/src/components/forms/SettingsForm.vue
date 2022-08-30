@@ -1,6 +1,6 @@
 <template>
   <form v-on="user.hasUser() ? { change: updateSettings } : {}">
-    <div class="form-body">
+    <div class="modal-body">
       <p v-if="!user.hasUser()">
         <b>You are not logged in.</b><br />Settings changed here are for this
         session only.
@@ -66,8 +66,8 @@
 
 <script setup lang="ts">
 import { onBeforeMount, onUnmounted } from "vue"
-import RadioInput from "./RadioInput.vue"
-import SubmitlessFeedback from "./SubmitlessFeedback.vue"
+import RadioInput from "./inputs/RadioInput.vue"
+import SubmitlessFeedback from "./feedbacks/SubmitlessFeedback.vue"
 import { userStore } from "@/stores/userStore"
 const user = userStore()
 

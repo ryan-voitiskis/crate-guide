@@ -8,6 +8,7 @@ export const recordStore = defineStore("record", {
     recordList: [] as Record[],
     loading: false,
     errorMsg: "",
+    feedbackMsg: "", // after update feedback msg
     checkboxed: [] as string[], // record id(s) of records with checked checkboxes
     toDelete: [] as string[], // record id(s) to be deleted
     toCrate: [] as string[], // record id(s) to be added to the to be selected crate
@@ -92,9 +93,9 @@ export const recordStore = defineStore("record", {
               this.recordList = this.recordList.filter(
                 (i) => !this.toDelete.includes(i._id)
               )
-            // if not all records deleted, alert + fetch from server
+            // if not all records deleted, feedbackMsg + fetch from server
             else {
-              alert("Error: Some records were not deleted.")
+              this.feedbackMsg = "<b>Error</b>: Some records were not deleted."
               this.fetchRecords(token)
             }
             // todo: remove deleted records from crates

@@ -7,6 +7,7 @@ import "./assets/css/colours.css"
 import "./assets/css/keyframes.css"
 import "./assets/css/fonts.css"
 import "./assets/css/base.scss"
+import "./assets/css/forms.scss"
 
 // globals
 const API_URL = "http://localhost:5006/api/"

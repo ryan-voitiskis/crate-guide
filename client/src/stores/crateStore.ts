@@ -9,6 +9,7 @@ export const crateStore = defineStore("crate", {
     crateList: [] as Crate[],
     loading: false,
     errorMsg: "",
+    feedbackMsg: "", // after update feedback msg
   }),
   actions: {
     async addCrate(crate: UnsavedCrate, token: string): Promise<number | null> {
@@ -121,14 +122,12 @@ export const crateStore = defineStore("crate", {
 
               // handle - successfully saved difference but some intersection
               if (intersection.length) {
-                // todo: better ui than alert
-                alert(`
-                Records ${difference
+                this.feedbackMsg = `${difference
                   .map((i) => this.getRecordName(i))
-                  .join(", ")} succesfully added.
-                Records ${intersection
-                  .map((i) => this.getRecordName(i))
-                  .join(", ")} were already in crate.`)
+                  .join(", ")} succesfully added.</br>
+                ${intersection.map((i) => this.getRecordName(i)).join(", ")} ${
+                  intersection.length > 1 ? `were` : `was`
+                } already in crate.`
               }
               this.loading = false
               return response.status
@@ -144,11 +143,10 @@ export const crateStore = defineStore("crate", {
 
             // handle - all records already in crate
           } else if (intersection.length) {
-            const msg =
+            this.feedbackMsg =
               records.length > 1
                 ? `All Records were already in crate.`
                 : `Record was already in crate.`
-            alert(msg) // todo: better ui than alert
           }
           this.loading = false
           return 1 //  <- returns 1 if all records already in crate

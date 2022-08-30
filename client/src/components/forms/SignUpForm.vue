@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent="submit">
-    <div class="form-body">
+    <div class="modal-body">
       <p @click="$emit('openLogin')">
         Already have an account? <span class="link-text">Log in</span>
       </p>
@@ -49,9 +49,9 @@
 
 <script setup lang="ts">
 import { reactive, defineEmits, onUnmounted } from "vue"
-import BasicInput from "./BasicInput.vue"
-import PasswordInput from "./PasswordInput.vue"
-import ErrorFeedback from "./ErrorFeedback.vue"
+import BasicInput from "./inputs/BasicInput.vue"
+import PasswordInput from "./inputs/PasswordInput.vue"
+import ErrorFeedback from "./feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
 import { userStore } from "@/stores/userStore"

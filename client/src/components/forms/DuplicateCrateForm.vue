@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent="submit">
     <p class="form-hint">Enter the new name of the duplicated crate.</p>
-    <div class="form-body inline-labels">
+    <div class="modal-body inline-labels">
       <BasicInput
         v-model="form.name"
         id="name"
@@ -13,7 +13,7 @@
       />
       <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
     </div>
-    <div class="form-controls">
+    <div class="modal-controls">
       <button type="reset">Clear</button>
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Close
@@ -28,8 +28,8 @@
 
 <script setup lang="ts">
 import { reactive, defineEmits, onBeforeUnmount } from "vue"
-import BasicInput from "./BasicInput.vue"
-import ErrorFeedback from "./ErrorFeedback.vue"
+import BasicInput from "./inputs/BasicInput.vue"
+import ErrorFeedback from "./feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import UnsavedCrate from "@/interfaces/UnsavedCrate"
 import { userStore } from "@/stores/userStore"

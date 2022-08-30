@@ -5,7 +5,7 @@
       >&quot; to delete crate.<br />
       <b>This can't be undone.</b>
     </span>
-    <div class="form-body inline-labels">
+    <div class="modal-body inline-labels">
       <BasicInput
         v-model="form.name"
         id="name"
@@ -20,7 +20,7 @@
       <ErrorFeedback :show="state.mismatch" msg="Name doesn't match" />
       <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
     </div>
-    <div class="form-controls">
+    <div class="modal-controls">
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Close
       </button>
@@ -34,8 +34,8 @@
 
 <script setup lang="ts">
 import { reactive, defineEmits, watch, computed, onBeforeUnmount } from "vue"
-import BasicInput from "./BasicInput.vue"
-import ErrorFeedback from "./ErrorFeedback.vue"
+import BasicInput from "./inputs/BasicInput.vue"
+import ErrorFeedback from "./feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import Crate from "@/interfaces/Crate"
 import { userStore } from "@/stores/userStore"

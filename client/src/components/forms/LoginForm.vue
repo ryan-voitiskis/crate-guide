@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent="submit">
-    <div class="form-body">
+    <div class="modal-body">
       <p @click="$emit('openSignUp')">
         Don't have an account? <span class="link-text">Sign up</span>
       </p>
@@ -35,9 +35,9 @@
 
 <script setup lang="ts">
 import { reactive, defineEmits, onUnmounted } from "vue"
-import BasicInput from "./BasicInput.vue"
-import ErrorFeedback from "./ErrorFeedback.vue"
-import PasswordInput from "./PasswordInput.vue"
+import BasicInput from "./inputs/BasicInput.vue"
+import ErrorFeedback from "./feedbacks/ErrorFeedback.vue"
+import PasswordInput from "./inputs/PasswordInput.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"

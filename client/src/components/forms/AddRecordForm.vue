@@ -4,7 +4,7 @@
       text="Catalog #, label and year are optional.<br />Catalog # recommended for discogs integration."
       class="form-hint"
     />
-    <div class="form-body inline-labels">
+    <div class="modal-body inline-labels">
       <BasicInput
         v-model="form.catno"
         id="catno"
@@ -51,7 +51,7 @@
       </label>
       <ErrorFeedback :show="records.errorMsg !== ''" :msg="records.errorMsg" />
     </div>
-    <div class="form-controls">
+    <div class="modal-controls">
       <button type="reset">Clear</button>
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Close
@@ -66,9 +66,9 @@
 
 <script setup lang="ts">
 import { reactive, defineEmits, onBeforeUnmount } from "vue"
-import BasicInput from "./BasicInput.vue"
+import BasicInput from "./inputs/BasicInput.vue"
 import InfoDropdown from "@/components/InfoDropdown.vue"
-import ErrorFeedback from "@/components/forms/ErrorFeedback.vue"
+import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import UnsavedRecord from "@/interfaces/UnsavedRecord"
 import { userStore } from "@/stores/userStore"

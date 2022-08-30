@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent="submitRecovery">
-    <div class="form-body">
+    <div class="modal-body">
       <p>Enter your email for reset instructions.</p>
       <BasicInput
         v-model="user.email"
@@ -16,7 +16,7 @@
 
 <script setup lang="ts">
 import { reactive } from "vue"
-import BasicInput from "./BasicInput.vue"
+import BasicInput from "./inputs/BasicInput.vue"
 
 const user = reactive({
   email: "",

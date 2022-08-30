@@ -33,7 +33,6 @@ const state = reactive({
   display: flex;
   justify-content: flex-end;
   flex-wrap: nowrap;
-  margin: 2rem 0;
   span {
     display: inline;
     font-style: italic;
