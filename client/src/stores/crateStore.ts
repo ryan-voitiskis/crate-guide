@@ -122,12 +122,18 @@ export const crateStore = defineStore("crate", {
 
               // handle - successfully saved difference but some intersection
               if (intersection.length) {
-                this.feedbackMsg = `${difference
-                  .map((i) => this.getRecordName(i))
-                  .join(", ")} succesfully added.</br>
-                ${intersection.map((i) => this.getRecordName(i)).join(", ")} ${
+                const difText =
+                  difference.length < 12
+                    ? difference.map((i) => this.getRecordName(i)).join(", ")
+                    : `${difference.length} records`
+                const intersectionText =
+                  intersection.length < 12
+                    ? intersection.map((i) => this.getRecordName(i)).join(", ")
+                    : `${intersection.length} records`
+                const intersectionJoinText =
                   intersection.length > 1 ? `were` : `was`
-                } already in crate.`
+                this.feedbackMsg = `${difText} succesfully added.</br>
+                  ${intersectionText} ${intersectionJoinText} already in crate.`
               }
               this.loading = false
               return response.status

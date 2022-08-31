@@ -19,7 +19,7 @@
     </button>
 
     <button class="icon-button" @click="state.addCrate = true">
-      <FolderAddIcon /> Add new
+      <FolderPlusIcon /> Add new
     </button>
   </div>
   <hr />
@@ -141,7 +141,7 @@ import RecordsList from "@/components/RecordsList.vue"
 import ModalContainer from "@/components/ModalContainer.vue"
 import DuplicateIcon from "@/components/svg/DuplicateIcon.vue"
 import TrashIcon from "@/components/svg/TrashIcon.vue"
-import FolderAddIcon from "@/components/svg/FolderAddIcon.vue"
+import FolderPlusIcon from "@/components/svg/FolderPlusIcon.vue"
 import PlusCircleIcon from "@/components/svg/PlusCircleIcon.vue"
 import CrateSelect from "@/components/forms/inputs/CrateSelect.vue"
 import SelectCrateForm from "@/components/forms/SelectCrateForm.vue"

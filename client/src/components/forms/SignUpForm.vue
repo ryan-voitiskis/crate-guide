@@ -23,12 +23,10 @@
         label="Email"
         type="email"
         placeholder="name@example.com"
-        :class="{ invalid: user.duplicateEmail }"
-        :error-msg="
-          user.duplicateEmail
-            ? 'An account with this email already exists.'
-            : undefined
-        "
+        :class="{
+          invalid:
+            user.errorMsg === 'An account with that email already exists.',
+        }"
         required
       />
       <PasswordInput
@@ -48,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits, onUnmounted } from "vue"
+import { reactive, defineEmits, onUnmounted, watch } from "vue"
 import BasicInput from "./inputs/BasicInput.vue"
 import PasswordInput from "./inputs/PasswordInput.vue"
 import ErrorFeedback from "./feedbacks/ErrorFeedback.vue"
@@ -77,6 +75,15 @@ const submit = async () => {
   const response = await user.addUser(newUser)
   if (response === 201) emit("close")
 }
+
+// remove email duplicate warning if email field changes
+watch(
+  () => form.email,
+  () => {
+    if (user.errorMsg === "An account with that email already exists.")
+      user.errorMsg = ""
+  }
+)
 
 onUnmounted(() => {
   user.errorMsg = ""

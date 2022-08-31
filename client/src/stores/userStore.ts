@@ -20,7 +20,6 @@ export const userStore = defineStore("user", {
     } as User,
     loading: false, // used in LoginForm, SignUpForm and SettingsForm
     errorMsg: "", // used in LoginForm, SignUpForm and SettingsForm
-    duplicateEmail: false, // used in SignUpForm
     invalidCreds: false, // used in LoginForm
     error: false, // used in SettingsForm
     success: false, // used in SettingsForm
@@ -72,7 +71,6 @@ export const userStore = defineStore("user", {
 
     async addUser(user: UnregisteredUser): Promise<number | null> {
       this.loading = true
-      this.duplicateEmail = false
       this.errorMsg = ""
       try {
         const response = await userService.addUser(user)
@@ -98,7 +96,7 @@ export const userStore = defineStore("user", {
 
           // handle duplicate email
         } else if (response.status === 409) {
-          this.duplicateEmail = true
+          this.errorMsg = "An account with that email already exists."
 
           // handle other errors
         } else if (response.status === 400) {
