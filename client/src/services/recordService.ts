@@ -1,5 +1,5 @@
 import UnsavedRecord from "@/interfaces/UnsavedRecord"
-const API_URL = "http://localhost:5006/api/records"
+const API_URL = "http://localhost:5001/api/records"
 
 // add new record
 const addRecord = async (record: UnsavedRecord, token: string) => {

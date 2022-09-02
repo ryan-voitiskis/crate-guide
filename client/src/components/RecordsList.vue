@@ -1,4 +1,10 @@
 <template>
+  <input
+    type="text"
+    class="search"
+    v-model="state.searchTerm"
+    placeholder="search"
+  />
   <div class="sort-by">
     <button
       class="inline-button"
@@ -81,6 +87,7 @@ const crates = crateStore()
 const records = recordStore()
 
 const state = reactive({
+  searchTerm: "",
   sortBy: "title",
   titleRvrs: false,
   catnoRvrs: false,
@@ -96,6 +103,35 @@ const recordsByCrate = computed((): Record[] =>
         .getRecordsByCrate(user.authd.settings.selectedCrate)
         .map((i) => records.getById(i))
     : records.recordList
+)
+
+// * modified from https://stackoverflow.com/a/69623589/7259172
+const localeContains = (x: string, y: string) => {
+  if (!y || !x.length) return false
+  y = "" + y
+  if (y.length > x.length) return false
+  let ascii = (s: string) =>
+    s
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+  return ascii(x).includes(ascii(y))
+}
+
+// records filtered by search term, searches title, artists, catno, label, year
+const searchedRecords = computed((): Record[] =>
+  state.searchTerm !== ""
+    ? recordsByCrate.value.filter((i) => {
+        if (localeContains(i.title, state.searchTerm)) return true
+        if (localeContains(i.artists, state.searchTerm)) return true
+        if (localeContains(i.catno, state.searchTerm)) return true
+        if (localeContains(i.label, state.searchTerm)) return true
+        if (i.year !== null)
+          if (state.searchTerm === i.year.toString()) return true
+          else return false
+        else return false
+      })
+    : recordsByCrate.value
 )
 
 // sorts "" last
@@ -128,17 +164,17 @@ const sortNum = (field: keyof Record, reverse: boolean) => {
 const sortedRecords = computed((): Record[] => {
   switch (state.sortBy) {
     case "catno":
-      return [...recordsByCrate.value].sort(sortStr("catno", state.catnoRvrs))
+      return [...searchedRecords.value].sort(sortStr("catno", state.catnoRvrs))
     case "artists":
-      return [...recordsByCrate.value].sort(
+      return [...searchedRecords.value].sort(
         sortStr("artists", state.artistsRvrs)
       )
     case "label":
-      return [...recordsByCrate.value].sort(sortStr("label", state.labelRvrs))
+      return [...searchedRecords.value].sort(sortStr("label", state.labelRvrs))
     case "year":
-      return [...recordsByCrate.value].sort(sortNum("year", state.yearRvrs))
+      return [...searchedRecords.value].sort(sortNum("year", state.yearRvrs))
     default: // default is title
-      return [...recordsByCrate.value].sort(sortStr("title", state.titleRvrs))
+      return [...searchedRecords.value].sort(sortStr("title", state.titleRvrs))
   }
 })
 </script>

@@ -8,8 +8,8 @@
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Cancel
       </button>
-      <button class="primary delete" type="submit" style="width: 12rem">
-        {{ records.loading ? null : "Delete" }}
+      <button class="primary" type="submit" style="width: 12rem">
+        {{ records.loading ? null : "Remove" }}
         <LoaderIcon v-show="records.loading" />
       </button>
     </div>
@@ -23,6 +23,7 @@
 <script setup lang="ts">
 import { defineEmits, onBeforeUnmount } from "vue"
 import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
+import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
 import { crateStore } from "@/stores/crateStore"

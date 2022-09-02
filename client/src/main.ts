@@ -10,7 +10,7 @@ import "./assets/css/base.scss"
 import "./assets/css/forms.scss"
 
 // globals
-const API_URL = "http://localhost:5006/api/"
+const API_URL = "http://localhost:5001/api/"
 
 const pinia = createPinia()
 const app = createApp(App)
