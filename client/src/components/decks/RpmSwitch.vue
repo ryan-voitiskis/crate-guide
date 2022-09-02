@@ -1,16 +1,13 @@
 <template>
   <button
     class="rpm-switch"
-    :class="speed == 45 ? 'second' : ''"
+    :class="{ second: speed === 45 }"
     @click="$emit('activate', speed)"
   >
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
       <text x="-120" y="80">{{ speed }}</text>
     </svg>
-    <div
-      class="indicator-light"
-      :class="isActive == true ? 'active' : ''"
-    ></div>
+    <div class="indicator-light" :class="{ active: isActive }"></div>
   </button>
 </template>
 
