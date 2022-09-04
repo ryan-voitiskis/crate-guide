@@ -40,7 +40,7 @@
     v-if="state.login"
     @close="state.login = false"
     title="Log in"
-    modal-width="360px"
+    width="360px"
   >
     <LoginForm
       @openSignUp=";(state.login = false), (state.signUp = true)"
@@ -53,7 +53,7 @@
     v-if="state.signUp"
     @close="state.signUp = false"
     title="Sign up"
-    modal-width="360px"
+    width="360px"
   >
     <SignUpForm
       @openLogin=";(state.login = true), (state.signUp = false)"
@@ -65,7 +65,7 @@
     v-if="state.recovery"
     @close="state.recovery = false"
     title="Forgot password?"
-    modal-width="360px"
+    width="360px"
   >
     <RecoveryForm />
   </ModalContainer>
@@ -74,7 +74,7 @@
     v-if="state.settings"
     @close="state.settings = false"
     title="Settings"
-    modal-width="540px"
+    width="540px"
   >
     <SettingsForm />
   </ModalContainer>

@@ -59,7 +59,6 @@
     v-if="state.addCrate"
     @close="state.addCrate = false"
     title="Add new crate"
-    modal-width="440px"
   >
     <AddCrateForm @close="state.addCrate = false" />
   </ModalContainer>
@@ -68,7 +67,6 @@
     v-if="state.deleteCrate"
     @close="state.deleteCrate = false"
     title="Delete crate"
-    modal-width="440px"
   >
     <DeleteCrateForm @close="state.deleteCrate = false" />
   </ModalContainer>
@@ -77,7 +75,6 @@
     v-if="state.duplicateCrate"
     @close="state.duplicateCrate = false"
     title="Duplicate crate"
-    modal-width="440px"
   >
     <DuplicateCrateForm
       @close="state.duplicateCrate = false"
@@ -89,7 +86,6 @@
     v-if="state.addRecord"
     @close="state.addRecord = false"
     title="Add record"
-    modal-width="440px"
   >
     <AddRecordForm @close="state.addRecord = false" />
   </ModalContainer>
@@ -98,7 +94,6 @@
     v-if="state.deleteRecord"
     @close="state.deleteRecord = false"
     title="Delete record"
-    modal-width="440px"
   >
     <DeleteRecordForm @close="state.deleteRecord = false" />
   </ModalContainer>
@@ -107,7 +102,6 @@
     v-if="state.selectCrate"
     @close="state.selectCrate = false"
     title="Select crate"
-    modal-width="440px"
   >
     <SelectCrateForm @close="state.selectCrate = false" />
   </ModalContainer>
@@ -116,7 +110,6 @@
     v-if="state.removeRecord"
     @close="state.removeRecord = false"
     title="Remove from crate"
-    modal-width="440px"
   >
     <RemoveRecordForm @close="state.removeRecord = false" />
   </ModalContainer>
@@ -124,7 +117,6 @@
   <ModalContainer
     v-if="state.feedbackMsg !== ''"
     @close="state.feedbackMsg = ''"
-    modal-width="440px"
   >
     <UpdateFeedback :text="state.feedbackMsg" @close="state.feedbackMsg = ''" />
   </ModalContainer>

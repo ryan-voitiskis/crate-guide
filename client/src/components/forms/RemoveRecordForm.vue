@@ -13,9 +13,12 @@
         <LoaderIcon v-show="records.loading" />
       </button>
     </div>
-    <!--TODO: space not reserved for msg -->
     <div class="modal-body">
-      <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
+      <ErrorFeedback
+        :show="crates.errorMsg !== ''"
+        :msg="crates.errorMsg"
+        :notReserved="true"
+      />
     </div>
   </form>
 </template>

@@ -1,5 +1,5 @@
 <template>
-  <div class="invalid-wrapper">
+  <div class="invalid-wrapper" v-if="showWrapper">
     <transition name="fade">
       <span class="invalid" v-if="show"> <ExclamationIcon /> {{ msg }} </span>
     </transition>
@@ -7,13 +7,17 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps } from "vue"
+import { computed, defineProps } from "vue"
 import ExclamationIcon from "@/components/svg/ExclamationIcon.vue"
 
-defineProps<{
+const props = defineProps<{
   show: boolean
   msg: string
+  notReserved?: boolean // optional prop for when error space isn't reserved
 }>()
+
+// show wrapper (purpose is to hold space to avoid resizing)
+const showWrapper = computed(() => (props.notReserved ? props.show : true))
 </script>
 
 <style scoped lang="scss">

@@ -17,10 +17,10 @@
 <script setup lang="ts">
 import { defineProps, ref, computed } from "vue"
 
-const props = defineProps<{
-  label: string
-  id: string
-  placeholder: string
+defineProps<{
+  label?: string
+  id?: string
+  placeholder?: string
   modelValue: string | number
 }>()
 

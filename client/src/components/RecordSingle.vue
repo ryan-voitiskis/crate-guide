@@ -1,7 +1,7 @@
 <template>
   <div class="record">
     <div class="cover"></div>
-    <input type="checkbox" v-model="checkbox.checked" />
+    <input type="checkbox" v-model="state.checked" />
     <h3 class="title">{{ title }}</h3>
     <div class="label">
       <span class="catno">{{ catno }}</span> {{ label }}
@@ -9,14 +9,30 @@
     </div>
     <span class="artists">{{ artists }}</span>
     <div class="controls">
-      <button class="inline-button edit"><PencilIcon />Edit</button>
-      <button class="inline-button delete" @click="records.toDelete.push(_id)">
+      <button
+        class="inline-button edit"
+        :disabled="records.checkboxed.length !== 0"
+      >
+        <PencilIcon />Edit
+      </button>
+      <button
+        class="inline-button delete"
+        @click="records.toDelete.push(_id)"
+        :disabled="records.checkboxed.length !== 0"
+      >
         <TrashIcon />Delete
       </button>
-      <button class="inline-button add" @click="records.toCrate.push(_id)">
+      <button
+        class="inline-button add"
+        @click="records.toCrate.push(_id)"
+        :disabled="records.checkboxed.length !== 0"
+      >
         <FolderDownIcon />Add to crate
       </button>
-      <button class="inline-button add add-track">
+      <button
+        class="inline-button add add-track"
+        :disabled="records.checkboxed.length !== 0"
+      >
         <PlusCircleIcon />Add track
       </button>
     </div>
@@ -48,17 +64,17 @@ const props = defineProps<{
   tracks?: Track[]
 }>()
 
-const checkbox = reactive({
+const state = reactive({
   checked: false,
 })
 
 // when checkbox changed, either add or remove record from checkboxed array
 watch(
-  () => checkbox.checked,
+  () => state.checked,
   () => {
-    if (checkbox.checked && records.checkboxed.indexOf(props._id) === -1)
+    if (state.checked && records.checkboxed.indexOf(props._id) === -1)
       records.checkboxed.push(props._id)
-    else if (!checkbox.checked && records.checkboxed.indexOf(props._id) !== -1)
+    else if (!state.checked && records.checkboxed.indexOf(props._id) !== -1)
       records.checkboxed = records.checkboxed.filter((i) => i !== props._id)
   }
 )
@@ -67,7 +83,7 @@ watch(
 watch(
   () => records.checkboxed,
   () => {
-    if (records.checkboxed.length === 0) checkbox.checked = false
+    if (records.checkboxed.length === 0) state.checked = false
   }
 )
 </script>
@@ -80,7 +96,7 @@ watch(
   grid-template-rows: 4rem 2rem 3rem 3rem;
   width: 100%;
   .cover {
-    background-color: hsl(36, 27%, 85%);
+    background-color: hsl(40, 13%, 82%);
     grid-area: 1 / 1 / 5 / 2;
     overflow: hidden;
     z-index: 0;
@@ -129,6 +145,13 @@ watch(
       font-size: 1.2rem;
       &.add-track {
         float: right;
+      }
+      &:disabled {
+        cursor: default;
+        color: var(--lighter-text);
+        svg {
+          fill: var(--lighter-text);
+        }
       }
     }
   }

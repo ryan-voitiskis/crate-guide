@@ -71,9 +71,6 @@ const updateRecord = asyncHandler(async (req, res) => {
   //   req.params.id,
   //   req.body,
   //   {
-  //     // TODO: remove this if unnecessary
-  //     // You should set the new option to true to return the document after update was applied.
-  //     // from https://mongoosejs.com/docs/tutorials/findoneandupdate.html
   //     new: true,
   //   }
   // )

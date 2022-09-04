@@ -78,7 +78,7 @@ const recordsByCrate = computed((): Record[] =>
     : records.recordList
 )
 
-// * modified from https://stackoverflow.com/a/69623589/7259172
+// modified from https://stackoverflow.com/a/69623589/7259172
 const localeContains = (x: string, y: string) => {
   if (!y || !x.length) return false
   y = "" + y
@@ -97,24 +97,24 @@ const sortStr = (field: keyof Record, reverse: boolean) => {
   return (a: any, b: any) =>
     a[field] !== "" && b[field] !== ""
       ? (reverse ? -1 : 1) *
-        a[field].localeCompare(b[field], undefined, { sensitivity: "base" }) // * both a + b defined
+        a[field].localeCompare(b[field], undefined, { sensitivity: "base" }) // both a + b defined
       : a[field] !== "" && b[field] === ""
-      ? -1 // * a is defined, b is undefined: sort a before b
+      ? -1 // a is defined, b is undefined: sort a before b
       : a[field] === "" && b[field] !== ""
-      ? 1 // * a is undefined, b is defined: sort b before a
-      : 0 // * both a + b undefined: keep original order
+      ? 1 // a is undefined, b is defined: sort b before a
+      : 0 // both a + b undefined: keep original order
 }
 
 // sort function for Records by number type fields. sorts null last
 const sortNum = (field: keyof Record, reverse: boolean) => {
   return (a: Record, b: Record) =>
     a[field] !== null && b[field] !== null
-      ? (reverse ? -1 : 1) * ((a[field] as number) - (b[field] as number)) // * both a + b defined: sort lowest before highest, unless reversed
+      ? (reverse ? -1 : 1) * ((a[field] as number) - (b[field] as number)) // both a + b defined: sort lowest before highest, unless reversed
       : a[field] !== null && b[field] === null
-      ? -1 // * a is defined, b is undefined: sort a before b
+      ? -1 // a is defined, b is undefined: sort a before b
       : a[field] === null && b[field] !== null
-      ? 1 // * a is undefined, b is defined: sort b before a
-      : 0 // * both a + b undefined: keep original order
+      ? 1 // a is undefined, b is defined: sort b before a
+      : 0 // both a + b undefined: keep original order
 }
 
 // records filtered by search term, searches title, artists, catno, label, year

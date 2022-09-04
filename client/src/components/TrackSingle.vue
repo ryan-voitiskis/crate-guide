@@ -28,16 +28,61 @@ const props = defineProps<{
   genre?: string
 }>()
 
+const positionColours = [
+  ["A", "hsl(342, 60%, 60%)"],
+  ["B", "hsl(210, 60%, 55%)"],
+  ["C", "hsl(157, 40%, 55%)"],
+  ["D", "hsl(30, 71%, 65%)"],
+  ["E", "hsl(89, 60%, 50%)"],
+  ["F", "hsl(259, 60%, 66%)"],
+  ["G", "hsl(55, 44%, 50%)"],
+  ["H", "hsl(108, 44%, 50%)"],
+  ["I", "hsl(342, 60%, 60%)"],
+  ["J", "hsl(210, 60%, 55%)"],
+  ["K", "hsl(157, 40%, 55%)"],
+  ["L", "hsl(30, 71%, 65%)"],
+  ["M", "hsl(89, 60%, 50%)"],
+  ["N", "hsl(259, 60%, 66%)"],
+  ["O", "hsl(55, 44%, 50%)"],
+  ["P", "hsl(108, 44%, 50%)"],
+  ["Q", "hsl(342, 60%, 60%)"],
+  ["R", "hsl(210, 60%, 55%)"],
+  ["S", "hsl(157, 40%, 55%)"],
+  ["T", "hsl(30, 71%, 65%)"],
+  ["U", "hsl(89, 60%, 50%)"],
+  ["V", "hsl(259, 60%, 66%)"],
+  ["W", "hsl(55, 44%, 50%)"],
+  ["X", "hsl(108, 44%, 50%)"],
+  ["Y", "hsl(342, 60%, 60%)"],
+  ["Z", "hsl(210, 60%, 55%)"],
+]
+
+// returns text colour for position
+// * computed because is reactive (eg. track edit changes position)
+const positionColour = computed(() => {
+  if (props.position) {
+    for (let i = 0; i < positionColours.length; i++) {
+      if (
+        props.position.charAt(0).localeCompare(positionColours[i][0], "en", {
+          sensitivity: "base",
+        }) === 0
+      )
+        return positionColours[i][1]
+    }
+  }
+  return "hsl(0, 0%, 68%)"
+})
+
 // returns text colour for bpm between c1 and c2. bpm clamped min - max
-// todo: import and not computed
+// * computed because is reactive (eg. track edit changes bpm)
 const bpmColour = computed(() => {
   if (props.bpm) {
     const min = 80
     const max = 180
-    const c1 = "rgb(31,212,248)"
-    const c2 = "rgb(218,15,183)"
+    const colour1 = "hsl(190, 94%, 55%)"
+    const colour2 = "hsl(310, 87%, 46%)"
     const clampedBpm = Math.min(Math.max(props.bpm, min), max)
-    return d3.interpolate(c1, c2)((clampedBpm - min) / (max - min))
+    return d3.interpolate(colour1, colour2)((clampedBpm - min) / (max - min))
   } else return null
 })
 </script>
@@ -54,12 +99,14 @@ const bpmColour = computed(() => {
       line-height: 3rem;
     }
     .position {
-      color: var(--light-text);
+      color: v-bind(positionColour);
+      font-weight: 500;
       line-height: 3rem;
       margin: 0 0 0 1rem;
     }
     .bpm {
       color: v-bind(bpmColour);
+      font-weight: 500;
       margin-left: 1rem;
     }
     .title {
@@ -72,7 +119,7 @@ const bpmColour = computed(() => {
     .genre {
       color: var(--light-text);
       font-style: italic;
-      margin-left: 1rem; // todo: move margin-left to span?
+      margin-left: 1rem;
     }
   }
   .controls {

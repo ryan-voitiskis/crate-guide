@@ -11,15 +11,15 @@
 
   /* text and icons */
   --site-title-text: hsl(205, 13%, 30%);
-  --white-text: hsl(0, 0%, 100%);
-  --lightest-text: hsl(0, 0%, 87%);
-  --lighter-text: hsl(0, 0%, 80%);
-  --light-text: hsl(0, 0%, 68%);
-  --dark-text: hsl(0, 0%, 47%);
-  --darker-text: hsl(0, 0%, 33%);
-  --darkest-text: hsl(0, 0%, 27%);
-  --black-text: hsl(0, 0%, 0%);
-  --link-text: hsl(216, 76%, 39%);
+  --white-text: hsl(0, 0%, 100%); /* ! when updating: find replace JS usage of hsl val */
+  --lightest-text: hsl(0, 0%, 87%); /* ! when updating: find replace JS usage of hsl val */
+  --lighter-text: hsl(0, 0%, 80%); /* ! when updating: find replace JS usage of hsl val */
+  --light-text: hsl(0, 0%, 68%); /* ! when updating: find replace JS usage of hsl val */
+  --dark-text: hsl(0, 0%, 47%); /* ! when updating: find replace JS usage of hsl val */
+  --darker-text: hsl(0, 0%, 33%); /* ! when updating: find replace JS usage of hsl val */
+  --darkest-text: hsl(0, 0%, 27%); /* ! when updating: find replace JS usage of hsl val */
+  --black-text: hsl(0, 0%, 0%); /* ! when updating: find replace JS usage of hsl val */
+  --link-text: hsl(216, 76%, 39%); 
   --link-text-hover: hsl(216, 70%, 56%);
   --light-bg-icon: hsl(15, 3%, 26%);
   --abbr-title: hsla(0, 0%, 5%, 0.74);
@@ -30,8 +30,8 @@
 
   /* feedback */
   --success: hsl(154, 100%, 38%);
-  --saving: hsl(35, 43%, 50%);
-  --error: hsl(359, 55%, 59%);
+  --saving: hsl(35, 84%, 54%); /* * same as --btn-edit */
+  --error: hsl(356, 75%, 60%); /* * same as --btn-delete */
   --error-bg: hsl(3, 90%, 96%);
 
   /* navs */
@@ -50,9 +50,9 @@
   --btn-primary-hover: hsl(206, 74%, 72%);
   --btn-secondary: hsl(260, 16%, 96%);
   --btn-secondary-hover: hsl(0, 0%, 91%);
-  --btn-edit: hsl(35, 84%, 54%);
+  --btn-edit: hsl(35, 84%, 54%); /* * same as --saving */
   --btn-edit-hover: hsl(35, 84%, 72%);
-  --btn-delete: hsl(356, 75%, 60%);
+  --btn-delete: hsl(356, 75%, 60%); /* * same as --error */
   --btn-delete-hover: hsl(356, 75%, 72%);
 
   /* decks */

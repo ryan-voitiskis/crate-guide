@@ -11,7 +11,6 @@ const addRecord = async (record: UnsavedRecord, token: string) => {
   body.append("label", record.label ? record.label : "")
   body.append("year", record.year ? record.year.toString() : "")
   body.append("mixable", record.mixable ? "1" : "0")
-  // todo: append tracks
 
   const options = {
     method: "POST",

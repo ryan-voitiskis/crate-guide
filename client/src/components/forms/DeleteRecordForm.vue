@@ -12,9 +12,12 @@
         <LoaderIcon v-show="records.loading" />
       </button>
     </div>
-    <!--TODO: space not reserved for msg -->
     <div class="modal-body">
-      <ErrorFeedback :show="records.errorMsg !== ''" :msg="records.errorMsg" />
+      <ErrorFeedback
+        :show="records.errorMsg !== ''"
+        :msg="records.errorMsg"
+        :notReserved="true"
+      />
     </div>
   </form>
 </template>

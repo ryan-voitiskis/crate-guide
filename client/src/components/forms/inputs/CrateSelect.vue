@@ -21,7 +21,7 @@ import { crateStore } from "@/stores/crateStore"
 const user = userStore()
 const crates = crateStore()
 
-const props = defineProps<{
+defineProps<{
   selectID: string
 }>()
 </script>

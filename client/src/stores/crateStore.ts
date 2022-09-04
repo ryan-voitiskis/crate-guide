@@ -118,8 +118,6 @@ export const crateStore = defineStore("crate", {
 
             // handle success
             if (response.status === 200) {
-              // this.fetchCrates(token) // ? would something like this help to ensure concurrency, probably not req'd
-
               // handle - successfully saved difference but some intersection
               if (intersection.length) {
                 const difText =

@@ -18,12 +18,14 @@ import XIcon from "@/components/svg/XIcon.vue"
 
 const props = defineProps<{
   title?: string
-  modalWidth: string
+  width?: string
 }>()
+
+// set default width
+const modalWidth = props.width ? props.width : "440px"
 </script>
 
 <style lang="scss">
-// todo: can be scoped??
 .modal-backdrop {
   .modal {
     width: v-bind(modalWidth);

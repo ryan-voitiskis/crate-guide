@@ -22,6 +22,7 @@ const props = defineProps<{
 }>()
 
 // custom directive to focus input el if focused prop. used to focus first input.
+// ? why ts error when added as attribute to input el?
 const vFocus = {
   mounted: (el: any) => {
     if (props.focused) el.focus()
