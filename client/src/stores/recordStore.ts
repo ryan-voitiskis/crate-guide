@@ -10,6 +10,7 @@ export const recordStore = defineStore("record", {
     loading: false,
     errorMsg: "",
     feedbackMsg: "", // after update feedback msg
+    checkAll: false, // watch from RecordSingle to select all record checkboxes
     checkboxed: [] as string[], // record id(s) of records with checked checkboxes
     toDelete: [] as string[], // record id(s) to be deleted
     toCrate: [] as string[], // record id(s) to be added to the to be selected crate

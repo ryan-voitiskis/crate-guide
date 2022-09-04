@@ -38,6 +38,7 @@ const emit = defineEmits<{
 const recordNames = records.toDelete.map((i) => records.getNameById(i))
 
 const submit = async () => {
+  records.checkAll = false
   if (records.toDelete) {
     const response = await records.deleteRecords(user.authd.token)
     if (response === 200) emit("close")

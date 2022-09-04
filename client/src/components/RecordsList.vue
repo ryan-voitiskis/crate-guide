@@ -1,6 +1,7 @@
 <template>
   <BasicInput type="search" v-model="state.searchTerm" placeholder="Search" />
   <div>
+    <input type="checkbox" v-model="records.checkAll" />
     <SortByButton
       title="Title"
       :active="state.sortBy === 'title'"
@@ -47,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from "vue"
+import { computed, reactive, watch } from "vue"
 import BasicInput from "@/components/forms/inputs/BasicInput.vue"
 import RecordSingle from "./RecordSingle.vue"
 import Record from "@/interfaces/Record"
@@ -60,6 +61,7 @@ const crates = crateStore()
 const records = recordStore()
 
 const state = reactive({
+  selectAll: false,
   searchTerm: "",
   sortBy: "title",
   titleRvrs: false,
@@ -68,15 +70,6 @@ const state = reactive({
   labelRvrs: false,
   yearRvrs: false,
 })
-
-// records from selected crate to display
-const recordsByCrate = computed((): Record[] =>
-  user.authd.settings.selectedCrate !== "all"
-    ? crates
-        .getRecordsByCrate(user.authd.settings.selectedCrate)
-        .map((i) => records.getById(i))
-    : records.recordList
-)
 
 // modified from https://stackoverflow.com/a/69623589/7259172
 const localeContains = (x: string, y: string) => {
@@ -117,6 +110,15 @@ const sortNum = (field: keyof Record, reverse: boolean) => {
       : 0 // both a + b undefined: keep original order
 }
 
+// records from selected crate to display
+const recordsByCrate = computed((): Record[] =>
+  user.authd.settings.selectedCrate !== "all"
+    ? crates
+        .getRecordsByCrate(user.authd.settings.selectedCrate)
+        .map((i) => records.getById(i))
+    : records.recordList
+)
+
 // records filtered by search term, searches title, artists, catno, label, year
 const searchedRecords = computed((): Record[] =>
   state.searchTerm !== ""
@@ -150,6 +152,14 @@ const sortedRecords = computed((): Record[] => {
       return [...searchedRecords.value].sort(sortStr("title", state.titleRvrs))
   }
 })
+
+// if select/deselect all checkbox is unchecked, clear checkboxed array
+watch(
+  () => records.checkAll,
+  () => {
+    if (records.checkAll === false) records.checkboxed = []
+  }
+)
 </script>
 
 <style scoped lang="scss">

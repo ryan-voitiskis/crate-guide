@@ -45,6 +45,7 @@ const recordNames = records.fromCrate.map((i) => records.getNameById(i))
 const crateName = crates.getById(user.authd.settings.selectedCrate)?.name
 
 const submit = async () => {
+  records.checkAll = false
   if (records.fromCrate.length) {
     const response = await crates.removeFromCrate(
       records.fromCrate as string[],

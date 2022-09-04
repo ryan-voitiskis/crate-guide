@@ -86,6 +86,14 @@ watch(
     if (records.checkboxed.length === 0) state.checked = false
   }
 )
+
+// when select/deselect all checkbox is checked, check this records checkbox
+watch(
+  () => records.checkAll,
+  () => {
+    if (records.checkAll === true) state.checked = true
+  }
+)
 </script>
 
 <style scoped lang="scss">

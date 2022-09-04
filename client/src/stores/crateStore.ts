@@ -210,7 +210,7 @@ export const crateStore = defineStore("crate", {
       }
     },
 
-    // remove array or single record from all crates locally only
+    // remove array or single record from all crates locally only, used by deleteRecords in recordStore
     // * this operation is completed in the deleteRecords function in recordController on the server
     removeFromCrates(records: string[]) {
       this.crateList.forEach((crate) => {

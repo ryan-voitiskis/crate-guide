@@ -65,6 +65,7 @@ const selectCrates =
 const recordNames = records.toDelete.map((i) => records.getNameById(i))
 
 const submit = async () => {
+  records.checkAll = false
   if (form.crate) {
     if (records.toCrate.length) {
       const response = await crates.pushToCrate(
