@@ -167,7 +167,7 @@ export const crateStore = defineStore("crate", {
       }
     },
 
-    // remove array or single record from crate
+    // remove array or single record from crate locally and on server
     async removeFromCrate(
       records: string[],
       crateID: string,
@@ -210,6 +210,14 @@ export const crateStore = defineStore("crate", {
         this.loading = false
         return null
       }
+    },
+
+    // remove array or single record from all crates locally only
+    // * this operation is completed in the deleteRecords function in recordController on the server
+    removeFromCrates(records: string[]) {
+      this.crateList.forEach((crate) => {
+        crate.records = crate.records.filter((i) => !records.includes(i))
+      })
     },
   },
   getters: {

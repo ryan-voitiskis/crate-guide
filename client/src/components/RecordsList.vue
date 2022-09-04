@@ -1,69 +1,41 @@
 <template>
-  <input
-    type="text"
-    class="search"
-    v-model="state.searchTerm"
-    placeholder="search"
-  />
-  <div class="sort-by">
-    <button
-      class="inline-button"
-      :class="{ active: state.sortBy == 'title', reversed: state.titleRvrs }"
-      @click="
-        state.sortBy === 'title'
-          ? (state.titleRvrs = !state.titleRvrs)
-          : (state.sortBy = 'title')
-      "
-    >
-      Title <ChevronUpIcon />
-    </button>
-    <button
-      class="inline-button"
-      :class="{ active: state.sortBy == 'catno', reversed: state.catnoRvrs }"
-      @click="
-        state.sortBy === 'catno'
-          ? (state.catnoRvrs = !state.catnoRvrs)
-          : (state.sortBy = 'catno')
-      "
-    >
-      Catalog # <ChevronUpIcon />
-    </button>
-    <button
-      class="inline-button"
-      :class="{
-        active: state.sortBy == 'artists',
-        reversed: state.artistsRvrs,
-      }"
-      @click="
-        state.sortBy === 'artists'
-          ? (state.artistsRvrs = !state.artistsRvrs)
-          : (state.sortBy = 'artists')
-      "
-    >
-      Artists <ChevronUpIcon />
-    </button>
-    <button
-      class="inline-button"
-      :class="{ active: state.sortBy == 'label', reversed: state.labelRvrs }"
-      @click="
-        state.sortBy === 'label'
-          ? (state.labelRvrs = !state.labelRvrs)
-          : (state.sortBy = 'label')
-      "
-    >
-      Label <ChevronUpIcon />
-    </button>
-    <button
-      class="inline-button"
-      :class="{ active: state.sortBy == 'year', reversed: state.yearRvrs }"
-      @click="
-        state.sortBy === 'year'
-          ? (state.yearRvrs = !state.yearRvrs)
-          : (state.sortBy = 'year')
-      "
-    >
-      Year <ChevronUpIcon />
-    </button>
+  <BasicInput type="search" v-model="state.searchTerm" placeholder="Search" />
+  <div>
+    <SortByButton
+      title="Title"
+      :active="state.sortBy === 'title'"
+      :reversed="state.titleRvrs"
+      @activate="state.sortBy = 'title'"
+      @reverse="state.titleRvrs = !state.titleRvrs"
+    />
+    <SortByButton
+      title="Catalog No."
+      :active="state.sortBy === 'catno'"
+      :reversed="state.catnoRvrs"
+      @activate="state.sortBy = 'catno'"
+      @reverse="state.catnoRvrs = !state.catnoRvrs"
+    />
+    <SortByButton
+      title="Artists"
+      :active="state.sortBy === 'artists'"
+      :reversed="state.artistsRvrs"
+      @activate="state.sortBy = 'artists'"
+      @reverse="state.artistsRvrs = !state.artistsRvrs"
+    />
+    <SortByButton
+      title="Label"
+      :active="state.sortBy === 'label'"
+      :reversed="state.labelRvrs"
+      @activate="state.sortBy = 'label'"
+      @reverse="state.labelRvrs = !state.labelRvrs"
+    />
+    <SortByButton
+      title="Year"
+      :active="state.sortBy === 'year'"
+      :reversed="state.yearRvrs"
+      @activate="state.sortBy = 'year'"
+      @reverse="state.yearRvrs = !state.yearRvrs"
+    />
   </div>
   <div class="record-list">
     <RecordSingle
@@ -76,12 +48,13 @@
 
 <script setup lang="ts">
 import { computed, reactive } from "vue"
+import BasicInput from "@/components/forms/inputs/BasicInput.vue"
 import RecordSingle from "./RecordSingle.vue"
 import Record from "@/interfaces/Record"
+import SortByButton from "./SortByButton.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
-import ChevronUpIcon from "./svg/ChevronUpIcon.vue"
 const user = userStore()
 const crates = crateStore()
 const records = recordStore()
@@ -118,6 +91,32 @@ const localeContains = (x: string, y: string) => {
   return ascii(x).includes(ascii(y))
 }
 
+// sort function for Records by string type fields. sorts "" last
+const sortStr = (field: keyof Record, reverse: boolean) => {
+  // ? how to get param type to be ': Record' without error
+  return (a: any, b: any) =>
+    a[field] !== "" && b[field] !== ""
+      ? (reverse ? -1 : 1) *
+        a[field].localeCompare(b[field], undefined, { sensitivity: "base" }) // * both a + b defined
+      : a[field] !== "" && b[field] === ""
+      ? -1 // * a is defined, b is undefined: sort a before b
+      : a[field] === "" && b[field] !== ""
+      ? 1 // * a is undefined, b is defined: sort b before a
+      : 0 // * both a + b undefined: keep original order
+}
+
+// sort function for Records by number type fields. sorts null last
+const sortNum = (field: keyof Record, reverse: boolean) => {
+  return (a: Record, b: Record) =>
+    a[field] !== null && b[field] !== null
+      ? (reverse ? -1 : 1) * ((a[field] as number) - (b[field] as number)) // * both a + b defined: sort lowest before highest, unless reversed
+      : a[field] !== null && b[field] === null
+      ? -1 // * a is defined, b is undefined: sort a before b
+      : a[field] === null && b[field] !== null
+      ? 1 // * a is undefined, b is defined: sort b before a
+      : 0 // * both a + b undefined: keep original order
+}
+
 // records filtered by search term, searches title, artists, catno, label, year
 const searchedRecords = computed((): Record[] =>
   state.searchTerm !== ""
@@ -133,32 +132,6 @@ const searchedRecords = computed((): Record[] =>
       })
     : recordsByCrate.value
 )
-
-// sorts "" last
-const sortStr = (field: keyof Record, reverse: boolean) => {
-  // ? how to get param type to be ': Record' without error
-  return (a: any, b: any) =>
-    a[field] !== "" && b[field] !== ""
-      ? (reverse ? -1 : 1) *
-        a[field].localeCompare(b[field], undefined, { sensitivity: "base" }) // * both a + b defined
-      : a[field] !== "" && b[field] === ""
-      ? -1 // * a is defined, b is undefined: sort a before b
-      : a[field] === "" && b[field] !== ""
-      ? 1 // * a is undefined, b is defined: sort b before a
-      : 0 // * both a + b undefined: keep original order
-}
-
-// sorts null last
-const sortNum = (field: keyof Record, reverse: boolean) => {
-  return (a: Record, b: Record) =>
-    a[field] !== null && b[field] !== null
-      ? (reverse ? -1 : 1) * ((a[field] as number) - (b[field] as number)) // * both a + b defined: sort lowest before highest, unless reversed
-      : a[field] !== null && b[field] === null
-      ? -1 // * a is defined, b is undefined: sort a before b
-      : a[field] === null && b[field] !== null
-      ? 1 // * a is undefined, b is defined: sort b before a
-      : 0 // * both a + b undefined: keep original order
-}
 
 // sort records by title alphabetically
 const sortedRecords = computed((): Record[] => {
@@ -185,22 +158,5 @@ const sortedRecords = computed((): Record[] => {
   flex-direction: column;
   gap: 1rem;
   width: 100%;
-}
-
-.sort-by {
-  button {
-    width: 12rem;
-    svg {
-      transition: transform 0.4s;
-    }
-    &.active {
-      font-weight: 600;
-    }
-    &.reversed {
-      svg {
-        transform: scaleY(-1);
-      }
-    }
-  }
 }
 </style>

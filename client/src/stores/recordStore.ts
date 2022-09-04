@@ -2,6 +2,7 @@ import { defineStore } from "pinia"
 import Record from "@/interfaces/Record"
 import UnsavedRecord from "@/interfaces/UnsavedRecord"
 import recordService from "@/services/recordService"
+import { crateStore } from "@/stores/crateStore"
 
 export const recordStore = defineStore("record", {
   state: () => ({
@@ -75,6 +76,7 @@ export const recordStore = defineStore("record", {
     },
 
     async deleteRecords(token: string): Promise<number | null> {
+      const crtStore = crateStore()
       this.loading = true
       this.errorMsg = ""
       if (this.toDelete.length) {
@@ -88,17 +90,22 @@ export const recordStore = defineStore("record", {
           if (response.status === 200) {
             const res = await response.json()
 
-            // if all records deleted: remove deleted records in store
-            if (res.deletedCount === this.toDelete.length)
+            // if all records deleted successfully on server
+            if (res.deletedCount === this.toDelete.length) {
+              // remove deleted records from crates
+              crtStore.removeFromCrates(this.toDelete)
+              // remove deleted records in store
               this.recordList = this.recordList.filter(
                 (i) => !this.toDelete.includes(i._id)
               )
-            // if not all records deleted, feedbackMsg + fetch from server
+            }
+
+            // if not all records deleted, feedbackMsg + fetch records and crates from server
             else {
               this.feedbackMsg = "<b>Error</b>: Some records were not deleted."
               this.fetchRecords(token)
+              crtStore.fetchCrates(token)
             }
-            // todo: remove deleted records from crates
             this.loading = false
             return response.status
 
