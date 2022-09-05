@@ -46,36 +46,35 @@ const addRecord = asyncHandler(async (req, res) => {
 // @desc    Update record
 // @route   PUT /api/records/:id
 // @access  Private
-// ! untested and copied without appropriation edit
 const updateRecord = asyncHandler(async (req, res) => {
-  // const record = await Record.findById(req.params.id)
+  const oldRecord = await Record.findById(req.params.id)
 
-  // if (!record) {
-  //   res.status(400)
-  //   throw new Error("Record not found")
-  // }
+  if (!oldRecord) {
+    res.status(400)
+    throw new Error("Record not found")
+  }
 
-  // // Check for user
-  // if (!req.user) {
-  //   res.status(401)
-  //   throw new Error("User not found")
-  // }
+  // Check for user
+  if (!req.user) {
+    res.status(401)
+    throw new Error("User not found")
+  }
 
-  // // Make sure the logged in user matches the record user
-  // if (record.user.toString() !== req.user.id) {
-  //   res.status(401)
-  //   throw new Error("User not authorized")
-  // }
+  // Make sure the logged in user matches the existing records user
+  if (oldRecord.user.toString() !== req.user.id) {
+    res.status(401)
+    throw new Error("User not authorized")
+  }
 
-  // const updatedRecord = await Record.findByIdAndUpdate(
-  //   req.params.id,
-  //   req.body,
-  //   {
-  //     new: true,
-  //   }
-  // )
+  const updatedRecord = await Record.findByIdAndUpdate(
+    req.params.id,
+    JSON.parse(req.body.record),
+    {
+      new: true,
+    }
+  )
 
-  res.status(200).json("nothing")
+  res.status(200).json(updatedRecord)
 })
 
 // @desc    Delete records - for single or many

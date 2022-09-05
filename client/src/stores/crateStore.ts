@@ -12,6 +12,31 @@ export const crateStore = defineStore("crate", {
     feedbackMsg: "", // after update feedback msg
   }),
   actions: {
+    async fetchCrates(token: string): Promise<number | null> {
+      try {
+        const response = await crateService.getCrates(token)
+
+        // push returned crate to crateList
+        if (response.status === 200) {
+          const crates = (await response.json()) as Crate[]
+          if (crates !== null) this.crateList = crates
+          return response.status
+
+          // handle errors
+        } else if (response.status === 400) {
+          const error = await response.json()
+          const msg = error.message ? error.message : "Unexpected error"
+          this.errorMsg = msg
+        }
+        return response.status
+
+        // catch error, eg. NetworkError
+      } catch (error) {
+        console.error(error)
+        return null
+      }
+    },
+
     async addCrate(crate: UnsavedCrate, token: string): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
@@ -39,31 +64,6 @@ export const crateStore = defineStore("crate", {
         this.errorMsg = "Unexpected error"
         console.error(error)
         this.loading = false
-        return null
-      }
-    },
-
-    async fetchCrates(token: string): Promise<number | null> {
-      try {
-        const response = await crateService.getCrates(token)
-
-        // push returned crate to crateList
-        if (response.status === 200) {
-          const crates = (await response.json()) as Crate[]
-          if (crates !== null) this.crateList = crates
-          return response.status
-
-          // handle errors
-        } else if (response.status === 400) {
-          const error = await response.json()
-          const msg = error.message ? error.message : "Unexpected error"
-          this.errorMsg = msg
-        }
-        return response.status
-
-        // catch error, eg. NetworkError
-      } catch (error) {
-        console.error(error)
         return null
       }
     },
@@ -113,7 +113,7 @@ export const crateStore = defineStore("crate", {
           const difference = records.filter((i) => !crate.records.includes(i)) // records not yet in crate
 
           if (difference.length) {
-            crate.records.push(...difference)
+            crate.records.push(...difference) // todo: should this be done after successful res? probably
             const response = await crateService.updateCrate(crate, token)
 
             // handle success
@@ -177,6 +177,7 @@ export const crateStore = defineStore("crate", {
         const crate = this.getById(crateID) as Crate
 
         // if crate, clone it, set its records to remainingRecords and send
+        // ? is it necessary to check crate exists?
         if (crate) {
           const clonedCrate = JSON.parse(JSON.stringify(this.getById(crateID)))
           const remainingRecords = crate.records.filter(

@@ -11,12 +11,38 @@ export const recordStore = defineStore("record", {
     errorMsg: "",
     feedbackMsg: "", // after update feedback msg
     checkAll: false, // watch from RecordSingle to select all record checkboxes
+    toEdit: "", // id of record to be edited
     checkboxed: [] as string[], // record id(s) of records with checked checkboxes
     toDelete: [] as string[], // record id(s) to be deleted
     toCrate: [] as string[], // record id(s) to be added to the to be selected crate
     fromCrate: [] as string[], // record id(s) to be removed from to be selected crate
   }),
   actions: {
+    async fetchRecords(token: string): Promise<number | null> {
+      try {
+        const response = await recordService.getRecords(token)
+
+        // push returned record to recordList
+        if (response.status === 200) {
+          const records = (await response.json()) as Record[]
+          if (records !== null) this.recordList = records
+          return response.status
+
+          // handle errors
+        } else if (response.status === 400) {
+          const error = await response.json()
+          const msg = error.message ? error.message : "Unexpected error"
+          this.errorMsg = msg
+        }
+        return response.status
+
+        // catch error, eg. NetworkError
+      } catch (error) {
+        console.error(error)
+        return null
+      }
+    },
+
     async addRecord(
       record: UnsavedRecord,
       token: string
@@ -51,27 +77,34 @@ export const recordStore = defineStore("record", {
       }
     },
 
-    async fetchRecords(token: string): Promise<number | null> {
+    async updateRecord(record: Record, token: string): Promise<number | null> {
+      this.loading = true
+      this.errorMsg = ""
       try {
-        const response = await recordService.getRecords(token)
+        const response = await recordService.updateRecord(record, token)
 
-        // push returned record to recordList
+        // update returned record in recordList
         if (response.status === 200) {
-          const records = (await response.json()) as Record[]
-          if (records !== null) this.recordList = records
+          const updatedRecord = (await response.json()) as Record
+          const existingRecord = this.getById(record._id) as Record
+          Object.assign(existingRecord, updatedRecord)
+          this.loading = false
           return response.status
 
           // handle errors
-        } else if (response.status === 400) {
+        } else if (response.status === 400 || response.status === 401) {
           const error = await response.json()
           const msg = error.message ? error.message : "Unexpected error"
           this.errorMsg = msg
         }
+        this.loading = false
         return response.status
 
         // catch error, eg. NetworkError
       } catch (error) {
+        this.errorMsg = "Unexpected error"
         console.error(error)
+        this.loading = false
         return null
       }
     },

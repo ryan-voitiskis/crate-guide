@@ -2,24 +2,6 @@ import UnregisteredUser from "@/interfaces/UnregisteredUser"
 import User from "@/interfaces/User"
 const API_URL = "http://localhost:5001/api/users/"
 
-// add new user
-const addUser = async (user: UnregisteredUser) => {
-  const body = new URLSearchParams()
-  body.append("name", user.name)
-  body.append("email", user.email)
-  body.append("password", user.password)
-
-  const options = {
-    method: "POST",
-    headers: {
-      Accept: "application/js0ation/x-www-form-urlencoded",
-    },
-    body: body,
-  }
-  const response = await fetch(API_URL, options)
-  return response
-}
-
 // authenticate user
 const login = async (email: string, password: string) => {
   const body = new URLSearchParams()
@@ -35,6 +17,24 @@ const login = async (email: string, password: string) => {
     body: body,
   }
   const response = await fetch(API_URL + "login", options)
+  return response
+}
+
+// add new user
+const addUser = async (user: UnregisteredUser) => {
+  const body = new URLSearchParams()
+  body.append("name", user.name)
+  body.append("email", user.email)
+  body.append("password", user.password)
+
+  const options = {
+    method: "POST",
+    headers: {
+      Accept: "application/js0ation/x-www-form-urlencoded",
+    },
+    body: body,
+  }
+  const response = await fetch(API_URL, options)
   return response
 }
 
@@ -60,8 +60,8 @@ const updateSettings = async (user: User) => {
 }
 
 const userService = {
-  addUser,
   login,
+  addUser,
   updateSettings,
 }
 export default userService

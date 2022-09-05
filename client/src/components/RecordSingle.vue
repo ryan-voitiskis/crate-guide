@@ -11,6 +11,7 @@
     <div class="controls">
       <button
         class="inline-button edit"
+        @click="records.toEdit = _id"
         :disabled="records.checkboxed.length !== 0"
       >
         <PencilIcon />Edit

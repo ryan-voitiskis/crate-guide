@@ -1,5 +1,20 @@
 import UnsavedRecord from "@/interfaces/UnsavedRecord"
+import Record from "@/interfaces/Record"
 const API_URL = "http://localhost:5001/api/records"
+
+// get user records
+const getRecords = async (token: string) => {
+  const options = {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${token}`,
+    },
+  }
+  const response = await fetch(API_URL, options)
+  return response
+}
 
 // add new record
 const addRecord = async (record: UnsavedRecord, token: string) => {
@@ -25,23 +40,25 @@ const addRecord = async (record: UnsavedRecord, token: string) => {
   return response
 }
 
-// Get user records
-const getRecords = async (token: string) => {
+// update record
+const updateRecord = async (record: Record, token: string) => {
+  const body = new URLSearchParams()
+  body.append("record", JSON.stringify(record))
+
   const options = {
-    method: "GET",
+    method: "PUT",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/x-www-form-urlencoded",
       Authorization: `Bearer ${token}`,
     },
+    body: body,
   }
-  const response = await fetch(API_URL, options)
+  const response = await fetch(API_URL + "/" + record._id, options)
   return response
 }
 
-// todo: updateRecord()
-
-// Delete user record
+// delete array of records
 const deleteRecords = async (records: string[], token: string) => {
   const body = new URLSearchParams()
   body.append("records", JSON.stringify(records)) // send as string
@@ -59,8 +76,9 @@ const deleteRecords = async (records: string[], token: string) => {
 }
 
 const recordService = {
-  addRecord,
   getRecords,
+  addRecord,
+  updateRecord,
   deleteRecords,
 }
 export default recordService

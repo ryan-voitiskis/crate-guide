@@ -91,6 +91,14 @@
   </ModalContainer>
 
   <ModalContainer
+    v-if="state.editRecord"
+    @close="state.editRecord = false"
+    title="Edit record"
+  >
+    <EditRecordForm @close="state.editRecord = false" />
+  </ModalContainer>
+
+  <ModalContainer
     v-if="state.deleteRecord"
     @close="state.deleteRecord = false"
     title="Delete record"
@@ -129,6 +137,7 @@ import DeleteCrateForm from "@/components/forms/DeleteCrateForm.vue"
 import DeleteRecordForm from "@/components/forms/DeleteRecordForm.vue"
 import DuplicateCrateForm from "@/components/forms/DuplicateCrateForm.vue"
 import AddRecordForm from "@/components/forms/AddRecordForm.vue"
+import EditRecordForm from "@/components/forms/EditRecordForm.vue"
 import RecordsList from "@/components/RecordsList.vue"
 import ModalContainer from "@/components/ModalContainer.vue"
 import DuplicateIcon from "@/components/svg/DuplicateIcon.vue"
@@ -153,6 +162,7 @@ const state = reactive({
   duplicateCrate: false, // shows DuplicateCrateForm
   deleteCrate: false, // shows DeleteCrateForm
   addRecord: false, // shows AddRecordForm
+  editRecord: false, // shows EditRecordForm
   deleteRecord: false, // shows DeleteRecordForm
   selectCrate: false, // shows SelectCrateForm
   removeRecord: false, // shows RemoveRecordForm (from crate, not deleted)
@@ -165,6 +175,14 @@ watch(
   () => {
     if (user.hasUser()) user.updateSettings() // hasUser() check to avoid call on logout
     records.checkboxed = []
+  }
+)
+
+// open EditRecordForm when records.toEdit isn't empty
+watch(
+  () => records.toEdit,
+  () => {
+    if (records.toEdit !== "") state.editRecord = true
   }
 )
 
