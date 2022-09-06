@@ -2,7 +2,6 @@
   <form @submit.prevent="submit">
     <InfoDropdown
       text="Catalog #, label and year are optional.<br />Catalog # recommended for discogs integration."
-      class="form-hint"
     />
     <div class="modal-body inline-labels">
       <BasicInput
@@ -64,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits, onBeforeUnmount } from "vue"
+import { reactive, onBeforeUnmount } from "vue"
 import BasicInput from "./inputs/BasicInput.vue"
 import InfoDropdown from "@/components/InfoDropdown.vue"
 import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
@@ -74,10 +73,6 @@ import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
 const user = userStore()
 const records = recordStore()
-
-const emit = defineEmits<{
-  (e: "close"): void
-}>()
 
 const record = records.getById(records.toEdit)
 
@@ -102,12 +97,7 @@ const submit = async () => {
     mixable: form.mixable,
     tracks: record.tracks,
   }
-  const response = await records.updateRecord(editedRecord, user.authd.token)
-  if (response === 400 || response === 401) {
-    console.error(
-      `EditRecordForm: record.updateRecord returned status ${response}`
-    )
-  } else if (response === 200) emit("close")
+  await records.updateRecord(editedRecord, user.authd.token)
 }
 
 onBeforeUnmount(() => {

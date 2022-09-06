@@ -1,5 +1,5 @@
 <template>
-  <div class="info-dropdown">
+  <div class="info-dropdown form-hint">
     <transition name="fade-in-out">
       <span v-if="state.info" v-html="text"></span>
     </transition>

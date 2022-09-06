@@ -1,6 +1,6 @@
 export default interface UnsavedTrack {
   title: string
-  artist?: string
+  artists?: string
   position?: string
   duration?: string
   bpm?: number

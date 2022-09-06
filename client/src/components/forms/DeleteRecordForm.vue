@@ -23,26 +23,19 @@
 </template>
 
 <script setup lang="ts">
-import { defineEmits, onBeforeUnmount } from "vue"
+import { onBeforeUnmount } from "vue"
 import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
 import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
 const user = userStore()
 const records = recordStore()
 
-const emit = defineEmits<{
-  (e: "close"): void
-}>()
-
 // array of either catno if available or title of records to be deleted
 const recordNames = records.toDelete.map((i) => records.getNameById(i))
 
 const submit = async () => {
   records.checkAll = false
-  if (records.toDelete) {
-    const response = await records.deleteRecords(user.authd.token)
-    if (response === 200) emit("close")
-  }
+  if (records.toDelete) await records.deleteRecords(user.authd.token)
 }
 
 onBeforeUnmount(() => {

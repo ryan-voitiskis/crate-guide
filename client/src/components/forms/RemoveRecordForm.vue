@@ -52,7 +52,7 @@ const submit = async () => {
       user.authd.settings.selectedCrate,
       user.authd.token
     )
-    if (response === 200 || response === 1) emit("close")
+    if (response === 200 || response === 1) records.fromCrate = []
   }
 }
 

@@ -58,7 +58,7 @@
   <ModalContainer
     v-if="state.addCrate"
     @close="state.addCrate = false"
-    title="Add new crate"
+    title="Add crate"
   >
     <AddCrateForm @close="state.addCrate = false" />
   </ModalContainer>
@@ -91,42 +91,65 @@
   </ModalContainer>
 
   <ModalContainer
-    v-if="state.editRecord"
-    @close="state.editRecord = false"
+    v-if="records.toEdit !== ''"
+    @close="records.toEdit = ''"
     title="Edit record"
   >
-    <EditRecordForm @close="state.editRecord = false" />
+    <EditRecordForm />
   </ModalContainer>
 
   <ModalContainer
-    v-if="state.deleteRecord"
-    @close="state.deleteRecord = false"
+    v-if="records.toDelete.length"
+    @close="records.toDelete = []"
     title="Delete record"
   >
-    <DeleteRecordForm @close="state.deleteRecord = false" />
+    <DeleteRecordForm />
   </ModalContainer>
 
   <ModalContainer
-    v-if="state.selectCrate"
-    @close="state.selectCrate = false"
+    v-if="records.toCrate.length"
+    @close="records.toCrate = []"
     title="Select crate"
   >
-    <SelectCrateForm @close="state.selectCrate = false" />
+    <SelectCrateForm />
   </ModalContainer>
 
   <ModalContainer
-    v-if="state.removeRecord"
-    @close="state.removeRecord = false"
+    v-if="records.fromCrate.length"
+    @close="records.fromCrate = []"
     title="Remove from crate"
   >
-    <RemoveRecordForm @close="state.removeRecord = false" />
+    <RemoveRecordForm />
   </ModalContainer>
 
   <ModalContainer
-    v-if="state.feedbackMsg !== ''"
-    @close="state.feedbackMsg = ''"
+    v-if="records.addTrackTo !== ''"
+    @close="records.addTrackTo = ''"
+    title="Add track"
   >
-    <UpdateFeedback :text="state.feedbackMsg" @close="state.feedbackMsg = ''" />
+    <AddTrackForm />
+  </ModalContainer>
+
+  <ModalContainer
+    v-if="state.editTrack"
+    @close="state.editTrack = false"
+    title="Edit track"
+  >
+    <EditTrackForm @close="state.editTrack = false" />
+  </ModalContainer>
+
+  <ModalContainer
+    v-if="records.feedbackMsg !== ''"
+    @close="records.feedbackMsg = ''"
+  >
+    <UpdateFeedback :text="records.feedbackMsg" />
+  </ModalContainer>
+
+  <ModalContainer
+    v-if="crates.feedbackMsg !== ''"
+    @close="crates.feedbackMsg = ''"
+  >
+    <UpdateFeedback :text="crates.feedbackMsg" />
   </ModalContainer>
 </template>
 
@@ -149,6 +172,8 @@ import SelectCrateForm from "@/components/forms/SelectCrateForm.vue"
 import FolderDownIcon from "@/components/svg/FolderDownIcon.vue"
 import FolderMinusIcon from "@/components/svg/FolderMinusIcon.vue"
 import RemoveRecordForm from "@/components/forms/RemoveRecordForm.vue"
+import AddTrackForm from "@/components/forms/AddTrackForm.vue"
+import EditTrackForm from "@/components/forms/EditTrackForm.vue"
 import UpdateFeedback from "@/components/forms/feedbacks/UpdateFeedback.vue"
 import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
@@ -162,11 +187,8 @@ const state = reactive({
   duplicateCrate: false, // shows DuplicateCrateForm
   deleteCrate: false, // shows DeleteCrateForm
   addRecord: false, // shows AddRecordForm
-  editRecord: false, // shows EditRecordForm
-  deleteRecord: false, // shows DeleteRecordForm
-  selectCrate: false, // shows SelectCrateForm
-  removeRecord: false, // shows RemoveRecordForm (from crate, not deleted)
-  feedbackMsg: "", // text for the special use update feedback modal
+  addTrack: false, // shows AddTrackForm
+  editTrack: false, // shows EditTrackForm
 })
 
 // when selectedCrate changes, update db + clear checkboxed
@@ -175,54 +197,6 @@ watch(
   () => {
     if (user.hasUser()) user.updateSettings() // hasUser() check to avoid call on logout
     records.checkboxed = []
-  }
-)
-
-// open EditRecordForm when records.toEdit isn't empty
-watch(
-  () => records.toEdit,
-  () => {
-    if (records.toEdit !== "") state.editRecord = true
-  }
-)
-
-// open DeleteRecordForm when records.toDelete has id(s)
-watch(
-  () => records.toDelete.length,
-  () => {
-    if (records.toDelete.length) state.deleteRecord = true
-  }
-)
-
-// open SelectCrateForm when records.toCrate has id(s)
-watch(
-  () => records.toCrate.length,
-  () => {
-    if (records.toCrate.length) state.selectCrate = true
-  }
-)
-
-// open RemoveRecordForm when records.fromCrate has id(s)
-watch(
-  () => records.fromCrate.length,
-  () => {
-    if (records.fromCrate.length) state.removeRecord = true
-  }
-)
-
-// open UpdateFeedback when records.feedbackMsg
-watch(
-  () => records.feedbackMsg && crates.feedbackMsg,
-  () => {
-    if (records.feedbackMsg !== "") state.feedbackMsg = records.feedbackMsg
-  }
-)
-
-// open UpdateFeedback when crates.feedbackMsg
-watch(
-  () => crates.feedbackMsg,
-  () => {
-    if (crates.feedbackMsg !== "") state.feedbackMsg = crates.feedbackMsg
   }
 )
 </script>

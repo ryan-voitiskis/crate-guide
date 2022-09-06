@@ -32,6 +32,7 @@
       </button>
       <button
         class="inline-button add add-track"
+        @click="records.addTrackTo = _id"
         :disabled="records.checkboxed.length !== 0"
       >
         <PlusCircleIcon />Add track

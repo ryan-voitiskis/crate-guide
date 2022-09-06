@@ -12,6 +12,7 @@ export const recordStore = defineStore("record", {
     feedbackMsg: "", // after update feedback msg
     checkAll: false, // watch from RecordSingle to select all record checkboxes
     toEdit: "", // id of record to be edited
+    addTrackTo: "", // id of record to add track to, also serves as flag for opening AddTrackForm
     checkboxed: [] as string[], // record id(s) of records with checked checkboxes
     toDelete: [] as string[], // record id(s) to be deleted
     toCrate: [] as string[], // record id(s) to be added to the to be selected crate
@@ -89,6 +90,7 @@ export const recordStore = defineStore("record", {
           const existingRecord = this.getById(record._id) as Record
           Object.assign(existingRecord, updatedRecord)
           this.loading = false
+          this.toEdit = ""
           return response.status
 
           // handle errors
@@ -141,6 +143,7 @@ export const recordStore = defineStore("record", {
               crtStore.fetchCrates(token)
             }
             this.loading = false
+            this.toDelete = []
             return response.status
 
             // handle errors

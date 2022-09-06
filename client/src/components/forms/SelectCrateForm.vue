@@ -73,7 +73,7 @@ const submit = async () => {
         form.crate,
         user.authd.token
       )
-      if (response === 200 || response === 1) emit("close")
+      if (response === 200 || response === 1) records.toCrate = []
     }
   } else state.noneSelected = true
 }

@@ -1,7 +1,7 @@
 export default interface Track {
   _id: string
   title: string
-  artist?: string
+  artists?: string
   position?: string // todo: get rid of ? if default is "", then adjust positionColour in TrackSingle
   duration?: string
   bpm?: number
