@@ -11,6 +11,9 @@
     "year": 2017,
     "tracks": [
       {
+        "_id": {
+          "$oid": "631882080ca8d8b758b79e98"
+        },
         "position": "A",
         "title": "Got 2 Be Loved",
         "duration": "7:18",
@@ -21,6 +24,9 @@
         "playable": true
       },
       {
+        "_id": {
+          "$oid": "631882080ca8d8b758b79e99"
+        },
         "position": "B",
         "title": "A Rose Is A Rose",
         "duration": "6:32",
@@ -44,6 +50,9 @@
     "year": 2018,
     "tracks": [
       {
+        "_id": {
+          "$oid": "631882080ca8d8b758b79e21"
+        },
         "position": "A1",
         "title": "Resilience",
         "duration": "",
@@ -53,6 +62,9 @@
         "playable": true
       },
       {
+        "_id": {
+          "$oid": "631882080ca8d8b758b79e22"
+        },
         "position": "A2",
         "title": "Fallen Angel (Vinyl Edit)",
         "bpm": 125,
@@ -61,6 +73,9 @@
         "playable": true
       },
       {
+        "_id": {
+          "$oid": "631882080ca8d8b758b79e23"
+        },
         "position": "B1",
         "title": "Resilience (Terrence Parker Remix)",
         "artist": "Terrence Parker",
@@ -70,6 +85,9 @@
         "playable": true
       },
       {
+        "_id": {
+          "$oid": "631882080ca8d8b758b79e24"
+        },
         "position": "B2",
         "title": "Fallen Angel (Tiger Stripes Remix)",
         "bpm": 124,
@@ -91,6 +109,9 @@
     "year": 2010,
     "tracks": [
       {
+        "_id": {
+          "$oid": "631882080ca8d8b758b79e11"
+        },
         "position": "A1",
         "title": "Contraire",
         "duration": "",
@@ -100,6 +121,9 @@
         "playable": true
       },
       {
+        "_id": {
+          "$oid": "631882080ca8d8b758b79e12"
+        },
         "position": "A2",
         "title": "Cette Nuit",
         "bpm": 125,
@@ -108,6 +132,9 @@
         "playable": true
       },
       {
+        "_id": {
+          "$oid": "631882080ca8d8b758b79e13"
+        },
         "position": "B1",
         "title": "A Plus Tard",
         "bpm": 126,
@@ -116,6 +143,9 @@
         "playable": true
       },
       {
+        "_id": {
+          "$oid": "631882080ca8d8b758b79e14"
+        },
         "position": "B2",
         "title": "Rude",
         "bpm": 127,

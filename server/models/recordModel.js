@@ -1,5 +1,32 @@
 const mongoose = require("mongoose")
-// const Track = require("./trackModel")
+
+const trackSchema = mongoose.Schema({
+  title: {
+    type: String,
+    required: [true, "Track model: No title provided."],
+  },
+  artists: {
+    type: String,
+  },
+  position: {
+    type: String,
+  },
+  duration: {
+    type: String,
+  },
+  bpm: {
+    type: Number,
+  },
+  rpm: {
+    type: Number,
+  },
+  genre: {
+    type: String,
+  },
+  playable: {
+    type: Boolean,
+  },
+})
 
 const recordSchema = mongoose.Schema(
   {
@@ -31,9 +58,9 @@ const recordSchema = mongoose.Schema(
     mixable: {
       type: Boolean,
     },
-    // tracks: {
-    //   type: [String],
-    // },
+    tracks: {
+      type: [trackSchema],
+    },
   },
   {
     timestamps: true,

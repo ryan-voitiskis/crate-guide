@@ -32,7 +32,7 @@
       </button>
       <button
         class="inline-button add add-track"
-        @click="records.addTrackTo = _id"
+        @click="trckStore.addTrackTo = _id"
         :disabled="records.checkboxed.length !== 0"
       >
         <PlusCircleIcon />Add track
@@ -46,14 +46,16 @@
 
 <script setup lang="ts">
 import { defineProps, reactive, watch } from "vue"
-import Track from "@/interfaces/Track"
-import PencilIcon from "./svg/PencilIcon.vue"
-import TrashIcon from "./svg/TrashIcon.vue"
-import PlusCircleIcon from "./svg/PlusCircleIcon.vue"
-import TrackSingle from "./TrackSingle.vue"
-import FolderDownIcon from "./svg/FolderDownIcon.vue"
 import { recordStore } from "@/stores/recordStore"
+import { trackStore } from "@/stores/trackStore"
+import FolderDownIcon from "./svg/FolderDownIcon.vue"
+import PencilIcon from "./svg/PencilIcon.vue"
+import PlusCircleIcon from "./svg/PlusCircleIcon.vue"
+import Track from "@/interfaces/Track"
+import TrackSingle from "./TrackSingle.vue"
+import TrashIcon from "./svg/TrashIcon.vue"
 const records = recordStore()
+const trckStore = trackStore() // ! "trckStore" because conflict w tracks prop
 
 const props = defineProps<{
   _id: string

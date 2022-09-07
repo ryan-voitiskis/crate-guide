@@ -8,25 +8,22 @@ const User = require("../models/userModel")
 // @access  Public
 const addUser = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body
-
   if (!name || !email || !password) {
     res.status(400)
     throw new Error("Please add all fields")
   }
 
-  // Check if user exists
   const userExists = await User.findOne({ email })
-
   if (userExists) {
     res.status(409)
     throw new Error(`An account using ${email} already exists.`)
   }
 
-  // Hash password
+  // hash password
   const salt = await bcrypt.genSalt(10)
   const hashedPassword = await bcrypt.hash(password, salt)
 
-  // Create user
+  // create user
   const user = await User.create({
     name,
     email,
@@ -52,10 +49,7 @@ const addUser = asyncHandler(async (req, res) => {
 // @access  Public
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body
-
-  // Check for user email
   const user = await User.findOne({ email })
-
   if (user && (await bcrypt.compare(password, user.password))) {
     res.json({
       id: user.id,
@@ -70,8 +64,6 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 })
 
-// ? will this ever be used?
-// TODO: delete if not
 // @desc    Get user data
 // @route   GET /api/users/me
 // @access  Private
@@ -97,13 +89,11 @@ const updateUser = asyncHandler(async (req, res) => {
     throw new Error("User not found")
   }
 
-  // Check for user
   if (!req.user) {
     res.status(400)
     throw new Error("User not found")
   }
 
-  // Make sure the logged in user matches the user user
   if (user.id.toString() !== req.user.id) {
     res.status(401)
     throw new Error("User not authorized")

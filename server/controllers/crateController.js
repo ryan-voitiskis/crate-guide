@@ -19,18 +19,15 @@ const addCrate = asyncHandler(async (req, res) => {
     throw new Error("User not provided.")
   }
 
-  if (!req.body.name) {
+  const crate = JSON.parse(req.body.crate)
+
+  if (!crate.name) {
     res.status(400)
     throw new Error("Name not provided.")
   }
 
-  const crate = await Crate.create({
-    user: req.user.id,
-    name: req.body.name,
-    records: JSON.parse(req.body.records),
-  })
-
-  res.status(201).json(crate)
+  const createdCrate = await Crate.create(crate)
+  res.status(201).json(createdCrate)
 })
 
 // @desc    Update crate
@@ -59,9 +56,7 @@ const updateCrate = asyncHandler(async (req, res) => {
   const updatedCrate = await Crate.findByIdAndUpdate(
     req.params.id,
     JSON.parse(req.body.crate), // req'd as crate needs to be sent as string
-    {
-      new: true,
-    }
+    { new: true }
   )
 
   res.status(200).json(updatedCrate)

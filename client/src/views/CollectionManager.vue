@@ -87,11 +87,11 @@
     <RemoveRecordForm />
   </ModalBox>
 
-  <ModalBox v-if="records.addTrackTo !== ''" @close="records.addTrackTo = ''">
+  <ModalBox v-if="tracks.addTrackTo !== ''" @close="tracks.addTrackTo = ''">
     <AddTrackForm />
   </ModalBox>
 
-  <ModalBox v-if="records.toEditTrack !== ''" @close="records.toEditTrack = ''">
+  <ModalBox v-if="tracks.toEdit !== ''" @close="tracks.toEdit = ''">
     <EditTrackForm />
   </ModalBox>
 
@@ -105,9 +105,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, watch } from "vue"
 import { crateStore } from "@/stores/crateStore"
+import { reactive, watch } from "vue"
 import { recordStore } from "@/stores/recordStore"
+import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import AddCrateForm from "@/components/forms/AddCrateForm.vue"
 import AddRecordForm from "@/components/forms/AddRecordForm.vue"
@@ -130,9 +131,10 @@ import SelectCrateForm from "@/components/forms/SelectCrateForm.vue"
 import TrashIcon from "@/components/svg/TrashIcon.vue"
 import UpdateFeedback from "@/components/forms/feedbacks/UpdateFeedback.vue"
 
-const user = userStore()
-const records = recordStore()
 const crates = crateStore()
+const records = recordStore()
+const tracks = trackStore()
+const user = userStore()
 
 const state = reactive({
   addCrate: false, // shows AddCrateForm

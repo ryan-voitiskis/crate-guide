@@ -8,7 +8,7 @@
       <span class="genre" v-if="genre">{{ genre }}</span>
     </div>
     <div class="controls">
-      <button class="inline-button edit" @click="records.toEditTrack = _id">
+      <button class="inline-button edit" @click="tracks.toEdit = _id">
         <PencilIcon />
       </button>
       <button class="inline-button delete"><TrashIcon /></button>
@@ -18,11 +18,11 @@
 
 <script setup lang="ts">
 import { defineProps, computed } from "vue"
-import { recordStore } from "@/stores/recordStore"
+import { trackStore } from "@/stores/trackStore"
 import PencilIcon from "./svg/PencilIcon.vue"
 import TrashIcon from "./svg/TrashIcon.vue"
 import * as d3 from "d3-interpolate"
-const records = recordStore()
+const tracks = trackStore()
 
 const props = defineProps<{
   _id: string

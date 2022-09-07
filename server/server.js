@@ -14,6 +14,7 @@ app.use(express.urlencoded({ extended: false }))
 
 app.use("/api/crates", require("./routes/crateRoutes"))
 app.use("/api/records", require("./routes/recordRoutes"))
+app.use("/api/tracks", require("./routes/trackRoutes"))
 app.use("/api/users", require("./routes/userRoutes"))
 
 // Serve frontend

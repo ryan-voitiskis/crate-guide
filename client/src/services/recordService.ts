@@ -19,13 +19,7 @@ const getRecords = async (token: string) => {
 // add new record
 const addRecord = async (record: UnsavedRecord, token: string) => {
   const body = new URLSearchParams()
-  body.append("user", record.user)
-  body.append("catno", record.catno ? record.catno : "")
-  body.append("title", record.title)
-  body.append("artists", record.artists)
-  body.append("label", record.label ? record.label : "")
-  body.append("year", record.year ? record.year.toString() : "")
-  body.append("mixable", record.mixable ? "1" : "0")
+  body.append("record", JSON.stringify(record))
 
   const options = {
     method: "POST",

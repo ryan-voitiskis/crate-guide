@@ -13,19 +13,19 @@
       </p>
       <fieldset>
         <legend>Theme</legend>
-        <RadioInput
+        <RadioCard
           v-model="user.authd.settings.theme"
           name="theme"
           id="light"
           label="Light"
         />
-        <RadioInput
+        <RadioCard
           v-model="user.authd.settings.theme"
           name="theme"
           id="dark"
           label="Dark"
         />
-        <RadioInput
+        <RadioCard
           v-model="user.authd.settings.theme"
           name="theme"
           id="contrast"
@@ -35,13 +35,13 @@
 
       <fieldset>
         <legend>Turntable colour</legend>
-        <RadioInput
+        <RadioCard
           v-model="user.authd.settings.turntableTheme"
           name="turntable_colour"
           id="silver"
           label="Silver"
         />
-        <RadioInput
+        <RadioCard
           v-model="user.authd.settings.turntableTheme"
           name="turntable_colour"
           id="black"
@@ -72,7 +72,7 @@
 
 <script setup lang="ts">
 import { onBeforeMount, onUnmounted } from "vue"
-import RadioInput from "./inputs/RadioInput.vue"
+import RadioCard from "./inputs/RadioCard.vue"
 import SubmitlessFeedback from "./feedbacks/SubmitlessFeedback.vue"
 import XIcon from "@/components/svg/XIcon.vue"
 import { userStore } from "@/stores/userStore"

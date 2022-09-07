@@ -20,27 +20,21 @@ const addRecord = asyncHandler(async (req, res) => {
     throw new Error("User not provided.")
   }
 
-  if (!req.body.title) {
+  const record = JSON.parse(req.body.record)
+
+  if (!record.title) {
     res.status(400)
     throw new Error("Title not provided.")
   }
 
-  if (!req.body.artists) {
+  if (!record.artists) {
     res.status(400)
     throw new Error("Artists not provided.")
   }
 
-  const record = await Record.create({
-    user: req.user.id,
-    catno: req.body.catno,
-    title: req.body.title,
-    artists: req.body.artists,
-    label: req.body.label,
-    year: req.body.year,
-    mixable: req.body.mixable == "1" ? true : false,
-  })
+  const createdRecord = await Record.create(record)
 
-  res.status(201).json(record)
+  res.status(201).json(createdRecord)
 })
 
 // @desc    Update record
@@ -54,13 +48,11 @@ const updateRecord = asyncHandler(async (req, res) => {
     throw new Error("Record not found")
   }
 
-  // Check for user
   if (!req.user) {
     res.status(401)
     throw new Error("User not found")
   }
 
-  // Make sure the logged in user matches the existing records user
   if (oldRecord.user.toString() !== req.user.id) {
     res.status(401)
     throw new Error("User not authorized")
@@ -69,9 +61,7 @@ const updateRecord = asyncHandler(async (req, res) => {
   const updatedRecord = await Record.findByIdAndUpdate(
     req.params.id,
     JSON.parse(req.body.record),
-    {
-      new: true,
-    }
+    { new: true }
   )
 
   res.status(200).json(updatedRecord)
@@ -81,7 +71,6 @@ const updateRecord = asyncHandler(async (req, res) => {
 // @route   DELETE /api/records
 // @access  Private
 const deleteRecords = asyncHandler(async (req, res) => {
-  // Check for user
   if (!req.user) {
     res.status(401)
     throw new Error("User not found")

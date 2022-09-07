@@ -28,15 +28,18 @@ withDefaults(defineProps<Props>(), {
 }
 
 .modal-header {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto;
   padding: 3rem 4rem;
   h2 {
     font-weight: 500;
     color: var(--darkest-text);
     line-height: 3.8rem;
     margin: 0 2rem 0 0;
+    span {
+      color: var(--dark-text);
+      font-size: 1.6rem;
+    }
   }
   .close {
     margin-left: auto; // right align when no h2
