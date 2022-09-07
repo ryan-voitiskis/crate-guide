@@ -14,4 +14,8 @@ defineProps<{
 }>()
 </script>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+.modal-body {
+  margin: 4rem 0 6rem 0;
+}
+</style>

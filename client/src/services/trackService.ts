@@ -22,7 +22,6 @@ const addTrack = async (track: UnsavedTrack, record: string, token: string) => {
 }
 
 // update track
-// ! copied and untested
 const updateTrack = async (track: Track, token: string) => {
   const body = new URLSearchParams()
   body.append("track", JSON.stringify(track))
@@ -37,6 +36,7 @@ const updateTrack = async (track: Track, token: string) => {
     body: body,
   }
   const response = await fetch(API_URL + "/" + track._id, options)
+
   return response
 }
 

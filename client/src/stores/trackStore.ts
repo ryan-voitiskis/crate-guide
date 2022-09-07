@@ -60,7 +60,10 @@ export const trackStore = defineStore("track", {
 
         // update returned track in trackList
         if (response.status === 200) {
-          // todo
+          const recStore = recordStore()
+          const updatedRecord = (await response.json()) as Record
+          const existingRecord = recStore.getById(updatedRecord._id) as Record
+          Object.assign(existingRecord, updatedRecord)
           this.loading = false
           this.toEdit = ""
           return response.status

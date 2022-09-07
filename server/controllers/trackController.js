@@ -29,31 +29,32 @@ const addTrack = asyncHandler(async (req, res) => {
 // @desc    Update track
 // @route   PUT /api/tracks/:id
 // @access  Private
-// ! copied and untested
 const updateTrack = asyncHandler(async (req, res) => {
-  // const oldTrack = await Track.findById(req.params.id)
-  // if (!oldTrack) {
-  //   res.status(400)
-  //   throw new Error("Track not found")
-  // }
-  // // Check for user
-  // if (!req.user) {
-  //   res.status(401)
-  //   throw new Error("User not found")
-  // }
-  // // Make sure the logged in user matches the existing tracks user
-  // if (oldTrack.user.toString() !== req.user.id) {
-  //   res.status(401)
-  //   throw new Error("User not authorized")
-  // }
-  // const updatedTrack = await Track.findByIdAndUpdate(
-  //   req.params.id,
-  //   JSON.parse(req.body.track),
-  //   {
-  //     new: true,
-  //   }
-  // )
-  // res.status(200).json(updatedTrack)
+  const oldTrack = await Record.findOne({ "tracks._id": req.params.id })
+  if (!oldTrack) {
+    res.status(400)
+    throw new Error("Track not found")
+  }
+  const track = JSON.parse(req.body.track)
+
+  // Check for user
+  if (!req.user) {
+    res.status(401)
+    throw new Error("User not found")
+  }
+
+  // Make sure the logged in user matches the existing tracks user
+  if (oldTrack.user.toString() !== req.user.id) {
+    res.status(401)
+    throw new Error("User not authorized")
+  }
+
+  const updatedRecord = await Record.findOneAndUpdate(
+    { _id: oldTrack._id, "tracks._id": req.params.id },
+    { $set: { "tracks.$": track } },
+    { new: true }
+  )
+  res.status(200).json(updatedRecord)
 })
 
 // @desc    Delete tracks - for single or many

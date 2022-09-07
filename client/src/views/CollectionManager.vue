@@ -105,8 +105,8 @@
 </template>
 
 <script setup lang="ts">
+import { reactive } from "vue"
 import { crateStore } from "@/stores/crateStore"
-import { reactive, watch } from "vue"
 import { recordStore } from "@/stores/recordStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
@@ -141,18 +141,7 @@ const state = reactive({
   duplicateCrate: false, // shows DuplicateCrateForm
   deleteCrate: false, // shows DeleteCrateForm
   addRecord: false, // shows AddRecordForm
-  addTrack: false, // shows AddTrackForm
-  editTrack: false, // shows EditTrackForm
 })
-
-// when selectedCrate changes, update db + clear checkboxed
-watch(
-  () => user.authd.settings.selectedCrate,
-  () => {
-    if (user.hasUser()) user.updateSettings() // hasUser() check to avoid call on logout
-    records.checkboxed = []
-  }
-)
 </script>
 
 <style scoped lang="scss">

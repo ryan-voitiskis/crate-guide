@@ -15,15 +15,26 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps } from "vue"
-import { userStore } from "@/stores/userStore"
+import { defineProps, watch } from "vue"
 import { crateStore } from "@/stores/crateStore"
-const user = userStore()
+import { recordStore } from "@/stores/recordStore"
+import { userStore } from "@/stores/userStore"
 const crates = crateStore()
+const records = recordStore()
+const user = userStore()
 
 defineProps<{
   selectID: string
 }>()
+
+watch(
+  () => user.authd.settings.selectedCrate, // when selectedCrate changes
+  () => {
+    if (user.hasUser()) user.updateSettings() // hasUser() check to avoid call on logout
+    records.checkboxed = [] // clear checkboxed
+    records.checkAll = false // set select all checkbox to false
+  }
+)
 </script>
 
 <style scoped lang="scss">

@@ -3,6 +3,7 @@ import Record from "@/interfaces/Record"
 import UnsavedRecord from "@/interfaces/UnsavedRecord"
 import recordService from "@/services/recordService"
 import { crateStore } from "@/stores/crateStore"
+import Track from "@/interfaces/Track"
 
 export const recordStore = defineStore("record", {
   state: () => ({
@@ -175,12 +176,37 @@ export const recordStore = defineStore("record", {
     // returns record catno, if no catno returns title
     getNameById: (state) => {
       return (id: string) => {
-        const record = state.recordList.find(
-          (record) => record._id === id
-        ) as Record
-        const name = record.catno ? record.catno : record.title
-        return name
+        const record =
+          (state.recordList.find((record) => record._id === id) as Record) ||
+          null
+        if (record) return record.catno ? record.catno : record.title
+        else return ""
       }
+    },
+    // returns record catno, if no catno returns title. if no record returns ""
+    getRecordNameByTrackId: (state) => {
+      return (id: string) => {
+        const record =
+          (state.recordList.find((record) =>
+            record.tracks.find((track) => track._id === id)
+          ) as Record) || null
+        if (record) return record.catno ? record.catno : record.title
+        else return ""
+      }
+    },
+    // gets a record that contains track with id. returns null if not found
+    getRecordByTrackId: (state) => {
+      return (id: string) =>
+        (state.recordList.find((record) =>
+          record.tracks.find((track) => track._id === id)
+        ) as Record) || null
+    },
+    // gets a track by id. returns null if not found
+    getTrackById: (state) => {
+      return (id: string) =>
+        state.recordList.reduce<any>((prev: Record, curr: Record) => {
+          return prev || curr.tracks.find((track) => track._id === id)
+        }, undefined) || null
     },
   },
 })
