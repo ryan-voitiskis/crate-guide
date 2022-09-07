@@ -12,6 +12,7 @@ export const recordStore = defineStore("record", {
     feedbackMsg: "", // after update feedback msg
     checkAll: false, // watch from RecordSingle to select all record checkboxes
     toEdit: "", // id of record to be edited
+    toEditTrack: "", // id of track to be edited
     addTrackTo: "", // id of record to add track to, also serves as flag for opening AddTrackForm
     checkboxed: [] as string[], // record id(s) of records with checked checkboxes
     toDelete: [] as string[], // record id(s) to be deleted

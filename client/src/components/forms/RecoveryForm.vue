@@ -1,4 +1,10 @@
 <template>
+  <div class="modal-header">
+    <h2>Forgot password?</h2>
+    <button class="close" type="button" @click="$parent!.$emit('close')">
+      <XIcon />
+    </button>
+  </div>
   <form @submit.prevent="submitRecovery">
     <div class="modal-body">
       <p>Enter your email for reset instructions.</p>
@@ -17,6 +23,7 @@
 <script setup lang="ts">
 import { reactive } from "vue"
 import BasicInput from "./inputs/BasicInput.vue"
+import XIcon from "@/components/svg/XIcon.vue"
 
 const user = reactive({
   email: "",

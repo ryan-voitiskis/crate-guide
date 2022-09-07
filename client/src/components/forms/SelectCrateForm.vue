@@ -1,4 +1,10 @@
 <template>
+  <div class="modal-header">
+    <h2>Select crate</h2>
+    <button class="close" type="button" @click="$parent!.$emit('close')">
+      <XIcon />
+    </button>
+  </div>
   <form @submit.prevent="submit">
     <span class="form-hint"
       >Select the crate to add {{ recordNames.join(", ") }} to.</span
@@ -31,19 +37,16 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits, watch, onBeforeUnmount } from "vue"
+import { reactive, watch, onBeforeUnmount } from "vue"
 import ErrorFeedback from "./feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import XIcon from "@/components/svg/XIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
 const user = userStore()
 const crates = crateStore()
 const records = recordStore()
-
-const emit = defineEmits<{
-  (e: "close"): void
-}>()
 
 const state = reactive({
   noneSelected: false, // only true after a submit attempt

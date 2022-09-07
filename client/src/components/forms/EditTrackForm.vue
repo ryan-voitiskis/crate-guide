@@ -1,5 +1,11 @@
 <template>
   <form @submit.prevent="submit" @reset.prevent="reset()">
+    <div class="modal-header">
+      <h2>Edit track</h2>
+      <button class="close" type="button" @click="$parent!.$emit('close')">
+        <XIcon />
+      </button>
+    </div>
     <InfoDropdown
       text="Catalog #, label and year are optional.<br />Catalog # recommended for discogs integration."
     />
@@ -69,6 +75,7 @@ import BasicInput from "./inputs/BasicInput.vue"
 import InfoDropdown from "@/components/InfoDropdown.vue"
 import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import XIcon from "@/components/svg/XIcon.vue"
 import UnsavedRecord from "@/interfaces/UnsavedRecord"
 import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"

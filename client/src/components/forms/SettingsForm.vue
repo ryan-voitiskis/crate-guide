@@ -1,4 +1,10 @@
 <template>
+  <div class="modal-header">
+    <h2>Settings</h2>
+    <button class="close" type="button" @click="$parent!.$emit('close')">
+      <XIcon />
+    </button>
+  </div>
   <form v-on="user.hasUser() ? { change: updateSettings } : {}">
     <div class="modal-body">
       <p v-if="!user.hasUser()">
@@ -68,6 +74,7 @@
 import { onBeforeMount, onUnmounted } from "vue"
 import RadioInput from "./inputs/RadioInput.vue"
 import SubmitlessFeedback from "./feedbacks/SubmitlessFeedback.vue"
+import XIcon from "@/components/svg/XIcon.vue"
 import { userStore } from "@/stores/userStore"
 const user = userStore()
 

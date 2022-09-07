@@ -1,4 +1,10 @@
 <template>
+  <div class="modal-header">
+    <h2>Add track</h2>
+    <button class="close" type="button" @click="$parent!.$emit('close')">
+      <XIcon />
+    </button>
+  </div>
   <form @submit.prevent="submit" @reset.prevent="reset()">
     <InfoDropdown text="TODO" />
     <div class="modal-body inline-labels">
@@ -82,6 +88,7 @@ import BasicInput from "./inputs/BasicInput.vue"
 import InfoDropdown from "@/components/InfoDropdown.vue"
 import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import XIcon from "@/components/svg/XIcon.vue"
 import UnsavedTrack from "@/interfaces/UnsavedTrack"
 import { recordStore } from "@/stores/recordStore"
 const records = recordStore()

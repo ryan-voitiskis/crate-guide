@@ -1,4 +1,10 @@
 <template>
+  <div class="modal-header">
+    <h2>Log in</h2>
+    <button class="close" type="button" @click="$parent!.$emit('close')">
+      <XIcon />
+    </button>
+  </div>
   <form @submit.prevent="submit">
     <div class="modal-body">
       <p @click="$emit('openSignUp')">
@@ -39,6 +45,7 @@ import BasicInput from "./inputs/BasicInput.vue"
 import ErrorFeedback from "./feedbacks/ErrorFeedback.vue"
 import PasswordInput from "./inputs/PasswordInput.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import XIcon from "@/components/svg/XIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 const user = userStore()

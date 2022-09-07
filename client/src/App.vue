@@ -36,54 +36,34 @@
     <router-view />
   </div>
 
-  <ModalContainer
-    v-if="state.login"
-    @close="state.login = false"
-    title="Log in"
-    width="360px"
-  >
+  <ModalBox v-if="state.login" @close="state.login = false" width="360px">
     <LoginForm
       @openSignUp=";(state.login = false), (state.signUp = true)"
       @openRecovery=";(state.login = false), (state.recovery = true)"
       @close="state.login = false"
     />
-  </ModalContainer>
+  </ModalBox>
 
-  <ModalContainer
-    v-if="state.signUp"
-    @close="state.signUp = false"
-    title="Sign up"
-    width="360px"
-  >
+  <ModalBox v-if="state.signUp" @close="state.signUp = false" width="360px">
     <SignUpForm
       @openLogin=";(state.login = true), (state.signUp = false)"
       @close="state.signUp = false"
     />
-  </ModalContainer>
+  </ModalBox>
 
-  <ModalContainer
-    v-if="state.recovery"
-    @close="state.recovery = false"
-    title="Forgot password?"
-    width="360px"
-  >
+  <ModalBox v-if="state.recovery" @close="state.recovery = false" width="360px">
     <RecoveryForm />
-  </ModalContainer>
+  </ModalBox>
 
-  <ModalContainer
-    v-if="state.settings"
-    @close="state.settings = false"
-    title="Settings"
-    width="540px"
-  >
+  <ModalBox v-if="state.settings" @close="state.settings = false" width="540px">
     <SettingsForm />
-  </ModalContainer>
+  </ModalBox>
 </template>
 
 <script setup lang="ts">
 import { reactive } from "vue"
 import CogIcon from "@/components/svg/CogIcon.vue"
-import ModalContainer from "./components/ModalContainer.vue"
+import ModalBox from "./components/ModalBox.vue"
 import LoginForm from "./components/forms/LoginForm.vue"
 import SignUpForm from "./components/forms/SignUpForm.vue"
 import RecoveryForm from "./components/forms/RecoveryForm.vue"

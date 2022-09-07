@@ -1,13 +1,19 @@
 <template>
+  <div class="modal-header">
+    <h2>Duplicate crate</h2>
+    <button class="close" type="button" @click="$parent!.$emit('close')">
+      <XIcon />
+    </button>
+  </div>
   <form @submit.prevent="submit">
-    <p class="form-hint">Enter the new name of the duplicated crate.</p>
+    <p class="form-hint">Enter the duplicated crate name.</p>
     <div class="modal-body inline-labels">
       <BasicInput
         v-model="form.name"
         id="name"
         label="Crate name"
         type="text"
-        placeholder="Name"
+        placeholder="My crate"
         :focused="true"
         required
       />
@@ -31,6 +37,7 @@ import { reactive, defineEmits, onBeforeUnmount } from "vue"
 import BasicInput from "./inputs/BasicInput.vue"
 import ErrorFeedback from "./feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import XIcon from "@/components/svg/XIcon.vue"
 import UnsavedCrate from "@/interfaces/UnsavedCrate"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"

@@ -1,4 +1,10 @@
 <template>
+  <div class="modal-header">
+    <h2>Delete crate</h2>
+    <button class="close" type="button" @click="$parent!.$emit('close')">
+      <XIcon />
+    </button>
+  </div>
   <form @submit.prevent="submit">
     <span class="form-hint">
       Enter the name &quot;<i>{{ crate.name }}</i
@@ -37,6 +43,7 @@ import { reactive, defineEmits, watch, computed, onBeforeUnmount } from "vue"
 import BasicInput from "./inputs/BasicInput.vue"
 import ErrorFeedback from "./feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import XIcon from "@/components/svg/XIcon.vue"
 import Crate from "@/interfaces/Crate"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"

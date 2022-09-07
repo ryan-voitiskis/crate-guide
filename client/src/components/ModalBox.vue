@@ -1,34 +1,28 @@
 <template>
   <div class="modal-backdrop" @click.self="$emit('close')">
     <div class="modal">
-      <div class="modal-header">
-        <h2 v-if="title">{{ title }}</h2>
-        <button class="close" type="button" @click="$emit('close')">
-          <XIcon />
-        </button>
-      </div>
       <slot />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { defineProps } from "vue"
-import XIcon from "@/components/svg/XIcon.vue"
+import { withDefaults, defineProps } from "vue"
 
-const props = defineProps<{
-  title?: string
+export interface Props {
   width?: string
-}>()
+}
 
-// set default width
-const modalWidth = props.width ? props.width : "440px"
+withDefaults(defineProps<Props>(), {
+  title: "",
+  width: "440px",
+})
 </script>
 
 <style lang="scss">
 .modal-backdrop {
   .modal {
-    width: v-bind(modalWidth);
+    width: v-bind(width);
     margin: 1rem;
   }
 }

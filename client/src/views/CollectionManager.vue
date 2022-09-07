@@ -55,129 +55,81 @@
 
   <RecordsList v-if="user.hasUser()" />
 
-  <ModalContainer
-    v-if="state.addCrate"
-    @close="state.addCrate = false"
-    title="Add crate"
-  >
+  <ModalBox v-if="state.addCrate" @close="state.addCrate = false">
     <AddCrateForm @close="state.addCrate = false" />
-  </ModalContainer>
+  </ModalBox>
 
-  <ModalContainer
-    v-if="state.deleteCrate"
-    @close="state.deleteCrate = false"
-    title="Delete crate"
-  >
+  <ModalBox v-if="state.deleteCrate" @close="state.deleteCrate = false">
     <DeleteCrateForm @close="state.deleteCrate = false" />
-  </ModalContainer>
+  </ModalBox>
 
-  <ModalContainer
-    v-if="state.duplicateCrate"
-    @close="state.duplicateCrate = false"
-    title="Duplicate crate"
-  >
-    <DuplicateCrateForm
-      @close="state.duplicateCrate = false"
-      :crate="user.authd.settings.selectedCrate"
-    />
-  </ModalContainer>
+  <ModalBox v-if="state.duplicateCrate" @close="state.duplicateCrate = false">
+    <DuplicateCrateForm @close="state.duplicateCrate = false" />
+  </ModalBox>
 
-  <ModalContainer
-    v-if="state.addRecord"
-    @close="state.addRecord = false"
-    title="Add record"
-  >
+  <ModalBox v-if="state.addRecord" @close="state.addRecord = false">
     <AddRecordForm @close="state.addRecord = false" />
-  </ModalContainer>
+  </ModalBox>
 
-  <ModalContainer
-    v-if="records.toEdit !== ''"
-    @close="records.toEdit = ''"
-    title="Edit record"
-  >
+  <ModalBox v-if="records.toEdit !== ''" @close="records.toEdit = ''">
     <EditRecordForm />
-  </ModalContainer>
+  </ModalBox>
 
-  <ModalContainer
-    v-if="records.toDelete.length"
-    @close="records.toDelete = []"
-    title="Delete record"
-  >
+  <ModalBox v-if="records.toDelete.length" @close="records.toDelete = []">
     <DeleteRecordForm />
-  </ModalContainer>
+  </ModalBox>
 
-  <ModalContainer
-    v-if="records.toCrate.length"
-    @close="records.toCrate = []"
-    title="Select crate"
-  >
+  <ModalBox v-if="records.toCrate.length" @close="records.toCrate = []">
     <SelectCrateForm />
-  </ModalContainer>
+  </ModalBox>
 
-  <ModalContainer
-    v-if="records.fromCrate.length"
-    @close="records.fromCrate = []"
-    title="Remove from crate"
-  >
+  <ModalBox v-if="records.fromCrate.length" @close="records.fromCrate = []">
     <RemoveRecordForm />
-  </ModalContainer>
+  </ModalBox>
 
-  <ModalContainer
-    v-if="records.addTrackTo !== ''"
-    @close="records.addTrackTo = ''"
-    title="Add track"
-  >
+  <ModalBox v-if="records.addTrackTo !== ''" @close="records.addTrackTo = ''">
     <AddTrackForm />
-  </ModalContainer>
+  </ModalBox>
 
-  <ModalContainer
-    v-if="state.editTrack"
-    @close="state.editTrack = false"
-    title="Edit track"
-  >
-    <EditTrackForm @close="state.editTrack = false" />
-  </ModalContainer>
+  <ModalBox v-if="records.toEditTrack !== ''" @close="records.toEditTrack = ''">
+    <EditTrackForm />
+  </ModalBox>
 
-  <ModalContainer
-    v-if="records.feedbackMsg !== ''"
-    @close="records.feedbackMsg = ''"
-  >
+  <ModalBox v-if="records.feedbackMsg !== ''" @close="records.feedbackMsg = ''">
     <UpdateFeedback :text="records.feedbackMsg" />
-  </ModalContainer>
+  </ModalBox>
 
-  <ModalContainer
-    v-if="crates.feedbackMsg !== ''"
-    @close="crates.feedbackMsg = ''"
-  >
+  <ModalBox v-if="crates.feedbackMsg !== ''" @close="crates.feedbackMsg = ''">
     <UpdateFeedback :text="crates.feedbackMsg" />
-  </ModalContainer>
+  </ModalBox>
 </template>
 
 <script setup lang="ts">
 import { reactive, watch } from "vue"
+import { crateStore } from "@/stores/crateStore"
+import { recordStore } from "@/stores/recordStore"
+import { userStore } from "@/stores/userStore"
 import AddCrateForm from "@/components/forms/AddCrateForm.vue"
+import AddRecordForm from "@/components/forms/AddRecordForm.vue"
+import AddTrackForm from "@/components/forms/AddTrackForm.vue"
+import CrateSelect from "@/components/forms/inputs/CrateSelect.vue"
 import DeleteCrateForm from "@/components/forms/DeleteCrateForm.vue"
 import DeleteRecordForm from "@/components/forms/DeleteRecordForm.vue"
 import DuplicateCrateForm from "@/components/forms/DuplicateCrateForm.vue"
-import AddRecordForm from "@/components/forms/AddRecordForm.vue"
-import EditRecordForm from "@/components/forms/EditRecordForm.vue"
-import RecordsList from "@/components/RecordsList.vue"
-import ModalContainer from "@/components/ModalContainer.vue"
 import DuplicateIcon from "@/components/svg/DuplicateIcon.vue"
-import TrashIcon from "@/components/svg/TrashIcon.vue"
-import FolderPlusIcon from "@/components/svg/FolderPlusIcon.vue"
-import PlusCircleIcon from "@/components/svg/PlusCircleIcon.vue"
-import CrateSelect from "@/components/forms/inputs/CrateSelect.vue"
-import SelectCrateForm from "@/components/forms/SelectCrateForm.vue"
+import EditRecordForm from "@/components/forms/EditRecordForm.vue"
+import EditTrackForm from "@/components/forms/EditTrackForm.vue"
 import FolderDownIcon from "@/components/svg/FolderDownIcon.vue"
 import FolderMinusIcon from "@/components/svg/FolderMinusIcon.vue"
+import FolderPlusIcon from "@/components/svg/FolderPlusIcon.vue"
+import ModalBox from "@/components/ModalBox.vue"
+import PlusCircleIcon from "@/components/svg/PlusCircleIcon.vue"
+import RecordsList from "@/components/RecordsList.vue"
 import RemoveRecordForm from "@/components/forms/RemoveRecordForm.vue"
-import AddTrackForm from "@/components/forms/AddTrackForm.vue"
-import EditTrackForm from "@/components/forms/EditTrackForm.vue"
+import SelectCrateForm from "@/components/forms/SelectCrateForm.vue"
+import TrashIcon from "@/components/svg/TrashIcon.vue"
 import UpdateFeedback from "@/components/forms/feedbacks/UpdateFeedback.vue"
-import { userStore } from "@/stores/userStore"
-import { recordStore } from "@/stores/recordStore"
-import { crateStore } from "@/stores/crateStore"
+
 const user = userStore()
 const records = recordStore()
 const crates = crateStore()

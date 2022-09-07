@@ -1,4 +1,10 @@
 <template>
+  <div class="modal-header">
+    <h2>Remove from crate</h2>
+    <button class="close" type="button" @click="$parent!.$emit('close')">
+      <XIcon />
+    </button>
+  </div>
   <form @submit.prevent="submit">
     <span class="form-question">
       Are you sure you wish to remove
@@ -27,6 +33,7 @@
 import { defineEmits, onBeforeUnmount } from "vue"
 import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import XIcon from "@/components/svg/XIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
 import { crateStore } from "@/stores/crateStore"
