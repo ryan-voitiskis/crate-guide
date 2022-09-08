@@ -47,8 +47,10 @@
         v-model="form.year"
         id="year"
         label="Year"
-        type="number"
         placeholder="Year"
+        type="text"
+        inputmode="numeric"
+        pattern="\d{4}"
         autocomplete="off"
       />
       <label class="checkbox">

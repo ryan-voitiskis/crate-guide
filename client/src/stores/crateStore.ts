@@ -76,7 +76,7 @@ export const crateStore = defineStore("crate", {
 
         // fetch crates if crate deleted successfully
         if (response.status === 200) {
-          this.fetchCrates(token)
+          this.crateList = this.crateList.filter((i) => i._id !== id)
           this.loading = false
           return response.status
 

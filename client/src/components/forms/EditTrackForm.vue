@@ -48,8 +48,10 @@
         v-model="form.bpm"
         id="bpm"
         label="BPM"
-        type="number"
         placeholder="BPM"
+        type="text"
+        inputmode="numeric"
+        pattern="\d{2,3}"
         autocomplete="off"
       />
       <BasicInput
@@ -131,10 +133,4 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped lang="scss">
-.radio {
-  grid-column: 1/3;
-  display: flex;
-  justify-content: center;
-}
-</style>
+<style scoped lang="scss"></style>

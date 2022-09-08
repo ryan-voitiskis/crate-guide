@@ -24,11 +24,20 @@
         <TrashIcon />Delete
       </button>
       <button
+        v-show="user.authd.settings.selectedCrate === 'all'"
         class="inline-button add"
         @click="records.toCrate.push(_id)"
         :disabled="records.checkboxed.length !== 0"
       >
         <FolderDownIcon />Add to crate
+      </button>
+      <button
+        v-show="user.authd.settings.selectedCrate !== 'all'"
+        class="inline-button edit"
+        @click="records.fromCrate.push(_id)"
+        :disabled="records.checkboxed.length !== 0"
+      >
+        <FolderMinusIcon />Remove from crate
       </button>
       <button
         class="inline-button add add-track"
@@ -39,23 +48,30 @@
       </button>
     </div>
     <div class="tracks">
-      <TrackSingle v-for="track in tracks" v-bind="track" :key="track._id" />
+      <TrackSingle
+        v-for="track in sortedTracks"
+        v-bind="track"
+        :key="track._id"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { defineProps, reactive, watch } from "vue"
+import { defineProps, reactive, watch, computed } from "vue"
 import { recordStore } from "@/stores/recordStore"
 import { trackStore } from "@/stores/trackStore"
+import { userStore } from "@/stores/userStore"
 import FolderDownIcon from "./svg/FolderDownIcon.vue"
 import PencilIcon from "./svg/PencilIcon.vue"
 import PlusCircleIcon from "./svg/PlusCircleIcon.vue"
 import Track from "@/interfaces/Track"
 import TrackSingle from "./TrackSingle.vue"
 import TrashIcon from "./svg/TrashIcon.vue"
+import FolderMinusIcon from "./svg/FolderMinusIcon.vue"
 const records = recordStore()
 const trckStore = trackStore() // ! "trckStore" because conflict w tracks prop
+const user = userStore()
 
 const props = defineProps<{
   _id: string
@@ -65,20 +81,36 @@ const props = defineProps<{
   label?: string
   year?: number
   mixable: boolean
-  tracks?: Track[]
+  tracks: Track[]
 }>()
 
 const state = reactive({
   checked: false,
 })
 
+// sort tracks by position
+const sortedTracks = computed((): Track[] =>
+  [...props.tracks].sort(
+    (a: any, b: any) =>
+      a.position !== "" && b.position !== ""
+        ? a.position.localeCompare(b.position, undefined, {
+            sensitivity: "base",
+          }) // both a + b defined
+        : a.position !== "" && b.position === ""
+        ? -1 // a is defined, b is empty: sort a before b
+        : a.position === "" && b.position !== ""
+        ? 1 // a is empty, b is defined: sort b before a
+        : 0 // both a + b empty: keep original order
+  )
+)
+
 // when checkbox changed, either add or remove record from checkboxed array
 watch(
   () => state.checked,
   () => {
-    if (state.checked && records.checkboxed.indexOf(props._id) === -1)
+    if (state.checked && !records.checkboxed.includes(props._id))
       records.checkboxed.push(props._id)
-    else if (!state.checked && records.checkboxed.indexOf(props._id) !== -1)
+    else if (!state.checked && records.checkboxed.includes(props._id))
       records.checkboxed = records.checkboxed.filter((i) => i !== props._id)
   }
 )

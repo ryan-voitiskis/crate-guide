@@ -47,8 +47,10 @@
         v-model="form.year"
         id="year"
         label="Year"
-        type="number"
         placeholder="Year"
+        type="text"
+        inputmode="numeric"
+        pattern="\d{4}"
         autocomplete="off"
       />
       <label class="checkbox">
@@ -70,16 +72,16 @@
 
 <script setup lang="ts">
 import { reactive, onBeforeUnmount } from "vue"
-import BasicInput from "./inputs/BasicInput.vue"
-import InfoDropdown from "@/components/InfoDropdown.vue"
-import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
-import LoaderIcon from "@/components/svg/LoaderIcon.vue"
-import XIcon from "@/components/svg/XIcon.vue"
-import Record from "@/interfaces/Record"
-import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
-const user = userStore()
+import { userStore } from "@/stores/userStore"
+import BasicInput from "./inputs/BasicInput.vue"
+import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
+import InfoDropdown from "@/components/InfoDropdown.vue"
+import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import Record from "@/interfaces/Record"
+import XIcon from "@/components/svg/XIcon.vue"
 const records = recordStore()
+const user = userStore()
 
 const record = records.getById(records.toEdit)
 

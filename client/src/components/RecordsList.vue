@@ -92,10 +92,10 @@ const sortStr = (field: keyof Record, reverse: boolean) => {
       ? (reverse ? -1 : 1) *
         a[field].localeCompare(b[field], undefined, { sensitivity: "base" }) // both a + b defined
       : a[field] !== "" && b[field] === ""
-      ? -1 // a is defined, b is undefined: sort a before b
+      ? -1 // a is defined, b is empty: sort a before b
       : a[field] === "" && b[field] !== ""
-      ? 1 // a is undefined, b is defined: sort b before a
-      : 0 // both a + b undefined: keep original order
+      ? 1 // a is empty, b is defined: sort b before a
+      : 0 // both a + b are empty: keep original order
 }
 
 // sort function for Records by number type fields. sorts null last
@@ -104,10 +104,10 @@ const sortNum = (field: keyof Record, reverse: boolean) => {
     a[field] !== null && b[field] !== null
       ? (reverse ? -1 : 1) * ((a[field] as number) - (b[field] as number)) // both a + b defined: sort lowest before highest, unless reversed
       : a[field] !== null && b[field] === null
-      ? -1 // a is defined, b is undefined: sort a before b
+      ? -1 // a is defined, b is null: sort a before b
       : a[field] === null && b[field] !== null
-      ? 1 // a is undefined, b is defined: sort b before a
-      : 0 // both a + b undefined: keep original order
+      ? 1 // a is null, b is defined: sort b before a
+      : 0 // both a + b null: keep original order
 }
 
 // records from selected crate to display
@@ -119,7 +119,7 @@ const recordsByCrate = computed((): Record[] =>
     : records.recordList
 )
 
-// records filtered by search term, searches title, artists, catno, label, year
+// records filtered by search term, searches title, artists, catno, label, year and track titles
 const searchedRecords = computed((): Record[] =>
   state.searchTerm !== ""
     ? recordsByCrate.value.filter((i) => {
@@ -127,7 +127,13 @@ const searchedRecords = computed((): Record[] =>
         if (localeContains(i.artists, state.searchTerm)) return true
         if (localeContains(i.catno, state.searchTerm)) return true
         if (localeContains(i.label, state.searchTerm)) return true
-        if (i.year !== null)
+        if (
+          i.tracks.find((t) =>
+            t.title.toUpperCase().includes(state.searchTerm.toUpperCase())
+          )
+        )
+          return true
+        if (i.year !== undefined)
           if (state.searchTerm === i.year.toString()) return true
           else return false
         else return false

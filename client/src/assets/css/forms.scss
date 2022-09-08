@@ -251,6 +251,11 @@ form {
       justify-self: start;
     }
   }
+  fieldset.radio {
+    grid-column: 1/3;
+    display: flex;
+    justify-content: center;
+  }
 }
 
 // for InfoDropdown.vue and other similar elements within the form
