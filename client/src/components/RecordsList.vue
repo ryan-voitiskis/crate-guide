@@ -1,9 +1,7 @@
 <template>
   <BasicInput type="search" v-model="state.searchTerm" placeholder="Search" />
-  <div class="list-controls">
-    <label class="checkbox-hitbox">
-      <input type="checkbox" v-model="records.checkAll" />
-    </label>
+  <div>
+    <input type="checkbox" v-model="records.checkAll" />
     <SortByButton
       title="Title"
       :active="state.sortBy === 'title'"
@@ -171,15 +169,6 @@ watch(
 </script>
 
 <style scoped lang="scss">
-.list-controls {
-  .checkbox-hitbox {
-    margin: 0;
-  }
-  width: 100%;
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
 .record-list {
   display: flex;
   flex-direction: column;
