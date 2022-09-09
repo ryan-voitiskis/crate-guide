@@ -1,7 +1,9 @@
 <template>
   <div class="record">
     <div class="cover"></div>
-    <input type="checkbox" v-model="state.checked" />
+    <label class="checkbox-hitbox">
+      <input type="checkbox" v-model="state.checked" />
+    </label>
     <h3 class="title">{{ title }}</h3>
     <div class="label">
       <span class="catno">{{ catno }}</span> {{ label }}
@@ -145,7 +147,7 @@ watch(
     overflow: hidden;
     z-index: 0;
   }
-  input[type="checkbox"] {
+  .checkbox-hitbox {
     grid-area: 1 / 1 / 5 / 2;
     z-index: 1;
   }
