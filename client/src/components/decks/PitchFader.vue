@@ -97,14 +97,12 @@ label.reset-fader {
 }
 
 @mixin track() {
-  box-sizing: border-box;
   width: 100%;
   height: 30/350 * 100%;
   background: #222;
 }
 
 @mixin thumb() {
-  box-sizing: border-box;
   width: 10%;
   height: 100vw;
   background: #333;

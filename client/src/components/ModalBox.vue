@@ -48,7 +48,6 @@ withDefaults(defineProps<Props>(), {
 }
 
 .modal-body {
-  box-sizing: border-box;
   padding: 0 4rem;
   margin-bottom: 4rem;
   p {
@@ -62,7 +61,6 @@ withDefaults(defineProps<Props>(), {
   margin-top: -2rem;
   gap: 2rem;
   padding: 2rem 4rem;
-  box-sizing: border-box;
   width: 100%;
   display: flex;
   justify-content: end;

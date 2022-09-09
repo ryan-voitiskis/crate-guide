@@ -1,0 +1,52 @@
+/**
+ * custom form control styling for browser consistency and better UI
+ * modified from: https://moderncss.dev/pure-css-custom-checkbox-style/
+ */
+
+label.checkbox,
+label.radio {
+  display: flex;
+  gap: 1.2rem;
+  align-items: center;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  align-items: center;
+  justify-items: center;
+  height: 1.8rem;
+  width: 1.8rem;
+  margin: 0;
+  appearance: none;
+  border: 0.24rem solid var(--form-control);
+  color: currentColor;
+  cursor: pointer;
+  display: grid;
+  &::before {
+    width: 1rem;
+    height: 1rem;
+    content: "";
+    background-color: CanvasText; // windows high contrast mode
+    transform: scale(0);
+    transition: 120ms transform ease-in-out;
+  }
+  &:checked::before {
+    transform: scale(1);
+  }
+}
+
+input[type="checkbox"] {
+  border-radius: 0.2rem;
+  &::before {
+    box-shadow: inset 1rem 1rem var(--form-control-active);
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  }
+}
+
+input[type="radio"] {
+  border-radius: 50%;
+  &::before {
+    border-radius: 50%;
+    box-shadow: inset 1rem 1rem var(--form-control-active);
+  }
+}

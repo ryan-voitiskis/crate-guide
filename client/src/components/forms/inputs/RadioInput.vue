@@ -1,5 +1,5 @@
 <template>
-  <label :for="id" @input="$emit('update:modelValue', id)">
+  <label class="radio" :for="id" @input="$emit('update:modelValue', id)">
     <input
       v-bind="$attrs"
       :name="name"
@@ -22,14 +22,4 @@ defineProps<{
 }>()
 </script>
 
-<style scoped lang="scss">
-label {
-  overflow: hidden;
-  input {
-    margin-right: 1rem;
-  }
-  &:not(:first-of-type) {
-    margin-left: 2rem;
-  }
-}
-</style>
+<style scoped lang="scss"></style>

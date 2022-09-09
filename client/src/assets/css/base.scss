@@ -1,7 +1,13 @@
 /**
- * Name:         base.scss
- * Description:  base style for vinylbox. modified from skeleton: http://getskeleton.com/
+ * base style for vinylbox.
+ * modified from skeleton: http://getskeleton.com/
  */
+
+*,
+*:before,
+*:after {
+  box-sizing: border-box;
+}
 
 html {
   font-size: 62.5%; // 1.5rem = 15px

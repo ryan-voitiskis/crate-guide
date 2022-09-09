@@ -147,8 +147,6 @@ watch(
   }
   input[type="checkbox"] {
     grid-area: 1 / 1 / 5 / 2;
-    height: 2rem;
-    width: 2rem;
     z-index: 1;
   }
   h3.title {
