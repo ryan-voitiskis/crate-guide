@@ -40,11 +40,8 @@ const updateTrack = async (track: Track, token: string) => {
   return response
 }
 
-// delete array of tracks
-// ! copied and untested
-const deleteTrack = async (tracks: string, token: string) => {
-  const body = new URLSearchParams()
-  body.append("tracks", JSON.stringify(tracks)) // send as string
+// delete single track
+const deleteTrack = async (id: string, token: string) => {
   const options = {
     method: "DELETE",
     headers: {
@@ -52,9 +49,8 @@ const deleteTrack = async (tracks: string, token: string) => {
       "Content-Type": "application/x-www-form-urlencoded",
       Authorization: `Bearer ${token}`,
     },
-    body: body,
   }
-  const response = await fetch(API_URL, options)
+  const response = await fetch(API_URL + "/" + id, options)
   return response
 }
 

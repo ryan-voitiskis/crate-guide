@@ -95,6 +95,10 @@
     <EditTrackForm />
   </ModalBox>
 
+  <ModalBox v-if="tracks.toDelete !== ''" @close="tracks.toDelete = ''">
+    <DeleteTrackForm />
+  </ModalBox>
+
   <ModalBox v-if="records.feedbackMsg !== ''" @close="records.feedbackMsg = ''">
     <UpdateFeedback :text="records.feedbackMsg" />
   </ModalBox>
@@ -116,6 +120,7 @@ import AddTrackForm from "@/components/forms/AddTrackForm.vue"
 import CrateSelect from "@/components/forms/inputs/CrateSelect.vue"
 import DeleteCrateForm from "@/components/forms/DeleteCrateForm.vue"
 import DeleteRecordForm from "@/components/forms/DeleteRecordForm.vue"
+import DeleteTrackForm from "@/components/forms/DeleteTrackForm.vue"
 import DuplicateCrateForm from "@/components/forms/DuplicateCrateForm.vue"
 import DuplicateIcon from "@/components/svg/DuplicateIcon.vue"
 import EditRecordForm from "@/components/forms/EditRecordForm.vue"

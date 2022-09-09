@@ -11,7 +11,9 @@
       <button class="inline-button edit" @click="tracks.toEdit = _id">
         <PencilIcon />
       </button>
-      <button class="inline-button delete"><TrashIcon /></button>
+      <button class="inline-button delete" @click="tracks.toDelete = _id">
+        <TrashIcon />
+      </button>
     </div>
   </div>
 </template>

@@ -30,54 +30,46 @@ const addTrack = asyncHandler(async (req, res) => {
 // @route   PUT /api/tracks/:id
 // @access  Private
 const updateTrack = asyncHandler(async (req, res) => {
-  const oldTrack = await Record.findOne({ "tracks._id": req.params.id })
-  if (!oldTrack) {
+  const record = await Record.findOne({
+    user: req.user.id,
+    "tracks._id": req.params.id,
+  })
+
+  if (!record) {
     res.status(400)
     throw new Error("Track not found")
   }
+
   const track = JSON.parse(req.body.track)
 
-  // Check for user
-  if (!req.user) {
-    res.status(401)
-    throw new Error("User not found")
-  }
-
-  // Make sure the logged in user matches the existing tracks user
-  if (oldTrack.user.toString() !== req.user.id) {
-    res.status(401)
-    throw new Error("User not authorized")
-  }
-
   const updatedRecord = await Record.findOneAndUpdate(
-    { _id: oldTrack._id, "tracks._id": req.params.id },
+    { _id: record._id, "tracks._id": req.params.id },
     { $set: { "tracks.$": track } },
     { new: true }
   )
   res.status(200).json(updatedRecord)
 })
 
-// @desc    Delete tracks - for single or many
+// @desc    Delete track
 // @route   DELETE /api/tracks
 // @access  Private
-// ! copied and untested
 const deleteTrack = asyncHandler(async (req, res) => {
-  // // Check for user
-  // if (!req.user) {
-  //   res.status(401)
-  //   throw new Error("User not found")
-  // }
-  // const deletes = JSON.parse(req.body.tracks) // from client: array of IDs to be deleted
-  // // remove tracks in 'deletes' from crates
-  // await Crate.updateMany(
-  //   { user: req.user.id },
-  //   { $pull: { tracks: { $in: deletes } } }
-  // )
-  // // delete tracks in deletes, user checked here
-  // const deleted = await Track.deleteMany({
-  //   $and: [{ _id: { $in: deletes } }, { user: req.user.id }],
-  // })
-  // res.status(200).json(deleted)
+  const record = await Record.findOne({
+    user: req.user.id,
+    "tracks._id": req.params.id,
+  })
+
+  if (!record) {
+    res.status(400)
+    throw new Error("Track not found")
+  }
+
+  const updatedRecord = await Record.findOneAndUpdate(
+    { _id: record._id, "tracks._id": req.params.id },
+    { $pull: { tracks: { _id: req.params.id } } },
+    { new: true }
+  )
+  res.status(200).json(updatedRecord)
 })
 
 module.exports = {

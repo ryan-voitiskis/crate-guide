@@ -95,13 +95,16 @@ export const trackStore = defineStore("track", {
 
           // handle track deleted successfully
           if (response.status === 200) {
-            const res = await response.json()
+            const recStore = recordStore()
+            const updatedRecord = (await response.json()) as Record
+            const existingRecord = recStore.getById(updatedRecord._id) as Record
+            Object.assign(existingRecord, updatedRecord)
             this.loading = false
             this.toDelete = ""
             return response.status
 
             // handle errors
-          } else if (response.status === 401) {
+          } else if (response.status === 400) {
             const error = await response.json()
             const msg = error.message ? error.message : "Unexpected error"
             this.errorMsg = msg
