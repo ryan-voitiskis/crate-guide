@@ -65,7 +65,6 @@ const resetPitch = () => (state.pitch = 0)
   flex-grow: 1;
   min-width: 600px;
   max-width: 900px;
-  box-sizing: border-box;
 }
 .deck-wrapper-inner {
   padding-top: calc(350 / 450 * 100%);

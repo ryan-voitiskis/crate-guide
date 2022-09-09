@@ -8,6 +8,7 @@ import "./assets/css/keyframes.css"
 import "./assets/css/fonts.css"
 import "./assets/css/base.scss"
 import "./assets/css/forms.scss"
+import "./assets/css/form-custom-controls.scss"
 
 // globals
 const API_URL = "http://localhost:5001/api/"

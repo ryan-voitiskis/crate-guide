@@ -1,6 +1,6 @@
 <template>
   <BasicInput type="search" v-model="state.searchTerm" placeholder="Search" />
-  <div>
+  <div class="list-controls">
     <input type="checkbox" v-model="records.checkAll" />
     <SortByButton
       title="Title"
@@ -169,6 +169,12 @@ watch(
 </script>
 
 <style scoped lang="scss">
+.list-controls {
+  width: 100%;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
 .record-list {
   display: flex;
   flex-direction: column;
