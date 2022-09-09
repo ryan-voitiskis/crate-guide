@@ -71,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, onBeforeUnmount } from "vue"
+import { reactive, onBeforeUnmount, watch } from "vue"
 import { recordStore } from "@/stores/recordStore"
 import { userStore } from "@/stores/userStore"
 import BasicInput from "./inputs/BasicInput.vue"
@@ -85,6 +85,8 @@ const user = userStore()
 
 const record = records.getById(records.toEdit)
 
+const noChangeMsg = "Record has not been edited."
+
 const form = reactive({
   catno: record.catno,
   artists: record.artists,
@@ -94,20 +96,40 @@ const form = reactive({
   mixable: record.mixable,
 })
 
+// check if record has been edited, if not display noChangeMsg, else updateRecord
 const submit = async () => {
-  const editedRecord: Record = {
-    _id: record._id,
-    user: user.authd._id,
-    catno: form.catno,
-    artists: form.artists,
-    title: form.title,
-    label: form.label,
-    year: form.year,
-    mixable: form.mixable,
-    tracks: record.tracks,
+  if (
+    form.catno?.trim() === record.catno &&
+    form.artists.trim() === record.artists &&
+    form.title.trim() === record.title &&
+    form.label?.trim() === record.label &&
+    form.year == record.year && // * not === as coersion desired
+    form.mixable === record.mixable
+  )
+    records.errorMsg = noChangeMsg
+  else {
+    const editedRecord: Record = {
+      _id: record._id,
+      user: user.authd._id,
+      catno: form.catno?.trim(),
+      artists: form.artists.trim(),
+      title: form.title.trim(),
+      label: form.label?.trim(),
+      year: form.year,
+      mixable: form.mixable,
+      tracks: record.tracks,
+    }
+    await records.updateRecord(editedRecord, user.authd.token)
   }
-  await records.updateRecord(editedRecord, user.authd.token)
 }
+
+// when form inputs changed, remove noChangeMsg
+watch(
+  () => ({ ...form }),
+  () => {
+    if (records.errorMsg === noChangeMsg) records.errorMsg = ""
+  }
+)
 
 onBeforeUnmount(() => {
   records.errorMsg = ""

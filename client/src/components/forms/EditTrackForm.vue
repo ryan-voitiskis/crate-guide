@@ -84,7 +84,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, onBeforeUnmount } from "vue"
+import { reactive, onBeforeUnmount, watch } from "vue"
 import { recordStore } from "@/stores/recordStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
@@ -102,6 +102,8 @@ const user = userStore()
 
 const track = records.getTrackById(tracks.toEdit)
 
+const noChangeMsg = "Track has not been edited."
+
 const form = reactive({
   position: track.position,
   title: track.title,
@@ -113,20 +115,42 @@ const form = reactive({
   playable: track.playable,
 })
 
+// check if track has been edited, if not display noChangeMsg, else updateTrack
 const submit = async () => {
-  const editedTrack: Track = {
-    _id: track._id,
-    position: form.position.toUpperCase(),
-    title: form.title,
-    artists: form.artists,
-    duration: form.duration,
-    bpm: form.bpm,
-    rpm: parseInt(form.rpm),
-    genre: form.genre,
-    playable: form.playable,
+  if (
+    form.position === track.position &&
+    form.title.trim() === track.title &&
+    form.artists?.trim() === track.artists &&
+    form.duration?.trim() === track.duration &&
+    form.bpm === track.bpm &&
+    form.rpm === track.rpm &&
+    form.genre?.trim() === track.genre &&
+    form.playable === track.playable
+  )
+    tracks.errorMsg = noChangeMsg
+  else {
+    const editedTrack: Track = {
+      _id: track._id,
+      position: form.position.toUpperCase(),
+      title: form.title.trim(),
+      artists: form.artists?.trim(),
+      duration: form.duration?.trim(),
+      bpm: form.bpm,
+      rpm: parseInt(form.rpm),
+      genre: form.genre?.trim(),
+      playable: form.playable,
+    }
+    await tracks.updateTrack(editedTrack, user.authd.token)
   }
-  await tracks.updateTrack(editedTrack, user.authd.token)
 }
+
+// when form inputs changed, remove noChangeMsg
+watch(
+  () => ({ ...form }),
+  () => {
+    if (tracks.errorMsg === noChangeMsg) tracks.errorMsg = ""
+  }
+)
 
 onBeforeUnmount(() => {
   records.errorMsg = ""

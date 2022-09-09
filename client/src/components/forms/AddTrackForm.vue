@@ -125,12 +125,12 @@ const reset = () => {
 const submit = async () => {
   const unsavedTrack: UnsavedTrack = {
     position: form.position.toUpperCase(),
-    title: form.title,
-    artists: form.artists,
+    title: form.title.trim(),
+    artists: form.artists.trim(),
     duration: form.duration,
     bpm: form.bpm,
     rpm: parseInt(form.rpm),
-    genre: form.genre,
+    genre: form.genre.trim(),
     playable: form.playable,
   }
   await tracks.addTrack(unsavedTrack, tracks.addTrackTo, user.authd.token)
