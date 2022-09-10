@@ -1,7 +1,7 @@
 {
-  "name": "vinylbox-server",
+  "name": "crate-guide-server",
   "version": "1.0.0",
-  "description": "Backend for vinylbox (MEVN Stack).",
+  "description": "Backend for crate-guide (MEVN Stack).",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

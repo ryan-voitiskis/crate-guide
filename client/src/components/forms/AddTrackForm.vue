@@ -15,7 +15,7 @@
         id="position"
         label="Position"
         type="text"
-        placeholder="A1"
+        placeholder="A1 (optional)"
         pattern="[A-Za-z][0-9]?"
       />
       <BasicInput
@@ -32,14 +32,14 @@
         id="artists"
         label="Artists"
         type="text"
-        placeholder="Artists"
+        placeholder="Artist, Artist (optional)"
       />
       <BasicInput
         v-model="form.duration"
         id="duration"
         label="Duration"
         type="text"
-        placeholder="MM:SS"
+        placeholder="MM:SS (optional)"
         autocomplete="off"
         pattern="^(?:(?:([01]?\d|2[0-3]):)?([0-5]?\d):)?([0-5]?\d)$"
       />
@@ -47,7 +47,7 @@
         v-model="form.bpm"
         id="bpm"
         label="BPM"
-        placeholder="BPM"
+        placeholder="BPM (recommended)"
         type="text"
         inputmode="numeric"
         pattern="\d{2,3}"
@@ -58,7 +58,7 @@
         id="genre"
         label="Genre"
         type="text"
-        placeholder="Genre"
+        placeholder="Genre (recommended)"
         autocomplete="off"
       />
       <fieldset class="radio">

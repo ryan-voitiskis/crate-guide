@@ -15,7 +15,7 @@
         id="catno"
         label="Catalog #"
         type="text"
-        placeholder="CAT001"
+        placeholder="CAT001 (optional)"
         :focused="true"
         autocomplete="off"
       />
@@ -24,7 +24,7 @@
         id="artists"
         label="Artists"
         type="text"
-        placeholder="Artists"
+        placeholder="Artist, Artist"
         required
       />
       <BasicInput
@@ -41,13 +41,13 @@
         id="label"
         label="Label"
         type="text"
-        placeholder="Label"
+        placeholder="Label (optional)"
       />
       <BasicInput
         v-model="form.year"
         id="year"
         label="Year"
-        placeholder="Year"
+        placeholder="Year (optional)"
         type="text"
         inputmode="numeric"
         pattern="\d{4}"

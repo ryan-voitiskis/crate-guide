@@ -1,12 +1,10 @@
 const { defineConfig } = require("@vue/cli-service")
 module.exports = defineConfig({
   transpileDependencies: true,
-  // web server doesnt finish loading app when dev server overlay turned off
-  // devServer: {
-  //   client: {
-  //     overlay: {
-  //       warnings: false,
-  //     },
-  //   },
-  // },
+  chainWebpack: (config) => {
+    config.plugin("html").tap((args) => {
+      args[0].title = "Crate guide"
+      return args
+    })
+  },
 })

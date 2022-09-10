@@ -11,7 +11,7 @@ import "./assets/css/forms.scss"
 import "./assets/css/form-custom-controls.scss"
 
 // globals
-const API_URL = "http://localhost:5001/api/"
+const API_URL = "http://localhost:5002/api/"
 
 const pinia = createPinia()
 const app = createApp(App)
@@ -31,7 +31,7 @@ const records = recordStore()
 
 // handle state for automatically logged in ryannn
 const getState = async () => {
-  await user.login("ryan@ryan.com", "password")
+  await user.login("test@test.com", "password")
   crates.fetchCrates(user.authd.token)
   records.fetchRecords(user.authd.token)
 }
