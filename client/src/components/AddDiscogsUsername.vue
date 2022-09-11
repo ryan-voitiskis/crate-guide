@@ -1,0 +1,85 @@
+<template>
+  <div class="modal-header">
+    <h2>
+      {{ user.authd.discogsUID === "" ? "Enter" : "Update" }} Discogs username
+    </h2>
+    <button class="close" type="button" @click="$parent!.$emit('close')">
+      <XIcon />
+    </button>
+  </div>
+  <InfoDropdown :text="dropdownText" />
+  <form @submit.prevent="submit">
+    <p class="form-text">Please enter your discogs username.</p>
+    <div class="modal-body inline-labels">
+      <BasicInput
+        v-model="form.name"
+        id="name"
+        label="Discogs username"
+        type="text"
+        placeholder="Your discogs username"
+        :focused="true"
+        autocomplete="off"
+        required
+      />
+    </div>
+    <p class="form-text subtle">
+      {{ appName }} will only use this to access these Discogs API endpoint:
+    </p>
+
+    <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
+    <div class="modal-controls">
+      <button type="reset">Clear</button>
+      <button class="close" type="button" @click="$parent!.$emit('close')">
+        Close
+      </button>
+      <button class="primary" type="submit" style="width: 12rem">
+        {{ crates.loading ? null : "Save" }}
+        <LoaderIcon v-show="crates.loading" />
+      </button>
+    </div>
+  </form>
+</template>
+
+<script setup lang="ts">
+import { reactive, defineEmits, onBeforeUnmount, inject } from "vue"
+import BasicInput from "@/components/forms/inputs/BasicInput.vue"
+import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
+import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import XIcon from "@/components/svg/XIcon.vue"
+import UnsavedCrate from "@/interfaces/UnsavedCrate"
+import { userStore } from "@/stores/userStore"
+import { crateStore } from "@/stores/crateStore"
+import InfoDropdown from "./InfoDropdown.vue"
+const user = userStore()
+const crates = crateStore()
+
+const appName = inject("appName")
+
+const dropdownText =
+  appName +
+  " will only use this to access these Discogs API endpoint:<br>https://api.discogs.com/users/100029/collection/<br>https://api.discogs.com/users/100029/collection/folders/"
+
+const emit = defineEmits<{
+  (e: "close"): void
+}>()
+
+const form = reactive({
+  name: "",
+})
+
+const submit = async () => {
+  const unsavedCrate: UnsavedCrate = {
+    user: user.authd._id,
+    name: form.name.trim(),
+    records: [],
+  }
+  const response = await crates.addCrate(unsavedCrate, user.authd.token)
+  if (response === 201) emit("close")
+}
+
+onBeforeUnmount(() => {
+  crates.errorMsg = ""
+})
+</script>
+
+<style scoped lang="scss"></style>

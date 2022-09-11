@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { defineProps } from "vue"
-import ChevronUpIcon from "./svg/ChevronUpIcon.vue"
+import ChevronUpIcon from "../svg/ChevronUpIcon.vue"
 
 defineProps<{
   title: string

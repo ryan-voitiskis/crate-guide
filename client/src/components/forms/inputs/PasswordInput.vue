@@ -9,7 +9,7 @@
     :type="passwordType"
     @input="$emit('update:modelValue', handleInputChange($event))"
   />
-  <label class="show-password">
+  <label class="show-password checkbox">
     <input type="checkbox" v-model="showPassword" /> Show password
   </label>
 </template>
@@ -31,11 +31,4 @@ const handleInputChange = (event: Event) =>
   (event.target as HTMLInputElement).value
 </script>
 
-<style scoped lang="scss">
-label.show-password {
-  justify-self: start;
-  input[type="checkbox"] {
-    width: unset;
-  }
-}
-</style>
+<style scoped lang="scss"></style>

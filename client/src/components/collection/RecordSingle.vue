@@ -64,13 +64,13 @@ import { defineProps, reactive, watch, computed } from "vue"
 import { recordStore } from "@/stores/recordStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
-import FolderDownIcon from "./svg/FolderDownIcon.vue"
-import PencilIcon from "./svg/PencilIcon.vue"
-import PlusCircleIcon from "./svg/PlusCircleIcon.vue"
+import FolderDownIcon from "../svg/FolderDownIcon.vue"
+import PencilIcon from "../svg/PencilIcon.vue"
+import PlusCircleIcon from "../svg/PlusCircleIcon.vue"
 import Track from "@/interfaces/Track"
 import TrackSingle from "./TrackSingle.vue"
-import TrashIcon from "./svg/TrashIcon.vue"
-import FolderMinusIcon from "./svg/FolderMinusIcon.vue"
+import TrashIcon from "../svg/TrashIcon.vue"
+import FolderMinusIcon from "../svg/FolderMinusIcon.vue"
 const records = recordStore()
 const trckStore = trackStore() // ! "trckStore" because conflict w tracks prop
 const user = userStore()

@@ -26,17 +26,17 @@ defineProps<{
 <style scoped lang="scss">
 .radio-card {
   width: 14rem;
-  height: 12rem;
+  display: grid;
+  grid-template-columns: 3rem auto;
+  grid-template-rows: 8rem 3rem;
+  margin: 0;
   background: #ddd;
   border-radius: 1rem;
+  line-height: 3rem;
   overflow: hidden;
-  line-height: 4rem;
-  &:not(:first-of-type) {
-    margin-left: 1rem;
-  }
   .sample {
+    grid-column: 1 / 3;
     background: #bbc087;
-    width: 100%;
     height: 8rem;
   }
 }

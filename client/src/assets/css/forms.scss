@@ -159,10 +159,11 @@ label {
 
 label,
 legend {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
   color: var(--label-text);
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  padding: 0;
 }
 
 fieldset {
@@ -256,4 +257,13 @@ form {
   display: block;
   padding: 0 4rem;
   margin: -2rem 0 1rem 0;
+}
+
+// for InfoDropdown.vue and other similar elements within the form
+.form-text {
+  display: block;
+  padding: 0 4rem;
+  &.subtle {
+    color: var(--light-text);
+  }
 }

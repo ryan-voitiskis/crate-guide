@@ -10,12 +10,10 @@ import "./assets/css/base.scss"
 import "./assets/css/forms.scss"
 import "./assets/css/form-custom-controls.scss"
 
-// globals
-const API_URL = "http://localhost:5002/api/"
-
 const pinia = createPinia()
 const app = createApp(App)
-app.provide("API_URL", API_URL)
+app.provide("API_URL", "http://localhost:5002/api/")
+app.provide("appName", "Crate Guide")
 
 app.use(router)
 app.use(pinia)

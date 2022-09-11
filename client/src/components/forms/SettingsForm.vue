@@ -5,7 +5,7 @@
       <XIcon />
     </button>
   </div>
-  <form v-on="user.hasUser() ? { change: updateSettings } : {}">
+  <form v-on="user.hasUser() ? { change: updateSettings } : {}" @submit.prevent>
     <div class="modal-body">
       <p v-if="!user.hasUser()">
         <b>You are not logged in.</b><br />Settings changed here are for this
@@ -61,6 +61,24 @@
           <option value="50">±50%</option>
         </select>
       </label>
+
+      <fieldset>
+        <legend>Discogs API</legend>
+        <button
+          v-if="user.authd.discogsUID === ''"
+          @click="user.addDisc = true"
+        >
+          Enter discogs username
+        </button>
+        <button v-else>Change discogs username</button>
+        <button
+          v-if="user.authd.discogsToken === ''"
+          @click="user.authDisc = true"
+        >
+          Connect to discogs
+        </button>
+        <button v-else>Revoke discogs access</button>
+      </fieldset>
       <SubmitlessFeedback
         :saving="user.loading"
         :saved="user.success"
@@ -95,4 +113,10 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+fieldset {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+</style>

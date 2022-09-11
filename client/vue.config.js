@@ -1,10 +1,7 @@
-const { defineConfig } = require("@vue/cli-service")
-module.exports = defineConfig({
-  transpileDependencies: true,
+const NodePolyfillPlugin = require("node-polyfill-webpack-plugin")
+
+module.exports = {
   chainWebpack: (config) => {
-    config.plugin("html").tap((args) => {
-      args[0].title = "Crate guide"
-      return args
-    })
+    config.plugin("polyfills").use(NodePolyfillPlugin)
   },
-})
+}

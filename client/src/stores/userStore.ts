@@ -10,7 +10,10 @@ export const userStore = defineStore("user", {
       _id: "",
       name: "",
       email: "",
-      token: "",
+      token: "", // token for crate guide protected api routes
+      discogsUID: "", // users discogs user id
+      discogsToken: "", // discogs long term token after OAuth complete
+      discogsTokenSecret: "", // discogs long term token secret afer OAuth complete
       settings: {
         theme: "light",
         turntableTheme: "silver",
@@ -23,6 +26,9 @@ export const userStore = defineStore("user", {
     invalidCreds: false, // used in LoginForm
     error: false, // used in SettingsForm
     success: false, // used in SettingsForm
+    addDisc: false, // displays AuthoriseDiscogs.vue
+    authDisc: false, // displays AuthoriseDiscogs.vue
+    authedDisc: false, // displays AuthoriseSuccessful.vue
   }),
   actions: {
     async login(email: string, password: string): Promise<number | null> {
@@ -38,6 +44,9 @@ export const userStore = defineStore("user", {
           const data = await response.json()
           const authenticatedUser: User = {
             _id: data.id,
+            discogsUID: "",
+            discogsToken: "",
+            discogsTokenSecret: "",
             name: data.name,
             email: data.email,
             token: data.token,
@@ -80,6 +89,9 @@ export const userStore = defineStore("user", {
           const data = await response.json()
           const registeringUser: User = {
             _id: data._id,
+            discogsUID: "",
+            discogsToken: "",
+            discogsTokenSecret: "",
             name: data.name,
             email: data.email,
             token: data.token,

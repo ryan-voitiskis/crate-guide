@@ -58,6 +58,22 @@
   <ModalBox v-if="state.settings" @close="state.settings = false" width="540px">
     <SettingsForm />
   </ModalBox>
+
+  <ModalBox v-if="user.addDisc" @close="user.addDisc = false" width="540px">
+    <AddDiscogsUsername />
+  </ModalBox>
+
+  <ModalBox v-if="user.authDisc" @close="user.authDisc = false" width="540px">
+    <AuthoriseDiscogs />
+  </ModalBox>
+
+  <ModalBox
+    v-if="user.authedDisc"
+    @close="user.authedDisc = false"
+    width="540px"
+  >
+    <AuthoriseSuccessful />
+  </ModalBox>
 </template>
 
 <script setup lang="ts">
@@ -69,6 +85,9 @@ import SignUpForm from "./components/forms/SignUpForm.vue"
 import RecoveryForm from "./components/forms/RecoveryForm.vue"
 import { userStore } from "@/stores/userStore"
 import SettingsForm from "./components/forms/SettingsForm.vue"
+import AuthoriseDiscogs from "./components/AuthoriseDiscogs.vue"
+import AuthoriseSuccessful from "./components/AuthoriseSuccessful.vue"
+import AddDiscogsUsername from "./components/AddDiscogsUsername.vue"
 
 const user = userStore()
 
@@ -77,6 +96,8 @@ const state = reactive({
   signUp: false,
   recovery: false,
   settings: false,
+  authDiscogs: false,
+  authSuccessful: false,
 })
 </script>
 
