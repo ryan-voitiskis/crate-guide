@@ -48,14 +48,14 @@ const updateRecord = async (record: Record, token: string) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL + "/" + record._id, options)
+  const response = await fetch(API_URL + "/" + record.id, options)
   return response
 }
 
 // delete array of records
 const deleteRecords = async (records: string[], token: string) => {
   const body = new URLSearchParams()
-  body.append("records", JSON.stringify(records)) // send as string
+  body.append("records", JSON.stringify(records))
   const options = {
     method: "DELETE",
     headers: {

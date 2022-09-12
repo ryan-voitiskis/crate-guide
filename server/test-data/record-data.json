@@ -11,7 +11,7 @@
     "year": 2017,
     "tracks": [
       {
-        "_id": {
+        "id": {
           "$oid": "631882080ca8d8b758b79e98"
         },
         "position": "A",
@@ -24,7 +24,7 @@
         "playable": true
       },
       {
-        "_id": {
+        "id": {
           "$oid": "631882080ca8d8b758b79e99"
         },
         "position": "B",
@@ -50,7 +50,7 @@
     "year": 2018,
     "tracks": [
       {
-        "_id": {
+        "id": {
           "$oid": "631882080ca8d8b758b79e21"
         },
         "position": "A1",
@@ -62,7 +62,7 @@
         "playable": true
       },
       {
-        "_id": {
+        "id": {
           "$oid": "631882080ca8d8b758b79e22"
         },
         "position": "A2",
@@ -73,7 +73,7 @@
         "playable": true
       },
       {
-        "_id": {
+        "id": {
           "$oid": "631882080ca8d8b758b79e23"
         },
         "position": "B1",
@@ -85,7 +85,7 @@
         "playable": true
       },
       {
-        "_id": {
+        "id": {
           "$oid": "631882080ca8d8b758b79e24"
         },
         "position": "B2",
@@ -109,7 +109,7 @@
     "year": 2010,
     "tracks": [
       {
-        "_id": {
+        "id": {
           "$oid": "631882080ca8d8b758b79e11"
         },
         "position": "A1",
@@ -121,7 +121,7 @@
         "playable": true
       },
       {
-        "_id": {
+        "id": {
           "$oid": "631882080ca8d8b758b79e12"
         },
         "position": "A2",
@@ -132,7 +132,7 @@
         "playable": true
       },
       {
-        "_id": {
+        "id": {
           "$oid": "631882080ca8d8b758b79e13"
         },
         "position": "B1",
@@ -143,7 +143,7 @@
         "playable": true
       },
       {
-        "_id": {
+        "id": {
           "$oid": "631882080ca8d8b758b79e14"
         },
         "position": "B2",

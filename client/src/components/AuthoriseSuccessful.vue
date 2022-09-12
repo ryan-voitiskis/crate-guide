@@ -58,7 +58,7 @@ const form = reactive({
 
 const submit = async () => {
   const unsavedCrate: UnsavedCrate = {
-    user: user.authd._id,
+    user: user.authd.id,
     name: form.name.trim(),
     records: [],
   }

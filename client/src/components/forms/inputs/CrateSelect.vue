@@ -5,8 +5,8 @@
       <option value="all">Collection (all)</option>
       <option
         v-for="crate in crates.crateList"
-        :key="crate._id"
-        :value="crate._id"
+        :key="crate.id"
+        :value="crate.id"
       >
         {{ crate.name }}
       </option>

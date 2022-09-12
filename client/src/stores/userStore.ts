@@ -7,7 +7,7 @@ import router from "@/router"
 export const userStore = defineStore("user", {
   state: () => ({
     authd: {
-      _id: "",
+      id: "",
       name: "",
       email: "",
       token: "", // token for crate guide protected api routes
@@ -26,7 +26,7 @@ export const userStore = defineStore("user", {
     invalidCreds: false, // used in LoginForm
     error: false, // used in SettingsForm
     success: false, // used in SettingsForm
-    addDisc: false, // displays AuthoriseDiscogs.vue
+    enterDiscogsUsername: false, // displays AuthoriseDiscogs.vue
     authDisc: false, // displays AuthoriseDiscogs.vue
     authedDisc: false, // displays AuthoriseSuccessful.vue
   }),
@@ -42,22 +42,7 @@ export const userStore = defineStore("user", {
           // ? can this be avoided?
           router.push("/")
           const data = await response.json()
-          const authenticatedUser: User = {
-            _id: data.id,
-            discogsUID: "",
-            discogsToken: "",
-            discogsTokenSecret: "",
-            name: data.name,
-            email: data.email,
-            token: data.token,
-            settings: {
-              theme: data.settings.theme,
-              turntableTheme: data.settings.turntableTheme,
-              turntablePitchRange: data.settings.turntablePitchRange,
-              selectedCrate: data.settings.selectedCrate,
-            },
-          }
-          Object.assign(this.authd, authenticatedUser)
+          Object.assign(this.authd, data)
           this.loading = false
           return response.status
 
@@ -88,7 +73,7 @@ export const userStore = defineStore("user", {
         if (response.status === 201) {
           const data = await response.json()
           const registeringUser: User = {
-            _id: data._id,
+            id: data.id,
             discogsUID: "",
             discogsToken: "",
             discogsTokenSecret: "",
@@ -159,7 +144,7 @@ export const userStore = defineStore("user", {
     },
 
     hasUser(): boolean {
-      return this.authd._id !== ""
+      return this.authd.id !== ""
     },
   },
 })

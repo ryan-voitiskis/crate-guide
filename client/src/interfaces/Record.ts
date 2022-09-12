@@ -1,7 +1,7 @@
 import Track from "@/interfaces/Track"
 
 export default interface Record {
-  _id: string
+  id: string
   discogsID?: string
   user: string
   catno: string
@@ -17,7 +17,7 @@ export default interface Record {
 
 // ! catno, label and year were optional, but are always stored as either "" for string or null for number
 // export default interface Record {
-//   _id: string
+//   id: string
 //   discogsID?: string
 //   user: string
 //   catno?: string

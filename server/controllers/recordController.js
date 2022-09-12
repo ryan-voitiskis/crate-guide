@@ -85,7 +85,7 @@ const deleteRecords = asyncHandler(async (req, res) => {
 
   // delete records in deletes, user checked here
   const deleted = await Record.deleteMany({
-    $and: [{ _id: { $in: deletes } }, { user: req.user.id }],
+    $and: [{ id: { $in: deletes } }, { user: req.user.id }],
   })
 
   res.status(200).json(deleted)

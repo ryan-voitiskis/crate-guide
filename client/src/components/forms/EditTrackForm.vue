@@ -130,7 +130,7 @@ const submit = async () => {
     tracks.errorMsg = noChangeMsg
   else {
     const editedTrack: Track = {
-      _id: track._id,
+      id: track.id,
       position: form.position.toUpperCase(),
       title: form.title.trim(),
       artists: form.artists?.trim(),

@@ -1,7 +1,7 @@
 <template>
   <div class="modal-header">
     <h2>
-      {{ user.authd.discogsUID === "" ? "Enter" : "Update" }} Discogs username
+      {{ user.authd.discogsUID === "" ? "Provide" : "Update" }} Discogs username
     </h2>
     <button class="close" type="button" @click="$parent!.$emit('close')">
       <XIcon />
@@ -9,23 +9,18 @@
   </div>
   <InfoDropdown :text="dropdownText" />
   <form @submit.prevent="submit">
-    <p class="form-text">Please enter your discogs username.</p>
     <div class="modal-body inline-labels">
       <BasicInput
-        v-model="form.name"
+        v-model="form.username"
         id="name"
         label="Discogs username"
         type="text"
-        placeholder="Your discogs username"
+        placeholder="Username"
         :focused="true"
         autocomplete="off"
         required
       />
     </div>
-    <p class="form-text subtle">
-      {{ appName }} will only use this to access these Discogs API endpoint:
-    </p>
-
     <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
     <div class="modal-controls">
       <button type="reset">Clear</button>
@@ -46,7 +41,6 @@ import BasicInput from "@/components/forms/inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import XIcon from "@/components/svg/XIcon.vue"
-import UnsavedCrate from "@/interfaces/UnsavedCrate"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 import InfoDropdown from "./InfoDropdown.vue"
@@ -57,24 +51,20 @@ const appName = inject("appName")
 
 const dropdownText =
   appName +
-  " will only use this to access these Discogs API endpoint:<br>https://api.discogs.com/users/100029/collection/<br>https://api.discogs.com/users/100029/collection/folders/"
+  " will only use this to access these Discogs API endpoint:<br>api.discogs.com/users/username/collection/<br>api.discogs.com/users/username/collection/folders/"
 
 const emit = defineEmits<{
   (e: "close"): void
 }>()
 
 const form = reactive({
-  name: "",
+  username: user.authd.discogsUID,
 })
 
 const submit = async () => {
-  const unsavedCrate: UnsavedCrate = {
-    user: user.authd._id,
-    name: form.name.trim(),
-    records: [],
-  }
-  const response = await crates.addCrate(unsavedCrate, user.authd.token)
-  if (response === 201) emit("close")
+  user.authd.discogsUID = form.username
+  user.updateSettings()
+  emit("close")
 }
 
 onBeforeUnmount(() => {

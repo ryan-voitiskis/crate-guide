@@ -57,6 +57,7 @@ const loginUser = asyncHandler(async (req, res) => {
       email: user.email,
       settings: user.settings,
       token: generateToken(user.id),
+      discogsUID: user.discogsUID,
     })
   } else {
     res.status(401)
@@ -99,11 +100,11 @@ const updateUser = asyncHandler(async (req, res) => {
     throw new Error("User not authorized")
   }
 
-  const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, {
+  await User.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
   })
 
-  res.status(200).json(updatedUser)
+  res.status(200).json()
 })
 
 module.exports = {

@@ -65,15 +65,14 @@
       <fieldset>
         <legend>Discogs API</legend>
         <button
-          v-if="user.authd.discogsUID === ''"
-          @click="user.addDisc = true"
+          @click=";(user.enterDiscogsUsername = true), $parent!.$emit('close')"
         >
-          Enter discogs username
+          {{ user.authd.discogsUID === "" ? "Provide" : "Update" }} discogs
+          username
         </button>
-        <button v-else>Change discogs username</button>
         <button
           v-if="user.authd.discogsToken === ''"
-          @click="user.authDisc = true"
+          @click=";(user.authDisc = true), $parent!.$emit('close')"
         >
           Connect to discogs
         </button>

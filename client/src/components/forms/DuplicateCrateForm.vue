@@ -56,7 +56,7 @@ const submit = async () => {
   const records = crates.getById(user.authd.settings.selectedCrate)
     ?.records as string[]
   const unsavedCrate: UnsavedCrate = {
-    user: user.authd._id,
+    user: user.authd.id,
     name: form.name,
     records: records,
   }

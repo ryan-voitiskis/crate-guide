@@ -59,19 +59,18 @@
     <SettingsForm />
   </ModalBox>
 
-  <ModalBox v-if="user.addDisc" @close="user.addDisc = false" width="540px">
-    <AddDiscogsUsername />
+  <ModalBox
+    v-if="user.enterDiscogsUsername"
+    @close="user.enterDiscogsUsername = false"
+  >
+    <AddDiscogsUsername @close="user.enterDiscogsUsername = false" />
   </ModalBox>
 
-  <ModalBox v-if="user.authDisc" @close="user.authDisc = false" width="540px">
+  <ModalBox v-if="user.authDisc" @close="user.authDisc = false">
     <AuthoriseDiscogs />
   </ModalBox>
 
-  <ModalBox
-    v-if="user.authedDisc"
-    @close="user.authedDisc = false"
-    width="540px"
-  >
+  <ModalBox v-if="user.authedDisc" @close="user.authedDisc = false">
     <AuthoriseSuccessful />
   </ModalBox>
 </template>

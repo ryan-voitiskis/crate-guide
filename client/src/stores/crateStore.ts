@@ -76,7 +76,7 @@ export const crateStore = defineStore("crate", {
 
         // fetch crates if crate deleted successfully
         if (response.status === 200) {
-          this.crateList = this.crateList.filter((i) => i._id !== id)
+          this.crateList = this.crateList.filter((i) => i.id !== id)
           this.loading = false
           return response.status
 
@@ -223,12 +223,12 @@ export const crateStore = defineStore("crate", {
     // gets a crate by id. returns null if not found
     getById: (state) => {
       return (id: string) =>
-        state.crateList.find((crate) => crate._id === id) || null
+        state.crateList.find((crate) => crate.id === id) || null
     },
     // returns array of record IDs in a crate
     getRecordsByCrate: (state) => {
       return (id: string) =>
-        state.crateList.find((crate) => crate._id === id)?.records ||
+        state.crateList.find((crate) => crate.id === id)?.records ||
         ([] as string[])
     },
     // get name by id from record store

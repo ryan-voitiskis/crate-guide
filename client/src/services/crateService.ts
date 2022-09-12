@@ -19,7 +19,7 @@ const getCrates = async (token: string) => {
 // add new crate
 const addCrate = async (crate: UnsavedCrate, token: string) => {
   const body = new URLSearchParams()
-  body.append("crate", JSON.stringify(crate)) // send as string
+  body.append("crate", JSON.stringify(crate))
 
   const options = {
     method: "POST",
@@ -37,7 +37,7 @@ const addCrate = async (crate: UnsavedCrate, token: string) => {
 // update new crate
 const updateCrate = async (crate: Crate, token: string) => {
   const body = new URLSearchParams()
-  body.append("crate", JSON.stringify(crate)) // send as string
+  body.append("crate", JSON.stringify(crate))
 
   const options = {
     method: "PUT",
@@ -48,7 +48,7 @@ const updateCrate = async (crate: Crate, token: string) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL + "/" + crate._id, options)
+  const response = await fetch(API_URL + "/" + crate.id, options)
   return response
 }
 

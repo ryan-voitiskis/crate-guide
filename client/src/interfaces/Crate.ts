@@ -1,5 +1,5 @@
 export default interface Crate {
-  _id: string
+  id: string
   user: string
   name: string
   // createdAt: string

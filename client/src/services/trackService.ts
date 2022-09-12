@@ -35,7 +35,7 @@ const updateTrack = async (track: Track, token: string) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL + "/" + track._id, options)
+  const response = await fetch(API_URL + "/" + track.id, options)
 
   return response
 }

@@ -13,14 +13,14 @@
     <div class="controls">
       <button
         class="inline-button edit"
-        @click="records.toEdit = _id"
+        @click="records.toEdit = id"
         :disabled="records.checkboxed.length !== 0"
       >
         <PencilIcon />Edit
       </button>
       <button
         class="inline-button delete"
-        @click="records.toDelete.push(_id)"
+        @click="records.toDelete.push(id)"
         :disabled="records.checkboxed.length !== 0"
       >
         <TrashIcon />Delete
@@ -28,7 +28,7 @@
       <button
         v-show="user.authd.settings.selectedCrate === 'all'"
         class="inline-button add"
-        @click="records.toCrate.push(_id)"
+        @click="records.toCrate.push(id)"
         :disabled="records.checkboxed.length !== 0"
       >
         <FolderDownIcon />Add to crate
@@ -36,14 +36,14 @@
       <button
         v-show="user.authd.settings.selectedCrate !== 'all'"
         class="inline-button edit"
-        @click="records.fromCrate.push(_id)"
+        @click="records.fromCrate.push(id)"
         :disabled="records.checkboxed.length !== 0"
       >
         <FolderMinusIcon />Remove from crate
       </button>
       <button
         class="inline-button add add-track"
-        @click="trckStore.addTrackTo = _id"
+        @click="trckStore.addTrackTo = id"
         :disabled="records.checkboxed.length !== 0"
       >
         <PlusCircleIcon />Add track
@@ -53,7 +53,7 @@
       <TrackSingle
         v-for="track in sortedTracks"
         v-bind="track"
-        :key="track._id"
+        :key="track.id"
       />
     </div>
   </div>
@@ -76,7 +76,7 @@ const trckStore = trackStore() // ! "trckStore" because conflict w tracks prop
 const user = userStore()
 
 const props = defineProps<{
-  _id: string
+  id: string
   catno?: string
   title: string
   artists: string
@@ -110,10 +110,10 @@ const sortedTracks = computed((): Track[] =>
 watch(
   () => state.checked,
   () => {
-    if (state.checked && !records.checkboxed.includes(props._id))
-      records.checkboxed.push(props._id)
-    else if (!state.checked && records.checkboxed.includes(props._id))
-      records.checkboxed = records.checkboxed.filter((i) => i !== props._id)
+    if (state.checked && !records.checkboxed.includes(props.id))
+      records.checkboxed.push(props.id)
+    else if (!state.checked && records.checkboxed.includes(props.id))
+      records.checkboxed = records.checkboxed.filter((i) => i !== props.id)
   }
 )
 

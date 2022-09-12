@@ -41,6 +41,7 @@ const addUser = async (user: UnregisteredUser) => {
 // update user settings
 const updateSettings = async (user: User) => {
   const body = new URLSearchParams()
+  body.append("discogsUID", user.discogsUID)
   body.append("settings.selectedCrate", user.settings.selectedCrate)
   body.append("settings.theme", user.settings.theme)
   body.append("settings.turntableTheme", user.settings.turntableTheme)
@@ -55,7 +56,7 @@ const updateSettings = async (user: User) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL + user._id, options)
+  const response = await fetch(API_URL + user.id, options)
   return response
 }
 

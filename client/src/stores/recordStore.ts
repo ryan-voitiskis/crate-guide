@@ -87,7 +87,7 @@ export const recordStore = defineStore("record", {
         // update returned record in recordList
         if (response.status === 200) {
           const updatedRecord = (await response.json()) as Record
-          const existingRecord = this.getById(record._id) as Record
+          const existingRecord = this.getById(record.id) as Record
           Object.assign(existingRecord, updatedRecord)
           this.loading = false
           this.toEdit = ""
@@ -132,7 +132,7 @@ export const recordStore = defineStore("record", {
               crtStore.removeFromCrates(this.toDelete)
               // remove deleted records in store
               this.recordList = this.recordList.filter(
-                (i) => !this.toDelete.includes(i._id)
+                (i) => !this.toDelete.includes(i.id)
               )
             }
 
@@ -171,13 +171,13 @@ export const recordStore = defineStore("record", {
     // gets a record by id. returns null if not found
     getById: (state) => {
       return (id: string) =>
-        (state.recordList.find((record) => record._id === id) as Record) || null
+        (state.recordList.find((record) => record.id === id) as Record) || null
     },
     // returns record catno, if no catno returns title
     getNameById: (state) => {
       return (id: string) => {
         const record =
-          (state.recordList.find((record) => record._id === id) as Record) ||
+          (state.recordList.find((record) => record.id === id) as Record) ||
           null
         if (record) return record.catno ? record.catno : record.title
         else return ""
@@ -188,7 +188,7 @@ export const recordStore = defineStore("record", {
       return (id: string) => {
         const record =
           (state.recordList.find((record) =>
-            record.tracks.find((track) => track._id === id)
+            record.tracks.find((track) => track.id === id)
           ) as Record) || null
         if (record) return record.catno ? record.catno : record.title
         else return ""
@@ -198,14 +198,14 @@ export const recordStore = defineStore("record", {
     getRecordByTrackId: (state) => {
       return (id: string) =>
         (state.recordList.find((record) =>
-          record.tracks.find((track) => track._id === id)
+          record.tracks.find((track) => track.id === id)
         ) as Record) || null
     },
     // gets a track by id. returns null if not found
     getTrackById: (state) => {
       return (id: string) =>
         state.recordList.reduce<any>((prev: Record, curr: Record) => {
-          return prev || curr.tracks.find((track) => track._id === id)
+          return prev || curr.tracks.find((track) => track.id === id)
         }, undefined) || null
     },
   },
