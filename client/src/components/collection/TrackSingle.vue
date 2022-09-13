@@ -8,10 +8,10 @@
       <span class="genre" v-if="genre">{{ genre }}</span>
     </div>
     <div class="controls">
-      <button class="inline-button edit" @click="tracks.toEdit = id">
+      <button class="inline-button edit" @click="tracks.toEdit = _id">
         <PencilIcon />
       </button>
-      <button class="inline-button delete" @click="tracks.toDelete = id">
+      <button class="inline-button delete" @click="tracks.toDelete = _id">
         <TrashIcon />
       </button>
     </div>
@@ -27,7 +27,7 @@ import * as d3 from "d3-interpolate"
 const tracks = trackStore()
 
 const props = defineProps<{
-  id: string
+  _id: string
   position?: string
   bpm?: number
   title: string

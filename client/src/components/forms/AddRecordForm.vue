@@ -108,7 +108,7 @@ const reset = () => {
 
 const submit = async () => {
   const unsavedRecord: UnsavedRecord = {
-    user: user.authd.id,
+    user: user.authd._id,
     catno: form.catno.trim(),
     artists: form.artists.trim(),
     title: form.title.trim(),

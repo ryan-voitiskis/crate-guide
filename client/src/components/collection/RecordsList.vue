@@ -44,7 +44,7 @@
     <RecordSingle
       v-for="record in sortedRecords"
       v-bind="record"
-      :key="record.id"
+      :key="record._id"
     />
   </div>
 </template>

@@ -35,13 +35,13 @@ const updateTrack = async (track: Track, token: string) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL + "/" + track.id, options)
+  const response = await fetch(API_URL + "/" + track._id, options)
 
   return response
 }
 
 // delete single track
-const deleteTrack = async (id: string, token: string) => {
+const deleteTrack = async (_id: string, token: string) => {
   const options = {
     method: "DELETE",
     headers: {
@@ -50,7 +50,7 @@ const deleteTrack = async (id: string, token: string) => {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(API_URL + "/" + id, options)
+  const response = await fetch(API_URL + "/" + _id, options)
   return response
 }
 

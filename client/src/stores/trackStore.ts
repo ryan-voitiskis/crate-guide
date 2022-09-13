@@ -62,7 +62,7 @@ export const trackStore = defineStore("track", {
         if (response.status === 200) {
           const recStore = recordStore()
           const updatedRecord = (await response.json()) as Record
-          const existingRecord = recStore.getById(updatedRecord.id) as Record
+          const existingRecord = recStore.getById(updatedRecord._id) as Record
           Object.assign(existingRecord, updatedRecord)
           this.loading = false
           this.toEdit = ""
@@ -97,7 +97,7 @@ export const trackStore = defineStore("track", {
           if (response.status === 200) {
             const recStore = recordStore()
             const updatedRecord = (await response.json()) as Record
-            const existingRecord = recStore.getById(updatedRecord.id) as Record
+            const existingRecord = recStore.getById(updatedRecord._id) as Record
             Object.assign(existingRecord, updatedRecord)
             this.loading = false
             this.toDelete = ""

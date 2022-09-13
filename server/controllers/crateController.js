@@ -87,7 +87,7 @@ const deleteCrate = asyncHandler(async (req, res) => {
 
   await crate.remove()
 
-  res.status(200).json({ id: req.params.id })
+  res.status(200).json({ _id: req.params.id })
 })
 
 export { getCrates, addCrate, updateCrate, deleteCrate }

@@ -109,8 +109,8 @@ const submit = async () => {
     records.errorMsg = noChangeMsg
   else {
     const editedRecord: Record = {
-      id: record.id,
-      user: user.authd.id,
+      _id: record._id,
+      user: user.authd._id,
       catno: form.catno?.trim(),
       artists: form.artists.trim(),
       title: form.title.trim(),

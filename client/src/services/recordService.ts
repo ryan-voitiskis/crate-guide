@@ -48,7 +48,7 @@ const updateRecord = async (record: Record, token: string) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL + "/" + record.id, options)
+  const response = await fetch(API_URL + "/" + record._id, options)
   return response
 }
 

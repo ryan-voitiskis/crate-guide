@@ -13,7 +13,11 @@
       <label for="crate_select">Select crate </label>
       <select v-model="form.crate" id="crate_select">
         <option value="">---</option>
-        <option v-for="crate in selectCrates" :key="crate.id" :value="crate.id">
+        <option
+          v-for="crate in selectCrates"
+          :key="crate._id"
+          :value="crate._id"
+        >
           {{ crate.name }}
         </option>
       </select>
@@ -56,7 +60,9 @@ const form = reactive({
 const selectCrates =
   user.authd.settings.selectedCrate === "all"
     ? crates.crateList
-    : crates.crateList.filter((i) => i.id !== user.authd.settings.selectedCrate)
+    : crates.crateList.filter(
+        (i) => i._id !== user.authd.settings.selectedCrate
+      )
 
 // array of either catno if available or title of records to be deleted
 const recordNames = records.toDelete.map((i) => records.getNameById(i))

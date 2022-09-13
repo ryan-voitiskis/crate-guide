@@ -8,7 +8,7 @@ import router from "@/router"
 export const userStore = defineStore("user", {
   state: () => ({
     authd: {
-      id: "",
+      _id: "",
       name: "",
       email: "",
       token: "", // token for crate guide protected api routes
@@ -74,7 +74,7 @@ export const userStore = defineStore("user", {
         if (response.status === 201) {
           const data = await response.json()
           const registeringUser: User = {
-            id: data.id,
+            _id: data._id,
             discogsUID: "",
             discogsToken: "",
             discogsTokenSecret: "",
@@ -173,7 +173,7 @@ export const userStore = defineStore("user", {
     },
 
     hasUser(): boolean {
-      return this.authd.id !== ""
+      return this.authd._id !== ""
     },
   },
 })

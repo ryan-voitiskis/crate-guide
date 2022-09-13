@@ -56,7 +56,7 @@ const updateSettings = async (user: User) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL + user.id, options)
+  const response = await fetch(API_URL + user._id, options)
   return response
 }
 

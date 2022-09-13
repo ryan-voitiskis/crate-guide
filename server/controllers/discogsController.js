@@ -57,11 +57,11 @@ const accessToken = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email })
   if (user && (await bcrypt.compare(password, user.password))) {
     res.json({
-      id: user.id,
+      _id: user._id,
       name: user.name,
       email: user.email,
       settings: user.settings,
-      token: generateToken(user.id),
+      token: generateToken(user._id),
       discogsUID: user.discogsUID,
     })
   } else {

@@ -18,7 +18,7 @@ const addTrack = asyncHandler(async (req, res) => {
   }
 
   const updatedRecord = await Record.findByIdAndUpdate(
-    { id: req.body.recordID },
+    { _id: req.body.recordID },
     { $push: { tracks: track } },
     { new: true }
   )
@@ -32,7 +32,7 @@ const addTrack = asyncHandler(async (req, res) => {
 const updateTrack = asyncHandler(async (req, res) => {
   const record = await Record.findOne({
     user: req.user.id,
-    "tracks.id": req.params.id,
+    "tracks._id": req.params.id,
   })
 
   if (!record) {
@@ -43,7 +43,7 @@ const updateTrack = asyncHandler(async (req, res) => {
   const track = JSON.parse(req.body.track)
 
   const updatedRecord = await Record.findOneAndUpdate(
-    { id: record.id, "tracks.id": req.params.id },
+    { _id: record._id, "tracks._id": req.params.id },
     { $set: { "tracks.$": track } },
     { new: true }
   )
@@ -56,7 +56,7 @@ const updateTrack = asyncHandler(async (req, res) => {
 const deleteTrack = asyncHandler(async (req, res) => {
   const record = await Record.findOne({
     user: req.user.id,
-    "tracks.id": req.params.id,
+    "tracks._id": req.params.id,
   })
 
   if (!record) {
@@ -65,8 +65,8 @@ const deleteTrack = asyncHandler(async (req, res) => {
   }
 
   const updatedRecord = await Record.findOneAndUpdate(
-    { id: record.id, "tracks.id": req.params.id },
-    { $pull: { tracks: { id: req.params.id } } },
+    { _id: record.id, "tracks._id": req.params.id },
+    { $pull: { tracks: { _id: req.params.id } } },
     { new: true }
   )
   res.status(200).json(updatedRecord)

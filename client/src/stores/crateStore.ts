@@ -68,15 +68,15 @@ export const crateStore = defineStore("crate", {
       }
     },
 
-    async deleteCrate(id: string, token: string): Promise<number | null> {
+    async deleteCrate(_id: string, token: string): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
       try {
-        const response = await crateService.deleteCrate(id, token)
+        const response = await crateService.deleteCrate(_id, token)
 
         // fetch crates if crate deleted successfully
         if (response.status === 200) {
-          this.crateList = this.crateList.filter((i) => i.id !== id)
+          this.crateList = this.crateList.filter((i) => i._id !== _id)
           this.loading = false
           return response.status
 
@@ -222,13 +222,13 @@ export const crateStore = defineStore("crate", {
   getters: {
     // gets a crate by id. returns null if not found
     getById: (state) => {
-      return (id: string) =>
-        state.crateList.find((crate) => crate.id === id) || null
+      return (_id: string) =>
+        state.crateList.find((crate) => crate._id === _id) || null
     },
     // returns array of record IDs in a crate
     getRecordsByCrate: (state) => {
-      return (id: string) =>
-        state.crateList.find((crate) => crate.id === id)?.records ||
+      return (_id: string) =>
+        state.crateList.find((crate) => crate._id === _id)?.records ||
         ([] as string[])
     },
     // get name by id from record store

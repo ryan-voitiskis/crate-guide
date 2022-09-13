@@ -48,12 +48,12 @@ const updateCrate = async (crate: Crate, token: string) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL + "/" + crate.id, options)
+  const response = await fetch(API_URL + "/" + crate._id, options)
   return response
 }
 
 // Delete user crate
-const deleteCrate = async (id: string, token: string) => {
+const deleteCrate = async (_id: string, token: string) => {
   const options = {
     method: "DELETE",
     headers: {
@@ -62,7 +62,7 @@ const deleteCrate = async (id: string, token: string) => {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(API_URL + "/" + id, options)
+  const response = await fetch(API_URL + "/" + _id, options)
   return response
 }
 
