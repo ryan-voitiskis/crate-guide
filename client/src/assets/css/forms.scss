@@ -258,12 +258,3 @@ form {
   padding: 0 4rem;
   margin: -2rem 0 1rem 0;
 }
-
-// for InfoDropdown.vue and other similar elements within the form
-.form-text {
-  display: block;
-  padding: 0 4rem;
-  &.subtle {
-    color: var(--light-text);
-  }
-}

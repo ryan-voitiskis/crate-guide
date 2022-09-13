@@ -1,5 +1,5 @@
-const asyncHandler = require("express-async-handler")
-const Record = require("../models/recordModel")
+import asyncHandler from "express-async-handler"
+import Record from "../models/recordModel.js"
 
 // @desc    Add track
 // @route   POST /api/tracks
@@ -72,8 +72,4 @@ const deleteTrack = asyncHandler(async (req, res) => {
   res.status(200).json(updatedRecord)
 })
 
-module.exports = {
-  addTrack,
-  updateTrack,
-  deleteTrack,
-}
+export { addTrack, updateTrack, deleteTrack }

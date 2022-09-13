@@ -66,11 +66,14 @@
     <AddDiscogsUsername @close="user.enterDiscogsUsername = false" />
   </ModalBox>
 
-  <ModalBox v-if="user.authDisc" @close="user.authDisc = false">
+  <ModalBox v-if="user.authDiscogs" @close="user.authDiscogs = false">
     <AuthoriseDiscogs />
   </ModalBox>
 
-  <ModalBox v-if="user.authedDisc" @close="user.authedDisc = false">
+  <ModalBox
+    v-if="user.authDiscogsSuccess"
+    @close="user.authDiscogsSuccess = false"
+  >
     <AuthoriseSuccessful />
   </ModalBox>
 </template>
@@ -96,7 +99,7 @@ const state = reactive({
   recovery: false,
   settings: false,
   authDiscogs: false,
-  authSuccessful: false,
+  authDiscogsSuccess: false,
 })
 </script>
 

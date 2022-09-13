@@ -1,4 +1,4 @@
-const mongoose = require("mongoose")
+import mongoose from "mongoose"
 
 const crateSchema = mongoose.Schema(
   {
@@ -19,4 +19,4 @@ const crateSchema = mongoose.Schema(
   }
 )
 
-module.exports = mongoose.model("Crate", crateSchema)
+export default mongoose.model("Crate", crateSchema)

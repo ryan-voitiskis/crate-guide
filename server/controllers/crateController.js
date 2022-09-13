@@ -1,5 +1,5 @@
-const asyncHandler = require("express-async-handler")
-const Crate = require("../models/crateModel")
+import asyncHandler from "express-async-handler"
+import Crate from "../models/crateModel.js"
 
 // @desc    Get crates
 // @route   GET /api/crates
@@ -90,9 +90,4 @@ const deleteCrate = asyncHandler(async (req, res) => {
   res.status(200).json({ id: req.params.id })
 })
 
-module.exports = {
-  getCrates,
-  addCrate,
-  updateCrate,
-  deleteCrate,
-}
+export { getCrates, addCrate, updateCrate, deleteCrate }

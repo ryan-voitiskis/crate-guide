@@ -1,7 +1,7 @@
-const jwt = require("jsonwebtoken")
-const bcrypt = require("bcryptjs")
-const asyncHandler = require("express-async-handler")
-const User = require("../models/userModel")
+import jwt from "jsonwebtoken"
+import bcrypt from "bcryptjs"
+import asyncHandler from "express-async-handler"
+import User from "../models/userModel.js"
 
 // @desc    Add new user
 // @route   POST /api/users
@@ -107,9 +107,4 @@ const updateUser = asyncHandler(async (req, res) => {
   res.status(200).json()
 })
 
-module.exports = {
-  addUser,
-  loginUser,
-  getUser,
-  updateUser,
-}
+export { addUser, loginUser, getUser, updateUser }

@@ -1,14 +1,13 @@
-const express = require("express")
-const router = express.Router()
-
-const {
+import express from "express"
+import protect from "../middleware/authMiddleware.js"
+import {
   getRecords,
   addRecord,
   updateRecord,
   deleteRecords,
-} = require("../controllers/recordController")
+} from "../controllers/recordController.js"
 
-const { protect } = require("../middleware/authMiddleware")
+const router = express.Router()
 
 router
   .route("/")
@@ -17,4 +16,4 @@ router
   .delete(protect, deleteRecords)
 router.route("/:id").put(protect, updateRecord)
 
-module.exports = router
+export default router

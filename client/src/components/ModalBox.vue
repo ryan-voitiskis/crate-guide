@@ -73,4 +73,19 @@ withDefaults(defineProps<Props>(), {
     margin-top: unset;
   }
 }
+
+.modal-text {
+  display: block;
+  padding: 0 4rem;
+  &.subtle {
+    color: var(--light-text);
+  }
+}
+
+.centered-btns {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+}
 </style>

@@ -1,6 +1,7 @@
 import { defineStore } from "pinia"
 import User from "@/interfaces/User"
 import userService from "@/services/userService"
+// import discogsService from "@/services/discogsService"
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
 import router from "@/router"
 
@@ -27,8 +28,8 @@ export const userStore = defineStore("user", {
     error: false, // used in SettingsForm
     success: false, // used in SettingsForm
     enterDiscogsUsername: false, // displays AuthoriseDiscogs.vue
-    authDisc: false, // displays AuthoriseDiscogs.vue
-    authedDisc: false, // displays AuthoriseSuccessful.vue
+    authDiscogs: false, // displays AuthoriseDiscogs.vue
+    authDiscogsSuccess: false, // displays AuthoriseSuccessful.vue
   }),
   actions: {
     async login(email: string, password: string): Promise<number | null> {
@@ -133,6 +134,34 @@ export const userStore = defineStore("user", {
         this.loading = false
         return response.status
 
+        // catch error, eg. NetworkError
+      } catch (error) {
+        this.errorMsg = "Unexpected error (Network error?)"
+        this.error = true
+        console.error(error)
+        this.loading = false
+        return null
+      }
+    },
+
+    async discogsRequestToken() {
+      this.success = false
+      this.error = false
+      this.loading = true
+      this.errorMsg = ""
+      try {
+        // const response = await discogsService.requestToken(this.authd.token)
+        // // handle successful update
+        // if (response.status === 200) this.success = true
+        // // handle 400 and 401 status codes. see userController.js
+        // else {
+        //   this.error = true
+        //   const error = await response.json()
+        //   const msg = error.message ? error.message : "Unexpected error"
+        //   console.error(msg)
+        // }
+        // this.loading = false
+        // return response.status
         // catch error, eg. NetworkError
       } catch (error) {
         this.errorMsg = "Unexpected error (Network error?)"

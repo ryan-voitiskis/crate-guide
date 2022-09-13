@@ -1,6 +1,6 @@
-const asyncHandler = require("express-async-handler")
-const Crate = require("../models/crateModel")
-const Record = require("../models/recordModel")
+import asyncHandler from "express-async-handler"
+import Crate from "../models/crateModel.js"
+import Record from "../models/recordModel.js"
 
 // @desc    Get records
 // @route   GET /api/records
@@ -91,9 +91,4 @@ const deleteRecords = asyncHandler(async (req, res) => {
   res.status(200).json(deleted)
 })
 
-module.exports = {
-  getRecords,
-  addRecord,
-  updateRecord,
-  deleteRecords,
-}
+export { getRecords, addRecord, updateRecord, deleteRecords }

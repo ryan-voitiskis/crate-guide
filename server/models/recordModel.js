@@ -1,4 +1,4 @@
-const mongoose = require("mongoose")
+import mongoose from "mongoose"
 
 const trackSchema = mongoose.Schema({
   title: {
@@ -67,4 +67,4 @@ const recordSchema = mongoose.Schema(
   }
 )
 
-module.exports = mongoose.model("Record", recordSchema)
+export default mongoose.model("Record", recordSchema)

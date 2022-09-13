@@ -1,16 +1,15 @@
-const express = require("express")
-const router = express.Router()
-
-const {
+import express from "express"
+import protect from "../middleware/authMiddleware.js"
+import {
   getCrates,
   addCrate,
   updateCrate,
   deleteCrate,
-} = require("../controllers/crateController")
+} from "../controllers/crateController.js"
 
-const { protect } = require("../middleware/authMiddleware")
+const router = express.Router()
 
 router.route("/").get(protect, getCrates).post(protect, addCrate)
 router.route("/:id").delete(protect, deleteCrate).put(protect, updateCrate)
 
-module.exports = router
+export default router

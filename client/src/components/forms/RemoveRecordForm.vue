@@ -10,7 +10,7 @@
       Are you sure you wish to remove
       {{ recordNames.join(", ") }} from {{ crateName }}?
     </span>
-    <div class="modal-body ctrd-btns">
+    <div class="modal-body centered-btns">
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Cancel
       </button>
@@ -77,10 +77,5 @@ onBeforeUnmount(() => {
   justify-content: center;
   display: flex;
   text-align: center;
-}
-.ctrd-btns {
-  display: flex;
-  justify-content: center;
-  gap: 2rem;
 }
 </style>
