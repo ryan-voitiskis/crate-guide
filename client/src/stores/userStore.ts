@@ -1,7 +1,7 @@
 import { defineStore } from "pinia"
 import User from "@/interfaces/User"
 import userService from "@/services/userService"
-// import discogsService from "@/services/discogsService"
+import discogsService from "@/services/discogsService"
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
 import router from "@/router"
 
@@ -150,7 +150,7 @@ export const userStore = defineStore("user", {
       this.loading = true
       this.errorMsg = ""
       try {
-        // const response = await discogsService.requestToken(this.authd.token)
+        const response = await discogsService.requestToken(this.authd.token)
         // // handle successful update
         // if (response.status === 200) this.success = true
         // // handle 400 and 401 status codes. see userController.js

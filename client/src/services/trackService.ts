@@ -1,6 +1,6 @@
 import UnsavedTrack from "@/interfaces/UnsavedTrack"
 import Track from "@/interfaces/Track"
-const API_URL = "http://localhost:5002/api/tracks"
+const API_URL = "http://localhost:5000/api/tracks"
 
 // add new track
 const addTrack = async (track: UnsavedTrack, record: string, token: string) => {

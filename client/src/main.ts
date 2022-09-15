@@ -12,7 +12,7 @@ import "./assets/css/form-custom-controls.scss"
 
 const pinia = createPinia()
 const app = createApp(App)
-app.provide("API_URL", "http://localhost:5002/api/")
+app.provide("API_URL", "http://localhost:5000/api/")
 app.provide("appName", "Crate Guide")
 
 app.use(router)

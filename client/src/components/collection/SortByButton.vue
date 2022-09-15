@@ -1,6 +1,6 @@
 <template>
   <button
-    class="inline-button"
+    class="inline-btn"
     :class="{ active: active, reversed: reversed }"
     @click="active ? $emit('reverse') : $emit('activate')"
   >

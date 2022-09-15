@@ -8,10 +8,10 @@
       <span class="genre" v-if="genre">{{ genre }}</span>
     </div>
     <div class="controls">
-      <button class="inline-button edit" @click="tracks.toEdit = _id">
+      <button class="inline-btn edit" @click="tracks.toEdit = _id">
         <PencilIcon />
       </button>
-      <button class="inline-button delete" @click="tracks.toDelete = _id">
+      <button class="inline-btn delete" @click="tracks.toDelete = _id">
         <TrashIcon />
       </button>
     </div>

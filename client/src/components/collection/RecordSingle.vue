@@ -12,14 +12,14 @@
     <span class="artists">{{ artists }}</span>
     <div class="controls">
       <button
-        class="inline-button edit"
+        class="inline-btn edit"
         @click="records.toEdit = _id"
         :disabled="records.checkboxed.length !== 0"
       >
         <PencilIcon />Edit
       </button>
       <button
-        class="inline-button delete"
+        class="inline-btn delete"
         @click="records.toDelete.push(_id)"
         :disabled="records.checkboxed.length !== 0"
       >
@@ -27,7 +27,7 @@
       </button>
       <button
         v-show="user.authd.settings.selectedCrate === 'all'"
-        class="inline-button add"
+        class="inline-btn add"
         @click="records.toCrate.push(_id)"
         :disabled="records.checkboxed.length !== 0"
       >
@@ -35,14 +35,14 @@
       </button>
       <button
         v-show="user.authd.settings.selectedCrate !== 'all'"
-        class="inline-button edit"
+        class="inline-btn edit"
         @click="records.fromCrate.push(_id)"
         :disabled="records.checkboxed.length !== 0"
       >
         <FolderMinusIcon />Remove from crate
       </button>
       <button
-        class="inline-button add add-track"
+        class="inline-btn add add-track"
         @click="trckStore.addTrackTo = _id"
         :disabled="records.checkboxed.length !== 0"
       >

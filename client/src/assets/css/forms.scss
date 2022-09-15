@@ -73,10 +73,9 @@ button {
   }
 }
 
-button.inline-button {
+button.inline-btn {
   background-color: transparent;
   border-radius: 0;
-  float: left;
   height: 3rem;
   line-height: 3rem;
   padding: 0;
@@ -85,6 +84,53 @@ button.inline-button {
     height: 1.8rem;
     margin: 0.6rem;
   }
+}
+
+form {
+  width: 100%;
+  margin: 0;
+  label {
+    display: inline-block;
+    font-weight: 400;
+    color: var(--darker-text);
+  }
+  input[type="text"],
+  input[type="email"],
+  input[type="password"] {
+    width: 100%;
+  }
+  // for simple form modals without a separate controls div
+  button.primary {
+    width: 100%;
+    svg {
+      fill: #fff;
+    }
+  }
+}
+
+label {
+  cursor: pointer;
+}
+
+label,
+legend {
+  color: var(--label-text);
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  padding: 0;
+}
+
+fieldset {
+  margin: 0;
+  padding: 0;
+  border-width: 0;
+}
+
+label > .label-body {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-weight: normal;
 }
 
 input,
@@ -153,31 +199,6 @@ select.invalid {
   }
 }
 
-label {
-  cursor: pointer;
-}
-
-label,
-legend {
-  color: var(--label-text);
-  display: block;
-  font-weight: 500;
-  margin-bottom: 0.5rem;
-  padding: 0;
-}
-
-fieldset {
-  margin: 0;
-  padding: 0;
-  border-width: 0;
-}
-
-label > .label-body {
-  display: inline-block;
-  margin-left: 0.5rem;
-  font-weight: normal;
-}
-
 // non-default styling, background url is svg images/cheveron-down-lighter.svg
 // converted to base64 as per https://stackoverflow.com/questions/10768451/inline-svg-in-css
 select {
@@ -197,28 +218,6 @@ select::-ms-expand {
 select:-moz-focusring {
   color: transparent;
   text-shadow: 0 0 0 #000;
-}
-
-form {
-  width: 100%;
-  margin: 0;
-  label {
-    display: inline-block;
-    font-weight: 300;
-    color: var(--darker-text);
-  }
-  input[type="text"],
-  input[type="email"],
-  input[type="password"] {
-    width: 100%;
-  }
-  // for simple form modals without a separate controls div
-  button.primary {
-    width: 100%;
-    svg {
-      fill: #fff;
-    }
-  }
 }
 
 .inline-labels {

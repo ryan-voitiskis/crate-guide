@@ -62,21 +62,35 @@
         </select>
       </label>
 
-      <fieldset>
+      <fieldset class="discogs-ctrls">
         <legend>Discogs API</legend>
-        <button
-          @click=";(user.enterDiscogsUsername = true), $parent!.$emit('close')"
-        >
-          {{ user.authd.discogsUID === "" ? "Provide" : "Update" }} discogs
-          username
+
+        <div v-if="user.authd.discogsUID" class="existing-uid">
+          <label>Username</label><span>{{ user.authd.discogsUID }}</span>
+          <button
+            @click="user.enterDiscogsUsername = true"
+            class="inline-btn edit"
+          >
+            <PencilIcon />
+          </button>
+          <button
+            @click=";(user.authd.discogsUID = ``), updateSettings()"
+            class="inline-btn delete"
+          >
+            <TrashIcon />
+          </button>
+        </div>
+        <button v-else @click="user.enterDiscogsUsername = true">
+          Provide discogs username
         </button>
+
         <button
-          v-if="user.authd.discogsToken === ''"
-          @click=";(user.authDiscogs = true), $parent!.$emit('close')"
+          v-if="!user.authd.discogsToken"
+          @click="user.authDiscogs = true"
         >
           Connect to discogs
         </button>
-        <button v-else>Revoke discogs access</button>
+        <button class="ctrl" v-else>Revoke discogs access</button>
       </fieldset>
       <SubmitlessFeedback
         :saving="user.loading"
@@ -93,6 +107,8 @@ import RadioCard from "./inputs/RadioCard.vue"
 import SubmitlessFeedback from "./feedbacks/SubmitlessFeedback.vue"
 import XIcon from "@/components/svg/XIcon.vue"
 import { userStore } from "@/stores/userStore"
+import PencilIcon from "../svg/PencilIcon.vue"
+import TrashIcon from "../svg/TrashIcon.vue"
 const user = userStore()
 
 // ! freaks out when called directly from <form v-on="">. cpu usage spike + browser non-responsive
@@ -117,5 +133,25 @@ fieldset {
   display: flex;
   gap: 1rem;
   margin-bottom: 2rem;
+  &.discogs-ctrls {
+    flex-direction: column;
+    button.inline-btn {
+      height: 3.8rem;
+    }
+    .ctrl {
+      width: 24rem;
+    }
+    .existing-uid {
+      display: flex;
+      gap: 1rem;
+      label,
+      span {
+        margin: 0;
+        display: inline-block;
+        line-height: 3.8rem; // ! btn
+        height: 3.8rem;
+      }
+    }
+  }
 }
 </style>

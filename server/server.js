@@ -10,7 +10,7 @@ import recordRoutes from "./routes/recordRoutes.js"
 import trackRoutes from "./routes/trackRoutes.js"
 import userRoutes from "./routes/userRoutes.js"
 
-const port = process.env.PORT || 5002
+const port = process.env.PORT || 5000
 dotenv.config()
 connectDB()
 
