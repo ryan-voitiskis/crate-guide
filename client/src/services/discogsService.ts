@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:5000/api/discogs/"
+const API_URL = "http://localhost:5001/api/discogs/"
 
 // request to server to then make request of OAuth token as per step 2 of:
 // * https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
@@ -14,6 +14,7 @@ const requestToken = async (token: string) => {
   const response = await fetch(API_URL + "request_token", options)
   return response
 }
+
 const recordService = {
   requestToken,
 }

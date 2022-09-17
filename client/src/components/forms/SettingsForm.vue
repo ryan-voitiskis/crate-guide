@@ -86,7 +86,7 @@
 
         <button
           v-if="!user.authd.discogsToken"
-          @click="user.authDiscogs = true"
+          @click=";(user.authDiscogs = true), $parent!.$emit('close')"
         >
           Connect to discogs
         </button>

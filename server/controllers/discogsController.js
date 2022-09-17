@@ -1,12 +1,13 @@
 import got from "got"
 import asyncHandler from "express-async-handler"
+import User from "../models/userModel.js"
 
 const oauth_consumer_key = "WJSUzMPCQcGdEFidpwqn"
 const oauth_consumer_secret = "oyasysRSKMwElyRpJjulWoxFBdaXDDTS%26"
 const requestTokenURL = "https://api.discogs.com/oauth/request_token"
 const authoriseURL = "https://www.discogs.com/oauth/authorize"
 const accessTokenURL = "https://api.discogs.com/oauth/access_token"
-const oauthCallback = ""
+const oauthCallback = "http://localhost:5001/api/discogs/capture_verifier"
 const userAgent = "CrateGuide/0.2"
 
 // 12 char nonce generator
@@ -32,6 +33,7 @@ const requestToken = asyncHandler(async (req, res) => {
   params.append("oauth_signature_method", "PLAINTEXT")
   params.append("oauth_timestamp", Date.now().toString())
   params.append("oauth_signature", oauth_consumer_secret)
+  params.append("oauth_callback", oauthCallback)
 
   const options = {
     method: "GET",
@@ -41,7 +43,26 @@ const requestToken = asyncHandler(async (req, res) => {
   }
 
   const response = await got(requestTokenURL + "?" + params, options)
-  res.status(200).json({ data: response.body })
+  const responseParams = new URLSearchParams(response.body)
+  const returnObject = Object.fromEntries([...responseParams])
+  if (returnObject.hasOwnProperty("oauth_token")) {
+    // update user with oauth_token
+    await User.findByIdAndUpdate(
+      req.user.id,
+      { discogsToken: returnObject.oauth_token } // todo: update in user store on client
+    )
+    res.status(200).json(returnObject.oauth_token)
+  } else {
+    res.status(400)
+    throw new Error("Discogs did not provide OAuth token.")
+  }
+})
+
+const captureVerifier = asyncHandler(async (req, res) => {
+  if (req.query.hasOwnProperty("oauth_token")) {
+    // todo: step 4
+  }
+  res.status(200).json(req.query)
 })
 
 // @desc    todo
@@ -49,4 +70,4 @@ const requestToken = asyncHandler(async (req, res) => {
 // @access  Private
 const accessToken = asyncHandler(async (req, res) => {})
 
-export { requestToken, accessToken }
+export { captureVerifier, requestToken, accessToken }

@@ -1,6 +1,6 @@
 import UnsavedRecord from "@/interfaces/UnsavedRecord"
 import Record from "@/interfaces/Record"
-const API_URL = "http://localhost:5000/api/records"
+const API_URL = "http://localhost:5001/api/records"
 
 // get user records
 const getRecords = async (token: string) => {

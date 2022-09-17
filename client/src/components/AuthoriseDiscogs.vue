@@ -19,7 +19,7 @@
       @click="submit()"
     >
       {{ user.loading ? null : "Request access" }}
-      <!-- <LoaderIcon v-show="records.loading" /> -->
+      <LoaderIcon v-show="user.loading" />
     </button>
   </div>
 </template>
@@ -41,7 +41,7 @@ const emit = defineEmits<{
 
 const submit = async () => {
   const response = await user.discogsRequestToken()
-  // if (response === 201) emit("close")
+  // if (response === 200) emit("close")
 }
 
 onBeforeUnmount(() => {

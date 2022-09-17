@@ -145,23 +145,26 @@ export const userStore = defineStore("user", {
     },
 
     async discogsRequestToken() {
-      this.success = false
       this.error = false
       this.loading = true
       this.errorMsg = ""
       try {
         const response = await discogsService.requestToken(this.authd.token)
-        // // handle successful update
-        // if (response.status === 200) this.success = true
-        // // handle 400 and 401 status codes. see userController.js
-        // else {
-        //   this.error = true
-        //   const error = await response.json()
-        //   const msg = error.message ? error.message : "Unexpected error"
-        //   console.error(msg)
-        // }
-        // this.loading = false
-        // return response.status
+        // handle successful update
+        if (response.status === 200) {
+          const res = await response.json()
+          // window.open(`https://discogs.com/oauth/authorize?oauth_token=${res.oauth_token}`)
+          window.location.href = `https://discogs.com/oauth/authorize?oauth_token=${res}`
+        }
+        // handle 400 and 401 status codes. see userController.js
+        else {
+          this.error = true
+          const error = await response.json()
+          const msg = error.message ? error.message : "Unexpected error"
+          console.error(msg)
+        }
+        this.loading = false
+        return response.status
         // catch error, eg. NetworkError
       } catch (error) {
         this.errorMsg = "Unexpected error (Network error?)"

@@ -1,6 +1,6 @@
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
 import User from "@/interfaces/User"
-const API_URL = "http://localhost:5000/api/users/"
+const API_URL = "http://localhost:5001/api/users/"
 
 // authenticate user
 const login = async (email: string, password: string) => {

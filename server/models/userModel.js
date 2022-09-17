@@ -5,6 +5,12 @@ const userSchema = mongoose.Schema(
     discogsUID: {
       type: String,
     },
+    discogsToken: {
+      type: String,
+    },
+    discogsTokenSecret: {
+      type: String,
+    },
     name: {
       type: String,
       required: [true, "Please add a name"],
