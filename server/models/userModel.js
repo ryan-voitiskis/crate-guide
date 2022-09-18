@@ -5,12 +5,6 @@ const userSchema = mongoose.Schema(
     discogsUID: {
       type: String,
     },
-    discogsToken: {
-      type: String,
-    },
-    discogsTokenSecret: {
-      type: String,
-    },
     name: {
       type: String,
       required: [true, "Please add a name"],
@@ -23,6 +17,20 @@ const userSchema = mongoose.Schema(
     password: {
       type: String,
       required: [true, "Please add a password"],
+    },
+    discogsToken: {
+      type: String,
+    },
+    discogsTokenSecret: {
+      type: String,
+    },
+    // for oauth flow only. use discogsToken for discogs API calls
+    discogsRequestToken: {
+      type: String,
+    },
+    // for oauth flow only. use discogsTokenSecret for discogs API calls
+    discogsRequestTokenSecret: {
+      type: String,
     },
     settings: {
       theme: {

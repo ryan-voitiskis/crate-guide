@@ -55,7 +55,7 @@ const updateCrate = asyncHandler(async (req, res) => {
 
   const updatedCrate = await Crate.findByIdAndUpdate(
     req.params.id,
-    JSON.parse(req.body.crate), // req'd as crate needs to be sent as string
+    JSON.parse(req.body.crate), // required as crate needs to be sent as string
     { new: true }
   )
 

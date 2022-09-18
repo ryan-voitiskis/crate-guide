@@ -13,8 +13,6 @@ export const userStore = defineStore("user", {
       email: "",
       token: "", // token for crate guide protected api routes
       discogsUID: "", // users discogs user id
-      discogsToken: "", // discogs long term token after OAuth complete
-      discogsTokenSecret: "", // discogs long term token secret afer OAuth complete
       settings: {
         theme: "light",
         turntableTheme: "silver",
@@ -144,7 +142,7 @@ export const userStore = defineStore("user", {
       }
     },
 
-    async discogsRequestToken() {
+    async discogsRequestToken(): Promise<number | null> {
       this.error = false
       this.loading = true
       this.errorMsg = ""
@@ -153,7 +151,6 @@ export const userStore = defineStore("user", {
         // handle successful update
         if (response.status === 200) {
           const res = await response.json()
-          // window.open(`https://discogs.com/oauth/authorize?oauth_token=${res.oauth_token}`)
           window.location.href = `https://discogs.com/oauth/authorize?oauth_token=${res}`
         }
         // handle 400 and 401 status codes. see userController.js
@@ -162,8 +159,8 @@ export const userStore = defineStore("user", {
           const error = await response.json()
           const msg = error.message ? error.message : "Unexpected error"
           console.error(msg)
+          this.loading = false // not for 200 res as redirect takes time
         }
-        this.loading = false
         return response.status
         // catch error, eg. NetworkError
       } catch (error) {

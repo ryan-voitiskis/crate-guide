@@ -114,7 +114,7 @@ const user = userStore()
 // ! freaks out when called directly from <form v-on="">. cpu usage spike + browser non-responsive
 const updateSettings = () => user.updateSettings()
 
-// req'd for when settings changed elsewhere, such as selected crate
+// required for when settings changed elsewhere, such as selected crate
 onBeforeMount(() => {
   user.loading = false
   user.error = false

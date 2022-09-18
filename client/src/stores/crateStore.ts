@@ -154,7 +154,7 @@ export const crateStore = defineStore("crate", {
           }
           this.loading = false
           return 1 //  <- returns 1 if all records already in crate
-        } else throw new Error("No crate with that ID") // ? unlikely/impossible? is this req'd?
+        } else throw new Error("No crate with that ID") // ? unlikely/impossible? is this required?
 
         // catch error, eg. NetworkError
       } catch (error) {
@@ -200,7 +200,7 @@ export const crateStore = defineStore("crate", {
           return response.status
 
           // handle no crate with id
-        } else throw new Error("No crate with that ID") // ? unlikely/impossible? is this req'd?
+        } else throw new Error("No crate with that ID") // ? unlikely/impossible? is this required?
 
         // catch error, eg. NetworkError
       } catch (error) {

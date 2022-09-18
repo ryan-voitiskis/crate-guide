@@ -69,7 +69,7 @@ const props = defineProps<{
 
 const spinState = computed(() => (props.isPlaying ? "running" : "paused"))
 
-// spinRate is duration of rotaion in seconds: req'd for rotate animation eg. 1.82s for 33rpm with 0% pitch adjustment
+// spinRate is duration of rotaion in seconds: required for rotate animation eg. 1.82s for 33rpm with 0% pitch adjustment
 const spinRate = computed(
   () =>
     (
