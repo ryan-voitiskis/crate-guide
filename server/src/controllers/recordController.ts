@@ -6,7 +6,7 @@ import Record from "../models/recordModel.js"
 // @route   GET /api/records
 // @access  Private
 const getRecords = asyncHandler(async (req, res) => {
-  const records = await Record.find({ user: req.user.id })
+  const records = await Record.find({ user: req.user?.id })
 
   res.status(200).json(records)
 })
@@ -15,7 +15,7 @@ const getRecords = asyncHandler(async (req, res) => {
 // @route   POST /api/records
 // @access  Private
 const addRecord = asyncHandler(async (req, res) => {
-  if (!req.user.id) {
+  if (!req.user?.id) {
     res.status(400)
     throw new Error("User not provided.")
   }
@@ -53,7 +53,7 @@ const updateRecord = asyncHandler(async (req, res) => {
     throw new Error("User not found")
   }
 
-  if (oldRecord.user.toString() !== req.user.id) {
+  if (oldRecord.user !== req.user.id) {
     res.status(401)
     throw new Error("User not authorized")
   }

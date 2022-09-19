@@ -1,6 +1,6 @@
 import mongoose from "mongoose"
 
-const trackSchema = mongoose.Schema({
+const trackSchema = new mongoose.Schema({
   title: {
     type: String,
     required: [true, "Track model: No title provided."],
@@ -28,15 +28,15 @@ const trackSchema = mongoose.Schema({
   },
 })
 
-const recordSchema = mongoose.Schema(
+const recordSchema = new mongoose.Schema(
   {
-    discogsID: {
-      type: String,
-    },
     user: {
       type: mongoose.Schema.Types.ObjectId,
       required: [true, "Record model: No user provided."],
       ref: "User",
+    },
+    discogsID: {
+      type: String,
     },
     catno: {
       type: String,

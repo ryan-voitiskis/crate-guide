@@ -5,7 +5,7 @@ import Crate from "../models/crateModel.js"
 // @route   GET /api/crates
 // @access  Private
 const getCrates = asyncHandler(async (req, res) => {
-  const crates = await Crate.find({ user: req.user.id })
+  const crates = await Crate.find({ user: req.user?.id })
 
   res.status(200).json(crates)
 })
@@ -14,7 +14,7 @@ const getCrates = asyncHandler(async (req, res) => {
 // @route   POST /api/crates
 // @access  Private
 const addCrate = asyncHandler(async (req, res) => {
-  if (!req.user.id) {
+  if (!req.user?.id) {
     res.status(400)
     throw new Error("User not provided.")
   }
@@ -48,7 +48,7 @@ const updateCrate = asyncHandler(async (req, res) => {
   }
 
   // Make sure the logged in user matches the crate user
-  if (crate.user.toString() !== req.user.id) {
+  if (crate.user !== req.user.id) {
     res.status(401)
     throw new Error("User not authorized")
   }
@@ -80,7 +80,7 @@ const deleteCrate = asyncHandler(async (req, res) => {
   }
 
   // Make sure the logged in user matches the crate user
-  if (crate.user.toString() !== req.user.id) {
+  if (crate.user !== req.user.id) {
     res.status(401)
     throw new Error("User not authorized")
   }

@@ -1,6 +1,6 @@
 import mongoose from "mongoose"
 
-const crateSchema = mongoose.Schema(
+const crateSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,

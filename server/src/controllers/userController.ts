@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken"
 import bcrypt from "bcryptjs"
 import asyncHandler from "express-async-handler"
 import User from "../models/userModel.js"
+import env from "../env.js"
 
 // @desc    Add new user
 // @route   POST /api/users
@@ -36,7 +37,7 @@ const addUser = asyncHandler(async (req, res) => {
       name: user.name,
       email: user.email,
       settings: user.settings,
-      token: generateToken(user._id),
+      token: generateToken(user._id.toString()),
     })
   } else {
     res.status(400)
@@ -73,8 +74,8 @@ const getUser = asyncHandler(async (req, res) => {
 })
 
 // Generate JWT
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+const generateToken = (id: string) => {
+  return jwt.sign({ id }, env.JWT_SECRET, {
     expiresIn: "30d",
   })
 }

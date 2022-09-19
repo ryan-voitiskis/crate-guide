@@ -49,7 +49,7 @@ const requestToken = asyncHandler(async (req, res) => {
 
   if (returnObject.hasOwnProperty("oauth_token")) {
     // update user with oauth_token + oauth_token_secret
-    await User.findByIdAndUpdate(req.user.id, {
+    await User.findByIdAndUpdate(req.user?.id, {
       discogsRequestToken: returnObject.oauth_token,
       discogsRequestTokenSecret: returnObject.oauth_token_secret,
     })
@@ -75,18 +75,26 @@ const captureVerifier = asyncHandler(async (req, res) => {
     const user = await User.findOne({
       discogsRequestToken: req.query.oauth_token,
     })
-    if (user.discogsRequestTokenSecret) {
+    if (user?.discogsRequestTokenSecret) {
       const params = new URLSearchParams()
       params.append("oauth_consumer_key", oauth_consumer_key)
       params.append("oauth_nonce", nonce())
-      params.append("oauth_token", req.query.oauth_token)
+      params.append(
+        "oauth_token",
+        typeof req.query.oauth_token === "string" ? req.query.oauth_token : ""
+      )
       params.append(
         "oauth_signature",
         oauth_consumer_secret + user.discogsRequestTokenSecret
       )
       params.append("oauth_signature_method", "PLAINTEXT")
       params.append("oauth_timestamp", Date.now().toString())
-      params.append("oauth_verifier", req.query.oauth_verifier)
+      params.append(
+        "oauth_verifier",
+        typeof req.query.oauth_verifier === "string"
+          ? req.query.oauth_verifier
+          : ""
+      )
 
       const options = {
         method: "POST",
@@ -105,7 +113,7 @@ const captureVerifier = asyncHandler(async (req, res) => {
         discogsToken: returnObject.oauth_token,
         discogsTokenSecret: returnObject.oauth_token_secret,
       })
-      res.redirect(env.SITE_URL)
+      res.redirect(env.SITE_URL ?? "")
     } else {
       res.status(400)
       throw new Error("Found user doesn't have request token secret.") // ? is this necessary?
