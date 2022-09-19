@@ -9,16 +9,14 @@ import env from "../env.js"
 // @access  Public
 const addUser = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body
-  if (!name || !email || !password) {
-    res.status(400)
-    throw new Error("Please add all fields")
-  }
+  if (!name || !email || !password)
+    res.status(400).json({ message: "Please add all fields" })
 
   const userExists = await User.findOne({ email })
-  if (userExists) {
-    res.status(409)
-    throw new Error(`An account using ${email} already exists.`)
-  }
+  if (userExists)
+    res
+      .status(409)
+      .json({ message: `An account using ${email} already exists.` })
 
   // hash password
   const salt = await bcrypt.genSalt(10)
@@ -39,10 +37,7 @@ const addUser = asyncHandler(async (req, res) => {
       settings: user.settings,
       token: generateToken(user._id.toString()),
     })
-  } else {
-    res.status(400)
-    throw new Error("Invalid user data")
-  }
+  } else res.status(400).json({ message: "Invalid user data" })
 })
 
 // @desc    Authenticate a user
@@ -60,10 +55,7 @@ const loginUser = asyncHandler(async (req, res) => {
       token: generateToken(user.id),
       discogsUID: user.discogsUID,
     })
-  } else {
-    res.status(401)
-    throw new Error("Invalid credentials")
-  }
+  } else res.status(401).json({ message: "Invalid credentials" })
 })
 
 // @desc    Get user data
@@ -86,23 +78,12 @@ const generateToken = (id: string) => {
 const updateUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id)
 
-  if (!user) {
-    res.status(400)
-    throw new Error("User not found")
-  }
-
-  if (!req.user) {
-    res.status(400)
-    throw new Error("User not found")
-  }
-
-  if (user._id.toString() !== req.user.id) {
-    res.status(401)
-    throw new Error("User not authorized")
-  }
+  if (!user) res.status(400).json({ message: "User not found" })
+  if (!req.user) res.status(400).json({ message: "User not provided" })
+  if (user!._id.valueOf() !== req.user!.id)
+    res.status(401).json({ message: "User not authorised" })
 
   await User.findByIdAndUpdate(req.params.id, req.body, { new: true })
-
   res.status(200).json()
 })
 
