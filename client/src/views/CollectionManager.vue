@@ -109,7 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from "vue"
+import { reactive, onBeforeUnmount } from "vue"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
 import { trackStore } from "@/stores/trackStore"
@@ -146,6 +146,11 @@ const state = reactive({
   duplicateCrate: false, // shows DuplicateCrateForm
   deleteCrate: false, // shows DeleteCrateForm
   addRecord: false, // shows AddRecordForm
+})
+
+onBeforeUnmount(() => {
+  records.checkboxed = []
+  records.checkAll = false
 })
 </script>
 

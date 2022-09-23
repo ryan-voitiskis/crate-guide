@@ -66,7 +66,8 @@
         <legend>Discogs API</legend>
 
         <div v-if="user.authd.discogsUID" class="existing-uid">
-          <label>Username</label><span>{{ user.authd.discogsUID }}</span>
+          <label>Username</label>
+          <span class="username">{{ user.authd.discogsUID }}</span>
           <button
             @click="user.enterDiscogsUsername = true"
             class="inline-btn edit"
@@ -85,12 +86,14 @@
         </button>
 
         <button
-          v-if="!user.authd.discogsToken"
+          v-if="!user.authd.isDiscogsOAuthd"
           @click=";(user.authDiscogs = true), $parent!.$emit('close')"
         >
           Connect to discogs
         </button>
-        <button class="ctrl" v-else>Revoke discogs access</button>
+        <button v-else @click="user.revokeDiscogsToken()">
+          Revoke discogs access
+        </button>
       </fieldset>
       <SubmitlessFeedback
         :saving="user.loading"
@@ -138,7 +141,7 @@ fieldset {
     button.inline-btn {
       height: 3.8rem;
     }
-    .ctrl {
+    button:not(.inline-btn) {
       width: 24rem;
     }
     .existing-uid {
@@ -153,5 +156,10 @@ fieldset {
       }
     }
   }
+}
+
+span.username {
+  font-style: italic;
+  padding: 0 2rem;
 }
 </style>

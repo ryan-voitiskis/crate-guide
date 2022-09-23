@@ -4,9 +4,9 @@ import asyncHandler from "express-async-handler"
 import User from "../models/userModel.js"
 import env from "../env.js"
 
-// @desc    Add new user
+// @desc    add new user
 // @route   POST /api/users
-// @access  Public
+// @access  public
 const addUser = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body
   if (!name || !email || !password)
@@ -35,14 +35,16 @@ const addUser = asyncHandler(async (req, res) => {
       name: user.name,
       email: user.email,
       settings: user.settings,
+      discogsUID: user.discogsUID,
+      isDiscogsOAuthd: false,
       token: generateToken(user._id.toString()),
     })
   } else res.status(400).json({ message: "Invalid user data" })
 })
 
-// @desc    Authenticate a user
+// @desc    authenticate a user
 // @route   POST /api/users/login
-// @access  Public
+// @access  public
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body
   const user = await User.findOne({ email })
@@ -54,32 +56,34 @@ const loginUser = asyncHandler(async (req, res) => {
       settings: user.settings,
       token: generateToken(user.id),
       discogsUID: user.discogsUID,
+      isDiscogsOAuthd:
+        user.discogsToken && user.discogsTokenSecret ? true : false,
     })
   } else res.status(401).json({ message: "Invalid credentials" })
 })
 
-// @desc    Get user data
+// @desc    get user data
 // @route   GET /api/users/me
-// @access  Private
+// @access  private
 const getUser = asyncHandler(async (req, res) => {
   res.status(200).json(req.user)
 })
 
-// Generate JWT
+// generate JWT
 const generateToken = (id: string) => {
   return jwt.sign({ id }, env.JWT_SECRET, {
     expiresIn: "30d",
   })
 }
 
-// @desc    Update user
+// @desc    update user
 // @route   PUT /api/users/:id
-// @access  Private
+// @access  private
 const updateUser = asyncHandler(async (req, res) => {
+  if (!req.user) res.status(400).json({ message: "User not provided" })
   const user = await User.findById(req.params.id)
 
   if (!user) res.status(400).json({ message: "User not found" })
-  if (!req.user) res.status(400).json({ message: "User not provided" })
   if (user!._id.valueOf() !== req.user!.id)
     res.status(401).json({ message: "User not authorised" })
 
@@ -87,4 +91,24 @@ const updateUser = asyncHandler(async (req, res) => {
   res.status(200).json()
 })
 
-export { addUser, loginUser, getUser, updateUser }
+// @desc    removes discogsToken, discogsTokenSecret, discogsRequestToken and discogsRequestTokenSecret from user
+// @route   PUT /api/users/revoke_discogs/:id
+// @access  private
+const revokeDiscogsTokens = asyncHandler(async (req, res) => {
+  if (!req.user) res.status(400).json({ message: "User not provided" })
+  const user = await User.findById(req.params.id)
+
+  if (!user) res.status(400).json({ message: "User not found" })
+  if (user!._id.valueOf() !== req.user!.id)
+    res.status(401).json({ message: "User not authorised" })
+
+  await User.findByIdAndUpdate(req.params.id, {
+    discogsToken: "",
+    discogsTokenSecret: "",
+    discogsRequestToken: "",
+    discogsRequestTokenSecret: "",
+  })
+  res.status(200).json()
+})
+
+export { addUser, loginUser, getUser, updateUser, revokeDiscogsTokens }

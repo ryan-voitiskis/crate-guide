@@ -38,7 +38,7 @@ export const userStore = defineStore("user", {
         const response = await userService.login(email, password)
         if (response.status === 200) {
           // nav to home page here to avoid extra call to user.updateSettings() from watch in CollectionManager
-          // ? can this be avoided?
+          // * this wont be necessary if entry to app requires login. ie collection and session not accessible unless logged in
           router.push("/")
           const data = await response.json()
           Object.assign(this.authd, data)
@@ -74,11 +74,10 @@ export const userStore = defineStore("user", {
           const registeringUser: User = {
             _id: data._id,
             discogsUID: "",
-            discogsToken: "",
-            discogsTokenSecret: "",
+            isDiscogsOAuthd: data.isDiscogsOAuthd,
+            token: data.token,
             name: data.name,
             email: data.email,
-            token: data.token,
             settings: {
               theme: data.settings.theme,
               turntableTheme: data.settings.turntableTheme,
@@ -122,7 +121,7 @@ export const userStore = defineStore("user", {
 
         // handle successful update
         if (response.status === 200) this.success = true
-        // handle 400 and 401 status codes. see userController.js
+        // handle 400 and 401 status codes. see userController.ts
         else {
           this.error = true
           const error = await response.json()
@@ -142,6 +141,7 @@ export const userStore = defineStore("user", {
       }
     },
 
+    // call and handle request that begins discogs OAuth flow
     async discogsRequestToken(): Promise<number | null> {
       this.error = false
       this.loading = true
@@ -153,7 +153,7 @@ export const userStore = defineStore("user", {
           const res = await response.json()
           window.location.href = `https://discogs.com/oauth/authorize?oauth_token=${res}`
         }
-        // handle 400 and 401 status codes. see userController.js
+        // handle 400 status code. see discogsController.ts
         else {
           this.error = true
           const error = await response.json()
@@ -161,6 +161,38 @@ export const userStore = defineStore("user", {
           console.error(msg)
           this.loading = false // not for 200 res as redirect takes time
         }
+        return response.status
+        // catch error, eg. NetworkError
+      } catch (error) {
+        this.errorMsg = "Unexpected error (Network error?)"
+        this.error = true
+        console.error(error)
+        this.loading = false
+        return null
+      }
+    },
+
+    // call and handle response to request that removes discogsToken, discogsTokenSecret,
+    // discogsRequestToken and discogsRequestTokenSecret from user.
+    async revokeDiscogsToken(): Promise<number | null> {
+      this.error = false
+      this.loading = true
+      this.errorMsg = ""
+      try {
+        const response = await userService.revokeDiscogsTokens(this.authd)
+        // handle successful update
+        if (response.status === 200) {
+          this.authd.isDiscogsOAuthd = false
+          this.success = true
+        }
+        // handle 400 and 401 status codes. see userController.ts
+        else {
+          this.error = true
+          const error = await response.json()
+          const msg = error.message ? error.message : "Unexpected error"
+          console.error(msg)
+        }
+        this.loading = false
         return response.status
         // catch error, eg. NetworkError
       } catch (error) {

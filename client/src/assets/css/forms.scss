@@ -199,6 +199,10 @@ select.invalid {
   }
 }
 
+input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset !important; //removes autofill yellow background
+}
+
 // non-default styling, background url is svg images/cheveron-down-lighter.svg
 // converted to base64 as per https://stackoverflow.com/questions/10768451/inline-svg-in-css
 select {

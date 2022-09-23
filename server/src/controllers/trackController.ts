@@ -1,9 +1,9 @@
 import asyncHandler from "express-async-handler"
 import Record from "../models/recordModel.js"
 
-// @desc    Add track
+// @desc    add track
 // @route   POST /api/tracks
-// @access  Private
+// @access  private
 const addTrack = asyncHandler(async (req, res) => {
   if (!req.user?.id) res.status(400).json({ message: "User not provided" })
   const track = JSON.parse(req.body.track)
@@ -17,9 +17,9 @@ const addTrack = asyncHandler(async (req, res) => {
   res.status(201).json(updatedRecord)
 })
 
-// @desc    Update track
+// @desc    update track
 // @route   PUT /api/tracks/:id
-// @access  Private
+// @access  private
 const updateTrack = asyncHandler(async (req, res) => {
   const record = await Record.findOne({
     user: req.user?.id,
@@ -37,9 +37,9 @@ const updateTrack = asyncHandler(async (req, res) => {
   res.status(200).json(updatedRecord)
 })
 
-// @desc    Delete track
+// @desc    delete track
 // @route   DELETE /api/tracks
-// @access  Private
+// @access  private
 const deleteTrack = asyncHandler(async (req, res) => {
   const record = await Record.findOne({
     user: req.user?.id,

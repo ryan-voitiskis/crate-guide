@@ -25,7 +25,7 @@ const nonce = () => {
 // @desc    request OAuth token as per step 2 of:
 // *        https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
 // @route   GET /api/discogs/request_token
-// @access  Private
+// @access  private
 const requestToken = asyncHandler(async (req, res) => {
   const params = new URLSearchParams()
   params.append("oauth_consumer_key", oauth_consumer_key)
@@ -64,7 +64,7 @@ const requestToken = asyncHandler(async (req, res) => {
 // @desc    capture verifier and send req to access_token as per step 3 and 4 of:
 // *        https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
 // @route   GET /api/discogs/capture_verifier
-// @access  Public
+// @access  public
 const captureVerifier = asyncHandler(async (req, res) => {
   if (
     req.query.hasOwnProperty("oauth_token") &&
@@ -122,9 +122,4 @@ const captureVerifier = asyncHandler(async (req, res) => {
       .json({ message: "Discogs request was missing token or verifier" })
 })
 
-// @desc    todo
-// @route   GET /api/discogs/access_token
-// @access  Private
-const accessToken = asyncHandler(async (req, res) => {})
-
-export { captureVerifier, requestToken, accessToken }
+export { captureVerifier, requestToken }

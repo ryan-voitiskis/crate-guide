@@ -1,17 +1,17 @@
 import asyncHandler from "express-async-handler"
 import Crate from "../models/crateModel.js"
 
-// @desc    Get crates
+// @desc    get crates
 // @route   GET /api/crates
-// @access  Private
+// @access  private
 const getCrates = asyncHandler(async (req, res) => {
   const crates = await Crate.find({ user: req.user?.id })
   res.status(200).json(crates)
 })
 
-// @desc    Add crate
+// @desc    add crate
 // @route   POST /api/crates
-// @access  Private
+// @access  private
 const addCrate = asyncHandler(async (req, res) => {
   if (!req.user?.id) res.status(400).json({ message: "User not provided" })
   const crate = JSON.parse(req.body.crate)
@@ -21,9 +21,9 @@ const addCrate = asyncHandler(async (req, res) => {
   res.status(201).json(createdCrate)
 })
 
-// @desc    Update crate
+// @desc    update crate
 // @route   PUT /api/crates/:id
-// @access  Private
+// @access  private
 const updateCrate = asyncHandler(async (req, res) => {
   if (!req.user) res.status(401).json({ message: "User not found" })
   const crate = await Crate.findById(req.params.id)
@@ -40,9 +40,9 @@ const updateCrate = asyncHandler(async (req, res) => {
   res.status(200).json(updatedCrate)
 })
 
-// @desc    Delete crate
+// @desc    delete crate
 // @route   DELETE /api/crates/:id
-// @access  Private
+// @access  private
 const deleteCrate = asyncHandler(async (req, res) => {
   if (!req.user) res.status(401).json({ message: "User not found" })
   const crate = await Crate.findById(req.params.id)

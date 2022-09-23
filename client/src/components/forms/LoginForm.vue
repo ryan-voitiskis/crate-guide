@@ -48,8 +48,10 @@ import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import XIcon from "@/components/svg/XIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
+import { recordStore } from "@/stores/recordStore"
 const user = userStore()
 const crates = crateStore()
+const records = recordStore()
 
 const emit = defineEmits<{
   (e: "openSignUp"): void
@@ -65,8 +67,9 @@ const form = reactive({
 const submit = async () => {
   const response = await user.login(form.email, form.password)
   if (response === 200) {
-    crates.fetchCrates(user.authd.token)
     emit("close")
+    crates.fetchCrates(user.authd.token)
+    records.fetchRecords(user.authd.token)
   }
 }
 

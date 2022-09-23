@@ -1,8 +1,7 @@
 export default interface User {
   _id: string
   discogsUID: string
-  discogsToken: string // todo: remove, call to api from server
-  discogsTokenSecret: string // todo: remove, call to api from server
+  isDiscogsOAuthd: boolean
   name: string
   email: string
   token: string

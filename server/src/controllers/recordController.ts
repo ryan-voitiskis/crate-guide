@@ -2,17 +2,17 @@ import asyncHandler from "express-async-handler"
 import Crate from "../models/crateModel.js"
 import Record from "../models/recordModel.js"
 
-// @desc    Get records
+// @desc    get records
 // @route   GET /api/records
-// @access  Private
+// @access  private
 const getRecords = asyncHandler(async (req, res) => {
   const records = await Record.find({ user: req.user?.id })
   res.status(200).json(records)
 })
 
-// @desc    Add record
+// @desc    add record
 // @route   POST /api/records
-// @access  Private
+// @access  private
 const addRecord = asyncHandler(async (req, res) => {
   if (!req.user?.id) res.status(400).json({ message: "User not provided" })
 
@@ -25,9 +25,9 @@ const addRecord = asyncHandler(async (req, res) => {
   res.status(201).json(createdRecord)
 })
 
-// @desc    Update record
+// @desc    update record
 // @route   PUT /api/records/:id
-// @access  Private
+// @access  private
 const updateRecord = asyncHandler(async (req, res) => {
   if (!req.user) res.status(401).json({ message: "User not found" })
 
@@ -45,9 +45,9 @@ const updateRecord = asyncHandler(async (req, res) => {
   res.status(200).json(updatedRecord)
 })
 
-// @desc    Delete records - for single or many
+// @desc    delete records - for single or many
 // @route   DELETE /api/records
-// @access  Private
+// @access  private
 const deleteRecords = asyncHandler(async (req, res) => {
   if (!req.user) res.status(401).json({ message: "User not found" })
   const deletes = JSON.parse(req.body.records) // from client: array of IDs to be deleted

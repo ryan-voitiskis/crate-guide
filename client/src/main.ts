@@ -19,15 +19,13 @@ app.use(router)
 app.use(pinia)
 app.mount("#app")
 
-// log into ryannn automatically.
+// log into test automatically.
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
 const user = userStore()
 const crates = crateStore()
 const records = recordStore()
-
-// handle state for automatically logged in ryannn
 const getState = async () => {
   await user.login("test@test.com", "password")
   crates.fetchCrates(user.authd.token)
