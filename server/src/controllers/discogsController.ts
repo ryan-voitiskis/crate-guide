@@ -57,8 +57,10 @@ const requestToken = asyncHandler(async (req, res) => {
     // response is oauth_token required for step 3 of:
     // * https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
     res.status(200).json(returnObject.oauth_token)
-  } else
-    res.status(400).json({ message: "Discogs did not provide OAuth token" })
+  } else {
+    res.status(400)
+    throw new Error("Discogs did not provide OAuth token.")
+  }
 })
 
 // @desc    capture verifier and send req to access_token as per step 3 and 4 of:
@@ -112,14 +114,14 @@ const captureVerifier = asyncHandler(async (req, res) => {
         discogsTokenSecret: returnObject.oauth_token_secret,
       })
       res.redirect(env.SITE_URL ?? "")
-    } else
-      res
-        .status(400)
-        .json({ message: "Found user doesn't have request token secret" }) // ? is this necessary?
-  } else
-    res
-      .status(400)
-      .json({ message: "Discogs request was missing token or verifier" })
+    } else {
+      res.status(400)
+      throw new Error("Found user doesn't have request token secret.") // ? is this necessary?
+    }
+  } else {
+    res.status(400)
+    throw new Error("Discogs request was missing token or verifier.")
+  }
 })
 
 export { captureVerifier, requestToken }

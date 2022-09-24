@@ -4,6 +4,7 @@ import express from "express"
 import cors from "cors"
 import helmet from "helmet"
 import dotenv from "dotenv"
+// import errorHandler from "./middleware/errorMiddleware"
 import connectDB from "./config/db.js"
 import crateRoutes from "./routes/crateRoutes.js"
 import discogsRoutes from "./routes/discogsRoutes.js"
@@ -25,6 +26,7 @@ const app = express()
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 app.use(cors())
+// app.use(errorHandler)
 // app.use(helmet())
 
 // can access route URLS, eg. /collection:

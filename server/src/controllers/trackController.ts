@@ -5,15 +5,24 @@ import Record from "../models/recordModel.js"
 // @route   POST /api/tracks
 // @access  private
 const addTrack = asyncHandler(async (req, res) => {
-  if (!req.user?.id) res.status(400).json({ message: "User not provided" })
+  if (!req.user?.id) {
+    res.status(400)
+    throw new Error("User not provided.")
+  }
+
   const track = JSON.parse(req.body.track)
-  if (!track.title) res.status(400).json({ message: "Title not provided" })
+
+  if (!track.title) {
+    res.status(400)
+    throw new Error("Title not provided.")
+  }
 
   const updatedRecord = await Record.findByIdAndUpdate(
     { _id: req.body.recordID },
     { $push: { tracks: track } },
     { new: true }
   )
+
   res.status(201).json(updatedRecord)
 })
 
@@ -26,11 +35,15 @@ const updateTrack = asyncHandler(async (req, res) => {
     "tracks._id": req.params.id,
   })
 
-  if (!record) res.status(400).json({ message: "Track not found" })
+  if (!record) {
+    res.status(400)
+    throw new Error("Track not found")
+  }
+
   const track = JSON.parse(req.body.track)
 
   const updatedRecord = await Record.findOneAndUpdate(
-    { _id: record!._id, "tracks._id": req.params.id },
+    { _id: record._id, "tracks._id": req.params.id },
     { $set: { "tracks.$": track } },
     { new: true }
   )
@@ -46,10 +59,13 @@ const deleteTrack = asyncHandler(async (req, res) => {
     "tracks._id": req.params.id,
   })
 
-  if (!record) res.status(400).json({ message: "Track not found" })
+  if (!record) {
+    res.status(400)
+    throw new Error("Track not found")
+  }
 
   const updatedRecord = await Record.findOneAndUpdate(
-    { _id: record!.id, "tracks._id": req.params.id },
+    { _id: record.id, "tracks._id": req.params.id },
     { $pull: { tracks: { _id: req.params.id } } },
     { new: true }
   )

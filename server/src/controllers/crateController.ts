@@ -6,6 +6,7 @@ import Crate from "../models/crateModel.js"
 // @access  private
 const getCrates = asyncHandler(async (req, res) => {
   const crates = await Crate.find({ user: req.user?.id })
+
   res.status(200).json(crates)
 })
 
@@ -13,9 +14,17 @@ const getCrates = asyncHandler(async (req, res) => {
 // @route   POST /api/crates
 // @access  private
 const addCrate = asyncHandler(async (req, res) => {
-  if (!req.user?.id) res.status(400).json({ message: "User not provided" })
+  if (!req.user?.id) {
+    res.status(400)
+    throw new Error("User not provided.")
+  }
+
   const crate = JSON.parse(req.body.crate)
-  if (!crate.name) res.status(400).json({ message: "Name not provided" })
+
+  if (!crate.name) {
+    res.status(400)
+    throw new Error("Name not provided.")
+  }
 
   const createdCrate = await Crate.create(crate)
   res.status(201).json(createdCrate)
@@ -25,18 +34,31 @@ const addCrate = asyncHandler(async (req, res) => {
 // @route   PUT /api/crates/:id
 // @access  private
 const updateCrate = asyncHandler(async (req, res) => {
-  if (!req.user) res.status(401).json({ message: "User not found" })
   const crate = await Crate.findById(req.params.id)
 
-  if (!crate) res.status(400).json({ message: "Crate not found" })
-  if (crate!.user!.valueOf() !== req.user!.id)
-    res.status(401).json({ message: "User not authorised" })
+  if (!crate) {
+    res.status(400)
+    throw new Error("Crate not found")
+  }
+
+  // Check for user
+  if (!req.user) {
+    res.status(401)
+    throw new Error("User not found")
+  }
+
+  // Make sure the logged in user matches the crate user
+  if (crate.user !== req.user.id) {
+    res.status(401)
+    throw new Error("User not authorized")
+  }
 
   const updatedCrate = await Crate.findByIdAndUpdate(
     req.params.id,
-    JSON.parse(req.body.crate),
+    JSON.parse(req.body.crate), // required as crate needs to be sent as string
     { new: true }
   )
+
   res.status(200).json(updatedCrate)
 })
 
@@ -44,14 +66,27 @@ const updateCrate = asyncHandler(async (req, res) => {
 // @route   DELETE /api/crates/:id
 // @access  private
 const deleteCrate = asyncHandler(async (req, res) => {
-  if (!req.user) res.status(401).json({ message: "User not found" })
   const crate = await Crate.findById(req.params.id)
 
-  if (!crate) res.status(400).json({ message: "Crate not found" })
-  if (crate!.user!.valueOf() !== req.user!.id)
-    res.status(401).json({ message: "User not authorised" })
+  if (!crate) {
+    res.status(400)
+    throw new Error("Crate not found")
+  }
 
-  await crate!.remove()
+  // Check for user
+  if (!req.user) {
+    res.status(401)
+    throw new Error("User not found")
+  }
+
+  // Make sure the logged in user matches the crate user
+  if (crate.user !== req.user.id) {
+    res.status(401)
+    throw new Error("User not authorized")
+  }
+
+  await crate.remove()
+
   res.status(200).json({ _id: req.params.id })
 })
 
