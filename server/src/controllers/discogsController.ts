@@ -116,7 +116,7 @@ const captureVerifier = asyncHandler(async (req, res) => {
       res.redirect(env.SITE_URL ?? "")
     } else {
       res.status(400)
-      throw new Error("Found user doesn't have request token secret.") // ? is this necessary?
+      throw new Error("Found user doesn't have request token secret.")
     }
   } else {
     res.status(400)

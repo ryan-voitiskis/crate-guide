@@ -37,7 +37,7 @@ const updateTrack = asyncHandler(async (req, res) => {
 
   if (!record) {
     res.status(400)
-    throw new Error("Track not found")
+    throw new Error("Track not found.")
   }
 
   const track = JSON.parse(req.body.track)
@@ -61,7 +61,7 @@ const deleteTrack = asyncHandler(async (req, res) => {
 
   if (!record) {
     res.status(400)
-    throw new Error("Track not found")
+    throw new Error("Track not found.")
   }
 
   const updatedRecord = await Record.findOneAndUpdate(

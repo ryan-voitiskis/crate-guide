@@ -2,9 +2,9 @@ import path from "path"
 import { fileURLToPath } from "node:url"
 import express from "express"
 import cors from "cors"
-import helmet from "helmet"
+// import helmet from "helmet"
 import dotenv from "dotenv"
-// import errorHandler from "./middleware/errorMiddleware"
+import errorHandler from "./middleware/errorMiddleware.js"
 import connectDB from "./config/db.js"
 import crateRoutes from "./routes/crateRoutes.js"
 import discogsRoutes from "./routes/discogsRoutes.js"
@@ -26,7 +26,6 @@ const app = express()
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 app.use(cors())
-// app.use(errorHandler)
 // app.use(helmet())
 
 // can access route URLS, eg. /collection:
@@ -39,6 +38,8 @@ app.use("/api/discogs", discogsRoutes)
 app.use("/api/records", recordRoutes)
 app.use("/api/tracks", trackRoutes)
 app.use("/api/users", userRoutes)
+
+app.use(errorHandler)
 
 // serve frontend
 app.use(express.static(path.join(__dirname, "../../client/dist/")))

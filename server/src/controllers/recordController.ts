@@ -41,21 +41,21 @@ const addRecord = asyncHandler(async (req, res) => {
 // @route   PUT /api/records/:id
 // @access  private
 const updateRecord = asyncHandler(async (req, res) => {
+  if (!req.user) {
+    res.status(401)
+    throw new Error("User not found.")
+  }
+
   const oldRecord = await Record.findById(req.params.id)
 
   if (!oldRecord) {
     res.status(400)
-    throw new Error("Record not found")
+    throw new Error("Record not found.")
   }
 
-  if (!req.user) {
+  if (oldRecord.user!.valueOf() !== req.user.id) {
     res.status(401)
-    throw new Error("User not found")
-  }
-
-  if (oldRecord.user !== req.user.id) {
-    res.status(401)
-    throw new Error("User not authorized")
+    throw new Error("User not authorised.")
   }
 
   const updatedRecord = await Record.findByIdAndUpdate(

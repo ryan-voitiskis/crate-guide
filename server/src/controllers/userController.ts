@@ -9,12 +9,14 @@ import env from "../env.js"
 // @access  public
 const addUser = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body
+
   if (!name || !email || !password) {
     res.status(400)
-    throw new Error("Please add all fields")
+    throw new Error("Please add all fields.")
   }
 
   const userExists = await User.findOne({ email })
+
   if (userExists) {
     res.status(409)
     throw new Error(`An account using ${email} already exists.`)
@@ -43,7 +45,7 @@ const addUser = asyncHandler(async (req, res) => {
     })
   } else {
     res.status(400)
-    throw new Error("Invalid user data")
+    throw new Error("Invalid user data.")
   }
 })
 
@@ -66,7 +68,7 @@ const loginUser = asyncHandler(async (req, res) => {
     })
   } else {
     res.status(401)
-    throw new Error("Invalid credentials")
+    throw new Error("Invalid credentials.")
   }
 })
 
@@ -88,32 +90,24 @@ const generateToken = (id: string) => {
 // @route   PUT /api/users/:id
 // @access  private
 const updateUser = asyncHandler(async (req, res) => {
-  if (!req.user) res.status(400).json({ message: "User not provided" })
-  const user = await User.findById(req.params.id)
-
-<<<<<<< HEAD
-  if (!user) res.status(400).json({ message: "User not found" })
-  if (user!._id.valueOf() !== req.user!.id)
-    res.status(401).json({ message: "User not authorised" })
-=======
-  if (!user) {
-    res.status(400)
-    throw new Error("User not found")
-  }
-
   if (!req.user) {
     res.status(400)
-    throw new Error("User not found")
+    throw new Error("User not provided.")
   }
 
-  if (user._id.toString() !== req.user.id) {
-    res.status(401)
-    throw new Error("User not authorized")
+  const user = await User.findById(req.params.id)
+
+  if (!user) {
+    res.status(400)
+    throw new Error("User not found.")
   }
->>>>>>> parent of ffb0001 (server ts bugs + cleanup)
+
+  if (user!._id.valueOf() !== req.user!.id) {
+    res.status(401)
+    throw new Error("User not authorised.")
+  }
 
   await User.findByIdAndUpdate(req.params.id, req.body, { new: true })
-
   res.status(200).json()
 })
 
@@ -121,13 +115,22 @@ const updateUser = asyncHandler(async (req, res) => {
 // @route   PUT /api/users/revoke_discogs/:id
 // @access  private
 const revokeDiscogsTokens = asyncHandler(async (req, res) => {
-  if (!req.user) res.status(400).json({ message: "User not provided" })
-  console.log("fire")
+  if (!req.user) {
+    res.status(400)
+    throw new Error("User not provided.")
+  }
+
   const user = await User.findById(req.params.id)
 
-  if (!user) res.status(400).json({ message: "User not found" })
-  if (user!._id.valueOf() !== req.user!.id)
-    res.status(401).json({ message: "User not authorised" })
+  if (!user) {
+    res.status(400)
+    throw new Error("User not found.")
+  }
+
+  if (user!._id.valueOf() !== req.user!.id) {
+    res.status(401)
+    throw new Error("User not authorised.")
+  }
 
   await User.findByIdAndUpdate(req.params.id, {
     discogsToken: "",
