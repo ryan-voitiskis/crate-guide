@@ -261,3 +261,18 @@ select:-moz-focusring {
   padding: 0 4rem;
   margin: -2rem 0 1rem 0;
 }
+
+span.form-question {
+  padding: 0 4rem;
+  margin: 0 0 4rem 0;
+  justify-content: center;
+  display: flex;
+  text-align: center;
+}
+
+.centered-btns {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+}

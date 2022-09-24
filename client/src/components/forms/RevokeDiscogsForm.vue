@@ -1,27 +1,36 @@
 <template>
   <div class="modal-header">
-    <h2>Delete track</h2>
+    <h2>Revoke discogs access</h2>
     <button class="close" type="button" @click="$parent!.$emit('close')">
       <XIcon />
     </button>
   </div>
   <form @submit.prevent="submit">
     <span class="form-question">
-      Are you sure you wish to delete {{ trackTitle }}?
+      Are you sure you wish to revoke {{ appNamePossessive }} access to your
+      discogs collections?
+    </span>
+    <span class="form-question">
+      You can easily request access again later.
     </span>
     <div class="modal-body centered-btns">
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Cancel
       </button>
-      <button class="primary delete" type="submit" style="width: 12rem">
-        {{ records.loading ? null : "Delete" }}
-        <LoaderIcon v-show="records.loading" />
+      <button
+        class="primary delete"
+        type="submit"
+        style="width: 12rem"
+        @click="user.revokeDiscogsToken()"
+      >
+        {{ user.loading ? null : "Revoke" }}
+        <LoaderIcon v-show="user.loading" />
       </button>
     </div>
     <div class="modal-body">
       <ErrorFeedback
-        :show="tracks.errorMsg !== ''"
-        :msg="tracks.errorMsg"
+        :show="user.errorMsg !== ''"
+        :msg="user.errorMsg"
         :notReserved="true"
       />
     </div>
@@ -29,26 +38,16 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount } from "vue"
+import { onBeforeUnmount, inject } from "vue"
 import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
 import XIcon from "@/components/svg/XIcon.vue"
+import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import { userStore } from "@/stores/userStore"
-import { recordStore } from "@/stores/recordStore"
-import { trackStore } from "@/stores/trackStore"
 const user = userStore()
-const records = recordStore()
-const tracks = trackStore()
-
-// title of track to be deleted
-const trackTitle = records.getTrackById(tracks.toDelete).title
-
-const submit = async () => {
-  if (tracks.toDelete) await tracks.deleteTrack(user.authd.token)
-}
+const appNamePossessive = inject("appNamePossessive")
 
 onBeforeUnmount(() => {
-  tracks.toDelete = ""
-  tracks.errorMsg = ""
+  user.revokeDiscogsForm = false
 })
 </script>
 

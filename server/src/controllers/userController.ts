@@ -96,6 +96,7 @@ const updateUser = asyncHandler(async (req, res) => {
 // @access  private
 const revokeDiscogsTokens = asyncHandler(async (req, res) => {
   if (!req.user) res.status(400).json({ message: "User not provided" })
+  console.log("fire")
   const user = await User.findById(req.params.id)
 
   if (!user) res.status(400).json({ message: "User not found" })

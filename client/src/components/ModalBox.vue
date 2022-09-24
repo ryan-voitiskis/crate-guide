@@ -81,11 +81,4 @@ withDefaults(defineProps<Props>(), {
     color: var(--light-text);
   }
 }
-
-.centered-btns {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  gap: 2rem;
-}
 </style>

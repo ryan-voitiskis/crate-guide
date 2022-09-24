@@ -46,7 +46,6 @@ import { crateStore } from "@/stores/crateStore"
 import InfoDropdown from "./InfoDropdown.vue"
 const user = userStore()
 const crates = crateStore()
-
 const appName = inject("appName")
 
 const dropdownText =

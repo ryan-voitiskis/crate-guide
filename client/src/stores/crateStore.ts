@@ -25,12 +25,11 @@ export const crateStore = defineStore("crate", {
           // handle errors
         } else if (response.status === 400) {
           const error = await response.json()
-          const msg = error.message ? error.message : "Unexpected error"
-          this.errorMsg = msg
+          this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         return response.status
 
-        // catch error, eg. NetworkError
+        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
         console.error(error)
         return null
@@ -53,16 +52,14 @@ export const crateStore = defineStore("crate", {
           // handle errors
         } else if (response.status === 400) {
           const error = await response.json()
-          const msg = error.message ? error.message : "Unexpected error"
-          this.errorMsg = msg
+          this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         this.loading = false
         return response.status
 
-        // catch error, eg. NetworkError
+        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
-        this.errorMsg = "Unexpected error"
-        console.error(error)
+        this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
         return null
       }
@@ -83,16 +80,14 @@ export const crateStore = defineStore("crate", {
           // handle errors
         } else if (response.status === 400 || response.status === 401) {
           const error = await response.json()
-          const msg = error.message ? error.message : "Unexpected error"
-          this.errorMsg = msg
+          this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         this.loading = false
         return response.status
 
-        // catch error, eg. NetworkError
+        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
-        this.errorMsg = "Unexpected error"
-        console.error(error)
+        this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
         return null
       }
@@ -113,11 +108,11 @@ export const crateStore = defineStore("crate", {
           const difference = records.filter((i) => !crate.records.includes(i)) // records not yet in crate
 
           if (difference.length) {
-            crate.records.push(...difference) // todo: should this be done after successful res? probably
             const response = await crateService.updateCrate(crate, token)
 
             // handle success
             if (response.status === 200) {
+              crate.records.push(...difference)
               // handle - successfully saved difference but some intersection
               if (intersection.length) {
                 const difText =
@@ -139,8 +134,7 @@ export const crateStore = defineStore("crate", {
               // handle errors
             } else if (response.status === 400 || response.status === 401) {
               const error = await response.json()
-              const msg = error.message ? error.message : "Unexpected error"
-              this.errorMsg = msg
+              this.errorMsg = error.message ? error.message : "Unexpected error"
             }
             this.loading = false
             return response.status
@@ -154,12 +148,15 @@ export const crateStore = defineStore("crate", {
           }
           this.loading = false
           return 1 //  <- returns 1 if all records already in crate
-        } else throw new Error("No crate with that ID") // ? unlikely/impossible? is this required?
+        } else {
+          this.errorMsg = "No crate with that ID."
+          this.loading = false
+          return null
+        }
 
-        // catch error, eg. NetworkError
+        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
-        this.errorMsg = "Unexpected error"
-        console.error(error)
+        this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
         return null
       }
@@ -177,7 +174,6 @@ export const crateStore = defineStore("crate", {
         const crate = this.getById(crateID) as Crate
 
         // if crate, clone it, set its records to remainingRecords and send
-        // ? is it necessary to check crate exists?
         if (crate) {
           const clonedCrate = JSON.parse(JSON.stringify(this.getById(crateID)))
           const remainingRecords = crate.records.filter(
@@ -193,19 +189,21 @@ export const crateStore = defineStore("crate", {
             // handle errors
           } else if (response.status === 400 || response.status === 401) {
             const error = await response.json()
-            const msg = error.message ? error.message : "Unexpected error"
-            this.errorMsg = msg
+            this.errorMsg = error.message ? error.message : "Unexpected error"
           }
           this.loading = false
           return response.status
 
           // handle no crate with id
-        } else throw new Error("No crate with that ID") // ? unlikely/impossible? is this required?
+        } else {
+          this.errorMsg = "No crate with that ID."
+          this.loading = false
+          return null
+        }
 
-        // catch error, eg. NetworkError
+        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
-        this.errorMsg = "Unexpected error"
-        console.error(error)
+        this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
         return null
       }

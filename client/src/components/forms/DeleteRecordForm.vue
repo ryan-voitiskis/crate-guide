@@ -52,17 +52,4 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped lang="scss">
-.form-question {
-  padding: 0 4rem;
-  margin: 0 0 4rem 0;
-  justify-content: center;
-  display: flex;
-  text-align: center;
-}
-.centered-btns {
-  display: flex;
-  justify-content: center;
-  gap: 2rem;
-}
-</style>
+<style scoped lang="scss"></style>

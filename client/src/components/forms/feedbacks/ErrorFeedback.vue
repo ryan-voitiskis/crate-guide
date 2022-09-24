@@ -23,9 +23,9 @@ const showWrapper = computed(() => (props.notReserved ? props.show : true))
 <style scoped lang="scss">
 .invalid-wrapper {
   margin: 1rem 0;
-  height: 2.4rem;
+  min-height: 2.4rem;
+  grid-column: 1 / 3; // for use inside inline labels
   .invalid {
-    position: fixed;
     margin: 0 auto;
     left: 0;
     right: 0;

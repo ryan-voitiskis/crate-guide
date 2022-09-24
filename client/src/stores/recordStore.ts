@@ -32,12 +32,11 @@ export const recordStore = defineStore("record", {
           // handle errors
         } else if (response.status === 400) {
           const error = await response.json()
-          const msg = error.message ? error.message : "Unexpected error"
-          this.errorMsg = msg
+          this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         return response.status
 
-        // catch error, eg. NetworkError
+        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
         console.error(error)
         return null
@@ -63,16 +62,14 @@ export const recordStore = defineStore("record", {
           // handle errors
         } else if (response.status === 400) {
           const error = await response.json()
-          const msg = error.message ? error.message : "Unexpected error"
-          this.errorMsg = msg
+          this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         this.loading = false
         return response.status
 
-        // catch error, eg. NetworkError
+        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
-        this.errorMsg = "Unexpected error"
-        console.error(error)
+        this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
         return null
       }
@@ -96,16 +93,14 @@ export const recordStore = defineStore("record", {
           // handle errors
         } else if (response.status === 400 || response.status === 401) {
           const error = await response.json()
-          const msg = error.message ? error.message : "Unexpected error"
-          this.errorMsg = msg
+          this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         this.loading = false
         return response.status
 
-        // catch error, eg. NetworkError
+        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
-        this.errorMsg = "Unexpected error"
-        console.error(error)
+        this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
         return null
       }
@@ -149,16 +144,14 @@ export const recordStore = defineStore("record", {
             // handle errors
           } else if (response.status === 401) {
             const error = await response.json()
-            const msg = error.message ? error.message : "Unexpected error"
-            this.errorMsg = msg
+            this.errorMsg = error.message ? error.message : "Unexpected error"
           }
           this.loading = false
           return response.status
 
-          // catch error, eg. NetworkError
+          // catch error, eg. NetworkError. console.error(error) to debug
         } catch (error) {
-          this.errorMsg = "Unexpected error"
-          console.error(error)
+          this.errorMsg = "Unexpected error. Probably network error."
           this.loading = false
           return null
         }

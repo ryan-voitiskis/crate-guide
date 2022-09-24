@@ -23,11 +23,11 @@ export const userStore = defineStore("user", {
     loading: false, // used in LoginForm, SignUpForm and SettingsForm
     errorMsg: "", // used in LoginForm, SignUpForm and SettingsForm
     invalidCreds: false, // used in LoginForm
-    error: false, // used in SettingsForm
     success: false, // used in SettingsForm
     enterDiscogsUsername: false, // displays AuthoriseDiscogs.vue
     authDiscogs: false, // displays AuthoriseDiscogs.vue
     authDiscogsSuccess: false, // displays AuthoriseSuccessful.vue
+    revokeDiscogsForm: false, // displays RevokeDiscogsForm.vue
   }),
   actions: {
     async login(email: string, password: string): Promise<number | null> {
@@ -53,10 +53,9 @@ export const userStore = defineStore("user", {
         this.loading = false
         return response.status
 
-        // catch error, eg. NetworkError
+        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
-        this.errorMsg = "Unexpected error (Network error?)"
-        console.error(error)
+        this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
         return null
       }
@@ -96,16 +95,14 @@ export const userStore = defineStore("user", {
           // handle other errors
         } else if (response.status === 400) {
           const error = await response.json()
-          const msg = error.message ? error.message : "Unexpected error"
-          this.errorMsg = msg
+          this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         this.loading = false
         return response.status
 
-        // catch error, eg. NetworkError
+        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
-        this.errorMsg = "Unexpected error (Network error?)"
-        console.error(error)
+        this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
         return null
       }
@@ -113,7 +110,6 @@ export const userStore = defineStore("user", {
 
     async updateSettings(): Promise<number | null> {
       this.success = false
-      this.error = false
       this.loading = true
       this.errorMsg = ""
       try {
@@ -123,19 +119,15 @@ export const userStore = defineStore("user", {
         if (response.status === 200) this.success = true
         // handle 400 and 401 status codes. see userController.ts
         else {
-          this.error = true
           const error = await response.json()
-          const msg = error.message ? error.message : "Unexpected error"
-          console.error(msg)
+          this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         this.loading = false
         return response.status
 
-        // catch error, eg. NetworkError
+        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
-        this.errorMsg = "Unexpected error (Network error?)"
-        this.error = true
-        console.error(error)
+        this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
         return null
       }
@@ -143,7 +135,6 @@ export const userStore = defineStore("user", {
 
     // call and handle request that begins discogs OAuth flow
     async discogsRequestToken(): Promise<number | null> {
-      this.error = false
       this.loading = true
       this.errorMsg = ""
       try {
@@ -155,18 +146,15 @@ export const userStore = defineStore("user", {
         }
         // handle 400 status code. see discogsController.ts
         else {
-          this.error = true
           const error = await response.json()
-          const msg = error.message ? error.message : "Unexpected error"
-          console.error(msg)
+          this.errorMsg = error.message ? error.message : "Unexpected error"
           this.loading = false // not for 200 res as redirect takes time
         }
         return response.status
-        // catch error, eg. NetworkError
+
+        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
-        this.errorMsg = "Unexpected error (Network error?)"
-        this.error = true
-        console.error(error)
+        this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
         return null
       }
@@ -175,7 +163,6 @@ export const userStore = defineStore("user", {
     // call and handle response to request that removes discogsToken, discogsTokenSecret,
     // discogsRequestToken and discogsRequestTokenSecret from user.
     async revokeDiscogsToken(): Promise<number | null> {
-      this.error = false
       this.loading = true
       this.errorMsg = ""
       try {
@@ -183,22 +170,19 @@ export const userStore = defineStore("user", {
         // handle successful update
         if (response.status === 200) {
           this.authd.isDiscogsOAuthd = false
-          this.success = true
+          this.revokeDiscogsForm = false
         }
         // handle 400 and 401 status codes. see userController.ts
         else {
-          this.error = true
           const error = await response.json()
-          const msg = error.message ? error.message : "Unexpected error"
-          console.error(msg)
+          this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         this.loading = false
         return response.status
-        // catch error, eg. NetworkError
+
+        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
-        this.errorMsg = "Unexpected error (Network error?)"
-        this.error = true
-        console.error(error)
+        this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
         return null
       }

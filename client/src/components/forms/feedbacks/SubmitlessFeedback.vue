@@ -1,37 +1,30 @@
 <template>
   <div class="feedback-container">
     <transition name="fade">
-      <span class="feedback saving" v-if="saving">
-        <LoaderIcon /> Saving settings
+      <span class="feedback saving" v-if="user.loading">
+        <LoaderIcon /> Saving...
       </span>
     </transition>
     <transition name="fade">
-      <span class="feedback saved" v-if="saved">
-        <CheckIcon /> Settings Saved
+      <span class="feedback saved" v-if="user.success">
+        <CheckIcon /> Settings saved
       </span>
     </transition>
     <transition name="fade">
-      <span class="feedback failed" v-if="failed">
+      <span class="feedback failed" v-if="user.errorMsg !== ''">
         <ExclamationIcon />
-        {{ user.errorMsg ? user.errorMsg : "Failed to save settings" }}
+        Error: {{ user.errorMsg ? user.errorMsg : "Failed to save settings" }}
       </span>
     </transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { defineProps } from "vue"
 import CheckIcon from "@/components/svg/CheckIcon.vue"
 import ExclamationIcon from "@/components/svg/ExclamationIcon.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import { userStore } from "@/stores/userStore"
 const user = userStore()
-
-defineProps<{
-  saving: boolean
-  saved: boolean
-  failed: boolean
-}>()
 </script>
 
 <style scoped lang="scss">
@@ -52,13 +45,13 @@ defineProps<{
       height: 2.4rem;
       margin-right: 1rem;
     }
-    &.saved svg {
+    &.saved {
       color: var(--success);
     }
-    &.saving svg {
+    &.saving {
       color: var(--saving);
     }
-    &.failed svg {
+    &.failed {
       color: var(--error);
     }
   }

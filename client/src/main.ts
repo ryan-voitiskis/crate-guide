@@ -7,6 +7,7 @@ import "./assets/css/colours.css"
 import "./assets/css/keyframes.css"
 import "./assets/css/fonts.css"
 import "./assets/css/base.scss"
+import "./assets/css/navs.scss"
 import "./assets/css/forms.scss"
 import "./assets/css/form-custom-controls.scss"
 
@@ -14,6 +15,7 @@ const pinia = createPinia()
 const app = createApp(App)
 app.provide("API_URL", "http://localhost:5001/api/")
 app.provide("appName", "Crate Guide")
+app.provide("appNamePossessive", "Crate Guide's")
 
 app.use(router)
 app.use(pinia)

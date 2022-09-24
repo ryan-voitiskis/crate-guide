@@ -91,15 +91,11 @@
         >
           Connect to discogs
         </button>
-        <button v-else @click="user.revokeDiscogsToken()">
+        <button v-else @click="user.revokeDiscogsForm = true">
           Revoke discogs access
         </button>
       </fieldset>
-      <SubmitlessFeedback
-        :saving="user.loading"
-        :saved="user.success"
-        :failed="user.error"
-      />
+      <SubmitlessFeedback />
     </div>
   </form>
 </template>
@@ -120,13 +116,11 @@ const updateSettings = () => user.updateSettings()
 // required for when settings changed elsewhere, such as selected crate
 onBeforeMount(() => {
   user.loading = false
-  user.error = false
   user.success = false
 })
 
 onUnmounted(() => {
   user.loading = false
-  user.error = false
   user.success = false
 })
 </script>
