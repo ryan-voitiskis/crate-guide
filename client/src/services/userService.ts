@@ -20,6 +20,20 @@ const login = async (email: string, password: string) => {
   return response
 }
 
+// fetch user data using jwt. used when cookie exists but no user in userStore
+const fetchUser = async (token: string) => {
+  const options = {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${token}`,
+    },
+  }
+  const response = await fetch(API_URL, options)
+  return response
+}
+
 // add new user
 const addUser = async (user: UnregisteredUser) => {
   const body = new URLSearchParams()
@@ -76,6 +90,7 @@ const revokeDiscogsTokens = async (user: User) => {
 
 const userService = {
   login,
+  fetchUser,
   addUser,
   updateSettings,
   revokeDiscogsTokens,

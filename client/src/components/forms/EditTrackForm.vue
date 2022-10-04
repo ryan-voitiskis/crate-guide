@@ -9,7 +9,6 @@
     </button>
   </div>
   <form @submit.prevent="submit">
-    <InfoDropdown text="TODO" />
     <div class="modal-body inline-labels">
       <BasicInput
         v-model="form.position"
@@ -90,7 +89,6 @@ import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import BasicInput from "./inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
-import InfoDropdown from "@/components/InfoDropdown.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import RadioInput from "./inputs/RadioInput.vue"
 import XIcon from "@/components/svg/XIcon.vue"

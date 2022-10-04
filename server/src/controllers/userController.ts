@@ -4,6 +4,13 @@ import asyncHandler from "express-async-handler"
 import User from "../models/userModel.js"
 import env from "../env.js"
 
+// generate JWT
+const generateToken = (id: string) => {
+  return jwt.sign({ id }, env.JWT_SECRET, {
+    expiresIn: "30d",
+  })
+}
+
 // @desc    add new user
 // @route   POST /api/users
 // @access  public
@@ -41,6 +48,7 @@ const addUser = asyncHandler(async (req, res) => {
       settings: user.settings,
       discogsUID: user.discogsUID,
       isDiscogsOAuthd: false,
+      justCompleteDiscogsOAuth: false,
       token: generateToken(user._id.toString()),
     })
   } else {
@@ -65,7 +73,13 @@ const loginUser = asyncHandler(async (req, res) => {
       discogsUID: user.discogsUID,
       isDiscogsOAuthd:
         user.discogsToken && user.discogsTokenSecret ? true : false,
+      justCompleteDiscogsOAuth: user.justCompleteDiscogsOAuth, // user shouldn't have to login after OAuth flow, but just incase
     })
+    // set justCompleteDiscogsOAuth flag to false if true
+    if (user.justCompleteDiscogsOAuth)
+      await User.findByIdAndUpdate(user._id, {
+        justCompleteDiscogsOAuth: false,
+      })
   } else {
     res.status(401)
     throw new Error("Invalid credentials.")
@@ -73,31 +87,35 @@ const loginUser = asyncHandler(async (req, res) => {
 })
 
 // @desc    get user data
-// @route   GET /api/users/me
+// @route   GET /api/users/
 // @access  private
 const getUser = asyncHandler(async (req, res) => {
-  res.status(200).json(req.user)
-})
-
-// generate JWT
-const generateToken = (id: string) => {
-  return jwt.sign({ id }, env.JWT_SECRET, {
-    expiresIn: "30d",
+  res.status(200).json({
+    _id: req.user!._id,
+    name: req.user!.name,
+    email: req.user!.email,
+    settings: req.user!.settings,
+    token: generateToken(req.user!.id),
+    discogsUID: req.user!.discogsUID,
+    isDiscogsOAuthd:
+      req.user!.discogsToken && req.user!.discogsTokenSecret ? true : false,
+    justCompleteDiscogsOAuth: req.user!.justCompleteDiscogsOAuth,
   })
-}
+  // set justCompleteDiscogsOAuth flag to false if true
+  if (req.user!.justCompleteDiscogsOAuth)
+    await User.findByIdAndUpdate(req.user!._id, {
+      justCompleteDiscogsOAuth: false,
+    })
+})
 
 // @desc    update user
 // @route   PUT /api/users/:id
 // @access  private
 const updateUser = asyncHandler(async (req, res) => {
-  if (!req.user) {
-    res.status(400)
-    throw new Error("User not provided.")
-  }
-
   const user = await User.findById(req.params.id)
 
   if (!user) {
+    // TODO: can this happen?
     res.status(400)
     throw new Error("User not found.")
   }
@@ -111,15 +129,10 @@ const updateUser = asyncHandler(async (req, res) => {
   res.status(200).json()
 })
 
-// @desc    removes discogsToken, discogsTokenSecret, discogsRequestToken and discogsRequestTokenSecret from user
+// @desc    removes discogs API creds from user
 // @route   PUT /api/users/revoke_discogs/:id
 // @access  private
 const revokeDiscogsTokens = asyncHandler(async (req, res) => {
-  if (!req.user) {
-    res.status(400)
-    throw new Error("User not provided.")
-  }
-
   const user = await User.findById(req.params.id)
 
   if (!user) {

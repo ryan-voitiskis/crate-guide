@@ -32,6 +32,11 @@ const userSchema = new mongoose.Schema(
     discogsRequestTokenSecret: {
       type: String,
     },
+    // flag to communicate to front end that OAuth flow successfully complete
+    justCompleteDiscogsOAuth: {
+      type: Boolean,
+      default: false,
+    },
     settings: {
       theme: {
         type: String,

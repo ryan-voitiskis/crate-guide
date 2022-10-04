@@ -6,7 +6,7 @@ import Record from "../models/recordModel.js"
 // @route   GET /api/records
 // @access  private
 const getRecords = asyncHandler(async (req, res) => {
-  const records = await Record.find({ user: req.user?.id })
+  const records = await Record.find({ user: req.user!.id })
 
   res.status(200).json(records)
 })
@@ -15,11 +15,6 @@ const getRecords = asyncHandler(async (req, res) => {
 // @route   POST /api/records
 // @access  private
 const addRecord = asyncHandler(async (req, res) => {
-  if (!req.user?.id) {
-    res.status(400)
-    throw new Error("User not provided.")
-  }
-
   const record = JSON.parse(req.body.record)
 
   if (!record.title) {
@@ -41,11 +36,6 @@ const addRecord = asyncHandler(async (req, res) => {
 // @route   PUT /api/records/:id
 // @access  private
 const updateRecord = asyncHandler(async (req, res) => {
-  if (!req.user) {
-    res.status(401)
-    throw new Error("User not found.")
-  }
-
   const oldRecord = await Record.findById(req.params.id)
 
   if (!oldRecord) {
@@ -53,7 +43,7 @@ const updateRecord = asyncHandler(async (req, res) => {
     throw new Error("Record not found.")
   }
 
-  if (oldRecord.user!.valueOf() !== req.user.id) {
+  if (oldRecord.user!.valueOf() !== req.user!.id) {
     res.status(401)
     throw new Error("User not authorised.")
   }
@@ -71,21 +61,17 @@ const updateRecord = asyncHandler(async (req, res) => {
 // @route   DELETE /api/records
 // @access  private
 const deleteRecords = asyncHandler(async (req, res) => {
-  if (!req.user) {
-    res.status(401)
-    throw new Error("User not found")
-  }
   const deletes = JSON.parse(req.body.records) // from client: array of IDs to be deleted
 
   // remove records in 'deletes' from crates
   await Crate.updateMany(
-    { user: req.user.id },
+    { user: req.user!.id },
     { $pull: { records: { $in: deletes } } }
   )
 
   // delete records in deletes, user checked here
   const deleted = await Record.deleteMany({
-    $and: [{ _id: { $in: deletes } }, { user: req.user.id }],
+    $and: [{ _id: { $in: deletes } }, { user: req.user!.id }],
   })
 
   res.status(200).json(deleted)

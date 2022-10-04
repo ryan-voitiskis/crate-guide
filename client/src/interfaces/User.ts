@@ -5,6 +5,7 @@ export default interface User {
   name: string
   email: string
   token: string
+  justCompleteDiscogsOAuth: boolean // flag to indicate OAuth flow successfully complete
   settings: {
     theme: string
     turntableTheme: string

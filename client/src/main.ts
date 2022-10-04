@@ -23,14 +23,15 @@ app.mount("#app")
 
 // log into test automatically.
 import { userStore } from "@/stores/userStore"
-import { crateStore } from "@/stores/crateStore"
-import { recordStore } from "@/stores/recordStore"
 const user = userStore()
-const crates = crateStore()
-const records = recordStore()
 const getState = async () => {
   await user.login("test@test.com", "password")
-  crates.fetchCrates(user.authd.token)
-  records.fetchRecords(user.authd.token)
 }
-getState()
+// getState()
+
+const cookieValue = document.cookie
+  .split("; ")
+  .find((row) => row.startsWith("crate_guide_jwt="))
+  ?.split("=")[1]
+
+if (cookieValue) user.fetchUser(cookieValue)

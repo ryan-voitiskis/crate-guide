@@ -155,7 +155,7 @@ input[type="range"] {
     @include thumb();
   }
   &::-ms-thumb {
-    margin-top: -20em; // todo: test w edge
+    margin-top: -20em;
     @include thumb();
   }
 

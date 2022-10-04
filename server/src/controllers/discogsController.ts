@@ -49,7 +49,7 @@ const requestToken = asyncHandler(async (req, res) => {
 
   if (returnObject.hasOwnProperty("oauth_token")) {
     // update user with oauth_token + oauth_token_secret
-    await User.findByIdAndUpdate(req.user?.id, {
+    await User.findByIdAndUpdate(req.user!.id, {
       discogsRequestToken: returnObject.oauth_token,
       discogsRequestTokenSecret: returnObject.oauth_token_secret,
     })
@@ -109,10 +109,15 @@ const captureVerifier = asyncHandler(async (req, res) => {
       const returnObject = Object.fromEntries([...responseParams])
 
       // update user with forever token and secret
-      await User.findByIdAndUpdate(user._id, {
-        discogsToken: returnObject.oauth_token,
-        discogsTokenSecret: returnObject.oauth_token_secret,
-      })
+      if (returnObject.oauth_token && returnObject.oauth_token_secret) {
+        await User.findByIdAndUpdate(user._id, {
+          discogsToken: returnObject.oauth_token,
+          discogsTokenSecret: returnObject.oauth_token_secret,
+          justCompleteDiscogsOAuth: true,
+        })
+      } else {
+        // TODO: handle this
+      }
       res.redirect(env.SITE_URL ?? "")
     } else {
       res.status(400)

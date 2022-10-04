@@ -4,6 +4,8 @@ import userService from "@/services/userService"
 import discogsService from "@/services/discogsService"
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
 import router from "@/router"
+import { crateStore } from "@/stores/crateStore"
+import { recordStore } from "@/stores/recordStore"
 
 export const userStore = defineStore("user", {
   state: () => ({
@@ -26,7 +28,6 @@ export const userStore = defineStore("user", {
     success: false, // used in SettingsForm
     enterDiscogsUsername: false, // displays AuthoriseDiscogs.vue
     authDiscogs: false, // displays AuthoriseDiscogs.vue
-    authDiscogsSuccess: false, // displays AuthoriseSuccessful.vue
     revokeDiscogsForm: false, // displays RevokeDiscogsForm.vue
   }),
   actions: {
@@ -42,6 +43,11 @@ export const userStore = defineStore("user", {
           router.push("/")
           const data = await response.json()
           Object.assign(this.authd, data)
+          document.cookie = `crate_guide_jwt=${this.authd.token}; SameSite=Strict; Secure;`
+          const crates = crateStore()
+          const records = recordStore()
+          crates.fetchCrates(this.authd.token)
+          records.fetchRecords(this.authd.token)
           this.loading = false
           return response.status
 
@@ -49,6 +55,39 @@ export const userStore = defineStore("user", {
         } else if (response.status === 401) {
           this.invalidCreds = true
           this.errorMsg = "Invalid credentials"
+        }
+        this.loading = false
+        return response.status
+
+        // catch error, eg. NetworkError. console.error(error) to debug
+      } catch (error) {
+        this.errorMsg = "Unexpected error. Probably network error."
+        this.loading = false
+        return null
+      }
+    },
+
+    async fetchUser(token: string) {
+      try {
+        const response = await userService.fetchUser(token)
+        if (response.status === 200) {
+          // nav to home page here to avoid extra call to user.updateSettings() from watch in CollectionManager
+          // * this wont be necessary if entry to app requires login. ie collection and session not accessible unless logged in
+          router.push("/")
+          const data = await response.json()
+          Object.assign(this.authd, data)
+          document.cookie = `crate_guide_jwt=${this.authd.token}; SameSite=Strict; Secure;`
+          const crates = crateStore()
+          const records = recordStore()
+          crates.fetchCrates(this.authd.token)
+          records.fetchRecords(this.authd.token)
+          this.loading = false
+          return response.status
+
+          // handle invalid credentials
+        } else if (response.status === 401) {
+          const error = await response.json()
+          this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         this.loading = false
         return response.status
@@ -77,6 +116,7 @@ export const userStore = defineStore("user", {
             token: data.token,
             name: data.name,
             email: data.email,
+            justCompleteDiscogsOAuth: false,
             settings: {
               theme: data.settings.theme,
               turntableTheme: data.settings.turntableTheme,

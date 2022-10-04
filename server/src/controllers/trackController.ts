@@ -5,7 +5,7 @@ import Record from "../models/recordModel.js"
 // @route   POST /api/tracks
 // @access  private
 const addTrack = asyncHandler(async (req, res) => {
-  if (!req.user?.id) {
+  if (!req.user!.id) {
     res.status(400)
     throw new Error("User not provided.")
   }
@@ -31,7 +31,7 @@ const addTrack = asyncHandler(async (req, res) => {
 // @access  private
 const updateTrack = asyncHandler(async (req, res) => {
   const record = await Record.findOne({
-    user: req.user?.id,
+    user: req.user!.id,
     "tracks._id": req.params.id,
   })
 
@@ -55,7 +55,7 @@ const updateTrack = asyncHandler(async (req, res) => {
 // @access  private
 const deleteTrack = asyncHandler(async (req, res) => {
   const record = await Record.findOne({
-    user: req.user?.id,
+    user: req.user!.id,
     "tracks._id": req.params.id,
   })
 

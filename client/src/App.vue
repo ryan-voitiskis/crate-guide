@@ -71,17 +71,17 @@
   </ModalBox>
 
   <ModalBox
-    v-if="user.authDiscogsSuccess"
-    @close="user.authDiscogsSuccess = false"
-  >
-    <AuthoriseSuccessful />
-  </ModalBox>
-
-  <ModalBox
     v-if="user.revokeDiscogsForm"
     @close="user.revokeDiscogsForm = false"
   >
     <RevokeDiscogsForm />
+  </ModalBox>
+
+  <ModalBox
+    v-if="user.authd.justCompleteDiscogsOAuth"
+    @close="user.authd.justCompleteDiscogsOAuth = false"
+  >
+    <AuthoriseDiscogsSuccessful />
   </ModalBox>
 </template>
 
@@ -95,7 +95,7 @@ import RecoveryForm from "./components/forms/RecoveryForm.vue"
 import { userStore } from "@/stores/userStore"
 import SettingsForm from "./components/forms/SettingsForm.vue"
 import AuthoriseDiscogs from "./components/AuthoriseDiscogs.vue"
-import AuthoriseSuccessful from "./components/AuthoriseSuccessful.vue"
+import AuthoriseDiscogsSuccessful from "./components/AuthoriseDiscogsSuccessful.vue"
 import AddDiscogsUsername from "./components/AddDiscogsUsername.vue"
 import RevokeDiscogsForm from "./components/forms/RevokeDiscogsForm.vue"
 
