@@ -8,7 +8,7 @@
   --white-text: hsl(0, 0%, 100%); /* ! when updating: find replace JS usage of hsl val */
   --lightest-text: hsl(0, 0%, 87%); /* ! when updating: find replace JS usage of hsl val */
   --lighter-text: hsl(0, 0%, 80%); /* ! when updating: find replace JS usage of hsl val */
-  --light-text: hsl(0, 0%, 68%); /* ! when updating: find replace JS usage of hsl val */
+  --light-text: hsl(0, 0%, 62%); /* ! when updating: find replace JS usage of hsl val */
   --dark-text: hsl(0, 0%, 47%); /* ! when updating: find replace JS usage of hsl val */
   --darker-text: hsl(0, 0%, 33%); /* ! when updating: find replace JS usage of hsl val */
   --darkest-text: hsl(0, 0%, 27%); /* ! when updating: find replace JS usage of hsl val */

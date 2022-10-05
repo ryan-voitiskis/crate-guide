@@ -70,7 +70,7 @@
       </label>
       <ErrorFeedback :show="tracks.errorMsg !== ''" :msg="tracks.errorMsg" />
     </div>
-    <div class="modal-controls">
+    <div class="modal-footer">
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Close
       </button>

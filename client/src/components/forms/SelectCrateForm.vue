@@ -24,7 +24,7 @@
       <ErrorFeedback :show="state.noneSelected" msg="No crate selected" />
       <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
     </div>
-    <div class="modal-controls">
+    <div class="modal-footer">
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Close
       </button>

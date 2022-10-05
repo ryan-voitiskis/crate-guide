@@ -51,13 +51,12 @@ withDefaults(defineProps<Props>(), {
   padding: 0 4rem;
   margin-bottom: 4rem;
   p {
-    text-align: center;
     color: var(--dark-text);
   }
 }
 
 // for more complex forms with multiple control buttons
-.modal-controls {
+.modal-footer {
   margin-top: -2rem;
   gap: 2rem;
   padding: 2rem 4rem;

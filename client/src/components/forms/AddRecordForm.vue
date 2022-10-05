@@ -58,7 +58,7 @@
       </label>
       <ErrorFeedback :show="records.errorMsg !== ''" :msg="records.errorMsg" />
     </div>
-    <div class="modal-controls">
+    <div class="modal-footer">
       <button type="reset">Clear</button>
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Close
