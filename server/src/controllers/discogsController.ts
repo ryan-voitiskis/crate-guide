@@ -116,7 +116,10 @@ const captureVerifier = asyncHandler(async (req, res) => {
           justCompleteDiscogsOAuth: true,
         })
       } else {
-        // TODO: handle this
+        res.status(400)
+        throw new Error(
+          "api.discogs.com/oauth/access_token did not respond with tokens."
+        )
       }
       res.redirect(env.SITE_URL ?? "")
     } else {

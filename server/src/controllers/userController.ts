@@ -113,13 +113,6 @@ const getUser = asyncHandler(async (req, res) => {
 // @access  private
 const updateUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id)
-
-  if (!user) {
-    // TODO: can this happen?
-    res.status(400)
-    throw new Error("User not found.")
-  }
-
   if (user!._id.valueOf() !== req.user!.id) {
     res.status(401)
     throw new Error("User not authorised.")

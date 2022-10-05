@@ -7,7 +7,7 @@
       <XIcon />
     </button>
   </div>
-  <InfoDropdown :text="dropdownText" />
+  <InfoDropdown :text="discogsEndpointInfo" />
   <form @submit.prevent="submit">
     <div class="modal-body inline-labels">
       <BasicInput
@@ -46,12 +46,7 @@ import { crateStore } from "@/stores/crateStore"
 import InfoDropdown from "./InfoDropdown.vue"
 const user = userStore()
 const crates = crateStore()
-const appName = inject("appName")
-
-const dropdownText =
-  appName +
-  " will only use this to access these Discogs API endpoint:<br>api.discogs.com/users/username/collection/<br>api.discogs.com/users/username/collection/folders/"
-
+const discogsEndpointInfo = inject("discogsEndpointInfo") as string
 const emit = defineEmits<{
   (e: "close"): void
 }>()

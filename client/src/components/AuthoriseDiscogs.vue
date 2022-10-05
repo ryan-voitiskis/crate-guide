@@ -5,6 +5,7 @@
       <XIcon />
     </button>
   </div>
+  <InfoDropdown :text="discogsEndpointInfo" />
   <p class="modal-text">
     Would you like to allow {{ appName }} to access your discogs collections?
   </p>
@@ -28,10 +29,12 @@
 import { onBeforeUnmount, inject } from "vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import XIcon from "@/components/svg/XIcon.vue"
+import InfoDropdown from "./InfoDropdown.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 const user = userStore()
 const crates = crateStore()
+const discogsEndpointInfo = inject("discogsEndpointInfo") as string
 const appName = inject("appName")
 
 onBeforeUnmount(() => {

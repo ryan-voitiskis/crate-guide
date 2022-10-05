@@ -28,11 +28,7 @@
       </button>
     </div>
     <div class="modal-body">
-      <ErrorFeedback
-        :show="user.errorMsg !== ''"
-        :msg="user.errorMsg"
-        :notReserved="true"
-      />
+      <ErrorFeedback :show="user.errorMsg !== ''" :msg="user.errorMsg" />
     </div>
   </form>
 </template>

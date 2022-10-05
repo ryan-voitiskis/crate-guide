@@ -13,22 +13,22 @@ import "./assets/css/form-custom-controls.scss"
 
 const pinia = createPinia()
 const app = createApp(App)
+
+// globals
+const appName = "Crate Guide"
+const discogsEndpointInfo = `${appName} will only use this to access these Discogs API endpoint:<br>api.discogs.com/users/username/collection/<br>api.discogs.com/users/username/collection/folders/`
 app.provide("API_URL", "http://localhost:5001/api/")
-app.provide("appName", "Crate Guide")
+app.provide("appName", appName)
 app.provide("appNamePossessive", "Crate Guide's")
+app.provide("discogsEndpointInfo", discogsEndpointInfo)
 
 app.use(router)
 app.use(pinia)
 app.mount("#app")
 
-// log into test automatically.
+// stay logged in cookie
 import { userStore } from "@/stores/userStore"
 const user = userStore()
-const getState = async () => {
-  await user.login("test@test.com", "password")
-}
-// getState()
-
 const cookieValue = document.cookie
   .split("; ")
   .find((row) => row.startsWith("crate_guide_jwt="))

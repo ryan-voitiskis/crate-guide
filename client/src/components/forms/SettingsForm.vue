@@ -110,7 +110,7 @@ import PencilIcon from "../svg/PencilIcon.vue"
 import TrashIcon from "../svg/TrashIcon.vue"
 const user = userStore()
 
-// ! freaks out when called directly from <form v-on="">. cpu usage spike + browser non-responsive
+// ! breaks when called directly from <form v-on="">. cpu spike + browser non-responsive
 const updateSettings = () => user.updateSettings()
 
 // required for when settings changed elsewhere, such as selected crate
@@ -145,7 +145,7 @@ fieldset {
       span {
         margin: 0;
         display: inline-block;
-        line-height: 3.8rem; // ! btn
+        line-height: 3.8rem; // ! same as btn height
         height: 3.8rem;
       }
     }

@@ -88,7 +88,7 @@ const localeContains = (x: string, y: string) => {
 
 // sort function for Records by string type fields. sorts "" last
 const sortStr = (field: keyof Record, reverse: boolean) => {
-  // ? how to get param type to be ': Record' without error
+  // ! could not get param type to be ': Record' without error
   return (a: any, b: any) =>
     a[field] !== "" && b[field] !== ""
       ? (reverse ? -1 : 1) *

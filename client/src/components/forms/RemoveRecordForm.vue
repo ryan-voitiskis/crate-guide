@@ -20,11 +20,7 @@
       </button>
     </div>
     <div class="modal-body">
-      <ErrorFeedback
-        :show="crates.errorMsg !== ''"
-        :msg="crates.errorMsg"
-        :notReserved="true"
-      />
+      <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
     </div>
   </form>
 </template>
