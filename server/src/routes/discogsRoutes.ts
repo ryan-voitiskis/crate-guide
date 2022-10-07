@@ -1,13 +1,15 @@
 import express from "express"
 import protect from "../middleware/authMiddleware.js"
 import {
-  requestToken,
-  captureVerifier,
-} from "../controllers/discogsController.js"
+  requestTokenAndUpdateUser,
+  captureVerifierAndUpdateUser,
+  revokeDiscogsAuthorisation,
+} from "../controllers/discogsOAuthController.js"
 
 const router = express.Router()
 
-router.route("/request_token").get(protect, requestToken)
-router.route("/capture_verifier").get(captureVerifier)
+router.route("/request_token").get(protect, requestTokenAndUpdateUser)
+router.route("/capture_verifier").get(captureVerifierAndUpdateUser)
+router.put("/revoke_discogs/:id", protect, revokeDiscogsAuthorisation)
 
 export default router

@@ -55,7 +55,6 @@ const addUser = async (user: UnregisteredUser) => {
 // update user settings
 const updateSettings = async (user: User) => {
   const body = new URLSearchParams()
-  body.append("discogsUID", user.discogsUID)
   body.append("settings.selectedCrate", user.settings.selectedCrate)
   body.append("settings.theme", user.settings.theme)
   body.append("settings.turntableTheme", user.settings.turntableTheme)
@@ -74,25 +73,10 @@ const updateSettings = async (user: User) => {
   return response
 }
 
-// request to removes discogsToken, discogsTokenSecret, discogsRequestToken and discogsRequestTokenSecret from user.
-const revokeDiscogsTokens = async (user: User) => {
-  const options = {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Bearer ${user.token}`,
-    },
-  }
-  const response = await fetch(API_URL + "revoke_discogs/" + user._id, options)
-  return response
-}
-
 const userService = {
   login,
   fetchUser,
   addUser,
   updateSettings,
-  revokeDiscogsTokens,
 }
 export default userService

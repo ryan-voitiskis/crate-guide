@@ -2,9 +2,6 @@ import mongoose from "mongoose"
 
 const userSchema = new mongoose.Schema(
   {
-    discogsUID: {
-      type: String,
-    },
     name: {
       type: String,
       required: [true, "Please add a name"],
@@ -17,6 +14,9 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, "Please add a password"],
+    },
+    discogsUsername: {
+      type: String,
     },
     discogsToken: {
       type: String,

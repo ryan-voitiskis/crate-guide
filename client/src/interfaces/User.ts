@@ -1,6 +1,6 @@
 export default interface User {
   _id: string
-  discogsUID: string
+  discogsUsername: string
   isDiscogsOAuthd: boolean
   name: string
   email: string

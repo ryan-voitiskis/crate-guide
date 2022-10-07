@@ -59,13 +59,6 @@
     <SettingsForm />
   </ModalBox>
 
-  <ModalBox
-    v-if="user.enterDiscogsUsername"
-    @close="user.enterDiscogsUsername = false"
-  >
-    <AddDiscogsUsername @close="user.enterDiscogsUsername = false" />
-  </ModalBox>
-
   <ModalBox v-if="user.authDiscogs" @close="user.authDiscogs = false">
     <AuthoriseDiscogs />
   </ModalBox>
@@ -96,7 +89,6 @@ import { userStore } from "@/stores/userStore"
 import SettingsForm from "./components/forms/SettingsForm.vue"
 import AuthoriseDiscogs from "./components/AuthoriseDiscogs.vue"
 import AuthoriseDiscogsSuccessful from "./components/AuthoriseDiscogsSuccessful.vue"
-import AddDiscogsUsername from "./components/AddDiscogsUsername.vue"
 import RevokeDiscogsForm from "./components/forms/RevokeDiscogsForm.vue"
 
 const user = userStore()

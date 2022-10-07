@@ -14,7 +14,7 @@ export const userStore = defineStore("user", {
       name: "",
       email: "",
       token: "", // token for crate guide protected api routes
-      discogsUID: "", // users discogs user id
+      discogsUsername: "", // users discogs user id
       settings: {
         theme: "light",
         turntableTheme: "silver",
@@ -26,7 +26,6 @@ export const userStore = defineStore("user", {
     errorMsg: "", // used in LoginForm, SignUpForm and SettingsForm
     invalidCreds: false, // used in LoginForm
     success: false, // used in SettingsForm
-    enterDiscogsUsername: false, // displays AuthoriseDiscogs.vue
     authDiscogs: false, // displays AuthoriseDiscogs.vue
     revokeDiscogsForm: false, // displays RevokeDiscogsForm.vue
   }),
@@ -111,7 +110,7 @@ export const userStore = defineStore("user", {
           const data = await response.json()
           const registeringUser: User = {
             _id: data._id,
-            discogsUID: "",
+            discogsUsername: "",
             isDiscogsOAuthd: data.isDiscogsOAuthd,
             token: data.token,
             name: data.name,
@@ -202,14 +201,17 @@ export const userStore = defineStore("user", {
 
     // call and handle response to request that removes discogsToken, discogsTokenSecret,
     // discogsRequestToken and discogsRequestTokenSecret from user.
-    async revokeDiscogsToken(): Promise<number | null> {
+    async revokeDiscogsAuthorisation(): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
       try {
-        const response = await userService.revokeDiscogsTokens(this.authd)
+        const response = await discogsService.revokeDiscogsAuthorisation(
+          this.authd
+        )
         // handle successful update
         if (response.status === 200) {
           this.authd.isDiscogsOAuthd = false
+          this.authd.discogsUsername = ""
           this.revokeDiscogsForm = false
         }
         // handle 400 and 401 status codes. see userController.ts

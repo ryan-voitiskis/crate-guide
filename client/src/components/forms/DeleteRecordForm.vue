@@ -26,10 +26,11 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount } from "vue"
-import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
-import XIcon from "@/components/svg/XIcon.vue"
-import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
+import { userStore } from "@/stores/userStore"
+import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
+import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import XIcon from "@/components/svg/XIcon.vue"
 const user = userStore()
 const records = recordStore()
 

@@ -5,7 +5,7 @@
       <XIcon />
     </button>
   </div>
-  <form @submit.prevent="submit">
+  <form @submit.prevent="user.revokeDiscogsAuthorisation()">
     <span class="form-question">
       Are you sure you wish to revoke {{ appNamePossessive }} access to your
       discogs collections?
@@ -17,12 +17,7 @@
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Cancel
       </button>
-      <button
-        class="primary delete"
-        type="submit"
-        style="width: 12rem"
-        @click="user.revokeDiscogsToken()"
-      >
+      <button class="primary delete" type="submit" style="width: 12rem">
         {{ user.loading ? null : "Revoke" }}
         <LoaderIcon v-show="user.loading" />
       </button>

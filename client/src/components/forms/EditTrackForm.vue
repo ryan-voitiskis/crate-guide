@@ -108,7 +108,7 @@ const form = reactive({
   artists: track.artists,
   duration: track.duration,
   bpm: track.bpm,
-  rpm: track.rpm,
+  rpm: track.rpm.toString(),
   genre: track.genre,
   playable: track.playable,
 })

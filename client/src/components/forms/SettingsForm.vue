@@ -65,31 +65,17 @@
       <fieldset class="discogs-ctrls">
         <legend>Discogs API</legend>
 
-        <div v-if="user.authd.discogsUID" class="existing-uid">
-          <label>Username</label>
-          <span class="username">{{ user.authd.discogsUID }}</span>
-          <button
-            @click="user.enterDiscogsUsername = true"
-            class="inline-btn edit"
-          >
-            <PencilIcon />
-          </button>
-          <button
-            @click=";(user.authd.discogsUID = ``), updateSettings()"
-            class="inline-btn delete"
-          >
-            <TrashIcon />
-          </button>
+        <div v-if="user.authd.discogsUsername !== ''">
+          <span class="username">
+            Authorised as discogs user <i>{{ user.authd.discogsUsername }}</i>
+          </span>
         </div>
-        <button v-else @click="user.enterDiscogsUsername = true">
-          Provide discogs username
-        </button>
 
         <button
           v-if="!user.authd.isDiscogsOAuthd"
           @click=";(user.authDiscogs = true), $parent!.$emit('close')"
         >
-          Connect to discogs
+          Connect to Discogs
         </button>
         <button v-else @click="user.revokeDiscogsForm = true">
           Revoke discogs access
@@ -150,10 +136,5 @@ fieldset {
       }
     }
   }
-}
-
-span.username {
-  font-style: italic;
-  padding: 0 2rem;
 }
 </style>

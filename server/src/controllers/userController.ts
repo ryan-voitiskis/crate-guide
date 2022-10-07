@@ -46,7 +46,7 @@ const addUser = asyncHandler(async (req, res) => {
       name: user.name,
       email: user.email,
       settings: user.settings,
-      discogsUID: user.discogsUID,
+      discogsUsername: user.discogsUsername,
       isDiscogsOAuthd: false,
       justCompleteDiscogsOAuth: false,
       token: generateToken(user._id.toString()),
@@ -70,7 +70,7 @@ const loginUser = asyncHandler(async (req, res) => {
       email: user.email,
       settings: user.settings,
       token: generateToken(user.id),
-      discogsUID: user.discogsUID,
+      discogsUsername: user.discogsUsername,
       isDiscogsOAuthd:
         user.discogsToken && user.discogsTokenSecret ? true : false,
       justCompleteDiscogsOAuth: user.justCompleteDiscogsOAuth, // user shouldn't have to login after OAuth flow, but just incase
@@ -96,7 +96,7 @@ const getUser = asyncHandler(async (req, res) => {
     email: req.user!.email,
     settings: req.user!.settings,
     token: generateToken(req.user!.id),
-    discogsUID: req.user!.discogsUID,
+    discogsUsername: req.user!.discogsUsername,
     isDiscogsOAuthd:
       req.user!.discogsToken && req.user!.discogsTokenSecret ? true : false,
     justCompleteDiscogsOAuth: req.user!.justCompleteDiscogsOAuth,
@@ -122,29 +122,4 @@ const updateUser = asyncHandler(async (req, res) => {
   res.status(200).json()
 })
 
-// @desc    removes discogs API creds from user
-// @route   PUT /api/users/revoke_discogs/:id
-// @access  private
-const revokeDiscogsTokens = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id)
-
-  if (!user) {
-    res.status(400)
-    throw new Error("User not found.")
-  }
-
-  if (user!._id.valueOf() !== req.user!.id) {
-    res.status(401)
-    throw new Error("User not authorised.")
-  }
-
-  await User.findByIdAndUpdate(req.params.id, {
-    discogsToken: "",
-    discogsTokenSecret: "",
-    discogsRequestToken: "",
-    discogsRequestTokenSecret: "",
-  })
-  res.status(200).json()
-})
-
-export { addUser, loginUser, getUser, updateUser, revokeDiscogsTokens }
+export { addUser, loginUser, getUser, updateUser }

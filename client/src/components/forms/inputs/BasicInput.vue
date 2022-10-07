@@ -17,7 +17,7 @@ const props = defineProps<{
   label?: string
   id?: string
   placeholder?: string
-  modelValue: string | number | undefined
+  modelValue?: string | number
   focused?: boolean
 }>()
 
