@@ -64,13 +64,11 @@
 
       <fieldset class="discogs-ctrls">
         <legend>Discogs API</legend>
-
         <div v-if="user.authd.discogsUsername !== ''">
           <span class="username">
             Authorised as discogs user <i>{{ user.authd.discogsUsername }}</i>
           </span>
         </div>
-
         <button
           v-if="!user.authd.isDiscogsOAuthd"
           @click=";(user.authDiscogs = true), $parent!.$emit('close')"
@@ -92,8 +90,6 @@ import RadioCard from "./inputs/RadioCard.vue"
 import SubmitlessFeedback from "./feedbacks/SubmitlessFeedback.vue"
 import XIcon from "@/components/svg/XIcon.vue"
 import { userStore } from "@/stores/userStore"
-import PencilIcon from "../svg/PencilIcon.vue"
-import TrashIcon from "../svg/TrashIcon.vue"
 const user = userStore()
 
 // ! breaks when called directly from <form v-on="">. cpu spike + browser non-responsive
@@ -118,22 +114,8 @@ fieldset {
   margin-bottom: 2rem;
   &.discogs-ctrls {
     flex-direction: column;
-    button.inline-btn {
-      height: 3.8rem;
-    }
-    button:not(.inline-btn) {
+    button {
       width: 24rem;
-    }
-    .existing-uid {
-      display: flex;
-      gap: 1rem;
-      label,
-      span {
-        margin: 0;
-        display: inline-block;
-        line-height: 3.8rem; // ! same as btn height
-        height: 3.8rem;
-      }
     }
   }
 }

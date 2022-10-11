@@ -30,8 +30,36 @@ const revokeDiscogsAuthorisation = async (user: User) => {
   return response
 }
 
+const getFolders = async (token: string) => {
+  const options = {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${token}`,
+    },
+  }
+  const response = await fetch(API_URL + "folders", options)
+  return response
+}
+
+const getFolder = async (folder: string, token: string) => {
+  const options = {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${token}`,
+    },
+  }
+  const response = await fetch(API_URL + "get_folder", options)
+  return response
+}
+
 const recordService = {
   requestToken,
   revokeDiscogsAuthorisation,
+  getFolders,
+  getFolder,
 }
 export default recordService

@@ -247,6 +247,11 @@ select:-moz-focusring {
       justify-self: start;
     }
   }
+  select {
+    margin-bottom: 0;
+    width: 100%;
+    grid-column: 2 / 3;
+  }
   fieldset.radio {
     grid-column: 1/3;
     display: flex;

@@ -76,6 +76,13 @@
   >
     <AuthoriseDiscogsSuccessful />
   </ModalBox>
+
+  <ModalBox
+    v-if="user.selectDiscogsFolder"
+    @close="user.selectDiscogsFolder = false"
+  >
+    <SelectDiscogsFolder />
+  </ModalBox>
 </template>
 
 <script setup lang="ts">
@@ -90,6 +97,7 @@ import SettingsForm from "./components/forms/SettingsForm.vue"
 import AuthoriseDiscogs from "./components/AuthoriseDiscogs.vue"
 import AuthoriseDiscogsSuccessful from "./components/AuthoriseDiscogsSuccessful.vue"
 import RevokeDiscogsForm from "./components/forms/RevokeDiscogsForm.vue"
+import SelectDiscogsFolder from "./components/forms/SelectDiscogsFolder.vue"
 
 const user = userStore()
 

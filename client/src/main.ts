@@ -1,15 +1,16 @@
+import "./assets/css/base.scss"
+import "./assets/css/colours.css"
+import "./assets/css/fonts.css"
+import "./assets/css/form-custom-controls.scss"
+import "./assets/css/forms.scss"
+import "./assets/css/keyframes.css"
+import "./assets/css/navs.scss"
+import "./registerServiceWorker"
 import { createApp } from "vue"
 import { createPinia } from "pinia"
+import { userStore } from "@/stores/userStore"
 import App from "./App.vue"
-import "./registerServiceWorker"
 import router from "./router"
-import "./assets/css/colours.css"
-import "./assets/css/keyframes.css"
-import "./assets/css/fonts.css"
-import "./assets/css/base.scss"
-import "./assets/css/navs.scss"
-import "./assets/css/forms.scss"
-import "./assets/css/form-custom-controls.scss"
 
 const pinia = createPinia()
 const app = createApp(App)
@@ -26,8 +27,7 @@ app.use(router)
 app.use(pinia)
 app.mount("#app")
 
-// stay logged in cookie
-import { userStore } from "@/stores/userStore"
+// stay logged in cookie. only used to fetchUser, not used as authentication
 const user = userStore()
 const cookieValue = document.cookie
   .split("; ")

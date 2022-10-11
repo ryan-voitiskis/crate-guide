@@ -28,6 +28,7 @@ export const userStore = defineStore("user", {
     success: false, // used in SettingsForm
     authDiscogs: false, // displays AuthoriseDiscogs.vue
     revokeDiscogsForm: false, // displays RevokeDiscogsForm.vue
+    selectDiscogsFolder: false, // displays SelectDiscogsFolder.vue
   }),
   actions: {
     async login(email: string, password: string): Promise<number | null> {

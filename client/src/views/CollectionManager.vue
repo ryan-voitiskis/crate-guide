@@ -1,6 +1,11 @@
 <template>
   <p v-if="!user.hasUser()">Sign in to create collections.</p>
-  <div id="crate_controls" v-if="user.hasUser()">
+  <div class="controls-container" v-if="user.hasUser()">
+    <button @click="user.selectDiscogsFolder = true" v-if="user.hasUser()">
+      Import from discogs
+    </button>
+  </div>
+  <div class="controls-container" v-if="user.hasUser()">
     <CrateSelect selectID="crate_select" />
     <button
       class="icon-button"
@@ -23,7 +28,7 @@
     </button>
   </div>
   <hr />
-  <div id="crate_manager" v-if="user.hasUser()">
+  <div class="controls-container" v-if="user.hasUser()">
     <button class="icon-button" @click="state.addRecord = true">
       <PlusCircleIcon /> Add new record
     </button>
@@ -155,8 +160,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
-#crate_controls,
-#crate_manager {
+.controls-container {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;

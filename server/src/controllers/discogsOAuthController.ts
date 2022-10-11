@@ -1,8 +1,9 @@
 import asyncHandler from "express-async-handler"
-import User from "../models/userModel.js"
-import fetch from "node-fetch"
 import env from "../env.js"
+import fetch from "node-fetch"
+import genNonce from "../utils/genNonce.js"
 import oauthSignature from "oauth-signature"
+import User from "../models/userModel.js"
 
 const oauth_consumer_key = "WJSUzMPCQcGdEFidpwqn"
 const oauth_consumer_secret = "oyasysRSKMwElyRpJjulWoxFBdaXDDTS"
@@ -12,26 +13,26 @@ const identityURL = "https://api.discogs.com/oauth/identity"
 const oauthCallback = env.SITE_URL + "/api/discogs/capture_verifier"
 const userAgent = "CrateGuide/0.2"
 
-interface accessTokenResponse {
+interface AccessTokenResponse {
   oauth_token: string
   oauth_token_secret: string
 }
 
-function isAccessTokenResponse(obj: any): obj is accessTokenResponse {
+function isAccessTokenResponse(obj: any): obj is AccessTokenResponse {
   return (
     typeof obj.oauth_token === "string" &&
     typeof obj.oauth_token_secret === "string"
   )
 }
 
-interface identityResponse {
+interface IdentityResponse {
   id: number
   username: string
   resource_url: string
   consumer_name: string
 }
 
-function isIdentityResponse(obj: any): obj is identityResponse {
+function isIdentityResponse(obj: any): obj is IdentityResponse {
   return (
     typeof obj.id === "number" &&
     typeof obj.username === "string" &&
@@ -52,20 +53,9 @@ function isCaptureVerifierQuery(obj: any): obj is captureVerifierQuery {
   )
 }
 
-// 12 char nonce generator
-const genNonce = (): string => {
-  let text = ""
-  const possible =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-  for (let i = 0; i < 12; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length))
-  }
-  return text
-}
-
 // @desc    request OAuth token as per step 2 of:
 // *        https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
-// @route   GET /api/discogs/request_token
+// @route   GET /api/discogs_oauth/request_token
 // @access  private
 const requestTokenAndUpdateUser = asyncHandler(async (req, res) => {
   const params = new URLSearchParams()
@@ -179,7 +169,7 @@ const getOAuthCredentials = async (
 
 // send authenticated request to retrieve users discogs identity as per step 5 of
 // * https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
-const getDiscogsUsername = async (oauthCreds: accessTokenResponse) => {
+const getDiscogsUsername = async (oauthCreds: AccessTokenResponse) => {
   const httpMethod = "GET"
   const nonce = genNonce()
   const timestamp = Date.now().toString()

@@ -100,10 +100,4 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped lang="scss">
-select {
-  margin-bottom: 0;
-  width: 100%;
-  grid-column: 2 / 3;
-}
-</style>
+<style scoped lang="scss"></style>
