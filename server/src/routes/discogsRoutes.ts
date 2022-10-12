@@ -5,13 +5,14 @@ import {
   captureVerifierAndUpdateUser,
   revokeDiscogsAuthorisation,
 } from "../controllers/discogsOAuthController.js"
-import { getFolders } from "../controllers/discogsController.js"
+import { getFolders, getFolder } from "../controllers/discogsController.js"
 
 const router = express.Router()
 
 router.route("/request_token").get(protect, requestTokenAndUpdateUser)
 router.route("/capture_verifier").get(captureVerifierAndUpdateUser)
-router.put("/revoke_discogs/:id", protect, revokeDiscogsAuthorisation)
+router.put("/revoke_discogs", protect, revokeDiscogsAuthorisation)
 router.get("/folders", protect, getFolders)
+router.get("/folder/:id", protect, getFolder)
 
 export default router

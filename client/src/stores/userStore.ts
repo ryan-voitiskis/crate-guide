@@ -1,7 +1,6 @@
 import { defineStore } from "pinia"
 import User from "@/interfaces/User"
 import userService from "@/services/userService"
-import discogsService from "@/services/discogsService"
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
 import router from "@/router"
 import { crateStore } from "@/stores/crateStore"
@@ -27,8 +26,6 @@ export const userStore = defineStore("user", {
     invalidCreds: false, // used in LoginForm
     success: false, // used in SettingsForm
     authDiscogs: false, // displays AuthoriseDiscogs.vue
-    revokeDiscogsForm: false, // displays RevokeDiscogsForm.vue
-    selectDiscogsFolder: false, // displays SelectDiscogsFolder.vue
   }),
   actions: {
     async login(email: string, password: string): Promise<number | null> {
@@ -157,64 +154,6 @@ export const userStore = defineStore("user", {
 
         // handle successful update
         if (response.status === 200) this.success = true
-        // handle 400 and 401 status codes. see userController.ts
-        else {
-          const error = await response.json()
-          this.errorMsg = error.message ? error.message : "Unexpected error"
-        }
-        this.loading = false
-        return response.status
-
-        // catch error, eg. NetworkError. console.error(error) to debug
-      } catch (error) {
-        this.errorMsg = "Unexpected error. Probably network error."
-        this.loading = false
-        return null
-      }
-    },
-
-    // call and handle request that begins discogs OAuth flow
-    async discogsRequestToken(): Promise<number | null> {
-      this.loading = true
-      this.errorMsg = ""
-      try {
-        const response = await discogsService.requestToken(this.authd.token)
-        // handle successful update
-        if (response.status === 200) {
-          const res = await response.json()
-          window.location.href = `https://discogs.com/oauth/authorize?oauth_token=${res}`
-        }
-        // handle 400 status code. see discogsController.ts
-        else {
-          const error = await response.json()
-          this.errorMsg = error.message ? error.message : "Unexpected error"
-          this.loading = false // not for 200 res as redirect takes time
-        }
-        return response.status
-
-        // catch error, eg. NetworkError. console.error(error) to debug
-      } catch (error) {
-        this.errorMsg = "Unexpected error. Probably network error."
-        this.loading = false
-        return null
-      }
-    },
-
-    // call and handle response to request that removes discogsToken, discogsTokenSecret,
-    // discogsRequestToken and discogsRequestTokenSecret from user.
-    async revokeDiscogsAuthorisation(): Promise<number | null> {
-      this.loading = true
-      this.errorMsg = ""
-      try {
-        const response = await discogsService.revokeDiscogsAuthorisation(
-          this.authd
-        )
-        // handle successful update
-        if (response.status === 200) {
-          this.authd.isDiscogsOAuthd = false
-          this.authd.discogsUsername = ""
-          this.revokeDiscogsForm = false
-        }
         // handle 400 and 401 status codes. see userController.ts
         else {
           const error = await response.json()

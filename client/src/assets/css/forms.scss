@@ -1,6 +1,6 @@
 /**
  * custom form control styling for browser consistency and better UI
- * modified from: https://moderncss.dev/pure-css-custom-checkbox-style/
+ * some UI modified from: https://moderncss.dev/pure-css-custom-checkbox-style/
  */
 
 .btn,
@@ -43,6 +43,10 @@ input[type="button"] {
     &:hover {
       color: var(--btn-delete-hover);
     }
+  }
+  &:disabled {
+    background-color: var(--btn-disabled) !important;
+    cursor: not-allowed;
   }
 }
 

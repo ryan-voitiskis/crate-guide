@@ -1,6 +1,27 @@
 import mongoose from "mongoose"
 
-const userSchema = new mongoose.Schema(
+interface IUser {
+  name: string
+  email: string
+  password: string
+  createdAt?: string
+  updatedAt?: string
+  discogsUID?: string
+  discogsToken: string
+  discogsTokenSecret: string
+  discogsRequestToken: string
+  discogsRequestTokenSecret: string
+  justCompleteDiscogsOAuth: boolean
+  discogsUsername: string
+  settings: {
+    theme: string
+    turntableTheme: string
+    turntablePitchRange: string
+    selectedCrate: string
+  }
+}
+
+const userSchema = new mongoose.Schema<IUser>(
   {
     name: {
       type: String,
@@ -61,4 +82,5 @@ const userSchema = new mongoose.Schema(
   }
 )
 
-export default mongoose.model("User", userSchema)
+const User = mongoose.model("User", userSchema)
+export { User, IUser }

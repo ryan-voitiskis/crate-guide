@@ -3,7 +3,7 @@ import env from "../env.js"
 import fetch from "node-fetch"
 import genNonce from "../utils/genNonce.js"
 import oauthSignature from "oauth-signature"
-import User from "../models/userModel.js"
+import { User } from "../models/userModel.js"
 
 const oauth_consumer_key = "WJSUzMPCQcGdEFidpwqn"
 const oauth_consumer_secret = "oyasysRSKMwElyRpJjulWoxFBdaXDDTS"
@@ -214,10 +214,10 @@ const getDiscogsUsername = async (oauthCreds: AccessTokenResponse) => {
 }
 
 // @desc    removes discogs API creds from user
-// @route   PUT /api/users/revoke_discogs/:id
+// @route   PUT /api/users/revoke_discogs
 // @access  private
 const revokeDiscogsAuthorisation = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id)
+  const user = await User.findById(req.user!.id)
 
   if (!user) {
     res.status(400)
@@ -229,7 +229,7 @@ const revokeDiscogsAuthorisation = asyncHandler(async (req, res) => {
     throw new Error("User not authorised.")
   }
 
-  await User.findByIdAndUpdate(req.params.id, {
+  await User.findByIdAndUpdate(req.user!.id, {
     discogsUsername: "",
     discogsToken: "",
     discogsTokenSecret: "",

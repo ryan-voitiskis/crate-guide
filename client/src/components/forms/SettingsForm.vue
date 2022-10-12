@@ -75,7 +75,7 @@
         >
           Connect to Discogs
         </button>
-        <button v-else @click="user.revokeDiscogsForm = true">
+        <button v-else @click="discogs.revokeDiscogsForm = true">
           Revoke discogs access
         </button>
       </fieldset>
@@ -89,7 +89,9 @@ import { onBeforeMount, onUnmounted } from "vue"
 import RadioCard from "./inputs/RadioCard.vue"
 import SubmitlessFeedback from "./feedbacks/SubmitlessFeedback.vue"
 import XIcon from "@/components/svg/XIcon.vue"
+import { discogsStore } from "@/stores/discogsStore"
 import { userStore } from "@/stores/userStore"
+const discogs = discogsStore()
 const user = userStore()
 
 // ! breaks when called directly from <form v-on="">. cpu spike + browser non-responsive

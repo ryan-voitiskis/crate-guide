@@ -64,8 +64,8 @@
   </ModalBox>
 
   <ModalBox
-    v-if="user.revokeDiscogsForm"
-    @close="user.revokeDiscogsForm = false"
+    v-if="discogs.revokeDiscogsForm"
+    @close="discogs.revokeDiscogsForm = false"
   >
     <RevokeDiscogsForm />
   </ModalBox>
@@ -78,10 +78,18 @@
   </ModalBox>
 
   <ModalBox
-    v-if="user.selectDiscogsFolder"
-    @close="user.selectDiscogsFolder = false"
+    v-if="discogs.selectDiscogsFolder"
+    @close="discogs.selectDiscogsFolder = false"
   >
     <SelectDiscogsFolder />
+  </ModalBox>
+
+  <ModalBox
+    v-if="discogs.stageImport"
+    @close="discogs.stageImport = false"
+    width="880px"
+  >
+    <StageDiscogsImport />
   </ModalBox>
 </template>
 
@@ -92,13 +100,16 @@ import ModalBox from "./components/ModalBox.vue"
 import LoginForm from "./components/forms/LoginForm.vue"
 import SignUpForm from "./components/forms/SignUpForm.vue"
 import RecoveryForm from "./components/forms/RecoveryForm.vue"
+import { discogsStore } from "@/stores/discogsStore"
 import { userStore } from "@/stores/userStore"
 import SettingsForm from "./components/forms/SettingsForm.vue"
 import AuthoriseDiscogs from "./components/AuthoriseDiscogs.vue"
 import AuthoriseDiscogsSuccessful from "./components/AuthoriseDiscogsSuccessful.vue"
 import RevokeDiscogsForm from "./components/forms/RevokeDiscogsForm.vue"
 import SelectDiscogsFolder from "./components/forms/SelectDiscogsFolder.vue"
+import StageDiscogsImport from "./components/forms/StageDiscogsImport.vue"
 
+const discogs = discogsStore()
 const user = userStore()
 
 const state = reactive({

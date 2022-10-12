@@ -17,10 +17,10 @@
       class="primary"
       type="submit"
       style="width: 18rem"
-      @click="user.discogsRequestToken()"
+      @click="discogs.discogsRequestToken()"
     >
-      {{ user.loading ? null : "Request access" }}
-      <LoaderIcon v-show="user.loading" />
+      {{ discogs.loading ? null : "Request access" }}
+      <LoaderIcon v-show="discogs.loading" />
     </button>
   </div>
 </template>
@@ -30,10 +30,10 @@ import { onBeforeUnmount, inject } from "vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
 import XIcon from "@/components/svg/XIcon.vue"
 import InfoDropdown from "./InfoDropdown.vue"
-import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
-const user = userStore()
+import { discogsStore } from "@/stores/discogsStore"
 const crates = crateStore()
+const discogs = discogsStore()
 const discogsEndpointInfo = inject("discogsEndpointInfo") as string
 const appName = inject("appName")
 

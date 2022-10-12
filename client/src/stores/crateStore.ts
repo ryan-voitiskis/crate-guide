@@ -230,9 +230,10 @@ export const crateStore = defineStore("crate", {
         ([] as string[])
     },
     // get name by id from record store
-    getRecordName(state) {
-      const recStore = recordStore()
-      return recStore.getNameById
+    // todo: test this, changed recStore to records and removed state param
+    getRecordName() {
+      const records = recordStore()
+      return records.getNameById
     },
   },
 })

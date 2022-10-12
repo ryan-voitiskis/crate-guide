@@ -1,8 +1,8 @@
 <template>
   <p v-if="!user.hasUser()">Sign in to create collections.</p>
   <div class="controls-container" v-if="user.hasUser()">
-    <button @click="user.selectDiscogsFolder = true" v-if="user.hasUser()">
-      Import from discogs
+    <button @click="discogs.selectDiscogsFolder = true" v-if="user.hasUser()">
+      Import from Discogs
     </button>
   </div>
   <div class="controls-container" v-if="user.hasUser()">
@@ -116,6 +116,7 @@
 <script setup lang="ts">
 import { reactive, onBeforeUnmount } from "vue"
 import { crateStore } from "@/stores/crateStore"
+import { discogsStore } from "@/stores/discogsStore"
 import { recordStore } from "@/stores/recordStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
@@ -142,6 +143,7 @@ import TrashIcon from "@/components/svg/TrashIcon.vue"
 import UpdateFeedback from "@/components/forms/feedbacks/UpdateFeedback.vue"
 
 const crates = crateStore()
+const discogs = discogsStore()
 const records = recordStore()
 const tracks = trackStore()
 const user = userStore()

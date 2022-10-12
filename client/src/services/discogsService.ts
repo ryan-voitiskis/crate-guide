@@ -1,4 +1,3 @@
-import User from "@/interfaces/User"
 const API_URL = "http://localhost:5001/api/discogs/"
 
 // request to server to then make request of OAuth token as per step 2 of:
@@ -17,16 +16,16 @@ const requestToken = async (token: string) => {
 }
 
 // request to removes discogs api credentials from user
-const revokeDiscogsAuthorisation = async (user: User) => {
+const revokeDiscogsAuthorisation = async (token: string) => {
   const options = {
     method: "PUT",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Bearer ${user.token}`,
+      Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(API_URL + "revoke_discogs/" + user._id, options)
+  const response = await fetch(API_URL + "revoke_discogs", options)
   return response
 }
 
@@ -52,7 +51,7 @@ const getFolder = async (folder: string, token: string) => {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(API_URL + "get_folder", options)
+  const response = await fetch(API_URL + "folder/" + folder, options)
   return response
 }
 

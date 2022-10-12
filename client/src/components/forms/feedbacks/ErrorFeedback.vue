@@ -30,6 +30,9 @@ defineProps<{
     margin-right: 1rem;
     color: var(--error);
   }
+  &.modal-body {
+    margin-bottom: 4rem;
+  }
 }
 
 .drop-enter-active {

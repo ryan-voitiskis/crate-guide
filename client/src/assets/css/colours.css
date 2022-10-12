@@ -50,6 +50,7 @@
   --btn-edit-hover: hsl(35, 84%, 72%);
   --btn-delete: hsl(356, 75%, 60%); /* * same as --error */
   --btn-delete-hover: hsl(356, 75%, 72%);
+  --btn-disabled: hsl(0, 0%, 80%);
 
   /* decks */
   --deck-black: hsl(0, 0%, 20%);
