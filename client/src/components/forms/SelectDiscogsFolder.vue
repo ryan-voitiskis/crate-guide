@@ -36,7 +36,7 @@
         style="width: 16rem"
         :disabled="discogs.folderList.length === 0"
       >
-        {{ discogs.loading ? null : "Import" }}
+        {{ discogs.loading ? null : "Stage import" }}
         <LoaderIcon v-show="discogs.loading" />
       </button>
     </div>

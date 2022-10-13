@@ -62,7 +62,7 @@
         </select>
       </label>
 
-      <fieldset class="discogs-ctrls">
+      <fieldset class="discogs-ctrls" v-if="user.hasUser()">
         <legend>Discogs API</legend>
         <div v-if="user.authd.discogsUsername !== ''">
           <span class="username">
@@ -70,14 +70,12 @@
           </span>
         </div>
         <button
-          v-if="!user.authd.isDiscogsOAuthd"
-          @click=";(user.authDiscogs = true), $parent!.$emit('close')"
+          v-if="user.authd.isDiscogsOAuthd"
+          @click="discogs.revokeDiscogsForm = true"
         >
-          Connect to Discogs
-        </button>
-        <button v-else @click="discogs.revokeDiscogsForm = true">
           Revoke discogs access
         </button>
+        <DiscogsControls />
       </fieldset>
       <SubmitlessFeedback />
     </div>
@@ -91,6 +89,7 @@ import SubmitlessFeedback from "./feedbacks/SubmitlessFeedback.vue"
 import XIcon from "@/components/svg/XIcon.vue"
 import { discogsStore } from "@/stores/discogsStore"
 import { userStore } from "@/stores/userStore"
+import DiscogsControls from "../DiscogsControls.vue"
 const discogs = discogsStore()
 const user = userStore()
 
@@ -117,7 +116,7 @@ fieldset {
   &.discogs-ctrls {
     flex-direction: column;
     button {
-      width: 24rem;
+      width: 22rem;
     }
   }
 }

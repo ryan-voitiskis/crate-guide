@@ -113,7 +113,6 @@ export const discogsStore = defineStore("discogs", {
         if (response.status === 200) {
           const folder = (await response.json()) as DiscogsReleaseBasic[]
           if (folder !== null) this.toImport = folder
-          return response.status
 
           // handle errors
         } else if (response.status === 400) {

@@ -1,9 +1,6 @@
 <template>
   <div class="record">
     <div class="cover" :style="backgroundImg"></div>
-    <label class="checkbox-hitbox">
-      <input type="checkbox" v-model="state.checked" />
-    </label>
     <h3 class="title">{{ title }}</h3>
     <div class="label">
       <span class="catno">{{ catno }}</span> {{ label }}
@@ -15,7 +12,7 @@
         class="inline-btn delete"
         :disabled="records.checkboxed.length !== 0"
       >
-        <TrashIcon />Remove from import
+        <TrashIcon />Unstage
       </button>
     </div>
   </div>
@@ -50,8 +47,8 @@ const backgroundImg = computed(() => {
 .record {
   background: linear-gradient(to right, hsl(10, 24%, 96%), hsl(35, 24%, 96%));
   display: grid;
-  grid-template-columns: 12rem 4fr 6fr;
-  grid-template-rows: 4rem 2rem 3rem 3rem;
+  grid-template-columns: 9rem 3fr 1fr;
+  grid-template-rows: 4rem 2rem 3rem;
   width: 100%;
   .cover {
     grid-area: 1 / 1 / 5 / 2;
@@ -59,10 +56,6 @@ const backgroundImg = computed(() => {
     z-index: 0;
     background-repeat: no-repeat;
     background-size: contain;
-  }
-  .checkbox-hitbox {
-    grid-area: 1 / 1 / 5 / 2;
-    z-index: 1;
   }
   h3.title {
     color: var(--darker-text);
@@ -97,12 +90,10 @@ const backgroundImg = computed(() => {
     white-space: nowrap;
   }
   .controls {
+    grid-area: 1 / 3 / 4 / 4;
     button {
       margin: 0 1rem;
       font-size: 1.2rem;
-      &.add-track {
-        float: right;
-      }
       &:disabled {
         cursor: default;
         color: var(--lighter-text);

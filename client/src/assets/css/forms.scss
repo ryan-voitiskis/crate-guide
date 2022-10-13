@@ -26,6 +26,9 @@ input[type="button"] {
     align-self: center;
     height: 2.2rem;
   }
+  &:disabled {
+    cursor: not-allowed;
+  }
   &.add {
     color: var(--btn-primary);
     &:hover {
@@ -43,10 +46,6 @@ input[type="button"] {
     &:hover {
       color: var(--btn-delete-hover);
     }
-  }
-  &:disabled {
-    background-color: var(--btn-disabled) !important;
-    cursor: not-allowed;
   }
 }
 
@@ -66,6 +65,9 @@ button {
     border: none;
     &:hover {
       background: var(--btn-primary-hover);
+    }
+    &:disabled {
+      background-color: var(--btn-disabled);
     }
     &.delete {
       background: var(--btn-delete);
