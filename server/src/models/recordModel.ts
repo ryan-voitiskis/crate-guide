@@ -36,7 +36,7 @@ const recordSchema = new mongoose.Schema(
       ref: "User",
     },
     discogsID: {
-      type: String,
+      type: Number,
     },
     catno: {
       type: String,
@@ -54,6 +54,9 @@ const recordSchema = new mongoose.Schema(
     },
     year: {
       type: Number,
+    },
+    cover: {
+      type: String,
     },
     mixable: {
       type: Boolean,

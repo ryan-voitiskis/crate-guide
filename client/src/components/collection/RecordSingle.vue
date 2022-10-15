@@ -1,6 +1,6 @@
 <template>
   <div class="record">
-    <div class="cover"></div>
+    <div class="cover" :style="backgroundImg"></div>
     <label class="checkbox-hitbox">
       <input type="checkbox" v-model="state.checked" />
     </label>
@@ -77,6 +77,7 @@ const user = userStore()
 
 const props = defineProps<{
   _id: string
+  cover?: string
   catno?: string
   title: string
   artists: string
@@ -132,6 +133,10 @@ watch(
     if (records.checkAll === true) state.checked = true
   }
 )
+
+const backgroundImg = computed(() => {
+  return `background-image: url("${props.cover}");`
+})
 </script>
 
 <style scoped lang="scss">
@@ -146,6 +151,8 @@ watch(
     grid-area: 1 / 1 / 5 / 2;
     overflow: hidden;
     z-index: 0;
+    background-repeat: no-repeat;
+    background-size: contain;
   }
   .checkbox-hitbox {
     grid-area: 1 / 1 / 5 / 2;

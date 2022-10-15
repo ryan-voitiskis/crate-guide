@@ -48,7 +48,7 @@ const state = reactive({
     width: 3.8rem;
     padding: 0 0.8rem;
     svg {
-      position: fixed;
+      position: absolute;
     }
   }
 }

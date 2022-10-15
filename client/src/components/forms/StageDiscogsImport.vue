@@ -17,7 +17,12 @@
     <button class="close" type="button" @click="$parent!.$emit('close')">
       Close
     </button>
-    <button class="primary" type="submit" style="width: 24rem">
+    <button
+      @click="submit()"
+      class="primary"
+      type="submit"
+      style="width: 24rem"
+    >
       {{ discogs.loading ? null : "Import staged records" }}
       <LoaderIcon v-show="discogs.loading" />
     </button>
@@ -25,14 +30,25 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, inject } from "vue"
+import { onBeforeUnmount } from "vue"
 import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
 import XIcon from "@/components/svg/XIcon.vue"
 import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import { userStore } from "@/stores/userStore"
 import { discogsStore } from "@/stores/discogsStore"
 import LoaderCentered from "../LoaderCentered.vue"
 import DiscogsReleaseBasic from "../collection/DiscogsReleaseBasic.vue"
 const discogs = discogsStore()
+const user = userStore()
+
+const submit = async () => {
+  const responseStatus = await discogs.importStaged(user.authd.token)
+  discogs.unstagedImports = []
+  if (responseStatus === 201) discogs.stageImport = false
+  else {
+    // handle 400
+  }
+}
 
 onBeforeUnmount(() => {
   discogs.revokeDiscogsForm = false

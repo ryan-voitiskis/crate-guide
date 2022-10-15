@@ -1,5 +1,5 @@
 <template>
-  <div class="record">
+  <div class="record" :class="{ staged: !state.staged }">
     <div class="cover" :style="backgroundImg"></div>
     <h3 class="title">{{ title }}</h3>
     <div class="label">
@@ -8,11 +8,11 @@
     </div>
     <span class="artists">{{ artists }}</span>
     <div class="controls">
-      <button
-        class="inline-btn delete"
-        :disabled="records.checkboxed.length !== 0"
-      >
+      <button v-if="state.staged" @click="unstage()" class="inline-btn delete">
         <TrashIcon />Unstage
+      </button>
+      <button v-else @click="stage()" class="inline-btn add">
+        <PlusCircleIcon />Stage
       </button>
     </div>
   </div>
@@ -20,9 +20,10 @@
 
 <script setup lang="ts">
 import { defineProps, reactive, computed } from "vue"
-import { recordStore } from "@/stores/recordStore"
+import { discogsStore } from "@/stores/discogsStore"
 import TrashIcon from "../svg/TrashIcon.vue"
-const records = recordStore()
+import PlusCircleIcon from "../svg/PlusCircleIcon.vue"
+const discogs = discogsStore()
 
 const props = defineProps<{
   id: number
@@ -35,8 +36,18 @@ const props = defineProps<{
 }>()
 
 const state = reactive({
-  checked: false,
+  staged: true,
 })
+
+const unstage = () => {
+  state.staged = false
+  discogs.unstagedImports.push(props.id)
+}
+
+const stage = () => {
+  state.staged = true
+  discogs.unstagedImports.splice(discogs.unstagedImports.indexOf(props.id), 1)
+}
 
 const backgroundImg = computed(() => {
   return `background-image: url("${props.cover}");`
@@ -45,7 +56,7 @@ const backgroundImg = computed(() => {
 
 <style scoped lang="scss">
 .record {
-  background: linear-gradient(to right, hsl(10, 24%, 96%), hsl(35, 24%, 96%));
+  background: var(--record-bg);
   display: grid;
   grid-template-columns: 9rem 3fr 1fr;
   grid-template-rows: 4rem 2rem 3rem;
@@ -92,15 +103,24 @@ const backgroundImg = computed(() => {
   .controls {
     grid-area: 1 / 3 / 4 / 4;
     button {
-      margin: 0 1rem;
+      width: 100%;
+      height: 100%;
+      align-items: center;
+      justify-content: center;
+      display: flex;
       font-size: 1.2rem;
-      &:disabled {
-        cursor: default;
-        color: var(--lighter-text);
-        svg {
-          fill: var(--lighter-text);
-        }
-      }
+    }
+  }
+  &.staged {
+    color: var(--lighter-text);
+    background: var(--record-unstaged-bg);
+    h3.title,
+    .label .year {
+      color: var(--lighter-text);
+    }
+    .cover {
+      overflow: hidden;
+      filter: grayscale(100%) brightness(130%) opacity(50%);
     }
   }
 }

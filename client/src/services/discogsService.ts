@@ -55,10 +55,29 @@ const getFolder = async (folder: string, token: string) => {
   return response
 }
 
+// add new records
+const importRecords = async (records: number[], token: string) => {
+  const body = new URLSearchParams()
+  body.append("records", JSON.stringify(records))
+
+  const options = {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${token}`,
+    },
+    body: body,
+  }
+  const response = await fetch(API_URL + "import_records", options)
+  return response
+}
+
 const recordService = {
   requestToken,
   revokeDiscogsAuthorisation,
   getFolders,
   getFolder,
+  importRecords,
 }
 export default recordService

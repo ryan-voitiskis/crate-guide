@@ -49,10 +49,14 @@
   --btn-edit: hsl(35, 84%, 54%); /* * same as --saving */
   --btn-edit-hover: hsl(35, 84%, 72%);
   --btn-delete: hsl(356, 75%, 60%); /* * same as --error */
-  --btn-delete-hover: hsl(356, 75%, 72%);
+  --btn-delete-hover: hsl(356, 75%, 80%);
   --btn-disabled: hsl(0, 0%, 80%);
 
   /* decks */
   --deck-black: hsl(0, 0%, 20%);
   --deck-silver: hsl(0, 0%, 80%);
+
+  /* records */
+  --record-bg: linear-gradient(to right, hsl(10, 24%, 96%), hsl(35, 24%, 96%));
+  --record-unstaged-bg:hsl(0, 0%, 97%);
  }

@@ -27,7 +27,6 @@ export const recordStore = defineStore("record", {
         if (response.status === 200) {
           const records = (await response.json()) as Record[]
           if (records !== null) this.recordList = records
-          return response.status
 
           // handle errors
         } else if (response.status === 400) {

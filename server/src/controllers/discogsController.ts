@@ -2,12 +2,15 @@ import asyncHandler from "express-async-handler"
 import fetch from "node-fetch"
 import genNonce from "../utils/genNonce.js"
 import oauthSignature from "oauth-signature"
+import Record from "../models/recordModel.js"
 import { IUser } from "../models/userModel.js"
 
 const oauth_consumer_key = "WJSUzMPCQcGdEFidpwqn"
 const oauth_consumer_secret = "oyasysRSKMwElyRpJjulWoxFBdaXDDTS"
 const discogsAPIURL = "https://api.discogs.com/"
 const userAgent = "CrateGuide/0.2"
+
+// only properties needed for crate-guide included in interfaces
 
 interface Folder {
   id: number
@@ -48,16 +51,27 @@ interface Artist {
   role: string
 }
 
+interface Image {
+  height: number
+  width: number
+  resource_url: string
+  type: string
+}
+
+interface Track {
+  duration: string
+  position: string
+  artists?: Artist[]
+  title: string
+  type_: string
+}
+
 interface Release {
   id: number
-  instance_id: number
-  folder_id: number
-  rating: number
   basic_information: {
     id: number
     title: string
     year: number
-    resource_url: string
     thumb: string
     cover_image: string
     formats: Format[]
@@ -76,6 +90,19 @@ interface FolderResponse {
     items: number
   }
   releases: Release[]
+}
+
+interface ReleaseFull {
+  id: number
+  title: string
+  formats: Format[]
+  labels: Label[]
+  artists: Artist[]
+  images: Image[]
+  tracklist: Track[]
+  genre?: string[]
+  styles?: string[]
+  year: number
 }
 
 const authorisedDiscogsRequest = async (
@@ -196,4 +223,58 @@ const getFolder = asyncHandler(async (req, res) => {
   }
 })
 
-export { getFolders, getFolder }
+// @desc    add records - used for importing records from discogs
+// @route   POST /api/records
+// @access  private
+const importRecords = asyncHandler(async (req, res) => {
+  const recordIDs: number[] = JSON.parse(req.body.records)
+  const urlBase = `${discogsAPIURL}releases/`
+  const user = req.user! as IUser
+  const records: ReleaseFull[] = []
+  let requestsMade = 0
+
+  // TODO: handle rate limiting for n>60, and handle 429 and 404
+  while (requestsMade < recordIDs.length) {
+    const url = urlBase + recordIDs[requestsMade].toString()
+    const response = await authorisedDiscogsRequest(url, user)
+    // console.log(response.headers)
+    const retrievedRecord = (await response.json()) as ReleaseFull
+    records.push(retrievedRecord)
+    requestsMade++
+  }
+
+  const editedReleases = records.map((i) => ({
+    user: req.user!.id,
+    discogsID: i.id,
+    catno: i.labels[0].catno,
+    title: i.title,
+    label: i.labels[0].name,
+    artists: i.artists.map((i) => i.name).toString(),
+    year: i.year,
+    cover:
+      i.images.find((j) => j.type === "primary")?.resource_url ||
+      i.images[0].resource_url,
+    tracks: i.tracklist.map((j) => ({
+      title: j.title,
+      artists: j.artists ? j.artists.map((k) => k.name).toString() : "",
+      position: j.position,
+      duration: j.duration,
+      genre: i.styles ? i.styles.toString() : "",
+      rpm: i.formats[0].descriptions?.toString().includes("45") ? "45" : "33",
+      playable: true,
+    })),
+  }))
+
+  // ? will this ever occur?
+  editedReleases.forEach((record: any) => {
+    if (!record.title || !record.artists) {
+      res.status(400)
+      throw new Error("One or more records are missing 'Title' or 'Artists'.")
+    }
+  })
+
+  const createdRecords = await Record.insertMany(editedReleases)
+  res.status(201).json(createdRecords)
+})
+
+export { getFolders, getFolder, importRecords }

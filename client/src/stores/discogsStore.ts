@@ -1,13 +1,16 @@
 import { defineStore } from "pinia"
 import { userStore } from "@/stores/userStore"
+import { recordStore } from "@/stores/recordStore"
 import DiscogsFolder from "@/interfaces/DiscogsFolder"
 import DiscogsReleaseBasic from "@/interfaces/DiscogsReleaseBasic"
 import discogsService from "@/services/discogsService"
+import Record from "@/interfaces/Record"
 
 export const discogsStore = defineStore("discogs", {
   state: () => ({
     folderList: [] as DiscogsFolder[],
     toImport: [] as DiscogsReleaseBasic[],
+    unstagedImports: [] as number[],
     errorMsg: "",
     foldersErrorMsg: "",
     loading: false,
@@ -113,6 +116,45 @@ export const discogsStore = defineStore("discogs", {
         if (response.status === 200) {
           const folder = (await response.json()) as DiscogsReleaseBasic[]
           if (folder !== null) this.toImport = folder
+
+          // handle errors
+        } else if (response.status === 400) {
+          const error = await response.json()
+          this.errorMsg = error.message ? error.message : "Unexpected error"
+        }
+        this.loading = false
+        return response.status
+
+        // catch error, eg. NetworkError. console.error(error) to debug
+      } catch (error) {
+        console.error(error)
+        return null
+      }
+    },
+
+    async importStaged(token: string) {
+      this.loading = true
+      this.errorMsg = ""
+      const stagedRecords = this.toImport.filter(
+        (i) => !this.unstagedImports.includes(i.id)
+      )
+      const formattedRecords = stagedRecords.map((i) => i.id)
+
+      try {
+        const response = await discogsService.importRecords(
+          formattedRecords,
+          token
+        )
+
+        // push returned crate to crateList
+        if (response.status === 201) {
+          const records = recordStore()
+          const retrievedRecords = (await response.json()) as Record[]
+          if (retrievedRecords !== null) {
+            retrievedRecords.forEach((record) =>
+              records.recordList.push(record)
+            )
+          }
 
           // handle errors
         } else if (response.status === 400) {
