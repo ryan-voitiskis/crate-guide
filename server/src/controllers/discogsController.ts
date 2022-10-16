@@ -4,106 +4,17 @@ import genNonce from "../utils/genNonce.js"
 import oauthSignature from "oauth-signature"
 import Record from "../models/recordModel.js"
 import { IUser } from "../models/userModel.js"
+import {
+  isFoldersResponse,
+  Release,
+  FolderResponse,
+  ReleaseFull,
+} from "../types/discogsController-types.js"
 
 const oauth_consumer_key = "WJSUzMPCQcGdEFidpwqn"
 const oauth_consumer_secret = "oyasysRSKMwElyRpJjulWoxFBdaXDDTS"
 const discogsAPIURL = "https://api.discogs.com/"
 const userAgent = "CrateGuide/0.2"
-
-// only properties needed for crate-guide included in interfaces
-
-interface Folder {
-  id: number
-  name: string
-  count: number
-  resource_url: string
-}
-
-interface FoldersResponse {
-  folders: Folder[]
-}
-
-function isFoldersResponse(obj: any): obj is FoldersResponse {
-  return "folders" in obj
-}
-
-interface Format {
-  name: string
-  qty: number
-  descriptions: string[]
-}
-
-interface Label {
-  id: number
-  name: string
-  catno: string
-  entity_type: string
-  resource_url: string
-}
-
-interface Artist {
-  id: number
-  name: string
-  join: string
-  resource_url: string
-  anv: string
-  tracks: string
-  role: string
-}
-
-interface Image {
-  height: number
-  width: number
-  resource_url: string
-  type: string
-}
-
-interface Track {
-  duration: string
-  position: string
-  artists?: Artist[]
-  title: string
-  type_: string
-}
-
-interface Release {
-  id: number
-  basic_information: {
-    id: number
-    title: string
-    year: number
-    thumb: string
-    cover_image: string
-    formats: Format[]
-    labels: Label[]
-    artists: Artist[]
-    genre: string[]
-    styles: string[]
-  }
-}
-
-interface FolderResponse {
-  pagination: {
-    page: number
-    pages: number
-    per_page: number
-    items: number
-  }
-  releases: Release[]
-}
-
-interface ReleaseFull {
-  id: number
-  title: string
-  formats: Format[]
-  labels: Label[]
-  artists: Artist[]
-  images: Image[]
-  tracklist: Track[]
-  genre?: string[]
-  styles?: string[]
-  year: number
-}
 
 const authorisedDiscogsRequest = async (
   url: string,
@@ -227,6 +138,9 @@ const getFolder = asyncHandler(async (req, res) => {
 // @route   POST /api/records
 // @access  private
 const importRecords = asyncHandler(async (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream")
+  res.write("data: " + `0\n\n`)
+
   const recordIDs: number[] = JSON.parse(req.body.records)
   const urlBase = `${discogsAPIURL}releases/`
   const user = req.user! as IUser
@@ -237,10 +151,13 @@ const importRecords = asyncHandler(async (req, res) => {
   while (requestsMade < recordIDs.length) {
     const url = urlBase + recordIDs[requestsMade].toString()
     const response = await authorisedDiscogsRequest(url, user)
-    // console.log(response.headers)
+    // const limitRemaining = response.headers.get("X-Discogs-Ratelimit-Remaining")
+    // console.log(limitRemaining)
     const retrievedRecord = (await response.json()) as ReleaseFull
     records.push(retrievedRecord)
     requestsMade++
+    if (requestsMade % 2 === 0)
+      res.write("data: " + `${requestsMade / recordIDs.length}\n\n`)
   }
 
   const editedReleases = records.map((i) => ({
@@ -273,8 +190,8 @@ const importRecords = asyncHandler(async (req, res) => {
     }
   })
 
-  const createdRecords = await Record.insertMany(editedReleases)
-  res.status(201).json(createdRecords)
+  await Record.insertMany(editedReleases)
+  res.write("data: " + `1\n\n`)
 })
 
 export { getFolders, getFolder, importRecords }

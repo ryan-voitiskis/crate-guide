@@ -59,4 +59,8 @@
   /* records */
   --record-bg: linear-gradient(to right, hsl(10, 24%, 96%), hsl(35, 24%, 96%));
   --record-unstaged-bg:hsl(0, 0%, 97%);
+
+  /* progress bar */
+  --progress-fg:hsl(206, 41%, 33%);
+  --progress-bg:hsl(205, 24%, 85%);
  }

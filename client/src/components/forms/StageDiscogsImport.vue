@@ -18,7 +18,7 @@
       Close
     </button>
     <button
-      @click="submit()"
+      @click="discogs.importStaged(user.authd.token)"
       class="primary"
       type="submit"
       style="width: 24rem"
@@ -40,15 +40,6 @@ import LoaderCentered from "../LoaderCentered.vue"
 import DiscogsReleaseBasic from "../collection/DiscogsReleaseBasic.vue"
 const discogs = discogsStore()
 const user = userStore()
-
-const submit = async () => {
-  const responseStatus = await discogs.importStaged(user.authd.token)
-  discogs.unstagedImports = []
-  if (responseStatus === 201) discogs.stageImport = false
-  else {
-    // handle 400
-  }
-}
 
 onBeforeUnmount(() => {
   discogs.revokeDiscogsForm = false

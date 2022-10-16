@@ -91,10 +91,21 @@
   >
     <StageDiscogsImport />
   </ModalBox>
+
+  <ModalBox
+    v-if="discogs.importProgressModal"
+    @close="discogs.importProgressModal = false"
+  >
+    <DiscogsImportProgress />
+  </ModalBox>
+
+  <ModalBox v-if="discogs.nothingStaged" @close="discogs.nothingStaged = false">
+    <UpdateFeedback text="No records were staged for import." />
+  </ModalBox>
 </template>
 
 <script setup lang="ts">
-import { reactive } from "vue"
+import { reactive, watch } from "vue"
 import CogIcon from "@/components/svg/CogIcon.vue"
 import ModalBox from "./components/ModalBox.vue"
 import LoginForm from "./components/forms/LoginForm.vue"
@@ -108,6 +119,8 @@ import AuthoriseDiscogsSuccessful from "./components/AuthoriseDiscogsSuccessful.
 import RevokeDiscogsForm from "./components/forms/RevokeDiscogsForm.vue"
 import SelectDiscogsFolder from "./components/forms/SelectDiscogsFolder.vue"
 import StageDiscogsImport from "./components/forms/StageDiscogsImport.vue"
+import DiscogsImportProgress from "./components/DiscogsImportProgress.vue"
+import UpdateFeedback from "@/components/forms/feedbacks/UpdateFeedback.vue"
 
 const discogs = discogsStore()
 const user = userStore()
@@ -118,6 +131,14 @@ const state = reactive({
   recovery: false,
   settings: false,
 })
+
+// if select/deselect all checkbox is unchecked, clear checkboxed array
+// watch(
+//   () => discogs.importProgress,
+//   () => {
+//     if (records.checkAll === false) records.checkboxed = []
+//   }
+// )
 </script>
 
 <style scoped lang="scss"></style>

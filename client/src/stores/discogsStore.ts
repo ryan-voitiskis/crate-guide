@@ -4,7 +4,10 @@ import { recordStore } from "@/stores/recordStore"
 import DiscogsFolder from "@/interfaces/DiscogsFolder"
 import DiscogsReleaseBasic from "@/interfaces/DiscogsReleaseBasic"
 import discogsService from "@/services/discogsService"
-import Record from "@/interfaces/Record"
+import { fetchEventSource } from "@microsoft/fetch-event-source"
+
+// todo: make global or do something better
+const API_URL = "http://localhost:5001/api/discogs/"
 
 export const discogsStore = defineStore("discogs", {
   state: () => ({
@@ -13,11 +16,14 @@ export const discogsStore = defineStore("discogs", {
     unstagedImports: [] as number[],
     errorMsg: "",
     foldersErrorMsg: "",
+    importProgress: 0,
     loading: false,
     loadingFolders: false,
     stageImport: false,
     revokeDiscogsForm: false, // displays RevokeDiscogsForm.vue
     selectDiscogsFolder: false, // displays SelectDiscogsFolder.vue
+    importProgressModal: false, // displays DiscogsImportProgress.vue
+    nothingStaged: false,
   }),
   actions: {
     // call and handle request that begins discogs OAuth flow
@@ -81,6 +87,8 @@ export const discogsStore = defineStore("discogs", {
     },
 
     async getFolders(token: string) {
+      this.unstagedImports = []
+      this.toImport = []
       this.loadingFolders = true
       this.errorMsg = ""
       try {
@@ -133,41 +141,62 @@ export const discogsStore = defineStore("discogs", {
     },
 
     async importStaged(token: string) {
-      this.loading = true
+      this.stageImport = false
+      this.importProgressModal = true
+      this.loading = false
       this.errorMsg = ""
       const stagedRecords = this.toImport.filter(
         (i) => !this.unstagedImports.includes(i.id)
       )
       const formattedRecords = stagedRecords.map((i) => i.id)
+      const body = new URLSearchParams()
+      body.append("records", JSON.stringify(formattedRecords))
+      const records = recordStore()
 
-      try {
-        const response = await discogsService.importRecords(
-          formattedRecords,
-          token
-        )
+      const setProgress = (progress: number) => (this.importProgress = progress)
 
-        // push returned crate to crateList
-        if (response.status === 201) {
-          const records = recordStore()
-          const retrievedRecords = (await response.json()) as Record[]
-          if (retrievedRecords !== null) {
-            retrievedRecords.forEach((record) =>
-              records.recordList.push(record)
-            )
-          }
+      const handleError = (msg: string) =>
+        (this.errorMsg = msg ? msg : "Unexpected error")
 
-          // handle errors
-        } else if (response.status === 400) {
-          const error = await response.json()
-          this.errorMsg = error.message ? error.message : "Unexpected error"
-        }
+      const handleCompletion = async () => {
+        this.loading = true
+        await records.fetchRecords(token)
+        this.importProgressModal = false
+        this.importProgress = 0
         this.loading = false
-        return response.status
+      }
 
-        // catch error, eg. NetworkError. console.error(error) to debug
-      } catch (error) {
-        console.error(error)
-        return null
+      if (formattedRecords.length) {
+        try {
+          // fetch SSE request made directly from Store so importProgress can be mutated.
+          // discogsStore cannot be accessed from discogsService
+          await fetchEventSource(API_URL + "import_records", {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/x-www-form-urlencoded",
+              Authorization: `Bearer ${token}`,
+            },
+            body: body,
+            onmessage(msg) {
+              if (msg.data.includes("Error")) handleError(msg.data)
+              const progress = parseFloat(msg.data)
+              setProgress(progress)
+              if (progress === 1) handleCompletion()
+            },
+            onerror(err) {
+              console.error(err)
+              handleError(err)
+            },
+          })
+
+          // catch error, eg. NetworkError. console.error(error) to debug
+        } catch (error) {
+          console.error(error)
+        }
+      } else {
+        this.importProgressModal = false
+        this.nothingStaged = true
       }
     },
   },
