@@ -142,22 +142,40 @@ const importRecords = asyncHandler(async (req, res) => {
   res.write("data: " + `0\n\n`)
 
   const recordIDs: number[] = JSON.parse(req.body.records)
-  const urlBase = `${discogsAPIURL}releases/`
+  const endpoint = `${discogsAPIURL}releases/`
   const user = req.user! as IUser
   const records: ReleaseFull[] = []
+  const throttlePoint = 6 // X-Discogs-Ratelimit-Remaining to begin throttling
   let requestsMade = 0
+  let limitRemaining = 60
+  let wait = 0
 
-  // TODO: handle rate limiting for n>60, and handle 429 and 404
   while (requestsMade < recordIDs.length) {
-    const url = urlBase + recordIDs[requestsMade].toString()
+    if (wait) await new Promise((resolve) => setTimeout(resolve, wait))
+    const url = endpoint + recordIDs[requestsMade].toString()
     const response = await authorisedDiscogsRequest(url, user)
-    // const limitRemaining = response.headers.get("X-Discogs-Ratelimit-Remaining")
-    // console.log(limitRemaining)
-    const retrievedRecord = (await response.json()) as ReleaseFull
-    records.push(retrievedRecord)
-    requestsMade++
-    if (requestsMade % 2 === 0)
+
+    if (response.status === 200) {
+      requestsMade++
+      const retrievedRecord = (await response.json()) as ReleaseFull
+      records.push(retrievedRecord)
       res.write("data: " + `${requestsMade / recordIDs.length}\n\n`)
+      limitRemaining = parseInt(
+        response.headers.get("X-Discogs-Ratelimit-Remaining") || "0"
+      )
+      wait =
+        limitRemaining < throttlePoint
+          ? (throttlePoint - limitRemaining) * 1000
+          : 0
+    } else if (response.status === 429) {
+      wait = wait + 10000
+    } else if (response.status === 404) {
+      res.write("data: " + `Error: A release was not found by Discogs.\n\n`)
+      res.end()
+    } else {
+      res.write("data: " + `Error: Unexpected error.\n\n`)
+      res.end()
+    }
   }
 
   const editedReleases = records.map((i) => ({
@@ -192,6 +210,7 @@ const importRecords = asyncHandler(async (req, res) => {
 
   await Record.insertMany(editedReleases)
   res.write("data: " + `1\n\n`)
+  res.end()
 })
 
 export { getFolders, getFolder, importRecords }

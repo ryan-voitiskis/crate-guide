@@ -156,7 +156,7 @@ export const discogsStore = defineStore("discogs", {
       const setProgress = (progress: number) => (this.importProgress = progress)
 
       const handleError = (msg: string) =>
-        (this.errorMsg = msg ? msg : "Unexpected error")
+        (this.errorMsg = msg ? msg.replace("Error: ", "") : "Unexpected error")
 
       const handleCompletion = async () => {
         this.loading = true

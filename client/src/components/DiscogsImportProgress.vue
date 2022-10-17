@@ -18,6 +18,7 @@
       <div class="progress"></div>
     </div>
     <LoaderCentered v-else />
+    <ErrorFeedback :show="discogs.errorMsg !== ''" :msg="discogs.errorMsg" />
   </div>
 </template>
 
@@ -26,6 +27,7 @@ import { computed, inject } from "vue"
 import { discogsStore } from "@/stores/discogsStore"
 import XIcon from "@/components/svg/XIcon.vue"
 import LoaderCentered from "./LoaderCentered.vue"
+import ErrorFeedback from "./forms/feedbacks/ErrorFeedback.vue"
 
 const appName = inject("appName")
 const discogs = discogsStore()
