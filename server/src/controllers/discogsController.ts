@@ -71,6 +71,29 @@ const authorisedDiscogsRequest = async (
   return await fetch(url + "?" + URLParams, options)
 }
 
+const editReleases = (records: ReleaseFull[], userID: string) =>
+  records.map((i) => ({
+    user: userID,
+    discogsID: i.id,
+    catno: i.labels[0].catno,
+    title: i.title,
+    label: i.labels[0].name,
+    artists: i.artists.map((i) => i.name).toString(),
+    year: i.year,
+    cover:
+      i.images.find((j) => j.type === "primary")?.resource_url ||
+      i.images[0].resource_url,
+    tracks: i.tracklist.map((j) => ({
+      title: j.title,
+      artists: j.artists ? j.artists.map((k) => k.name).toString() : "",
+      position: j.position,
+      duration: j.duration,
+      genre: i.styles ? i.styles.toString() : "",
+      rpm: i.formats[0].descriptions?.toString().includes("45") ? "45" : "33",
+      playable: true,
+    })),
+  }))
+
 // @desc    get a list of users discogs folders
 // @route   GET /api/discogs/folders
 // @access  private
@@ -134,7 +157,7 @@ const getFolder = asyncHandler(async (req, res) => {
   }
 })
 
-// @desc    add records - used for importing records from discogs
+// @desc    imports edited ReleaseFull for an array of recordIDs, writes to client the progress of the import using SSE
 // @route   POST /api/records
 // @access  private
 const importRecords = asyncHandler(async (req, res) => {
@@ -145,7 +168,7 @@ const importRecords = asyncHandler(async (req, res) => {
   const endpoint = `${discogsAPIURL}releases/`
   const user = req.user! as IUser
   const records: ReleaseFull[] = []
-  const throttlePoint = 6 // X-Discogs-Ratelimit-Remaining to begin throttling
+  const throttlePoint = 10 // X-Discogs-Ratelimit-Remaining to begin throttling
   let requestsMade = 0
   let limitRemaining = 60
   let wait = 0
@@ -159,7 +182,9 @@ const importRecords = asyncHandler(async (req, res) => {
       requestsMade++
       const retrievedRecord = (await response.json()) as ReleaseFull
       records.push(retrievedRecord)
-      res.write("data: " + `${requestsMade / recordIDs.length}\n\n`)
+      res.write(
+        "data: " + `${(requestsMade / recordIDs.length).toFixed(2)}\n\n`
+      )
       limitRemaining = parseInt(
         response.headers.get("X-Discogs-Ratelimit-Remaining") || "0"
       )
@@ -178,37 +203,7 @@ const importRecords = asyncHandler(async (req, res) => {
     }
   }
 
-  const editedReleases = records.map((i) => ({
-    user: req.user!.id,
-    discogsID: i.id,
-    catno: i.labels[0].catno,
-    title: i.title,
-    label: i.labels[0].name,
-    artists: i.artists.map((i) => i.name).toString(),
-    year: i.year,
-    cover:
-      i.images.find((j) => j.type === "primary")?.resource_url ||
-      i.images[0].resource_url,
-    tracks: i.tracklist.map((j) => ({
-      title: j.title,
-      artists: j.artists ? j.artists.map((k) => k.name).toString() : "",
-      position: j.position,
-      duration: j.duration,
-      genre: i.styles ? i.styles.toString() : "",
-      rpm: i.formats[0].descriptions?.toString().includes("45") ? "45" : "33",
-      playable: true,
-    })),
-  }))
-
-  // ? will this ever occur?
-  editedReleases.forEach((record: any) => {
-    if (!record.title || !record.artists) {
-      res.status(400)
-      throw new Error("One or more records are missing 'Title' or 'Artists'.")
-    }
-  })
-
-  await Record.insertMany(editedReleases)
+  await Record.insertMany(editReleases(records, req.user!.id))
   res.write("data: " + `1\n\n`)
   res.end()
 })

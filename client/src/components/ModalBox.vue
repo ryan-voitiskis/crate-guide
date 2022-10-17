@@ -24,6 +24,8 @@ withDefaults(defineProps<Props>(), {
   .modal {
     width: v-bind(width);
     margin: 1rem;
+    max-height: calc(100% - 2rem);
+    overflow: scroll;
   }
 }
 
