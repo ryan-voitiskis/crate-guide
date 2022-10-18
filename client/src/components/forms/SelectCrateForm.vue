@@ -6,7 +6,7 @@
     </button>
   </div>
   <form @submit.prevent="submit">
-    <span class="form-hint"
+    <span class="hint"
       >Select the crate to add {{ recordNames.join(", ") }} to.</span
     >
     <div class="modal-body inline-labels">
@@ -37,9 +37,9 @@
 
 <script setup lang="ts">
 import { reactive, watch, onBeforeUnmount } from "vue"
-import ErrorFeedback from "./feedbacks/ErrorFeedback.vue"
-import LoaderIcon from "@/components/svg/LoaderIcon.vue"
-import XIcon from "@/components/svg/XIcon.vue"
+import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
+import LoaderIcon from "@/components/icons/LoaderIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"

@@ -20,9 +20,9 @@
 </template>
 
 <script setup lang="ts">
-import CheckIcon from "@/components/svg/CheckIcon.vue"
-import ExclamationIcon from "@/components/svg/ExclamationIcon.vue"
-import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import CheckIcon from "@/components/icons/CheckIcon.vue"
+import ExclamationIcon from "@/components/icons/ExclamationIcon.vue"
+import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import { userStore } from "@/stores/userStore"
 const user = userStore()
 </script>

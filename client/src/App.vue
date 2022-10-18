@@ -87,7 +87,7 @@
   <ModalBox
     v-if="discogs.stageImport"
     @close="discogs.stageImport = false"
-    width="880px"
+    width="680px"
   >
     <StageDiscogsImport />
   </ModalBox>
@@ -105,22 +105,22 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, watch } from "vue"
-import CogIcon from "@/components/svg/CogIcon.vue"
-import ModalBox from "./components/ModalBox.vue"
-import LoginForm from "./components/forms/LoginForm.vue"
-import SignUpForm from "./components/forms/SignUpForm.vue"
-import RecoveryForm from "./components/forms/RecoveryForm.vue"
+import { reactive } from "vue"
 import { discogsStore } from "@/stores/discogsStore"
 import { userStore } from "@/stores/userStore"
-import SettingsForm from "./components/forms/SettingsForm.vue"
-import AuthoriseDiscogs from "./components/AuthoriseDiscogs.vue"
-import AuthoriseDiscogsSuccessful from "./components/AuthoriseDiscogsSuccessful.vue"
-import RevokeDiscogsForm from "./components/forms/RevokeDiscogsForm.vue"
-import SelectDiscogsFolder from "./components/forms/SelectDiscogsFolder.vue"
-import StageDiscogsImport from "./components/forms/StageDiscogsImport.vue"
-import DiscogsImportProgress from "./components/DiscogsImportProgress.vue"
-import UpdateFeedback from "@/components/forms/feedbacks/UpdateFeedback.vue"
+import AuthoriseDiscogs from "@/components/discogs/AuthoriseDiscogs.vue"
+import AuthoriseDiscogsSuccessful from "@/components/discogs/AuthoriseDiscogsSuccessful.vue"
+import CogIcon from "@/components/icons/CogIcon.vue"
+import DiscogsImportProgress from "@/components/discogs/DiscogsImportProgress.vue"
+import LoginForm from "@/components/forms/LoginForm.vue"
+import ModalBox from "@/components/utils/ModalBox.vue"
+import RecoveryForm from "@/components/forms/RecoveryForm.vue"
+import RevokeDiscogsForm from "@/components/discogs/ConfirmRevokeDiscogs.vue"
+import SelectDiscogsFolder from "@/components/discogs/SelectDiscogsFolderForm.vue"
+import SettingsForm from "@/components/forms/SettingsForm.vue"
+import SignUpForm from "@/components/forms/SignUpForm.vue"
+import StageDiscogsImport from "@/components/discogs/StageDiscogsImport.vue"
+import UpdateFeedback from "@/components/feedbacks/UpdateFeedback.vue"
 
 const discogs = discogsStore()
 const user = userStore()
@@ -131,14 +131,6 @@ const state = reactive({
   recovery: false,
   settings: false,
 })
-
-// if select/deselect all checkbox is unchecked, clear checkboxed array
-// watch(
-//   () => discogs.importProgress,
-//   () => {
-//     if (records.checkAll === false) records.checkboxed = []
-//   }
-// )
 </script>
 
 <style scoped lang="scss"></style>

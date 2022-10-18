@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import LoaderIcon from "./svg/LoaderIcon.vue"
+import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 </script>
 
 <style scoped lang="scss">

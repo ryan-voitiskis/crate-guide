@@ -6,7 +6,7 @@
     </button>
   </div>
   <form @submit.prevent="submit">
-    <span class="form-hint">Select the folder to import from Discogs.</span>
+    <span class="hint">Select the folder to import from Discogs.</span>
     <div v-if="discogs.folderList.length" class="modal-body inline-labels">
       <label for="folder_select">Select folder </label>
       <select v-model="form.folder" id="folder_select">
@@ -45,12 +45,12 @@
 
 <script setup lang="ts">
 import { reactive, onMounted, onUnmounted, watch } from "vue"
-import ErrorFeedback from "./feedbacks/ErrorFeedback.vue"
-import LoaderIcon from "@/components/svg/LoaderIcon.vue"
-import XIcon from "@/components/svg/XIcon.vue"
+import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
+import LoaderIcon from "@/components/icons/LoaderIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { discogsStore } from "@/stores/discogsStore"
-import LoaderCentered from "../LoaderCentered.vue"
+import LoaderCentered from "@/components/utils/LoaderCentered.vue"
 const user = userStore()
 const discogs = discogsStore()
 

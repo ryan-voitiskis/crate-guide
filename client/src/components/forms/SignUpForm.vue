@@ -53,11 +53,11 @@
 
 <script setup lang="ts">
 import { reactive, defineEmits, onUnmounted, watch } from "vue"
-import BasicInput from "./inputs/BasicInput.vue"
-import PasswordInput from "./inputs/PasswordInput.vue"
-import ErrorFeedback from "./feedbacks/ErrorFeedback.vue"
-import LoaderIcon from "@/components/svg/LoaderIcon.vue"
-import XIcon from "@/components/svg/XIcon.vue"
+import BasicInput from "@/components/inputs/BasicInput.vue"
+import PasswordInput from "@/components/inputs/PasswordInput.vue"
+import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
+import LoaderIcon from "@/components/icons/LoaderIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
 import { userStore } from "@/stores/userStore"
 const user = userStore()

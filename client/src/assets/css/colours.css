@@ -61,6 +61,6 @@
   --record-unstaged-bg:hsl(0, 0%, 97%);
 
   /* progress bar */
-  --progress-fg:linear-gradient( 68.3deg,  rgba(245,177,97,1) 0.4%, rgba(236,54,110,1) 100.2% );
+  --progress-fg:linear-gradient( 70deg,  rgba(245,177,97,1) 0.4%, rgba(236,54,110,1) 100.2% );
   --progress-bg:hsl(0, 0%, 88%);
  }

@@ -6,18 +6,21 @@
     </button>
   </div>
   <InfoDropdown :text="discogsEndpointInfo" />
-  <p class="modal-text">
-    Would you like to allow {{ appName }} to access your discogs collections?
-  </p>
-  <div class="modal-body centered-btns">
+  <div class="modal-body">
+    <span class="question">
+      Would you like to allow {{ appName }} to access your discogs collections?
+    </span>
+    <ErrorFeedback :show="discogs.errorMsg !== ''" :msg="discogs.errorMsg" />
+  </div>
+  <div class="modal-footer-plain">
     <button class="close" type="button" @click="$parent!.$emit('close')">
       Cancel
     </button>
     <button
+      @click="discogs.discogsRequestToken()"
       class="primary"
       type="submit"
       style="width: 18rem"
-      @click="discogs.discogsRequestToken()"
     >
       {{ discogs.loading ? null : "Request access" }}
       <LoaderIcon v-show="discogs.loading" />
@@ -26,20 +29,14 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, inject } from "vue"
-import LoaderIcon from "@/components/svg/LoaderIcon.vue"
-import XIcon from "@/components/svg/XIcon.vue"
-import InfoDropdown from "./InfoDropdown.vue"
-import { crateStore } from "@/stores/crateStore"
+import { inject } from "vue"
+import LoaderIcon from "@/components/icons/LoaderIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
+import InfoDropdown from "../utils/InfoDropdown.vue"
 import { discogsStore } from "@/stores/discogsStore"
-const crates = crateStore()
 const discogs = discogsStore()
 const discogsEndpointInfo = inject("discogsEndpointInfo") as string
 const appName = inject("appName")
-
-onBeforeUnmount(() => {
-  crates.errorMsg = ""
-})
 </script>
 
 <style scoped lang="scss"></style>

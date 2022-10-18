@@ -1,25 +1,25 @@
 <template>
-  <div class="info-dropdown">
+  <div class="info-dropdown hint">
+    <transition name="drop">
+      <span v-if="state.info" v-html="text"></span>
+    </transition>
     <div class="button-wrapper">
       <button type="button" @click="state.info = !state.info">
         <transition name="fade">
           <InfoIcon v-if="!state.info" />
         </transition>
         <transition name="fade">
-          <ChevronUpIcon class="chevron-up" v-if="state.info" />
+          <ChevronUpIcon v-if="state.info" />
         </transition>
       </button>
     </div>
-    <transition name="drop">
-      <span v-if="state.info" v-html="text"></span>
-    </transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { defineProps, reactive } from "vue"
-import InfoIcon from "./svg/InfoIcon.vue"
-import ChevronUpIcon from "./svg/ChevronUpIcon.vue"
+import InfoIcon from "@/components/icons/InfoIcon.vue"
+import ChevronUpIcon from "@/components/icons/ChevronUpIcon.vue"
 
 defineProps<{
   text: string // animation keyframes set to max-height: 200px.
@@ -34,15 +34,17 @@ const state = reactive({
 .info-dropdown {
   font-size: 1.3rem;
   display: flex;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
   span {
+    display: inline;
+    width: 100%;
     color: var(--light-text);
-    align-self: center;
   }
   // wrapper exists to work around button resizing when fixed bug
   .button-wrapper {
-    height: 3.8rem;
     width: 3.8rem;
-    margin-right: 1rem;
+    margin-left: 0.6rem;
   }
   button {
     width: 3.8rem;
@@ -51,10 +53,6 @@ const state = reactive({
       position: absolute;
     }
   }
-}
-
-.chevron-up {
-  transform: rotate(-90deg);
 }
 
 .fade-enter-active {

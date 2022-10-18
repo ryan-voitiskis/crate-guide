@@ -87,12 +87,12 @@ import { reactive, onBeforeUnmount } from "vue"
 import { recordStore } from "@/stores/recordStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
-import BasicInput from "./inputs/BasicInput.vue"
-import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
-import LoaderIcon from "@/components/svg/LoaderIcon.vue"
-import RadioInput from "./inputs/RadioInput.vue"
+import BasicInput from "@/components/inputs/BasicInput.vue"
+import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
+import LoaderIcon from "@/components/icons/LoaderIcon.vue"
+import RadioInput from "@/components/inputs/RadioInput.vue"
 import UnsavedTrack from "@/interfaces/UnsavedTrack"
-import XIcon from "@/components/svg/XIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 
 const records = recordStore()
 const tracks = trackStore()

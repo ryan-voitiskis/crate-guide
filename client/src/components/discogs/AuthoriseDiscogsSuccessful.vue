@@ -19,7 +19,12 @@
     <button class="close" type="button" @click="$parent!.$emit('close')">
       Close
     </button>
-    <button class="primary" type="submit" style="width: 20rem">
+    <button
+      @click=";(discogs.selectDiscogsFolder = true), $parent!.$emit('close')"
+      class="primary"
+      type="submit"
+      style="width: 20rem"
+    >
       Import a collection
     </button>
   </div>
@@ -27,7 +32,9 @@
 
 <script setup lang="ts">
 import { inject } from "vue"
-import XIcon from "@/components/svg/XIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
+import { discogsStore } from "@/stores/discogsStore"
+const discogs = discogsStore()
 
 const appName = inject("appName")
 </script>

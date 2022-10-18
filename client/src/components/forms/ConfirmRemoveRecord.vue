@@ -5,31 +5,33 @@
       <XIcon />
     </button>
   </div>
-  <form @submit.prevent="submit">
-    <span class="form-question">
-      Are you sure you wish to remove
-      {{ recordNames.join(", ") }} from {{ crateName }}?
+  <div class="modal-body">
+    <span class="question">
+      Are you sure you wish to remove {{ recordText }} from {{ crateName }}?
     </span>
-    <div class="modal-body centered-btns">
-      <button class="close" type="button" @click="$parent!.$emit('close')">
-        Cancel
-      </button>
-      <button class="primary" type="submit" style="width: 12rem">
-        {{ records.loading ? null : "Remove" }}
-        <LoaderIcon v-show="records.loading" />
-      </button>
-    </div>
-    <div class="modal-body">
-      <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
-    </div>
-  </form>
+    <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
+  </div>
+  <div class="modal-footer-plain">
+    <button class="close" type="button" @click="$parent!.$emit('close')">
+      Cancel
+    </button>
+    <button
+      @click="submit()"
+      class="primary delete"
+      type="submit"
+      style="width: 12rem"
+    >
+      {{ crates.loading ? null : "Delete" }}
+      <LoaderIcon v-show="crates.loading" />
+    </button>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { defineEmits, onBeforeUnmount } from "vue"
-import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
-import LoaderIcon from "@/components/svg/LoaderIcon.vue"
-import XIcon from "@/components/svg/XIcon.vue"
+import { onBeforeUnmount } from "vue"
+import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
+import LoaderIcon from "@/components/icons/LoaderIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
 import { crateStore } from "@/stores/crateStore"
@@ -37,12 +39,11 @@ const user = userStore()
 const records = recordStore()
 const crates = crateStore()
 
-const emit = defineEmits<{
-  (e: "close"): void
-}>()
-
-// array of either catno if available or title of records to be removed
-const recordNames = records.fromCrate.map((i) => records.getNameById(i))
+// text csv of record catno/name or "n records" for many records
+const recordText =
+  records.fromCrate.length < 24
+    ? records.fromCrate.map((i) => records.getNameById(i)).join(", ")
+    : `${records.fromCrate.length.toString()} records`
 
 // name of crate records are to be removed from
 const crateName = crates.getById(user.authd.settings.selectedCrate)?.name

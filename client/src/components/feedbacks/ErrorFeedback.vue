@@ -6,7 +6,7 @@
 
 <script setup lang="ts">
 import { defineProps } from "vue"
-import ExclamationIcon from "@/components/svg/ExclamationIcon.vue"
+import ExclamationIcon from "@/components/icons/ExclamationIcon.vue"
 
 defineProps<{
   show: boolean

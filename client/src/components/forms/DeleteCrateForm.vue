@@ -6,7 +6,7 @@
     </button>
   </div>
   <form @submit.prevent="submit">
-    <span class="form-hint">
+    <span class="hint">
       Enter the name &quot;<i>{{ crate.name }}</i
       >&quot; to delete crate.<br />
       <b>This can't be undone.</b>
@@ -40,13 +40,13 @@
 
 <script setup lang="ts">
 import { reactive, defineEmits, watch, computed, onBeforeUnmount } from "vue"
-import BasicInput from "./inputs/BasicInput.vue"
-import ErrorFeedback from "./feedbacks/ErrorFeedback.vue"
-import LoaderIcon from "@/components/svg/LoaderIcon.vue"
-import XIcon from "@/components/svg/XIcon.vue"
-import Crate from "@/interfaces/Crate"
-import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
+import { userStore } from "@/stores/userStore"
+import BasicInput from "@/components/inputs/BasicInput.vue"
+import Crate from "@/interfaces/Crate"
+import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
+import LoaderIcon from "@/components/icons/LoaderIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 const user = userStore()
 const crates = crateStore()
 

@@ -17,7 +17,7 @@
 import { inject } from "vue"
 import { discogsStore } from "@/stores/discogsStore"
 import { userStore } from "@/stores/userStore"
-import InfoDropout from "./InfoDropout.vue"
+import InfoDropout from "@/components/utils/InfoDropout.vue"
 const discogs = discogsStore()
 
 const user = userStore()

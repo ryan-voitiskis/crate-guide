@@ -31,12 +31,12 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount } from "vue"
-import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
-import XIcon from "@/components/svg/XIcon.vue"
-import LoaderIcon from "@/components/svg/LoaderIcon.vue"
+import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
+import XIcon from "@/components/icons/XIcon.vue"
+import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { discogsStore } from "@/stores/discogsStore"
-import LoaderCentered from "../LoaderCentered.vue"
+import LoaderCentered from "@/components/utils/LoaderCentered.vue"
 import DiscogsReleaseBasic from "../collection/DiscogsReleaseBasic.vue"
 const discogs = discogsStore()
 const user = userStore()

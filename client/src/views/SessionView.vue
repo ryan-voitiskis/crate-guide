@@ -9,7 +9,7 @@
 </template>
 
 <script setup lang="ts">
-import RecordDeck from "@/components/decks/RecordDeck.vue"
+import RecordDeck from "@/components/session/RecordDeck.vue"
 </script>
 
 <style scoped lang="scss">

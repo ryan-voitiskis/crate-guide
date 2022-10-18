@@ -26,9 +26,9 @@
 <script setup lang="ts">
 import { computed, inject } from "vue"
 import { discogsStore } from "@/stores/discogsStore"
-import XIcon from "@/components/svg/XIcon.vue"
-import LoaderCentered from "./LoaderCentered.vue"
-import ErrorFeedback from "./forms/feedbacks/ErrorFeedback.vue"
+import XIcon from "@/components/icons/XIcon.vue"
+import LoaderCentered from "@/components/utils/LoaderCentered.vue"
+import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 
 const appName = inject("appName")
 const discogs = discogsStore()

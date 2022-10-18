@@ -84,12 +84,12 @@
 
 <script setup lang="ts">
 import { onBeforeMount, onUnmounted } from "vue"
-import RadioCard from "./inputs/RadioCard.vue"
-import SubmitlessFeedback from "./feedbacks/SubmitlessFeedback.vue"
-import XIcon from "@/components/svg/XIcon.vue"
+import RadioCard from "@/components/inputs/RadioCard.vue"
+import SubmitlessFeedback from "@/components/feedbacks/SubmitlessFeedback.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 import { discogsStore } from "@/stores/discogsStore"
 import { userStore } from "@/stores/userStore"
-import DiscogsControls from "../DiscogsControls.vue"
+import DiscogsControls from "../discogs/DiscogsControls.vue"
 const discogs = discogsStore()
 const user = userStore()
 

@@ -51,7 +51,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, watch } from "vue"
-import BasicInput from "@/components/forms/inputs/BasicInput.vue"
+import BasicInput from "@/components/inputs/BasicInput.vue"
 import RecordSingle from "./RecordSingle.vue"
 import Record from "@/interfaces/Record"
 import SortByButton from "./SortByButton.vue"

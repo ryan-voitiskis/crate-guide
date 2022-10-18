@@ -22,8 +22,8 @@
 
 <script setup lang="ts">
 import { reactive } from "vue"
-import BasicInput from "./inputs/BasicInput.vue"
-import XIcon from "@/components/svg/XIcon.vue"
+import BasicInput from "@/components/inputs/BasicInput.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 
 const user = reactive({
   email: "",

@@ -5,23 +5,26 @@
       <XIcon />
     </button>
   </div>
-  <form @submit.prevent="submit">
-    <span class="form-question">
+  <div class="modal-body">
+    <span class="question">
       Are you sure you wish to delete {{ trackTitle }}?
     </span>
-    <div class="modal-body centered-btns">
-      <button class="close" type="button" @click="$parent!.$emit('close')">
-        Cancel
-      </button>
-      <button class="primary delete" type="submit" style="width: 12rem">
-        {{ records.loading ? null : "Delete" }}
-        <LoaderIcon v-show="records.loading" />
-      </button>
-    </div>
-    <div class="modal-body">
-      <ErrorFeedback :show="tracks.errorMsg !== ''" :msg="tracks.errorMsg" />
-    </div>
-  </form>
+    <ErrorFeedback :show="tracks.errorMsg !== ''" :msg="tracks.errorMsg" />
+  </div>
+  <div class="modal-footer-plain">
+    <button class="close" type="button" @click="$parent!.$emit('close')">
+      Cancel
+    </button>
+    <button
+      @click="submit()"
+      class="primary delete"
+      type="submit"
+      style="width: 12rem"
+    >
+      {{ tracks.loading ? null : "Delete" }}
+      <LoaderIcon v-show="tracks.loading" />
+    </button>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -29,9 +32,9 @@ import { onBeforeUnmount } from "vue"
 import { recordStore } from "@/stores/recordStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
-import ErrorFeedback from "@/components/forms/feedbacks/ErrorFeedback.vue"
-import LoaderIcon from "@/components/svg/LoaderIcon.vue"
-import XIcon from "@/components/svg/XIcon.vue"
+import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
+import LoaderIcon from "@/components/icons/LoaderIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 const user = userStore()
 const records = recordStore()
 const tracks = trackStore()

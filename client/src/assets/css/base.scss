@@ -180,33 +180,8 @@ from: https://css-tricks.com/video-screencasts/142-hiding-things-with-css/ */
   }
 }
 
-// not in vue SFC because used in multiple components
-.modal-backdrop {
-  position: fixed;
-  background: rgba(0, 0, 0, 0.4);
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 99;
-  .modal {
-    background: #fff;
-    border-radius: 1rem;
-    z-index: 100;
-  }
-}
-
 .icon-button {
   svg {
     margin-right: 1rem;
   }
-}
-
-p.discogs-ip-statement {
-  font-size: 1.1rem;
-  margin: 0;
-  color: var(--light-text);
 }

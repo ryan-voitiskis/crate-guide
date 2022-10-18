@@ -41,11 +41,11 @@
 
 <script setup lang="ts">
 import { reactive, defineEmits, onUnmounted } from "vue"
-import BasicInput from "./inputs/BasicInput.vue"
-import ErrorFeedback from "./feedbacks/ErrorFeedback.vue"
-import PasswordInput from "./inputs/PasswordInput.vue"
-import LoaderIcon from "@/components/svg/LoaderIcon.vue"
-import XIcon from "@/components/svg/XIcon.vue"
+import BasicInput from "@/components/inputs/BasicInput.vue"
+import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
+import PasswordInput from "@/components/inputs/PasswordInput.vue"
+import LoaderIcon from "@/components/icons/LoaderIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
