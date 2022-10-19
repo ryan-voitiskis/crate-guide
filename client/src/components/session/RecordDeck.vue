@@ -23,6 +23,8 @@
           :pitch="state.pitch"
           :rpm="state.rpm"
         />
+        <!-- <BPMTapper :saved="state.trackLoaded.rpm" /> -->
+        <BPMTapper :saved="144" />
       </div>
     </div>
   </div>
@@ -34,6 +36,8 @@ import StartStopButton from "./StartStopButton.vue"
 import RpmSwitch from "./RpmSwitch.vue"
 import PitchFader from "./PitchFader.vue"
 import RecordIcon from "./RecordIcon.vue"
+import BPMTapper from "./BPMTapper.vue"
+import Track from "@/interfaces/Track"
 
 const props = defineProps<{
   deckID: number
@@ -44,6 +48,7 @@ const state = reactive({
   isLoaded: false,
   rpm: 33,
   pitch: 0, // range of -100 (-8% of rpm) to 100 (+8% of rpm)
+  trackLoaded: {} as Track,
 })
 
 const stopStart = () => {

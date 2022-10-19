@@ -12,7 +12,7 @@ In development: DJ app to assist in finding compatible tracks within a users phy
 - create account and login
 - create, edit and delete Records, Tracks and Crates
 - connect to Discogs API using OAuth 1.0
-- select from folders in collection and import records
+- select from folders in Discogs collection and import records
 
 ### Features to be implemented:
 

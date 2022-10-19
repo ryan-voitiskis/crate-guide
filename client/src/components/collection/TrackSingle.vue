@@ -23,7 +23,7 @@ import { defineProps, computed } from "vue"
 import { trackStore } from "@/stores/trackStore"
 import PencilIcon from "@/components/icons/PencilIcon.vue"
 import TrashIcon from "@/components/icons/TrashIcon.vue"
-import * as d3 from "d3-interpolate"
+import getBPMColour from "@/utils/getBPMColour"
 const tracks = trackStore()
 
 const props = defineProps<{
@@ -80,18 +80,8 @@ const positionColour = computed(() => {
   return "hsl(0, 0%, 68%)"
 })
 
-// returns text colour for bpm between c1 and c2. bpm clamped min - max
 // * computed because is reactive (eg. track edit changes bpm)
-const bpmColour = computed(() => {
-  if (props.bpm) {
-    const min = 80
-    const max = 180
-    const colour1 = "hsl(190, 94%, 55%)"
-    const colour2 = "hsl(310, 87%, 46%)"
-    const clampedBpm = Math.min(Math.max(props.bpm, min), max)
-    return d3.interpolate(colour1, colour2)((clampedBpm - min) / (max - min))
-  } else return null
-})
+const bpmColour = computed(() => (props.bpm ? getBPMColour(props.bpm) : null))
 </script>
 
 <style scoped lang="scss">
