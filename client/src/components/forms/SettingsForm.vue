@@ -77,6 +77,14 @@
         </button>
         <DiscogsControls />
       </fieldset>
+
+      <fieldset class="discogs-ctrls" v-if="user.hasUser()">
+        <legend>Spotify API</legend>
+        <button @click="spotify.authorisationRequest()">
+          Connect to Spotify
+        </button>
+      </fieldset>
+
       <SubmitlessFeedback />
     </div>
   </form>
@@ -88,9 +96,11 @@ import RadioCard from "@/components/inputs/RadioCard.vue"
 import SubmitlessFeedback from "@/components/feedbacks/SubmitlessFeedback.vue"
 import XIcon from "@/components/icons/XIcon.vue"
 import { discogsStore } from "@/stores/discogsStore"
+import { spotifyStore } from "@/stores/spotifyStore"
 import { userStore } from "@/stores/userStore"
 import DiscogsControls from "../discogs/DiscogsControls.vue"
 const discogs = discogsStore()
+const spotify = spotifyStore()
 const user = userStore()
 
 // ! breaks when called directly from <form v-on="">. cpu spike + browser non-responsive

@@ -1,15 +1,20 @@
 <template>
   <div class="container">
     <header>
-      <nav class="radio">
+      <nav v-if="$router.currentRoute.value.name !== 'about'" class="radio">
         <router-link class="btn" to="/">Session</router-link>
         <router-link class="btn" to="/collection">Collection</router-link>
       </nav>
-
       <nav class="account">
         <span class="welcome" v-if="user.hasUser()"
           >Welcome
           {{ user.authd.name != "" ? user.authd.name : user.authd.email }}</span
+        >
+        <router-link
+          v-if="$router.currentRoute.value.name !== 'about'"
+          class="btn"
+          to="/about"
+          >About</router-link
         >
         <button
           type="button"
@@ -102,10 +107,15 @@
   <ModalBox v-if="discogs.nothingStaged" @close="discogs.nothingStaged = false">
     <UpdateFeedback text="No records were staged for import." />
   </ModalBox>
+
+  <ModalBox v-if="state.queryMsg" @close="state.queryMsg = ''">
+    <UpdateFeedback :text="state.queryMsg" />
+  </ModalBox>
 </template>
 
 <script setup lang="ts">
-import { reactive } from "vue"
+import { reactive, watch } from "vue"
+import { useRoute } from "vue-router"
 import { discogsStore } from "@/stores/discogsStore"
 import { userStore } from "@/stores/userStore"
 import AuthoriseDiscogs from "@/components/discogs/AuthoriseDiscogs.vue"
@@ -124,13 +134,23 @@ import UpdateFeedback from "@/components/feedbacks/UpdateFeedback.vue"
 
 const discogs = discogsStore()
 const user = userStore()
+const route = useRoute()
 
 const state = reactive({
   login: false,
   signUp: false,
   recovery: false,
   settings: false,
+  queryMsg: route.query.msg?.toString() || "",
 })
+
+// get msg from query string, doesn't work with lifecycle hooks :/
+watch(
+  () => route.query.msg,
+  () => {
+    state.queryMsg = route.query.msg?.toString() || ""
+  }
+)
 </script>
 
 <style scoped lang="scss"></style>

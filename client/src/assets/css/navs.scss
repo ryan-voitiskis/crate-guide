@@ -43,7 +43,8 @@ header {
   }
   nav.account {
     margin-left: auto;
-    button {
+    button,
+    a {
       border-radius: 0;
       background: transparent;
       color: var(--dark-text);

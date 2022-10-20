@@ -60,7 +60,7 @@ function isCaptureVerifierQuery(obj: any): obj is captureVerifierQuery {
 const requestTokenAndUpdateUser = asyncHandler(async (req, res) => {
   const params = new URLSearchParams()
   params.append("oauth_consumer_key", oauth_consumer_key)
-  params.append("oauth_nonce", genNonce())
+  params.append("oauth_nonce", genNonce(12))
   params.append("oauth_version", "1.0")
   params.append("oauth_signature_method", "PLAINTEXT")
   params.append("oauth_timestamp", Date.now().toString())
@@ -99,6 +99,8 @@ const requestTokenAndUpdateUser = asyncHandler(async (req, res) => {
 // @route   GET /api/discogs/capture_verifier
 // @access  public
 const captureVerifierAndUpdateUser = asyncHandler(async (req, res) => {
+  // TODO: do any of the 400s get handled by client if req is made by discogs?
+  // if not use res.redirect with msg query string
   if (isCaptureVerifierQuery(req.query)) {
     const query: captureVerifierQuery = req.query
     const user = await User.findOne({
@@ -128,7 +130,7 @@ const captureVerifierAndUpdateUser = asyncHandler(async (req, res) => {
         res.status(400)
         throw new Error(`${accessTokenURL} didn't respond with token & secret.`)
       }
-      res.redirect(env.SITE_URL ?? "")
+      res.redirect(env.SITE_URL)
     } else {
       res.status(400)
       throw new Error("Found user doesn't have request token secret.")
@@ -147,7 +149,7 @@ const getOAuthCredentials = async (
 ) => {
   const params = new URLSearchParams()
   params.append("oauth_consumer_key", oauth_consumer_key)
-  params.append("oauth_nonce", genNonce())
+  params.append("oauth_nonce", genNonce(12))
   params.append("oauth_token", query.oauth_token)
   params.append("oauth_signature", `${oauth_consumer_secret}%26${tokenSecret}`)
   params.append("oauth_signature_method", "PLAINTEXT")
@@ -171,7 +173,7 @@ const getOAuthCredentials = async (
 // * https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
 const getDiscogsUsername = async (oauthCreds: AccessTokenResponse) => {
   const httpMethod = "GET"
-  const nonce = genNonce()
+  const nonce = genNonce(12)
   const timestamp = Date.now().toString()
 
   const signatureParams = {

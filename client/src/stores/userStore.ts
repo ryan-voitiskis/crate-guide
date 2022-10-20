@@ -37,7 +37,7 @@ export const userStore = defineStore("user", {
         if (response.status === 200) {
           // nav to home page here to avoid extra call to user.updateSettings() from watch in CollectionManager
           // * this wont be necessary if entry to app requires login. ie collection and session not accessible unless logged in
-          router.push("/")
+          // router.push("/")
           const data = await response.json()
           Object.assign(this.authd, data)
           document.cookie = `crate_guide_jwt=${this.authd.token}; SameSite=Strict; Secure;`
@@ -70,7 +70,7 @@ export const userStore = defineStore("user", {
         if (response.status === 200) {
           // nav to home page here to avoid extra call to user.updateSettings() from watch in CollectionManager
           // * this wont be necessary if entry to app requires login. ie collection and session not accessible unless logged in
-          router.push("/")
+          // router.push("/") this prevented handling of url query msg in App
           const data = await response.json()
           Object.assign(this.authd, data)
           document.cookie = `crate_guide_jwt=${this.authd.token}; SameSite=Strict; Secure;`

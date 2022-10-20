@@ -23,7 +23,7 @@ const authorisedDiscogsRequest = async (
   per_page?: number
 ) => {
   const httpMethod = "GET" // hardcoded as no plans to provide POST or other functionality
-  const nonce = genNonce()
+  const nonce = genNonce(12)
   const timestamp = Date.now().toString()
 
   let signatureParams = {
@@ -169,21 +169,21 @@ const importRecords = asyncHandler(async (req, res) => {
   const user = req.user! as IUser
   const records: ReleaseFull[] = []
   const throttlePoint = 10 // X-Discogs-Ratelimit-Remaining to begin throttling
-  let requestsMade = 0
+  let successfulRequests = 0
   let limitRemaining = 60
   let wait = 0
 
-  while (requestsMade < recordIDs.length) {
+  while (successfulRequests < recordIDs.length) {
     if (wait) await new Promise((resolve) => setTimeout(resolve, wait))
-    const url = endpoint + recordIDs[requestsMade].toString()
+    const url = endpoint + recordIDs[successfulRequests].toString()
     const response = await authorisedDiscogsRequest(url, user)
 
     if (response.status === 200) {
-      requestsMade++
+      successfulRequests++
       const retrievedRecord = (await response.json()) as ReleaseFull
       records.push(retrievedRecord)
       res.write(
-        "data: " + `${(requestsMade / recordIDs.length).toFixed(2)}\n\n`
+        "data: " + `${(successfulRequests / recordIDs.length).toFixed(2)}\n\n`
       )
       limitRemaining = parseInt(
         response.headers.get("X-Discogs-Ratelimit-Remaining") || "0"

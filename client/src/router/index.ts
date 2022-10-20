@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from "vue-router"
 import SessionView from "@/views/SessionView.vue"
+import AboutPage from "@/views/AboutPage.vue"
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -15,6 +16,11 @@ const routes: Array<RouteRecordRaw> = [
     // which is lazy-loaded when the route is visited.
     component: () =>
       import(/* webpackChunkName: "about" */ "../views/CollectionManager.vue"),
+  },
+  {
+    path: "/about",
+    name: "about",
+    component: AboutPage,
   },
 ]
 

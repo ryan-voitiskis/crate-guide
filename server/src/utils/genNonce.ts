@@ -1,9 +1,8 @@
-// 12 char nonce generator
-const genNonce = (): string => {
+const genNonce = (length: number): string => {
   let text = ""
   const possible =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < length; i++) {
     text += possible.charAt(Math.floor(Math.random() * possible.length))
   }
   return text
