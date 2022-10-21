@@ -4,6 +4,13 @@ import fetch from "node-fetch"
 import genNonce from "../utils/genNonce.js"
 import oauthSignature from "oauth-signature"
 import { User } from "../models/userModel.js"
+import {
+  AccessTokenResponse,
+  isAccessTokenResponse,
+  isIdentityResponse,
+  captureVerifierQuery,
+  isCaptureVerifierQuery,
+} from "../types/discogsOAuthController-types.js"
 
 const oauth_consumer_key = "WJSUzMPCQcGdEFidpwqn"
 const oauth_consumer_secret = "oyasysRSKMwElyRpJjulWoxFBdaXDDTS"
@@ -12,46 +19,6 @@ const accessTokenURL = "https://api.discogs.com/oauth/access_token"
 const identityURL = "https://api.discogs.com/oauth/identity"
 const oauthCallback = env.SITE_URL + "/api/discogs/capture_verifier"
 const userAgent = "CrateGuide/0.2"
-
-interface AccessTokenResponse {
-  oauth_token: string
-  oauth_token_secret: string
-}
-
-function isAccessTokenResponse(obj: any): obj is AccessTokenResponse {
-  return (
-    typeof obj.oauth_token === "string" &&
-    typeof obj.oauth_token_secret === "string"
-  )
-}
-
-interface IdentityResponse {
-  id: number
-  username: string
-  resource_url: string
-  consumer_name: string
-}
-
-function isIdentityResponse(obj: any): obj is IdentityResponse {
-  return (
-    typeof obj.id === "number" &&
-    typeof obj.username === "string" &&
-    typeof obj.resource_url === "string" &&
-    typeof obj.consumer_name === "string"
-  )
-}
-
-interface captureVerifierQuery {
-  oauth_token: string
-  oauth_verifier: string
-}
-
-function isCaptureVerifierQuery(obj: any): obj is captureVerifierQuery {
-  return (
-    typeof obj.oauth_token === "string" &&
-    typeof obj.oauth_verifier === "string"
-  )
-}
 
 // @desc    request OAuth token as per step 2 of:
 // *        https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
@@ -220,11 +187,6 @@ const getDiscogsUsername = async (oauthCreds: AccessTokenResponse) => {
 // @access  private
 const revokeDiscogsAuthorisation = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user!.id)
-
-  if (!user) {
-    res.status(400)
-    throw new Error("User not found.")
-  }
 
   if (user!._id.valueOf() !== req.user!.id) {
     res.status(401)

@@ -13,6 +13,10 @@ interface IUser {
   discogsRequestTokenSecret: string
   justCompleteDiscogsOAuth: boolean
   discogsUsername: string
+  spotifyToken: string
+  spotifyRefreshToken: string
+  spotifyNonce: string
+  spotifyAuthReqTimestamp: number
   settings: {
     theme: string
     turntableTheme: string
@@ -57,6 +61,22 @@ const userSchema = new mongoose.Schema<IUser>(
     justCompleteDiscogsOAuth: {
       type: Boolean,
       default: false,
+    },
+    // authorization_code OAuth token, valid for 1 minute
+    spotifyToken: {
+      type: String,
+    },
+    // token provided during OAuth for refreshing token when spotifyToken expires
+    spotifyRefreshToken: {
+      type: String,
+    },
+    // nonce (state) used to find user in DB from OAuth callback function
+    spotifyNonce: {
+      type: String,
+    },
+    // once user is found with nonce, check authorisationRequest was made recently with this
+    spotifyAuthReqTimestamp: {
+      type: Number,
     },
     settings: {
       theme: {
