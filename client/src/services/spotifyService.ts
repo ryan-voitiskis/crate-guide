@@ -29,8 +29,23 @@ const revokeSpotifyAuthorisation = async (token: string) => {
   return response
 }
 
+// test
+const importAudioFeatures = async (token: string) => {
+  const options = {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${token}`,
+    },
+  }
+  const response = await fetch(API_URL + "import_audio_features", options)
+  return response
+}
+
 const recordService = {
   authorisationRequest,
   revokeSpotifyAuthorisation,
+  importAudioFeatures,
 }
 export default recordService

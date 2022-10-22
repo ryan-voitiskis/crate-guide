@@ -2,7 +2,7 @@ import asyncHandler from "express-async-handler"
 import fetch from "node-fetch"
 import genNonce from "../utils/genNonce.js"
 import oauthSignature from "oauth-signature"
-import Record from "../models/recordModel.js"
+import { Record } from "../models/recordModel.js"
 import { IUser } from "../models/userModel.js"
 import {
   isFoldersResponse,

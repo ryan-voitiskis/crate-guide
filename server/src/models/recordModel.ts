@@ -1,6 +1,30 @@
-import mongoose from "mongoose"
+import mongoose, { Types } from "mongoose"
 
-const trackSchema = new mongoose.Schema({
+interface ITrack {
+  title: string
+  artists: string
+  position: string
+  duration?: string
+  bpm: number
+  rpm: number
+  genre: string
+  playable: boolean
+}
+
+interface IRecord {
+  user: Types.ObjectId
+  discogsID: number
+  catno: string
+  title: string
+  artists: string
+  label: string
+  year: number
+  cover: string
+  mixable: boolean
+  tracks: ITrack[]
+}
+
+const trackSchema = new mongoose.Schema<ITrack>({
   title: {
     type: String,
     required: [true, "Track model: No title provided."],
@@ -28,7 +52,7 @@ const trackSchema = new mongoose.Schema({
   },
 })
 
-const recordSchema = new mongoose.Schema(
+const recordSchema = new mongoose.Schema<IRecord>(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -70,4 +94,5 @@ const recordSchema = new mongoose.Schema(
   }
 )
 
-export default mongoose.model("Record", recordSchema)
+const Record = mongoose.model("Record", recordSchema)
+export { ITrack, IRecord, Record }

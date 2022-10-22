@@ -51,7 +51,6 @@ const authorisationCallback = asyncHandler(async (req, res) => {
         body.append("grant_type", "authorization_code")
         if (code) body.append("code", code.toString())
         body.append("redirect_uri", redirectURI)
-
         const options = {
           method: "POST",
           headers: {
