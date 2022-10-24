@@ -173,6 +173,7 @@ const importRecords = asyncHandler(async (req, res) => {
   let limitRemaining = 60
   let wait = 0
 
+  // ? for await (const record of records) {    would be better?
   while (successfulRequests < recordIDs.length) {
     if (wait) await new Promise((resolve) => setTimeout(resolve, wait))
     const url = endpoint + recordIDs[successfulRequests].toString()

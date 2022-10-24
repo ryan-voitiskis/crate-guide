@@ -2,6 +2,7 @@
   /* elements */
   --hr: hsl(0, 0%, 80%);
   --table-border: hsl(0, 0%, 53%);
+  --border-colour: hsl(0, 0%, 43%);
 
   /* text and icons */
   --site-title-text: hsl(205, 13%, 30%);

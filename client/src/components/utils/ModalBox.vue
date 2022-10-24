@@ -7,7 +7,7 @@
 </template>
 
 <script setup lang="ts">
-import { withDefaults, defineProps, onMounted, onUnmounted } from "vue"
+import { withDefaults, defineProps, onMounted, onBeforeUnmount } from "vue"
 
 export interface Props {
   width?: string
@@ -20,7 +20,7 @@ withDefaults(defineProps<Props>(), {
 
 // prevent scrolling of body when modal shown
 onMounted(() => (document.body.style.overflow = "hidden"))
-onUnmounted(() => (document.body.style.overflow = "visible"))
+onBeforeUnmount(() => (document.body.style.overflow = "visible"))
 </script>
 
 <style lang="scss">

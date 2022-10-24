@@ -50,7 +50,14 @@
       @click="records.toDelete = records.checkboxed"
       v-if="records.checkboxed.length"
     >
-      <TrashIcon />Delete Selected
+      <TrashIcon />Delete selected
+    </button>
+    <button
+      class="icon-button"
+      @click="spotify.importDataForSelectedRecords(user.authd.token)"
+      v-if="records.checkboxed.length"
+    >
+      <SpotifyLogo />Get Spotify data for selected
     </button>
   </div>
 
@@ -107,12 +114,28 @@
   <ModalBox v-if="crates.feedbackMsg !== ''" @close="crates.feedbackMsg = ''">
     <UpdateFeedback :text="crates.feedbackMsg" />
   </ModalBox>
+
+  <ModalBox
+    v-if="spotify.importProgressModal"
+    @close="spotify.importProgressModal = false"
+  >
+    <SpotifyImportProgress />
+  </ModalBox>
+
+  <ModalBox
+    v-if="spotify.imperfectMatches.length"
+    @close="spotify.imperfectMatches = []"
+    width="680px"
+  >
+    <ImperfectMatchForm />
+  </ModalBox>
 </template>
 
 <script setup lang="ts">
 import { reactive, onBeforeUnmount } from "vue"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
+import { spotifyStore } from "@/stores/spotifyStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import AddCrateForm from "@/components/forms/AddCrateForm.vue"
@@ -137,9 +160,13 @@ import RemoveRecordForm from "@/components/forms/ConfirmRemoveRecord.vue"
 import SelectCrateForm from "@/components/forms/SelectCrateForm.vue"
 import TrashIcon from "@/components/icons/TrashIcon.vue"
 import UpdateFeedback from "@/components/feedbacks/UpdateFeedback.vue"
+import SpotifyImportProgress from "@/components/spotify/SpotifyImportProgress.vue"
+import SpotifyLogo from "@/components/icons/SpotifyLogo.vue"
+import ImperfectMatchForm from "@/components/spotify/ImperfectMatchForm.vue"
 
 const crates = crateStore()
 const records = recordStore()
+const spotify = spotifyStore()
 const tracks = trackStore()
 const user = userStore()
 

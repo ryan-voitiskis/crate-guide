@@ -14,6 +14,7 @@ interface ITrack {
 interface IRecord {
   user: Types.ObjectId
   discogsID: number
+  spotifyID: string
   catno: string
   title: string
   artists: string
@@ -61,6 +62,9 @@ const recordSchema = new mongoose.Schema<IRecord>(
     },
     discogsID: {
       type: Number,
+    },
+    spotifyID: {
+      type: String,
     },
     catno: {
       type: String,

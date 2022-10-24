@@ -9,6 +9,7 @@ export default interface Record {
   artists: string
   label: string
   year: number
+  cover: string
   mixable: boolean
   tracks: Track[]
 }

@@ -83,10 +83,6 @@
         <button @click="spotify.authorisationRequest()">
           Connect to Spotify
         </button>
-
-        <button @click="spotify.importAudioFeatures()">
-          Import Audio Features
-        </button>
       </fieldset>
 
       <SubmitlessFeedback />
