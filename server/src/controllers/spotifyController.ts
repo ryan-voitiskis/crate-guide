@@ -2,6 +2,7 @@ import asyncHandler from "express-async-handler"
 import fetch from "node-fetch"
 import levenshtein from "js-levenshtein"
 import { ITrack, IRecord, Record } from "../models/recordModel.js"
+import unsign from "../utils/unsign.js"
 import { User } from "../models/userModel.js"
 
 const spotifyAPIURL = "https://api.spotify.com/v1/"
@@ -79,6 +80,8 @@ interface SearchTrackResult {
 // @desc    removes discogs API creds from user
 // @route   GET /api/spotify/track
 // @access  private
+
+// TODO: write custom errorMiddleware for SSEs
 const importRecordAudioFeatures = asyncHandler(async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream")
   res.write("data: " + `0\n\n`)
@@ -140,11 +143,11 @@ const searchAlbum = async (
 
   if (isSearchAlbumResponse(searchAlbumResponse)) {
     if (searchAlbumResponse.albums.items.length) {
-      const queryArtist = query.artist.toLocaleLowerCase()
-      const queryAlbum = query.album.toLocaleLowerCase()
+      const queryArtist = query.artist.toLowerCase().trim()
+      const queryAlbum = query.album.toLowerCase().trim()
       for (const item of searchAlbumResponse.albums.items) {
-        const foundArtist = item.artists[0].name.toLocaleLowerCase()
-        const foundAlbum = item.name.toLocaleLowerCase()
+        const foundArtist = item.artists[0].name.toLowerCase().trim()
+        const foundAlbum = item.name.toLowerCase().trim()
         if (foundArtist === queryArtist && foundAlbum === queryAlbum) {
           return [{ id: item.id, levenshtein: 0 }]
         }
@@ -155,6 +158,10 @@ const searchAlbum = async (
           const artistDistance = levenshtein(foundArtist, queryArtist)
           const albumDistance = levenshtein(foundAlbum, queryAlbum)
           distance = artistDistance + albumDistance
+        }
+        if (query.year) {
+          const foundYear = new Date(item.release_date).getFullYear()
+          distance = distance + unsign(query.year - foundYear)
         }
         matches.push({
           id: item.id,
@@ -168,7 +175,7 @@ const searchAlbum = async (
       }
     }
   }
-  return matches.sort((a, b) => a.levenshtein - b.levenshtein).slice(0, 4)
+  return matches.sort((a, b) => a.levenshtein - b.levenshtein).slice(0, 8)
 }
 
 // const searchTrack = async (

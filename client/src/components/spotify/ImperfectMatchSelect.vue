@@ -12,17 +12,24 @@
     <hr />
     <div class="imperfect-matches">
       <ImperfectMatchOption
-        v-for="match in matches"
+        v-for="match in sortedMatches"
         v-bind="match"
         :record="_id"
         :key="match.id"
       />
     </div>
+    <button
+      v-if="state.numberShown === 3"
+      class="show-more"
+      @click="state.numberShown = 8"
+    >
+      Show more
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { defineProps, computed } from "vue"
+import { defineProps, computed, reactive } from "vue"
 import { recordStore } from "@/stores/recordStore"
 import { ImperfectMatchOption as IImperfectMatchOption } from "@/interfaces/ImperfectMatch"
 import ImperfectMatchOption from "@/components/spotify/ImperfectMatchOption.vue"
@@ -33,11 +40,15 @@ const props = defineProps<{
   matches: any
 }>()
 
+const state = reactive({
+  numberShown: 3,
+})
+
 const record = records.getById(props._id)
 
 // sort matched by levenshtein distance
 const sortedMatches = computed((): IImperfectMatchOption[] =>
-  [...props.matches].sort((a, b) => a.levenshtein - b.levenshtein)
+  [...props.matches].slice(0, state.numberShown)
 )
 
 const backgroundImg = computed(() => {
@@ -106,6 +117,9 @@ const backgroundImg = computed(() => {
     width: 100%;
     gap: 1rem;
     flex-wrap: wrap;
+  }
+  .show-more {
+    align-self: center;
   }
 }
 </style>

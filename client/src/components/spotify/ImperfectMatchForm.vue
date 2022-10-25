@@ -7,10 +7,20 @@
   </div>
   <div class="modal-body">
     <p>
-      {{ appName }} couldn't find a perfect match on Spotify for the following
-      records. The closest matches for each are listed here. Please select the
-      correct records <b>if any</b> and submit this form to import the Spotify
-      data.
+      {{ appName }} couldn't find a perfect match on Spotify for
+      <b>{{ spotify.imperfectMatches.length.toString() }}</b>
+      {{ spotify.imperfectMatches.length > 1 ? "records" : "record" }}. The
+      closest matches for each are listed here. Please select the correct
+      records <b>if any</b> and submit this form to import the Spotify data for
+      the tracks on those records.
+    </p>
+    <p>
+      {{ appName }} will still check selected albums for the saved track names
+      of the vinyl release.
+    </p>
+    <p>
+      If no option is selected for a record, {{ appName }} will search for the
+      individual track names.
     </p>
     <div class="imperfect-matches-list">
       <ImperfectMatchSelect
