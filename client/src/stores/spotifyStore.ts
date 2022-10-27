@@ -6,7 +6,7 @@ import spotifyService from "@/services/spotifyService"
 import { ImperfectMatch } from "@/interfaces/ImperfectMatch"
 
 // todo: make global or do something better
-const API_URL = "http://localhost:5001/api/spotify/"
+const API_SSE_URL = "http://localhost:5001/api/spotify_sse/"
 
 export const spotifyStore = defineStore("spotify", {
   state: () => ({
@@ -114,7 +114,7 @@ export const spotifyStore = defineStore("spotify", {
         try {
           // fetch SSE request made directly from Store so importProgress can be mutated.
           // spotifyStore cannot be accessed from spotifyService
-          await fetchEventSource(API_URL + "import_data_for_selected", {
+          await fetchEventSource(API_SSE_URL + "import_data_for_selected", {
             method: "POST",
             headers: {
               Accept: "application/json",
@@ -165,7 +165,7 @@ export const spotifyStore = defineStore("spotify", {
         try {
           // fetch SSE request made directly from Store so importProgress can be mutated.
           // spotifyStore cannot be accessed from spotifyService
-          await fetchEventSource(API_URL + "import_data_for_selected", {
+          await fetchEventSource(API_SSE_URL + "import_data_for_selected", {
             method: "POST",
             headers: {
               Accept: "application/json",

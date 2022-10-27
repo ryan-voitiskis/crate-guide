@@ -7,7 +7,7 @@ import discogsService from "@/services/discogsService"
 import { fetchEventSource } from "@microsoft/fetch-event-source"
 
 // todo: make global or do something better
-const API_URL = "http://localhost:5001/api/discogs/"
+const API_SSE_URL = "http://localhost:5001/api/discogs/"
 
 export const discogsStore = defineStore("discogs", {
   state: () => ({
@@ -170,7 +170,7 @@ export const discogsStore = defineStore("discogs", {
         try {
           // fetch SSE request made directly from Store so importProgress can be mutated.
           // discogsStore cannot be accessed from discogsService
-          await fetchEventSource(API_URL + "import_records", {
+          await fetchEventSource(API_SSE_URL + "import_records", {
             method: "POST",
             headers: {
               Accept: "application/json",
