@@ -42,7 +42,7 @@ const authorisationCallback = asyncHandler(async (req, res) => {
     const user = await User.findOne({ spotifyNonce: state })
     if (user) {
       // check authorisation req was recent, avoid extremely unlikely collision. (probably unnecessary)
-      if (Date.now() - user.spotifyAuthReqTimestamp < 30000) {
+      if (Date.now() - user.spotifyAuthReqTimestamp < 300000) {
         const basic = Buffer.from(`${clientID}:${clientSecret}`).toString(
           "base64"
         )

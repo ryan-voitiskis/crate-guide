@@ -68,7 +68,7 @@ const backgroundImg = computed(() => {
   .play-on-spotify {
     justify-self: start;
     align-self: center;
-    color: #1db954;
+    color: var(--spotify-green);
     grid-area: 1 / 2 / 2 / 3;
     padding: 0 1.6rem;
     font-size: 1.2rem;
@@ -76,9 +76,15 @@ const backgroundImg = computed(() => {
     letter-spacing: 0.1rem;
     border-radius: 1.9rem;
     margin: 0;
+    svg {
+      color: var(--spotify-light-green);
+    }
     &:hover {
-      color: #fff;
-      background-color: #1db954;
+      color: white;
+      background-color: var(--spotify-green);
+      svg {
+        color: white;
+      }
     }
   }
   .title {

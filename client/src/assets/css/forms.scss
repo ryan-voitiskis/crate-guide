@@ -18,6 +18,7 @@ input[type="button"] {
   transition: background-color 0.5s, color 0.5s;
   white-space: nowrap;
   svg {
+    overflow: visible; // because spotify logo was being clipped by a fraction of a px
     align-self: center;
     height: 2.2rem;
   }
@@ -104,7 +105,7 @@ form {
   button.primary {
     width: 100%;
     svg {
-      fill: #fff;
+      fill: white;
     }
   }
 }
@@ -201,7 +202,7 @@ select.invalid {
 }
 
 input:-webkit-autofill {
-  -webkit-box-shadow: 0 0 0 1000px #fff inset !important; //removes autofill yellow background
+  -webkit-box-shadow: 0 0 0 1000px white inset !important; //removes autofill yellow background
 }
 
 // non-default styling, background url is svg images/cheveron-down-lighter.svg

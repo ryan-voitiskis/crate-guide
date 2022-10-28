@@ -1,6 +1,7 @@
-import mongoose from "mongoose"
+import mongoose, { Types } from "mongoose"
 
 interface IUser {
+  _id: Types.ObjectId
   name: string
   email: string
   password: string

@@ -36,7 +36,7 @@ onBeforeUnmount(() => (document.body.style.overflow = "visible"))
   align-items: center;
   z-index: 99;
   .modal {
-    background: #fff;
+    background: white;
     border-radius: 1rem;
     z-index: 100;
     display: flex;

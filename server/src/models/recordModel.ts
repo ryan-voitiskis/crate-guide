@@ -1,6 +1,7 @@
 import mongoose, { Types } from "mongoose"
 
 interface ITrack {
+  _id: Types.ObjectId
   title: string
   artists: string
   position: string
@@ -12,6 +13,7 @@ interface ITrack {
 }
 
 interface IRecord {
+  _id: Types.ObjectId
   user: Types.ObjectId
   discogsID: number
   spotifyID: string

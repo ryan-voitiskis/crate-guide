@@ -57,7 +57,9 @@ const tap = () => {
   timeout = setTimeout(reset, 2000)
 }
 
-const bpmColour = computed(() => (state.bpm ? getBPMColour(state.bpm) : "#fff"))
+const bpmColour = computed(() =>
+  state.bpm ? getBPMColour(state.bpm) : "white"
+)
 const savedBpmColour = computed(() =>
   props.saved ? getBPMColour(props.saved) : null
 )

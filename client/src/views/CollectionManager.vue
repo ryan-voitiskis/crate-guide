@@ -57,7 +57,7 @@
       @click="spotify.importDataForSelectedRecords(user.authd.token)"
       v-if="records.checkboxed.length"
     >
-      <SpotifyLogo />Get Spotify data for selected
+      <SpotifyLogo class="spotify-logo" />Get Spotify data for selected
     </button>
   </div>
 
@@ -189,5 +189,9 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 1rem;
+}
+
+.spotify-logo {
+  color: var(--spotify-light-green);
 }
 </style>

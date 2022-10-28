@@ -67,4 +67,10 @@
   /* progress bar */
   --progress-fg:linear-gradient( 70deg,  rgba(245,177,97,1) 0.4%, rgba(236,54,110,1) 100.2% );
   --progress-bg:hsl(0, 0%, 88%);
+
+  /* spotify branding */
+  /* * https://developer.spotify.com/documentation/general/design-and-branding/ */
+  --spotify-light-green: #1ED760;
+  --spotify-green: #1db954;
+  --spotify-black: #191414;
  }

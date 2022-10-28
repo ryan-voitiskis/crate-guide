@@ -15,6 +15,7 @@ export const spotifyStore = defineStore("spotify", {
     loading: false,
     importProgressModal: false,
     imperfectMatches: [] as ImperfectMatch[], // records attempted to be found on spotify w/o perfect match
+    noMatches: [] as string[], // records attempted to be found on spotify w/o any match
   }),
   actions: {
     // call and handle request that begins spotify OAuth flow
@@ -82,6 +83,8 @@ export const spotifyStore = defineStore("spotify", {
     async importDataForSelectedRecords(token: string) {
       this.errorMsg = ""
       this.importProgressModal = true
+      this.imperfectMatches = []
+      this.noMatches = []
       const records = recordStore()
       const body = new URLSearchParams()
       body.append("records", JSON.stringify(records.checkboxed))
@@ -91,13 +94,13 @@ export const spotifyStore = defineStore("spotify", {
       const handleError = (msg: string) =>
         (this.errorMsg = msg ? msg.replace("Error: ", "") : "Unexpected error")
 
-      const handleImperfectMatches = (data: string) => {
+      const handleJSON = (data: string) => {
         this.importProgress = 1
         // modal must be closed before imperfectMatches !== [], so document.body.style.overflow = "hidden" from ModalBox hook
         this.importProgressModal = false
-        this.imperfectMatches = JSON.parse(
-          data.substring(data.indexOf(":") + 1)
-        )
+        const receivedObj = JSON.parse(data.substring(data.indexOf(":") + 1))
+        this.imperfectMatches = receivedObj.imperfectMatches
+        this.noMatches = receivedObj.noMatches
         this.importProgress = 0
         // this.loading = false // ? maybe not necessary
       }
@@ -123,9 +126,8 @@ export const spotifyStore = defineStore("spotify", {
             },
             body: body,
             onmessage(msg) {
-              if (msg.data.includes("Error")) handleError(msg.data)
-              else if (msg.data.includes("json"))
-                handleImperfectMatches(msg.data)
+              if (msg.data.startsWith("Error")) handleError(msg.data)
+              else if (msg.data.startsWith("json")) handleJSON(msg.data)
               const progress = parseFloat(msg.data)
               setProgress(progress)
               if (progress === 1) handleCompletion()
@@ -146,51 +148,51 @@ export const spotifyStore = defineStore("spotify", {
     },
 
     async importSelectedImperfectMatches(token: string) {
-      this.errorMsg = ""
-      this.importProgressModal = true
-      const records = recordStore()
-      const body = new URLSearchParams()
-      body.append("records", JSON.stringify(records.checkboxed))
-      const setProgress = (progress: number) => (this.importProgress = progress)
-      const handleError = (msg: string) =>
-        (this.errorMsg = msg ? msg.replace("Error: ", "") : "Unexpected error")
-      const handleCompletion = async () => {
-        this.loading = true
-        await records.fetchRecords(token)
-        this.importProgressModal = false
-        this.importProgress = 0
-        this.loading = false
-      }
-      if (records.checkboxed.length) {
-        try {
-          // fetch SSE request made directly from Store so importProgress can be mutated.
-          // spotifyStore cannot be accessed from spotifyService
-          await fetchEventSource(API_SSE_URL + "import_data_for_selected", {
-            method: "POST",
-            headers: {
-              Accept: "application/json",
-              "Content-Type": "application/x-www-form-urlencoded",
-              Authorization: `Bearer ${token}`,
-            },
-            body: body,
-            onmessage(msg) {
-              if (msg.data.includes("Error")) handleError(msg.data)
-              const progress = parseFloat(msg.data)
-              setProgress(progress)
-              if (progress === 1) handleCompletion()
-            },
-            onerror(err) {
-              console.error(err)
-              handleError(err)
-            },
-          })
-          // catch error, eg. NetworkError. console.error(error) to debug
-        } catch (error) {
-          console.error(error)
-        }
-      } else {
-        this.importProgressModal = false
-      }
+      // this.errorMsg = ""
+      // this.importProgressModal = true
+      // const records = recordStore()
+      // const body = new URLSearchParams()
+      // body.append("records", JSON.stringify(records.checkboxed))
+      // const setProgress = (progress: number) => (this.importProgress = progress)
+      // const handleError = (msg: string) =>
+      //   (this.errorMsg = msg ? msg.replace("Error: ", "") : "Unexpected error")
+      // const handleCompletion = async () => {
+      //   this.loading = true
+      //   await records.fetchRecords(token)
+      //   this.importProgressModal = false
+      //   this.importProgress = 0
+      //   this.loading = false
+      // }
+      // if (records.checkboxed.length) {
+      //   try {
+      //     // fetch SSE request made directly from Store so importProgress can be mutated.
+      //     // spotifyStore cannot be accessed from spotifyService
+      //     await fetchEventSource(API_SSE_URL + "import_data_for_selected", {
+      //       method: "POST",
+      //       headers: {
+      //         Accept: "application/json",
+      //         "Content-Type": "application/x-www-form-urlencoded",
+      //         Authorization: `Bearer ${token}`,
+      //       },
+      //       body: body,
+      //       onmessage(msg) {
+      //         if (msg.data.includes("Error")) handleError(msg.data)
+      //         const progress = parseFloat(msg.data)
+      //         setProgress(progress)
+      //         if (progress === 1) handleCompletion()
+      //       },
+      //       onerror(err) {
+      //         console.error(err)
+      //         handleError(err)
+      //       },
+      //     })
+      //     // catch error, eg. NetworkError. console.error(error) to debug
+      //   } catch (error) {
+      //     console.error(error)
+      //   }
+      // } else {
+      //   this.importProgressModal = false
+      // }
     },
 
     // selects or deselects ImperfectMatchesOption. if selecting, also deselects all other options
