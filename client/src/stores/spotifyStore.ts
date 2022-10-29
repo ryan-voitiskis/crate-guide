@@ -14,7 +14,7 @@ export const spotifyStore = defineStore("spotify", {
     errorMsg: "",
     loading: false,
     importProgressModal: false,
-    imperfectMatches: [] as ImperfectMatch[], // records attempted to be found on spotify w/o perfect match
+    imperfectAlbumMatches: [] as ImperfectMatch[], // records attempted to be found on spotify w/o perfect match
     noMatches: [] as string[], // records attempted to be found on spotify w/o any match
   }),
   actions: {
@@ -83,7 +83,7 @@ export const spotifyStore = defineStore("spotify", {
     async importDataForSelectedRecords(token: string) {
       this.errorMsg = ""
       this.importProgressModal = true
-      this.imperfectMatches = []
+      this.imperfectAlbumMatches = []
       this.noMatches = []
       const records = recordStore()
       const body = new URLSearchParams()
@@ -96,10 +96,11 @@ export const spotifyStore = defineStore("spotify", {
 
       const handleJSON = (data: string) => {
         this.importProgress = 1
-        // modal must be closed before imperfectMatches !== [], so document.body.style.overflow = "hidden" from ModalBox hook
+        records.checkboxed = []
+        // modal must be closed before imperfectAlbumMatches !== [], so document.body.style.overflow = "hidden" from ModalBox hook
         this.importProgressModal = false
         const receivedObj = JSON.parse(data.substring(data.indexOf(":") + 1))
-        this.imperfectMatches = receivedObj.imperfectMatches
+        this.imperfectAlbumMatches = receivedObj.imperfectAlbumMatches
         this.noMatches = receivedObj.noMatches
         this.importProgress = 0
         // this.loading = false // ? maybe not necessary
@@ -198,7 +199,7 @@ export const spotifyStore = defineStore("spotify", {
     // selects or deselects ImperfectMatchesOption. if selecting, also deselects all other options
     // works like radio buttons but can also deselect, so that none are selected
     toggleImperfectMatchesOption(recordID: string, optionID: string) {
-      const imperfectMatch = this.imperfectMatches.find(
+      const imperfectMatch = this.imperfectAlbumMatches.find(
         (i) => i._id === recordID
       )
       if (imperfectMatch) {

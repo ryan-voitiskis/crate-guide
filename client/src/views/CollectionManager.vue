@@ -123,8 +123,8 @@
   </ModalBox>
 
   <ModalBox
-    v-if="spotify.imperfectMatches.length"
-    @close="spotify.imperfectMatches = []"
+    v-if="spotify.imperfectAlbumMatches.length"
+    @close="spotify.imperfectAlbumMatches = []"
     width="680px"
   >
     <ImperfectMatchForm />

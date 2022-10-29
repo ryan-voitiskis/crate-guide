@@ -4,7 +4,7 @@ interface ImperfectMatchOption {
   image: string
   title: string
   artist: string
-  external_urls: string
+  external_url: string
   release_date: string
   selected?: boolean
 }

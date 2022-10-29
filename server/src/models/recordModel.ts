@@ -2,6 +2,7 @@ import mongoose, { Types } from "mongoose"
 
 interface ITrack {
   _id: Types.ObjectId
+  spotifyID: string
   title: string
   artists: string
   position: string
@@ -10,6 +11,21 @@ interface ITrack {
   rpm: number
   genre: string
   playable: boolean
+  audioFeatures: {
+    acousticness: number
+    danceability: number
+    duration_ms: number
+    energy: number
+    instrumentalness: number
+    key: number
+    liveness: number
+    loudness: number
+    mode: number
+    speechiness: number
+    tempo: number
+    time_signature: number
+    valence: number
+  }
 }
 
 interface IRecord {
@@ -52,6 +68,47 @@ const trackSchema = new mongoose.Schema<ITrack>({
   },
   playable: {
     type: Boolean,
+  },
+  audioFeatures: {
+    acousticness: {
+      type: Number,
+    },
+    danceability: {
+      type: Number,
+    },
+    duration_ms: {
+      type: Number,
+    },
+    energy: {
+      type: Number,
+    },
+    instrumentalness: {
+      type: Number,
+    },
+    key: {
+      type: Number,
+    },
+    liveness: {
+      type: Number,
+    },
+    loudness: {
+      type: Number,
+    },
+    mode: {
+      type: Number,
+    },
+    speechiness: {
+      type: Number,
+    },
+    tempo: {
+      type: Number,
+    },
+    time_signature: {
+      type: Number,
+    },
+    valence: {
+      type: Number,
+    },
   },
 })
 

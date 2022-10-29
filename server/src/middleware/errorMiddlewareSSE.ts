@@ -7,10 +7,10 @@ const errorHandler = (
 ) => {
   res.status(res.statusCode ? res.statusCode : 500)
   if (process.env.NODE_ENV === "production") {
-    res.write("data: " + `Error: ${err.message}\n\n`)
+    res.write("data: " + `${err.message}\n\n`)
     res.end()
   } else {
-    res.write("data: " + `Error: ${err.stack}\n\n`)
+    res.write("data: " + `${err.stack}\n\n`)
     res.end()
   }
 }

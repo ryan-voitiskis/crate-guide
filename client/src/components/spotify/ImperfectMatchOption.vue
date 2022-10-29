@@ -3,7 +3,7 @@
     <div class="cover" :style="backgroundImg"></div>
     <a
       class="play-on-spotify icon-button btn"
-      :href="external_urls"
+      :href="external_url"
       target="_blank"
     >
       <SpotifyLogo />PLAY ON SPOTIFY
@@ -35,7 +35,7 @@ const props = defineProps<{
   image: string
   title: string
   artist: string
-  external_urls: string
+  external_url: string
   release_date: string
   selected?: boolean
 }>()

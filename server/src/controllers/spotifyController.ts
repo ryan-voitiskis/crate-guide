@@ -3,11 +3,11 @@ import fetch from "node-fetch"
 import levenshtein from "js-levenshtein"
 import { ITrack, IRecord, Record } from "../models/recordModel.js"
 import unsign from "../utils/unsign.js"
-import { User } from "../models/userModel.js"
+import { IUser, User } from "../models/userModel.js"
 
 const spotifyAPIURL = "https://api.spotify.com/v1/"
 
-const getOptions = (token: string) => {
+const getRequestOptions = (token: string) => {
   return {
     method: "GET",
     headers: {
@@ -84,7 +84,7 @@ interface SearchAlbumResult {
   image?: string
   title?: string
   artist?: string
-  external_urls?: string
+  external_url?: string
   release_date?: string
 }
 
@@ -107,10 +107,60 @@ interface AlbumTracksResponse {
   items: SpotifyTrack[]
 }
 
-// @desc    removes discogs API creds from user
-// @route   GET /api/spotify/track
+interface ImperfectTrackMatchOption {
+  name: string
+  artists: string
+  duration: number
+  external_url: string
+  levenshtein: number
+}
+
+interface FoundTrack {
+  recordID: string
+  trackID: string
+  spotifyTrackID: string
+}
+
+interface ImperfectTrackMatches {
+  recordID: string
+  trackID: string
+  options: ImperfectTrackMatchOption[]
+}
+interface TrackIDsFromAlbumResults {
+  foundTracks: FoundTrack[]
+  imperfectTrackMatches: ImperfectTrackMatches[]
+}
+
+interface AudioFeatures {
+  acousticness: number
+  analysis_url: string
+  danceability: number
+  duration_ms: number
+  energy: number
+  id: string
+  instrumentalness: number
+  key: number
+  liveness: number
+  loudness: number
+  mode: number
+  speechiness: number
+  tempo: number
+  time_signature: number
+  track_href: string
+  type: string
+  uri: string
+  valence: number
+}
+
+interface AudioFeaturesResponse {
+  audio_features: AudioFeatures[]
+}
+
+// @desc    finds corresponding spotify ID for albums and tracks, imports audio
+//          features, writes to client imperfectAlbumMatches and noMatches
+// @route   POST /api/spotify/import_data_for_selected
 // @access  private
-const importRecordAudioFeatures = asyncHandler(async (req, res) => {
+const findAndImportRecordAudioFeatures = asyncHandler(async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream")
   res.write("data: " + `0\n\n`)
 
@@ -119,7 +169,9 @@ const importRecordAudioFeatures = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user!.id)
 
   if (user && records) {
-    const imperfectMatches = []
+    let foundTracks: FoundTrack[] = []
+    let imperfectTrackMatches: ImperfectTrackMatches[] = []
+    const imperfectAlbumMatches = []
     const noMatches = []
     let i = 0
     for await (const record of records) {
@@ -135,23 +187,39 @@ const importRecordAudioFeatures = asyncHandler(async (req, res) => {
           Record.findByIdAndUpdate(record._id, {
             spotifyID: searchAlbumResults[0].id,
           })
-          importAlbumTracks(record, searchAlbumResults[0].id, user.spotifyToken)
+          const getTrackIDsObj = await getTrackIDsFromAlbum(
+            record,
+            searchAlbumResults[0].id,
+            user.spotifyToken
+          )
+          foundTracks = foundTracks.concat(getTrackIDsObj.foundTracks)
+          imperfectTrackMatches = imperfectTrackMatches.concat(
+            getTrackIDsObj.imperfectTrackMatches
+          )
         }
         // if no perfect match found, but similar found
         else if (searchAlbumResults.length > 1)
-          imperfectMatches.push({
+          imperfectAlbumMatches.push({
             _id: record._id.toString(),
             matches: searchAlbumResults,
           })
       } else noMatches.push(record._id.toString())
       i++
-      res.write("data: " + `${(i / records.length).toFixed(2)}\n\n`)
+      res.write("data: " + `${(i / records.length + 1).toFixed(2)}\n\n`) // + 1 as at least one more req for audio features
     }
-    if (imperfectMatches.length || noMatches.length)
+
+    const retrievedFeatures: AudioFeatures[] = await getAudioFeatures(
+      foundTracks.map((i) => i.spotifyTrackID),
+      user.spotifyToken
+    )
+    if (!(await saveAudioFeatures(retrievedFeatures, foundTracks, user)))
+      throw new Error("One or more tracks not updated with Audio Features.")
+
+    if (imperfectAlbumMatches.length || noMatches.length)
       res.write(
         "data: " +
           `json:${JSON.stringify({
-            imperfectMatches: imperfectMatches,
+            imperfectAlbumMatches: imperfectAlbumMatches,
             noMatches: noMatches,
           })}\n\n`
       )
@@ -169,7 +237,7 @@ const searchAlbum = async (
   params.append("type", "album")
   params.append("limit", "50")
   const url = `${spotifyAPIURL}search?${params}`
-  const response = await fetch(url, getOptions(token))
+  const response = await fetch(url, getRequestOptions(token))
   const searchAlbumResponse = await response.json()
   const matches: SearchAlbumResult[] = []
 
@@ -201,7 +269,7 @@ const searchAlbum = async (
           image: item.images[0].url,
           title: item.name,
           artist: item.artists.map((i) => i.name).join(", "),
-          external_urls: item.external_urls.spotify,
+          external_url: item.external_urls.spotify,
           release_date: item.release_date,
         })
       }
@@ -210,13 +278,13 @@ const searchAlbum = async (
   return matches.sort((a, b) => a.levenshtein - b.levenshtein).slice(0, 8)
 }
 
-const importAlbumTracks = async (
+const getTrackIDsFromAlbum = async (
   record: IRecord,
   albumID: string,
   token: string
-) => {
-  const imperfectTrackMatches = []
-  const matchedTracks = []
+): Promise<TrackIDsFromAlbumResults> => {
+  const imperfectTrackMatches: ImperfectTrackMatches[] = []
+  const foundTracks: FoundTrack[] = []
   const albumTracks = await getAlbumTracks(albumID, token)
   if (albumTracks.length) {
     for (const track of record.tracks) {
@@ -224,54 +292,143 @@ const importAlbumTracks = async (
         (i) => normaliseTitle(i.name) === normaliseTitle(track.title)
       )
       if (matchedTrack)
-        matchedTracks.push({ trackID: track._id, spotifyTrack: matchedTrack })
-      else console.log("TODO: handle imperfect matches here")
+        foundTracks.push({
+          recordID: record._id.toString(),
+          trackID: track._id.toString(),
+          spotifyTrackID: matchedTrack.id,
+        })
+      else {
+        const possibilities = []
+        for (const spotifyTrack of albumTracks) {
+          possibilities.push({
+            name: spotifyTrack.name,
+            artists: spotifyTrack.artists.map((i) => i.name).join(", "),
+            duration: spotifyTrack.duration_ms,
+            external_url: spotifyTrack.external_urls.spotify,
+            levenshtein: levenshtein(track.title, spotifyTrack.name),
+          })
+        }
+        imperfectTrackMatches.push({
+          recordID: record._id.toString(),
+          trackID: track._id.toString(),
+          options: possibilities
+            .sort((a, b) => a.levenshtein - b.levenshtein)
+            .slice(0, 3),
+        })
+      }
     }
   }
-  console.log(matchedTracks)
+  return {
+    foundTracks: foundTracks,
+    imperfectTrackMatches: imperfectTrackMatches,
+  }
 }
 
 const getAlbumTracks = async (albumID: string, token: string) => {
   const params = new URLSearchParams()
   params.append("limit", "50")
   const url = `${spotifyAPIURL}albums/${albumID}/tracks`
-  const response = await fetch(url, getOptions(token))
+  const response = await fetch(url, getRequestOptions(token))
   const responseObj = (await response.json()) as AlbumTracksResponse
   return responseObj.items
 }
 
-const searchTrack = async (
-  query: TrackQuery,
-  token: string
-): Promise<SearchTrackResult | null> => {
-  const params = new URLSearchParams()
-  params.append("q", JSON.stringify(query))
-  params.append("type", "track")
-  params.append("limit", "50")
-  const url = `${spotifyAPIURL}search?${params}`
-  const response = await fetch(url, getOptions(token))
-  const SearchTrackResponse = await response.json()
-  if (isSearchTrackResponse(SearchTrackResponse)) {
-    if (SearchTrackResponse.tracks.items.length) {
-      const queryArtist = query.artist.toLocaleLowerCase()
-      const queryTrack = query.track.toLocaleLowerCase()
-      for (const item of SearchTrackResponse.tracks.items) {
-        const foundArtist = item.artists[0].name.toLocaleLowerCase()
-        const foundTrack = item.name.toLocaleLowerCase()
-        if (foundArtist === queryArtist) {
-          if (foundTrack === queryTrack) {
-            return { id: item.id, levenshtein: 0 }
-          } else {
-            const distance = levenshtein(foundTrack, queryTrack)
-            console.log(distance + " - " + foundTrack + " | " + queryTrack)
-            if (distance < 10) return { id: item.id, levenshtein: distance }
-          }
-        }
-      }
+const getAudioFeatures = async (trackIDs: string[], token: string) => {
+  const batchSize = 100
+  const batches = []
+  let retrievedFeatures: AudioFeatures[] = []
+  for (let i = 0; i < trackIDs.length; i += batchSize)
+    batches.push(trackIDs.slice(i, i + batchSize))
+  for (const batch of batches) {
+    const params = new URLSearchParams()
+    params.append("ids", batch.join(","))
+    const url = `${spotifyAPIURL}audio-features?${params}`
+    const response = await fetch(url, getRequestOptions(token))
+    const audioFeaturesResponse =
+      (await response.json()) as AudioFeaturesResponse
+    retrievedFeatures = retrievedFeatures.concat(
+      audioFeaturesResponse.audio_features
+    )
+  }
+  return retrievedFeatures
+}
+
+// returns false if error
+const saveAudioFeatures = async (
+  audioFeatures: AudioFeatures[],
+  tracks: FoundTrack[],
+  user: IUser
+) => {
+  let error = false
+  for (const features of audioFeatures) {
+    const track = tracks.find((i) => i.spotifyTrackID === features.id)
+    if (track) {
+      const updatedRecord = await Record.findOneAndUpdate(
+        { _id: track.recordID, user: user._id, "tracks._id": track.trackID },
+        { $set: { "tracks.$.audioFeatures": editedAudioFeatures(features) } },
+        { new: true }
+      )
+      if (updatedRecord === null) error = true
     }
   }
-  return null
+  return !error
 }
+
+const editedAudioFeatures = (features: AudioFeatures) => {
+  return {
+    acousticness: features.acousticness,
+    danceability: features.danceability,
+    duration_ms: features.duration_ms,
+    energy: features.energy,
+    instrumentalness: features.instrumentalness,
+    key: features.key,
+    liveness: features.liveness,
+    loudness: features.loudness,
+    mode: features.mode,
+    speechiness: features.speechiness,
+    tempo: features.tempo,
+    time_signature: features.time_signature,
+    valence: features.valence,
+  }
+}
+
+// @desc    imports audio features for provided spotify album and track IDs
+// @route   POST /api/spotify/import_data_for_client_matched
+// @access  private
+const importRecordAudioFeatures = asyncHandler(async (req, res) => {})
+
+// const searchTrack = async (
+//   query: TrackQuery,
+//   token: string
+// ): Promise<SearchTrackResult | null> => {
+//   const params = new URLSearchParams()
+//   params.append("q", JSON.stringify(query))
+//   params.append("type", "track")
+//   params.append("limit", "50")
+//   const url = `${spotifyAPIURL}search?${params}`
+//   const response = await fetch(url, getRequestOptions(token))
+//   const SearchTrackResponse = await response.json()
+//   if (isSearchTrackResponse(SearchTrackResponse)) {
+//     if (SearchTrackResponse.tracks.items.length) {
+//       const queryArtist = query.artist.toLocaleLowerCase()
+//       const queryTrack = query.track.toLocaleLowerCase()
+//       for (const item of SearchTrackResponse.tracks.items) {
+//         const foundArtist = item.artists[0].name.toLocaleLowerCase()
+//         const foundTrack = item.name.toLocaleLowerCase()
+//         if (foundArtist === queryArtist) {
+//           if (foundTrack === queryTrack) {
+//             return { id: item.id, levenshtein: 0 }
+//           } else {
+//             const distance = levenshtein(foundTrack, queryTrack)
+//             console.log(distance + " - " + foundTrack + " | " + queryTrack)
+//             if (distance < 10) return { id: item.id, levenshtein: distance }
+//           }
+//         }
+//       }
+//     }
+//   }
+//   return null
+// }
 
 // @desc    removes discogs API creds from user
 // @route   GET /api/spotify/track
@@ -287,7 +444,7 @@ const searchTrack = async (
 //     params.append("type", "track")
 //     const url = `${spotifyAPIURL}search?${params}`
 
-//     const response = await fetch(url, getOptions(token))
+//     const response = await fetch(url, getRequestOptions(token))
 
 //     const track = await response.json()
 //     res.status(200).json(track)
@@ -308,4 +465,4 @@ const searchTrack = async (
 //   trackIDs.push(foundTracks)
 // }
 
-export { importRecordAudioFeatures }
+export { findAndImportRecordAudioFeatures, importRecordAudioFeatures }

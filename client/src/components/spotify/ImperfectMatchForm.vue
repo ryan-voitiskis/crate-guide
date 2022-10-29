@@ -8,8 +8,8 @@
   <div class="modal-body">
     <p>
       {{ appName }} couldn't find a perfect match on Spotify for
-      <b>{{ spotify.imperfectMatches.length.toString() }}</b>
-      {{ spotify.imperfectMatches.length > 1 ? "records" : "record" }}. The
+      <b>{{ spotify.imperfectAlbumMatches.length.toString() }}</b>
+      {{ spotify.imperfectAlbumMatches.length > 1 ? "records" : "record" }}. The
       closest matches for each are listed here. Please select the correct
       records <b>if any</b> and submit this form to import the Spotify data for
       the tracks on those records.
@@ -24,7 +24,7 @@
     </p>
     <div class="imperfect-matches-list">
       <ImperfectMatchSelect
-        v-for="imperfectMatch in spotify.imperfectMatches"
+        v-for="imperfectMatch in spotify.imperfectAlbumMatches"
         v-bind="imperfectMatch"
         :key="imperfectMatch._id"
       />

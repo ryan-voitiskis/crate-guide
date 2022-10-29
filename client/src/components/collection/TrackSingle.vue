@@ -1,5 +1,5 @@
 <template>
-  <div class="track">
+  <div class="track" :class="{ hasaf: audioFeatures }">
     <div class="details">
       <span class="position" v-if="position">{{ position }}</span>
       <span class="bpm" v-if="bpm">{{ bpm }}</span>
@@ -33,6 +33,21 @@ const props = defineProps<{
   title: string
   duration?: string
   genre?: string
+  audioFeatures?: {
+    acousticness: number
+    danceability: number
+    duration_ms: number
+    energy: number
+    instrumentalness: number
+    key: number
+    liveness: number
+    loudness: number
+    mode: number
+    speechiness: number
+    tempo: number
+    time_signature: number
+    valence: number
+  }
 }>()
 
 const positionColours = [
@@ -123,5 +138,10 @@ const bpmColour = computed(() => (props.bpm ? getBPMColour(props.bpm) : null))
     margin-left: auto;
     flex-shrink: 0;
   }
+}
+
+// remove after testing
+.hasaf {
+  background-color: darksalmon;
 }
 </style>
