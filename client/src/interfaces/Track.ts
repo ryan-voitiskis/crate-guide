@@ -1,6 +1,6 @@
 export default interface Track {
   _id: string
-  spotifyID: string
+  spotifyID?: string
   title: string
   artists?: string // * optional to allow for artists to be inferred from record artists
   position?: string

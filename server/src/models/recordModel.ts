@@ -44,6 +44,9 @@ interface IRecord {
 }
 
 const trackSchema = new mongoose.Schema<ITrack>({
+  spotifyID: {
+    type: String,
+  },
   title: {
     type: String,
     required: [true, "Track model: No title provided."],

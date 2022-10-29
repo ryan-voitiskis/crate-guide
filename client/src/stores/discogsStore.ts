@@ -7,7 +7,7 @@ import discogsService from "@/services/discogsService"
 import { fetchEventSource } from "@microsoft/fetch-event-source"
 
 // todo: make global or do something better
-const API_SSE_URL = "http://localhost:5001/api/discogs/"
+const API_SSE_URL = "http://localhost:5001/api/discogs_sse/"
 
 export const discogsStore = defineStore("discogs", {
   state: () => ({

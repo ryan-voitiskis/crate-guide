@@ -16,7 +16,7 @@ const oauth_consumer_secret = "oyasysRSKMwElyRpJjulWoxFBdaXDDTS"
 const discogsAPIURL = "https://api.discogs.com/"
 const userAgent = "CrateGuide/0.2"
 
-const authorisedDiscogsRequest = async (
+const authenticatedDiscogsRequest = async (
   url: string,
   user: IUser,
   page?: number,
@@ -102,7 +102,7 @@ const getFolders = asyncHandler(async (req, res) => {
     req.user!.discogsUsername
   }/collection/folders`
 
-  const response = await authorisedDiscogsRequest(url, req.user! as IUser)
+  const response = await authenticatedDiscogsRequest(url, req.user! as IUser)
   const folders = await response.json()
 
   if (isFoldersResponse(folders)) {
@@ -128,7 +128,7 @@ const getFolder = asyncHandler(async (req, res) => {
   }/collection/folders/${req.params.id}/releases`
   const user = req.user! as IUser
 
-  let response = await authorisedDiscogsRequest(url, user, 1, perPage)
+  let response = await authenticatedDiscogsRequest(url, user, 1, perPage)
 
   if (response.status === 200) {
     let folderResponse = (await response.json()) as FolderResponse
@@ -137,7 +137,7 @@ const getFolder = asyncHandler(async (req, res) => {
     // if more than 100 releases in folder, make consecutive paginated requests
     while (folderResponse.pagination.page < folderResponse.pagination.pages) {
       const page = folderResponse.pagination.page + 1
-      response = await authorisedDiscogsRequest(url, user, page, perPage)
+      response = await authenticatedDiscogsRequest(url, user, page, perPage)
       folderResponse = (await response.json()) as FolderResponse
       releases = releases.concat(folderResponse.releases)
     }
@@ -177,7 +177,7 @@ const importRecords = asyncHandler(async (req, res) => {
   while (successfulRequests < recordIDs.length) {
     if (wait) await new Promise((resolve) => setTimeout(resolve, wait))
     const url = endpoint + recordIDs[successfulRequests].toString()
-    const response = await authorisedDiscogsRequest(url, user)
+    const response = await authenticatedDiscogsRequest(url, user)
 
     if (response.status === 200) {
       successfulRequests++

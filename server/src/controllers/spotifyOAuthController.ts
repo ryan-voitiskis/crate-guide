@@ -5,7 +5,10 @@ import env from "../env.js"
 import fetch from "node-fetch"
 import genNonce from "../utils/genNonce.js"
 import { User } from "../models/userModel.js"
-import { isAccessTokenResponse } from "../types/spotifyOAuthController-types.js"
+import {
+  isAccessTokenResponse,
+  isRefreshTokenResponse,
+} from "../types/spotifyOAuthController-types.js"
 
 const clientID = "72f1c76a0d384bd6bd667a72afe04b84"
 const clientSecret = "58bc4f20244b47b7887def2674c19052"
@@ -41,6 +44,7 @@ const authorisationCallback = asyncHandler(async (req, res) => {
   if (state !== null) {
     const user = await User.findOne({ spotifyNonce: state })
     if (user) {
+      // todo: remove this check and remove spotifyAuthReqTimestamp
       // check authorisation req was recent, avoid extremely unlikely collision. (probably unnecessary)
       if (Date.now() - user.spotifyAuthReqTimestamp < 300000) {
         const basic = Buffer.from(`${clientID}:${clientSecret}`).toString(
@@ -63,11 +67,11 @@ const authorisationCallback = asyncHandler(async (req, res) => {
 
         const response = await fetch(tokenURL, options)
         if (response.status === 200) {
-          const accessTokenRes = await response.json()
-          if (isAccessTokenResponse(accessTokenRes)) {
+          const accessTokenResponse = await response.json()
+          if (isAccessTokenResponse(accessTokenResponse)) {
             await User.findByIdAndUpdate(user._id, {
-              spotifyToken: accessTokenRes.access_token,
-              spotifyRefreshToken: accessTokenRes.refresh_token,
+              spotifyToken: accessTokenResponse.access_token,
+              spotifyRefreshToken: accessTokenResponse.refresh_token,
             })
             res.redirect(`${env.SITE_URL}?msg=Spotify success.`)
           } else
@@ -79,6 +83,7 @@ const authorisationCallback = asyncHandler(async (req, res) => {
   } else res.redirect(`${env.SITE_URL}?msg=Spotify didn't respond with state.`)
 })
 
+// TODO: convert this to spotify and hook up to a button on front end
 // @desc    removes discogs API creds from user
 // @route   PUT /api/users/revoke_discogs
 // @access  private
@@ -100,8 +105,46 @@ const revokeSpotifyAuthorisation = asyncHandler(async (req, res) => {
   res.status(200).json()
 })
 
+const refreshToken = async (token: string) => {
+  const user = await User.findOne({ spotifyToken: token })
+  if (user) {
+    const basic = Buffer.from(`${clientID}:${clientSecret}`).toString("base64")
+    const body = new URLSearchParams()
+    body.append("grant_type", "refresh_token")
+    body.append("refresh_token", user.spotifyRefreshToken)
+    body.append("redirect_uri", redirectURI)
+    const options = {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${basic}`,
+      },
+      body: body,
+    }
+    const response = await fetch(tokenURL, options)
+    if (response.status === 200) {
+      const refreshTokenResponse = await response.json()
+      if (isRefreshTokenResponse(refreshTokenResponse)) {
+        const update = refreshTokenResponse.refresh_token
+          ? {
+              spotifyToken: refreshTokenResponse.access_token,
+              spotifyRefreshToken: refreshTokenResponse.refresh_token,
+            }
+          : {
+              spotifyToken: refreshTokenResponse.access_token,
+            }
+        await User.findByIdAndUpdate(user._id, update)
+        return true
+      }
+    }
+  }
+  return false
+}
+
 export {
   authorisationRequest,
   authorisationCallback,
   revokeSpotifyAuthorisation,
+  refreshToken,
 }

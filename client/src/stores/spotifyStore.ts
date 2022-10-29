@@ -129,9 +129,11 @@ export const spotifyStore = defineStore("spotify", {
             onmessage(msg) {
               if (msg.data.startsWith("Error")) handleError(msg.data)
               else if (msg.data.startsWith("json")) handleJSON(msg.data)
-              const progress = parseFloat(msg.data)
-              setProgress(progress)
-              if (progress === 1) handleCompletion()
+              else {
+                const progress = parseFloat(msg.data)
+                setProgress(progress)
+                if (progress === 1) handleCompletion()
+              }
             },
             onerror(err) {
               console.error(err)

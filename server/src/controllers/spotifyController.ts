@@ -4,19 +4,9 @@ import levenshtein from "js-levenshtein"
 import { ITrack, IRecord, Record } from "../models/recordModel.js"
 import unsign from "../utils/unsign.js"
 import { IUser, User } from "../models/userModel.js"
+import { refreshToken } from "./spotifyOAuthController.js"
 
 const spotifyAPIURL = "https://api.spotify.com/v1/"
-
-const getRequestOptions = (token: string) => {
-  return {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Bearer ${token}`,
-    },
-  }
-}
 
 const normaliseTitle = (title: string) =>
   title.toLowerCase().trim().replace(/\(|\)/g, "").replace(/ - /, " ")
@@ -107,6 +97,10 @@ interface AlbumTracksResponse {
   items: SpotifyTrack[]
 }
 
+const isAlbumTracksResponsee = (obj: any): obj is AlbumTracksResponse => {
+  return "items" in obj
+}
+
 interface ImperfectTrackMatchOption {
   name: string
   artists: string
@@ -154,6 +148,10 @@ interface AudioFeatures {
 
 interface AudioFeaturesResponse {
   audio_features: AudioFeatures[]
+}
+
+const isAudioFeaturesResponse = (obj: any): obj is AudioFeaturesResponse => {
+  return "audio_features" in obj
 }
 
 // @desc    finds corresponding spotify ID for albums and tracks, imports audio
@@ -205,13 +203,14 @@ const findAndImportRecordAudioFeatures = asyncHandler(async (req, res) => {
           })
       } else noMatches.push(record._id.toString())
       i++
-      res.write("data: " + `${(i / records.length + 1).toFixed(2)}\n\n`) // + 1 as at least one more req for audio features
+      res.write("data: " + `${(i / (records.length + 1)).toFixed(2)}\n\n`) // + 1 as at least one more req for audio features
     }
 
     const retrievedFeatures: AudioFeatures[] = await getAudioFeatures(
       foundTracks.map((i) => i.spotifyTrackID),
       user.spotifyToken
     )
+
     if (!(await saveAudioFeatures(retrievedFeatures, foundTracks, user)))
       throw new Error("One or more tracks not updated with Audio Features.")
 
@@ -228,19 +227,46 @@ const findAndImportRecordAudioFeatures = asyncHandler(async (req, res) => {
   }
 })
 
+const spotifyRequest = async (url: string, token: string) => {
+  const options = {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${token}`,
+    },
+  }
+  const response = (await fetch(url, options)) as Response
+  if (response.status === 200) return await response.json()
+  else if (response.status === 401) {
+    // ? possibly pass userID to spotifyRequest and get spotifyToken after each request
+    // refreshToken(token)
+    const error = await response.json()
+    const errorMsg = error.message ? error.message : "Bad or expired token."
+    throw new Error(errorMsg)
+  } else if (response.status === 403) {
+    const error = await response.json()
+    const errorMsg = error.message ? error.message : "Bad OAuth request"
+    throw new Error(errorMsg)
+  } else if (response.status === 429) {
+    await new Promise((resolve) => setTimeout(resolve, 10000))
+    const response = (await spotifyRequest(url, token)) as Response
+    return await response.json()
+  }
+  return await response.json()
+}
+
 const searchAlbum = async (
   query: AlbumQuery,
   token: string
 ): Promise<SearchAlbumResult[]> => {
+  const matches: SearchAlbumResult[] = []
   const params = new URLSearchParams()
   params.append("q", JSON.stringify(query))
   params.append("type", "album")
   params.append("limit", "50")
   const url = `${spotifyAPIURL}search?${params}`
-  const response = await fetch(url, getRequestOptions(token))
-  const searchAlbumResponse = await response.json()
-  const matches: SearchAlbumResult[] = []
-
+  const searchAlbumResponse = await spotifyRequest(url, token)
   if (isSearchAlbumResponse(searchAlbumResponse)) {
     if (searchAlbumResponse.albums.items.length) {
       const queryArtist = normaliseArtist(query.artist)
@@ -328,9 +354,11 @@ const getAlbumTracks = async (albumID: string, token: string) => {
   const params = new URLSearchParams()
   params.append("limit", "50")
   const url = `${spotifyAPIURL}albums/${albumID}/tracks`
-  const response = await fetch(url, getRequestOptions(token))
-  const responseObj = (await response.json()) as AlbumTracksResponse
-  return responseObj.items
+  const tracks = await spotifyRequest(url, token)
+  if (isAlbumTracksResponsee(tracks)) {
+    return tracks.items
+  }
+  return []
 }
 
 const getAudioFeatures = async (trackIDs: string[], token: string) => {
@@ -343,17 +371,16 @@ const getAudioFeatures = async (trackIDs: string[], token: string) => {
     const params = new URLSearchParams()
     params.append("ids", batch.join(","))
     const url = `${spotifyAPIURL}audio-features?${params}`
-    const response = await fetch(url, getRequestOptions(token))
-    const audioFeaturesResponse =
-      (await response.json()) as AudioFeaturesResponse
-    retrievedFeatures = retrievedFeatures.concat(
-      audioFeaturesResponse.audio_features
-    )
+    const audioFeaturesResponse = await spotifyRequest(url, token)
+    if (isAudioFeaturesResponse(audioFeaturesResponse)) {
+      retrievedFeatures = retrievedFeatures.concat(
+        audioFeaturesResponse.audio_features
+      )
+    }
   }
   return retrievedFeatures
 }
 
-// returns false if error
 const saveAudioFeatures = async (
   audioFeatures: AudioFeatures[],
   tracks: FoundTrack[],
@@ -365,13 +392,18 @@ const saveAudioFeatures = async (
     if (track) {
       const updatedRecord = await Record.findOneAndUpdate(
         { _id: track.recordID, user: user._id, "tracks._id": track.trackID },
-        { $set: { "tracks.$.audioFeatures": editedAudioFeatures(features) } },
+        {
+          $set: {
+            "tracks.$.audioFeatures": editedAudioFeatures(features),
+            "tracks.$.spotifyID": track.spotifyTrackID,
+          },
+        },
         { new: true }
       )
       if (updatedRecord === null) error = true
     }
   }
-  return !error
+  return !error // returns false if error
 }
 
 const editedAudioFeatures = (features: AudioFeatures) => {
