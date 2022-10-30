@@ -45,14 +45,14 @@ const backgroundImg = computed(() => {
 .album-match-option {
   overflow: hidden;
   display: grid;
-  grid-template-columns: 12rem 4fr 12rem;
+  grid-template-columns: 12rem 1fr 12rem;
   grid-template-rows: 4rem 4rem 4rem;
   width: 100%;
   column-gap: 1rem;
   border: transparent 2px solid;
   .cover {
     background-color: hsl(40, 13%, 82%);
-    grid-area: 1 / 1 / 5 / 2;
+    grid-area: 1 / 1 / 4 / 2;
     overflow: hidden;
     z-index: 0;
     background-repeat: no-repeat;
@@ -93,7 +93,7 @@ const backgroundImg = computed(() => {
     align-items: center;
   }
   &.selected {
-    border: #1db954 2px solid;
+    border: var(--spotify-green) 2px solid;
     border-radius: 1rem;
     .select-toggle {
       border-radius: 0;

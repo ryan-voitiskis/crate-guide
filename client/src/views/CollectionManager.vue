@@ -125,7 +125,7 @@
   <ModalBox
     v-if="spotify.albumMatchesModal"
     @close="spotify.albumMatchesModal = false"
-    width="680px"
+    width="880px"
   >
     <AlbumMatchForm />
   </ModalBox>
@@ -133,7 +133,7 @@
   <ModalBox
     v-if="spotify.trackMatchesModal"
     @close="spotify.trackMatchesModal = false"
-    width="680px"
+    width="880px"
   >
     <TrackMatchForm />
   </ModalBox>

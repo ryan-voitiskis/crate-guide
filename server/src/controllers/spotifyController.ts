@@ -71,7 +71,7 @@ const isSearchTrackResponse = (obj: any): obj is SearchTrackResponse => {
 interface SearchAlbumResult {
   id: string
   levenshtein: number
-  image?: string
+  image: string
   title?: string
   artist?: string
   external_url?: string
@@ -118,6 +118,7 @@ interface FoundTrack {
 interface InexactTrackMatches {
   recordID: string
   trackID: string
+  image: string
   options: InexactTrackMatchOption[]
 }
 interface TrackIDsFromAlbumResults {
@@ -188,7 +189,8 @@ const findAndImportRecordAudioFeatures = asyncHandler(async (req, res) => {
           const getTrackIDsObj = await getTrackIDsFromAlbum(
             record,
             searchAlbumResults[0].id,
-            user.spotifyToken
+            user.spotifyToken,
+            searchAlbumResults[0].image // gets passed for front-end to use in inexact track matching
           )
           foundTracks = foundTracks.concat(getTrackIDsObj.foundTracks)
           inexactTrackMatches = inexactTrackMatches.concat(
@@ -203,7 +205,7 @@ const findAndImportRecordAudioFeatures = asyncHandler(async (req, res) => {
           })
       } else noMatches.push(record._id.toString())
       i++
-      res.write("data: " + `${(i / (records.length + 1)).toFixed(2)}\n\n`) // + 1 as at least one more req for audio features
+      res.write("data: " + `${(i / records.length).toFixed(2)}\n\n`)
     }
 
     const retrievedFeatures: AudioFeatures[] = await getAudioFeatures(
@@ -276,7 +278,7 @@ const searchAlbum = async (
         const foundArtist = normaliseArtist(item.artists[0].name)
         const foundAlbum = normaliseArtist(item.name)
         if (foundArtist === queryArtist && foundAlbum === queryAlbum) {
-          return [{ id: item.id, levenshtein: 0 }]
+          return [{ id: item.id, levenshtein: 0, image: item.images[0].url }]
         }
         let distance
         if (foundArtist === queryArtist) {
@@ -310,7 +312,8 @@ const searchAlbum = async (
 const getTrackIDsFromAlbum = async (
   record: IRecord,
   albumID: string,
-  token: string
+  token: string,
+  image: string
 ): Promise<TrackIDsFromAlbumResults> => {
   const inexactTrackMatches: InexactTrackMatches[] = []
   const foundTracks: FoundTrack[] = []
@@ -341,6 +344,7 @@ const getTrackIDsFromAlbum = async (
         inexactTrackMatches.push({
           recordID: record._id.toString(),
           trackID: track._id.toString(),
+          image: image,
           options: options
             .sort((a, b) => a.levenshtein - b.levenshtein)
             .slice(0, 4),
@@ -431,7 +435,10 @@ const editedAudioFeatures = (features: AudioFeatures) => {
 // @desc    imports audio features for provided spotify album and track IDs
 // @route   POST /api/spotify/import_data_for_client_matched
 // @access  private
-const importRecordAudioFeatures = asyncHandler(async (req, res) => {})
+const importRecordAudioFeatures = asyncHandler(async (req, res) => {
+  console.log(req.body.albums)
+  console.log(req.body.tracks)
+})
 
 // const searchTrack = async (
 //   query: TrackQuery,

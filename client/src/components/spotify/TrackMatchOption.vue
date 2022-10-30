@@ -1,5 +1,6 @@
 <template>
   <div class="track-match-option" :class="{ selected: selected }">
+    <div class="cover" :style="backgroundImg"></div>
     <PlayOnSpotifyButton :href="external_url" />
     <span class="name">
       {{ name }}
@@ -15,15 +16,16 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps } from "vue"
+import { defineProps, computed } from "vue"
 import { spotifyStore } from "@/stores/spotifyStore"
 import PlayOnSpotifyButton from "./PlayOnSpotifyButton.vue"
 
 const spotify = spotifyStore()
 
-defineProps<{
+const props = defineProps<{
   record: string
   track: string
+  image: string
   id: string
   name: string
   artists: string
@@ -32,26 +34,35 @@ defineProps<{
   levenshtein: number
   selected?: boolean
 }>()
+
+const backgroundImg = computed(() => {
+  return `background-image: url("${props.image}");`
+})
 </script>
 
 <style scoped lang="scss">
 .track-match-option {
-  padding-left: 1rem;
   overflow: hidden;
   display: grid;
-  grid-template-columns: 1fr 12rem;
+  grid-template-columns: 12rem 1fr 12rem;
   grid-template-rows: 4rem 4rem 4rem;
   width: 100%;
   column-gap: 1rem;
   border: transparent 2px solid;
-  .play-on-spotify {
-    grid-area: 1 / 1 / 2 / 2;
+  .cover {
+    background-color: hsl(40, 13%, 82%);
+    grid-area: 1 / 1 / 4 / 2;
+    overflow: hidden;
+    z-index: 0;
+    background-repeat: no-repeat;
+    background-size: contain;
+    z-index: -1;
   }
   .name {
     line-height: 4rem;
     color: var(--darker-text);
     font-weight: 500;
-    grid-area: 2 / 1 / 3 / 2;
+    grid-area: 2 / 2 / 3 / 3;
     margin: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -66,13 +77,13 @@ defineProps<{
     }
   }
   .artists {
-    grid-area: 3 / 1 / 4 / 2;
+    grid-area: 3 / 2 / 4 / 3;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .select-toggle {
-    grid-area: 1 / 2 / 4 / 3;
+    grid-area: 1 / 3 / 4 / 4;
     width: 100%;
     height: 100%;
     display: flex;
@@ -80,7 +91,7 @@ defineProps<{
     align-items: center;
   }
   &.selected {
-    border: #1db954 2px solid;
+    border: var(--spotify-green) 2px solid;
     border-radius: 1rem;
     .select-toggle {
       border-radius: 0;

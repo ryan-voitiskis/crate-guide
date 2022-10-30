@@ -142,6 +142,6 @@ const bpmColour = computed(() => (props.bpm ? getBPMColour(props.bpm) : null))
 
 // remove after testing
 .hasaf {
-  background-color: darksalmon;
+  background-color: #d5d5d5;
 }
 </style>

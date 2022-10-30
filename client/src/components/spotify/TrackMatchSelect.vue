@@ -22,6 +22,7 @@
         v-bind="match"
         :record="recordID"
         :track="trackID"
+        :image="image"
         :key="match.id"
       />
     </div>
@@ -45,6 +46,7 @@ const records = recordStore()
 const props = defineProps<{
   recordID: string
   trackID: string
+  image: string
   options: InexactTrackMatchOption[]
 }>()
 

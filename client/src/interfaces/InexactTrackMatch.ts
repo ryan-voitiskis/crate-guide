@@ -11,6 +11,7 @@ interface InexactTrackMatchOption {
 interface InexactTrackMatch {
   recordID: string
   trackID: string
+  image: string
   options: InexactTrackMatchOption[]
 }
 
