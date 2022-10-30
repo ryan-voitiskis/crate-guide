@@ -1,4 +1,4 @@
-interface ImperfectMatchOption {
+interface InexactAlbumMatchOption {
   id: string
   levenshtein: number
   image: string
@@ -9,9 +9,9 @@ interface ImperfectMatchOption {
   selected?: boolean
 }
 
-interface ImperfectMatch {
+interface InexactAlbumMatch {
   _id: string
-  matches: ImperfectMatchOption[]
+  matches: InexactAlbumMatchOption[]
 }
 
-export { ImperfectMatchOption, ImperfectMatch }
+export { InexactAlbumMatchOption, InexactAlbumMatch }

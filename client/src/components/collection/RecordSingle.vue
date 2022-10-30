@@ -159,17 +159,20 @@ const backgroundImg = computed(() => {
     z-index: 1;
   }
   h3.title {
+    display: flex;
+    align-items: center;
     color: var(--darker-text);
     grid-area: 1 / 2 / 2 / 3;
-    line-height: 4rem;
     margin: 0 0 0 1rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
     grid-area: 2 / 2 / 3 / 3;
-    line-height: 2rem;
     font-size: 1.2rem;
     margin: 0 0 0 1rem;
     overflow: hidden;
@@ -183,8 +186,9 @@ const backgroundImg = computed(() => {
     }
   }
   .artists {
+    display: flex;
+    align-items: center;
     grid-area: 3 / 2 / 4 / 3;
-    line-height: 3rem;
     margin: 0 0 0 1rem;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -3,7 +3,8 @@ import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
 import { fetchEventSource } from "@microsoft/fetch-event-source"
 import spotifyService from "@/services/spotifyService"
-import { ImperfectMatch } from "@/interfaces/ImperfectMatch"
+import { InexactAlbumMatch } from "@/interfaces/InexactAlbumMatch"
+import { InexactTrackMatch } from "@/interfaces/InexactTrackMatch"
 
 // todo: make global or do something better
 const API_SSE_URL = "http://localhost:5001/api/spotify_sse/"
@@ -14,7 +15,10 @@ export const spotifyStore = defineStore("spotify", {
     errorMsg: "",
     loading: false,
     importProgressModal: false,
-    imperfectAlbumMatches: [] as ImperfectMatch[], // records attempted to be found on spotify w/o perfect match
+    albumMatchesModal: false,
+    trackMatchesModal: false,
+    inexactAlbumMatches: [] as InexactAlbumMatch[], // records attempted to be found on spotify w/o perfect match
+    inexactTrackMatches: [] as InexactTrackMatch[],
     noMatches: [] as string[], // records attempted to be found on spotify w/o any match
   }),
   actions: {
@@ -83,7 +87,7 @@ export const spotifyStore = defineStore("spotify", {
     async importDataForSelectedRecords(token: string) {
       this.errorMsg = ""
       this.importProgressModal = true
-      this.imperfectAlbumMatches = []
+      this.inexactAlbumMatches = []
       this.noMatches = []
       const records = recordStore()
       const body = new URLSearchParams()
@@ -91,19 +95,23 @@ export const spotifyStore = defineStore("spotify", {
 
       const setProgress = (progress: number) => (this.importProgress = progress)
 
-      const handleError = (msg: string) =>
-        (this.errorMsg = msg ? msg.replace("Error: ", "") : "Unexpected error")
+      const handleError = (msg: string) => {
+        if (msg === "Error: Bad token") this.importDataForSelectedRecords(token)
+        else
+          this.errorMsg = msg ? msg.replace("Error: ", "") : "Unexpected error"
+      }
 
       const handleJSON = (data: string) => {
         this.importProgress = 1
         records.checkboxed = []
-        // modal must be closed before imperfectAlbumMatches !== [], so document.body.style.overflow = "hidden" from ModalBox hook
+        // modal must be closed before inexactAlbumMatches !== [], so document.body.style.overflow = "hidden" from ModalBox hook
         this.importProgressModal = false
         const receivedObj = JSON.parse(data.substring(data.indexOf(":") + 1))
-        this.imperfectAlbumMatches = receivedObj.imperfectAlbumMatches
+        this.inexactAlbumMatches = receivedObj.inexactAlbumMatches
+        this.inexactTrackMatches = receivedObj.inexactTrackMatches
         this.noMatches = receivedObj.noMatches
+        this.albumMatchesModal = true
         this.importProgress = 0
-        // this.loading = false // ? maybe not necessary
       }
 
       const handleCompletion = async () => {
@@ -150,15 +158,38 @@ export const spotifyStore = defineStore("spotify", {
       }
     },
 
-    async importSelectedImperfectMatches(token: string) {
-      // this.errorMsg = ""
-      // this.importProgressModal = true
-      // const records = recordStore()
-      // const body = new URLSearchParams()
+    async importSelectedInexactMatches(token: string) {
+      this.albumMatchesModal = false
+      this.trackMatchesModal = false
+      this.errorMsg = ""
+      this.importProgressModal = true
+      const records = recordStore()
+      const body = new URLSearchParams()
+      console.log("inex")
+
       // body.append("records", JSON.stringify(records.checkboxed))
+
       // const setProgress = (progress: number) => (this.importProgress = progress)
-      // const handleError = (msg: string) =>
-      //   (this.errorMsg = msg ? msg.replace("Error: ", "") : "Unexpected error")
+
+      // const handleError = (msg: string) => {
+      //   if (msg === "Error: Bad token") this.importDataForSelectedRecords(token)
+      //   else
+      //     this.errorMsg = msg ? msg.replace("Error: ", "") : "Unexpected error"
+      // }
+
+      // const handleJSON = (data: string) => {
+      //   this.importProgress = 1
+      //   records.checkboxed = []
+      //   // modal must be closed before inexactAlbumMatches !== [], so document.body.style.overflow = "hidden" from ModalBox hook
+      //   this.importProgressModal = false
+      //   const receivedObj = JSON.parse(data.substring(data.indexOf(":") + 1))
+      //   this.inexactAlbumMatches = receivedObj.inexactAlbumMatches
+      //   this.inexactTrackMatches = receivedObj.inexactTrackMatches
+      //   this.noMatches = receivedObj.noMatches
+      //   this.albumMatchesModal = true
+      //   this.importProgress = 0
+      // }
+
       // const handleCompletion = async () => {
       //   this.loading = true
       //   await records.fetchRecords(token)
@@ -166,6 +197,7 @@ export const spotifyStore = defineStore("spotify", {
       //   this.importProgress = 0
       //   this.loading = false
       // }
+
       // if (records.checkboxed.length) {
       //   try {
       //     // fetch SSE request made directly from Store so importProgress can be mutated.
@@ -179,16 +211,20 @@ export const spotifyStore = defineStore("spotify", {
       //       },
       //       body: body,
       //       onmessage(msg) {
-      //         if (msg.data.includes("Error")) handleError(msg.data)
-      //         const progress = parseFloat(msg.data)
-      //         setProgress(progress)
-      //         if (progress === 1) handleCompletion()
+      //         if (msg.data.startsWith("Error")) handleError(msg.data)
+      //         else if (msg.data.startsWith("json")) handleJSON(msg.data)
+      //         else {
+      //           const progress = parseFloat(msg.data)
+      //           setProgress(progress)
+      //           if (progress === 1) handleCompletion()
+      //         }
       //       },
       //       onerror(err) {
       //         console.error(err)
       //         handleError(err)
       //       },
       //     })
+
       //     // catch error, eg. NetworkError. console.error(error) to debug
       //   } catch (error) {
       //     console.error(error)
@@ -198,24 +234,46 @@ export const spotifyStore = defineStore("spotify", {
       // }
     },
 
-    // selects or deselects ImperfectMatchesOption. if selecting, also deselects all other options
+    // selects or deselects InexactMatchesOption. if selecting, also deselects all other options
     // works like radio buttons but can also deselect, so that none are selected
-    toggleImperfectMatchesOption(recordID: string, optionID: string) {
-      const imperfectMatch = this.imperfectAlbumMatches.find(
+    toggleInexactAlbumOption(recordID: string, optionID: string) {
+      const inexactMatch = this.inexactAlbumMatches.find(
         (i) => i._id === recordID
       )
-      if (imperfectMatch) {
-        const imperfectMatchOption = imperfectMatch.matches.find(
+      if (inexactMatch) {
+        const inexactMatchOption = inexactMatch.matches.find(
           (i) => i.id === optionID
         )
-        if (imperfectMatchOption) {
-          if (!imperfectMatchOption.selected) {
-            imperfectMatch.matches.forEach((i) => {
+        if (inexactMatchOption) {
+          if (!inexactMatchOption.selected) {
+            inexactMatch.matches.forEach((i) => {
               i.selected = false
             })
-            imperfectMatchOption.selected = !imperfectMatchOption.selected
+            inexactMatchOption.selected = !inexactMatchOption.selected
           } else
-            imperfectMatch.matches.forEach((i) => {
+            inexactMatch.matches.forEach((i) => {
+              i.selected = false
+            })
+        }
+      }
+    },
+
+    toggleInexactTrackOption(trackID: string, optionID: string) {
+      const inexactMatch = this.inexactTrackMatches.find(
+        (i) => i.trackID === trackID
+      )
+      if (inexactMatch) {
+        const inexactMatchOption = inexactMatch.options.find(
+          (i) => i.id === optionID
+        )
+        if (inexactMatchOption) {
+          if (!inexactMatchOption.selected) {
+            inexactMatch.options.forEach((i) => {
+              i.selected = false
+            })
+            inexactMatchOption.selected = !inexactMatchOption.selected
+          } else
+            inexactMatch.options.forEach((i) => {
               i.selected = false
             })
         }

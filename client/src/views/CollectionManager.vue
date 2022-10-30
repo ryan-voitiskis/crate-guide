@@ -123,11 +123,19 @@
   </ModalBox>
 
   <ModalBox
-    v-if="spotify.imperfectAlbumMatches.length"
-    @close="spotify.imperfectAlbumMatches = []"
+    v-if="spotify.albumMatchesModal"
+    @close="spotify.albumMatchesModal = false"
     width="680px"
   >
-    <ImperfectMatchForm />
+    <AlbumMatchForm />
+  </ModalBox>
+
+  <ModalBox
+    v-if="spotify.trackMatchesModal"
+    @close="spotify.trackMatchesModal = false"
+    width="680px"
+  >
+    <TrackMatchForm />
   </ModalBox>
 </template>
 
@@ -162,7 +170,8 @@ import TrashIcon from "@/components/icons/TrashIcon.vue"
 import UpdateFeedback from "@/components/feedbacks/UpdateFeedback.vue"
 import SpotifyImportProgress from "@/components/spotify/SpotifyImportProgress.vue"
 import SpotifyLogo from "@/components/icons/SpotifyLogo.vue"
-import ImperfectMatchForm from "@/components/spotify/ImperfectMatchForm.vue"
+import AlbumMatchForm from "@/components/spotify/AlbumMatchForm.vue"
+import TrackMatchForm from "@/components/spotify/TrackMatchForm.vue"
 
 const crates = crateStore()
 const records = recordStore()

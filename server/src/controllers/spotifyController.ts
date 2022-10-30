@@ -101,7 +101,7 @@ const isAlbumTracksResponsee = (obj: any): obj is AlbumTracksResponse => {
   return "items" in obj
 }
 
-interface ImperfectTrackMatchOption {
+interface InexactTrackMatchOption {
   name: string
   artists: string
   duration: number
@@ -115,14 +115,14 @@ interface FoundTrack {
   spotifyTrackID: string
 }
 
-interface ImperfectTrackMatches {
+interface InexactTrackMatches {
   recordID: string
   trackID: string
-  options: ImperfectTrackMatchOption[]
+  options: InexactTrackMatchOption[]
 }
 interface TrackIDsFromAlbumResults {
   foundTracks: FoundTrack[]
-  imperfectTrackMatches: ImperfectTrackMatches[]
+  inexactTrackMatches: InexactTrackMatches[]
 }
 
 interface AudioFeatures {
@@ -155,7 +155,7 @@ const isAudioFeaturesResponse = (obj: any): obj is AudioFeaturesResponse => {
 }
 
 // @desc    finds corresponding spotify ID for albums and tracks, imports audio
-//          features, writes to client imperfectAlbumMatches and noMatches
+//          features, writes to client inexactAlbumMatches and noMatches
 // @route   POST /api/spotify/import_data_for_selected
 // @access  private
 const findAndImportRecordAudioFeatures = asyncHandler(async (req, res) => {
@@ -168,8 +168,8 @@ const findAndImportRecordAudioFeatures = asyncHandler(async (req, res) => {
 
   if (user && records) {
     let foundTracks: FoundTrack[] = []
-    let imperfectTrackMatches: ImperfectTrackMatches[] = []
-    const imperfectAlbumMatches = []
+    let inexactTrackMatches: InexactTrackMatches[] = []
+    const inexactAlbumMatches = []
     const noMatches = []
     let i = 0
     for await (const record of records) {
@@ -191,13 +191,13 @@ const findAndImportRecordAudioFeatures = asyncHandler(async (req, res) => {
             user.spotifyToken
           )
           foundTracks = foundTracks.concat(getTrackIDsObj.foundTracks)
-          imperfectTrackMatches = imperfectTrackMatches.concat(
-            getTrackIDsObj.imperfectTrackMatches
+          inexactTrackMatches = inexactTrackMatches.concat(
+            getTrackIDsObj.inexactTrackMatches
           )
         }
         // if no perfect match found, but similar found
         else if (searchAlbumResults.length > 1)
-          imperfectAlbumMatches.push({
+          inexactAlbumMatches.push({
             _id: record._id.toString(),
             matches: searchAlbumResults,
           })
@@ -214,11 +214,16 @@ const findAndImportRecordAudioFeatures = asyncHandler(async (req, res) => {
     if (!(await saveAudioFeatures(retrievedFeatures, foundTracks, user)))
       throw new Error("One or more tracks not updated with Audio Features.")
 
-    if (imperfectAlbumMatches.length || noMatches.length)
+    if (
+      inexactAlbumMatches.length ||
+      noMatches.length ||
+      inexactTrackMatches.length
+    )
       res.write(
         "data: " +
           `json:${JSON.stringify({
-            imperfectAlbumMatches: imperfectAlbumMatches,
+            inexactAlbumMatches: inexactAlbumMatches,
+            inexactTrackMatches: inexactTrackMatches,
             noMatches: noMatches,
           })}\n\n`
       )
@@ -227,7 +232,7 @@ const findAndImportRecordAudioFeatures = asyncHandler(async (req, res) => {
   }
 })
 
-const spotifyRequest = async (url: string, token: string) => {
+const spotifyRequest = async (url: string, token: string): Promise<{}> => {
   const options = {
     method: "GET",
     headers: {
@@ -239,19 +244,15 @@ const spotifyRequest = async (url: string, token: string) => {
   const response = (await fetch(url, options)) as Response
   if (response.status === 200) return await response.json()
   else if (response.status === 401) {
-    // ? possibly pass userID to spotifyRequest and get spotifyToken after each request
-    // refreshToken(token)
-    const error = await response.json()
-    const errorMsg = error.message ? error.message : "Bad or expired token."
-    throw new Error(errorMsg)
+    await refreshToken(token) // call refreshToken before error, so that on retry refreshed token exists
+    throw new Error("Bad token") // front end will retry upon receiving this msg
   } else if (response.status === 403) {
     const error = await response.json()
     const errorMsg = error.message ? error.message : "Bad OAuth request"
     throw new Error(errorMsg)
   } else if (response.status === 429) {
     await new Promise((resolve) => setTimeout(resolve, 10000))
-    const response = (await spotifyRequest(url, token)) as Response
-    return await response.json()
+    return await spotifyRequest(url, token) // todo: test this works
   }
   return await response.json()
 }
@@ -260,7 +261,7 @@ const searchAlbum = async (
   query: AlbumQuery,
   token: string
 ): Promise<SearchAlbumResult[]> => {
-  const matches: SearchAlbumResult[] = []
+  const inexactAlbumMatches: SearchAlbumResult[] = []
   const params = new URLSearchParams()
   params.append("q", JSON.stringify(query))
   params.append("type", "album")
@@ -289,7 +290,7 @@ const searchAlbum = async (
           const foundYear = new Date(item.release_date).getFullYear()
           distance = distance + unsign(query.year - foundYear)
         }
-        matches.push({
+        inexactAlbumMatches.push({
           id: item.id,
           levenshtein: distance,
           image: item.images[0].url,
@@ -301,7 +302,9 @@ const searchAlbum = async (
       }
     }
   }
-  return matches.sort((a, b) => a.levenshtein - b.levenshtein).slice(0, 8)
+  return inexactAlbumMatches
+    .sort((a, b) => a.levenshtein - b.levenshtein)
+    .slice(0, 8)
 }
 
 const getTrackIDsFromAlbum = async (
@@ -309,7 +312,7 @@ const getTrackIDsFromAlbum = async (
   albumID: string,
   token: string
 ): Promise<TrackIDsFromAlbumResults> => {
-  const imperfectTrackMatches: ImperfectTrackMatches[] = []
+  const inexactTrackMatches: InexactTrackMatches[] = []
   const foundTracks: FoundTrack[] = []
   const albumTracks = await getAlbumTracks(albumID, token)
   if (albumTracks.length) {
@@ -324,9 +327,10 @@ const getTrackIDsFromAlbum = async (
           spotifyTrackID: matchedTrack.id,
         })
       else {
-        const possibilities = []
+        const options = [] // options to present to client for matching
         for (const spotifyTrack of albumTracks) {
-          possibilities.push({
+          options.push({
+            id: spotifyTrack.id,
             name: spotifyTrack.name,
             artists: spotifyTrack.artists.map((i) => i.name).join(", "),
             duration: spotifyTrack.duration_ms,
@@ -334,19 +338,19 @@ const getTrackIDsFromAlbum = async (
             levenshtein: levenshtein(track.title, spotifyTrack.name),
           })
         }
-        imperfectTrackMatches.push({
+        inexactTrackMatches.push({
           recordID: record._id.toString(),
           trackID: track._id.toString(),
-          options: possibilities
+          options: options
             .sort((a, b) => a.levenshtein - b.levenshtein)
-            .slice(0, 3),
+            .slice(0, 4),
         })
       }
     }
   }
   return {
     foundTracks: foundTracks,
-    imperfectTrackMatches: imperfectTrackMatches,
+    inexactTrackMatches: inexactTrackMatches,
   }
 }
 

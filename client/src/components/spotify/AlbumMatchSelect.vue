@@ -1,5 +1,5 @@
 <template>
-  <div class="imperfect-match-select">
+  <div class="album-match-select">
     <div class="existing-record">
       <div class="cover" :style="backgroundImg"></div>
       <h3 class="title">{{ record.title }}</h3>
@@ -10,9 +10,9 @@
       <span class="artists">{{ record.artists }}</span>
     </div>
     <hr />
-    <div class="imperfect-matches">
-      <ImperfectMatchOption
-        v-for="match in sortedMatches"
+    <div class="inexact-matches">
+      <AlbumMatchOption
+        v-for="match in slicedMatches"
         v-bind="match"
         :record="_id"
         :key="match.id"
@@ -31,13 +31,13 @@
 <script setup lang="ts">
 import { defineProps, computed, reactive } from "vue"
 import { recordStore } from "@/stores/recordStore"
-import { ImperfectMatchOption as IImperfectMatchOption } from "@/interfaces/ImperfectMatch"
-import ImperfectMatchOption from "@/components/spotify/ImperfectMatchOption.vue"
+import { InexactAlbumMatchOption } from "@/interfaces/InexactAlbumMatch"
+import AlbumMatchOption from "@/components/spotify/AlbumMatchOption.vue"
 const records = recordStore()
 
 const props = defineProps<{
   _id: string
-  matches: any
+  matches: InexactAlbumMatchOption[]
 }>()
 
 const state = reactive({
@@ -46,8 +46,7 @@ const state = reactive({
 
 const record = records.getById(props._id)
 
-// sort matched by levenshtein distance
-const sortedMatches = computed((): IImperfectMatchOption[] =>
+const slicedMatches = computed((): InexactAlbumMatchOption[] =>
   [...props.matches].slice(0, state.numberShown)
 )
 
@@ -57,7 +56,7 @@ const backgroundImg = computed(() => {
 </script>
 
 <style scoped lang="scss">
-.imperfect-match-select {
+.album-match-select {
   border: 2px solid var(--border-colour);
   padding: 1rem;
   border-radius: 1rem;
@@ -68,7 +67,7 @@ const backgroundImg = computed(() => {
   .existing-record {
     display: grid;
     grid-template-columns: 12rem 4fr;
-    grid-template-rows: 4rem 2rem 3rem 3rem;
+    grid-template-rows: 4rem 3rem 3rem 2rem;
     width: 100%;
     column-gap: 1rem;
     .cover {
@@ -80,17 +79,18 @@ const backgroundImg = computed(() => {
       background-size: contain;
     }
     h3.title {
+      line-height: 4rem;
       color: var(--darker-text);
       grid-area: 1 / 2 / 2 / 3;
       margin: 0;
-      line-height: 4rem;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
     .label {
+      line-height: 3rem;
+      gap: 0.6rem;
       grid-area: 2 / 2 / 3 / 3;
-      line-height: 2rem;
       font-size: 1.2rem;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -103,15 +103,15 @@ const backgroundImg = computed(() => {
       }
     }
     .artists {
-      grid-area: 3 / 2 / 4 / 3;
       line-height: 3rem;
+      grid-area: 3 / 2 / 4 / 3;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
   }
 
-  .imperfect-matches {
+  .inexact-matches {
     display: flex;
     flex-direction: column;
     width: 100%;

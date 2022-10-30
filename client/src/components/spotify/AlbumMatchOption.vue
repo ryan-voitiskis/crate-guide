@@ -1,20 +1,14 @@
 <template>
-  <div class="imperfect-match-option" :class="{ selected: selected }">
+  <div class="album-match-option" :class="{ selected: selected }">
     <div class="cover" :style="backgroundImg"></div>
-    <a
-      class="play-on-spotify icon-button btn"
-      :href="external_url"
-      target="_blank"
-    >
-      <SpotifyLogo />PLAY ON SPOTIFY
-    </a>
+    <PlayOnSpotifyButton :href="external_url" class="play-on-spotify" />
     <span class="title">
       {{ title }} <span class="year">{{ year }}</span>
     </span>
     <span class="artists">{{ artist }}</span>
     <button
       class="select-toggle"
-      @click="spotify.toggleImperfectMatchesOption(record, id)"
+      @click="spotify.toggleInexactAlbumOption(record, id)"
     >
       {{ selected ? "Deselect" : " Select" }}
     </button>
@@ -23,7 +17,7 @@
 
 <script setup lang="ts">
 import { defineProps, computed } from "vue"
-import SpotifyLogo from "../icons/SpotifyLogo.vue"
+import PlayOnSpotifyButton from "./PlayOnSpotifyButton.vue"
 import { spotifyStore } from "@/stores/spotifyStore"
 
 const spotify = spotifyStore()
@@ -48,7 +42,7 @@ const backgroundImg = computed(() => {
 </script>
 
 <style scoped lang="scss">
-.imperfect-match-option {
+.album-match-option {
   overflow: hidden;
   display: grid;
   grid-template-columns: 12rem 4fr 12rem;
@@ -65,34 +59,13 @@ const backgroundImg = computed(() => {
     background-size: contain;
     z-index: -1;
   }
-  .play-on-spotify {
-    justify-self: start;
-    align-self: center;
-    color: var(--spotify-green);
-    grid-area: 1 / 2 / 2 / 3;
-    padding: 0 1.6rem;
-    font-size: 1.2rem;
-    font-weight: 600;
-    letter-spacing: 0.1rem;
-    border-radius: 1.9rem;
-    margin: 0;
-    svg {
-      color: var(--spotify-light-green);
-    }
-    &:hover {
-      color: white;
-      background-color: var(--spotify-green);
-      svg {
-        color: white;
-      }
-    }
-  }
   .title {
+    line-height: 4rem;
+    gap: 0.6rem;
     color: var(--darker-text);
     font-weight: 500;
     grid-area: 2 / 2 / 3 / 3;
     margin: 0;
-    line-height: 4rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -107,7 +80,6 @@ const backgroundImg = computed(() => {
   }
   .artists {
     grid-area: 3 / 2 / 4 / 3;
-    line-height: 3rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
