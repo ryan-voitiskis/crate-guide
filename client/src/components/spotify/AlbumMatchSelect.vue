@@ -31,13 +31,13 @@
 <script setup lang="ts">
 import { defineProps, computed, reactive } from "vue"
 import { recordStore } from "@/stores/recordStore"
-import { InexactAlbumMatchOption } from "@/interfaces/InexactAlbumMatch"
+import { SpotifyAlbumEdit } from "@/interfaces/InexactAlbumMatch"
 import AlbumMatchOption from "@/components/spotify/AlbumMatchOption.vue"
 const records = recordStore()
 
 const props = defineProps<{
   _id: string
-  matches: InexactAlbumMatchOption[]
+  matches: SpotifyAlbumEdit[]
 }>()
 
 const state = reactive({
@@ -46,7 +46,7 @@ const state = reactive({
 
 const record = records.getById(props._id)
 
-const slicedMatches = computed((): InexactAlbumMatchOption[] =>
+const slicedMatches = computed((): SpotifyAlbumEdit[] =>
   [...props.matches].slice(0, state.numberShown)
 )
 

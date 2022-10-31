@@ -22,12 +22,11 @@
         v-bind="match"
         :record="recordID"
         :track="trackID"
-        :image="image"
         :key="match.id"
       />
     </div>
     <button
-      v-if="state.numberShown === 3"
+      v-if="state.numberShown <= 3 && options.length > 3"
       class="show-more"
       @click="state.numberShown = 8"
     >
@@ -39,15 +38,14 @@
 <script setup lang="ts">
 import { defineProps, computed, reactive } from "vue"
 import { recordStore } from "@/stores/recordStore"
-import { InexactTrackMatchOption } from "@/interfaces/InexactTrackMatch"
+import { SpotifyTrackEdit } from "@/interfaces/InexactTrackMatch"
 import TrackMatchOption from "@/components/spotify/TrackMatchOption.vue"
 const records = recordStore()
 
 const props = defineProps<{
   recordID: string
   trackID: string
-  image: string
-  options: InexactTrackMatchOption[]
+  options: SpotifyTrackEdit[]
 }>()
 
 const state = reactive({
@@ -58,7 +56,7 @@ const record = records.getById(props.recordID)
 
 const track = record.tracks.find((i) => i._id === props.trackID)
 
-const slicedMatches = computed((): InexactTrackMatchOption[] =>
+const slicedMatches = computed((): SpotifyTrackEdit[] =>
   [...props.options].slice(0, state.numberShown)
 )
 

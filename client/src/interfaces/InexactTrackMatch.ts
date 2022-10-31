@@ -1,18 +1,18 @@
-interface InexactTrackMatchOption {
+interface SpotifyTrackEdit {
   id: string
   name: string
   artists: string
-  duration: number
   external_url: string
+  release_date: string
   levenshtein: number
+  image: string
   selected?: boolean
 }
 
 interface InexactTrackMatch {
   recordID: string
   trackID: string
-  image: string
-  options: InexactTrackMatchOption[]
+  options: SpotifyTrackEdit[]
 }
 
-export { InexactTrackMatchOption, InexactTrackMatch }
+export { SpotifyTrackEdit, InexactTrackMatch }

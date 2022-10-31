@@ -3,9 +3,9 @@
     <div class="cover" :style="backgroundImg"></div>
     <PlayOnSpotifyButton :href="external_url" class="play-on-spotify" />
     <span class="title">
-      {{ title }} <span class="year">{{ year }}</span>
+      {{ name }} <span class="year">{{ year }}</span>
     </span>
-    <span class="artists">{{ artist }}</span>
+    <span class="artists">{{ artists }}</span>
     <button
       class="select-toggle"
       @click="spotify.toggleInexactAlbumOption(record, id)"
@@ -27,8 +27,8 @@ const props = defineProps<{
   id: string
   levenshtein: number
   image: string
-  title: string
-  artist: string
+  name: string
+  artists: string
   external_url: string
   release_date: string
   selected?: boolean

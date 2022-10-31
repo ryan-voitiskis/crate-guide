@@ -1,9 +1,9 @@
-interface InexactAlbumMatchOption {
+interface SpotifyAlbumEdit {
   id: string
   levenshtein: number
   image: string
-  title: string
-  artist: string
+  name: string
+  artists: string
   external_url: string
   release_date: string
   selected?: boolean
@@ -11,7 +11,7 @@ interface InexactAlbumMatchOption {
 
 interface InexactAlbumMatch {
   _id: string
-  matches: InexactAlbumMatchOption[]
+  matches: SpotifyAlbumEdit[]
 }
 
-export { InexactAlbumMatchOption, InexactAlbumMatch }
+export { SpotifyAlbumEdit, InexactAlbumMatch }

@@ -88,6 +88,7 @@ export const spotifyStore = defineStore("spotify", {
       this.errorMsg = ""
       this.importProgressModal = true
       this.inexactAlbumMatches = []
+      this.inexactTrackMatches = []
       this.noMatches = []
       const records = recordStore()
       const body = new URLSearchParams()
@@ -104,8 +105,7 @@ export const spotifyStore = defineStore("spotify", {
       const handleJSON = (data: string) => {
         this.importProgress = 1
         records.checkboxed = []
-        // modal must be closed before inexactAlbumMatches !== [], so document.body.style.overflow = "hidden" from ModalBox hook
-        this.importProgressModal = false
+        this.importProgressModal = false // see note #1 at end of file
         const receivedObj = JSON.parse(data.substring(data.indexOf(":") + 1))
         this.inexactAlbumMatches = receivedObj.inexactAlbumMatches
         this.inexactTrackMatches = receivedObj.inexactTrackMatches
@@ -164,10 +164,16 @@ export const spotifyStore = defineStore("spotify", {
       this.importProgressModal = true
       const records = recordStore()
       const body = new URLSearchParams()
-      const selectedAlbums = this.getSelectedInexactAlbums()
-      const selectedTracks = this.getSelectedInexactTracks()
-      body.append("albums", JSON.stringify(selectedAlbums))
-      body.append("tracks", JSON.stringify(selectedTracks))
+      const matchedAlbums = this.getMatchedInexactAlbums()
+      const matchedTracks = this.getMatchedInexactTracks()
+      const unmatchedAlbums = this.getUnmatchedInexactAlbums()
+      const unmatchedTracks = this.getUnmatchedInexactTracks()
+      body.append("matchedAlbums", JSON.stringify(matchedAlbums))
+      body.append("matchedTracks", JSON.stringify(matchedTracks))
+      body.append("unmatchedAlbums", JSON.stringify(unmatchedAlbums))
+      body.append("unmatchedTracks", JSON.stringify(unmatchedTracks))
+      this.inexactAlbumMatches = []
+      this.inexactTrackMatches = []
 
       const setProgress = (progress: number) => (this.importProgress = progress)
 
@@ -175,6 +181,16 @@ export const spotifyStore = defineStore("spotify", {
         if (msg === "Error: Bad token") this.importDataForSelectedRecords(token)
         else
           this.errorMsg = msg ? msg.replace("Error: ", "") : "Unexpected error"
+      }
+
+      const handleJSON = (data: string) => {
+        this.importProgress = 1
+        records.checkboxed = []
+        this.importProgressModal = false // see note #2 at end of file
+        const receivedObj = JSON.parse(data.substring(data.indexOf(":") + 1))
+        this.inexactTrackMatches = receivedObj.inexactTrackMatches
+        if (this.inexactTrackMatches.length) this.trackMatchesModal = true
+        this.importProgress = 0
       }
 
       const handleCompletion = async () => {
@@ -185,7 +201,7 @@ export const spotifyStore = defineStore("spotify", {
         this.loading = false
       }
 
-      if (selectedAlbums.length || selectedTracks.length) {
+      if (matchedAlbums.length || matchedTracks.length) {
         try {
           // fetch SSE request made directly from Store so importProgress can be mutated.
           // spotifyStore cannot be accessed from spotifyService
@@ -201,6 +217,7 @@ export const spotifyStore = defineStore("spotify", {
               body: body,
               onmessage(msg) {
                 if (msg.data.startsWith("Error")) handleError(msg.data)
+                else if (msg.data.startsWith("json")) handleJSON(msg.data)
                 else {
                   const progress = parseFloat(msg.data)
                   setProgress(progress)
@@ -270,25 +287,43 @@ export const spotifyStore = defineStore("spotify", {
 
   getters: {
     // creates an array of the selected record IDs and corresponding spotify album IDs
-    getSelectedInexactAlbums: (state) => {
+    getMatchedInexactAlbums: (state) => {
       return () =>
         state.inexactAlbumMatches
           .filter((i) => i.matches.find((i) => i.selected))
           .map((i) => ({
-            _id: i._id,
-            spotifyID: i.matches.find((i) => i.selected)?.id,
+            recordID: i._id,
+            album: i.matches.find((i) => i.selected),
           }))
     },
+    // creates an array of the Unselected record IDs and corresponding spotify album IDs
+    getUnmatchedInexactAlbums: (state) => {
+      return () =>
+        state.inexactAlbumMatches
+          .filter((i) => !i.matches.find((i) => i.selected))
+          .map((i) => ({ recordID: i._id }))
+    },
     // creates an array of the selected track spotify track IDs with corresponding record and track _id
-    getSelectedInexactTracks: (state) => {
+    getMatchedInexactTracks: (state) => {
       return () =>
         state.inexactTrackMatches
           .filter((i) => i.options.find((i) => i.selected))
           .map((i) => ({
             recordID: i.recordID,
             trackID: i.trackID,
-            spotifyID: i.options.find((i) => i.selected)?.id,
+            spotifyTrackID: i.options.find((i) => i.selected)?.id,
           }))
+    },
+    // creates an array of the Unselected track spotify track IDs with corresponding record and track _id
+    getUnmatchedInexactTracks: (state) => {
+      return () =>
+        state.inexactTrackMatches
+          .filter((i) => !i.options.find((i) => i.selected))
+          .map((i) => ({ recordID: i.recordID, trackID: i.trackID }))
     },
   },
 })
+
+// NOTES
+// #1 importProgressModal must be closed before inexactAlbumMatches !== [], so document.body.style.overflow = "hidden" from ModalBox hook
+// #2 importProgressModal must be closed before inexactTrackMatches !== [], so document.body.style.overflow = "hidden" from ModalBox hook

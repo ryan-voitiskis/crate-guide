@@ -5,7 +5,6 @@ const errorHandler = (
   res: Response,
   next: NextFunction
 ) => {
-  res.status(res.statusCode ? res.statusCode : 500)
   if (process.env.NODE_ENV === "production") {
     res.write("data: " + `${err.message}\n\n`)
     res.end()

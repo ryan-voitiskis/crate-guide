@@ -25,13 +25,13 @@ const spotify = spotifyStore()
 const props = defineProps<{
   record: string
   track: string
-  image: string
   id: string
   name: string
   artists: string
-  duration: number
   external_url: string
+  release_date: string
   levenshtein: number
+  image: string
   selected?: boolean
 }>()
 
