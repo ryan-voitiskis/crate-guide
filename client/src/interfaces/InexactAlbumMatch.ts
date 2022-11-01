@@ -10,7 +10,7 @@ interface SpotifyAlbumEdit {
 }
 
 interface InexactAlbumMatch {
-  _id: string
+  recordID: string
   matches: SpotifyAlbumEdit[]
 }
 

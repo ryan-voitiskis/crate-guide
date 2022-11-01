@@ -5,6 +5,7 @@ import { fetchEventSource } from "@microsoft/fetch-event-source"
 import spotifyService from "@/services/spotifyService"
 import { InexactAlbumMatch } from "@/interfaces/InexactAlbumMatch"
 import { InexactTrackMatch } from "@/interfaces/InexactTrackMatch"
+import UnfoundTrack from "@/interfaces/UnfoundTrack"
 
 // todo: make global or do something better
 const API_SSE_URL = "http://localhost:5001/api/spotify_sse/"
@@ -19,7 +20,8 @@ export const spotifyStore = defineStore("spotify", {
     trackMatchesModal: false,
     inexactAlbumMatches: [] as InexactAlbumMatch[], // records attempted to be found on spotify w/o perfect match
     inexactTrackMatches: [] as InexactTrackMatch[],
-    noMatches: [] as string[], // records attempted to be found on spotify w/o any match
+    unfoundAlbums: [] as string[], // records attempted to be found on spotify w/o any match
+    unfoundTracks: [] as UnfoundTrack[],
   }),
   actions: {
     // call and handle request that begins spotify OAuth flow
@@ -89,7 +91,7 @@ export const spotifyStore = defineStore("spotify", {
       this.importProgressModal = true
       this.inexactAlbumMatches = []
       this.inexactTrackMatches = []
-      this.noMatches = []
+      this.unfoundAlbums = []
       const records = recordStore()
       const body = new URLSearchParams()
       body.append("records", JSON.stringify(records.checkboxed))
@@ -109,7 +111,7 @@ export const spotifyStore = defineStore("spotify", {
         const receivedObj = JSON.parse(data.substring(data.indexOf(":") + 1))
         this.inexactAlbumMatches = receivedObj.inexactAlbumMatches
         this.inexactTrackMatches = receivedObj.inexactTrackMatches
-        this.noMatches = receivedObj.noMatches
+        this.unfoundAlbums = receivedObj.noMatches
         if (this.inexactAlbumMatches.length) this.albumMatchesModal = true
         else if (this.inexactTrackMatches.length) this.trackMatchesModal = true
         this.importProgress = 0
@@ -201,40 +203,33 @@ export const spotifyStore = defineStore("spotify", {
         this.loading = false
       }
 
-      if (matchedAlbums.length || matchedTracks.length) {
-        try {
-          // fetch SSE request made directly from Store so importProgress can be mutated.
-          // spotifyStore cannot be accessed from spotifyService
-          await fetchEventSource(
-            API_SSE_URL + "import_data_for_client_matched",
-            {
-              method: "POST",
-              headers: {
-                Accept: "application/json",
-                "Content-Type": "application/x-www-form-urlencoded",
-                Authorization: `Bearer ${token}`,
-              },
-              body: body,
-              onmessage(msg) {
-                if (msg.data.startsWith("Error")) handleError(msg.data)
-                else if (msg.data.startsWith("json")) handleJSON(msg.data)
-                else {
-                  const progress = parseFloat(msg.data)
-                  setProgress(progress)
-                  if (progress === 1) handleCompletion()
-                }
-              },
-              onerror(err) {
-                console.error(err)
-                handleError(err)
-              },
+      try {
+        // fetch SSE request made directly from Store so importProgress can be mutated.
+        // spotifyStore cannot be accessed from spotifyService
+        await fetchEventSource(API_SSE_URL + "import_data_for_client_matched", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Bearer ${token}`,
+          },
+          body: body,
+          onmessage(msg) {
+            if (msg.data.startsWith("Error")) handleError(msg.data)
+            else if (msg.data.startsWith("json")) handleJSON(msg.data)
+            else {
+              const progress = parseFloat(msg.data)
+              setProgress(progress)
+              if (progress === 1) handleCompletion()
             }
-          )
-        } catch (error) {
-          console.error(error)
-        }
-      } else {
-        this.importProgressModal = false
+          },
+          onerror(err) {
+            console.error(err)
+            handleError(err)
+          },
+        })
+      } catch (error) {
+        console.error(error)
       }
     },
 
@@ -242,7 +237,7 @@ export const spotifyStore = defineStore("spotify", {
     // works like radio buttons but can also deselect, so that none are selected
     toggleInexactAlbumOption(recordID: string, optionID: string) {
       const inexactMatch = this.inexactAlbumMatches.find(
-        (i) => i._id === recordID
+        (i) => i.recordID === recordID
       )
       if (inexactMatch) {
         const inexactMatchOption = inexactMatch.matches.find(
@@ -292,7 +287,7 @@ export const spotifyStore = defineStore("spotify", {
         state.inexactAlbumMatches
           .filter((i) => i.matches.find((i) => i.selected))
           .map((i) => ({
-            recordID: i._id,
+            recordID: i.recordID,
             album: i.matches.find((i) => i.selected),
           }))
     },
@@ -301,7 +296,7 @@ export const spotifyStore = defineStore("spotify", {
       return () =>
         state.inexactAlbumMatches
           .filter((i) => !i.matches.find((i) => i.selected))
-          .map((i) => ({ recordID: i._id }))
+          .map((i) => i.recordID)
     },
     // creates an array of the selected track spotify track IDs with corresponding record and track _id
     getMatchedInexactTracks: (state) => {

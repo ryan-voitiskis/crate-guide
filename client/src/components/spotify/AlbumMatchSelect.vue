@@ -14,7 +14,7 @@
       <AlbumMatchOption
         v-for="match in slicedMatches"
         v-bind="match"
-        :record="_id"
+        :record="recordID"
         :key="match.id"
       />
     </div>
@@ -36,7 +36,7 @@ import AlbumMatchOption from "@/components/spotify/AlbumMatchOption.vue"
 const records = recordStore()
 
 const props = defineProps<{
-  _id: string
+  recordID: string
   matches: SpotifyAlbumEdit[]
 }>()
 
@@ -44,7 +44,7 @@ const state = reactive({
   numberShown: 3,
 })
 
-const record = records.getById(props._id)
+const record = records.getById(props.recordID)
 
 const slicedMatches = computed((): SpotifyAlbumEdit[] =>
   [...props.matches].slice(0, state.numberShown)

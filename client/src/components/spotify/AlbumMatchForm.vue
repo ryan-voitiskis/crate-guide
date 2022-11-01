@@ -26,7 +26,7 @@
       <AlbumMatchSelect
         v-for="albumMatch in spotify.inexactAlbumMatches"
         v-bind="albumMatch"
-        :key="albumMatch._id"
+        :key="albumMatch.recordID"
       />
     </div>
     <ErrorFeedback :show="spotify.errorMsg !== ''" :msg="spotify.errorMsg" />
