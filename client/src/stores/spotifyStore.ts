@@ -20,7 +20,6 @@ export const spotifyStore = defineStore("spotify", {
     trackMatchesModal: false,
     inexactAlbumMatches: [] as InexactAlbumMatch[], // records attempted to be found on spotify w/o perfect match
     inexactTrackMatches: [] as InexactTrackMatch[],
-    unfoundAlbums: [] as string[], // records attempted to be found on spotify w/o any match
     unfoundTracks: [] as UnfoundTrack[],
   }),
   actions: {
@@ -91,7 +90,6 @@ export const spotifyStore = defineStore("spotify", {
       this.importProgressModal = true
       this.inexactAlbumMatches = []
       this.inexactTrackMatches = []
-      this.unfoundAlbums = []
       const records = recordStore()
       const body = new URLSearchParams()
       body.append("records", JSON.stringify(records.checkboxed))
@@ -111,7 +109,7 @@ export const spotifyStore = defineStore("spotify", {
         const receivedObj = JSON.parse(data.substring(data.indexOf(":") + 1))
         this.inexactAlbumMatches = receivedObj.inexactAlbumMatches
         this.inexactTrackMatches = receivedObj.inexactTrackMatches
-        this.unfoundAlbums = receivedObj.noMatches
+        this.unfoundTracks = receivedObj.unfoundTracks
         if (this.inexactAlbumMatches.length) this.albumMatchesModal = true
         else if (this.inexactTrackMatches.length) this.trackMatchesModal = true
         this.importProgress = 0
@@ -129,7 +127,7 @@ export const spotifyStore = defineStore("spotify", {
         try {
           // fetch SSE request made directly from Store so importProgress can be mutated.
           // spotifyStore cannot be accessed from spotifyService
-          await fetchEventSource(API_SSE_URL + "import_data_for_selected", {
+          await fetchEventSource(API_SSE_URL + "import_selected", {
             method: "POST",
             headers: {
               Accept: "application/json",
@@ -138,6 +136,8 @@ export const spotifyStore = defineStore("spotify", {
             },
             body: body,
             onmessage(msg) {
+              console.log(msg.data)
+
               if (msg.data.startsWith("Error")) handleError(msg.data)
               else if (msg.data.startsWith("json")) handleJSON(msg.data)
               else {
@@ -169,11 +169,9 @@ export const spotifyStore = defineStore("spotify", {
       const matchedAlbums = this.getMatchedInexactAlbums()
       const matchedTracks = this.getMatchedInexactTracks()
       const unmatchedAlbums = this.getUnmatchedInexactAlbums()
-      const unmatchedTracks = this.getUnmatchedInexactTracks()
       body.append("matchedAlbums", JSON.stringify(matchedAlbums))
       body.append("matchedTracks", JSON.stringify(matchedTracks))
       body.append("unmatchedAlbums", JSON.stringify(unmatchedAlbums))
-      body.append("unmatchedTracks", JSON.stringify(unmatchedTracks))
       this.inexactAlbumMatches = []
       this.inexactTrackMatches = []
 
@@ -206,7 +204,7 @@ export const spotifyStore = defineStore("spotify", {
       try {
         // fetch SSE request made directly from Store so importProgress can be mutated.
         // spotifyStore cannot be accessed from spotifyService
-        await fetchEventSource(API_SSE_URL + "import_data_for_client_matched", {
+        await fetchEventSource(API_SSE_URL + "import_matched", {
           method: "POST",
           headers: {
             Accept: "application/json",
@@ -308,13 +306,6 @@ export const spotifyStore = defineStore("spotify", {
             trackID: i.trackID,
             spotifyTrackID: i.options.find((i) => i.selected)?.id,
           }))
-    },
-    // creates an array of the Unselected track spotify track IDs with corresponding record and track _id
-    getUnmatchedInexactTracks: (state) => {
-      return () =>
-        state.inexactTrackMatches
-          .filter((i) => !i.options.find((i) => i.selected))
-          .map((i) => ({ recordID: i.recordID, trackID: i.trackID }))
     },
   },
 })

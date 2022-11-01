@@ -7,9 +7,7 @@ import {
 
 const router = express.Router()
 
-router.route("/import_data_for_selected").post(protect, importRecordFeatures)
-router
-  .route("/import_data_for_client_matched")
-  .post(protect, importMatchedFeatures)
+router.route("/import_selected").post(protect, importRecordFeatures)
+router.route("/import_matched").post(protect, importMatchedFeatures)
 
 export default router

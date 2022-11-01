@@ -1,299 +1,103 @@
 import asyncHandler from "express-async-handler"
 import fetch from "node-fetch"
 import levenshtein from "js-levenshtein"
-import { ITrack, IRecord, Record } from "../models/recordModel.js"
+import { IRecord, Record } from "../models/recordModel.js"
 import unsign from "../utils/unsign.js"
 import { IUser } from "../models/userModel.js"
 import { refreshToken } from "./spotifyOAuthController.js"
-
+import { Response as ExpressResponse } from "express"
+import {
+  TrackQuery,
+  AlbumQuery,
+  SearchAlbumItem,
+  SearchTrackItem,
+  isSearchAlbumResponse,
+  isSearchTrackResponse,
+  SpotifyAlbumEdit,
+  SpotifyTrackEdit,
+  isAlbumTracksResponse,
+  isTracksResponse,
+  MatchedTrack,
+  AudioFeatures,
+  isAudioFeaturesResponse,
+  ImportRecordState,
+  ImportMatchedState,
+} from "../types/spotifyController-types.js"
 const spotifyAPIURL = "https://api.spotify.com/v1/"
 
-interface TrackQuery {
-  artist: string
-  track: string
-  year?: number
-}
-
-interface AlbumQuery {
-  artist: string
-  album: string
-  year?: number
-}
-
-interface SpotifyImage {
-  height: number
-  url: string
-  width: number
-}
-
-interface SpotifyArtist {
-  name: string
-}
-
-interface SearchAlbumItem {
-  artists: SpotifyArtist[]
-  id: string
-  name: string
-  images: SpotifyImage[]
-  external_urls: {
-    spotify: string
-  }
-  release_date: string
-}
-
-interface SearchAlbumResponse {
-  albums: {
-    items: SearchAlbumItem[]
-  }
-}
-
-interface SearchTrackItem {
-  artists: SpotifyArtist[]
-  id: string
-  name: string
-  images: SpotifyImage[]
-  external_urls: {
-    spotify: string
-  }
-  release_date: string
-}
-
-interface SearchTrackResponse {
-  tracks: {
-    items: SearchTrackItem[]
-  }
-}
-
-const isSearchAlbumResponse = (obj: any): obj is SearchAlbumResponse => {
-  return "albums" in obj
-}
-
-const isSearchTrackResponse = (obj: any): obj is SearchTrackResponse => {
-  return "tracks" in obj
-}
-
-interface SpotifyAlbumEdit {
-  id: string
-  levenshtein: number
-  image: string
-  name: string
-  artists: string
-  external_url: string
-  release_date: string
-}
-
-interface SpotifyTrackEdit {
-  id: string
-  name: string
-  artists: string
-  external_url: string
-  release_date: string
-  levenshtein: number
-  image: string
-}
-
-interface SpotifyTrack {
-  id: string
-  name: string
-  artists: SpotifyArtist[]
-  external_urls: {
-    spotify: string
-  }
-}
-
-interface AlbumTracksResponse {
-  items: SpotifyTrack[]
-}
-
-const isAlbumTracksResponse = (obj: any): obj is AlbumTracksResponse => {
-  return "items" in obj
-}
-
-interface TracksTrack {
-  album: {
-    images: SpotifyImage[]
-    release_date: string
-  }
-  artists: SpotifyArtist[]
-  duration_ms: number
-  external_urls: {
-    spotify: string
-  }
-  id: string
-  name: string
-}
-
-interface TracksResponse {
-  tracks: TracksTrack[]
-}
-
-const isTracksResponse = (obj: any): obj is TracksResponse => {
-  return "tracks" in obj
-}
-
-interface MatchedTrack {
-  recordID: string
-  trackID: string
-  spotifyTrackID: string
-}
-
-interface MatchedAlbum {
-  recordID: string
-  album: SpotifyAlbumEdit
-}
-
-interface InexactTrackMatches {
-  recordID: string
-  trackID: string
-  options: SpotifyTrackEdit[]
-}
-
-interface InexactAlbumMatches {
-  recordID: string
-  matches: SpotifyAlbumEdit[]
-}
-
-interface AudioFeatures {
-  acousticness: number
-  analysis_url: string
-  danceability: number
-  duration_ms: number
-  energy: number
-  id: string
-  instrumentalness: number
-  key: number
-  liveness: number
-  loudness: number
-  mode: number
-  speechiness: number
-  tempo: number
-  time_signature: number
-  track_href: string
-  type: string
-  uri: string
-  valence: number
-}
-
-interface AudioFeaturesResponse {
-  audio_features: AudioFeatures[]
-}
-
-const isAudioFeaturesResponse = (obj: any): obj is AudioFeaturesResponse => {
-  return "audio_features" in obj
-}
-
-interface UnmatchedTrack {
-  recordID: string
-  trackID: string
-}
-
-interface ImportRecordState {
-  matchedTracks: MatchedTrack[]
-  inexactTrackMatches: InexactTrackMatches[]
-  inexactAlbumMatches: InexactAlbumMatches[]
-  unfoundAlbums: string[]
-}
-
-interface ImportMatchedState {
-  matchedAlbums: MatchedAlbum[]
-  matchedTracks: MatchedTrack[]
-  unmatchedAlbums: string[]
-  unmatchedTracks: UnmatchedTrack[]
-  inexactTrackMatches: InexactTrackMatches[]
-  unfoundTracks: UnmatchedTrack[] // ? possibly rename interface to TrackIDs or something
-}
-
-// @desc    todo
-// @route   POST /api/spotify/import_data_for_selected
+// @desc    finds and imports spotify data for provided records, sends back albums and tracks for matching
+// @route   POST /api/spotify/import_selected
 // @access  private
 const importRecordFeatures = asyncHandler(async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream")
   const user = req.user! as IUser
-  const recordIDs: string[] = JSON.parse(req.body.records)
-  const records = await Record.find({ _id: { $in: recordIDs } })
-  if (!records) throw new Error("No records found.")
-  let i = 1
+  const records = JSON.parse(req.body.records)
   const state: ImportRecordState = {
+    records: await Record.find({ _id: { $in: records } }),
     matchedTracks: [],
     inexactTrackMatches: [],
     inexactAlbumMatches: [],
-    unfoundAlbums: [],
+    unmatchedAlbums: [],
+    unfoundTracks: [], // unfound tracks, are those that returned no search results
+    i: 0,
+    j: records.length + 1,
   }
+  if (!state.records) throw new Error("No records found.")
 
-  for await (const record of records) {
-    const query = {
-      artist: record.artists.split(",")[0],
-      album: record.title,
-      year: record.year,
-    }
-    const searchAlbumResults = await searchAlbum(query, user)
-    if (searchAlbumResults.length) {
-      // if perfect match found
-      if (searchAlbumResults[0].levenshtein === 0) {
-        await Record.findByIdAndUpdate(record._id, {
-          spotifyID: searchAlbumResults[0].id,
-        })
-        await getAlbumTracks(record, user, searchAlbumResults[0], state)
-      }
-      // if no perfect match found, but similar found
-      else
-        state.inexactAlbumMatches.push({
-          recordID: record._id.toString(),
-          matches: searchAlbumResults,
-        })
-    } else state.unfoundAlbums.push(record._id.toString())
-    res.write("data: " + `${(i++ / records.length).toFixed(2)}\n\n`)
-  }
+  await processRecords(user, state, res)
+  state.j = state.j + state.unmatchedAlbums.length
+  await processUnmatchedAlbums(user, state, res)
 
-  // todo: match tracks from nomatches, possibly processUnmatchedAlbums
-
+  // get audio features of matched tracks
   const retrievedFeatures: AudioFeatures[] = await getAudioFeatures(
     state.matchedTracks.map((i) => i.spotifyTrackID),
     user
   )
 
+  // save audio features of matched tracks
   if (!(await saveAudioFeatures(retrievedFeatures, state.matchedTracks, user)))
     throw new Error("One or more tracks not updated with Audio Features.")
 
-  if (
-    state.inexactAlbumMatches.length ||
-    state.unfoundAlbums.length ||
-    state.inexactTrackMatches.length
-  )
+  if (state.inexactAlbumMatches.length || state.inexactTrackMatches.length)
     res.write(
       "data: " +
         `json:${JSON.stringify({
           inexactAlbumMatches: state.inexactAlbumMatches,
           inexactTrackMatches: state.inexactTrackMatches,
-          unfoundAlbums: state.unfoundAlbums,
+          unfoundTracks: state.unfoundTracks,
         })}\n\n`
     )
   else res.write("data: " + `1\n\n`)
   res.end()
 })
 
-// @desc    todo
-// @route   POST /api/spotify/import_data_for_client_matched
+// @desc    imports matched records and tracks, sends back inexactTrackMatches
+// @route   POST /api/spotify/import_matched
 // @access  private
 const importMatchedFeatures = asyncHandler(async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream")
   const user = req.user! as IUser
+  const matchedAlbumsParsed = JSON.parse(req.body.matchedAlbums)
+  const unmatchedAlbumsParsed = JSON.parse(req.body.unmatchedAlbums)
   const state: ImportMatchedState = {
-    matchedAlbums: JSON.parse(req.body.matchedAlbums),
+    matchedAlbums: matchedAlbumsParsed,
     matchedTracks: JSON.parse(req.body.matchedTracks),
-    unmatchedAlbums: JSON.parse(req.body.unmatchedAlbums),
-    unmatchedTracks: JSON.parse(req.body.unmatchedTracks),
+    unmatchedAlbums: unmatchedAlbumsParsed,
     inexactTrackMatches: [],
     unfoundTracks: [],
+    i: 0,
+    j: matchedAlbumsParsed.length + unmatchedAlbumsParsed.length + 1,
   }
 
-  await processUnmatchedAlbums(user, state)
-  await processUnmatchedTracks(user, state)
+  await processUnmatchedAlbums(user, state, res)
 
+  // get tracks from matched albums
   for (const matchedAlbum of state.matchedAlbums) {
     const record = await Record.findById(matchedAlbum.recordID)
     if (!record) throw new Error("A Record couldnt be found.")
     await getAlbumTracks(record, user, matchedAlbum.album, state)
+    state.i++
+    res.write("data: " + `${(state.i / state.j).toFixed(2)}\n\n`)
   }
 
   // get audio features of matched tracks
@@ -317,35 +121,10 @@ const importMatchedFeatures = asyncHandler(async (req, res) => {
   res.end()
 })
 
-const spotifyRequest = async (url: string, user: IUser): Promise<{}> => {
-  const options = {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Bearer ${user.spotifyToken}`,
-    },
-  }
-  const response = (await fetch(url, options)) as Response
-  if (response.status === 200) return await response.json()
-  else if (response.status === 401) {
-    await refreshToken(user.spotifyToken)
-    throw new Error("Bad token") // front end will retry upon receiving this
-  } else if (response.status === 403) {
-    const error = await response.json()
-    const errorMsg = error.message ? error.message : "Bad OAuth request"
-    throw new Error(errorMsg)
-  } else if (response.status === 429) {
-    await new Promise((resolve) => setTimeout(resolve, 10000))
-    return await spotifyRequest(url, user) // todo: test this works
-  }
-  return await response.json()
-}
-
-const searchAlbum = async (
+async function searchAlbum(
   query: AlbumQuery,
   user: IUser
-): Promise<SpotifyAlbumEdit[]> => {
+): Promise<SpotifyAlbumEdit[]> {
   const inexactAlbumMatches: SpotifyAlbumEdit[] = []
   const params = new URLSearchParams()
   params.append("q", JSON.stringify(query))
@@ -380,25 +159,10 @@ const searchAlbum = async (
   return inexactAlbumMatches.sort(sortLevenshtein).slice(0, 8)
 }
 
-const editSpotifyAlbum = (
-  item: SearchAlbumItem,
-  distance: number
-): SpotifyAlbumEdit => {
-  return {
-    id: item.id,
-    levenshtein: distance,
-    image: item.images[0].url,
-    name: item.name,
-    artists: item.artists.map((i) => i.name).join(", "),
-    external_url: item.external_urls.spotify,
-    release_date: item.release_date,
-  }
-}
-
-const searchTrack = async (
+async function searchTrack(
   query: TrackQuery,
   user: IUser
-): Promise<SpotifyTrackEdit[]> => {
+): Promise<SpotifyTrackEdit[]> {
   const queryArtist = query.artist.toLocaleLowerCase()
   const queryTrack = query.track.toLocaleLowerCase()
   const options: string[] = []
@@ -418,46 +182,19 @@ const searchTrack = async (
       options.push(item.id)
     }
   }
-  return await getTrackOptions(options, query, user)
+  if (options.length) return await getTrackOptions(options, query, user)
+  else return []
 }
 
-// no data other than id is required
-const exactSpotifyTrack = (item: SearchTrackItem): SpotifyTrackEdit => {
-  return {
-    id: item.id,
-    name: "",
-    artists: "",
-    external_url: "",
-    release_date: "",
-    levenshtein: 0,
-    image: "",
-  }
-}
-
-// const editSpotifyTrack = (
-//   item: SearchTrackItem,
-//   distance: number
-// ): SpotifyTrackEdit => {
-//   return {
-//     id: item.id,
-//     name: item.name,
-//     artists: item.artists.map((i) => i.name).join(", "),
-//     external_url: item.external_urls.spotify,
-//     release_date: "",
-//     levenshtein: distance,
-//     image: "",
-//   }
-// }
-
-const getAlbumTracks = async (
+async function getAlbumTracks(
   record: IRecord,
   user: IUser,
   album: SpotifyAlbumEdit,
-  state: ImportMatchedState | ImportRecordState // * has side effects on state
-): Promise<void> => {
+  state: ImportMatchedState | ImportRecordState
+): Promise<void> {
   const params = new URLSearchParams()
-  params.append("limit", "50") // ? is this getting used
-  const url = `${spotifyAPIURL}albums/${album.id}/tracks`
+  params.append("limit", "50")
+  const url = `${spotifyAPIURL}albums/${album.id}/tracks?${params}`
   const response = await spotifyRequest(url, user)
   if (!isAlbumTracksResponse(response)) throw new Error("Bad spotify response.")
   const albumTracks = response.items
@@ -473,7 +210,7 @@ const getAlbumTracks = async (
           spotifyTrackID: matchedTrack.id,
         })
       else {
-        const options = [] // options to present to client for matching
+        const options = []
         for (const spotifyTrack of albumTracks) {
           options.push({
             id: spotifyTrack.id,
@@ -495,13 +232,12 @@ const getAlbumTracks = async (
   }
 }
 
-// gets the whole track options, as track search doesnt return image and release_date
-// convoluted as no more than one spotifyRequest per set of options was desired
-const getTrackOptions = async (
+// gets the whole track options, as track search doesn't return image and release_date
+async function getTrackOptions(
   options: string[],
   query: TrackQuery,
   user: IUser
-): Promise<SpotifyTrackEdit[]> => {
+): Promise<SpotifyTrackEdit[]> {
   const queryArtist = query.artist.toLocaleLowerCase()
   const queryTrack = query.track.toLocaleLowerCase()
   const url = `${spotifyAPIURL}tracks/?ids=${options.join(",")}`
@@ -524,7 +260,7 @@ const getTrackOptions = async (
       const foundYear = new Date(track.album.release_date).getFullYear()
       distance = distance + unsign(query.year - foundYear)
     }
-    const image640 = track.album.images.find((i) => (i.height = 640))
+    const image640 = track.album.images.find((i) => i.height === 640)
     optionsFull.push({
       id: track.id,
       name: track.name,
@@ -538,10 +274,44 @@ const getTrackOptions = async (
   return optionsFull.sort(sortLevenshtein).slice(0, 8)
 }
 
-const processUnmatchedAlbums = async (
+async function processRecords(
   user: IUser,
-  state: ImportMatchedState // * has side effects on state
-): Promise<void> => {
+  state: ImportRecordState,
+  res: ExpressResponse
+): Promise<void> {
+  for (const record of state.records) {
+    const query = {
+      artist: record.artists.split(",")[0],
+      album: record.title,
+      year: record.year,
+    }
+    const searchAlbumResults = await searchAlbum(query, user)
+    if (searchAlbumResults.length) {
+      // if perfect match found
+      if (searchAlbumResults[0].levenshtein === 0) {
+        await Record.findByIdAndUpdate(record._id, {
+          spotifyID: searchAlbumResults[0].id,
+        })
+        await getAlbumTracks(record, user, searchAlbumResults[0], state)
+      }
+
+      // if no perfect match found, but similar found
+      else
+        state.inexactAlbumMatches.push({
+          recordID: record._id.toString(),
+          matches: searchAlbumResults,
+        })
+    } else state.unmatchedAlbums.push(record._id.toString())
+    state.i++
+    res.write("data: " + `${(state.i / state.j).toFixed(2)}\n\n`)
+  }
+}
+
+async function processUnmatchedAlbums(
+  user: IUser,
+  state: ImportMatchedState | ImportRecordState,
+  res: ExpressResponse
+): Promise<void> {
   for (const unmatchedAlbum of state.unmatchedAlbums) {
     const record = await Record.findOne({
       user: user._id,
@@ -554,7 +324,7 @@ const processUnmatchedAlbums = async (
           ? track.artists.split(",")[0]
           : record.artists.split(",")[0],
         track: track.title,
-        year: record.year, // should year be included in this query and others?
+        year: record.year,
       }
       const searchTrackResults = await searchTrack(query, user)
       if (searchTrackResults.length) {
@@ -578,55 +348,15 @@ const processUnmatchedAlbums = async (
           trackID: track._id.toString(),
         })
     }
+    state.i++
+    res.write("data: " + `${(state.i / state.j).toFixed(2)}\n\n`)
   }
 }
 
-const processUnmatchedTracks = async (
-  user: IUser,
-  state: ImportMatchedState // * has side effects on state
-): Promise<void> => {
-  for (const unmatchedTrack of state.unmatchedTracks) {
-    const record = await Record.findOne({
-      user: user._id,
-      _id: unmatchedTrack.recordID,
-    })
-    if (!record) throw new Error("Couldn't find record of an unmatched track.")
-    const track = record.tracks.find(
-      (i) => i._id.toString() === unmatchedTrack.trackID
-    )
-    if (!track) throw new Error("Couldn't find an unmatched track.")
-    const query = {
-      artist: track.artists
-        ? track.artists.split(",")[0]
-        : record.artists.split(",")[0],
-      track: track.title,
-      year: record.year,
-    }
-    const searchTrackResults = await searchTrack(query, user)
-    if (searchTrackResults.length) {
-      // if perfect match found
-      if (searchTrackResults[0].levenshtein === 0)
-        state.matchedTracks.push({
-          recordID: record._id.toString(),
-          trackID: track._id.toString(),
-          spotifyTrackID: searchTrackResults[0].id,
-        })
-      // if no perfect match found, but similar found
-      else
-        state.inexactTrackMatches.push({
-          recordID: record._id.toString(),
-          trackID: track._id.toString(),
-          options: searchTrackResults,
-        })
-    } else
-      state.unfoundTracks.push({
-        recordID: record._id.toString(),
-        trackID: track._id.toString(),
-      })
-  }
-}
-
-const getAudioFeatures = async (trackIDs: string[], user: IUser) => {
+async function getAudioFeatures(
+  trackIDs: string[],
+  user: IUser
+): Promise<AudioFeatures[]> {
   const batchSize = 100
   const batches = []
   let retrievedFeatures: AudioFeatures[] = []
@@ -646,11 +376,11 @@ const getAudioFeatures = async (trackIDs: string[], user: IUser) => {
   return retrievedFeatures
 }
 
-const saveAudioFeatures = async (
+async function saveAudioFeatures(
   audioFeatures: AudioFeatures[],
   tracks: MatchedTrack[],
   user: IUser
-) => {
+): Promise<boolean> {
   let error = false
   for (const features of audioFeatures) {
     const track = tracks.find((i) => i.spotifyTrackID === features.id)
@@ -671,7 +401,59 @@ const saveAudioFeatures = async (
   return !error // returns false if error
 }
 
-const editAudioFeatures = (features: AudioFeatures) => {
+async function spotifyRequest(url: string, user: IUser): Promise<{}> {
+  const options = {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${user.spotifyToken}`,
+    },
+  }
+  const response = (await fetch(url, options)) as Response
+  if (response.status === 200) return await response.json()
+  else if (response.status === 401) {
+    await refreshToken(user.spotifyToken)
+    throw new Error("Bad token") // front end will retry upon receiving this
+  } else if (response.status === 403) {
+    const error = await response.json()
+    const errorMsg = error.message ? error.message : "Bad OAuth request"
+    throw new Error(errorMsg)
+  } else if (response.status === 429) {
+    await new Promise((resolve) => setTimeout(resolve, 10000))
+    return await spotifyRequest(url, user) // todo: test this works
+  }
+  return await response.json()
+}
+
+function editSpotifyAlbum(
+  item: SearchAlbumItem,
+  distance: number
+): SpotifyAlbumEdit {
+  return {
+    id: item.id,
+    levenshtein: distance,
+    image: item.images[0].url,
+    name: item.name,
+    artists: item.artists.map((i) => i.name).join(", "),
+    external_url: item.external_urls.spotify,
+    release_date: item.release_date,
+  }
+}
+
+function exactSpotifyTrack(item: SearchTrackItem): SpotifyTrackEdit {
+  return {
+    id: item.id,
+    name: "",
+    artists: "",
+    external_url: "",
+    release_date: "",
+    levenshtein: 0,
+    image: "",
+  }
+}
+
+function editAudioFeatures(features: AudioFeatures) {
   return {
     acousticness: features.acousticness,
     danceability: features.danceability,
