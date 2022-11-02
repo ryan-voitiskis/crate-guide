@@ -6,7 +6,7 @@ export default interface Track {
   position?: string
   duration?: string
   bpm?: number
-  rpm?: number
+  rpm: number
   genre?: string
   playable: boolean
   audioFeatures?: {

@@ -162,13 +162,13 @@ export const recordStore = defineStore("record", {
   getters: {
     // gets a record by id. returns null if not found
     getById: (state) => {
-      return (_id: string) =>
+      return (_id: string): Record =>
         (state.recordList.find((record) => record._id === _id) as Record) ||
         null
     },
     // returns record catno, if no catno returns title
     getNameById: (state) => {
-      return (_id: string) => {
+      return (_id: string): string => {
         const record =
           (state.recordList.find((record) => record._id === _id) as Record) ||
           null
@@ -178,7 +178,7 @@ export const recordStore = defineStore("record", {
     },
     // returns record catno, if no catno returns title. if no record returns ""
     getRecordNameByTrackId: (state) => {
-      return (_id: string) => {
+      return (_id: string): string => {
         const record =
           (state.recordList.find((record) =>
             record.tracks.find((track) => track._id === _id)
@@ -189,14 +189,14 @@ export const recordStore = defineStore("record", {
     },
     // gets a record that contains track with id. returns null if not found
     getRecordByTrackId: (state) => {
-      return (_id: string) =>
+      return (_id: string): Record =>
         (state.recordList.find((record) =>
           record.tracks.find((track) => track._id === _id)
         ) as Record) || null
     },
     // gets a track by id. returns null if not found
     getTrackById: (state) => {
-      return (_id: string) =>
+      return (_id: string): Track =>
         state.recordList.reduce<any>((prev: Record, curr: Record) => {
           return prev || curr.tracks.find((track) => track._id === _id)
         }, undefined) || null

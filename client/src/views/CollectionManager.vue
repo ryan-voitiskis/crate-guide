@@ -55,7 +55,7 @@
     <button
       class="icon-button"
       @click="spotify.importDataForSelectedRecords(user.authd.token)"
-      v-if="records.checkboxed.length"
+      v-if="records.checkboxed.length && user.authd.isSpotifyOAuthd"
     >
       <SpotifyLogo class="spotify-logo" />Get Spotify data for selected
     </button>
@@ -137,6 +137,13 @@
   >
     <TrackMatchForm />
   </ModalBox>
+
+  <ModalBox
+    v-if="spotify.completionModal"
+    @close="spotify.completionModal = false"
+  >
+    <SpotifyCompletion />
+  </ModalBox>
 </template>
 
 <script setup lang="ts">
@@ -172,6 +179,7 @@ import SpotifyImportProgress from "@/components/spotify/SpotifyImportProgress.vu
 import SpotifyLogo from "@/components/icons/SpotifyLogo.vue"
 import AlbumMatchForm from "@/components/spotify/AlbumMatchForm.vue"
 import TrackMatchForm from "@/components/spotify/TrackMatchForm.vue"
+import SpotifyCompletion from "@/components/spotify/SpotifyCompletion.vue"
 
 const crates = crateStore()
 const records = recordStore()

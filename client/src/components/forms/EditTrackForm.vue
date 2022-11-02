@@ -74,7 +74,7 @@
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Close
       </button>
-      <button class="primary" type="submit" style="width: 12rem">
+      <button class="primary" type="submit">
         {{ tracks.loading ? null : "Save" }}
         <LoaderIcon v-show="tracks.loading" />
       </button>
@@ -121,7 +121,7 @@ const submit = async () => {
     form.artists?.trim() === track.artists &&
     form.duration?.trim() === track.duration &&
     form.bpm === track.bpm &&
-    form.rpm === track.rpm &&
+    parseInt(form.rpm) === track.rpm &&
     form.genre?.trim() === track.genre &&
     form.playable === track.playable
   )
@@ -129,7 +129,7 @@ const submit = async () => {
   else {
     const editedTrack: Track = {
       _id: track._id,
-      position: form.position.toUpperCase(),
+      position: form.position?.toUpperCase(),
       title: form.title.trim(),
       artists: form.artists?.trim(),
       duration: form.duration?.trim(),

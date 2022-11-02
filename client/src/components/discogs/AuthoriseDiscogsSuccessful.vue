@@ -23,7 +23,6 @@
       @click=";(discogs.selectDiscogsFolder = true), $parent!.$emit('close')"
       class="primary"
       type="submit"
-      style="width: 20rem"
     >
       Import a collection
     </button>

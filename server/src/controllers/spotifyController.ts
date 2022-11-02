@@ -38,7 +38,6 @@ const importRecordFeatures = asyncHandler(async (req, res) => {
     inexactTrackMatches: [],
     inexactAlbumMatches: [],
     unmatchedAlbums: [],
-    unfoundTracks: [], // unfound tracks, are those that returned no search results
     requestsMade: 0,
     requestsRequired: records.length + 1,
   }
@@ -56,7 +55,6 @@ const importRecordFeatures = asyncHandler(async (req, res) => {
         `json:${JSON.stringify({
           inexactAlbumMatches: state.inexactAlbumMatches,
           inexactTrackMatches: state.inexactTrackMatches,
-          unfoundTracks: state.unfoundTracks,
         })}\n\n`
     )
   else res.write("data: " + `1\n\n`)
@@ -77,7 +75,6 @@ const importMatchedFeatures = asyncHandler(async (req, res) => {
     matchedTracks: JSON.parse(req.body.matchedTracks),
     unmatchedAlbums: unmatchedAlbumsParsed,
     inexactTrackMatches: [],
-    unfoundTracks: [],
     requestsMade: 0,
     requestsRequired:
       matchedAlbumsParsed.length + unmatchedAlbumsParsed.length + 1,
@@ -105,7 +102,7 @@ async function processRecords(
 ): Promise<void> {
   for (const record of state.records) {
     const query = {
-      artist: record.artists.split(",")[0],
+      artist: record.artists.split(", ")[0],
       album: record.title,
       year: record.year,
     }
@@ -147,9 +144,9 @@ async function processUnmatchedAlbums(
     if (!record) throw new Error("Couldn't find record of an unmatched track.")
     for (const track of record.tracks) {
       const query = {
-        artist: track.artists
-          ? track.artists.split(",")[0]
-          : record.artists.split(",")[0],
+        artists: track.artists
+          ? track.artists.split(", ")
+          : record.artists.split(", "),
         track: track.title,
         year: record.year,
       }
@@ -169,11 +166,7 @@ async function processUnmatchedAlbums(
             trackID: track._id.toString(),
             options: searchTrackResults,
           })
-      } else
-        state.unfoundTracks.push({
-          recordID: record._id.toString(),
-          trackID: track._id.toString(),
-        })
+      }
     }
     state.requestsMade++
     res.write(
@@ -195,18 +188,29 @@ async function processMatchedTracks(
     throw new Error("One or more tracks not updated with Audio Features.")
 }
 
+function optimiseAlbumQuery(query: AlbumQuery): string {
+  if (query.artist === "Various") return query.album
+  let queryString = `${query.album} ${query.artist}`.replaceAll("  ", " ")
+  if (queryString.length <= 100) return queryString
+  queryString = queryString.replaceAll(/\(|\)/g, "").replaceAll("  ", " ")
+  if (queryString.length <= 100) return queryString
+  return queryString.slice(0, 100)
+}
+
 async function searchAlbum(
   query: AlbumQuery,
   user: IUser
 ): Promise<SpotifyAlbumEdit[]> {
   const inexactAlbumMatches: SpotifyAlbumEdit[] = []
   const params = new URLSearchParams()
-  params.append("q", JSON.stringify(query))
+  console.log(optimiseAlbumQuery(query))
+  params.append("q", optimiseAlbumQuery(query))
   params.append("type", "album")
   params.append("limit", "50")
   const url = `${spotifyAPIURL}search?${params}`
   const response = await spotifyRequest(url, user)
-  if (!isSearchAlbumResponse(response)) throw new Error("Bad spotify response.")
+  if (!isSearchAlbumResponse(response))
+    throw new Error("Bad spotify response. (Search albums)")
   if (response.albums.items.length) {
     const queryArtist = normaliseArtist(query.artist)
     const queryAlbum = normaliseArtist(query.album)
@@ -233,24 +237,36 @@ async function searchAlbum(
   return inexactAlbumMatches.sort(sortLevenshtein).slice(0, 8)
 }
 
+function optimiseTrackQuery(query: TrackQuery): string {
+  let queryString = `${query.track} ${query.artists.join(" ")}`
+    .replaceAll(/\(|\)/g, "")
+    .replaceAll("  ", " ")
+    .replace(/Vinyl Edit|Vinyl edit|vinyl edit/, "")
+  if (queryString.length <= 100) return queryString
+  queryString = queryString.replace("Remix", "").replaceAll("  ", " ")
+  if (queryString.length <= 100) return queryString
+  return queryString.slice(0, 100)
+}
+
 async function searchTrack(
   query: TrackQuery,
   user: IUser
 ): Promise<SpotifyTrackEdit[]> {
-  const queryArtist = query.artist.toLocaleLowerCase()
-  const queryTrack = query.track.toLocaleLowerCase()
+  const queryArtist = query.artists[0].toLowerCase()
+  const queryTrack = query.track.toLowerCase()
   const options: string[] = []
   const params = new URLSearchParams()
-  params.append("q", JSON.stringify(query))
+  params.append("q", optimiseTrackQuery(query))
   params.append("type", "track")
   params.append("limit", "50")
   const url = `${spotifyAPIURL}search?${params}`
   const response = await spotifyRequest(url, user)
-  if (!isSearchTrackResponse(response)) throw new Error("Bad spotify response.")
+  if (!isSearchTrackResponse(response))
+    throw new Error("Bad spotify response. (Search tracks)")
   if (response.tracks.items.length) {
     for (const item of response.tracks.items) {
-      const foundArtist = item.artists[0].name.toLocaleLowerCase()
-      const foundTrack = item.name.toLocaleLowerCase()
+      const foundArtist = item.artists[0].name.toLowerCase()
+      const foundTrack = item.name.toLowerCase()
       if (foundArtist === queryArtist && foundTrack === queryTrack)
         return [exactSpotifyTrack(item)]
       options.push(item.id)
@@ -270,7 +286,8 @@ async function getAlbumTracks(
   params.append("limit", "50")
   const url = `${spotifyAPIURL}albums/${album.id}/tracks?${params}`
   const response = await spotifyRequest(url, user)
-  if (!isAlbumTracksResponse(response)) throw new Error("Bad spotify response.")
+  if (!isAlbumTracksResponse(response))
+    throw new Error("Bad spotify response. (Album tracks)")
   const albumTracks = response.items
   if (albumTracks.length) {
     for (const track of record.tracks) {
@@ -312,17 +329,18 @@ async function getTrackOptions(
   query: TrackQuery,
   user: IUser
 ): Promise<SpotifyTrackEdit[]> {
-  const queryArtist = query.artist.toLocaleLowerCase()
-  const queryTrack = query.track.toLocaleLowerCase()
+  const queryArtist = query.artists[0].toLowerCase()
+  const queryTrack = query.track.toLowerCase()
   const url = `${spotifyAPIURL}tracks/?ids=${options.join(",")}`
   const response = await spotifyRequest(url, user)
-  if (!isTracksResponse(response)) throw new Error("Bad spotify response.")
+  if (!isTracksResponse(response))
+    throw new Error("Bad spotify response. (Tracks)")
   const tracks = response.tracks
   const optionsFull: SpotifyTrackEdit[] = []
   for (const track of tracks) {
     let distance
-    const foundArtist = track.artists[0].name.toLocaleLowerCase()
-    const foundTrack = track.name.toLocaleLowerCase()
+    const foundArtist = track.artists[0].name.toLowerCase()
+    const foundTrack = track.name.toLowerCase()
     if (foundArtist === queryArtist)
       distance = levenshtein(foundTrack, queryTrack)
     else {

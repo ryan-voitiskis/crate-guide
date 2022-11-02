@@ -220,12 +220,12 @@ export const crateStore = defineStore("crate", {
   getters: {
     // gets a crate by id. returns null if not found
     getById: (state) => {
-      return (_id: string) =>
+      return (_id: string): Crate | null =>
         state.crateList.find((crate) => crate._id === _id) || null
     },
     // returns array of record IDs in a crate
-    getRecordsByCrate: (state) => {
-      return (_id: string) =>
+    getRecordIDsByCrate: (state) => {
+      return (_id: string): string[] =>
         state.crateList.find((crate) => crate._id === _id)?.records ||
         ([] as string[])
     },

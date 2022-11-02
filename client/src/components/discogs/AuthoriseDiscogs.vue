@@ -20,7 +20,6 @@
       @click="discogs.discogsRequestToken()"
       class="primary"
       type="submit"
-      style="width: 18rem"
     >
       {{ discogs.loading ? null : "Request access" }}
       <LoaderIcon v-show="discogs.loading" />

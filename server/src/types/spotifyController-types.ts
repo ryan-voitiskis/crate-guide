@@ -1,7 +1,7 @@
 import { IRecord } from "../models/recordModel"
 
 interface TrackQuery {
-  artist: string
+  artists: string[]
   track: string
   year?: number
 }
@@ -174,18 +174,12 @@ function isAudioFeaturesResponse(obj: any): obj is AudioFeaturesResponse {
   return "audio_features" in obj
 }
 
-interface UnfoundTrack {
-  recordID: string
-  trackID: string
-}
-
 interface ImportRecordState {
   records: IRecord[]
   matchedTracks: MatchedTrack[]
   inexactTrackMatches: InexactTrackMatches[]
   inexactAlbumMatches: InexactAlbumMatches[]
   unmatchedAlbums: string[]
-  unfoundTracks: UnfoundTrack[]
   requestsMade: number
   requestsRequired: number
 }
@@ -195,7 +189,6 @@ interface ImportMatchedState {
   matchedTracks: MatchedTrack[]
   unmatchedAlbums: string[]
   inexactTrackMatches: InexactTrackMatches[]
-  unfoundTracks: UnfoundTrack[]
   requestsMade: number
   requestsRequired: number
 }
@@ -226,7 +219,6 @@ export {
   AudioFeatures,
   AudioFeaturesResponse,
   isAudioFeaturesResponse,
-  UnfoundTrack,
   ImportRecordState,
   ImportMatchedState,
 }

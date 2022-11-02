@@ -116,7 +116,7 @@ const sortNum = (field: keyof Record, reverse: boolean) => {
 const recordsByCrate = computed((): Record[] =>
   user.authd.settings.selectedCrate !== "all"
     ? crates
-        .getRecordsByCrate(user.authd.settings.selectedCrate)
+        .getRecordIDsByCrate(user.authd.settings.selectedCrate)
         .map((i) => records.getById(i))
     : records.recordList
 )

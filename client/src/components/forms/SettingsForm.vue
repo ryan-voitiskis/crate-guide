@@ -62,7 +62,7 @@
         </select>
       </label>
 
-      <fieldset class="discogs-ctrls" v-if="user.hasUser()">
+      <fieldset class="controls" v-if="user.hasUser()">
         <legend>Discogs API</legend>
         <div v-if="user.authd.discogsUsername !== ''">
           <span class="username">
@@ -78,7 +78,7 @@
         <DiscogsControls />
       </fieldset>
 
-      <fieldset class="discogs-ctrls" v-if="user.hasUser()">
+      <fieldset class="controls" v-if="user.hasUser()">
         <legend>Spotify API</legend>
         <button
           v-if="!user.authd.isSpotifyOAuthd"
@@ -86,7 +86,7 @@
         >
           Connect to Spotify
         </button>
-        <button v-else @click="spotify.revokeAuthorisation()">
+        <button v-else @click="spotify.revokeSpotifyForm = true">
           Revoke Spotify acess
         </button>
       </fieldset>
@@ -129,7 +129,7 @@ fieldset {
   display: flex;
   gap: 1rem;
   margin-bottom: 2rem;
-  &.discogs-ctrls {
+  &.controls {
     flex-direction: column;
     button {
       width: 22rem;

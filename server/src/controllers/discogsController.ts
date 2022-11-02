@@ -16,84 +16,6 @@ const oauth_consumer_secret = "oyasysRSKMwElyRpJjulWoxFBdaXDDTS"
 const discogsAPIURL = "https://api.discogs.com/"
 const userAgent = "CrateGuide/0.2"
 
-const authenticatedDiscogsRequest = async (
-  url: string,
-  user: IUser,
-  page?: number,
-  per_page?: number
-) => {
-  const httpMethod = "GET" // hardcoded as no plans to provide POST or other functionality
-  const nonce = genNonce(12)
-  const timestamp = Date.now().toString()
-
-  let signatureParams = {
-    oauth_consumer_key: oauth_consumer_key,
-    oauth_token: user.discogsToken,
-    oauth_nonce: nonce,
-    oauth_timestamp: timestamp,
-    oauth_signature_method: "HMAC-SHA1",
-    oauth_version: "1.0",
-  }
-  if (page && per_page) {
-    const paginationParams = { page: page, per_page: per_page }
-    signatureParams = Object.assign(signatureParams, paginationParams)
-  }
-
-  // generates a RFC 3986 encoded, BASE64 encoded HMAC-SHA1 hash
-  const encodedSignature = oauthSignature.generate(
-    httpMethod,
-    url,
-    signatureParams,
-    oauth_consumer_secret,
-    user.discogsTokenSecret
-  )
-
-  const URLParams = new URLSearchParams()
-  URLParams.append("oauth_consumer_key", oauth_consumer_key)
-  URLParams.append("oauth_token", user.discogsToken)
-  URLParams.append("oauth_signature", encodedSignature)
-  URLParams.append("oauth_signature_method", "HMAC-SHA1")
-  URLParams.append("oauth_timestamp", timestamp)
-  URLParams.append("oauth_nonce", nonce)
-  URLParams.append("oauth_version", "1.0")
-  if (page && per_page) {
-    URLParams.append("page", page.toString())
-    URLParams.append("per_page", per_page.toString())
-  }
-
-  const options = {
-    method: "GET",
-    headers: {
-      "User-Agent": userAgent,
-    },
-  }
-
-  return await fetch(url + "?" + URLParams, options)
-}
-
-const editReleases = (records: ReleaseFull[], userID: string) =>
-  records.map((i) => ({
-    user: userID,
-    discogsID: i.id,
-    catno: i.labels[0].catno,
-    title: i.title,
-    label: i.labels[0].name,
-    artists: i.artists.map((i) => i.name).toString(),
-    year: i.year,
-    cover:
-      i.images.find((j) => j.type === "primary")?.resource_url ||
-      i.images[0].resource_url,
-    tracks: i.tracklist.map((j) => ({
-      title: j.title,
-      artists: j.artists ? j.artists.map((k) => k.name).toString() : "",
-      position: j.position,
-      duration: j.duration,
-      genre: i.styles ? i.styles.toString() : "",
-      rpm: i.formats[0].descriptions?.toString().includes("45") ? "45" : "33",
-      playable: true,
-    })),
-  }))
-
 // @desc    get a list of users discogs folders
 // @route   GET /api/discogs/folders
 // @access  private
@@ -173,7 +95,6 @@ const importRecords = asyncHandler(async (req, res) => {
   let limitRemaining = 60
   let wait = 0
 
-  // ? for await (const record of records) {    would be better?
   while (successfulRequests < recordIDs.length) {
     if (wait) await new Promise((resolve) => setTimeout(resolve, wait))
     const url = endpoint + recordIDs[successfulRequests].toString()
@@ -208,5 +129,90 @@ const importRecords = asyncHandler(async (req, res) => {
   res.write("data: " + `1\n\n`)
   res.end()
 })
+
+async function authenticatedDiscogsRequest(
+  url: string,
+  user: IUser,
+  page?: number,
+  per_page?: number
+) {
+  const httpMethod = "GET" // hardcoded as no plans to provide POST or other functionality
+  const nonce = genNonce(12)
+  const timestamp = Date.now().toString()
+
+  let signatureParams = {
+    oauth_consumer_key: oauth_consumer_key,
+    oauth_token: user.discogsToken,
+    oauth_nonce: nonce,
+    oauth_timestamp: timestamp,
+    oauth_signature_method: "HMAC-SHA1",
+    oauth_version: "1.0",
+  }
+  if (page && per_page) {
+    const paginationParams = { page: page, per_page: per_page }
+    signatureParams = Object.assign(signatureParams, paginationParams)
+  }
+
+  // generates a RFC 3986 encoded, BASE64 encoded HMAC-SHA1 hash
+  const encodedSignature = oauthSignature.generate(
+    httpMethod,
+    url,
+    signatureParams,
+    oauth_consumer_secret,
+    user.discogsTokenSecret
+  )
+
+  const URLParams = new URLSearchParams()
+  URLParams.append("oauth_consumer_key", oauth_consumer_key)
+  URLParams.append("oauth_token", user.discogsToken)
+  URLParams.append("oauth_signature", encodedSignature)
+  URLParams.append("oauth_signature_method", "HMAC-SHA1")
+  URLParams.append("oauth_timestamp", timestamp)
+  URLParams.append("oauth_nonce", nonce)
+  URLParams.append("oauth_version", "1.0")
+  if (page && per_page) {
+    URLParams.append("page", page.toString())
+    URLParams.append("per_page", per_page.toString())
+  }
+
+  const options = {
+    method: "GET",
+    headers: {
+      "User-Agent": userAgent,
+    },
+  }
+
+  return await fetch(url + "?" + URLParams, options)
+}
+
+function editReleases(records: ReleaseFull[], userID: string) {
+  return records.map((i) => ({
+    user: userID,
+    discogsID: i.id,
+    catno: i.labels[0].catno.trim(),
+    title: i.title.trim(),
+    label: i.labels[0].name.trim().replace(/ \(\d{1,3}\)$/, ""),
+    artists: i.artists
+      .map((i) => i.name.trim().replace(/ \(\d{1,3}\)$/, ""))
+      .join(", "),
+    year: i.year,
+    cover:
+      i.images.find((j) => j.type === "primary")?.resource_url ||
+      i.images[0].resource_url,
+    tracks: i.tracklist.map((j) => ({
+      title: j.title.trim(),
+      artists: j.artists
+        ? j.artists
+            .map((k) => k.name.trim().replace(/ \(\d{1,3}\)$/, ""))
+            .join(", ")
+        : "",
+      position: j.position.trim(),
+      duration: j.duration.trim(),
+      genre: i.styles ? i.styles.toString().trim() : "",
+      rpm: i.formats[0].descriptions?.toString().includes("45") ? "45" : "33",
+      playable: true,
+    })),
+  }))
+}
 
 export { getFolders, getFolder, importRecords }

@@ -21,7 +21,6 @@
       @click="discogs.importStaged(user.authd.token)"
       class="primary"
       type="submit"
-      style="width: 24rem"
     >
       {{ discogs.loading ? null : "Import staged records" }}
       <LoaderIcon v-show="discogs.loading" />
@@ -51,7 +50,6 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  height: 70vh;
   overflow-y: scroll;
   width: 100%;
 }

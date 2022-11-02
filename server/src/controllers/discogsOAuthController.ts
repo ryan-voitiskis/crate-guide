@@ -108,12 +108,26 @@ const captureVerifierAndUpdateUser = asyncHandler(async (req, res) => {
   }
 })
 
+// @desc    removes discogs API creds from user
+// @route   PUT /api/users/revoke_discogs
+// @access  private
+const revokeAuthorisation = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(req.user!.id, {
+    discogsUsername: "",
+    discogsToken: "",
+    discogsTokenSecret: "",
+    discogsRequestToken: "",
+    discogsRequestTokenSecret: "",
+  })
+  res.status(200).json()
+})
+
 // make post request as per step 4 of
 // * https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
-const getOAuthCredentials = async (
+async function getOAuthCredentials(
   query: captureVerifierQuery,
   tokenSecret: string
-) => {
+) {
   const params = new URLSearchParams()
   params.append("oauth_consumer_key", oauth_consumer_key)
   params.append("oauth_nonce", genNonce(12))
@@ -138,7 +152,7 @@ const getOAuthCredentials = async (
 
 // send authenticated request to retrieve users discogs identity as per step 5 of
 // * https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
-const getDiscogsUsername = async (oauthCreds: AccessTokenResponse) => {
+async function getDiscogsUsername(oauthCreds: AccessTokenResponse) {
   const httpMethod = "GET"
   const nonce = genNonce(12)
   const timestamp = Date.now().toString()
@@ -181,20 +195,6 @@ const getDiscogsUsername = async (oauthCreds: AccessTokenResponse) => {
   const identity = await response.json()
   return isIdentityResponse(identity) ? identity.username : ""
 }
-
-// @desc    removes discogs API creds from user
-// @route   PUT /api/users/revoke_discogs
-// @access  private
-const revokeAuthorisation = asyncHandler(async (req, res) => {
-  await User.findByIdAndUpdate(req.user!.id, {
-    discogsUsername: "",
-    discogsToken: "",
-    discogsTokenSecret: "",
-    discogsRequestToken: "",
-    discogsRequestTokenSecret: "",
-  })
-  res.status(200).json()
-})
 
 export {
   captureVerifierAndUpdateUser,

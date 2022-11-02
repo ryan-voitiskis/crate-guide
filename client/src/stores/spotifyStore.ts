@@ -5,7 +5,6 @@ import { fetchEventSource } from "@microsoft/fetch-event-source"
 import spotifyService from "@/services/spotifyService"
 import { InexactAlbumMatch } from "@/interfaces/InexactAlbumMatch"
 import { InexactTrackMatch } from "@/interfaces/InexactTrackMatch"
-import UnfoundTrack from "@/interfaces/UnfoundTrack"
 
 // todo: make global or do something better
 const API_SSE_URL = "http://localhost:5001/api/spotify_sse/"
@@ -18,9 +17,10 @@ export const spotifyStore = defineStore("spotify", {
     importProgressModal: false,
     albumMatchesModal: false,
     trackMatchesModal: false,
+    completionModal: false,
+    revokeSpotifyForm: false,
     inexactAlbumMatches: [] as InexactAlbumMatch[], // records attempted to be found on spotify w/o perfect match
     inexactTrackMatches: [] as InexactTrackMatch[],
-    unfoundTracks: [] as UnfoundTrack[],
   }),
   actions: {
     // call and handle request that begins spotify OAuth flow
@@ -66,8 +66,7 @@ export const spotifyStore = defineStore("spotify", {
         // handle successful update
         if (response.status === 200) {
           user.authd.isSpotifyOAuthd = false
-          // todo form?
-          // this.revokeSpotifyForm = false
+          this.revokeSpotifyForm = false
         }
         // handle 400 and 401 status codes. see userController.ts
         else {
@@ -106,7 +105,6 @@ export const spotifyStore = defineStore("spotify", {
         const receivedObj = JSON.parse(data.substring(data.indexOf(":") + 1))
         this.inexactAlbumMatches = receivedObj.inexactAlbumMatches
         this.inexactTrackMatches = receivedObj.inexactTrackMatches
-        this.unfoundTracks = receivedObj.unfoundTracks
         if (this.inexactAlbumMatches.length) this.albumMatchesModal = true
         else if (this.inexactTrackMatches.length) this.trackMatchesModal = true
         this.importProgress = 0
@@ -119,6 +117,7 @@ export const spotifyStore = defineStore("spotify", {
         this.importProgressModal = false
         this.importProgress = 0
         this.loading = false
+        this.completionModal = true
       }
 
       if (records.checkboxed.length) {
@@ -193,6 +192,7 @@ export const spotifyStore = defineStore("spotify", {
         this.importProgressModal = false
         this.importProgress = 0
         this.loading = false
+        this.completionModal = true
       }
 
       try {

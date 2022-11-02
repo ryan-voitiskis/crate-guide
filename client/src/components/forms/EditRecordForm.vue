@@ -62,7 +62,7 @@
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Close
       </button>
-      <button class="primary" type="submit" style="width: 16rem">
+      <button class="primary" type="submit">
         {{ records.loading ? null : "Save changes" }}
         <LoaderIcon v-show="records.loading" />
       </button>
@@ -112,6 +112,7 @@ const submit = async () => {
       _id: record._id,
       user: user.authd._id,
       catno: form.catno?.trim(),
+      cover: record.cover,
       artists: form.artists.trim(),
       title: form.title.trim(),
       label: form.label?.trim(),

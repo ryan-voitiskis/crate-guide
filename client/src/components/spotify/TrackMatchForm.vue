@@ -30,9 +30,8 @@
       @click="spotify.importSelectedInexactMatches(user.authd.token)"
       class="primary"
       type="submit"
-      style="width: 18rem"
     >
-      {{ spotify.loading ? null : "Import selected" }}
+      {{ spotify.loading ? null : "Next" }}
       <LoaderIcon v-show="spotify.loading" />
     </button>
   </div>

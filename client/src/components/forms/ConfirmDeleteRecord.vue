@@ -15,12 +15,7 @@
     <button class="close" type="button" @click="$parent!.$emit('close')">
       Cancel
     </button>
-    <button
-      @click="submit()"
-      class="primary delete"
-      type="submit"
-      style="width: 12rem"
-    >
+    <button @click="submit()" class="primary delete" type="submit">
       {{ records.loading ? null : "Delete" }}
       <LoaderIcon v-show="records.loading" />
     </button>

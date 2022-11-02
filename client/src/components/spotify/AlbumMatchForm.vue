@@ -35,13 +35,8 @@
     <button class="close" type="button" @click="$parent!.$emit('close')">
       Close
     </button>
-    <button
-      @click="submit()"
-      class="primary"
-      type="submit"
-      style="width: 18rem"
-    >
-      {{ spotify.loading ? null : submitText }}
+    <button @click="submit()" class="primary" type="submit">
+      {{ spotify.loading ? null : "Next" }}
       <LoaderIcon v-show="spotify.loading" />
     </button>
   </div>
@@ -59,10 +54,6 @@ const user = userStore()
 
 const appName = inject("appName")
 const spotify = spotifyStore()
-
-const submitText = spotify.inexactTrackMatches.length
-  ? "Next"
-  : "Import selected"
 
 const submit = () => {
   if (spotify.inexactTrackMatches.length) {

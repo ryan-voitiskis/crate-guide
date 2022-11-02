@@ -33,7 +33,6 @@
       <button
         class="primary"
         type="submit"
-        style="width: 16rem"
         :disabled="discogs.folderList.length === 0"
       >
         {{ discogs.loading ? null : "Stage import" }}

@@ -72,7 +72,7 @@
     v-if="discogs.revokeDiscogsForm"
     @close="discogs.revokeDiscogsForm = false"
   >
-    <RevokeDiscogsForm />
+    <ConfirmRevokeDiscogs />
   </ModalBox>
 
   <ModalBox
@@ -111,12 +111,20 @@
   <ModalBox v-if="state.queryMsg" @close="state.queryMsg = ''">
     <UpdateFeedback :text="state.queryMsg" />
   </ModalBox>
+
+  <ModalBox
+    v-if="spotify.revokeSpotifyForm"
+    @close="spotify.revokeSpotifyForm = false"
+  >
+    <ConfirmRevokeSpotify />
+  </ModalBox>
 </template>
 
 <script setup lang="ts">
 import { reactive, watch } from "vue"
 import { useRoute } from "vue-router"
 import { discogsStore } from "@/stores/discogsStore"
+import { spotifyStore } from "@/stores/spotifyStore"
 import { userStore } from "@/stores/userStore"
 import AuthoriseDiscogs from "@/components/discogs/AuthoriseDiscogs.vue"
 import AuthoriseDiscogsSuccessful from "@/components/discogs/AuthoriseDiscogsSuccessful.vue"
@@ -125,16 +133,18 @@ import DiscogsImportProgress from "@/components/discogs/DiscogsImportProgress.vu
 import LoginForm from "@/components/forms/LoginForm.vue"
 import ModalBox from "@/components/utils/ModalBox.vue"
 import RecoveryForm from "@/components/forms/RecoveryForm.vue"
-import RevokeDiscogsForm from "@/components/discogs/ConfirmRevokeDiscogs.vue"
+import ConfirmRevokeDiscogs from "@/components/discogs/ConfirmRevokeDiscogs.vue"
 import SelectDiscogsFolder from "@/components/discogs/SelectDiscogsFolderForm.vue"
 import SettingsForm from "@/components/forms/SettingsForm.vue"
 import SignUpForm from "@/components/forms/SignUpForm.vue"
 import StageDiscogsImport from "@/components/discogs/StageDiscogsImport.vue"
 import UpdateFeedback from "@/components/feedbacks/UpdateFeedback.vue"
+import ConfirmRevokeSpotify from "./components/spotify/ConfirmRevokeSpotify.vue"
 
-const discogs = discogsStore()
-const user = userStore()
 const route = useRoute()
+const discogs = discogsStore()
+const spotify = spotifyStore()
+const user = userStore()
 
 const state = reactive({
   login: false,

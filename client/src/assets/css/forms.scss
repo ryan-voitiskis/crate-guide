@@ -55,6 +55,7 @@ button {
     color: var(--darker-text);
   }
   &.primary {
+    padding: 0 4rem;
     background: var(--btn-primary);
     font: 600 1.6rem/3.8rem Manrope, sans-serif;
     color: var(--white-text);
@@ -103,7 +104,6 @@ form {
   }
   // for simple form modals without a separate controls div
   button.primary {
-    width: 100%;
     svg {
       fill: white;
     }

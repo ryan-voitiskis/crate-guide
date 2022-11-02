@@ -27,7 +27,7 @@
       <button class="close" type="button" @click="$parent!.$emit('close')">
         Close
       </button>
-      <button class="primary" type="submit" style="width: 12rem">
+      <button class="primary" type="submit">
         {{ crates.loading ? null : "Save" }}
         <LoaderIcon v-show="crates.loading" />
       </button>

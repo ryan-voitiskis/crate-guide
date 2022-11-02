@@ -15,12 +15,7 @@
     <button class="close" type="button" @click="$parent!.$emit('close')">
       Cancel
     </button>
-    <button
-      @click="submit()"
-      class="primary delete"
-      type="submit"
-      style="width: 12rem"
-    >
+    <button @click="submit()" class="primary delete" type="submit">
       {{ crates.loading ? null : "Delete" }}
       <LoaderIcon v-show="crates.loading" />
     </button>
