@@ -17,7 +17,7 @@
       Cancel
     </button>
     <button
-      @click="discogs.revokeDiscogsAuthorisation()"
+      @click="discogs.revokeAuthorisation()"
       class="primary delete"
       type="submit"
       style="width: 12rem"

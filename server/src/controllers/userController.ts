@@ -72,8 +72,9 @@ const loginUser = asyncHandler(async (req, res) => {
       token: generateToken(user.id),
       discogsUsername: user.discogsUsername,
       isDiscogsOAuthd:
-        user.discogsToken && user.discogsTokenSecret ? true : false,
+        user.discogsToken && user.discogsTokenSecret ? true : false, // ? are both needed?
       justCompleteDiscogsOAuth: user.justCompleteDiscogsOAuth, // user shouldn't have to login after OAuth flow, but just incase
+      isSpotifyOAuthd: user.spotifyToken ? true : false,
     })
     // set justCompleteDiscogsOAuth flag to false if true
     if (user.justCompleteDiscogsOAuth)
@@ -98,8 +99,9 @@ const getUser = asyncHandler(async (req, res) => {
     token: generateToken(req.user!.id),
     discogsUsername: req.user!.discogsUsername,
     isDiscogsOAuthd:
-      req.user!.discogsToken && req.user!.discogsTokenSecret ? true : false,
+      req.user!.discogsToken && req.user!.discogsTokenSecret ? true : false, // ? are both needed?
     justCompleteDiscogsOAuth: req.user!.justCompleteDiscogsOAuth,
+    isSpotifyOAuthd: req.user!.spotifyToken ? true : false,
   })
   // set justCompleteDiscogsOAuth flag to false if true
   if (req.user!.justCompleteDiscogsOAuth)

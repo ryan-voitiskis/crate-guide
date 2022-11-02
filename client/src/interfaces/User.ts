@@ -2,6 +2,7 @@ export default interface User {
   _id: string
   discogsUsername: string
   isDiscogsOAuthd: boolean
+  isSpotifyOAuthd: boolean
   name: string
   email: string
   token: string

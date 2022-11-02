@@ -4,7 +4,7 @@ import asyncHandler from "express-async-handler"
 import env from "../env.js"
 import fetch from "node-fetch"
 import genNonce from "../utils/genNonce.js"
-import { User } from "../models/userModel.js"
+import { User, IUser } from "../models/userModel.js"
 import {
   isAccessTokenResponse,
   isRefreshTokenResponse,
@@ -22,10 +22,7 @@ const tokenURL = "https://accounts.spotify.com/api/token"
 // @access  protected
 const authorisationRequest = asyncHandler(async (req, res) => {
   const nonce = genNonce(16)
-  await User.findByIdAndUpdate(req.user!.id, {
-    spotifyNonce: nonce,
-    spotifyAuthReqTimestamp: Date.now(),
-  })
+  await User.findByIdAndUpdate(req.user!.id, { spotifyNonce: nonce })
   const params = new URLSearchParams()
   params.append("response_type", "code")
   params.append("client_id", clientID)
@@ -44,107 +41,133 @@ const authorisationCallback = asyncHandler(async (req, res) => {
   if (state !== null) {
     const user = await User.findOne({ spotifyNonce: state })
     if (user) {
-      // todo: remove this check and remove spotifyAuthReqTimestamp
-      // check authorisation req was recent, avoid extremely unlikely collision. (probably unnecessary)
-      if (Date.now() - user.spotifyAuthReqTimestamp < 300000) {
-        const basic = Buffer.from(`${clientID}:${clientSecret}`).toString(
-          "base64"
-        )
-        res.clearCookie("spotify_auth_state") // ? is this necessary, taken from guide
-        const body = new URLSearchParams()
-        body.append("grant_type", "authorization_code")
-        if (code) body.append("code", code.toString())
-        body.append("redirect_uri", redirectURI)
-        const options = {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/x-www-form-urlencoded",
-            Authorization: `Basic ${basic}`,
-          },
-          body: body,
-        }
+      const basic = Buffer.from(`${clientID}:${clientSecret}`).toString(
+        "base64"
+      )
+      res.clearCookie("spotify_auth_state")
+      const body = new URLSearchParams()
+      body.append("grant_type", "authorization_code")
+      if (code) body.append("code", code.toString())
+      body.append("redirect_uri", redirectURI)
+      const options = {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${basic}`,
+        },
+        body: body,
+      }
 
-        const response = await fetch(tokenURL, options)
-        if (response.status === 200) {
-          const accessTokenResponse = await response.json()
-          if (isAccessTokenResponse(accessTokenResponse)) {
-            await User.findByIdAndUpdate(user._id, {
-              spotifyToken: accessTokenResponse.access_token,
-              spotifyRefreshToken: accessTokenResponse.refresh_token,
-            })
-            res.redirect(`${env.SITE_URL}?msg=Spotify success.`)
-          } else
-            res.redirect(`${env.SITE_URL}?msg=Response wasn't AccessToken.`)
-        }
-      } else
-        res.redirect(`${env.SITE_URL}?msg=Spotify authorisation timed out.`)
+      const response = await fetch(tokenURL, options)
+      if (response.status === 200) {
+        const accessTokenResponse = await response.json()
+        if (isAccessTokenResponse(accessTokenResponse)) {
+          await User.findByIdAndUpdate(user._id, {
+            spotifyToken: accessTokenResponse.access_token,
+            spotifyRefreshToken: accessTokenResponse.refresh_token,
+            spotifyTokenTimestamp: Date.now(),
+            spotifyTokenExpiresIn: accessTokenResponse.expires_in,
+          })
+          res.redirect(`${env.SITE_URL}?msg=Spotify success.`)
+        } else res.redirect(`${env.SITE_URL}?msg=Response wasn't AccessToken.`)
+      }
     } else res.redirect(`${env.SITE_URL}?msg=User not found from state(nonce).`)
   } else res.redirect(`${env.SITE_URL}?msg=Spotify didn't respond with state.`)
 })
 
-// TODO: convert this to spotify and hook up to a button on front end
-// @desc    removes discogs API creds from user
-// @route   PUT /api/users/revoke_discogs
+// @desc    removes spotify API credentials from user
+// @route   PUT /api/spotify/revoke
 // @access  private
-const revokeSpotifyAuthorisation = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user!.id)
-
-  if (user!._id.valueOf() !== req.user!.id) {
-    res.status(401)
-    throw new Error("User not authorised.")
-  }
-
+const revokeAuthorisation = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(req.user!.id, {
-    discogsUsername: "",
-    discogsToken: "",
-    discogsTokenSecret: "",
-    discogsRequestToken: "",
-    discogsRequestTokenSecret: "",
+    spotifyToken: "",
+    spotifyRefreshToken: "",
   })
   res.status(200).json()
 })
 
-const refreshToken = async (token: string) => {
-  const user = await User.findOne({ spotifyToken: token })
-  if (user) {
-    const basic = Buffer.from(`${clientID}:${clientSecret}`).toString("base64")
-    const body = new URLSearchParams()
-    body.append("grant_type", "refresh_token")
-    body.append("refresh_token", user.spotifyRefreshToken)
-    body.append("redirect_uri", redirectURI)
-    const options = {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${basic}`,
-      },
-      body: body,
-    }
-    const response = await fetch(tokenURL, options)
-    if (response.status === 200) {
-      const refreshTokenResponse = await response.json()
-      if (isRefreshTokenResponse(refreshTokenResponse)) {
-        const update = refreshTokenResponse.refresh_token
-          ? {
-              spotifyToken: refreshTokenResponse.access_token,
-              spotifyRefreshToken: refreshTokenResponse.refresh_token,
-            }
-          : {
-              spotifyToken: refreshTokenResponse.access_token,
-            }
-        await User.findByIdAndUpdate(user._id, update)
-        return true
-      }
+async function refreshToken(user: IUser) {
+  const basic = Buffer.from(`${clientID}:${clientSecret}`).toString("base64")
+  const body = new URLSearchParams()
+  body.append("grant_type", "refresh_token")
+  body.append("refresh_token", user.spotifyRefreshToken)
+  body.append("redirect_uri", redirectURI)
+  const options = {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${basic}`,
+    },
+    body: body,
+  }
+  const response = await fetch(tokenURL, options)
+  if (response.status === 200) {
+    const refreshTokenResponse = await response.json()
+    if (isRefreshTokenResponse(refreshTokenResponse)) {
+      const update = refreshTokenResponse.refresh_token
+        ? {
+            spotifyToken: refreshTokenResponse.access_token,
+            spotifyRefreshToken: refreshTokenResponse.refresh_token,
+            spotifyTokenTimestamp: Date.now(),
+            spotifyTokenExpiresIn: refreshTokenResponse.expires_in,
+          }
+        : {
+            spotifyToken: refreshTokenResponse.access_token,
+            spotifyTokenTimestamp: Date.now(),
+            spotifyTokenExpiresIn: refreshTokenResponse.expires_in,
+          }
+      await User.findByIdAndUpdate(user._id, update)
+      return true
     }
   }
   return false
 }
 
+async function spotifyRequest(url: string, user: IUser): Promise<{}> {
+  const options = {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${user.spotifyToken}`,
+    },
+  }
+  const response = (await fetch(url, options)) as Response
+  if (response.status === 200) return await response.json()
+  else if (response.status === 401) {
+    if (await refreshToken(user)) spotifyRequest(url, user)
+    else throw new Error("Bad token. Please re-authenticate Spotify.")
+  } else if (response.status === 403) {
+    const error = await response.json()
+    const errorMsg = error.message ? error.message : "Bad OAuth request"
+    throw new Error(errorMsg)
+  } else if (response.status === 429) {
+    await new Promise((resolve) => setTimeout(resolve, 10000))
+    return await spotifyRequest(url, user) // todo: test this works > how? it never hits limit
+  }
+  return await response.json()
+}
+
+// checks spotifyToken doesn't expire for atleast 15 minutes, if it does, refresh token
+// * has side effects on user
+async function checkRefreshToken(user: IUser): Promise<void> {
+  if (
+    user.spotifyTokenExpiresIn * 1000 -
+      (Date.now() - user.spotifyTokenTimestamp) <
+    900000
+  ) {
+    await refreshToken(user)
+    user = (await User.findById(user._id)) as IUser
+  }
+}
+
 export {
   authorisationRequest,
   authorisationCallback,
-  revokeSpotifyAuthorisation,
+  revokeAuthorisation,
   refreshToken,
+  spotifyRequest,
+  checkRefreshToken,
 }

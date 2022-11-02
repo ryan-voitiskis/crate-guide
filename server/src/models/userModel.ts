@@ -17,7 +17,8 @@ interface IUser {
   spotifyToken: string
   spotifyRefreshToken: string
   spotifyNonce: string
-  spotifyAuthReqTimestamp: number
+  spotifyTokenTimestamp: number
+  spotifyTokenExpiresIn: number
   settings: {
     theme: string
     turntableTheme: string
@@ -75,8 +76,12 @@ const userSchema = new mongoose.Schema<IUser>(
     spotifyNonce: {
       type: String,
     },
-    // once user is found with nonce, check authorisationRequest was made recently with this
-    spotifyAuthReqTimestamp: {
+    // time token was saved
+    spotifyTokenTimestamp: {
+      type: Number,
+    },
+    // the time period (in seconds) for which the Access Token is valid
+    spotifyTokenExpiresIn: {
       type: Number,
     },
     settings: {

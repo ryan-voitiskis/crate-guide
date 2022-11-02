@@ -34,6 +34,7 @@ import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import XIcon from "@/components/icons/XIcon.vue"
 import InfoDropdown from "../utils/InfoDropdown.vue"
 import { discogsStore } from "@/stores/discogsStore"
+import ErrorFeedback from "../feedbacks/ErrorFeedback.vue"
 const discogs = discogsStore()
 const discogsEndpointInfo = inject("discogsEndpointInfo") as string
 const appName = inject("appName")

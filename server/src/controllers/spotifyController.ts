@@ -1,10 +1,9 @@
 import asyncHandler from "express-async-handler"
-import fetch from "node-fetch"
 import levenshtein from "js-levenshtein"
 import { IRecord, Record } from "../models/recordModel.js"
 import unsign from "../utils/unsign.js"
 import { IUser } from "../models/userModel.js"
-import { refreshToken } from "./spotifyOAuthController.js"
+import { spotifyRequest, checkRefreshToken } from "./spotifyOAuthController.js"
 import { Response as ExpressResponse } from "express"
 import {
   TrackQuery,
@@ -30,7 +29,8 @@ const spotifyAPIURL = "https://api.spotify.com/v1/"
 // @access  private
 const importRecordFeatures = asyncHandler(async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream")
-  const user = req.user! as IUser
+  let user = req.user! as IUser
+  await checkRefreshToken(user)
   const records = JSON.parse(req.body.records)
   const state: ImportRecordState = {
     records: await Record.find({ _id: { $in: records } }),
@@ -39,24 +39,16 @@ const importRecordFeatures = asyncHandler(async (req, res) => {
     inexactAlbumMatches: [],
     unmatchedAlbums: [],
     unfoundTracks: [], // unfound tracks, are those that returned no search results
-    i: 0,
-    j: records.length + 1,
+    requestsMade: 0,
+    requestsRequired: records.length + 1,
   }
+
   if (!state.records) throw new Error("No records found.")
 
   await processRecords(user, state, res)
-  state.j = state.j + state.unmatchedAlbums.length
+  state.requestsRequired += state.unmatchedAlbums.length
   await processUnmatchedAlbums(user, state, res)
-
-  // get audio features of matched tracks
-  const retrievedFeatures: AudioFeatures[] = await getAudioFeatures(
-    state.matchedTracks.map((i) => i.spotifyTrackID),
-    user
-  )
-
-  // save audio features of matched tracks
-  if (!(await saveAudioFeatures(retrievedFeatures, state.matchedTracks, user)))
-    throw new Error("One or more tracks not updated with Audio Features.")
+  await processMatchedTracks(user, state)
 
   if (state.inexactAlbumMatches.length || state.inexactTrackMatches.length)
     res.write(
@@ -76,7 +68,8 @@ const importRecordFeatures = asyncHandler(async (req, res) => {
 // @access  private
 const importMatchedFeatures = asyncHandler(async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream")
-  const user = req.user! as IUser
+  let user = req.user! as IUser
+  await checkRefreshToken(user)
   const matchedAlbumsParsed = JSON.parse(req.body.matchedAlbums)
   const unmatchedAlbumsParsed = JSON.parse(req.body.unmatchedAlbums)
   const state: ImportMatchedState = {
@@ -85,30 +78,14 @@ const importMatchedFeatures = asyncHandler(async (req, res) => {
     unmatchedAlbums: unmatchedAlbumsParsed,
     inexactTrackMatches: [],
     unfoundTracks: [],
-    i: 0,
-    j: matchedAlbumsParsed.length + unmatchedAlbumsParsed.length + 1,
+    requestsMade: 0,
+    requestsRequired:
+      matchedAlbumsParsed.length + unmatchedAlbumsParsed.length + 1,
   }
 
   await processUnmatchedAlbums(user, state, res)
-
-  // get tracks from matched albums
-  for (const matchedAlbum of state.matchedAlbums) {
-    const record = await Record.findById(matchedAlbum.recordID)
-    if (!record) throw new Error("A Record couldnt be found.")
-    await getAlbumTracks(record, user, matchedAlbum.album, state)
-    state.i++
-    res.write("data: " + `${(state.i / state.j).toFixed(2)}\n\n`)
-  }
-
-  // get audio features of matched tracks
-  const retrievedFeatures: AudioFeatures[] = await getAudioFeatures(
-    state.matchedTracks.map((i) => i.spotifyTrackID),
-    user
-  )
-
-  // save audio features of matched tracks
-  if (!(await saveAudioFeatures(retrievedFeatures, state.matchedTracks, user)))
-    throw new Error("One or more tracks not updated with Audio Features.")
+  await getTracksFromMatchedAlbums(user, state, res)
+  await processMatchedTracks(user, state)
 
   if (state.inexactTrackMatches.length)
     res.write(
@@ -120,6 +97,103 @@ const importMatchedFeatures = asyncHandler(async (req, res) => {
   else res.write("data: " + `1\n\n`)
   res.end()
 })
+
+async function processRecords(
+  user: IUser,
+  state: ImportRecordState,
+  res: ExpressResponse
+): Promise<void> {
+  for (const record of state.records) {
+    const query = {
+      artist: record.artists.split(",")[0],
+      album: record.title,
+      year: record.year,
+    }
+    const searchAlbumResults = await searchAlbum(query, user)
+    if (searchAlbumResults.length) {
+      // if perfect match found
+      if (searchAlbumResults[0].levenshtein === 0) {
+        await Record.findByIdAndUpdate(record._id, {
+          spotifyID: searchAlbumResults[0].id,
+        })
+        await getAlbumTracks(record, user, searchAlbumResults[0], state)
+      }
+
+      // if no perfect match found, but similar found
+      else
+        state.inexactAlbumMatches.push({
+          recordID: record._id.toString(),
+          matches: searchAlbumResults,
+        })
+    } else state.unmatchedAlbums.push(record._id.toString())
+    state.requestsMade++
+    res.write(
+      "data: " +
+        `${(state.requestsMade / state.requestsRequired).toFixed(2)}\n\n`
+    )
+  }
+}
+
+async function processUnmatchedAlbums(
+  user: IUser,
+  state: ImportMatchedState | ImportRecordState,
+  res: ExpressResponse
+): Promise<void> {
+  for (const unmatchedAlbum of state.unmatchedAlbums) {
+    const record = await Record.findOne({
+      user: user._id,
+      _id: unmatchedAlbum,
+    })
+    if (!record) throw new Error("Couldn't find record of an unmatched track.")
+    for (const track of record.tracks) {
+      const query = {
+        artist: track.artists
+          ? track.artists.split(",")[0]
+          : record.artists.split(",")[0],
+        track: track.title,
+        year: record.year,
+      }
+      const searchTrackResults = await searchTrack(query, user)
+      if (searchTrackResults.length) {
+        // if perfect match found
+        if (searchTrackResults[0].levenshtein === 0)
+          state.matchedTracks.push({
+            recordID: record._id.toString(),
+            trackID: track._id.toString(),
+            spotifyTrackID: searchTrackResults[0].id,
+          })
+        // if no perfect match found, but similar found
+        else
+          state.inexactTrackMatches.push({
+            recordID: record._id.toString(),
+            trackID: track._id.toString(),
+            options: searchTrackResults,
+          })
+      } else
+        state.unfoundTracks.push({
+          recordID: record._id.toString(),
+          trackID: track._id.toString(),
+        })
+    }
+    state.requestsMade++
+    res.write(
+      "data: " +
+        `${(state.requestsMade / state.requestsRequired).toFixed(2)}\n\n`
+    )
+  }
+}
+
+async function processMatchedTracks(
+  user: IUser,
+  state: ImportRecordState | ImportMatchedState
+): Promise<void> {
+  const retrievedFeatures: AudioFeatures[] = await getAudioFeatures(
+    state.matchedTracks.map((i) => i.spotifyTrackID),
+    user
+  )
+  if (!(await saveAudioFeatures(retrievedFeatures, state.matchedTracks, user)))
+    throw new Error("One or more tracks not updated with Audio Features.")
+}
 
 async function searchAlbum(
   query: AlbumQuery,
@@ -274,82 +348,20 @@ async function getTrackOptions(
   return optionsFull.sort(sortLevenshtein).slice(0, 8)
 }
 
-async function processRecords(
+async function getTracksFromMatchedAlbums(
   user: IUser,
-  state: ImportRecordState,
+  state: ImportMatchedState,
   res: ExpressResponse
 ): Promise<void> {
-  for (const record of state.records) {
-    const query = {
-      artist: record.artists.split(",")[0],
-      album: record.title,
-      year: record.year,
-    }
-    const searchAlbumResults = await searchAlbum(query, user)
-    if (searchAlbumResults.length) {
-      // if perfect match found
-      if (searchAlbumResults[0].levenshtein === 0) {
-        await Record.findByIdAndUpdate(record._id, {
-          spotifyID: searchAlbumResults[0].id,
-        })
-        await getAlbumTracks(record, user, searchAlbumResults[0], state)
-      }
-
-      // if no perfect match found, but similar found
-      else
-        state.inexactAlbumMatches.push({
-          recordID: record._id.toString(),
-          matches: searchAlbumResults,
-        })
-    } else state.unmatchedAlbums.push(record._id.toString())
-    state.i++
-    res.write("data: " + `${(state.i / state.j).toFixed(2)}\n\n`)
-  }
-}
-
-async function processUnmatchedAlbums(
-  user: IUser,
-  state: ImportMatchedState | ImportRecordState,
-  res: ExpressResponse
-): Promise<void> {
-  for (const unmatchedAlbum of state.unmatchedAlbums) {
-    const record = await Record.findOne({
-      user: user._id,
-      _id: unmatchedAlbum,
-    })
-    if (!record) throw new Error("Couldn't find record of an unmatched track.")
-    for (const track of record.tracks) {
-      const query = {
-        artist: track.artists
-          ? track.artists.split(",")[0]
-          : record.artists.split(",")[0],
-        track: track.title,
-        year: record.year,
-      }
-      const searchTrackResults = await searchTrack(query, user)
-      if (searchTrackResults.length) {
-        // if perfect match found
-        if (searchTrackResults[0].levenshtein === 0)
-          state.matchedTracks.push({
-            recordID: record._id.toString(),
-            trackID: track._id.toString(),
-            spotifyTrackID: searchTrackResults[0].id,
-          })
-        // if no perfect match found, but similar found
-        else
-          state.inexactTrackMatches.push({
-            recordID: record._id.toString(),
-            trackID: track._id.toString(),
-            options: searchTrackResults,
-          })
-      } else
-        state.unfoundTracks.push({
-          recordID: record._id.toString(),
-          trackID: track._id.toString(),
-        })
-    }
-    state.i++
-    res.write("data: " + `${(state.i / state.j).toFixed(2)}\n\n`)
+  for (const matchedAlbum of state.matchedAlbums) {
+    const record = await Record.findById(matchedAlbum.recordID)
+    if (!record) throw new Error("A Record couldnt be found.")
+    await getAlbumTracks(record, user, matchedAlbum.album, state)
+    state.requestsMade++
+    res.write(
+      "data: " +
+        `${(state.requestsMade / state.requestsRequired).toFixed(2)}\n\n`
+    )
   }
 }
 
@@ -399,31 +411,6 @@ async function saveAudioFeatures(
     }
   }
   return !error // returns false if error
-}
-
-async function spotifyRequest(url: string, user: IUser): Promise<{}> {
-  const options = {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Bearer ${user.spotifyToken}`,
-    },
-  }
-  const response = (await fetch(url, options)) as Response
-  if (response.status === 200) return await response.json()
-  else if (response.status === 401) {
-    await refreshToken(user.spotifyToken)
-    throw new Error("Bad token") // front end will retry upon receiving this
-  } else if (response.status === 403) {
-    const error = await response.json()
-    const errorMsg = error.message ? error.message : "Bad OAuth request"
-    throw new Error(errorMsg)
-  } else if (response.status === 429) {
-    await new Promise((resolve) => setTimeout(resolve, 10000))
-    return await spotifyRequest(url, user) // todo: test this works
-  }
-  return await response.json()
 }
 
 function editSpotifyAlbum(

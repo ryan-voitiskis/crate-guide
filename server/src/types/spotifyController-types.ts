@@ -186,8 +186,8 @@ interface ImportRecordState {
   inexactAlbumMatches: InexactAlbumMatches[]
   unmatchedAlbums: string[]
   unfoundTracks: UnfoundTrack[]
-  i: number
-  j: number
+  requestsMade: number
+  requestsRequired: number
 }
 
 interface ImportMatchedState {
@@ -196,8 +196,8 @@ interface ImportMatchedState {
   unmatchedAlbums: string[]
   inexactTrackMatches: InexactTrackMatches[]
   unfoundTracks: UnfoundTrack[]
-  i: number
-  j: number
+  requestsMade: number
+  requestsRequired: number
 }
 
 export {

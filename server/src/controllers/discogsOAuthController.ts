@@ -185,14 +185,7 @@ const getDiscogsUsername = async (oauthCreds: AccessTokenResponse) => {
 // @desc    removes discogs API creds from user
 // @route   PUT /api/users/revoke_discogs
 // @access  private
-const revokeDiscogsAuthorisation = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user!.id)
-
-  if (user!._id.valueOf() !== req.user!.id) {
-    res.status(401)
-    throw new Error("User not authorised.")
-  }
-
+const revokeAuthorisation = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(req.user!.id, {
     discogsUsername: "",
     discogsToken: "",
@@ -206,5 +199,5 @@ const revokeDiscogsAuthorisation = asyncHandler(async (req, res) => {
 export {
   captureVerifierAndUpdateUser,
   requestTokenAndUpdateUser,
-  revokeDiscogsAuthorisation,
+  revokeAuthorisation,
 }

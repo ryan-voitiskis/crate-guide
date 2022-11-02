@@ -16,7 +16,7 @@ const requestToken = async (token: string) => {
 }
 
 // request to removes discogs api credentials from user
-const revokeDiscogsAuthorisation = async (token: string) => {
+const revokeAuthorisation = async (token: string) => {
   const options = {
     method: "PUT",
     headers: {
@@ -57,7 +57,7 @@ const getFolder = async (folder: string, token: string) => {
 
 const recordService = {
   requestToken,
-  revokeDiscogsAuthorisation,
+  revokeAuthorisation,
   getFolders,
   getFolder,
 }

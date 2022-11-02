@@ -2,7 +2,6 @@ import { defineStore } from "pinia"
 import User from "@/interfaces/User"
 import userService from "@/services/userService"
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
-import router from "@/router"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
 
@@ -110,6 +109,7 @@ export const userStore = defineStore("user", {
             _id: data._id,
             discogsUsername: "",
             isDiscogsOAuthd: data.isDiscogsOAuthd,
+            isSpotifyOAuthd: data.isSpotifyOAuthd,
             token: data.token,
             name: data.name,
             email: data.email,

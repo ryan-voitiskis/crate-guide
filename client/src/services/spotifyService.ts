@@ -16,7 +16,7 @@ const authorisationRequest = async (token: string) => {
 }
 
 // request to removes spotify api credentials from user
-const revokeSpotifyAuthorisation = async (token: string) => {
+const revokeAuthorisation = async (token: string) => {
   const options = {
     method: "PUT",
     headers: {
@@ -25,12 +25,12 @@ const revokeSpotifyAuthorisation = async (token: string) => {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(API_URL + "revoke_spotify", options)
+  const response = await fetch(API_URL + "revoke", options)
   return response
 }
 
 const recordService = {
   authorisationRequest,
-  revokeSpotifyAuthorisation,
+  revokeAuthorisation,
 }
 export default recordService

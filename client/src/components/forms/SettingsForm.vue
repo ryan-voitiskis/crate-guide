@@ -66,22 +66,28 @@
         <legend>Discogs API</legend>
         <div v-if="user.authd.discogsUsername !== ''">
           <span class="username">
-            Authorised as discogs user <i>{{ user.authd.discogsUsername }}</i>
+            Authorised as Discogs user <i>{{ user.authd.discogsUsername }}</i>
           </span>
         </div>
         <button
           v-if="user.authd.isDiscogsOAuthd"
           @click="discogs.revokeDiscogsForm = true"
         >
-          Revoke discogs access
+          Revoke Discogs access
         </button>
         <DiscogsControls />
       </fieldset>
 
       <fieldset class="discogs-ctrls" v-if="user.hasUser()">
         <legend>Spotify API</legend>
-        <button @click="spotify.authorisationRequest()">
+        <button
+          v-if="!user.authd.isSpotifyOAuthd"
+          @click="spotify.authorisationRequest()"
+        >
           Connect to Spotify
+        </button>
+        <button v-else @click="spotify.revokeAuthorisation()">
+          Revoke Spotify acess
         </button>
       </fieldset>
 

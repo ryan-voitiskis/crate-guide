@@ -56,12 +56,12 @@ export const discogsStore = defineStore("discogs", {
 
     // call and handle response to request that removes discogsToken, discogsTokenSecret,
     // discogsRequestToken and discogsRequestTokenSecret from user.
-    async revokeDiscogsAuthorisation(): Promise<number | null> {
+    async revokeAuthorisation(): Promise<number | null> {
       const user = userStore()
       this.loading = true
       this.errorMsg = ""
       try {
-        const response = await discogsService.revokeDiscogsAuthorisation(
+        const response = await discogsService.revokeAuthorisation(
           user.authd.token
         )
         // handle successful update

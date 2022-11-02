@@ -55,18 +55,18 @@ export const spotifyStore = defineStore("spotify", {
 
     // call and handle response to request that removes spotifyToken, spotifyTokenSecret,
     // spotifyRequestToken and spotifyRequestTokenSecret from user.
-    async revokeSpotifyAuthorisation(): Promise<number | null> {
+    async revokeAuthorisation(): Promise<number | null> {
       const user = userStore()
       this.loading = true
       this.errorMsg = ""
       try {
-        const response = await spotifyService.revokeSpotifyAuthorisation(
+        const response = await spotifyService.revokeAuthorisation(
           user.authd.token
         )
         // handle successful update
         if (response.status === 200) {
-          // user.authd.isSpotifyOAuthd = false
-          // user.authd.spotifyUsername = ""
+          user.authd.isSpotifyOAuthd = false
+          // todo form?
           // this.revokeSpotifyForm = false
         }
         // handle 400 and 401 status codes. see userController.ts
@@ -96,11 +96,8 @@ export const spotifyStore = defineStore("spotify", {
 
       const setProgress = (progress: number) => (this.importProgress = progress)
 
-      const handleError = (msg: string) => {
-        if (msg === "Error: Bad token") this.importDataForSelectedRecords(token)
-        else
-          this.errorMsg = msg ? msg.replace("Error: ", "") : "Unexpected error"
-      }
+      const handleError = (msg: string) =>
+        (this.errorMsg = msg ? msg.replace("Error: ", "") : "Unexpected error")
 
       const handleJSON = (data: string) => {
         this.importProgress = 1
@@ -117,6 +114,7 @@ export const spotifyStore = defineStore("spotify", {
 
       const handleCompletion = async () => {
         this.loading = true
+        records.checkboxed = []
         await records.fetchRecords(token)
         this.importProgressModal = false
         this.importProgress = 0
@@ -136,8 +134,6 @@ export const spotifyStore = defineStore("spotify", {
             },
             body: body,
             onmessage(msg) {
-              console.log(msg.data)
-
               if (msg.data.startsWith("Error")) handleError(msg.data)
               else if (msg.data.startsWith("json")) handleJSON(msg.data)
               else {
@@ -177,11 +173,8 @@ export const spotifyStore = defineStore("spotify", {
 
       const setProgress = (progress: number) => (this.importProgress = progress)
 
-      const handleError = (msg: string) => {
-        if (msg === "Error: Bad token") this.importDataForSelectedRecords(token)
-        else
-          this.errorMsg = msg ? msg.replace("Error: ", "") : "Unexpected error"
-      }
+      const handleError = (msg: string) =>
+        (this.errorMsg = msg ? msg.replace("Error: ", "") : "Unexpected error")
 
       const handleJSON = (data: string) => {
         this.importProgress = 1
@@ -195,6 +188,7 @@ export const spotifyStore = defineStore("spotify", {
 
       const handleCompletion = async () => {
         this.loading = true
+        records.checkboxed = []
         await records.fetchRecords(token)
         this.importProgressModal = false
         this.importProgress = 0
