@@ -166,6 +166,29 @@ interface AudioFeatures {
   valence: number
 }
 
+function isAudioFeatures(obj: any): obj is AudioFeatures {
+  return (
+    typeof obj.acousticness === "number" &&
+    typeof obj.analysis_url === "string" &&
+    typeof obj.danceability === "number" &&
+    typeof obj.duration_ms === "number" &&
+    typeof obj.energy === "number" &&
+    typeof obj.id === "string" &&
+    typeof obj.instrumentalness === "number" &&
+    typeof obj.key === "number" &&
+    typeof obj.liveness === "number" &&
+    typeof obj.loudness === "number" &&
+    typeof obj.mode === "number" &&
+    typeof obj.speechiness === "number" &&
+    typeof obj.tempo === "number" &&
+    typeof obj.time_signature === "number" &&
+    typeof obj.track_href === "string" &&
+    typeof obj.type === "string" &&
+    typeof obj.uri === "string" &&
+    typeof obj.valence === "number"
+  )
+}
+
 interface AudioFeaturesResponse {
   audio_features: AudioFeatures[]
 }
@@ -194,31 +217,32 @@ interface ImportMatchedState {
 }
 
 export {
-  TrackQuery,
   AlbumQuery,
-  SpotifyImage,
-  SpotifyArtist,
+  AlbumTracksResponse,
+  AudioFeatures,
+  AudioFeaturesResponse,
+  ImportMatchedState,
+  ImportRecordState,
+  InexactAlbumMatches,
+  InexactTrackMatches,
+  isAlbumTracksResponse,
+  isAudioFeatures,
+  isAudioFeaturesResponse,
+  isSearchAlbumResponse,
+  isSearchTrackResponse,
+  isTracksResponse,
+  MatchedAlbum,
+  MatchedTrack,
   SearchAlbumItem,
   SearchAlbumResponse,
   SearchTrackItem,
   SearchTrackResponse,
-  isSearchAlbumResponse,
-  isSearchTrackResponse,
   SpotifyAlbumEdit,
-  SpotifyTrackEdit,
+  SpotifyArtist,
+  SpotifyImage,
   SpotifyTrack,
-  AlbumTracksResponse,
-  isAlbumTracksResponse,
-  TracksTrack,
+  SpotifyTrackEdit,
+  TrackQuery,
   TracksResponse,
-  isTracksResponse,
-  MatchedTrack,
-  MatchedAlbum,
-  InexactTrackMatches,
-  InexactAlbumMatches,
-  AudioFeatures,
-  AudioFeaturesResponse,
-  isAudioFeaturesResponse,
-  ImportRecordState,
-  ImportMatchedState,
+  TracksTrack,
 }

@@ -42,9 +42,21 @@ const updateTrack = asyncHandler(async (req, res) => {
 
   const track = JSON.parse(req.body.track)
 
+  // set track properties individually to avoid overwritting spotify imported data
   const updatedRecord = await Record.findOneAndUpdate(
     { _id: record._id, "tracks._id": req.params.id },
-    { $set: { "tracks.$": track } },
+    {
+      $set: {
+        "tracks.$.position": track.position,
+        "tracks.$.title": track.title,
+        "tracks.$.artists": track.artists,
+        "tracks.$.duration": track.duration,
+        "tracks.$.bpm": track.bpm,
+        "tracks.$.rpm": track.rpm,
+        "tracks.$.genre": track.genre,
+        "tracks.$.playable": track.playable,
+      },
+    },
     { new: true }
   )
   res.status(200).json(updatedRecord)

@@ -63,7 +63,6 @@ export const trackStore = defineStore("track", {
           const existingRecord = recStore.getById(updatedRecord._id) as Record
           Object.assign(existingRecord, updatedRecord)
           this.loading = false
-          this.toEdit = ""
           return response.status
 
           // handle errors

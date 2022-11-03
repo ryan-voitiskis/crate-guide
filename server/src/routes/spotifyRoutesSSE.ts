@@ -3,7 +3,7 @@ import protect from "../middleware/authMiddleware.js"
 import {
   importRecordFeatures,
   importMatchedFeatures,
-} from "../controllers/spotifyController.js"
+} from "../controllers/spotifyControllerSSE.js"
 
 const router = express.Router()
 

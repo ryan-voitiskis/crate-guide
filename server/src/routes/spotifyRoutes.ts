@@ -5,11 +5,13 @@ import {
   authorisationCallback,
   revokeAuthorisation,
 } from "../controllers/spotifyOAuthController.js"
+import { getTrackFeatures } from "../controllers/spotifyController.js"
 
 const router = express.Router()
 
 router.route("/authorisation_request").get(protect, authorisationRequest)
 router.route("/callback").get(authorisationCallback)
 router.put("/revoke", protect, revokeAuthorisation)
+router.put("/get_track_features", protect, getTrackFeatures)
 
 export default router

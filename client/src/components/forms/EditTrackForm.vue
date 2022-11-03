@@ -11,6 +11,14 @@
   <form @submit.prevent="submit">
     <div class="modal-body inline-labels">
       <BasicInput
+        v-model="form.spotifyID"
+        id="spotify_id"
+        label="Spotify ID"
+        type="text"
+        placeholder="Paste Spotify ID here"
+      />
+      <hr />
+      <BasicInput
         v-model="form.position"
         id="position"
         label="Position"
@@ -68,6 +76,7 @@
       <label class="checkbox">
         <input type="checkbox" v-model="form.playable" /> Mixable
       </label>
+      <ErrorFeedback :show="spotify.errorMsg !== ''" :msg="spotify.errorMsg" />
       <ErrorFeedback :show="tracks.errorMsg !== ''" :msg="tracks.errorMsg" />
     </div>
     <div class="modal-footer">
@@ -85,6 +94,7 @@
 <script setup lang="ts">
 import { reactive, onBeforeUnmount, watch } from "vue"
 import { recordStore } from "@/stores/recordStore"
+import { spotifyStore } from "@/stores/spotifyStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import BasicInput from "@/components/inputs/BasicInput.vue"
@@ -93,16 +103,20 @@ import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import RadioInput from "@/components/inputs/RadioInput.vue"
 import XIcon from "@/components/icons/XIcon.vue"
 import Track from "@/interfaces/Track"
+import MatchedTrack from "@/interfaces/MatchedTrack"
 
 const records = recordStore()
+const spotify = spotifyStore()
 const tracks = trackStore()
 const user = userStore()
 
 const track = records.getTrackById(tracks.toEdit)
+const record = records.getRecordByTrackId(track._id)
 
 const noChangeMsg = "Track has not been edited."
 
 const form = reactive({
+  spotifyID: track.spotifyID,
   position: track.position,
   title: track.title,
   artists: track.artists,
@@ -115,7 +129,10 @@ const form = reactive({
 
 // check if track has been edited, if not display noChangeMsg, else updateTrack
 const submit = async () => {
+  spotify.errorMsg = ""
+  tracks.errorMsg = ""
   if (
+    form.spotifyID === track.spotifyID &&
     form.position === track.position &&
     form.title.trim() === track.title &&
     form.artists?.trim() === track.artists &&
@@ -138,7 +155,18 @@ const submit = async () => {
       genre: form.genre?.trim(),
       playable: form.playable,
     }
+    const newSpotifyID =
+      track.spotifyID !== form.spotifyID?.trim() ? form.spotifyID?.trim() : ""
+    if (newSpotifyID) {
+      const matchedTrack: MatchedTrack = {
+        recordID: record._id,
+        trackID: track._id,
+        spotifyTrackID: newSpotifyID,
+      }
+      await spotify.getTrackFeatures(matchedTrack)
+    }
     await tracks.updateTrack(editedTrack, user.authd.token)
+    if (spotify.errorMsg === "" && tracks.errorMsg === "") tracks.toEdit = ""
   }
 }
 
@@ -151,8 +179,14 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  spotify.errorMsg = ""
+  tracks.errorMsg = ""
   records.errorMsg = ""
 })
 </script>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+hr {
+  grid-column: 1 / 3;
+}
+</style>

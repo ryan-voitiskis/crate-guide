@@ -1,3 +1,4 @@
+import MatchedTrack from "@/interfaces/MatchedTrack"
 const API_URL = "http://localhost:5001/api/spotify/"
 
 // request to server to then make request of OAuth token as per step 2 of:
@@ -29,8 +30,27 @@ const revokeAuthorisation = async (token: string) => {
   return response
 }
 
+// request to get and save a track's audio features for manually added spotifyID
+const getTrackFeatures = async (matchedTrack: MatchedTrack, token: string) => {
+  const body = new URLSearchParams()
+  body.append("matchedTrack", JSON.stringify(matchedTrack))
+
+  const options = {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${token}`,
+    },
+    body: body,
+  }
+  const response = await fetch(API_URL + "get_track_features", options)
+  return response
+}
+
 const recordService = {
   authorisationRequest,
   revokeAuthorisation,
+  getTrackFeatures,
 }
 export default recordService

@@ -12,8 +12,17 @@
     </p>
     <p>TODO</p>
     <p>
-      Some tracks may have not been found. You can add BPM and key to these
-      tracks manually using the edit track form. Doing so will greatly assist
+      Some tracks may have not been found. You can add a Spotify track ID
+      manually in the edit track form. To get the ID of a track you know is on
+      spotify but {{ appName }} couldn't find, copy the ID from the end of the
+      URL. An example is provided below with the ID highlighted
+    </p>
+    <p class="url">
+      https://open.spotify.com/track/<span>4cOdK2wGLETKBW3PvgPWqT</span>
+    </p>
+    <p>
+      Some tracks are not on Spotify. You can add BPM and key to these tracks
+      manually using the edit track form. Doing so will greatly assist
       {{ appName }} in providing suggestions.
     </p>
   </div>
@@ -31,4 +40,11 @@ import XIcon from "@/components/icons/XIcon.vue"
 const appName = inject("appName")
 </script>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+.url {
+  text-align: center;
+  span {
+    background-color: palegoldenrod;
+  }
+}
+</style>

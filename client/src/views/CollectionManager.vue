@@ -141,6 +141,7 @@
   <ModalBox
     v-if="spotify.completionModal"
     @close="spotify.completionModal = false"
+    width="680px"
   >
     <SpotifyCompletion />
   </ModalBox>

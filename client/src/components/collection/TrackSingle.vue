@@ -1,6 +1,15 @@
 <template>
-  <div class="track" :class="{ hasaf: audioFeatures }">
+  <div class="track">
     <div class="details">
+      <div class="spotify-link-wrapper">
+        <a
+          class="spotify-link"
+          v-if="spotifyID"
+          :href="spotifyLink"
+          target="_blank"
+          ><SpotifyLogo
+        /></a>
+      </div>
       <span class="position" v-if="position">{{ position }}</span>
       <span class="bpm" v-if="bpm">{{ bpm }}</span>
       <span class="title">{{ title }}</span>
@@ -24,10 +33,12 @@ import { trackStore } from "@/stores/trackStore"
 import PencilIcon from "@/components/icons/PencilIcon.vue"
 import TrashIcon from "@/components/icons/TrashIcon.vue"
 import getBPMColour from "@/utils/getBPMColour"
+import SpotifyLogo from "@/components/icons/SpotifyLogo.vue"
 const tracks = trackStore()
 
 const props = defineProps<{
   _id: string
+  spotifyID?: string
   position?: string
   bpm?: number
   title: string
@@ -49,6 +60,10 @@ const props = defineProps<{
     valence: number
   }
 }>()
+
+const spotifyLink = props.spotifyID
+  ? `https://open.spotify.com/track/${props.spotifyID}`
+  : ``
 
 const positionColours = [
   ["A", "hsl(342, 60%, 60%)"],
@@ -104,11 +119,37 @@ const bpmColour = computed(() => (props.bpm ? getBPMColour(props.bpm) : null))
   height: 3rem;
   display: flex;
   .details {
+    display: flex;
+    position: relative;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     span {
       line-height: 3rem;
+    }
+    .spotify-link-wrapper {
+      width: 3rem;
+      display: flex;
+      height: 100%;
+      width: 3rem;
+      .spotify-link {
+        height: 100%;
+        width: 100%;
+        display: flex;
+        background-color: transparent;
+        justify-content: center;
+        svg {
+          transition: color 0.5s;
+          align-self: center;
+          color: var(--spotify-light-green);
+          height: 2.2rem;
+        }
+        &:hover {
+          svg {
+            color: var(--spotify-black);
+          }
+        }
+      }
     }
     .position {
       color: v-bind(positionColour);
@@ -138,10 +179,5 @@ const bpmColour = computed(() => (props.bpm ? getBPMColour(props.bpm) : null))
     margin-left: auto;
     flex-shrink: 0;
   }
-}
-
-// remove after testing
-.hasaf {
-  background-color: #d5d5d5;
 }
 </style>

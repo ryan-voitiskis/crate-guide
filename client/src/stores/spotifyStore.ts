@@ -5,6 +5,8 @@ import { fetchEventSource } from "@microsoft/fetch-event-source"
 import spotifyService from "@/services/spotifyService"
 import { InexactAlbumMatch } from "@/interfaces/InexactAlbumMatch"
 import { InexactTrackMatch } from "@/interfaces/InexactTrackMatch"
+import MatchedTrack from "@/interfaces/MatchedTrack"
+import Record from "@/interfaces/Record"
 
 // todo: make global or do something better
 const API_SSE_URL = "http://localhost:5001/api/spotify_sse/"
@@ -68,6 +70,33 @@ export const spotifyStore = defineStore("spotify", {
           user.authd.isSpotifyOAuthd = false
           this.revokeSpotifyForm = false
         }
+        // handle 400 and 401 status codes. see userController.ts
+        else {
+          const error = await response.json()
+          this.errorMsg = error.message ? error.message : "Unexpected error"
+        }
+        this.loading = false
+        return response.status
+
+        // catch error, eg. NetworkError. console.error(error) to debug
+      } catch (error) {
+        this.errorMsg = "Unexpected error. Probably network error."
+        this.loading = false
+        return null
+      }
+    },
+
+    // gets and saves tracks audio features for manually added spotifyID
+    async getTrackFeatures(track: MatchedTrack): Promise<number | null> {
+      const user = userStore()
+      this.errorMsg = ""
+      try {
+        const response = await spotifyService.getTrackFeatures(
+          track,
+          user.authd.token
+        )
+        // handle successful update
+        if (response.status === 200) return response.status
         // handle 400 and 401 status codes. see userController.ts
         else {
           const error = await response.json()
