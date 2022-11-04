@@ -134,7 +134,7 @@ const bpmColour = computed(() => (props.bpm ? getBPMColour(props.bpm) : null))
       width: 3rem;
       .spotify-link {
         height: 100%;
-        width: 100%;
+        width: 3rem;
         display: flex;
         background-color: transparent;
         justify-content: center;

@@ -25,11 +25,9 @@
 <script setup lang="ts">
 import { onBeforeUnmount } from "vue"
 import { recordStore } from "@/stores/recordStore"
-import { userStore } from "@/stores/userStore"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import XIcon from "@/components/icons/XIcon.vue"
-const user = userStore()
 const records = recordStore()
 
 // text csv of record catno/name or "n records" for many records
@@ -40,7 +38,7 @@ const recordText =
 
 const submit = async () => {
   records.checkAll = false
-  if (records.toDelete) await records.deleteRecords(user.authd.token)
+  if (records.toDelete) await records.deleteRecords()
 }
 
 onBeforeUnmount(() => {

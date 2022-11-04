@@ -45,12 +45,10 @@
 <script setup lang="ts">
 import { inject } from "vue"
 import { spotifyStore } from "@/stores/spotifyStore"
-import { userStore } from "@/stores/userStore"
 import XIcon from "@/components/icons/XIcon.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import AlbumMatchSelect from "./AlbumMatchSelect.vue"
 import LoaderIcon from "../icons/LoaderIcon.vue"
-const user = userStore()
 
 const appName = inject("appName")
 const spotify = spotifyStore()
@@ -59,7 +57,7 @@ const submit = () => {
   if (spotify.inexactTrackMatches.length) {
     spotify.albumMatchesModal = false
     spotify.trackMatchesModal = true
-  } else spotify.importSelectedInexactMatches(user.authd.token)
+  } else spotify.importSelectedInexactMatches()
 }
 </script>
 

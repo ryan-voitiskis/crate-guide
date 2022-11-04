@@ -120,7 +120,7 @@ const submit = async () => {
       mixable: form.mixable,
       tracks: record.tracks,
     }
-    await records.updateRecord(editedRecord, user.authd.token)
+    await records.updateRecord(editedRecord)
   }
 }
 

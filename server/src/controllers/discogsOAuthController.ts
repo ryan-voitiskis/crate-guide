@@ -18,7 +18,11 @@ const requestTokenURL = "https://api.discogs.com/oauth/request_token"
 const accessTokenURL = "https://api.discogs.com/oauth/access_token"
 const identityURL = "https://api.discogs.com/oauth/identity"
 const oauthCallback = env.SITE_URL + "/api/discogs/capture_verifier"
-const userAgent = "CrateGuide/0.2"
+const userAgent = "CrateGuide/0.2" // * only bother updating this for deployment
+const identityErrorRedirect = `${env.SITE_URL}?msg=${identityURL} didn't respond with username.`
+const accessTokenErrorRedirect = `${env.SITE_URL}?msg=${accessTokenURL} didn't respond with token & secret.`
+const noRequestTokenErrorRedirect = `${env.SITE_URL}?msg=Found user doesn't have request token secret.`
+const badCaptureVerifierErrorRedirect = `${env.SITE_URL}?msg=Discogs request was missing token or verifier.`
 
 // @desc    request OAuth token as per step 2 of:
 // *        https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
@@ -66,8 +70,6 @@ const requestTokenAndUpdateUser = asyncHandler(async (req, res) => {
 // @route   GET /api/discogs/capture_verifier
 // @access  public
 const captureVerifierAndUpdateUser = asyncHandler(async (req, res) => {
-  // TODO: do any of the 400s get handled by client if req is made by discogs?
-  // if not use res.redirect with msg query string
   if (isCaptureVerifierQuery(req.query)) {
     const query: captureVerifierQuery = req.query
     const user = await User.findOne({
@@ -83,29 +85,17 @@ const captureVerifierAndUpdateUser = asyncHandler(async (req, res) => {
         if (discogsUsername) {
           await User.findByIdAndUpdate(user._id, {
             discogsUsername: discogsUsername,
-            discogsToken: OAuthCredentials.oauth_token, // forever token
-            discogsTokenSecret: OAuthCredentials.oauth_token_secret, // forever token secret
-            discogsRequestToken: "", // only used for OAuth flow
-            discogsRequestTokenSecret: "", // only used for OAuth flow
+            discogsToken: OAuthCredentials.oauth_token,
+            discogsTokenSecret: OAuthCredentials.oauth_token_secret,
+            discogsRequestToken: "",
+            discogsRequestTokenSecret: "",
             justCompleteDiscogsOAuth: true, // flag for front-end success modal
           })
-        } else {
-          res.status(400)
-          throw new Error(`${identityURL} didn't respond with username.`)
-        }
-      } else {
-        res.status(400)
-        throw new Error(`${accessTokenURL} didn't respond with token & secret.`)
-      }
+        } else res.redirect(identityErrorRedirect)
+      } else res.redirect(accessTokenErrorRedirect)
       res.redirect(env.SITE_URL)
-    } else {
-      res.status(400)
-      throw new Error("Found user doesn't have request token secret.")
-    }
-  } else {
-    res.status(400)
-    throw new Error("Discogs request was missing token or verifier.")
-  }
+    } else res.redirect(noRequestTokenErrorRedirect)
+  } else res.redirect(badCaptureVerifierErrorRedirect)
 })
 
 // @desc    removes discogs API creds from user

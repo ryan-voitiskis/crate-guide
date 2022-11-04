@@ -1,9 +1,10 @@
 import { defineStore } from "pinia"
-import Record from "@/interfaces/Record"
-import UnsavedRecord from "@/interfaces/UnsavedRecord"
-import recordService from "@/services/recordService"
 import { crateStore } from "@/stores/crateStore"
+import { userStore } from "@/stores/userStore"
+import Record from "@/interfaces/Record"
+import recordService from "@/services/recordService"
 import Track from "@/interfaces/Track"
+import UnsavedRecord from "@/interfaces/UnsavedRecord"
 
 export const recordStore = defineStore("record", {
   state: () => ({
@@ -19,9 +20,10 @@ export const recordStore = defineStore("record", {
     fromCrate: [] as string[], // record id(s) to be removed from to be selected crate
   }),
   actions: {
-    async fetchRecords(token: string): Promise<number | null> {
+    async fetchRecords(): Promise<number | null> {
+      const user = userStore()
       try {
-        const response = await recordService.getRecords(token)
+        const response = await recordService.getRecords(user.authd.token)
 
         // push returned record to recordList
         if (response.status === 200) {
@@ -42,14 +44,12 @@ export const recordStore = defineStore("record", {
       }
     },
 
-    async addRecord(
-      record: UnsavedRecord,
-      token: string
-    ): Promise<number | null> {
+    async addRecord(record: UnsavedRecord): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
+      const user = userStore()
       try {
-        const response = await recordService.addRecord(record, token)
+        const response = await recordService.addRecord(record, user.authd.token)
 
         // push returned record to recordList
         if (response.status === 201) {
@@ -74,11 +74,15 @@ export const recordStore = defineStore("record", {
       }
     },
 
-    async updateRecord(record: Record, token: string): Promise<number | null> {
+    async updateRecord(record: Record): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
+      const user = userStore()
       try {
-        const response = await recordService.updateRecord(record, token)
+        const response = await recordService.updateRecord(
+          record,
+          user.authd.token
+        )
 
         // update returned record in recordList
         if (response.status === 200) {
@@ -105,15 +109,16 @@ export const recordStore = defineStore("record", {
       }
     },
 
-    async deleteRecords(token: string): Promise<number | null> {
-      const crtStore = crateStore()
+    async deleteRecords(): Promise<number | null> {
+      const crates = crateStore()
       this.loading = true
       this.errorMsg = ""
+      const user = userStore()
       if (this.toDelete.length) {
         try {
           const response = await recordService.deleteRecords(
             this.toDelete,
-            token
+            user.authd.token
           )
 
           // handle records deleted successfully
@@ -123,7 +128,7 @@ export const recordStore = defineStore("record", {
             // if all records deleted successfully on server
             if (res.deletedCount === this.toDelete.length) {
               // remove deleted records from crates
-              crtStore.removeFromCrates(this.toDelete)
+              crates.removeFromCrates(this.toDelete)
               // remove deleted records in store
               this.recordList = this.recordList.filter(
                 (i) => !this.toDelete.includes(i._id)
@@ -133,8 +138,8 @@ export const recordStore = defineStore("record", {
             // if not all records deleted, feedbackMsg + fetch records and crates from server
             else {
               this.feedbackMsg = "<b>Error</b>: Some records were not deleted."
-              this.fetchRecords(token)
-              crtStore.fetchCrates(token)
+              this.fetchRecords()
+              crates.fetchCrates()
             }
             this.loading = false
             this.toDelete = []

@@ -86,7 +86,6 @@
 import { reactive, onBeforeUnmount } from "vue"
 import { recordStore } from "@/stores/recordStore"
 import { trackStore } from "@/stores/trackStore"
-import { userStore } from "@/stores/userStore"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
@@ -96,7 +95,6 @@ import XIcon from "@/components/icons/XIcon.vue"
 
 const records = recordStore()
 const tracks = trackStore()
-const user = userStore()
 
 const form = reactive({
   position: "",
@@ -131,7 +129,7 @@ const submit = async () => {
     genre: form.genre.trim(),
     playable: form.playable,
   }
-  await tracks.addTrack(unsavedTrack, tracks.addTrackTo, user.authd.token)
+  await tracks.addTrack(unsavedTrack, tracks.addTrackTo)
 }
 
 onBeforeUnmount(() => {

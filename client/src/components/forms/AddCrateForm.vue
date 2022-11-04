@@ -62,7 +62,7 @@ const submit = async () => {
     name: form.name.trim(),
     records: [],
   }
-  const response = await crates.addCrate(unsavedCrate, user.authd.token)
+  const response = await crates.addCrate(unsavedCrate)
   if (response === 201) emit("close")
 }
 

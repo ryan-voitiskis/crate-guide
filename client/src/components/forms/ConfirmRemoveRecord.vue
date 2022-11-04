@@ -48,8 +48,7 @@ const submit = async () => {
   if (records.fromCrate.length) {
     const response = await crates.removeFromCrate(
       records.fromCrate as string[],
-      user.authd.settings.selectedCrate,
-      user.authd.token
+      user.authd.settings.selectedCrate
     )
     if (response === 200 || response === 1) records.fromCrate = []
   }

@@ -26,11 +26,9 @@
 import { onBeforeUnmount } from "vue"
 import { recordStore } from "@/stores/recordStore"
 import { trackStore } from "@/stores/trackStore"
-import { userStore } from "@/stores/userStore"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import XIcon from "@/components/icons/XIcon.vue"
-const user = userStore()
 const records = recordStore()
 const tracks = trackStore()
 
@@ -38,7 +36,7 @@ const tracks = trackStore()
 const trackTitle = records.getTrackById(tracks.toDelete).title
 
 const submit = async () => {
-  if (tracks.toDelete) await tracks.deleteTrack(user.authd.token)
+  if (tracks.toDelete) await tracks.deleteTrack()
 }
 
 onBeforeUnmount(() => {

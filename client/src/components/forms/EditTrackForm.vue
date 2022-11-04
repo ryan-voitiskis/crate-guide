@@ -96,7 +96,6 @@ import { reactive, onBeforeUnmount, watch } from "vue"
 import { recordStore } from "@/stores/recordStore"
 import { spotifyStore } from "@/stores/spotifyStore"
 import { trackStore } from "@/stores/trackStore"
-import { userStore } from "@/stores/userStore"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
@@ -108,7 +107,6 @@ import MatchedTrack from "@/interfaces/MatchedTrack"
 const records = recordStore()
 const spotify = spotifyStore()
 const tracks = trackStore()
-const user = userStore()
 
 const track = records.getTrackById(tracks.toEdit)
 const record = records.getRecordByTrackId(track._id)
@@ -165,7 +163,7 @@ const submit = async () => {
       }
       await spotify.getTrackFeatures(matchedTrack)
     }
-    await tracks.updateTrack(editedTrack, user.authd.token)
+    await tracks.updateTrack(editedTrack)
     if (spotify.errorMsg === "" && tracks.errorMsg === "") tracks.toEdit = ""
   }
 }

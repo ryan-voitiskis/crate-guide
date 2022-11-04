@@ -1,8 +1,9 @@
 import { defineStore } from "pinia"
-import Crate from "@/interfaces/Crate"
-import UnsavedCrate from "@/interfaces/UnsavedCrate"
-import crateService from "@/services/crateService"
 import { recordStore } from "@/stores/recordStore"
+import { userStore } from "@/stores/userStore"
+import Crate from "@/interfaces/Crate"
+import crateService from "@/services/crateService"
+import UnsavedCrate from "@/interfaces/UnsavedCrate"
 
 export const crateStore = defineStore("crate", {
   state: () => ({
@@ -12,9 +13,10 @@ export const crateStore = defineStore("crate", {
     feedbackMsg: "", // after update feedback msg
   }),
   actions: {
-    async fetchCrates(token: string): Promise<number | null> {
+    async fetchCrates(): Promise<number | null> {
+      const user = userStore()
       try {
-        const response = await crateService.getCrates(token)
+        const response = await crateService.getCrates(user.authd.token)
 
         // push returned crate to crateList
         if (response.status === 200) {
@@ -36,11 +38,12 @@ export const crateStore = defineStore("crate", {
       }
     },
 
-    async addCrate(crate: UnsavedCrate, token: string): Promise<number | null> {
+    async addCrate(crate: UnsavedCrate): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
+      const user = userStore()
       try {
-        const response = await crateService.addCrate(crate, token)
+        const response = await crateService.addCrate(crate, user.authd.token)
 
         // push returned crate to crateList
         if (response.status === 201) {
@@ -65,11 +68,12 @@ export const crateStore = defineStore("crate", {
       }
     },
 
-    async deleteCrate(_id: string, token: string): Promise<number | null> {
+    async deleteCrate(_id: string): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
+      const user = userStore()
       try {
-        const response = await crateService.deleteCrate(_id, token)
+        const response = await crateService.deleteCrate(_id, user.authd.token)
 
         // fetch crates if crate deleted successfully
         if (response.status === 200) {
@@ -96,38 +100,27 @@ export const crateStore = defineStore("crate", {
     // push array or single record to crate
     async pushToCrate(
       records: string[],
-      crateID: string,
-      token: string
+      crateID: string
     ): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
+      const user = userStore()
       try {
         const crate = this.getById(crateID) as Crate
         if (crate) {
           const intersection = crate.records.filter((i) => records.includes(i)) // records already in crate
           const difference = records.filter((i) => !crate.records.includes(i)) // records not yet in crate
-
           if (difference.length) {
-            const response = await crateService.updateCrate(crate, token)
+            const response = await crateService.updateCrate(
+              crate,
+              user.authd.token
+            )
 
             // handle success
             if (response.status === 200) {
               crate.records.push(...difference)
               // handle - successfully saved difference but some intersection
-              if (intersection.length) {
-                const difText =
-                  difference.length < 12
-                    ? difference.map((i) => this.getRecordName(i)).join(", ")
-                    : `${difference.length} records`
-                const intersectionText =
-                  intersection.length < 12
-                    ? intersection.map((i) => this.getRecordName(i)).join(", ")
-                    : `${intersection.length} records`
-                const intersectionJoinText =
-                  intersection.length > 1 ? `were` : `was`
-                this.feedbackMsg = `${difText} succesfully added.</br>
-                  ${intersectionText} ${intersectionJoinText} already in crate.`
-              }
+              this.pushToCrateFeedback(intersection, difference)
               this.loading = false
               return response.status
 
@@ -162,14 +155,14 @@ export const crateStore = defineStore("crate", {
       }
     },
 
-    // remove array or single record from crate locally and on server
+    // remove array or single record from crate locally and on server1
     async removeFromCrate(
       records: string[],
-      crateID: string,
-      token: string
+      crateID: string
     ): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
+      const user = userStore()
       try {
         const crate = this.getById(crateID) as Crate
 
@@ -180,7 +173,10 @@ export const crateStore = defineStore("crate", {
             (i) => !records.includes(i)
           )
           clonedCrate.records = remainingRecords
-          const response = await crateService.updateCrate(clonedCrate, token)
+          const response = await crateService.updateCrate(
+            clonedCrate,
+            user.authd.token
+          )
 
           // handle success - if 200 update store with remaining records
           if (response.status === 200) {
@@ -209,6 +205,22 @@ export const crateStore = defineStore("crate", {
       }
     },
 
+    pushToCrateFeedback(intersection: string[], difference: string[]) {
+      if (intersection.length) {
+        const difText =
+          difference.length < 12
+            ? difference.map((i) => this.getRecordName(i)).join(", ")
+            : `${difference.length} records`
+        const intersectionText =
+          intersection.length < 12
+            ? intersection.map((i) => this.getRecordName(i)).join(", ")
+            : `${intersection.length} records`
+        const intersectionJoinText = intersection.length > 1 ? `were` : `was`
+        this.feedbackMsg = `${difText} succesfully added.</br>
+          ${intersectionText} ${intersectionJoinText} already in crate.`
+      }
+    },
+
     // remove array or single record from all crates locally only, used by deleteRecords in recordStore
     // * this operation is completed in the deleteRecords function in recordController on the server
     removeFromCrates(records: string[]) {
@@ -230,7 +242,6 @@ export const crateStore = defineStore("crate", {
         ([] as string[])
     },
     // get name by id from record store
-    // todo: test this, changed recStore to records and removed state param
     getRecordName() {
       const records = recordStore()
       return records.getNameById

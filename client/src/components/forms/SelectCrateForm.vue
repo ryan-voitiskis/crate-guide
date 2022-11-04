@@ -68,8 +68,7 @@ const submit = async () => {
     if (records.toCrate.length) {
       const response = await crates.pushToCrate(
         records.toCrate as string[],
-        form.crate,
-        user.authd.token
+        form.crate
       )
       if (response === 200 || response === 1) records.toCrate = []
     }

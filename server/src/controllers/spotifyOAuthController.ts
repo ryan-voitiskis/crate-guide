@@ -143,9 +143,11 @@ async function spotifyRequest(url: string, user: IUser): Promise<{}> {
     const error = await response.json()
     const errorMsg = error.message ? error.message : "Bad OAuth request"
     throw new Error(errorMsg)
+  } else if (response.status === 404) {
+    throw new Error("Spotify resource not found.")
   } else if (response.status === 429) {
     await new Promise((resolve) => setTimeout(resolve, 10000))
-    return await spotifyRequest(url, user) // todo: test this works > how? it never hits limit
+    return await spotifyRequest(url, user) // ! untested as rate limit couldn't be hit
   }
   return await response.json()
 }

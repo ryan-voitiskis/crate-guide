@@ -1,6 +1,6 @@
 import UnsavedRecord from "@/interfaces/UnsavedRecord"
 import Record from "@/interfaces/Record"
-const API_URL = "http://localhost:5001/api/records/"
+import globals from "@/globals"
 
 // get user records
 const getRecords = async (token: string) => {
@@ -12,7 +12,7 @@ const getRecords = async (token: string) => {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(API_URL, options)
+  const response = await fetch(globals.API_RECORDS_URL, options)
   return response
 }
 
@@ -30,7 +30,7 @@ const addRecord = async (record: UnsavedRecord, token: string) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL, options)
+  const response = await fetch(globals.API_RECORDS_URL, options)
   return response
 }
 
@@ -48,7 +48,7 @@ const updateRecord = async (record: Record, token: string) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL + record._id, options)
+  const response = await fetch(globals.API_RECORDS_URL + record._id, options)
   return response
 }
 
@@ -65,7 +65,7 @@ const deleteRecords = async (records: string[], token: string) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL, options)
+  const response = await fetch(globals.API_RECORDS_URL, options)
   return response
 }
 

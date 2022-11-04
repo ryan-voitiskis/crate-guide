@@ -60,7 +60,7 @@ const submit = async () => {
     name: form.name,
     records: records,
   }
-  const response = await crates.addCrate(unsavedCrate, user.authd.token)
+  const response = await crates.addCrate(unsavedCrate)
   if (response === 400) {
     console.error(`AddCrateForm: crate.addCrate returned status ${response}`)
   } else if (response === 201) emit("close")

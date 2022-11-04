@@ -75,7 +75,7 @@ const matched = computed(
 const submit = async () => {
   if (matched.value) {
     if (crate._id) {
-      const response = await crates.deleteCrate(crate._id, user.authd.token)
+      const response = await crates.deleteCrate(crate._id)
       if (response === 200) {
         user.authd.settings.selectedCrate = "all"
         emit("close")

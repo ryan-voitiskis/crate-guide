@@ -1,15 +1,12 @@
 import { defineStore } from "pinia"
-import { userStore } from "@/stores/userStore"
-import { recordStore } from "@/stores/recordStore"
 import { fetchEventSource } from "@microsoft/fetch-event-source"
-import spotifyService from "@/services/spotifyService"
 import { InexactAlbumMatch } from "@/interfaces/InexactAlbumMatch"
 import { InexactTrackMatch } from "@/interfaces/InexactTrackMatch"
+import { recordStore } from "@/stores/recordStore"
+import { userStore } from "@/stores/userStore"
 import MatchedTrack from "@/interfaces/MatchedTrack"
-import Record from "@/interfaces/Record"
-
-// todo: make global or do something better
-const API_SSE_URL = "http://localhost:5001/api/spotify_sse/"
+import spotifyService from "@/services/spotifyService"
+import globals from "@/globals"
 
 export const spotifyStore = defineStore("spotify", {
   state: () => ({
@@ -27,9 +24,9 @@ export const spotifyStore = defineStore("spotify", {
   actions: {
     // call and handle request that begins spotify OAuth flow
     async authorisationRequest(): Promise<number | null> {
-      const user = userStore()
       this.loading = true
       this.errorMsg = ""
+      const user = userStore()
       try {
         const response = await spotifyService.authorisationRequest(
           user.authd.token
@@ -58,9 +55,9 @@ export const spotifyStore = defineStore("spotify", {
     // call and handle response to request that removes spotifyToken, spotifyTokenSecret,
     // spotifyRequestToken and spotifyRequestTokenSecret from user.
     async revokeAuthorisation(): Promise<number | null> {
-      const user = userStore()
       this.loading = true
       this.errorMsg = ""
+      const user = userStore()
       try {
         const response = await spotifyService.revokeAuthorisation(
           user.authd.token
@@ -88,8 +85,8 @@ export const spotifyStore = defineStore("spotify", {
 
     // gets and saves tracks audio features for manually added spotifyID
     async getTrackFeatures(track: MatchedTrack): Promise<number | null> {
-      const user = userStore()
       this.errorMsg = ""
+      const user = userStore()
       try {
         const response = await spotifyService.getTrackFeatures(
           track,
@@ -113,12 +110,13 @@ export const spotifyStore = defineStore("spotify", {
       }
     },
 
-    async importDataForSelectedRecords(token: string) {
+    async importDataForSelectedRecords() {
       this.errorMsg = ""
       this.importProgressModal = true
       this.inexactAlbumMatches = []
       this.inexactTrackMatches = []
       const records = recordStore()
+      const user = userStore()
       const body = new URLSearchParams()
       body.append("records", JSON.stringify(records.checkboxed))
 
@@ -142,7 +140,7 @@ export const spotifyStore = defineStore("spotify", {
       const handleCompletion = async () => {
         this.loading = true
         records.checkboxed = []
-        await records.fetchRecords(token)
+        await records.fetchRecords()
         this.importProgressModal = false
         this.importProgress = 0
         this.loading = false
@@ -151,30 +149,31 @@ export const spotifyStore = defineStore("spotify", {
 
       if (records.checkboxed.length) {
         try {
-          // fetch SSE request made directly from Store so importProgress can be mutated.
-          // spotifyStore cannot be accessed from spotifyService
-          await fetchEventSource(API_SSE_URL + "import_selected", {
-            method: "POST",
-            headers: {
-              Accept: "application/json",
-              "Content-Type": "application/x-www-form-urlencoded",
-              Authorization: `Bearer ${token}`,
-            },
-            body: body,
-            onmessage(msg) {
-              if (msg.data.startsWith("Error")) handleError(msg.data)
-              else if (msg.data.startsWith("json")) handleJSON(msg.data)
-              else {
-                const progress = parseFloat(msg.data)
-                setProgress(progress)
-                if (progress === 1) handleCompletion()
-              }
-            },
-            onerror(err) {
-              console.error(err)
-              handleError(err)
-            },
-          })
+          await fetchEventSource(
+            globals.API_SPOTIFY_SSE_URL + "import_selected",
+            {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/x-www-form-urlencoded",
+                Authorization: `Bearer ${user.authd.token}`,
+              },
+              body: body,
+              onmessage(msg) {
+                if (msg.data.startsWith("Error")) handleError(msg.data)
+                else if (msg.data.startsWith("json")) handleJSON(msg.data)
+                else {
+                  const progress = parseFloat(msg.data)
+                  setProgress(progress)
+                  if (progress === 1) handleCompletion()
+                }
+              },
+              onerror(err) {
+                console.error(err)
+                handleError(err)
+              },
+            }
+          )
         } catch (error) {
           console.error(error)
         }
@@ -183,12 +182,13 @@ export const spotifyStore = defineStore("spotify", {
       }
     },
 
-    async importSelectedInexactMatches(token: string) {
+    async importSelectedInexactMatches() {
       this.albumMatchesModal = false
       this.trackMatchesModal = false
       this.errorMsg = ""
       this.importProgressModal = true
       const records = recordStore()
+      const user = userStore()
       const body = new URLSearchParams()
       const matchedAlbums = this.getMatchedInexactAlbums()
       const matchedTracks = this.getMatchedInexactTracks()
@@ -217,7 +217,7 @@ export const spotifyStore = defineStore("spotify", {
       const handleCompletion = async () => {
         this.loading = true
         records.checkboxed = []
-        await records.fetchRecords(token)
+        await records.fetchRecords()
         this.importProgressModal = false
         this.importProgress = 0
         this.loading = false
@@ -225,14 +225,12 @@ export const spotifyStore = defineStore("spotify", {
       }
 
       try {
-        // fetch SSE request made directly from Store so importProgress can be mutated.
-        // spotifyStore cannot be accessed from spotifyService
-        await fetchEventSource(API_SSE_URL + "import_matched", {
+        await fetchEventSource(globals.API_SPOTIFY_SSE_URL + "import_matched", {
           method: "POST",
           headers: {
             Accept: "application/json",
             "Content-Type": "application/x-www-form-urlencoded",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${user.authd.token}`,
           },
           body: body,
           onmessage(msg) {

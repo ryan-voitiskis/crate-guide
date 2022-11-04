@@ -26,7 +26,6 @@ async function searchAlbum(
 ): Promise<SpotifyAlbumEdit[]> {
   const inexactAlbumMatches: SpotifyAlbumEdit[] = []
   const params = new URLSearchParams()
-  console.log(optimiseAlbumQuery(query))
   params.append("q", optimiseAlbumQuery(query))
   params.append("type", "album")
   params.append("limit", "50")

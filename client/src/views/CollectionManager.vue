@@ -54,7 +54,7 @@
     </button>
     <button
       class="icon-button"
-      @click="spotify.importDataForSelectedRecords(user.authd.token)"
+      @click="spotify.importDataForSelectedRecords()"
       v-if="records.checkboxed.length && user.authd.isSpotifyOAuthd"
     >
       <SpotifyLogo class="spotify-logo" />Get Spotify data for selected

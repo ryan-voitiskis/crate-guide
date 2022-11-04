@@ -47,10 +47,8 @@ import { reactive, onMounted, onUnmounted, watch } from "vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import XIcon from "@/components/icons/XIcon.vue"
-import { userStore } from "@/stores/userStore"
 import { discogsStore } from "@/stores/discogsStore"
 import LoaderCentered from "@/components/utils/LoaderCentered.vue"
-const user = userStore()
 const discogs = discogsStore()
 
 const form = reactive({
@@ -59,7 +57,7 @@ const form = reactive({
 
 const submit = async () => {
   if (form.folder !== "") {
-    const response = await discogs.getFolder(form.folder, user.authd.token)
+    const response = await discogs.getFolder(form.folder)
     if (response === 200) {
       discogs.selectDiscogsFolder = false
       discogs.stageImport = true
@@ -73,7 +71,7 @@ watch(
   () => (discogs.errorMsg = "")
 )
 
-onMounted(async () => await discogs.getFolders(user.authd.token))
+onMounted(async () => await discogs.getFolders())
 
 onUnmounted(() => (discogs.errorMsg = ""))
 </script>

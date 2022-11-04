@@ -1,9 +1,9 @@
 import { defineStore } from "pinia"
-import User from "@/interfaces/User"
-import userService from "@/services/userService"
-import UnregisteredUser from "@/interfaces/UnregisteredUser"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
+import UnregisteredUser from "@/interfaces/UnregisteredUser"
+import User from "@/interfaces/User"
+import userService from "@/services/userService"
 
 export const userStore = defineStore("user", {
   state: () => ({
@@ -42,8 +42,8 @@ export const userStore = defineStore("user", {
           document.cookie = `crate_guide_jwt=${this.authd.token}; SameSite=Strict; Secure;`
           const crates = crateStore()
           const records = recordStore()
-          crates.fetchCrates(this.authd.token)
-          records.fetchRecords(this.authd.token)
+          crates.fetchCrates()
+          records.fetchRecords()
           this.loading = false
           return response.status
 
@@ -75,8 +75,8 @@ export const userStore = defineStore("user", {
           document.cookie = `crate_guide_jwt=${this.authd.token}; SameSite=Strict; Secure;`
           const crates = crateStore()
           const records = recordStore()
-          crates.fetchCrates(this.authd.token)
-          records.fetchRecords(this.authd.token)
+          crates.fetchCrates()
+          records.fetchRecords()
           this.loading = false
           return response.status
 

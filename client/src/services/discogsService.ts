@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:5001/api/discogs/"
+import globals from "@/globals"
 
 // request to server to then make request of OAuth token as per step 2 of:
 // * https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
@@ -11,7 +11,10 @@ const requestToken = async (token: string) => {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(API_URL + "request_token", options)
+  const response = await fetch(
+    globals.API_DISCOGS_URL + "request_token",
+    options
+  )
   return response
 }
 
@@ -25,7 +28,10 @@ const revokeAuthorisation = async (token: string) => {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(API_URL + "revoke_discogs", options)
+  const response = await fetch(
+    globals.API_DISCOGS_URL + "revoke_discogs",
+    options
+  )
   return response
 }
 
@@ -38,7 +44,7 @@ const getFolders = async (token: string) => {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(API_URL + "folders", options)
+  const response = await fetch(globals.API_DISCOGS_URL + "folders", options)
   return response
 }
 
@@ -51,7 +57,10 @@ const getFolder = async (folder: string, token: string) => {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(API_URL + "folder/" + folder, options)
+  const response = await fetch(
+    globals.API_DISCOGS_URL + "folder/" + folder,
+    options
+  )
   return response
 }
 

@@ -7,6 +7,9 @@ label.checkbox,
 label.radio {
   display: flex;
   align-items: center;
+  input {
+    margin-right: 1rem;
+  }
 }
 
 input[type="checkbox"],
@@ -35,6 +38,7 @@ input[type="radio"] {
 }
 
 input[type="checkbox"] {
+  background-color: var(--input-bg);
   border-radius: 0.3rem;
   &::before {
     box-shadow: inset 1rem 1rem var(--form-control-active);

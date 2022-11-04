@@ -1,5 +1,5 @@
+import globals from "@/globals"
 import MatchedTrack from "@/interfaces/MatchedTrack"
-const API_URL = "http://localhost:5001/api/spotify/"
 
 // request to server to then make request of OAuth token as per step 2 of:
 // * https://www.spotify.com/developers/#page:authentication,header:authentication-oauth-flow
@@ -12,7 +12,10 @@ const authorisationRequest = async (token: string) => {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(API_URL + "authorisation_request", options)
+  const response = await fetch(
+    globals.API_SPOTIFY_URL + "authorisation_request",
+    options
+  )
   return response
 }
 
@@ -26,7 +29,7 @@ const revokeAuthorisation = async (token: string) => {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(API_URL + "revoke", options)
+  const response = await fetch(globals.API_SPOTIFY_URL + "revoke", options)
   return response
 }
 
@@ -44,7 +47,10 @@ const getTrackFeatures = async (matchedTrack: MatchedTrack, token: string) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL + "get_track_features", options)
+  const response = await fetch(
+    globals.API_SPOTIFY_URL + "get_track_features",
+    options
+  )
   return response
 }
 

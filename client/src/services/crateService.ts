@@ -1,6 +1,6 @@
 import Crate from "@/interfaces/Crate"
 import UnsavedCrate from "@/interfaces/UnsavedCrate"
-const API_URL = "http://localhost:5001/api/crates/"
+import globals from "@/globals"
 
 // get user crates
 const getCrates = async (token: string) => {
@@ -12,7 +12,7 @@ const getCrates = async (token: string) => {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(API_URL, options)
+  const response = await fetch(globals.API_CRATES_URL, options)
   return response
 }
 
@@ -30,7 +30,7 @@ const addCrate = async (crate: UnsavedCrate, token: string) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL, options)
+  const response = await fetch(globals.API_CRATES_URL, options)
   return response
 }
 
@@ -48,7 +48,7 @@ const updateCrate = async (crate: Crate, token: string) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL + crate._id, options)
+  const response = await fetch(globals.API_CRATES_URL + crate._id, options)
   return response
 }
 
@@ -62,7 +62,7 @@ const deleteCrate = async (_id: string, token: string) => {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(API_URL + _id, options)
+  const response = await fetch(globals.API_CRATES_URL + _id, options)
   return response
 }
 

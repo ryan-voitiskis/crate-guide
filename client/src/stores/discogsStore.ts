@@ -1,13 +1,11 @@
 import { defineStore } from "pinia"
-import { userStore } from "@/stores/userStore"
+import { fetchEventSource } from "@microsoft/fetch-event-source"
 import { recordStore } from "@/stores/recordStore"
+import { userStore } from "@/stores/userStore"
 import DiscogsFolder from "@/interfaces/DiscogsFolder"
 import DiscogsReleaseBasic from "@/interfaces/DiscogsReleaseBasic"
 import discogsService from "@/services/discogsService"
-import { fetchEventSource } from "@microsoft/fetch-event-source"
-
-// todo: make global or do something better
-const API_SSE_URL = "http://localhost:5001/api/discogs_sse/"
+import globals from "@/globals"
 
 export const discogsStore = defineStore("discogs", {
   state: () => ({
@@ -86,13 +84,14 @@ export const discogsStore = defineStore("discogs", {
       }
     },
 
-    async getFolders(token: string) {
+    async getFolders() {
       this.unstagedImports = []
       this.toImport = []
       this.loadingFolders = true
       this.errorMsg = ""
+      const user = userStore()
       try {
-        const response = await discogsService.getFolders(token)
+        const response = await discogsService.getFolders(user.authd.token)
 
         // push returned crate to crateList
         if (response.status === 200) {
@@ -114,11 +113,15 @@ export const discogsStore = defineStore("discogs", {
       }
     },
 
-    async getFolder(folder: string, token: string) {
+    async getFolder(folder: string) {
       this.loading = true
       this.errorMsg = ""
+      const user = userStore()
       try {
-        const response = await discogsService.getFolder(folder, token)
+        const response = await discogsService.getFolder(
+          folder,
+          user.authd.token
+        )
 
         // push returned crate to crateList
         if (response.status === 200) {
@@ -140,11 +143,12 @@ export const discogsStore = defineStore("discogs", {
       }
     },
 
-    async importStaged(token: string) {
+    async importStaged() {
       this.stageImport = false
       this.importProgressModal = true
       this.loading = false
       this.errorMsg = ""
+      const user = userStore()
       const stagedRecords = this.toImport.filter(
         (i) => !this.unstagedImports.includes(i.id)
       )
@@ -160,7 +164,7 @@ export const discogsStore = defineStore("discogs", {
 
       const handleCompletion = async () => {
         this.loading = true
-        await records.fetchRecords(token)
+        await records.fetchRecords()
         this.importProgressModal = false
         this.importProgress = 0
         this.loading = false
@@ -168,27 +172,28 @@ export const discogsStore = defineStore("discogs", {
 
       if (formattedRecords.length) {
         try {
-          // fetch SSE request made directly from Store so importProgress can be mutated.
-          // discogsStore cannot be accessed from discogsService
-          await fetchEventSource(API_SSE_URL + "import_records", {
-            method: "POST",
-            headers: {
-              Accept: "application/json",
-              "Content-Type": "application/x-www-form-urlencoded",
-              Authorization: `Bearer ${token}`,
-            },
-            body: body,
-            onmessage(msg) {
-              if (msg.data.includes("Error")) handleError(msg.data)
-              const progress = parseFloat(msg.data)
-              setProgress(progress)
-              if (progress === 1) handleCompletion()
-            },
-            onerror(err) {
-              console.error(err)
-              handleError(err)
-            },
-          })
+          await fetchEventSource(
+            globals.API_DISCOGS_SSE_URL + "import_records",
+            {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/x-www-form-urlencoded",
+                Authorization: `Bearer ${user.authd.token}`,
+              },
+              body: body,
+              onmessage(msg) {
+                if (msg.data.includes("Error")) handleError(msg.data)
+                const progress = parseFloat(msg.data)
+                setProgress(progress)
+                if (progress === 1) handleCompletion()
+              },
+              onerror(err) {
+                console.error(err)
+                handleError(err)
+              },
+            }
+          )
 
           // catch error, eg. NetworkError. console.error(error) to debug
         } catch (error) {

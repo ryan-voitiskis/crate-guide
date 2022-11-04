@@ -38,9 +38,9 @@
   /* forms */
   --input-bg: hsl(0, 0%, 100%);
   --input-border: hsl(202, 7%, 77%);
-  --input-border-focus: hsl(206, 74%, 61%);
-  --form-control-active: hsl(331, 53%, 46%);
-  --form-control: hsl(0, 0%, 47%);
+  --input-border-focus: hsl(207, 53%, 46%);
+  --form-control-active: hsl(207, 53%, 46%);
+  --form-control: hsl(207, 53%, 46%);
 
   /* buttons */
   --btn-primary: hsl(206, 57%, 54%);

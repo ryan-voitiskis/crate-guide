@@ -27,7 +27,7 @@
       Close
     </button>
     <button
-      @click="spotify.importSelectedInexactMatches(user.authd.token)"
+      @click="spotify.importSelectedInexactMatches()"
       class="primary"
       type="submit"
     >
@@ -40,12 +40,10 @@
 <script setup lang="ts">
 import { inject } from "vue"
 import { spotifyStore } from "@/stores/spotifyStore"
-import { userStore } from "@/stores/userStore"
 import XIcon from "@/components/icons/XIcon.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import TrackMatchSelect from "./TrackMatchSelect.vue"
 import LoaderIcon from "../icons/LoaderIcon.vue"
-const user = userStore()
 
 const appName = inject("appName")
 const spotify = spotifyStore()

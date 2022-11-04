@@ -68,8 +68,8 @@ const submit = async () => {
   const response = await user.login(form.email, form.password)
   if (response === 200) {
     emit("close")
-    crates.fetchCrates(user.authd.token)
-    records.fetchRecords(user.authd.token)
+    crates.fetchCrates()
+    records.fetchRecords()
   }
 }
 

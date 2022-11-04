@@ -116,7 +116,7 @@ const submit = async () => {
     year: form.year,
     mixable: form.mixable,
   }
-  const response = await records.addRecord(unsavedRecord, user.authd.token)
+  const response = await records.addRecord(unsavedRecord)
   if (response === 400) {
     console.error(`AddRecordForm: record.addRecord returned status ${response}`)
   } else if (response === 201) emit("close")

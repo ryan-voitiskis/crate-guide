@@ -1,6 +1,6 @@
+import globals from "@/globals"
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
 import User from "@/interfaces/User"
-const API_URL = "http://localhost:5001/api/users/"
 
 // authenticate user
 const login = async (email: string, password: string) => {
@@ -16,7 +16,7 @@ const login = async (email: string, password: string) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL + "login", options)
+  const response = await fetch(globals.API_USERS_URL + "login", options)
   return response
 }
 
@@ -30,7 +30,7 @@ const fetchUser = async (token: string) => {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(API_URL, options)
+  const response = await fetch(globals.API_USERS_URL, options)
   return response
 }
 
@@ -48,7 +48,7 @@ const addUser = async (user: UnregisteredUser) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL, options)
+  const response = await fetch(globals.API_USERS_URL, options)
   return response
 }
 
@@ -69,7 +69,7 @@ const updateSettings = async (user: User) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL + user._id, options)
+  const response = await fetch(globals.API_USERS_URL + user._id, options)
   return response
 }
 

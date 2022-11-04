@@ -1,6 +1,6 @@
 import UnsavedTrack from "@/interfaces/UnsavedTrack"
 import Track from "@/interfaces/Track"
-const API_URL = "http://localhost:5001/api/tracks/"
+import globals from "@/globals"
 
 // add new track
 const addTrack = async (track: UnsavedTrack, record: string, token: string) => {
@@ -17,7 +17,7 @@ const addTrack = async (track: UnsavedTrack, record: string, token: string) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL, options)
+  const response = await fetch(globals.API_TRACKS_URL, options)
   return response
 }
 
@@ -35,7 +35,7 @@ const updateTrack = async (track: Track, token: string) => {
     },
     body: body,
   }
-  const response = await fetch(API_URL + track._id, options)
+  const response = await fetch(globals.API_TRACKS_URL + track._id, options)
 
   return response
 }
@@ -50,7 +50,7 @@ const deleteTrack = async (_id: string, token: string) => {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(API_URL + _id, options)
+  const response = await fetch(globals.API_TRACKS_URL + _id, options)
   return response
 }
 

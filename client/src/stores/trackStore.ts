@@ -1,9 +1,10 @@
 import { defineStore } from "pinia"
-import Track from "@/interfaces/Track"
-import Record from "@/interfaces/Record"
-import UnsavedTrack from "@/interfaces/UnsavedTrack"
-import trackService from "@/services/trackService"
 import { recordStore } from "@/stores/recordStore"
+import { userStore } from "@/stores/userStore"
+import Record from "@/interfaces/Record"
+import Track from "@/interfaces/Track"
+import trackService from "@/services/trackService"
+import UnsavedTrack from "@/interfaces/UnsavedTrack"
 
 export const trackStore = defineStore("track", {
   state: () => ({
@@ -16,13 +17,17 @@ export const trackStore = defineStore("track", {
   actions: {
     async addTrack(
       track: UnsavedTrack,
-      record: string,
-      token: string
+      record: string
     ): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
+      const user = userStore()
       try {
-        const response = await trackService.addTrack(track, record, token)
+        const response = await trackService.addTrack(
+          track,
+          record,
+          user.authd.token
+        )
 
         // overwrite exisiting record
         if (response.status === 201) {
@@ -50,11 +55,12 @@ export const trackStore = defineStore("track", {
       }
     },
 
-    async updateTrack(track: Track, token: string): Promise<number | null> {
+    async updateTrack(track: Track): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
+      const user = userStore()
       try {
-        const response = await trackService.updateTrack(track, token)
+        const response = await trackService.updateTrack(track, user.authd.token)
 
         // update returned track in trackList
         if (response.status === 200) {
@@ -81,12 +87,16 @@ export const trackStore = defineStore("track", {
       }
     },
 
-    async deleteTrack(token: string): Promise<number | null> {
+    async deleteTrack(): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
+      const user = userStore()
       if (this.toDelete.length) {
         try {
-          const response = await trackService.deleteTrack(this.toDelete, token)
+          const response = await trackService.deleteTrack(
+            this.toDelete,
+            user.authd.token
+          )
 
           // handle track deleted successfully
           if (response.status === 200) {
