@@ -62,6 +62,22 @@
         </select>
       </label>
 
+      <fieldset class="radio">
+        <legend>Key format</legend>
+        <RadioInput
+          v-model="user.authd.settings.keyFormat"
+          name="key_format"
+          id="key"
+          label="Key (G♯ / A♭ Major)"
+        />
+        <RadioInput
+          v-model="user.authd.settings.keyFormat"
+          name="key_format"
+          id="camelot"
+          label="Camelot (4A)"
+        />
+      </fieldset>
+
       <fieldset class="controls" v-if="user.hasUser()">
         <legend>Discogs API</legend>
         <div v-if="user.authd.discogsUsername !== ''">
@@ -105,6 +121,7 @@ import { discogsStore } from "@/stores/discogsStore"
 import { spotifyStore } from "@/stores/spotifyStore"
 import { userStore } from "@/stores/userStore"
 import DiscogsControls from "../discogs/DiscogsControls.vue"
+import RadioInput from "../inputs/RadioInput.vue"
 const discogs = discogsStore()
 const spotify = spotifyStore()
 const user = userStore()

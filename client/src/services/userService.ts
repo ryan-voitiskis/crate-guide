@@ -59,6 +59,7 @@ const updateSettings = async (user: User) => {
   body.append("settings.theme", user.settings.theme)
   body.append("settings.turntableTheme", user.settings.turntableTheme)
   body.append("settings.turntablePitchRange", user.settings.turntablePitchRange)
+  body.append("settings.keyFormat", user.settings.keyFormat)
 
   const options = {
     method: "PUT",

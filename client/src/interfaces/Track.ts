@@ -7,6 +7,8 @@ export default interface Track {
   duration?: string
   bpm?: number
   rpm: number
+  key?: number
+  mode?: number
   genre?: string
   playable: boolean
   audioFeatures?: {

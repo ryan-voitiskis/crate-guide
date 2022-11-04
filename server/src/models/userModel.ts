@@ -24,6 +24,7 @@ interface IUser {
     turntableTheme: string
     turntablePitchRange: string
     selectedCrate: string
+    keyFormat: string
   }
 }
 
@@ -100,6 +101,10 @@ const userSchema = new mongoose.Schema<IUser>(
       selectedCrate: {
         type: String,
         default: "all",
+      },
+      keyFormat: {
+        type: String,
+        default: "key",
       },
     },
   },

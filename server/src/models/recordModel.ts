@@ -9,6 +9,8 @@ interface ITrack {
   duration?: string
   bpm: number
   rpm: number
+  key: number
+  mode: number
   genre: string
   playable: boolean
   audioFeatures: {
@@ -64,6 +66,12 @@ const trackSchema = new mongoose.Schema<ITrack>({
     type: Number,
   },
   rpm: {
+    type: Number,
+  },
+  key: {
+    type: Number,
+  },
+  mode: {
     type: Number,
   },
   genre: {

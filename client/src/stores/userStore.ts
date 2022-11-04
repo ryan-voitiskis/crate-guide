@@ -18,6 +18,7 @@ export const userStore = defineStore("user", {
         turntableTheme: "silver",
         turntablePitchRange: "8",
         selectedCrate: "all",
+        keyFormat: "key",
       },
     } as User,
     loading: false, // used in LoginForm, SignUpForm and SettingsForm
@@ -119,6 +120,7 @@ export const userStore = defineStore("user", {
               turntableTheme: data.settings.turntableTheme,
               turntablePitchRange: data.settings.turntablePitchRange,
               selectedCrate: "all",
+              keyFormat: "key",
             },
           }
           Object.assign(this.authd, registeringUser)

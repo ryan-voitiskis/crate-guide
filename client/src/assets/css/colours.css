@@ -22,6 +22,7 @@
   --input-text: hsl(207, 12%, 29%);
   --welcome-text: hsl(47, 23%, 61%);
   --privacy-policy: hsl(47, 12%, 66%);
+  --key-text: hsl(0, 0%, 28%); /* exclude from theming changes */
 
   /* feedback */
   --success: hsl(154, 100%, 38%);

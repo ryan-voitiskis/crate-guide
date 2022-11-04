@@ -51,6 +51,10 @@
         autocomplete="off"
         pattern="^(?:(?:([01]?\d|2[0-3]):)?([0-5]?\d):)?([0-5]?\d)$"
       />
+      <div class="spotify-analysed" v-if="track.audioFeatures?.tempo">
+        Spotify analysed
+        <div class="spotify-bpm">{{ track.audioFeatures.tempo }}</div>
+      </div>
       <BasicInput
         v-model="form.bpm"
         id="bpm"
@@ -68,6 +72,16 @@
         type="text"
         placeholder="Genre (recommended)"
         autocomplete="off"
+      />
+      <div class="spotify-analysed" v-if="spotifyKeyString">
+        Spotify analysed
+        <div class="spotify-key">{{ spotifyKeyString }}</div>
+      </div>
+      <SelectInput
+        v-model="form.key"
+        id="key"
+        label="Key"
+        :options="keyOptions"
       />
       <fieldset class="radio">
         <RadioInput v-model="form.rpm" name="rpm" id="33" label="33 rpm" />
@@ -96,22 +110,59 @@ import { reactive, onBeforeUnmount, watch } from "vue"
 import { recordStore } from "@/stores/recordStore"
 import { spotifyStore } from "@/stores/spotifyStore"
 import { trackStore } from "@/stores/trackStore"
+import { userStore } from "@/stores/userStore"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import RadioInput from "@/components/inputs/RadioInput.vue"
+import getBPMColour from "@/utils/getBPMColour"
 import XIcon from "@/components/icons/XIcon.vue"
 import Track from "@/interfaces/Track"
 import MatchedTrack from "@/interfaces/MatchedTrack"
+import SelectInput from "../inputs/SelectInput.vue"
+import {
+  pitchClassMap,
+  getKeyString,
+  getCamelotString,
+  getKeyColour,
+} from "@/utils/pitchClassMap"
 
 const records = recordStore()
 const spotify = spotifyStore()
 const tracks = trackStore()
-
+const user = userStore()
 const track = records.getTrackById(tracks.toEdit)
 const record = records.getRecordByTrackId(track._id)
-
 const noChangeMsg = "Track has not been edited."
+
+const keyOptionsMajor = pitchClassMap.map((i) => {
+  return { id: `1${i.pitchClass.toString()}`, name: `${i.tone} Major` }
+})
+
+const keyOptionsMinor = pitchClassMap.map((i) => {
+  return { id: `0${i.pitchClass.toString()}`, name: `${i.tone} Minor` }
+})
+
+const keyOptions = keyOptionsMajor.concat(keyOptionsMinor)
+
+let spotifyKeyString = ""
+if (track.audioFeatures) {
+  if (track.audioFeatures.key === -1) spotifyKeyString = "No key detected"
+  else
+    spotifyKeyString =
+      user.authd.settings.keyFormat === "key"
+        ? getKeyString(track.audioFeatures.key, track.audioFeatures.mode)
+        : getCamelotString(track.audioFeatures.key, track.audioFeatures.mode)
+}
+
+const spotifyKeyColour =
+  track.audioFeatures && track.audioFeatures.key !== -1
+    ? getKeyColour(track.audioFeatures.key, track.audioFeatures.mode)
+    : "#ddd"
+
+const bpmColour = track.audioFeatures?.tempo
+  ? getBPMColour(track.audioFeatures.tempo)
+  : null
 
 const form = reactive({
   spotifyID: track.spotifyID,
@@ -122,6 +173,7 @@ const form = reactive({
   bpm: track.bpm,
   rpm: track.rpm.toString(),
   genre: track.genre,
+  key: `${track.mode}${track.key}`,
   playable: track.playable,
 })
 
@@ -138,6 +190,7 @@ const submit = async () => {
     form.bpm === track.bpm &&
     parseInt(form.rpm) === track.rpm &&
     form.genre?.trim() === track.genre &&
+    form.key === `${track.mode}${track.key}` &&
     form.playable === track.playable
   )
     tracks.errorMsg = noChangeMsg
@@ -150,6 +203,8 @@ const submit = async () => {
       duration: form.duration?.trim(),
       bpm: form.bpm,
       rpm: parseInt(form.rpm),
+      key: parseInt(form.key.slice(1, 3)),
+      mode: parseInt(form.key.slice(0, 1)),
       genre: form.genre?.trim(),
       playable: form.playable,
     }
@@ -186,5 +241,25 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 hr {
   grid-column: 1 / 3;
+}
+
+.spotify-analysed {
+  font-weight: 500;
+  grid-column: 1/3;
+  display: flex;
+  width: 100%;
+  justify-content: end;
+  .spotify-bpm {
+    margin-left: 1rem;
+    color: v-bind(bpmColour);
+  }
+  .spotify-key {
+    font-weight: 500;
+    margin-left: 1rem;
+    padding: 0 1rem;
+    border-radius: 0.6rem;
+    background-color: v-bind(spotifyKeyColour);
+    color: var(--key-text);
+  }
 }
 </style>

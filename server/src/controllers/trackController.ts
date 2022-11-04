@@ -53,6 +53,8 @@ const updateTrack = asyncHandler(async (req, res) => {
         "tracks.$.duration": track.duration,
         "tracks.$.bpm": track.bpm,
         "tracks.$.rpm": track.rpm,
+        "tracks.$.key": track.key,
+        "tracks.$.mode": track.mode,
         "tracks.$.genre": track.genre,
         "tracks.$.playable": track.playable,
       },

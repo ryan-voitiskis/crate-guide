@@ -12,5 +12,6 @@ export default interface User {
     turntableTheme: string
     turntablePitchRange: string
     selectedCrate: string
+    keyFormat: string
   }
 }
