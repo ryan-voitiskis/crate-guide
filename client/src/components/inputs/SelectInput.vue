@@ -7,7 +7,6 @@
     @input="$emit('update:modelValue', handleInputChange($event))"
     v-focus
   >
-    <option value="">---</option>
     <option v-for="option in options" :key="option.id" :value="option.id">
       {{ option.name }}
     </option>
@@ -16,11 +15,7 @@
 
 <script setup lang="ts">
 import { defineProps } from "vue"
-
-interface option {
-  id: string
-  name: string
-}
+import SelectOption from "@/interfaces/SelectOption"
 
 const props = defineProps<{
   label?: string
@@ -28,7 +23,7 @@ const props = defineProps<{
   placeholder?: string
   modelValue?: string | number
   focused?: boolean
-  options: option[]
+  options: SelectOption[]
 }>()
 
 // custom directive to focus input el if focused prop. used to focus first input.
@@ -42,4 +37,8 @@ const handleInputChange = (event: Event) =>
   (event.target as HTMLInputElement).value
 </script>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+label {
+  margin-right: 1rem;
+}
+</style>

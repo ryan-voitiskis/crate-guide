@@ -10,17 +10,12 @@
       >Select the crate to add {{ recordNames.join(", ") }} to.</span
     >
     <div class="modal-body inline-labels">
-      <label for="crate_select">Select crate </label>
-      <select v-model="form.crate" id="crate_select">
-        <option value="">---</option>
-        <option
-          v-for="crate in selectCrates"
-          :key="crate._id"
-          :value="crate._id"
-        >
-          {{ crate.name }}
-        </option>
-      </select>
+      <SelectInput
+        v-model="form.crate"
+        id="crate_select"
+        label="Select crate"
+        :options="options"
+      />
       <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
     </div>
     <div class="modal-footer">
@@ -43,6 +38,7 @@ import XIcon from "@/components/icons/XIcon.vue"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
+import SelectInput from "../inputs/SelectInput.vue"
 const user = userStore()
 const crates = crateStore()
 const records = recordStore()
@@ -58,6 +54,8 @@ const selectCrates =
     : crates.crateList.filter(
         (i) => i._id !== user.authd.settings.selectedCrate
       )
+
+const options = selectCrates.map((i) => ({ id: i._id, name: i.name }))
 
 // array of either catno if available or title of records to be deleted
 const recordNames = records.toDelete.map((i) => records.getNameById(i))

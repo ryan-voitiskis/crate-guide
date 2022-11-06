@@ -49,18 +49,12 @@
         />
       </fieldset>
 
-      <label for="turntable_pitch"
-        >Turntable pitch range
-        <select
-          v-model="user.authd.settings.turntablePitchRange"
-          id="turntable_pitch"
-        >
-          <option value="8">±8%</option>
-          <option value="16">±16%</option>
-          <option value="24">±24%</option>
-          <option value="50">±50%</option>
-        </select>
-      </label>
+      <SelectInput
+        v-model="user.authd.settings.turntablePitchRange"
+        id="turntable_pitch"
+        label="Select crate"
+        :options="turntablePitchOptions"
+      />
 
       <fieldset class="radio">
         <legend>Key format</legend>
@@ -122,12 +116,20 @@ import { spotifyStore } from "@/stores/spotifyStore"
 import { userStore } from "@/stores/userStore"
 import DiscogsControls from "../discogs/DiscogsControls.vue"
 import RadioInput from "../inputs/RadioInput.vue"
+import SelectInput from "../inputs/SelectInput.vue"
 const discogs = discogsStore()
 const spotify = spotifyStore()
 const user = userStore()
 
 // ! breaks when called directly from <form v-on="">. cpu spike + browser non-responsive
 const updateSettings = () => user.updateSettings()
+
+const turntablePitchOptions = [
+  { id: "8", name: "±8%" },
+  { id: "16", name: "±16%" },
+  { id: "24", name: "±24%" },
+  { id: "50", name: "±50%" },
+]
 
 // required for when settings changed elsewhere, such as selected crate
 onBeforeMount(() => {
