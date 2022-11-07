@@ -1,7 +1,7 @@
 <template>
   <div class="track-match-select">
     <div class="existing-record">
-      <div class="cover" :style="backgroundImg"></div>
+      <div class="cover"></div>
       <div class="title">{{ track?.title }}</div>
       <span class="artists">
         <span class="by">by </span>
@@ -60,9 +60,7 @@ const slicedMatches = computed((): SpotifyTrackEdit[] =>
   [...props.options].slice(0, state.numberShown)
 )
 
-const backgroundImg = computed(() => {
-  return `background-image: url("${record.cover}");`
-})
+const coverImg = `url("${record.cover}")`
 </script>
 
 <style scoped lang="scss">
@@ -82,6 +80,7 @@ const backgroundImg = computed(() => {
     column-gap: 1rem;
     .cover {
       background-color: hsl(40, 13%, 82%);
+      background-image: v-bind(coverImg);
       grid-area: 1 / 1 / 5 / 2;
       overflow: hidden;
       z-index: 0;

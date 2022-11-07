@@ -1,4 +1,4 @@
-import Track from "@/interfaces/Track"
+import { Track } from "@/interfaces/Track"
 
 export default interface Record {
   _id: string

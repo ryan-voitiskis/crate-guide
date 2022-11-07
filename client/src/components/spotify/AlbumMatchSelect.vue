@@ -1,7 +1,7 @@
 <template>
   <div class="album-match-select">
     <div class="existing-record">
-      <div class="cover" :style="backgroundImg"></div>
+      <div class="cover"></div>
       <h3 class="title">{{ record.title }}</h3>
       <div class="label">
         <span class="catno">{{ record.catno }}</span> {{ record.label }}
@@ -50,9 +50,7 @@ const slicedMatches = computed((): SpotifyAlbumEdit[] =>
   [...props.matches].slice(0, state.numberShown)
 )
 
-const backgroundImg = computed(() => {
-  return `background-image: url("${record.cover}");`
-})
+const coverImg = `url("${record.cover}")`
 </script>
 
 <style scoped lang="scss">
@@ -72,6 +70,7 @@ const backgroundImg = computed(() => {
     column-gap: 1rem;
     .cover {
       background-color: hsl(40, 13%, 82%);
+      background-image: v-bind(coverImg);
       grid-area: 1 / 1 / 5 / 2;
       overflow: hidden;
       z-index: 0;

@@ -74,10 +74,8 @@ export const userStore = defineStore("user", {
           const data = await response.json()
           Object.assign(this.authd, data)
           document.cookie = `crate_guide_jwt=${this.authd.token}; SameSite=Strict; Secure;`
-          const crates = crateStore()
-          const records = recordStore()
-          crates.fetchCrates()
-          records.fetchRecords()
+          crateStore().fetchCrates()
+          recordStore().fetchRecords()
           this.loading = false
           return response.status
 

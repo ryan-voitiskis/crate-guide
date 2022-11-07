@@ -106,11 +106,15 @@ export const crateStore = defineStore("crate", {
       this.errorMsg = ""
       const user = userStore()
       try {
-        const crate = this.getById(crateID) as Crate
+        const crate = this.getById(crateID)
         if (crate) {
           const intersection = crate.records.filter((i) => records.includes(i)) // records already in crate
           const difference = records.filter((i) => !crate.records.includes(i)) // records not yet in crate
           if (difference.length) {
+            // const response = await crateService.updateCrate(
+            //   structuredClone(crate),
+            //   user.authd.token
+            // )
             const response = await crateService.updateCrate(
               crate,
               user.authd.token

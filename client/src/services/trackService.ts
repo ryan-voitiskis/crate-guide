@@ -1,5 +1,5 @@
 import UnsavedTrack from "@/interfaces/UnsavedTrack"
-import Track from "@/interfaces/Track"
+import { Track } from "@/interfaces/Track"
 import globals from "@/globals"
 
 // add new track

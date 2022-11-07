@@ -1,6 +1,6 @@
 <template>
   <div class="track-match-option" :class="{ selected: selected }">
-    <div class="cover" :style="backgroundImg"></div>
+    <div class="cover"></div>
     <PlayOnSpotifyButton :href="external_url" />
     <span class="name">
       {{ name }}
@@ -35,9 +35,7 @@ const props = defineProps<{
   selected?: boolean
 }>()
 
-const backgroundImg = computed(() => {
-  return `background-image: url("${props.image}");`
-})
+const coverImg = `url("${props.image}")`
 </script>
 
 <style scoped lang="scss">
@@ -51,6 +49,7 @@ const backgroundImg = computed(() => {
   border: transparent 2px solid;
   .cover {
     background-color: hsl(40, 13%, 82%);
+    background-image: v-bind(coverImg);
     grid-area: 1 / 1 / 4 / 2;
     overflow: hidden;
     z-index: 0;

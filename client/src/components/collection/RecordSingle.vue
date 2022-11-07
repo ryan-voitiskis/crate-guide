@@ -1,6 +1,6 @@
 <template>
   <div class="record">
-    <div class="cover" :style="backgroundImg"></div>
+    <div class="cover"></div>
     <label class="checkbox-hitbox">
       <input type="checkbox" v-model="state.checked" />
     </label>
@@ -67,7 +67,7 @@ import { userStore } from "@/stores/userStore"
 import FolderDownIcon from "@/components/icons/FolderDownIcon.vue"
 import PencilIcon from "@/components/icons/PencilIcon.vue"
 import PlusCircleIcon from "@/components/icons/PlusCircleIcon.vue"
-import Track from "@/interfaces/Track"
+import { Track } from "@/interfaces/Track"
 import TrackSingle from "./TrackSingle.vue"
 import TrashIcon from "@/components/icons/TrashIcon.vue"
 import FolderMinusIcon from "@/components/icons/FolderMinusIcon.vue"
@@ -134,9 +134,7 @@ watch(
   }
 )
 
-const backgroundImg = computed(() => {
-  return `background-image: url("${props.cover}");`
-})
+const coverImg = `url("${props.cover}")`
 </script>
 
 <style scoped lang="scss">
@@ -148,6 +146,7 @@ const backgroundImg = computed(() => {
   width: 100%;
   .cover {
     background-color: hsl(40, 13%, 82%);
+    background-image: v-bind(coverImg);
     grid-area: 1 / 1 / 5 / 2;
     overflow: hidden;
     z-index: 0;

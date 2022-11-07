@@ -1,4 +1,4 @@
-export default interface Track {
+interface Track {
   _id: string
   spotifyID?: string
   title: string
@@ -27,3 +27,10 @@ export default interface Track {
     valence: number
   }
 }
+
+interface TrackOfRecord extends Track {
+  recordID: string
+  cover: string
+}
+
+export { Track, TrackOfRecord }

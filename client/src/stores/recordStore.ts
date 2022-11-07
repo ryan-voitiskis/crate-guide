@@ -1,9 +1,10 @@
 import { defineStore } from "pinia"
 import { crateStore } from "@/stores/crateStore"
+import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import Record from "@/interfaces/Record"
 import recordService from "@/services/recordService"
-import Track from "@/interfaces/Track"
+import { Track } from "@/interfaces/Track"
 import UnsavedRecord from "@/interfaces/UnsavedRecord"
 
 export const recordStore = defineStore("record", {
@@ -29,6 +30,7 @@ export const recordStore = defineStore("record", {
         if (response.status === 200) {
           const records = (await response.json()) as Record[]
           if (records !== null) this.recordList = records
+          trackStore().generateTrackLists()
 
           // handle errors
         } else if (response.status === 400) {
@@ -55,6 +57,7 @@ export const recordStore = defineStore("record", {
         if (response.status === 201) {
           const newRecord = (await response.json()) as Record
           this.recordList.push(newRecord)
+          trackStore().generateTrackLists()
           this.loading = false
           return response.status
 
@@ -89,6 +92,7 @@ export const recordStore = defineStore("record", {
           const updatedRecord = (await response.json()) as Record
           const existingRecord = this.getById(record._id) as Record
           Object.assign(existingRecord, updatedRecord)
+          trackStore().generateTrackLists()
           this.loading = false
           this.toEdit = ""
           return response.status
@@ -141,8 +145,9 @@ export const recordStore = defineStore("record", {
               this.fetchRecords()
               crates.fetchCrates()
             }
-            this.loading = false
             this.toDelete = []
+            trackStore().generateTrackLists()
+            this.loading = false
             return response.status
 
             // handle errors
@@ -164,6 +169,7 @@ export const recordStore = defineStore("record", {
       return null
     },
   },
+
   getters: {
     // gets a record by id. returns null if not found
     getById: (state) => {

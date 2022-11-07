@@ -1,6 +1,6 @@
 <template>
   <div class="record" :class="{ staged: !state.staged }">
-    <div class="cover" :style="backgroundImg"></div>
+    <div class="cover"></div>
     <h3 class="title">{{ title }}</h3>
     <div class="label">
       <span class="catno">{{ catno }}</span> {{ label }}
@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, reactive, computed } from "vue"
+import { defineProps, reactive } from "vue"
 import { discogsStore } from "@/stores/discogsStore"
 import TrashIcon from "@/components/icons/TrashIcon.vue"
 import PlusCircleIcon from "@/components/icons/PlusCircleIcon.vue"
@@ -49,9 +49,7 @@ const stage = () => {
   discogs.unstagedImports.splice(discogs.unstagedImports.indexOf(props.id), 1)
 }
 
-const backgroundImg = computed(() => {
-  return `background-image: url("${props.cover}");`
-})
+const coverImg = `url("${props.cover}")`
 </script>
 
 <style scoped lang="scss">
@@ -63,6 +61,7 @@ const backgroundImg = computed(() => {
   width: 100%;
   .cover {
     grid-area: 1 / 1 / 5 / 2;
+    background-image: v-bind(coverImg);
     overflow: hidden;
     z-index: 0;
     background-repeat: no-repeat;

@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject } from "vue"
+import { computed, inject, onUnmounted } from "vue"
 import { spotifyStore } from "@/stores/spotifyStore"
 import XIcon from "@/components/icons/XIcon.vue"
 import LoaderCentered from "@/components/utils/LoaderCentered.vue"
@@ -30,6 +30,8 @@ const appName = inject("appName")
 const spotify = spotifyStore()
 
 const progress = computed(() => `${(spotify.importProgress * 100).toFixed(0)}%`)
+
+onUnmounted(() => (spotify.errorMsg = ""))
 </script>
 
 <style scoped lang="scss">

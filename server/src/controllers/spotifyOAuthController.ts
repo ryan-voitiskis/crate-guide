@@ -87,7 +87,9 @@ const revokeAuthorisation = asyncHandler(async (req, res) => {
   res.status(200).json()
 })
 
+// * has side effects on user
 async function refreshToken(user: IUser) {
+  console.log("refreshToken ran")
   const basic = Buffer.from(`${clientID}:${clientSecret}`).toString("base64")
   const body = new URLSearchParams()
   body.append("grant_type", "refresh_token")
@@ -118,8 +120,16 @@ async function refreshToken(user: IUser) {
             spotifyTokenTimestamp: Date.now(),
             spotifyTokenExpiresIn: refreshTokenResponse.expires_in,
           }
-      await User.findByIdAndUpdate(user._id, update)
-      return true
+      const newUser = await User.findByIdAndUpdate(user._id, update, {
+        new: true,
+      })
+      if (newUser) {
+        console.log("new user")
+        console.log(user.spotifyToken.slice(0, 12))
+        user = newUser
+        console.log(user.spotifyToken.slice(0, 12))
+        return true
+      }
     }
   }
   return false
@@ -135,12 +145,15 @@ async function spotifyRequest(url: string, user: IUser): Promise<{}> {
     },
   }
   const response = (await fetch(url, options)) as Response
-  console.log(response.status)
+  console.log(response.status + " RES made with: " + user.spotifyToken)
 
   if (response.status === 200) return await response.json()
   else if (response.status === 401) {
-    if (await refreshToken(user)) spotifyRequest(url, user)
-    else throw new Error("Bad token. Please re-authenticate Spotify.")
+    if (await refreshToken(user)) {
+      const newUser = await User.findById(user._id)
+      if (newUser) user = newUser
+      spotifyRequest(url, user)
+    } else throw new Error("Bad token. Please re-authenticate Spotify.")
   } else if (response.status === 403) {
     const error = await response.json()
     const errorMsg = error.message ? error.message : "Bad OAuth request"
@@ -155,21 +168,13 @@ async function spotifyRequest(url: string, user: IUser): Promise<{}> {
 }
 
 // checks spotifyToken doesn't expire for atleast 15 minutes, if it does, refresh token
-// * has side effects on user
 async function checkRefreshToken(user: IUser): Promise<void> {
-  console.log("refresh token ran")
-
   if (
     user.spotifyTokenExpiresIn * 1000 -
       (Date.now() - user.spotifyTokenTimestamp) <
     900000
-  ) {
-    console.log(user)
-
+  )
     await refreshToken(user)
-    user = (await User.findById(user._id)) as IUser
-    console.log(user)
-  }
 }
 
 export {

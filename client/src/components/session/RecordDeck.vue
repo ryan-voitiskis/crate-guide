@@ -3,6 +3,9 @@
     <div class="deck-wrapper-inner">
       <div class="deck">
         <StartStopButton @stopStart="stopStart" />
+        <button class="load-track" @click="tracks.loadTrackTo = deckID">
+          Load track
+        </button>
         <RpmSwitch
           :speed="33"
           :isActive="state.rpm == 33"
@@ -37,7 +40,9 @@ import RpmSwitch from "./RpmSwitch.vue"
 import PitchFader from "./PitchFader.vue"
 import RecordIcon from "./RecordIcon.vue"
 import BPMTapper from "./BPMTapper.vue"
-import Track from "@/interfaces/Track"
+import { Track } from "@/interfaces/Track"
+import { trackStore } from "@/stores/trackStore"
+const tracks = trackStore()
 
 const props = defineProps<{
   deckID: number
