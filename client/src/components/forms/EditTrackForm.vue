@@ -120,12 +120,15 @@ import XIcon from "@/components/icons/XIcon.vue"
 import Track from "@/interfaces/Track"
 import MatchedTrack from "@/interfaces/MatchedTrack"
 import SelectInput from "../inputs/SelectInput.vue"
+import sortBy from "lodash.sortby"
 import {
   pitchClassMap,
   getKeyString,
   getCamelotString,
   getKeyColour,
+  key,
 } from "@/utils/pitchClassMap"
+import option from "@/interfaces/SelectOption"
 
 const records = recordStore()
 const spotify = spotifyStore()
@@ -135,15 +138,35 @@ const track = records.getTrackById(tracks.toEdit)
 const record = records.getRecordByTrackId(track._id)
 const noChangeMsg = "Track has not been edited."
 
-const keyOptionsMajor = pitchClassMap.map((i) => {
-  return { id: `1${i.pitchClass.toString()}`, name: `${i.tone} Major` }
-})
+function keyOptionsMapFn(mode: number) {
+  return (i: key) => ({
+    id: `${mode.toString()}${i.pitchClass.toString()}`,
+    name: `${i.tone} ${mode === 1 ? "Major" : "Minor"}`,
+  })
+}
 
-const keyOptionsMinor = pitchClassMap.map((i) => {
-  return { id: `0${i.pitchClass.toString()}`, name: `${i.tone} Minor` }
-})
+function camelotOptionsMapFn(mode: number) {
+  return (i: key): option => ({
+    id: `${mode.toString()}${i.pitchClass.toString()}`,
+    name: mode === 1 ? `${i.camelotMajor}B` : `${i.camelotMinor}A`,
+  })
+}
 
-const keyOptions = keyOptionsMajor.concat(keyOptionsMinor)
+let keyOptionsMajor: option[] = []
+let keyOptionsMinor: option[] = []
+if (user.authd.settings.keyFormat === "key") {
+  keyOptionsMajor = pitchClassMap.map(keyOptionsMapFn(1))
+  keyOptionsMinor = pitchClassMap.map(keyOptionsMapFn(0))
+} else {
+  keyOptionsMajor = sortBy(pitchClassMap, ["camelotMajor"]).map(
+    camelotOptionsMapFn(1)
+  )
+  keyOptionsMinor = sortBy(pitchClassMap, ["camelotMinor"]).map(
+    camelotOptionsMapFn(0)
+  )
+}
+const keyOptions = keyOptionsMinor.concat(keyOptionsMajor)
+keyOptions.unshift({ id: "", name: "---" })
 
 let spotifyKeyString = ""
 if (track.audioFeatures) {
@@ -173,7 +196,7 @@ const form = reactive({
   bpm: track.bpm,
   rpm: track.rpm.toString(),
   genre: track.genre,
-  key: `${track.mode}${track.key}`,
+  key: track.mode && track.key ? `${track.mode}${track.key}` : "",
   playable: track.playable,
 })
 

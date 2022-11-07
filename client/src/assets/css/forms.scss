@@ -209,7 +209,7 @@ input:-webkit-autofill {
 // converted to base64 as per https://stackoverflow.com/questions/10768451/inline-svg-in-css
 select {
   background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyMCAyMCc+PHBhdGggZmlsbD0nIzg4OCcgZD0nTTkuMjkzIDEyLjk1bC43MDcuNzA3TDE1LjY1NyA4bC0xLjQxNC0xLjQxNEwxMCAxMC44MjggNS43NTcgNi41ODYgNC4zNDMgOHonLz48L3N2Zz4=")
-    100% / 20px no-repeat #eee !important;
+    100% / 20px no-repeat var(--input-bg) !important;
   padding-right: 36px;
   border: 1px solid --input-border;
   -webkit-appearance: none;

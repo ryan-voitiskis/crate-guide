@@ -135,6 +135,8 @@ async function spotifyRequest(url: string, user: IUser): Promise<{}> {
     },
   }
   const response = (await fetch(url, options)) as Response
+  console.log(response.status)
+
   if (response.status === 200) return await response.json()
   else if (response.status === 401) {
     if (await refreshToken(user)) spotifyRequest(url, user)
@@ -155,13 +157,18 @@ async function spotifyRequest(url: string, user: IUser): Promise<{}> {
 // checks spotifyToken doesn't expire for atleast 15 minutes, if it does, refresh token
 // * has side effects on user
 async function checkRefreshToken(user: IUser): Promise<void> {
+  console.log("refresh token ran")
+
   if (
     user.spotifyTokenExpiresIn * 1000 -
       (Date.now() - user.spotifyTokenTimestamp) <
     900000
   ) {
+    console.log(user)
+
     await refreshToken(user)
     user = (await User.findById(user._id)) as IUser
+    console.log(user)
   }
 }
 
