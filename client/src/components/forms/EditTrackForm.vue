@@ -168,15 +168,13 @@ if (user.authd.settings.keyFormat === "key") {
 const keyOptions = keyOptionsMinor.concat(keyOptionsMajor)
 keyOptions.unshift({ id: "", name: "---" })
 
-let spotifyKeyString = ""
-if (track.audioFeatures) {
-  if (track.audioFeatures.key === -1) spotifyKeyString = "No key detected"
-  else
-    spotifyKeyString =
-      user.authd.settings.keyFormat === "key"
-        ? getKeyString(track.audioFeatures.key, track.audioFeatures.mode)
-        : getCamelotString(track.audioFeatures.key, track.audioFeatures.mode)
-}
+const spotifyKeyString = track.audioFeatures
+  ? track.audioFeatures.key !== -1
+    ? user.authd.settings.keyFormat === "key"
+      ? getKeyString(track.audioFeatures.key, track.audioFeatures.mode)
+      : getCamelotString(track.audioFeatures.key, track.audioFeatures.mode)
+    : "No key detected"
+  : ""
 
 const spotifyKeyColour =
   track.audioFeatures && track.audioFeatures.key !== -1
@@ -185,7 +183,7 @@ const spotifyKeyColour =
 
 const bpmColour = track.audioFeatures?.tempo
   ? getBPMColour(track.audioFeatures.tempo)
-  : null
+  : ""
 
 const form = reactive({
   spotifyID: track.spotifyID,

@@ -31,6 +31,11 @@ interface Track {
 interface TrackOfRecord extends Track {
   recordID: string
   cover: string
+  label: string
+  year: number
+  catno: string
+  bpmFinal?: number
+  artistsFinal?: string
 }
 
 export { Track, TrackOfRecord }

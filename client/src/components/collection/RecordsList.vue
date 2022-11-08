@@ -5,6 +5,7 @@
       <input type="checkbox" v-model="records.checkAll" />
     </label>
     <SortByButton
+      class="sort-by-button"
       title="Title"
       :active="state.sortBy === 'title'"
       :reversed="state.titleRvrs"
@@ -12,6 +13,7 @@
       @reverse="state.titleRvrs = !state.titleRvrs"
     />
     <SortByButton
+      class="sort-by-button"
       title="Catalog No."
       :active="state.sortBy === 'catno'"
       :reversed="state.catnoRvrs"
@@ -19,6 +21,7 @@
       @reverse="state.catnoRvrs = !state.catnoRvrs"
     />
     <SortByButton
+      class="sort-by-button"
       title="Artists"
       :active="state.sortBy === 'artists'"
       :reversed="state.artistsRvrs"
@@ -26,6 +29,7 @@
       @reverse="state.artistsRvrs = !state.artistsRvrs"
     />
     <SortByButton
+      class="sort-by-button"
       title="Label"
       :active="state.sortBy === 'label'"
       :reversed="state.labelRvrs"
@@ -33,6 +37,7 @@
       @reverse="state.labelRvrs = !state.labelRvrs"
     />
     <SortByButton
+      class="sort-by-button"
       title="Year"
       :active="state.sortBy === 'year'"
       :reversed="state.yearRvrs"
@@ -55,6 +60,8 @@ import BasicInput from "@/components/inputs/BasicInput.vue"
 import RecordSingle from "./RecordSingle.vue"
 import Record from "@/interfaces/Record"
 import SortByButton from "./SortByButton.vue"
+import { sortStr, sortNumWithNull } from "@/utils/sortFunctions"
+import localeContains from "@/utils/localeContains"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
@@ -72,45 +79,6 @@ const state = reactive({
   labelRvrs: false,
   yearRvrs: false,
 })
-
-// modified from https://stackoverflow.com/a/69623589/7259172
-const localeContains = (x: string, y: string) => {
-  if (!y || !x.length) return false
-  y = "" + y
-  if (y.length > x.length) return false
-  let ascii = (s: string) =>
-    s
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-  return ascii(x).includes(ascii(y))
-}
-
-// sort function for Records by string type fields. sorts "" last
-const sortStr = (field: keyof Record, reverse: boolean) => {
-  // ! could not get param type to be ': Record' without error
-  return (a: any, b: any) =>
-    a[field] !== "" && b[field] !== ""
-      ? (reverse ? -1 : 1) *
-        a[field].localeCompare(b[field], undefined, { sensitivity: "base" }) // both a + b defined
-      : a[field] !== "" && b[field] === ""
-      ? -1 // a is defined, b is empty: sort a before b
-      : a[field] === "" && b[field] !== ""
-      ? 1 // a is empty, b is defined: sort b before a
-      : 0 // both a + b are empty: keep original order
-}
-
-// sort function for Records by number type fields. sorts null last
-const sortNum = (field: keyof Record, reverse: boolean) => {
-  return (a: Record, b: Record) =>
-    a[field] !== null && b[field] !== null
-      ? (reverse ? -1 : 1) * ((a[field] as number) - (b[field] as number)) // both a + b defined: sort lowest before highest, unless reversed
-      : a[field] !== null && b[field] === null
-      ? -1 // a is defined, b is null: sort a before b
-      : a[field] === null && b[field] !== null
-      ? 1 // a is null, b is defined: sort b before a
-      : 0 // both a + b null: keep original order
-}
 
 // records from selected crate to display
 const recordsByCrate = computed((): Record[] =>
@@ -155,7 +123,9 @@ const sortedRecords = computed((): Record[] => {
     case "label":
       return [...searchedRecords.value].sort(sortStr("label", state.labelRvrs))
     case "year":
-      return [...searchedRecords.value].sort(sortNum("year", state.yearRvrs))
+      return [...searchedRecords.value].sort(
+        sortNumWithNull("year", state.yearRvrs)
+      )
     default: // default is title
       return [...searchedRecords.value].sort(sortStr("title", state.titleRvrs))
   }
@@ -185,5 +155,9 @@ watch(
   flex-direction: column;
   gap: 1rem;
   width: 100%;
+}
+
+.sort-by-button {
+  width: 12rem;
 }
 </style>

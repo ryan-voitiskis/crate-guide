@@ -21,7 +21,6 @@ defineProps<{
 
 <style scoped lang="scss">
 button {
-  width: 12rem;
   svg {
     transition: transform 0.4s;
   }

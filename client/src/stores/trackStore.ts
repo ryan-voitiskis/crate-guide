@@ -138,7 +138,20 @@ export const trackStore = defineStore("track", {
 
     generateTrackLists(): void {
       this.trackList = recordStore().recordList.flatMap((i) =>
-        [...i.tracks].map((j) => ({ ...j, recordID: i._id, cover: i.cover }))
+        [...i.tracks].map((j) => ({
+          ...j,
+          recordID: i._id,
+          cover: i.cover,
+          label: i.label,
+          year: i.year,
+          catno: i.catno,
+          bpmFinal: j.bpm
+            ? j.bpm
+            : j.audioFeatures?.tempo
+            ? Math.round(j.audioFeatures.tempo)
+            : undefined,
+          artistsFinal: j.artists ? j.artists : i.artists,
+        }))
       )
       this.generateCrateTrackList()
     },

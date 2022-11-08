@@ -12,7 +12,7 @@
   <ModalBox
     v-if="tracks.loadTrackTo !== -1"
     @close="tracks.loadTrackTo = -1"
-    width="880px"
+    width="1200px"
   >
     <SelectTrack />
   </ModalBox>

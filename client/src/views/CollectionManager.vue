@@ -2,7 +2,7 @@
   <p v-if="!user.hasUser()">Sign in to create collections.</p>
   <DiscogsControls v-if="user.hasUser()" />
   <div class="controls-container" v-if="user.hasUser()">
-    <CrateSelect selectID="crate_select" />
+    <CrateSelect selectID="collection_crate_select" label="Select crate:" />
     <button
       class="icon-button"
       @click="state.duplicateCrate = true"

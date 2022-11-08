@@ -1,4 +1,5 @@
-import { defineStore } from "pinia"
+import { computed } from "vue"
+import { defineStore, storeToRefs } from "pinia"
 import { recordStore } from "@/stores/recordStore"
 import { userStore } from "@/stores/userStore"
 import Crate from "@/interfaces/Crate"
@@ -107,16 +108,14 @@ export const crateStore = defineStore("crate", {
       const user = userStore()
       try {
         const crate = this.getById(crateID)
+        const clonedCrate = JSON.parse(JSON.stringify(crate))
         if (crate) {
           const intersection = crate.records.filter((i) => records.includes(i)) // records already in crate
           const difference = records.filter((i) => !crate.records.includes(i)) // records not yet in crate
+          clonedCrate.records = clonedCrate.records.concat(difference)
           if (difference.length) {
-            // const response = await crateService.updateCrate(
-            //   structuredClone(crate),
-            //   user.authd.token
-            // )
             const response = await crateService.updateCrate(
-              crate,
+              clonedCrate,
               user.authd.token
             )
 
