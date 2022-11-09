@@ -12,7 +12,8 @@
   <ModalBox
     v-if="tracks.loadTrackTo !== -1"
     @close="tracks.loadTrackTo = -1"
-    width="1200px"
+    width="1280px"
+    :fullHeight="true"
   >
     <SelectTrack />
   </ModalBox>
@@ -20,7 +21,7 @@
 
 <script setup lang="ts">
 import { trackStore } from "@/stores/trackStore"
-import ModalBox from "@/components/utils/ModalBox.vue"
+import ModalBox from "@/components/utility/ModalBox.vue"
 import RecordDeck from "@/components/session/RecordDeck.vue"
 import SelectTrack from "@/components/session/SelectTrack.vue"
 import SuggestionList from "@/components/session/SuggestionList.vue"

@@ -112,6 +112,12 @@ const getCamelotMajor = (pitchClass: number): number =>
 const getCamelotMinor = (pitchClass: number): number =>
   pitchClassMap.find((i) => i.pitchClass === pitchClass)!.camelotMinor
 
+const getMajorColour = (pitchClass: number): string =>
+  pitchClassMap.find((i) => i.pitchClass === pitchClass)!.majorColour
+
+const getMinorColour = (pitchClass: number): string =>
+  pitchClassMap.find((i) => i.pitchClass === pitchClass)!.minorColour
+
 const getKeyString = (pitchClass: number, mode: number): string =>
   `${pitchClassMap.find((i) => i.pitchClass === pitchClass)?.tone} ${
     mode === 0 ? `Minor` : `Major`
@@ -128,11 +134,7 @@ const getCamelotString = (pitchClass: number, mode: number): string =>
     : `${getCamelotMajor(pitchClass)?.toString()}${mode === 0 ? `A` : `B`}`
 
 const getKeyColour = (pitchClass: number, mode: number): string =>
-  mode === 0
-    ? pitchClassMap.find((i) => i.pitchClass === pitchClass)?.minorColour ||
-      "#ddd"
-    : pitchClassMap.find((i) => i.pitchClass === pitchClass)?.majorColour ||
-      "#ddd"
+  mode === 0 ? getMinorColour(pitchClass) : getMajorColour(pitchClass)
 
 const getSortableNotation = (pitchClass: number, mode: number): number =>
   mode === 1 ? getCamelotMajor(pitchClass) : getCamelotMinor(pitchClass) + 100
@@ -140,8 +142,6 @@ const getSortableNotation = (pitchClass: number, mode: number): number =>
 export {
   key,
   pitchClassMap,
-  getCamelotMajor,
-  getCamelotMinor,
   getKeyString,
   getKeyStringShort,
   getCamelotString,

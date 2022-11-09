@@ -1,6 +1,6 @@
 <template>
   <div class="modal-backdrop" @click.self="$emit('close')">
-    <div class="modal">
+    <div class="modal" :class="{ full: fullHeight, dynamic: !fullHeight }">
       <slot />
     </div>
   </div>
@@ -11,11 +11,13 @@ import { withDefaults, defineProps, onMounted, onBeforeUnmount } from "vue"
 
 export interface Props {
   width?: string
+  fullHeight?: boolean
 }
 
 withDefaults(defineProps<Props>(), {
   title: "",
   width: "440px",
+  fullHeight: false,
 })
 
 // prevent scrolling of body when modal shown
@@ -43,7 +45,12 @@ onBeforeUnmount(() => (document.body.style.overflow = "visible"))
     flex-direction: column;
     width: v-bind(width);
     margin: 1rem;
-    max-height: calc(100% - 2rem);
+    &.dynamic {
+      max-height: calc(100% - 2rem);
+    }
+    &.full {
+      height: calc(100% - 2rem);
+    }
   }
 }
 
@@ -70,12 +77,16 @@ onBeforeUnmount(() => (document.body.style.overflow = "visible"))
 .modal-body {
   padding: 0 4rem;
   margin-bottom: 4rem;
-  max-height: 60%;
+  // max-height: 60%;
   overflow-y: scroll;
   overflow-x: hidden;
   p {
     color: var(--dark-text);
   }
+}
+
+.modal-body-sticky-header {
+  padding: 0 4rem;
 }
 
 // for more complex forms with multiple control buttons

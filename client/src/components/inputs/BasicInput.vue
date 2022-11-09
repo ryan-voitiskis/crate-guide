@@ -19,6 +19,7 @@ const props = defineProps<{
   placeholder?: string
   modelValue?: string | number
   focused?: boolean
+  width?: string
 }>()
 
 // custom directive to focus input el if focused prop. used to focus first input.
@@ -32,4 +33,8 @@ const handleInputChange = (event: Event) =>
   (event.target as HTMLInputElement).value
 </script>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+input {
+  width: v-bind(width);
+}
+</style>

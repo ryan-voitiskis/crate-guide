@@ -131,7 +131,7 @@ import AuthoriseDiscogsSuccessful from "@/components/discogs/AuthoriseDiscogsSuc
 import CogIcon from "@/components/icons/CogIcon.vue"
 import DiscogsImportProgress from "@/components/discogs/DiscogsImportProgress.vue"
 import LoginForm from "@/components/forms/LoginForm.vue"
-import ModalBox from "@/components/utils/ModalBox.vue"
+import ModalBox from "@/components/utility/ModalBox.vue"
 import RecoveryForm from "@/components/forms/RecoveryForm.vue"
 import ConfirmRevokeDiscogs from "@/components/discogs/ConfirmRevokeDiscogs.vue"
 import SelectDiscogsFolder from "@/components/discogs/SelectDiscogsFolderForm.vue"

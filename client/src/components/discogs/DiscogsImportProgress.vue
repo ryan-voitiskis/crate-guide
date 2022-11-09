@@ -27,7 +27,7 @@
 import { computed, inject } from "vue"
 import { discogsStore } from "@/stores/discogsStore"
 import XIcon from "@/components/icons/XIcon.vue"
-import LoaderCentered from "@/components/utils/LoaderCentered.vue"
+import LoaderCentered from "@/components/utility/LoaderCentered.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 
 const appName = inject("appName")

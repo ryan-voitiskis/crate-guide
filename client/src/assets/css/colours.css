@@ -60,6 +60,7 @@
   --bpm-tap-btn: radial-gradient( circle farthest-corner at 10% 20%,  rgba(255,214,171,1) 0%, rgba(255,182,182,1) 90% );
   --bpm-last-saved-label: hsl(0, 0%, 39%);
   --bpm-tap-label: #ff605f;
+  --play-button: hsl(146, 73%, 49%);
 
   /* records */
   --record-bg: linear-gradient(to right, hsl(10, 24%, 96%), hsl(35, 24%, 96%));

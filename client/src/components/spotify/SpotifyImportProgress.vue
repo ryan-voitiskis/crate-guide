@@ -23,7 +23,7 @@
 import { computed, inject, onUnmounted } from "vue"
 import { spotifyStore } from "@/stores/spotifyStore"
 import XIcon from "@/components/icons/XIcon.vue"
-import LoaderCentered from "@/components/utils/LoaderCentered.vue"
+import LoaderCentered from "@/components/utility/LoaderCentered.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 
 const appName = inject("appName")

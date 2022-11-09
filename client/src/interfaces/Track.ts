@@ -35,7 +35,7 @@ interface TrackOfRecord extends Track {
   year: number
   catno: string
   bpmFinal?: number
-  artistsFinal?: string
+  artistsFinal: string
 }
 
 export { Track, TrackOfRecord }

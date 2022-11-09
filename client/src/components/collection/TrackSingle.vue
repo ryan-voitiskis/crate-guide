@@ -34,6 +34,7 @@ import PencilIcon from "@/components/icons/PencilIcon.vue"
 import TrashIcon from "@/components/icons/TrashIcon.vue"
 import getBPMColour from "@/utils/getBPMColour"
 import SpotifyLogo from "@/components/icons/SpotifyLogo.vue"
+import getPositionColour from "@/utils/positionColours"
 const tracks = trackStore()
 
 const props = defineProps<{
@@ -65,52 +66,12 @@ const spotifyLink = props.spotifyID
   ? `https://open.spotify.com/track/${props.spotifyID}`
   : ``
 
-const positionColours = [
-  ["A", "hsl(342, 60%, 60%)"],
-  ["B", "hsl(210, 60%, 55%)"],
-  ["C", "hsl(157, 40%, 55%)"],
-  ["D", "hsl(30, 71%, 65%)"],
-  ["E", "hsl(89, 60%, 50%)"],
-  ["F", "hsl(259, 60%, 66%)"],
-  ["G", "hsl(55, 44%, 50%)"],
-  ["H", "hsl(108, 44%, 50%)"],
-  ["I", "hsl(342, 60%, 60%)"],
-  ["J", "hsl(210, 60%, 55%)"],
-  ["K", "hsl(157, 40%, 55%)"],
-  ["L", "hsl(30, 71%, 65%)"],
-  ["M", "hsl(89, 60%, 50%)"],
-  ["N", "hsl(259, 60%, 66%)"],
-  ["O", "hsl(55, 44%, 50%)"],
-  ["P", "hsl(108, 44%, 50%)"],
-  ["Q", "hsl(342, 60%, 60%)"],
-  ["R", "hsl(210, 60%, 55%)"],
-  ["S", "hsl(157, 40%, 55%)"],
-  ["T", "hsl(30, 71%, 65%)"],
-  ["U", "hsl(89, 60%, 50%)"],
-  ["V", "hsl(259, 60%, 66%)"],
-  ["W", "hsl(55, 44%, 50%)"],
-  ["X", "hsl(108, 44%, 50%)"],
-  ["Y", "hsl(342, 60%, 60%)"],
-  ["Z", "hsl(210, 60%, 55%)"],
-]
+// computed because is reactive (track edit changes position)
+const positionColour = computed(() =>
+  props.position ? getPositionColour(props.position) : "hsl(0, 0%, 68%)"
+)
 
-// returns text colour for position
-// * computed because is reactive (eg. track edit changes position)
-const positionColour = computed(() => {
-  if (props.position) {
-    for (let i = 0; i < positionColours.length; i++) {
-      if (
-        props.position.charAt(0).localeCompare(positionColours[i][0], "en", {
-          sensitivity: "base",
-        }) === 0
-      )
-        return positionColours[i][1]
-    }
-  }
-  return "hsl(0, 0%, 68%)"
-})
-
-// * computed because is reactive (eg. track edit changes bpm)
+// computed because is reactive (track edit changes bpm)
 const bpmColour = computed(() => (props.bpm ? getBPMColour(props.bpm) : null))
 </script>
 

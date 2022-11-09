@@ -150,7 +150,7 @@ export const trackStore = defineStore("track", {
             : j.audioFeatures?.tempo
             ? Math.round(j.audioFeatures.tempo)
             : undefined,
-          artistsFinal: j.artists ? j.artists : i.artists,
+          artistsFinal: j.artists ? j.artists : i.artists ? i.artists : "",
         }))
       )
       this.generateCrateTrackList()

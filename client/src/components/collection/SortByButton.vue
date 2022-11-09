@@ -21,11 +21,14 @@ defineProps<{
 
 <style scoped lang="scss">
 button {
+  font-weight: 500;
+  color: var(--darker-text);
   svg {
     transition: transform 0.4s;
+    margin-right: 0;
   }
   &.active {
-    font-weight: 600;
+    color: var(--form-control-active);
   }
   &.reversed {
     svg {

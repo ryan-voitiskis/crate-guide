@@ -2,7 +2,11 @@
   <p v-if="!user.hasUser()">Sign in to create collections.</p>
   <DiscogsControls v-if="user.hasUser()" />
   <div class="controls-container" v-if="user.hasUser()">
-    <CrateSelect selectID="collection_crate_select" label="Select crate:" />
+    <CrateSelect
+      selectID="collection_crate_select"
+      label="Select crate"
+      width="240px"
+    />
     <button
       class="icon-button"
       @click="state.duplicateCrate = true"
@@ -169,7 +173,7 @@ import EditTrackForm from "@/components/forms/EditTrackForm.vue"
 import FolderDownIcon from "@/components/icons/FolderDownIcon.vue"
 import FolderMinusIcon from "@/components/icons/FolderMinusIcon.vue"
 import FolderPlusIcon from "@/components/icons/FolderPlusIcon.vue"
-import ModalBox from "@/components/utils/ModalBox.vue"
+import ModalBox from "@/components/utility/ModalBox.vue"
 import PlusCircleIcon from "@/components/icons/PlusCircleIcon.vue"
 import RecordsList from "@/components/collection/RecordsList.vue"
 import RemoveRecordForm from "@/components/forms/ConfirmRemoveRecord.vue"

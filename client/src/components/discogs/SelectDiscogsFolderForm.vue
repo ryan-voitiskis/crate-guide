@@ -48,7 +48,7 @@ import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import XIcon from "@/components/icons/XIcon.vue"
 import { discogsStore } from "@/stores/discogsStore"
-import LoaderCentered from "@/components/utils/LoaderCentered.vue"
+import LoaderCentered from "@/components/utility/LoaderCentered.vue"
 const discogs = discogsStore()
 
 const form = reactive({

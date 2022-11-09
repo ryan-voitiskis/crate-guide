@@ -46,42 +46,39 @@ const sortNumWithUndefined = (
       : 0 // both a + b null: keep original order
 }
 
-// custom key sort function. sorts null last
+// custom key sort function. sorts null/undefined last
 const sortKey = (reverse: boolean) => {
   return (a: Track, b: Track) => {
     const aKey = Number.isInteger(a.key)
       ? a.key
-      : Number.isInteger(a.audioFeatures?.key) && a.audioFeatures!.key !== -1
-      ? a.audioFeatures!.key
+      : a.audioFeatures && a.audioFeatures.key !== -1
+      ? a.audioFeatures.key
       : null
     const bKey = Number.isInteger(b.key)
       ? b.key
-      : Number.isInteger(b.audioFeatures?.key) && b.audioFeatures!.key !== -1
-      ? b.audioFeatures!.key
+      : b.audioFeatures && b.audioFeatures.key !== -1
+      ? b.audioFeatures.key
       : null
     const aMode = Number.isInteger(a.mode)
       ? a.mode
-      : a.audioFeatures?.mode !== undefined
+      : a.audioFeatures
       ? a.audioFeatures.mode
       : null
     const bMode = Number.isInteger(b.mode)
       ? b.mode
-      : b.audioFeatures?.mode !== undefined
+      : b.audioFeatures
       ? b.audioFeatures.mode
       : null
     const aSortable =
-      aKey && typeof aMode === "number"
+      typeof aKey === "number" && typeof aMode === "number"
         ? getSortableNotation(aKey, aMode)
         : null
     const bSortable =
-      bKey && typeof bMode === "number"
+      typeof bKey === "number" && typeof bMode === "number"
         ? getSortableNotation(bKey, bMode)
         : null
-    // console.log(aSortable + " " + bSortable)
-    console.log(aMode, bMode)
-
     return aSortable !== null && bSortable !== null
-      ? (reverse ? -1 : 1) * aSortable - bSortable // both a + b defined: sort lowest before highest, unless reversed
+      ? (reverse ? -1 : 1) * (aSortable - bSortable) // both a + b defined: sort lowest before highest, unless reversed
       : aSortable !== null && bSortable === null
       ? -1 // a is defined, b is null: sort a before b
       : aSortable === null && bSortable !== null

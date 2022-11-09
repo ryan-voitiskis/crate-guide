@@ -4,69 +4,99 @@
     <button class="close" type="button" @click="$parent!.$emit('close')">
       <XIcon />
     </button>
-    <CrateSelect selectID="select_track_crate_select" label="Crate" />
+  </div>
+  <div class="modal-body-sticky-header">
+    <div class="controls">
+      <CrateSelect
+        selectID="select_track_crate_select"
+        label="Crate"
+        width="240px"
+      />
+      <div class="input-wrapper">
+        <BasicInput
+          v-model="state.searchTitle"
+          id="search_title"
+          label="Search title"
+          type="text"
+          placeholder=""
+          autocomplete="off"
+          width="240px"
+        />
+      </div>
+      <div class="input-wrapper">
+        <BasicInput
+          v-model="state.searchArtists"
+          id="search_artists"
+          label="Search artist"
+          type="text"
+          placeholder=""
+          autocomplete="off"
+          width="240px"
+        />
+      </div>
+    </div>
+    <div class="track-option-header">
+      <div class="cover"></div>
+      <SortByButton
+        class="bpm"
+        title="BPM"
+        :active="state.sortBy === 'bpm'"
+        :reversed="state.bpmRvrs"
+        @activate="state.sortBy = 'bpm'"
+        @reverse="state.bpmRvrs = !state.bpmRvrs"
+      />
+      <SortByButton
+        class="key"
+        title="Key"
+        :active="state.sortBy === 'key'"
+        :reversed="state.keyRvrs"
+        @activate="state.sortBy = 'key'"
+        @reverse="state.keyRvrs = !state.keyRvrs"
+      />
+      <SortByButton
+        class="title"
+        title="Title"
+        :active="state.sortBy === 'title'"
+        :reversed="state.titleRvrs"
+        @activate="state.sortBy = 'title'"
+        @reverse="state.titleRvrs = !state.titleRvrs"
+      />
+      <SortByButton
+        class="artists"
+        title="Artists"
+        :active="state.sortBy === 'artists'"
+        :reversed="state.artistsRvrs"
+        @activate="state.sortBy = 'artists'"
+        @reverse="state.artistsRvrs = !state.artistsRvrs"
+      />
+      <SortByButton
+        class="label"
+        title="Label"
+        :active="state.sortBy === 'label'"
+        :reversed="state.labelRvrs"
+        @activate="state.sortBy = 'label'"
+        @reverse="state.labelRvrs = !state.labelRvrs"
+      />
+      <SortByButton
+        class="catno"
+        title="Cat No."
+        :active="state.sortBy === 'catno'"
+        :reversed="state.catnoRvrs"
+        @activate="state.sortBy = 'catno'"
+        @reverse="state.catnoRvrs = !state.catnoRvrs"
+      />
+      <SortByButton
+        class="year"
+        title="Year"
+        :active="state.sortBy === 'year'"
+        :reversed="state.yearRvrs"
+        @activate="state.sortBy = 'year'"
+        @reverse="state.yearRvrs = !state.yearRvrs"
+      />
+    </div>
   </div>
   <div class="modal-body">
     <div class="track-list">
-      <div class="track-option-header">
-        <div class="cover"></div>
-        <SortByButton
-          class="bpm"
-          title="BPM"
-          :active="state.sortBy === 'bpm'"
-          :reversed="state.bpmRvrs"
-          @activate="state.sortBy = 'bpm'"
-          @reverse="state.bpmRvrs = !state.bpmRvrs"
-        />
-        <SortByButton
-          class="key"
-          title="Key"
-          :active="state.sortBy === 'key'"
-          :reversed="state.keyRvrs"
-          @activate="state.sortBy = 'key'"
-          @reverse="state.keyRvrs = !state.keyRvrs"
-        />
-        <SortByButton
-          class="title"
-          title="Title"
-          :active="state.sortBy === 'title'"
-          :reversed="state.titleRvrs"
-          @activate="state.sortBy = 'title'"
-          @reverse="state.titleRvrs = !state.titleRvrs"
-        />
-        <SortByButton
-          class="artists"
-          title="Artists"
-          :active="state.sortBy === 'artists'"
-          :reversed="state.artistsRvrs"
-          @activate="state.sortBy = 'artists'"
-          @reverse="state.artistsRvrs = !state.artistsRvrs"
-        />
-        <SortByButton
-          class="label"
-          title="Label"
-          :active="state.sortBy === 'label'"
-          :reversed="state.labelRvrs"
-          @activate="state.sortBy = 'label'"
-          @reverse="state.labelRvrs = !state.labelRvrs"
-        />
-        <SortByButton
-          class="catno"
-          title="Cat No."
-          :active="state.sortBy === 'catno'"
-          :reversed="state.catnoRvrs"
-          @activate="state.sortBy = 'catno'"
-          @reverse="state.catnoRvrs = !state.catnoRvrs"
-        />
-        <SortByButton
-          class="year"
-          title="Year"
-          :active="state.sortBy === 'year'"
-          :reversed="state.yearRvrs"
-          @activate="state.sortBy = 'year'"
-          @reverse="state.yearRvrs = !state.yearRvrs"
-        />
-      </div>
       <SelectTrackOption
         v-for="track in sortedTracks"
         :track="track"
@@ -91,6 +121,7 @@ import {
   sortNumWithUndefined,
   sortKey,
 } from "@/utils/sortFunctions"
+import BasicInput from "../inputs/BasicInput.vue"
 const tracks = trackStore()
 
 const state = reactive({
@@ -117,7 +148,7 @@ const titleSearchedTracks = computed((): TrackOfRecord[] =>
 const artistsSearchedTracks = computed((): TrackOfRecord[] =>
   state.searchArtists !== ""
     ? titleSearchedTracks.value.filter((i) =>
-        localeContains(i.title, state.searchTitle)
+        localeContains(i.artistsFinal, state.searchArtists)
       )
     : titleSearchedTracks.value
 )
@@ -156,43 +187,51 @@ const sortedTracks = computed((): TrackOfRecord[] => {
 </script>
 
 <style scoped lang="scss">
+.controls {
+  display: flex;
+  column-gap: 1rem;
+  flex-wrap: wrap;
+  .input-wrapper {
+    display: block;
+  }
+}
 .track-option-header {
+  width: 100%;
   display: grid;
-  gap: 1rem;
-  grid-template-columns: 4rem 4rem 6rem 6fr 4fr 3fr 10rem 6rem 6rem;
-
+  column-gap: 1rem;
+  grid-template-columns: 4rem 4rem 4rem 6rem 6fr 4fr 3fr 14rem 4rem 6rem;
   .bpm {
-    grid-area: 1 / 1 / 2 / 3;
+    grid-area: 1 / 1 / 2 / 4;
     display: flex;
     justify-content: end;
   }
   .key {
-    grid-area: 1 / 3 / 2 / 4;
-    display: flex;
-    justify-content: end;
-  }
-  .title {
     grid-area: 1 / 4 / 2 / 5;
     display: flex;
-    justify-content: start;
+    justify-self: center;
   }
-  .artists {
+  .title {
     grid-area: 1 / 5 / 2 / 6;
     display: flex;
     justify-content: start;
   }
-  .label {
+  .artists {
     grid-area: 1 / 6 / 2 / 7;
     display: flex;
     justify-content: start;
   }
-  .catno {
+  .label {
     grid-area: 1 / 7 / 2 / 8;
     display: flex;
     justify-content: start;
   }
+  .catno {
+    grid-area: 1 / 8 / 2 / 9;
+    display: flex;
+    justify-content: start;
+  }
   .year {
-    grid-area: 1 / 8 / 2 / 10;
+    grid-area: 1 / 9 / 2 / 11;
     display: flex;
     justify-content: start;
   }

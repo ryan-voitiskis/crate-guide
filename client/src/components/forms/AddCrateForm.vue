@@ -39,7 +39,7 @@
 import { reactive, defineEmits, onBeforeUnmount } from "vue"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
-import InfoDropdown from "@/components/utils/InfoDropdown.vue"
+import InfoDropdown from "@/components/utility/InfoDropdown.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import XIcon from "@/components/icons/XIcon.vue"
 import UnsavedCrate from "@/interfaces/UnsavedCrate"

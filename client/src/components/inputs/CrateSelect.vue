@@ -1,6 +1,6 @@
 <template>
-  <label for="selectID"
-    >{{ label }}
+  <div class="wrapper">
+    <label for="selectID">{{ label }} </label>
     <select v-model="user.authd.settings.selectedCrate" id="selectID">
       <option value="all">Collection (all)</option>
       <option
@@ -11,7 +11,7 @@
         {{ crate.name }}
       </option>
     </select>
-  </label>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -28,6 +28,7 @@ const user = userStore()
 defineProps<{
   selectID: string
   label: string
+  width?: string
 }>()
 
 watch(
@@ -42,8 +43,10 @@ watch(
 </script>
 
 <style scoped lang="scss">
-select,
-label {
-  margin-bottom: 0;
+.wrapper {
+  display: block;
+  select {
+    width: v-bind(width);
+  }
 }
 </style>
