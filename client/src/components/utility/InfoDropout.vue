@@ -1,5 +1,5 @@
 <template>
-  <div class="info-dropdown">
+  <div class="info-dropout">
     <div class="button-wrapper">
       <button type="button" @click="state.info = !state.info">
         <transition name="fade">
@@ -31,7 +31,7 @@ const state = reactive({
 </script>
 
 <style scoped lang="scss">
-.info-dropdown {
+.info-dropout {
   font-size: 1.3rem;
   display: flex;
   span {

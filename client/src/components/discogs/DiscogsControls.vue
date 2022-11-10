@@ -1,7 +1,7 @@
 <template>
   <div class="discogs-controls-container" v-if="user.authd.isDiscogsOAuthd">
-    <button @click="discogs.selectDiscogsFolder = true">
-      Import from Discogs
+    <button class="icon-button" @click="discogs.selectDiscogsFolder = true">
+      <ImportIcon />Import from Discogs
     </button>
     <InfoDropout :text="authdTip" />
   </div>
@@ -18,6 +18,7 @@ import { inject } from "vue"
 import { discogsStore } from "@/stores/discogsStore"
 import { userStore } from "@/stores/userStore"
 import InfoDropout from "@/components/utility/InfoDropout.vue"
+import ImportIcon from "@/components/icons/ImportIcon.vue"
 const discogs = discogsStore()
 
 const user = userStore()

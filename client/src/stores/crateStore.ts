@@ -11,6 +11,9 @@ export const crateStore = defineStore("crate", {
     crateList: [] as Crate[],
     loading: false,
     errorMsg: "",
+    addCrateModal: false,
+    duplicateCrateModal: false,
+    deleteCrateModal: false,
     feedbackMsg: "", // after update feedback msg
   }),
   actions: {

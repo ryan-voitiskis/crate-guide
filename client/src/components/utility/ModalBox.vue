@@ -124,6 +124,7 @@ onBeforeUnmount(() => (document.body.style.overflow = "visible"))
 }
 
 .hint {
+  word-break: break-all;
   display: block;
   padding: 0 4rem;
   margin: -2rem 0 1rem 0;

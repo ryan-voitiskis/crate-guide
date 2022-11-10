@@ -68,7 +68,7 @@ import FolderDownIcon from "@/components/icons/FolderDownIcon.vue"
 import PencilIcon from "@/components/icons/PencilIcon.vue"
 import PlusCircleIcon from "@/components/icons/PlusCircleIcon.vue"
 import { Track } from "@/interfaces/Track"
-import TrackSingle from "./TrackSingle.vue"
+import TrackSingle from "./TrackSingleShort.vue"
 import TrashIcon from "@/components/icons/TrashIcon.vue"
 import FolderMinusIcon from "@/components/icons/FolderMinusIcon.vue"
 const records = recordStore()

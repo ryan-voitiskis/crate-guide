@@ -17,7 +17,7 @@
     <span class="label">{{ track.label }}</span>
     <span class="catno">{{ track.catno }}</span>
     <span class="year">{{ track.year }}</span>
-    <button class="load" @click="load()"><PlayIcon /></button>
+    <button class="play" @click="load()"><PlayIcon /></button>
   </div>
 </template>
 
@@ -153,22 +153,12 @@ const load = () =>
   .year {
     grid-area: 1 / 9 / 2 / 10;
   }
-  .load {
+  .play {
     grid-area: 1 / 10 / 2 / 11;
     width: 100%;
     height: 100%;
     border-radius: 0;
     background-color: transparent;
-    color: var(--play-button);
-    svg {
-      fill: white;
-      transition: fill 0.2s ease;
-    }
-    &:hover {
-      svg {
-        fill: var(--play-button);
-      }
-    }
   }
 }
 </style>

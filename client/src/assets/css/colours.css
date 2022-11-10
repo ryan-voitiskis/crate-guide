@@ -31,10 +31,13 @@
   --error-bg: hsl(3, 90%, 96%);
 
   /* navs */
-  --nav-active-bg:hsl(29, 52%, 54%);
+  --nav-active-bg:hsl(207, 53%, 46%);
   --nav-inactive-bg:hsl(0, 0%, 92%);
   --nav-inactive-text:hsl(0, 0%, 48%);
   --nav-inactive-border:hsl(0, 0%, 67%);
+
+  /* toggles */
+  --toggle-active-bg:hsl(207, 53%, 46%);
 
   /* forms */
   --input-bg: hsl(0, 0%, 100%);

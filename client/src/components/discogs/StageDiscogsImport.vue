@@ -30,7 +30,7 @@ import XIcon from "@/components/icons/XIcon.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import { discogsStore } from "@/stores/discogsStore"
 import LoaderCentered from "@/components/utility/LoaderCentered.vue"
-import DiscogsReleaseBasic from "../collection/DiscogsReleaseBasic.vue"
+import DiscogsReleaseBasic from "@/components/discogs/DiscogsReleaseBasic.vue"
 const discogs = discogsStore()
 
 onBeforeUnmount(() => {

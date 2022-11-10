@@ -21,26 +21,62 @@ input[type="button"] {
     overflow: visible; // because spotify logo was being clipped by a fraction of a px
     align-self: center;
     height: 2.2rem;
+    transition: fill 0.2s ease-in-out;
   }
   &:disabled {
     cursor: not-allowed;
   }
   &.add {
     color: var(--btn-primary);
+    svg {
+      color: var(--btn-primary);
+      fill: transparent;
+    }
     &:hover {
       color: var(--btn-primary-hover);
+      svg {
+        color: var(--btn-primary);
+        fill: var(--btn-primary);
+      }
     }
   }
   &.edit {
     color: var(--btn-edit);
+    svg {
+      color: var(--btn-edit);
+      fill: transparent;
+    }
     &:hover {
-      color: var(--btn-edit-hover);
+      svg {
+        color: var(--btn-edit);
+        fill: var(--btn-edit);
+      }
     }
   }
   &.delete {
     color: var(--btn-delete);
+    svg {
+      color: var(--btn-delete);
+      fill: transparent;
+    }
     &:hover {
-      color: var(--btn-delete-hover);
+      svg {
+        color: var(--btn-delete);
+        fill: var(--btn-delete);
+      }
+    }
+  }
+  &.play {
+    color: var(--play-button);
+    svg {
+      color: var(--play-button);
+      fill: transparent;
+    }
+    &:hover {
+      svg {
+        color: var(--play-button);
+        fill: var(--play-button);
+      }
     }
   }
 }
@@ -260,4 +296,8 @@ select:-moz-focusring {
     justify-content: center;
     gap: 2rem;
   }
+}
+
+.input-wrapper {
+  display: block;
 }

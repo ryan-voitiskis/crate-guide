@@ -113,3 +113,21 @@
     transform: rotate(360deg);
   }
 }
+
+@keyframes drop-out-500 {
+  0% {
+    max-width: 0px;
+  }
+  100% {
+    max-width: 500px;
+  }
+}
+
+@keyframes drop-in-500 {
+  0% {
+    max-width: 500px;
+  }
+  100% {
+    max-width: 0px;
+  }
+}

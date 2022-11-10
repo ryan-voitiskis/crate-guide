@@ -1,108 +1,99 @@
 <template>
-  <div class="modal-header">
-    <h2>Select a track to load</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
-      <XIcon />
-    </button>
-  </div>
-  <div class="modal-body-sticky-header">
-    <div class="controls">
-      <CrateSelect
-        selectID="select_track_crate_select"
-        label="Crate"
+  <div class="controls">
+    <CrateSelect
+      selectID="select_track_crate_select"
+      label="Crate"
+      width="240px"
+    />
+    <CrateOptions />
+    <div class="input-wrapper">
+      <BasicInput
+        v-model="state.searchTitle"
+        id="search_title"
+        label="Search title"
+        type="text"
+        placeholder=""
+        autocomplete="off"
         width="240px"
       />
-      <div class="input-wrapper">
-        <BasicInput
-          v-model="state.searchTitle"
-          id="search_title"
-          label="Search title"
-          type="text"
-          placeholder=""
-          autocomplete="off"
-          width="240px"
-        />
-      </div>
-      <div class="input-wrapper">
-        <BasicInput
-          v-model="state.searchArtists"
-          id="search_artists"
-          label="Search artist"
-          type="text"
-          placeholder=""
-          autocomplete="off"
-          width="240px"
-        />
-      </div>
     </div>
-    <div class="track-option-header">
-      <div class="cover"></div>
-      <SortByButton
-        class="bpm"
-        title="BPM"
-        :active="state.sortBy === 'bpm'"
-        :reversed="state.bpmRvrs"
-        @activate="state.sortBy = 'bpm'"
-        @reverse="state.bpmRvrs = !state.bpmRvrs"
-      />
-      <SortByButton
-        class="key"
-        title="Key"
-        :active="state.sortBy === 'key'"
-        :reversed="state.keyRvrs"
-        @activate="state.sortBy = 'key'"
-        @reverse="state.keyRvrs = !state.keyRvrs"
-      />
-      <SortByButton
-        class="title"
-        title="Title"
-        :active="state.sortBy === 'title'"
-        :reversed="state.titleRvrs"
-        @activate="state.sortBy = 'title'"
-        @reverse="state.titleRvrs = !state.titleRvrs"
-      />
-      <SortByButton
-        class="artists"
-        title="Artists"
-        :active="state.sortBy === 'artists'"
-        :reversed="state.artistsRvrs"
-        @activate="state.sortBy = 'artists'"
-        @reverse="state.artistsRvrs = !state.artistsRvrs"
-      />
-      <SortByButton
-        class="label"
-        title="Label"
-        :active="state.sortBy === 'label'"
-        :reversed="state.labelRvrs"
-        @activate="state.sortBy = 'label'"
-        @reverse="state.labelRvrs = !state.labelRvrs"
-      />
-      <SortByButton
-        class="catno"
-        title="Cat No."
-        :active="state.sortBy === 'catno'"
-        :reversed="state.catnoRvrs"
-        @activate="state.sortBy = 'catno'"
-        @reverse="state.catnoRvrs = !state.catnoRvrs"
-      />
-      <SortByButton
-        class="year"
-        title="Year"
-        :active="state.sortBy === 'year'"
-        :reversed="state.yearRvrs"
-        @activate="state.sortBy = 'year'"
-        @reverse="state.yearRvrs = !state.yearRvrs"
+    <div class="input-wrapper">
+      <BasicInput
+        v-model="state.searchArtists"
+        id="search_artists"
+        label="Search artist"
+        type="text"
+        placeholder=""
+        autocomplete="off"
+        width="240px"
       />
     </div>
   </div>
-  <div class="modal-body">
-    <div class="track-list">
-      <SelectTrackOption
-        v-for="track in sortedTracks"
-        :track="track"
-        :key="track._id"
-      />
-    </div>
+  <div class="track-option-header">
+    <div class="cover"></div>
+    <SortByButton
+      class="bpm"
+      title="BPM"
+      :active="state.sortBy === 'bpm'"
+      :reversed="state.bpmRvrs"
+      @activate="state.sortBy = 'bpm'"
+      @reverse="state.bpmRvrs = !state.bpmRvrs"
+    />
+    <SortByButton
+      class="key"
+      title="Key"
+      :active="state.sortBy === 'key'"
+      :reversed="state.keyRvrs"
+      @activate="state.sortBy = 'key'"
+      @reverse="state.keyRvrs = !state.keyRvrs"
+    />
+    <SortByButton
+      class="title"
+      title="Title"
+      :active="state.sortBy === 'title'"
+      :reversed="state.titleRvrs"
+      @activate="state.sortBy = 'title'"
+      @reverse="state.titleRvrs = !state.titleRvrs"
+    />
+    <SortByButton
+      class="artists"
+      title="Artists"
+      :active="state.sortBy === 'artists'"
+      :reversed="state.artistsRvrs"
+      @activate="state.sortBy = 'artists'"
+      @reverse="state.artistsRvrs = !state.artistsRvrs"
+    />
+    <SortByButton
+      class="label"
+      title="Label"
+      :active="state.sortBy === 'label'"
+      :reversed="state.labelRvrs"
+      @activate="state.sortBy = 'label'"
+      @reverse="state.labelRvrs = !state.labelRvrs"
+    />
+    <SortByButton
+      class="catno"
+      title="Cat No."
+      :active="state.sortBy === 'catno'"
+      :reversed="state.catnoRvrs"
+      @activate="state.sortBy = 'catno'"
+      @reverse="state.catnoRvrs = !state.catnoRvrs"
+    />
+    <SortByButton
+      class="year"
+      title="Year"
+      :active="state.sortBy === 'year'"
+      :reversed="state.yearRvrs"
+      @activate="state.sortBy = 'year'"
+      @reverse="state.yearRvrs = !state.yearRvrs"
+    />
+  </div>
+  <div class="track-list">
+    <TrackSingle
+      v-for="track in sortedTracks"
+      :track="track"
+      :key="track._id"
+    />
   </div>
 </template>
 
@@ -112,9 +103,7 @@ import { TrackOfRecord } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
 import CrateSelect from "../inputs/CrateSelect.vue"
 import localeContains from "@/utils/localeContains"
-import SelectTrackOption from "@/components/session/SelectTrackOption.vue"
 import SortByButton from "../collection/SortByButton.vue"
-import XIcon from "@/components/icons/XIcon.vue"
 import {
   sortStr,
   sortNumWithNull,
@@ -122,6 +111,8 @@ import {
   sortKey,
 } from "@/utils/sortFunctions"
 import BasicInput from "../inputs/BasicInput.vue"
+import TrackSingle from "./TrackSingle.vue"
+import CrateOptions from "./CrateOptions.vue"
 const tracks = trackStore()
 
 const state = reactive({

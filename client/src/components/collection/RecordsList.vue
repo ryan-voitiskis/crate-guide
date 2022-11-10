@@ -1,6 +1,35 @@
 <template>
-  <BasicInput type="search" v-model="state.searchTerm" placeholder="Search" />
-  <div class="list-controls">
+  <div class="input-controls" v-if="user.hasUser()">
+    <CrateSelect
+      selectID="collection_crate_select"
+      label="Crate"
+      width="240px"
+    />
+    <CrateOptions />
+    <div class="input-wrapper">
+      <BasicInput
+        v-model="state.searchTitle"
+        id="search_title"
+        label="Search title"
+        type="text"
+        placeholder=""
+        autocomplete="off"
+        width="240px"
+      />
+    </div>
+    <div class="input-wrapper">
+      <BasicInput
+        v-model="state.searchArtists"
+        id="search_artists"
+        label="Search artist"
+        type="text"
+        placeholder=""
+        autocomplete="off"
+        width="240px"
+      />
+    </div>
+  </div>
+  <div class="sort-controls">
     <label class="checkbox-hitbox">
       <input type="checkbox" v-model="records.checkAll" />
     </label>
@@ -65,13 +94,16 @@ import localeContains from "@/utils/localeContains"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
+import CrateSelect from "../inputs/CrateSelect.vue"
+import CrateOptions from "./CrateOptions.vue"
 const user = userStore()
 const crates = crateStore()
 const records = recordStore()
 
 const state = reactive({
   selectAll: false,
-  searchTerm: "",
+  searchTitle: "",
+  searchArtists: "",
   sortBy: "title",
   titleRvrs: false,
   catnoRvrs: false,
@@ -89,45 +121,45 @@ const recordsByCrate = computed((): Record[] =>
     : records.recordList
 )
 
-// records filtered by search term, searches title, artists, catno, label, year and track titles
-const searchedRecords = computed((): Record[] =>
-  state.searchTerm !== ""
-    ? recordsByCrate.value.filter((i) => {
-        if (localeContains(i.title, state.searchTerm)) return true
-        if (localeContains(i.artists, state.searchTerm)) return true
-        if (localeContains(i.catno, state.searchTerm)) return true
-        if (localeContains(i.label, state.searchTerm)) return true
-        if (
-          i.tracks.find((t) =>
-            t.title.toUpperCase().includes(state.searchTerm.toUpperCase())
-          )
-        )
-          return true
-        if (i.year !== undefined)
-          if (state.searchTerm === i.year.toString()) return true
-          else return false
-        else return false
-      })
+const titleSearchedTracks = computed((): Record[] =>
+  state.searchTitle !== ""
+    ? recordsByCrate.value.filter((i) =>
+        localeContains(i.title, state.searchTitle)
+      )
     : recordsByCrate.value
+)
+
+const artistsSearchedTracks = computed((): Record[] =>
+  state.searchArtists !== ""
+    ? titleSearchedTracks.value.filter((i) =>
+        localeContains(i.artists, state.searchArtists)
+      )
+    : titleSearchedTracks.value
 )
 
 // sort records by title alphabetically
 const sortedRecords = computed((): Record[] => {
   switch (state.sortBy) {
     case "catno":
-      return [...searchedRecords.value].sort(sortStr("catno", state.catnoRvrs))
+      return [...artistsSearchedTracks.value].sort(
+        sortStr("catno", state.catnoRvrs)
+      )
     case "artists":
-      return [...searchedRecords.value].sort(
+      return [...artistsSearchedTracks.value].sort(
         sortStr("artists", state.artistsRvrs)
       )
     case "label":
-      return [...searchedRecords.value].sort(sortStr("label", state.labelRvrs))
+      return [...artistsSearchedTracks.value].sort(
+        sortStr("label", state.labelRvrs)
+      )
     case "year":
-      return [...searchedRecords.value].sort(
+      return [...artistsSearchedTracks.value].sort(
         sortNumWithNull("year", state.yearRvrs)
       )
     default: // default is title
-      return [...searchedRecords.value].sort(sortStr("title", state.titleRvrs))
+      return [...artistsSearchedTracks.value].sort(
+        sortStr("title", state.titleRvrs)
+      )
   }
 })
 
@@ -141,7 +173,12 @@ watch(
 </script>
 
 <style scoped lang="scss">
-.list-controls {
+.input-controls {
+  display: flex;
+  column-gap: 1rem;
+  flex-wrap: wrap;
+}
+.sort-controls {
   .checkbox-hitbox {
     margin: 0;
   }

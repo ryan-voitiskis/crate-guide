@@ -13,5 +13,6 @@ export default interface User {
     turntablePitchRange: string
     selectedCrate: string
     keyFormat: string
+    listLayout: number
   }
 }

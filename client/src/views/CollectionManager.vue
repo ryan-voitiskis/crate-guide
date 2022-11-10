@@ -1,34 +1,6 @@
 <template>
   <p v-if="!user.hasUser()">Sign in to create collections.</p>
-  <DiscogsControls v-if="user.hasUser()" />
-  <div class="controls-container" v-if="user.hasUser()">
-    <CrateSelect
-      selectID="collection_crate_select"
-      label="Select crate"
-      width="240px"
-    />
-    <button
-      class="icon-button"
-      @click="state.duplicateCrate = true"
-      v-if="user.authd.settings.selectedCrate !== 'all'"
-    >
-      <DuplicateIcon /> Duplicate
-    </button>
-
-    <button
-      class="icon-button"
-      @click="state.deleteCrate = true"
-      v-if="user.authd.settings.selectedCrate !== 'all'"
-    >
-      <TrashIcon /> Delete
-    </button>
-
-    <button class="icon-button" @click="state.addCrate = true">
-      <FolderPlusIcon /> Add new
-    </button>
-  </div>
-  <hr />
-  <div class="controls-container" v-if="user.hasUser()">
+  <div class="controls" v-if="user.hasUser()">
     <button class="icon-button" @click="state.addRecord = true">
       <PlusCircleIcon /> Add new record
     </button>
@@ -63,20 +35,33 @@
     >
       <SpotifyLogo class="spotify-logo" />Get Spotify data for selected
     </button>
+    <DiscogsControls v-if="user.hasUser()" />
+    <ListLayoutToggle class="list-layout" />
   </div>
 
-  <RecordsList v-if="user.hasUser()" />
+  <KeepAlive>
+    <RecordsList v-if="user.authd.settings.listLayout === 0" />
+  </KeepAlive>
+  <KeepAlive>
+    <TracksList v-if="user.authd.settings.listLayout === 1" />
+  </KeepAlive>
 
-  <ModalBox v-if="state.addCrate" @close="state.addCrate = false">
-    <AddCrateForm @close="state.addCrate = false" />
+  <ModalBox v-if="crates.addCrateModal" @close="crates.addCrateModal = false">
+    <AddCrateForm @close="crates.addCrateModal = false" />
   </ModalBox>
 
-  <ModalBox v-if="state.deleteCrate" @close="state.deleteCrate = false">
-    <DeleteCrateForm @close="state.deleteCrate = false" />
+  <ModalBox
+    v-if="crates.deleteCrateModal"
+    @close="crates.deleteCrateModal = false"
+  >
+    <DeleteCrateForm @close="crates.deleteCrateModal = false" />
   </ModalBox>
 
-  <ModalBox v-if="state.duplicateCrate" @close="state.duplicateCrate = false">
-    <DuplicateCrateForm @close="state.duplicateCrate = false" />
+  <ModalBox
+    v-if="crates.duplicateCrateModal"
+    @close="crates.duplicateCrateModal = false"
+  >
+    <DuplicateCrateForm @close="crates.duplicateCrateModal = false" />
   </ModalBox>
 
   <ModalBox v-if="state.addRecord" @close="state.addRecord = false">
@@ -161,18 +146,15 @@ import { userStore } from "@/stores/userStore"
 import AddCrateForm from "@/components/forms/AddCrateForm.vue"
 import AddRecordForm from "@/components/forms/AddRecordForm.vue"
 import AddTrackForm from "@/components/forms/AddTrackForm.vue"
-import CrateSelect from "@/components/inputs/CrateSelect.vue"
 import DeleteCrateForm from "@/components/forms/DeleteCrateForm.vue"
 import DeleteRecordForm from "@/components/forms/ConfirmDeleteRecord.vue"
 import DeleteTrackForm from "@/components/forms/ConfirmDeleteTrack.vue"
 import DiscogsControls from "@/components/discogs/DiscogsControls.vue"
 import DuplicateCrateForm from "@/components/forms/DuplicateCrateForm.vue"
-import DuplicateIcon from "@/components/icons/DuplicateIcon.vue"
 import EditRecordForm from "@/components/forms/EditRecordForm.vue"
 import EditTrackForm from "@/components/forms/EditTrackForm.vue"
 import FolderDownIcon from "@/components/icons/FolderDownIcon.vue"
 import FolderMinusIcon from "@/components/icons/FolderMinusIcon.vue"
-import FolderPlusIcon from "@/components/icons/FolderPlusIcon.vue"
 import ModalBox from "@/components/utility/ModalBox.vue"
 import PlusCircleIcon from "@/components/icons/PlusCircleIcon.vue"
 import RecordsList from "@/components/collection/RecordsList.vue"
@@ -185,6 +167,8 @@ import SpotifyLogo from "@/components/icons/SpotifyLogo.vue"
 import AlbumMatchForm from "@/components/spotify/AlbumMatchForm.vue"
 import TrackMatchForm from "@/components/spotify/TrackMatchForm.vue"
 import SpotifyCompletion from "@/components/spotify/SpotifyCompletion.vue"
+import ListLayoutToggle from "@/components/collection/ListLayoutToggle.vue"
+import TracksList from "@/components/collection/TracksList.vue"
 
 const crates = crateStore()
 const records = recordStore()
@@ -193,10 +177,7 @@ const tracks = trackStore()
 const user = userStore()
 
 const state = reactive({
-  addCrate: false, // shows AddCrateForm
-  duplicateCrate: false, // shows DuplicateCrateForm
-  deleteCrate: false, // shows DeleteCrateForm
-  addRecord: false, // shows AddRecordForm
+  addRecord: false, // shows AddRecordForm todo: remove and add to recordStore
 })
 
 onBeforeUnmount(() => {
@@ -206,7 +187,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
-.controls-container {
+.controls {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
@@ -215,5 +196,8 @@ onBeforeUnmount(() => {
 
 .spotify-logo {
   color: var(--spotify-light-green);
+}
+.list-layout {
+  margin-left: auto;
 }
 </style>
