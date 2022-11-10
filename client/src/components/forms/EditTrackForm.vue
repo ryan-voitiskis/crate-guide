@@ -120,7 +120,7 @@ import XIcon from "@/components/icons/XIcon.vue"
 import { Track } from "@/interfaces/Track"
 import MatchedTrack from "@/interfaces/MatchedTrack"
 import SelectInput from "../inputs/SelectInput.vue"
-import sortBy from "lodash.sortby"
+import { sortNum } from "@/utils/sortFunctions"
 import {
   pitchClassMap,
   getKeyString,
@@ -158,12 +158,12 @@ if (user.authd.settings.keyFormat === "key") {
   keyOptionsMajor = pitchClassMap.map(keyOptionsMapFn(1))
   keyOptionsMinor = pitchClassMap.map(keyOptionsMapFn(0))
 } else {
-  keyOptionsMajor = sortBy(pitchClassMap, ["camelotMajor"]).map(
-    camelotOptionsMapFn(1)
-  )
-  keyOptionsMinor = sortBy(pitchClassMap, ["camelotMinor"]).map(
-    camelotOptionsMapFn(0)
-  )
+  keyOptionsMajor = pitchClassMap
+    .sort(sortNum("camelotMajor"))
+    .map(camelotOptionsMapFn(1))
+  keyOptionsMinor = pitchClassMap
+    .sort(sortNum("camelotMinor"))
+    .map(camelotOptionsMapFn(0))
 }
 const keyOptions = keyOptionsMinor.concat(keyOptionsMajor)
 keyOptions.unshift({ id: "", name: "---" })

@@ -36,7 +36,7 @@ input[type="button"] {
       color: var(--btn-primary-hover);
       svg {
         color: var(--btn-primary);
-        fill: var(--btn-primary);
+        fill: var(--btn-primary-hover);
       }
     }
   }
@@ -47,9 +47,10 @@ input[type="button"] {
       fill: transparent;
     }
     &:hover {
+      color: var(--btn-edit-hover);
       svg {
         color: var(--btn-edit);
-        fill: var(--btn-edit);
+        fill: var(--btn-edit-hover);
       }
     }
   }
@@ -60,9 +61,10 @@ input[type="button"] {
       fill: transparent;
     }
     &:hover {
+      color: var(--btn-delete-hover);
       svg {
         color: var(--btn-delete);
-        fill: var(--btn-delete);
+        fill: var(--btn-delete-hover);
       }
     }
   }

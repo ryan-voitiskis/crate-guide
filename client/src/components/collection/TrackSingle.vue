@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps } from "vue"
+import { defineProps, computed } from "vue"
 import { TrackOfRecord } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
@@ -46,39 +46,45 @@ const props = defineProps<{
 
 const coverImg = `url("${props.track.cover}")`
 
-const keyString = !props.track.audioFeatures
-  ? ""
-  : props.track.audioFeatures.key === -1
-  ? ""
-  : user.authd.settings.keyFormat === "key"
-  ? getKeyStringShort(
-      props.track.audioFeatures.key,
-      props.track.audioFeatures.mode
-    )
-  : getCamelotString(
-      props.track.audioFeatures.key,
-      props.track.audioFeatures.mode
-    )
-
-const keyColour =
-  props.track.key && props.track.mode
-    ? getKeyColour(props.track.key, props.track.mode)
+const keyAndMode = computed(() =>
+  typeof props.track.key === "number" && typeof props.track.mode === "number"
+    ? { key: props.track.key, mode: props.track.mode }
     : props.track.audioFeatures && props.track.audioFeatures.key !== -1
-    ? getKeyColour(
-        props.track.audioFeatures.key,
-        props.track.audioFeatures.mode
-      )
+    ? {
+        key: props.track.audioFeatures.key,
+        mode: props.track.audioFeatures.mode,
+      }
+    : null
+)
+
+const keyString = computed(() =>
+  !keyAndMode.value
+    ? ""
+    : user.authd.settings.keyFormat === "key"
+    ? getKeyStringShort(keyAndMode.value.key, keyAndMode.value.mode)
+    : getCamelotString(keyAndMode.value.key, keyAndMode.value.mode)
+)
+
+const keyColour = computed(() =>
+  keyAndMode.value
+    ? getKeyColour(keyAndMode.value.key, keyAndMode.value.mode)
     : ""
+)
 
-const bpmColour = props.track.bpm
-  ? getBPMColour(props.track.bpm)
-  : props.track.audioFeatures?.tempo
-  ? getBPMColour(props.track.audioFeatures.tempo)
-  : ""
+const bpmColour = computed(() =>
+  props.track.bpm
+    ? getBPMColour(props.track.bpm)
+    : props.track.audioFeatures?.tempo
+    ? getBPMColour(props.track.audioFeatures.tempo)
+    : ""
+)
 
-const positionColour = props.track.position
-  ? getPositionColour(props.track.position)
-  : "hsl(0, 0%, 68%)"
+// computed because is reactive (track edit changes position)
+const positionColour = computed(() =>
+  props.track.position
+    ? getPositionColour(props.track.position)
+    : "hsl(0, 0%, 68%)"
+)
 </script>
 
 <style scoped lang="scss">

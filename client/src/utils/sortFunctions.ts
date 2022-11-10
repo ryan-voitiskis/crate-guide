@@ -6,8 +6,13 @@ type KeysOfType<O, T> = {
   [K in keyof O]: O[K] extends T ? K : never
 }[keyof O]
 
-// custom string sort function. sorts "" last
-const sortStr = (field: KeysOfType<any, string>, reverse: boolean) => {
+// custom number sort function. sorts null last, reverse optional
+const sortNum = (field: KeysOfType<any, number>, reverse = false) => {
+  return (a: any, b: any) => (a[field] - b[field]) * (reverse ? -1 : 1)
+}
+
+// custom string sort function. sorts "" last, reverse optional
+const sortStr = (field: KeysOfType<any, string>, reverse = false) => {
   return (a: any, b: any) =>
     a[field] !== "" && b[field] !== ""
       ? (reverse ? -1 : 1) *
@@ -19,8 +24,8 @@ const sortStr = (field: KeysOfType<any, string>, reverse: boolean) => {
       : 0 // both a + b are empty: keep original order
 }
 
-// custom number sort function. sorts null last
-const sortNumWithNull = (field: KeysOfType<any, number>, reverse: boolean) => {
+// custom number sort function. sorts null last, reverse optional
+const sortNumWithNull = (field: KeysOfType<any, number>, reverse = false) => {
   return (a: any, b: any) =>
     a[field] !== null && b[field] !== null
       ? (reverse ? -1 : 1) * ((a[field] as number) - (b[field] as number)) // both a + b defined: sort lowest before highest, unless reversed
@@ -31,10 +36,10 @@ const sortNumWithNull = (field: KeysOfType<any, number>, reverse: boolean) => {
       : 0 // both a + b null: keep original order
 }
 
-// custom number sort function. sorts null last
+// custom number sort function. sorts null last, reverse optional
 const sortNumWithUndefined = (
   field: KeysOfType<any, number>,
-  reverse: boolean
+  reverse = false
 ) => {
   return (a: any, b: any) =>
     a[field] !== undefined && b[field] !== undefined
@@ -46,8 +51,8 @@ const sortNumWithUndefined = (
       : 0 // both a + b null: keep original order
 }
 
-// custom key sort function. sorts null/undefined last
-const sortKey = (reverse: boolean) => {
+// sorts Track array. sorts null/undefined last
+const sortKey = (reverse = false) => {
   return (a: Track, b: Track) => {
     const aKey = Number.isInteger(a.key)
       ? a.key
@@ -87,4 +92,4 @@ const sortKey = (reverse: boolean) => {
   }
 }
 
-export { sortStr, sortNumWithNull, sortNumWithUndefined, sortKey }
+export { sortNum, sortStr, sortNumWithNull, sortNumWithUndefined, sortKey }

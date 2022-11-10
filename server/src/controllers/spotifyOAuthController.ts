@@ -124,10 +124,7 @@ async function refreshToken(user: IUser) {
         new: true,
       })
       if (newUser) {
-        console.log("new user")
-        console.log(user.spotifyToken.slice(0, 12))
-        user = newUser
-        console.log(user.spotifyToken.slice(0, 12))
+        user.spotifyToken = newUser.spotifyToken
         return true
       }
     }
@@ -149,11 +146,8 @@ async function spotifyRequest(url: string, user: IUser): Promise<{}> {
 
   if (response.status === 200) return await response.json()
   else if (response.status === 401) {
-    if (await refreshToken(user)) {
-      const newUser = await User.findById(user._id)
-      if (newUser) user = newUser
-      spotifyRequest(url, user)
-    } else throw new Error("Bad token. Please re-authenticate Spotify.")
+    if (await refreshToken(user)) spotifyRequest(url, user)
+    else throw new Error("Bad token. Please re-authenticate Spotify.")
   } else if (response.status === 403) {
     const error = await response.json()
     const errorMsg = error.message ? error.message : "Bad OAuth request"
@@ -161,6 +155,7 @@ async function spotifyRequest(url: string, user: IUser): Promise<{}> {
   } else if (response.status === 404) {
     throw new Error("Spotify resource not found.")
   } else if (response.status === 429) {
+    console.log("429: SPOTIFY RATE LIMIT HIT") // remove before deploy if never hit
     await new Promise((resolve) => setTimeout(resolve, 10000))
     return await spotifyRequest(url, user) // ! untested as rate limit couldn't be hit
   }

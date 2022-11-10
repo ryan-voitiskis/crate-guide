@@ -43,29 +43,25 @@ const props = defineProps<{
 
 const coverImg = `url("${props.track.cover}")`
 
-const keyString = !props.track.audioFeatures
-  ? ""
-  : props.track.audioFeatures.key === -1
+const keyAndMode =
+  typeof props.track.key === "number" && typeof props.track.mode === "number"
+    ? { key: props.track.key, mode: props.track.mode }
+    : props.track.audioFeatures && props.track.audioFeatures.key !== -1
+    ? {
+        key: props.track.audioFeatures.key,
+        mode: props.track.audioFeatures.mode,
+      }
+    : null
+
+const keyString = !keyAndMode
   ? ""
   : user.authd.settings.keyFormat === "key"
-  ? getKeyStringShort(
-      props.track.audioFeatures.key,
-      props.track.audioFeatures.mode
-    )
-  : getCamelotString(
-      props.track.audioFeatures.key,
-      props.track.audioFeatures.mode
-    )
+  ? getKeyStringShort(keyAndMode.key, keyAndMode.mode)
+  : getCamelotString(keyAndMode.key, keyAndMode.mode)
 
-const keyColour =
-  props.track.key && props.track.mode
-    ? getKeyColour(props.track.key, props.track.mode)
-    : props.track.audioFeatures && props.track.audioFeatures.key !== -1
-    ? getKeyColour(
-        props.track.audioFeatures.key,
-        props.track.audioFeatures.mode
-      )
-    : ""
+const keyColour = keyAndMode
+  ? getKeyColour(keyAndMode.key, keyAndMode.mode)
+  : ""
 
 const bpmColour = props.track.bpm
   ? getBPMColour(props.track.bpm)
