@@ -182,4 +182,16 @@ export const trackStore = defineStore("track", {
     //   )
     // },
   },
+
+  getters: {
+    getTrackByIdFromTrackList: (state) => {
+      return (_id: string): TrackOfRecord | null =>
+        state.trackList.find((i) => i._id === _id) || null
+    },
+    // slight optimisation on getTrackByIdFromTrackList, may be significant for huge collections
+    getTrackByIdFromCrateTrackList: (state) => {
+      return (_id: string): TrackOfRecord | null =>
+        state.crateTrackList.find((i) => i._id === _id) || null
+    },
+  },
 })

@@ -141,6 +141,7 @@ const records = recordStore()
 const spotify = spotifyStore()
 const tracks = trackStore()
 const user = userStore()
+// todo: get track from tracks. ...
 const track = records.getTrackById(tracks.toEdit)
 const record = records.getRecordByTrackId(track._id)
 const noChangeMsg = "Track has not been edited."

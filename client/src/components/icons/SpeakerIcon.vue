@@ -11,8 +11,9 @@
     stroke-linecap="round"
     stroke-linejoin="round"
   >
-    <path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12"></path>
-    <circle cx="17" cy="7" r="5"></circle>
+    <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+    <circle cx="12" cy="14" r="4"></circle>
+    <line x1="12" y1="6" x2="12.01" y2="6"></line>
   </svg>
 </template>
 

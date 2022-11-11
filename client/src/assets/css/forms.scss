@@ -303,3 +303,9 @@ select:-moz-focusring {
 .input-wrapper {
   display: block;
 }
+
+.icon-button {
+  svg {
+    margin-right: 1rem;
+  }
+}

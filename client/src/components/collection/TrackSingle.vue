@@ -158,7 +158,8 @@ const positionColour = computed(() =>
     grid-area: 1 / 4 / 2 / 5;
     border-radius: 0;
     height: 100%;
-    width: 100%;
+    width: 54px;
+    margin: 0 -5px;
     background-color: transparent;
     padding: 0;
     font-size: 1.2rem;
