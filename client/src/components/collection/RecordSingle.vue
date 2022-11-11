@@ -50,9 +50,9 @@
       </button>
     </div>
     <div class="tracks">
-      <TrackSingle
+      <TrackSingleShort
         v-for="track in sortedTracks"
-        v-bind="track"
+        :track="track"
         :key="track._id"
       />
     </div>
@@ -68,7 +68,7 @@ import FolderDownIcon from "@/components/icons/FolderDownIcon.vue"
 import PencilIcon from "@/components/icons/PencilIcon.vue"
 import PlusCircleIcon from "@/components/icons/PlusCircleIcon.vue"
 import { Track } from "@/interfaces/Track"
-import TrackSingle from "./TrackSingleShort.vue"
+import TrackSingleShort from "./TrackSingleShort.vue"
 import TrashIcon from "@/components/icons/TrashIcon.vue"
 import FolderMinusIcon from "@/components/icons/FolderMinusIcon.vue"
 const records = recordStore()

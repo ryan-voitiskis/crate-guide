@@ -51,6 +51,29 @@ const sortNumWithUndefined = (
       : 0 // both a + b null: keep original order
 }
 
+// custom number sort function. sorts null last, reverse optional
+const sortNumWithUndefined2Deep = (
+  field: KeysOfType<any, number>,
+  field2: KeysOfType<any, number>,
+  reverse = false
+) => {
+  return (a: any, b: any) =>
+    a[field] === undefined && b[field] === undefined
+      ? 0
+      : a[field] !== undefined && b[field] === undefined
+      ? -1
+      : a[field] === undefined && b[field] !== undefined
+      ? 1
+      : a[field][field2] !== undefined && b[field][field2] !== undefined
+      ? (reverse ? -1 : 1) *
+        ((a[field][field2] as number) - (b[field][field2] as number)) // both a + b defined: sort lowest before highest, unless reversed
+      : a[field][field2] !== undefined && b[field][field2] === undefined
+      ? -1 // a is defined, b is null: sort a before b
+      : a[field][field2] === undefined && b[field][field2] !== undefined
+      ? 1 // a is null, b is defined: sort b before a
+      : 0 // both a + b null: keep original order
+}
+
 // sorts Track array. sorts null/undefined last
 const sortKey = (reverse = false) => {
   return (a: Track, b: Track) => {
@@ -92,4 +115,11 @@ const sortKey = (reverse = false) => {
   }
 }
 
-export { sortNum, sortStr, sortNumWithNull, sortNumWithUndefined, sortKey }
+export {
+  sortNum,
+  sortStr,
+  sortNumWithNull,
+  sortNumWithUndefined,
+  sortNumWithUndefined2Deep,
+  sortKey,
+}

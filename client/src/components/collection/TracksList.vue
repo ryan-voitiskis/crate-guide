@@ -39,6 +39,38 @@
       @activate="state.sortBy = 'bpm'"
       @reverse="state.bpmRvrs = !state.bpmRvrs"
     />
+    <SortByButtonIcon
+      class="danceability"
+      :active="state.sortBy === 'danceability'"
+      :reversed="state.danceabilityRvrs"
+      @activate="state.sortBy = 'danceability'"
+      @reverse="state.danceabilityRvrs = !state.danceabilityRvrs"
+      ><DanceIcon />
+    </SortByButtonIcon>
+    <SortByButtonIcon
+      class="energy"
+      :active="state.sortBy === 'energy'"
+      :reversed="state.energyRvrs"
+      @activate="state.sortBy = 'energy'"
+      @reverse="state.energyRvrs = !state.energyRvrs"
+      ><BoltIcon />
+    </SortByButtonIcon>
+    <SortByButtonIcon
+      class="valence"
+      :active="state.sortBy === 'valence'"
+      :reversed="state.valenceRvrs"
+      @activate="state.sortBy = 'valence'"
+      @reverse="state.valenceRvrs = !state.valenceRvrs"
+      ><SmileIcon />
+    </SortByButtonIcon>
+    <SortByButtonIcon
+      class="duration"
+      :active="state.sortBy === 'duration'"
+      :reversed="state.durationRvrs"
+      @activate="state.sortBy = 'duration'"
+      @reverse="state.durationRvrs = !state.durationRvrs"
+      ><TimerIcon />
+    </SortByButtonIcon>
     <SortByButton
       class="key"
       title="Key"
@@ -103,16 +135,22 @@ import { TrackOfRecord } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
 import CrateSelect from "../inputs/CrateSelect.vue"
 import localeContains from "@/utils/localeContains"
-import SortByButton from "../collection/SortByButton.vue"
+import SortByButton from "../utility/SortByButton.vue"
 import {
   sortStr,
   sortNumWithNull,
   sortNumWithUndefined,
+  sortNumWithUndefined2Deep,
   sortKey,
 } from "@/utils/sortFunctions"
 import BasicInput from "../inputs/BasicInput.vue"
 import TrackSingle from "./TrackSingle.vue"
 import CrateOptions from "./CrateOptions.vue"
+import SortByButtonIcon from "../utility/SortByButtonIcon.vue"
+import DanceIcon from "../icons/DanceIcon.vue"
+import TimerIcon from "../icons/TimerIcon.vue"
+import SmileIcon from "../icons/SmileIcon.vue"
+import BoltIcon from "../icons/BoltIcon.vue"
 const tracks = trackStore()
 
 const state = reactive({
@@ -120,6 +158,10 @@ const state = reactive({
   searchArtists: "",
   sortBy: "title",
   bpmRvrs: false,
+  danceabilityRvrs: false,
+  energyRvrs: false,
+  valenceRvrs: false,
+  durationRvrs: false,
   keyRvrs: false,
   titleRvrs: false,
   artistsRvrs: false,
@@ -150,6 +192,26 @@ const sortedTracks = computed((): TrackOfRecord[] => {
     case "bpm":
       return [...artistsSearchedTracks.value].sort(
         sortNumWithUndefined("bpmFinal", state.bpmRvrs)
+      )
+    case "danceability":
+      return [...artistsSearchedTracks.value].sort(
+        sortNumWithUndefined2Deep(
+          "audioFeatures",
+          "danceability",
+          state.danceabilityRvrs
+        )
+      )
+    case "energy":
+      return [...artistsSearchedTracks.value].sort(
+        sortNumWithUndefined2Deep("audioFeatures", "energy", state.energyRvrs)
+      )
+    case "valence":
+      return [...artistsSearchedTracks.value].sort(
+        sortNumWithUndefined2Deep("audioFeatures", "valence", state.valenceRvrs)
+      )
+    case "duration":
+      return [...artistsSearchedTracks.value].sort(
+        sortNumWithUndefined("durationFinal", state.durationRvrs)
       )
     case "key":
       return [...artistsSearchedTracks.value].sort(sortKey(state.keyRvrs))
@@ -187,39 +249,54 @@ const sortedTracks = computed((): TrackOfRecord[] => {
   width: 100%;
   display: grid;
   column-gap: 1rem;
-  grid-template-columns: 4rem 4rem 4rem 6rem 6fr 4fr 3fr 14rem 4rem 6rem;
+  grid-template-columns: 40px 30px 38px 44px 44px 44px 40px 60px 2fr 1fr 1fr 1fr 1fr 38px 40px;
   .bpm {
     grid-area: 1 / 1 / 2 / 4;
     display: flex;
     justify-content: end;
   }
-  .key {
+  .danceability {
     grid-area: 1 / 4 / 2 / 5;
+  }
+  .energy {
+    grid-area: 1 / 5 / 2 / 6;
+  }
+  .valence {
+    grid-area: 1 / 6 / 2 / 7;
+  }
+  .duration {
+    grid-area: 1 / 7 / 2 / 8;
+  }
+  .key {
+    grid-area: 1 / 8 / 2 / 9;
     display: flex;
     justify-self: center;
   }
   .title {
-    grid-area: 1 / 5 / 2 / 6;
+    grid-area: 1 / 9 / 2 / 10;
     display: flex;
     justify-content: start;
   }
   .artists {
-    grid-area: 1 / 6 / 2 / 7;
+    grid-area: 1 / 10 / 2 / 11;
     display: flex;
     justify-content: start;
   }
+  .genre {
+    grid-area: 1 / 11 / 2 / 12;
+  }
   .label {
-    grid-area: 1 / 7 / 2 / 8;
+    grid-area: 1 / 12 / 2 / 13;
     display: flex;
     justify-content: start;
   }
   .catno {
-    grid-area: 1 / 8 / 2 / 9;
+    grid-area: 1 / 13 / 2 / 14;
     display: flex;
     justify-content: start;
   }
   .year {
-    grid-area: 1 / 9 / 2 / 11;
+    grid-area: 1 / 14 / 2 / 15;
     display: flex;
     justify-content: start;
   }

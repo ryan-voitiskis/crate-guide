@@ -42,6 +42,12 @@
         type="text"
         placeholder="Artist, Artist (optional)"
       />
+      <div class="spotify-analysed" v-if="track.audioFeatures">
+        Spotify analysed
+        <div class="spotify-duration">
+          {{ getDurationString(track.audioFeatures.duration_ms) }}
+        </div>
+      </div>
       <BasicInput
         v-model="form.duration"
         id="duration"
@@ -59,18 +65,10 @@
         v-model="form.bpm"
         id="bpm"
         label="BPM"
-        placeholder="BPM (recommended)"
+        placeholder="BPM (optional)"
         type="text"
         inputmode="numeric"
         pattern="\d{2,3}"
-        autocomplete="off"
-      />
-      <BasicInput
-        v-model="form.genre"
-        id="genre"
-        label="Genre"
-        type="text"
-        placeholder="Genre (recommended)"
         autocomplete="off"
       />
       <div class="spotify-analysed" v-if="spotifyKeyString">
@@ -82,6 +80,14 @@
         id="key"
         label="Key"
         :options="keyOptions"
+      />
+      <BasicInput
+        v-model="form.genre"
+        id="genre"
+        label="Genre"
+        type="text"
+        placeholder="Genre (recommended)"
+        autocomplete="off"
       />
       <fieldset class="radio">
         <RadioInput v-model="form.rpm" name="rpm" id="33" label="33 rpm" />
@@ -121,6 +127,7 @@ import { Track } from "@/interfaces/Track"
 import MatchedTrack from "@/interfaces/MatchedTrack"
 import SelectInput from "../inputs/SelectInput.vue"
 import { sortNum } from "@/utils/sortFunctions"
+import { getDurationString, getDurationMs } from "@/utils/durationFunctions"
 import {
   pitchClassMap,
   getKeyString,
@@ -190,7 +197,7 @@ const form = reactive({
   position: track.position,
   title: track.title,
   artists: track.artists,
-  duration: track.duration,
+  duration: track.duration ? getDurationString(track.duration) : "",
   bpm: track.bpm,
   rpm: track.rpm.toString(),
   genre: track.genre,
@@ -207,7 +214,8 @@ const submit = async () => {
     form.position === track.position &&
     form.title.trim() === track.title &&
     form.artists?.trim() === track.artists &&
-    form.duration?.trim() === track.duration &&
+    form.duration?.trim() ===
+      (track.duration ? getDurationString(track.duration) : "") &&
     form.bpm === track.bpm &&
     parseInt(form.rpm) === track.rpm &&
     form.genre?.trim() === track.genre &&
@@ -221,7 +229,7 @@ const submit = async () => {
       position: form.position?.toUpperCase(),
       title: form.title.trim(),
       artists: form.artists?.trim(),
-      duration: form.duration?.trim(),
+      duration: getDurationMs(form.duration?.trim()),
       bpm: form.bpm,
       rpm: parseInt(form.rpm),
       key: parseInt(form.key.slice(1, 3)),
@@ -239,6 +247,8 @@ const submit = async () => {
       }
       await spotify.getTrackFeatures(matchedTrack)
     }
+    console.log(editedTrack)
+
     await tracks.updateTrack(editedTrack)
     if (spotify.errorMsg === "" && tracks.errorMsg === "") tracks.toEdit = ""
   }
@@ -262,6 +272,7 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 hr {
   grid-column: 1 / 3;
+  margin: 2px 0;
 }
 
 .spotify-analysed {
@@ -270,13 +281,18 @@ hr {
   display: flex;
   width: 100%;
   justify-content: end;
+  margin-bottom: -10px;
+  .spotify-duration {
+    font-style: italic;
+    margin-left: 10px;
+  }
   .spotify-bpm {
-    margin-left: 1rem;
+    margin-left: 10px;
     color: v-bind(bpmColour);
   }
   .spotify-key {
     font-weight: 500;
-    margin-left: 1rem;
+    margin-left: 10px;
     padding: 0 1rem;
     border-radius: 0.6rem;
     background-color: v-bind(spotifyKeyColour);

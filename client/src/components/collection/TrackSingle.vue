@@ -5,6 +5,30 @@
     <span class="bpm" v-if="track.bpmFinal">
       {{ Math.round(track.bpmFinal).toString() }}
     </span>
+    <button
+      class="audio-features danceability"
+      v-if="track.audioFeatures"
+      @click="tracks.toShowFeatures = track._id"
+    >
+      <DanceIcon />{{ getPercent(track.audioFeatures.danceability) }}
+    </button>
+    <button
+      class="audio-features energy"
+      v-if="track.audioFeatures"
+      @click="tracks.toShowFeatures = track._id"
+    >
+      <BoltIcon />{{ getPercent(track.audioFeatures.energy) }}
+    </button>
+    <button
+      class="audio-features valence"
+      v-if="track.audioFeatures"
+      @click="tracks.toShowFeatures = track._id"
+    >
+      <SmileIcon />{{ getPercent(track.audioFeatures.valence) }}
+    </button>
+    <span class="duration" v-if="track.durationFinal">
+      {{ getDurationString(track.durationFinal) }}</span
+    >
     <span
       class="key"
       v-if="keyString"
@@ -14,6 +38,7 @@
     </span>
     <span class="title">{{ props.track.title }}</span>
     <span class="artists">{{ track.artistsFinal }}</span>
+    <span class="genre" v-if="track.genre">{{ track.genre }}</span>
     <span class="label">{{ track.label }}</span>
     <span class="catno">{{ track.catno }}</span>
     <span class="year">{{ track.year }}</span>
@@ -31,11 +56,15 @@ import { userStore } from "@/stores/userStore"
 import getBPMColour from "@/utils/getBPMColour"
 import getPositionColour from "@/utils/positionColours"
 import PencilIcon from "../icons/PencilIcon.vue"
+import { getDurationString } from "@/utils/durationFunctions"
 import {
   getKeyStringShort,
   getCamelotString,
   getKeyColour,
 } from "@/utils/pitchClassMap"
+import DanceIcon from "../icons/DanceIcon.vue"
+import BoltIcon from "../icons/BoltIcon.vue"
+import SmileIcon from "../icons/SmileIcon.vue"
 
 const tracks = trackStore()
 const user = userStore()
@@ -45,6 +74,8 @@ const props = defineProps<{
 }>()
 
 const coverImg = `url("${props.track.cover}")`
+
+const getPercent = (x: number): string => `${Math.round(x * 100).toString()}%`
 
 const keyAndMode = computed(() =>
   typeof props.track.key === "number" && typeof props.track.mode === "number"
@@ -79,7 +110,6 @@ const bpmColour = computed(() =>
     : ""
 )
 
-// computed because is reactive (track edit changes position)
 const positionColour = computed(() =>
   props.track.position
     ? getPositionColour(props.track.position)
@@ -91,7 +121,7 @@ const positionColour = computed(() =>
 .track-option {
   overflow: hidden;
   display: grid;
-  grid-template-columns: 4rem 4rem 4rem 6rem 6fr 4fr 3fr 14rem 4rem 6rem;
+  grid-template-columns: 40px 30px 38px 44px 44px 44px 40px 60px 2fr 1fr 1fr 1fr 1fr 38px 40px;
   width: 100%;
   column-gap: 1rem;
   span {
@@ -124,10 +154,37 @@ const positionColour = computed(() =>
     text-align: center;
     color: v-bind(bpmColour);
   }
-  .key {
+  .audio-features {
     grid-area: 1 / 4 / 2 / 5;
+    border-radius: 0;
+    height: 100%;
+    width: 100%;
+    background-color: transparent;
+    padding: 0;
+    font-size: 1.2rem;
+    svg {
+      width: 18px;
+      margin-right: 1px;
+    }
+  }
+  .danceability {
+    grid-area: 1 / 4 / 2 / 5;
+  }
+  .energy {
+    grid-area: 1 / 5 / 2 / 6;
+  }
+  .valence {
+    grid-area: 1 / 6 / 2 / 7;
+  }
+  .duration {
+    grid-area: 1 / 7 / 2 / 8;
+    font-style: italic;
+    text-align: center;
+  }
+  .key {
+    grid-area: 1 / 8 / 2 / 9;
     height: 2.6rem;
-    max-width: 100%;
+    width: 100%;
     line-height: 2.6rem;
     justify-self: center;
     align-self: center;
@@ -142,22 +199,25 @@ const positionColour = computed(() =>
     }
   }
   .title {
-    grid-area: 1 / 5 / 2 / 6;
-  }
-  .artists {
-    grid-area: 1 / 6 / 2 / 7;
-  }
-  .label {
-    grid-area: 1 / 7 / 2 / 8;
-  }
-  .catno {
-    grid-area: 1 / 8 / 2 / 9;
-  }
-  .year {
     grid-area: 1 / 9 / 2 / 10;
   }
-  .edit {
+  .artists {
     grid-area: 1 / 10 / 2 / 11;
+  }
+  .genre {
+    grid-area: 1 / 11 / 2 / 12;
+  }
+  .label {
+    grid-area: 1 / 12 / 2 / 13;
+  }
+  .catno {
+    grid-area: 1 / 13 / 2 / 14;
+  }
+  .year {
+    grid-area: 1 / 14 / 2 / 15;
+  }
+  .edit {
+    grid-area: 1 / 15 / 2 / 16;
     width: 100%;
     height: 100%;
     border-radius: 0;

@@ -69,7 +69,6 @@ const bpmColour = props.track.bpm
   ? getBPMColour(props.track.audioFeatures.tempo)
   : ""
 
-// computed because is reactive (track edit changes position)
 const positionColour = props.track.position
   ? getPositionColour(props.track.position)
   : "hsl(0, 0%, 68%)"

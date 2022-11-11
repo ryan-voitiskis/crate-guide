@@ -19,6 +19,7 @@ export const trackStore = defineStore("track", {
     addTrackTo: "", // id of record to add track to, also serves as flag for opening AddTrackForm
     toEdit: "", // id of track to be edited
     toDelete: "", // id of track to be deleted
+    toShowFeatures: "", // id of track to show AudioFeatures modal for
   }),
   actions: {
     async addTrack(
@@ -151,6 +152,11 @@ export const trackStore = defineStore("track", {
             ? Math.round(j.audioFeatures.tempo)
             : undefined,
           artistsFinal: j.artists ? j.artists : i.artists ? i.artists : "",
+          durationFinal: j.duration
+            ? j.duration
+            : j.audioFeatures
+            ? j.audioFeatures.duration_ms
+            : undefined,
         }))
       )
       this.generateCrateTrackList()

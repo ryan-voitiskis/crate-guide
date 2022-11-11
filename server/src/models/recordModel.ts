@@ -6,7 +6,7 @@ interface ITrack {
   title: string
   artists: string
   position: string
-  duration?: string
+  duration?: number
   bpm: number
   rpm: number
   key: number
@@ -60,7 +60,7 @@ const trackSchema = new mongoose.Schema<ITrack>({
     type: String,
   },
   duration: {
-    type: String,
+    type: Number,
   },
   bpm: {
     type: Number,

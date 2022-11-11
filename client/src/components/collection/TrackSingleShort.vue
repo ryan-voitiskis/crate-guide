@@ -4,23 +4,22 @@
       <div class="spotify-link-wrapper">
         <a
           class="spotify-link"
-          v-if="spotifyID"
+          v-if="track.spotifyID"
           :href="spotifyLink"
           target="_blank"
           ><SpotifyLogo
         /></a>
       </div>
-      <span class="position" v-if="position">{{ position }}</span>
+      <span class="position" v-if="track.position">{{ track.position }}</span>
       <span class="bpm" v-if="bpm">{{ bpm }}</span>
-      <span class="title">{{ title }}</span>
-      <span class="duration" v-if="duration">"{{ duration }}"</span>
-      <span class="genre" v-if="genre">{{ genre }}</span>
+      <span class="title">{{ track.title }}</span>
+      <span class="genre" v-if="track.genre">{{ track.genre }}</span>
     </div>
     <div class="controls">
-      <button class="inline-btn edit" @click="tracks.toEdit = _id">
+      <button class="inline-btn edit" @click="tracks.toEdit = track._id">
         <PencilIcon />
       </button>
-      <button class="inline-btn delete" @click="tracks.toDelete = _id">
+      <button class="inline-btn delete" @click="tracks.toDelete = track._id">
         <TrashIcon />
       </button>
     </div>
@@ -29,6 +28,7 @@
 
 <script setup lang="ts">
 import { defineProps, computed } from "vue"
+import { Track } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
 import PencilIcon from "@/components/icons/PencilIcon.vue"
 import TrashIcon from "@/components/icons/TrashIcon.vue"
@@ -38,41 +38,28 @@ import getPositionColour from "@/utils/positionColours"
 const tracks = trackStore()
 
 const props = defineProps<{
-  _id: string
-  spotifyID?: string
-  position?: string
-  bpm?: number
-  title: string
-  duration?: string
-  genre?: string
-  audioFeatures?: {
-    acousticness: number
-    danceability: number
-    duration_ms: number
-    energy: number
-    instrumentalness: number
-    key: number
-    liveness: number
-    loudness: number
-    mode: number
-    speechiness: number
-    tempo: number
-    time_signature: number
-    valence: number
-  }
+  track: Track
 }>()
 
-const spotifyLink = props.spotifyID
-  ? `https://open.spotify.com/track/${props.spotifyID}`
+const spotifyLink = props.track.spotifyID
+  ? `https://open.spotify.com/track/${props.track.spotifyID}`
   : ``
 
-// computed because is reactive (track edit changes position)
 const positionColour = computed(() =>
-  props.position ? getPositionColour(props.position) : "hsl(0, 0%, 68%)"
+  props.track.position
+    ? getPositionColour(props.track.position)
+    : "hsl(0, 0%, 68%)"
 )
 
-// computed because is reactive (track edit changes bpm)
-const bpmColour = computed(() => (props.bpm ? getBPMColour(props.bpm) : null))
+const bpm = computed(() =>
+  props.track.bpm
+    ? props.track.bpm
+    : props.track.audioFeatures
+    ? Math.round(props.track.audioFeatures.tempo)
+    : null
+)
+
+const bpmColour = computed(() => (bpm.value ? getBPMColour(bpm.value) : null))
 </script>
 
 <style scoped lang="scss">
@@ -124,10 +111,6 @@ const bpmColour = computed(() => (props.bpm ? getBPMColour(props.bpm) : null))
       margin-left: 1rem;
     }
     .title {
-      margin-left: 1rem;
-    }
-    .duration {
-      color: var(--light-text);
       margin-left: 1rem;
     }
     .genre {

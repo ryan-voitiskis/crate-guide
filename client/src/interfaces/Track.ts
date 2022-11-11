@@ -4,7 +4,7 @@ interface Track {
   title: string
   artists?: string // * optional to allow for artists to be inferred from record artists
   position?: string
-  duration?: string
+  duration?: number | null
   bpm?: number
   rpm: number
   key?: number
@@ -36,6 +36,7 @@ interface TrackOfRecord extends Track {
   catno: string
   bpmFinal?: number
   artistsFinal: string
+  durationFinal?: number
 }
 
 export { Track, TrackOfRecord }

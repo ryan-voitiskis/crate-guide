@@ -94,8 +94,6 @@ const positionColours = [
   ["Z", "hsl(210, 60%, 55%)"],
 ]
 
-// returns text colour for position
-// * computed because is reactive (eg. track edit changes position)
 const positionColour = computed(() => {
   if (props.position) {
     for (let i = 0; i < positionColours.length; i++) {
@@ -110,7 +108,6 @@ const positionColour = computed(() => {
   return "hsl(0, 0%, 68%)"
 })
 
-// * computed because is reactive (eg. track edit changes bpm)
 const bpmColour = computed(() => (props.bpm ? getBPMColour(props.bpm) : null))
 </script>
 

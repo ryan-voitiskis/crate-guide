@@ -113,7 +113,7 @@ import { trackStore } from "@/stores/trackStore"
 import CrateSelect from "../inputs/CrateSelect.vue"
 import localeContains from "@/utils/localeContains"
 import SelectTrackOption from "@/components/session/SelectTrackOption.vue"
-import SortByButton from "../collection/SortByButton.vue"
+import SortByButton from "@/components/utility/SortByButton.vue"
 import XIcon from "@/components/icons/XIcon.vue"
 import {
   sortStr,
