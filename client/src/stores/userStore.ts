@@ -27,6 +27,10 @@ export const userStore = defineStore("user", {
     invalidCreds: false, // used in LoginForm
     success: false, // used in SettingsForm
     authDiscogs: false, // displays AuthoriseDiscogs.vue
+    loginModal: false, // displays LoginForm.vue
+    signUpModal: false, // displays SignUpForm.vue
+    recoveryModal: false, // displays RecoveryForm.vue
+    settingsModal: false, // displays SettingsForm.vue
   }),
   actions: {
     async login(email: string, password: string): Promise<number | null> {

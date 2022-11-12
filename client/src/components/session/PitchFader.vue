@@ -8,10 +8,10 @@
       max="100"
       class="fader"
       list="fader_labels"
-      @input="emitPitch"
+      @input="changePitch"
     />
 
-    <label class="reset-fader" @click="emitPitchReset">
+    <label class="reset-fader" @click="resetPitch()">
       <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
         <circle cx="50" cy="50" r="50" />
       </svg>
@@ -26,37 +26,36 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, defineProps, defineEmits } from "vue"
+import { ref, computed, defineProps } from "vue"
+import { sessionStore } from "@/stores/sessionStore"
 import { userStore } from "@/stores/userStore"
+const session = sessionStore()
 const user = userStore()
 
 const props = defineProps<{
-  pitch: number
-}>()
-
-const emit = defineEmits<{
-  (e: "changePitch", pitch: number): void
-  (e: "resetPitch"): void
+  deckID: number
 }>()
 
 const faderEl = ref<HTMLInputElement | null>(null)
 
-// emits pitch change on @input event
-const emitPitch = (event: Event) => {
+const changePitch = (event: Event) => {
   const target = event.target as HTMLInputElement
-  if (target) emit("changePitch", Number(target.value) * -1) // * -1 as input could not be reversed when vertical
+  if (target) session.decks[props.deckID].pitch = Number(target.value) * -1 // * -1 as input could not be reversed when vertical
 }
 
-// emits pitch reset when reset button clicked
-const emitPitchReset = () => {
-  emit("resetPitch")
+const resetPitch = () => {
+  session.decks[props.deckID].pitch = 0
   faderEl!.value!.value = "0"
 }
 
 const pitchReadable = computed(
   () =>
-    (props.pitch >= 0 ? "+" : "") +
-    (props.pitch * 0.01 * +user.authd.settings.turntablePitchRange).toFixed(1) +
+    (session.decks[props.deckID].pitch >= 0 ? "+" : "") +
+    (
+      session.decks[props.deckID].pitch *
+      0.01 *
+      +user.authd.settings.turntablePitchRange
+    ).toFixed(1) +
     "%"
 )
 </script>
@@ -74,7 +73,7 @@ label.reset-fader {
   button {
     height: unset;
     width: 100%;
-    background: #333;
+    background: var(--reset-button);
     border: none;
     border-radius: 50%;
     aspect-ratio: 1;
@@ -92,7 +91,7 @@ label.reset-fader {
   width: 3%;
   bottom: 11%;
   right: 13%;
-  color: rgb(189, 49, 49);
+  color: var(--pitch-readable);
   font: 400 1.5rem/1.6 Digital7, sans-serif;
 }
 

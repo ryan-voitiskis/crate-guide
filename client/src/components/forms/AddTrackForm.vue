@@ -16,6 +16,7 @@
         type="text"
         placeholder="A1 (optional)"
         pattern="[A-Za-z][0-9]?"
+        :focused="true"
       />
       <BasicInput
         v-model="form.title"

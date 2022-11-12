@@ -59,23 +59,28 @@
 <script setup lang="ts">
 import { defineProps, computed } from "vue"
 import { userStore } from "@/stores/userStore"
+import { sessionStore } from "@/stores/sessionStore"
 const user = userStore()
+const session = sessionStore()
 
 const props = defineProps<{
-  isPlaying: boolean
-  pitch: number
-  rpm: number
+  deckID: number
 }>()
 
-const spinState = computed(() => (props.isPlaying ? "running" : "paused"))
+const spinState = computed(() =>
+  session.decks[props.deckID].playing ? "running" : "paused"
+)
 
 // spinRate is duration of rotaion in seconds: required for rotate animation eg. 1.82s for 33rpm with 0% pitch adjustment
 const spinRate = computed(
   () =>
     (
-      ((props.pitch * -0.0001 * +user.authd.settings.turntablePitchRange + 1) *
+      ((session.decks[props.deckID].pitch *
+        -0.0001 *
+        +user.authd.settings.turntablePitchRange +
+        1) *
         60) /
-      props.rpm
+      session.decks[props.deckID].rpm
     )
       .toFixed(2)
       .toString() + "s"

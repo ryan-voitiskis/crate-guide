@@ -19,7 +19,7 @@
     ></iframe>
     <hr />
     <p>
-      All of this data is from Spotify's API. Please look at these variables in
+      All of this data is from Spotify's API. Please look at these properties in
       the context of the information available on
       <a
         href="https://developer.spotify.com/documentation/web-api/reference/#/operations/get-audio-features"
@@ -30,43 +30,43 @@
       >.
     </p>
 
-    <table class="main-features">
+    <table class="features">
       <tr>
         <td><DanceIcon /></td>
         <td>Danceability</td>
         <td>{{ getPercent(track.audioFeatures.danceability) }}</td>
       </tr>
-      <tr class="main-feature">
+      <tr>
         <td><BoltIcon /></td>
         <td>Energy</td>
         <td>{{ getPercent(track.audioFeatures.energy) }}</td>
       </tr>
-      <tr class="main-feature">
+      <tr>
         <td><SmileIcon /></td>
         <td>Valence</td>
         <td>{{ getPercent(track.audioFeatures.valence) }}</td>
       </tr>
-      <tr class="main-feature">
+      <tr>
         <td><PianoIcon /></td>
         <td>Instrumentalness</td>
         <td>{{ getPercent(track.audioFeatures.instrumentalness) }}</td>
       </tr>
-      <tr class="main-feature">
+      <tr>
         <td><GuitarIcon /></td>
         <td>Acousticness</td>
         <td>{{ getPercent(track.audioFeatures.acousticness) }}</td>
       </tr>
-      <tr class="main-feature">
+      <tr>
         <td><SpeechIcon /></td>
         <td>Speechiness</td>
         <td>{{ getPercent(track.audioFeatures.speechiness) }}</td>
       </tr>
-      <tr class="main-feature">
+      <tr>
         <td><EqualizerIcon /></td>
         <td>Loudness*</td>
         <td>{{ track.audioFeatures.loudness.toFixed(1) }} dB</td>
       </tr>
-      <tr class="main-feature">
+      <tr>
         <td><SpeakerIcon /></td>
         <td>Liveness</td>
         <td>{{ getPercent(track.audioFeatures.liveness) }}</td>
@@ -76,10 +76,6 @@
       {{ state.seeRaw ? "Hide raw" : "See raw" }}
     </button>
     <table class="raw-features" v-if="state.seeRaw">
-      <tr>
-        <td>acousticness</td>
-        <td>{{ track.audioFeatures.acousticness.toString() }}</td>
-      </tr>
       <tr>
         <td>acousticness</td>
         <td>{{ track.audioFeatures.acousticness.toString() }}</td>
@@ -135,7 +131,7 @@
     </table>
     <p class="note">
       * <i>Loudness</i> is from an analysis of Spotify's digital file. Loudness
-      of a record will likely differ.
+      of the vinyl release will likely differ.
     </p>
   </div>
 </template>
@@ -173,7 +169,7 @@ h2 {
     margin-right: 10px;
   }
 }
-table.main-features {
+table.features {
   width: 100%;
   gap: 10px;
   border-collapse: collapse;

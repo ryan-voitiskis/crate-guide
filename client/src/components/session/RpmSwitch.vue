@@ -2,20 +2,25 @@
   <button
     class="rpm-switch"
     :class="{ second: speed === 45 }"
-    @click="$emit('activate', speed)"
+    @click="session.decks[deckID].rpm = speed"
   >
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
       <text x="-120" y="80">{{ speed }}</text>
     </svg>
-    <div class="indicator-light" :class="{ active: isActive }"></div>
+    <div
+      class="indicator-light"
+      :class="{ active: session.decks[deckID].rpm === speed }"
+    ></div>
   </button>
 </template>
 
 <script setup lang="ts">
 import { defineProps } from "vue"
+import { sessionStore } from "@/stores/sessionStore"
+const session = sessionStore()
 
 defineProps<{
-  isActive: boolean
+  deckID: number
   speed: number
 }>()
 </script>

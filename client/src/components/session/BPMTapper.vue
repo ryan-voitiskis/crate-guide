@@ -1,8 +1,8 @@
 <template>
-  <span v-if="props.saved" class="saved">
+  <span v-if="savedTrackBpm" class="saved">
     Saved:&nbsp;
     <span class="saved-bpm">
-      {{ props.saved.toFixed(1) }}
+      {{ savedTrackBpm.toFixed(1) }}
     </span>
   </span>
   <span v-if="state.lastBpm !== 0" class="last">
@@ -20,9 +20,11 @@
 <script setup lang="ts">
 import { defineProps, reactive, computed } from "vue"
 import getBPMColour from "@/utils/getBPMColour"
+import { sessionStore } from "@/stores/sessionStore"
+const session = sessionStore()
 
 const props = defineProps<{
-  saved?: number
+  deckID: number
 }>()
 
 const state = reactive({
@@ -33,6 +35,10 @@ const state = reactive({
   showBpm: false,
   showTapPrompt: true,
 })
+
+const savedTrackBpm = computed(
+  () => session.decks[props.deckID].loadedTrack?.bpmFinal
+)
 
 const reset = () => {
   state.lastBpm = state.bpm
@@ -60,9 +66,11 @@ const tap = () => {
 const bpmColour = computed(() =>
   state.bpm ? getBPMColour(state.bpm) : "white"
 )
+
 const savedBpmColour = computed(() =>
-  props.saved ? getBPMColour(props.saved) : null
+  savedTrackBpm.value ? getBPMColour(savedTrackBpm.value) : null
 )
+
 const lastBpmColour = computed(() => getBPMColour(state.lastBpm))
 </script>
 

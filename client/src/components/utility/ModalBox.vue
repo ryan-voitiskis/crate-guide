@@ -7,7 +7,13 @@
 </template>
 
 <script setup lang="ts">
-import { withDefaults, defineProps, onMounted, onBeforeUnmount } from "vue"
+import {
+  withDefaults,
+  defineProps,
+  onMounted,
+  defineEmits,
+  onUnmounted,
+} from "vue"
 
 export interface Props {
   width?: string
@@ -20,9 +26,22 @@ withDefaults(defineProps<Props>(), {
   fullHeight: false,
 })
 
-// prevent scrolling of body when modal shown
-onMounted(() => (document.body.style.overflow = "hidden"))
-onBeforeUnmount(() => (document.body.style.overflow = "visible"))
+const emit = defineEmits<{
+  (e: "close"): void
+}>()
+
+const escapeClose = (e: KeyboardEvent) => {
+  if (e.key === "Escape") emit("close")
+}
+
+onMounted(() => {
+  document.body.addEventListener("keyup", escapeClose)
+  document.body.style.overflow = "hidden" // prevent scrolling of body when modal shown
+})
+onUnmounted(() => {
+  document.body.removeEventListener("keyup", escapeClose)
+  document.body.style.overflow = "visible"
+})
 </script>
 
 <style lang="scss">

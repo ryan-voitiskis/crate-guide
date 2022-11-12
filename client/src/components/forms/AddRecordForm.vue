@@ -72,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits, onBeforeUnmount } from "vue"
+import { reactive, onBeforeUnmount } from "vue"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import InfoDropdown from "@/components/utility/InfoDropdown.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
@@ -83,10 +83,6 @@ import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
 const user = userStore()
 const records = recordStore()
-
-const emit = defineEmits<{
-  (e: "close"): void
-}>()
 
 const form = reactive({
   catno: "",
@@ -119,7 +115,7 @@ const submit = async () => {
   const response = await records.addRecord(unsavedRecord)
   if (response === 400) {
     console.error(`AddRecordForm: record.addRecord returned status ${response}`)
-  } else if (response === 201) emit("close")
+  } else if (response === 201) records.addRecordModal = false
 }
 
 onBeforeUnmount(() => {

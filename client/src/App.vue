@@ -19,21 +19,21 @@
         <button
           type="button"
           v-if="!user.hasUser()"
-          @click="state.signUp = true"
+          @click="user.signUpModal = true"
         >
           Create account
         </button>
         <button
           type="button"
           v-if="!user.hasUser()"
-          @click="state.login = true"
+          @click="user.loginModal = true"
         >
           Log in
         </button>
         <button type="button" v-if="user.hasUser()" @click="user.$reset()">
           Log out
         </button>
-        <button type="button" @click="state.settings = true">
+        <button type="button" @click="user.settingsModal = true">
           <CogIcon />
         </button>
       </nav>
@@ -41,26 +41,35 @@
     <router-view />
   </div>
 
-  <ModalBox v-if="state.login" @close="state.login = false" width="360px">
-    <LoginForm
-      @openSignUp=";(state.login = false), (state.signUp = true)"
-      @openRecovery=";(state.login = false), (state.recovery = true)"
-      @close="state.login = false"
-    />
+  <ModalBox
+    v-if="user.loginModal"
+    @close="user.loginModal = false"
+    width="360px"
+  >
+    <LoginForm @close="user.loginModal = false" />
   </ModalBox>
 
-  <ModalBox v-if="state.signUp" @close="state.signUp = false" width="360px">
-    <SignUpForm
-      @openLogin=";(state.login = true), (state.signUp = false)"
-      @close="state.signUp = false"
-    />
+  <ModalBox
+    v-if="user.signUpModal"
+    @close="user.signUpModal = false"
+    width="360px"
+  >
+    <SignUpForm @close="user.signUpModal = false" />
   </ModalBox>
 
-  <ModalBox v-if="state.recovery" @close="state.recovery = false" width="360px">
+  <ModalBox
+    v-if="user.recoveryModal"
+    @close="user.recoveryModal = false"
+    width="360px"
+  >
     <RecoveryForm />
   </ModalBox>
 
-  <ModalBox v-if="state.settings" @close="state.settings = false" width="540px">
+  <ModalBox
+    v-if="user.settingsModal"
+    @close="user.settingsModal = false"
+    width="540px"
+  >
     <SettingsForm />
   </ModalBox>
 
@@ -147,10 +156,6 @@ const spotify = spotifyStore()
 const user = userStore()
 
 const state = reactive({
-  login: false,
-  signUp: false,
-  recovery: false,
-  settings: false,
   queryMsg: route.query.msg?.toString() || "",
 })
 

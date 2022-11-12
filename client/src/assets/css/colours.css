@@ -64,6 +64,8 @@
   --bpm-last-saved-label: hsl(0, 0%, 39%);
   --bpm-tap-label: #ff605f;
   --play-button: hsl(146, 73%, 49%);
+  --pitch-readable: hsl(0, 59%, 47%);
+  --reset-button: #333;
 
   /* records */
   --record-bg: linear-gradient(to right, hsl(10, 24%, 96%), hsl(35, 24%, 96%));

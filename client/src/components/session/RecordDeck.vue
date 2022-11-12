@@ -2,72 +2,33 @@
   <div class="deck-wrapper-outer">
     <div class="deck-wrapper-inner">
       <div class="deck">
-        <StartStopButton @stopStart="stopStart" />
-        <button class="load-track" @click="tracks.loadTrackTo = deckID">
+        <StartStopButton :deckID="deckID" />
+        <button class="load-track" @click="session.loadTrackTo = deckID">
           Load track
         </button>
-        <RpmSwitch
-          :speed="33"
-          :isActive="state.rpm == 33"
-          @activate="switchRPM"
-        />
-        <RpmSwitch
-          :speed="45"
-          :isActive="state.rpm == 45"
-          @activate="switchRPM"
-        />
-        <PitchFader
-          :pitch="state.pitch"
-          @changePitch="changePitch"
-          @resetPitch="resetPitch"
-        />
-        <RecordIcon
-          :isPlaying="state.isPlaying"
-          :pitch="state.pitch"
-          :rpm="state.rpm"
-        />
-        <!-- <BPMTapper :saved="state.trackLoaded.rpm" /> -->
-        <BPMTapper :saved="144" />
+        <RpmSwitch :deckID="deckID" :speed="33" />
+        <RpmSwitch :deckID="deckID" :speed="45" />
+        <PitchFader :deckID="deckID" />
+        <RecordIcon :deckID="deckID" />
+        <BPMTapper :deckID="deckID" />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { defineProps, reactive } from "vue"
+import { defineProps } from "vue"
 import StartStopButton from "./StartStopButton.vue"
 import RpmSwitch from "./RpmSwitch.vue"
 import PitchFader from "./PitchFader.vue"
 import RecordIcon from "./RecordIcon.vue"
 import BPMTapper from "./BPMTapper.vue"
-import { Track } from "@/interfaces/Track"
-import { trackStore } from "@/stores/trackStore"
-const tracks = trackStore()
+import { sessionStore } from "@/stores/sessionStore"
+const session = sessionStore()
 
-const props = defineProps<{
+defineProps<{
   deckID: number
 }>()
-
-const state = reactive({
-  isPlaying: false,
-  isLoaded: false,
-  rpm: 33,
-  pitch: 0, // range of -100 (-8% of rpm) to 100 (+8% of rpm)
-  trackLoaded: {} as Track,
-})
-
-const stopStart = () => {
-  state.isPlaying = !state.isPlaying
-  console.log(
-    `Deck ${props.deckID} ${state.isPlaying ? "playing." : "stopped."}`
-  )
-}
-
-const switchRPM = (speed: number) => (state.rpm = speed)
-
-const changePitch = (pitch: number) => (state.pitch = pitch)
-
-const resetPitch = () => (state.pitch = 0)
 </script>
 
 <style scoped lang="scss">

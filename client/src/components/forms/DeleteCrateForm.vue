@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits, watch, computed, onBeforeUnmount } from "vue"
+import { reactive, watch, computed, onBeforeUnmount } from "vue"
 import { crateStore } from "@/stores/crateStore"
 import { userStore } from "@/stores/userStore"
 import BasicInput from "@/components/inputs/BasicInput.vue"
@@ -49,10 +49,6 @@ import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import XIcon from "@/components/icons/XIcon.vue"
 const user = userStore()
 const crates = crateStore()
-
-const emit = defineEmits<{
-  (e: "close"): void
-}>()
 
 const form = reactive({
   name: "",
@@ -78,7 +74,7 @@ const submit = async () => {
       const response = await crates.deleteCrate(crate._id)
       if (response === 200) {
         user.authd.settings.selectedCrate = "all"
-        emit("close")
+        crates.deleteCrateModal = false
       }
     }
   } else state.mismatch = true

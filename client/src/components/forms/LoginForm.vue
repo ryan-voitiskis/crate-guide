@@ -7,7 +7,7 @@
   </div>
   <form @submit.prevent="submit">
     <div class="modal-body">
-      <p @click="$emit('openSignUp')">
+      <p @click="openSignUp()">
         Don't have an account? <span class="link-text">Sign up</span>
       </p>
       <BasicInput
@@ -26,7 +26,7 @@
         placeholder="Enter your password"
         required
       >
-        <span @click="$emit('openRecovery')" class="forgot-password">
+        <span @click="openRecovery()" class="forgot-password">
           Forgot password?
         </span>
       </PasswordInput>
@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits, onUnmounted } from "vue"
+import { reactive, onUnmounted } from "vue"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import PasswordInput from "@/components/inputs/PasswordInput.vue"
@@ -53,12 +53,6 @@ const user = userStore()
 const crates = crateStore()
 const records = recordStore()
 
-const emit = defineEmits<{
-  (e: "openSignUp"): void
-  (e: "openRecovery"): void
-  (e: "close"): void
-}>()
-
 const form = reactive({
   email: "",
   password: "",
@@ -67,10 +61,20 @@ const form = reactive({
 const submit = async () => {
   const response = await user.login(form.email, form.password)
   if (response === 200) {
-    emit("close")
+    user.loginModal = false
     crates.fetchCrates()
     records.fetchRecords()
   }
+}
+
+const openSignUp = () => {
+  user.loginModal = false
+  user.signUpModal = true
+}
+
+const openRecovery = () => {
+  user.loginModal = false
+  user.recoveryModal = true
 }
 
 onUnmounted(() => {

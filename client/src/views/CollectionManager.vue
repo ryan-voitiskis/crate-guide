@@ -1,7 +1,7 @@
 <template>
   <p v-if="!user.hasUser()">Sign in to create collections.</p>
   <div class="controls" v-if="user.hasUser()">
-    <button class="icon-button" @click="state.addRecord = true">
+    <button class="icon-button" @click="records.addRecordModal = true">
       <PlusCircleIcon /> Add new record
     </button>
     <button
@@ -64,8 +64,11 @@
     <DuplicateCrateForm @close="crates.duplicateCrateModal = false" />
   </ModalBox>
 
-  <ModalBox v-if="state.addRecord" @close="state.addRecord = false">
-    <AddRecordForm @close="state.addRecord = false" />
+  <ModalBox
+    v-if="records.addRecordModal"
+    @close="records.addRecordModal = false"
+  >
+    <AddRecordForm @close="records.addRecordModal = false" />
   </ModalBox>
 
   <ModalBox v-if="records.toEdit !== ''" @close="records.toEdit = ''">
@@ -138,14 +141,14 @@
   <ModalBox
     v-if="tracks.toShowFeatures"
     @close="tracks.toShowFeatures = ''"
-    width="540px"
+    width="560px"
   >
     <AudioFeatures />
   </ModalBox>
 </template>
 
 <script setup lang="ts">
-import { reactive, onBeforeUnmount } from "vue"
+import { onBeforeUnmount } from "vue"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
 import { spotifyStore } from "@/stores/spotifyStore"
@@ -184,10 +187,6 @@ const records = recordStore()
 const spotify = spotifyStore()
 const tracks = trackStore()
 const user = userStore()
-
-const state = reactive({
-  addRecord: false, // shows AddRecordForm todo: remove and add to recordStore
-})
 
 onBeforeUnmount(() => {
   records.checkboxed = []

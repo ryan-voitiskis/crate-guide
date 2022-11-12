@@ -50,7 +50,7 @@
 
 <script setup lang="ts">
 import { defineProps, computed } from "vue"
-import { TrackOfRecord } from "@/interfaces/Track"
+import { TrackPlus } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import getBPMColour from "@/utils/getBPMColour"
@@ -70,7 +70,7 @@ const tracks = trackStore()
 const user = userStore()
 
 const props = defineProps<{
-  track: TrackOfRecord
+  track: TrackPlus
 }>()
 
 const coverImg = `url("${props.track.cover}")`

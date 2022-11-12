@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits, onBeforeUnmount } from "vue"
+import { reactive, onBeforeUnmount } from "vue"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import InfoDropdown from "@/components/utility/InfoDropdown.vue"
@@ -47,10 +47,6 @@ import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 const user = userStore()
 const crates = crateStore()
-
-const emit = defineEmits<{
-  (e: "close"): void
-}>()
 
 const form = reactive({
   name: "",
@@ -63,7 +59,7 @@ const submit = async () => {
     records: [],
   }
   const response = await crates.addCrate(unsavedCrate)
-  if (response === 201) emit("close")
+  if (response === 201) crates.addCrateModal = false
 }
 
 onBeforeUnmount(() => {

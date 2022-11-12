@@ -17,15 +17,17 @@
     <span class="label">{{ track.label }}</span>
     <span class="catno">{{ track.catno }}</span>
     <span class="year">{{ track.year }}</span>
-    <button class="play" @click="load()"><PlayIcon /></button>
+    <button class="play" @click="session.loadTrack(track._id)">
+      <PlayIcon />
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { defineProps } from "vue"
-import { trackStore } from "@/stores/trackStore"
+import { sessionStore } from "@/stores/sessionStore"
 import { userStore } from "@/stores/userStore"
-import { TrackOfRecord } from "@/interfaces/Track"
+import { TrackPlus } from "@/interfaces/Track"
 import getBPMColour from "@/utils/getBPMColour"
 import getPositionColour from "@/utils/positionColours"
 import {
@@ -34,11 +36,11 @@ import {
   getKeyColour,
 } from "@/utils/pitchClassMap"
 import PlayIcon from "../icons/PlayIcon.vue"
-const tracks = trackStore()
+const session = sessionStore()
 const user = userStore()
 
 const props = defineProps<{
-  track: TrackOfRecord
+  track: TrackPlus
 }>()
 
 const coverImg = `url("${props.track.cover}")`
@@ -72,11 +74,6 @@ const bpmColour = props.track.bpm
 const positionColour = props.track.position
   ? getPositionColour(props.track.position)
   : "hsl(0, 0%, 68%)"
-
-const load = () =>
-  tracks.loadTrackTo === 1
-    ? (tracks.deck1Track = props.track._id)
-    : (tracks.deck2Track = props.track._id)
 </script>
 
 <style scoped lang="scss">

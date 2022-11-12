@@ -3,17 +3,14 @@ import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
 import { userStore } from "@/stores/userStore"
 import Record from "@/interfaces/Record"
-import { Track, TrackOfRecord } from "@/interfaces/Track"
+import { Track, TrackPlus } from "@/interfaces/Track"
 import trackService from "@/services/trackService"
 import UnsavedTrack from "@/interfaces/UnsavedTrack"
 
 export const trackStore = defineStore("track", {
   state: () => ({
-    trackList: [] as TrackOfRecord[],
-    crateTrackList: [] as TrackOfRecord[],
-    deck1Track: "",
-    deck2Track: "",
-    loadTrackTo: -1, // deck number to load track to
+    trackList: [] as TrackPlus[],
+    crateTrackList: [] as TrackPlus[],
     loading: false,
     errorMsg: "",
     addTrackTo: "", // id of record to add track to, also serves as flag for opening AddTrackForm
@@ -185,12 +182,12 @@ export const trackStore = defineStore("track", {
 
   getters: {
     getTrackByIdFromTrackList: (state) => {
-      return (_id: string): TrackOfRecord | null =>
+      return (_id: string): TrackPlus | null =>
         state.trackList.find((i) => i._id === _id) || null
     },
     // slight optimisation on getTrackByIdFromTrackList, may be significant for huge collections
     getTrackByIdFromCrateTrackList: (state) => {
-      return (_id: string): TrackOfRecord | null =>
+      return (_id: string): TrackPlus | null =>
         state.crateTrackList.find((i) => i._id === _id) || null
     },
   },

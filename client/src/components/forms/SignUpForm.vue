@@ -7,7 +7,7 @@
   </div>
   <form @submit.prevent="submit">
     <div class="modal-body">
-      <p @click="$emit('openLogin')">
+      <p @click="openLogin()">
         Already have an account? <span class="link-text">Log in</span>
       </p>
       <div id="privacy-policy">
@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineEmits, onUnmounted, watch } from "vue"
+import { reactive, onUnmounted, watch } from "vue"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import PasswordInput from "@/components/inputs/PasswordInput.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
@@ -61,11 +61,6 @@ import XIcon from "@/components/icons/XIcon.vue"
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
 import { userStore } from "@/stores/userStore"
 const user = userStore()
-
-const emit = defineEmits<{
-  (e: "openLogin"): void
-  (e: "close"): void
-}>()
 
 const form = reactive({
   name: "",
@@ -80,7 +75,7 @@ const submit = async () => {
     password: form.password,
   }
   const response = await user.addUser(newUser)
-  if (response === 201) emit("close")
+  if (response === 201) user.signUpModal = false
 }
 
 // remove email duplicate warning if email field changes
@@ -91,6 +86,11 @@ watch(
       user.errorMsg = ""
   }
 )
+
+const openLogin = () => {
+  user.loginModal = true
+  user.signUpModal = false
+}
 
 onUnmounted(() => {
   user.errorMsg = ""

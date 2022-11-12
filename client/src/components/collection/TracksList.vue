@@ -131,7 +131,7 @@
 
 <script setup lang="ts">
 import { reactive, computed } from "vue"
-import { TrackOfRecord } from "@/interfaces/Track"
+import { TrackPlus } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
 import CrateSelect from "../inputs/CrateSelect.vue"
 import localeContains from "@/utils/localeContains"
@@ -170,7 +170,7 @@ const state = reactive({
   yearRvrs: false,
 })
 
-const titleSearchedTracks = computed((): TrackOfRecord[] =>
+const titleSearchedTracks = computed((): TrackPlus[] =>
   state.searchTitle !== ""
     ? tracks.crateTrackList.filter((i) =>
         localeContains(i.title, state.searchTitle)
@@ -178,7 +178,7 @@ const titleSearchedTracks = computed((): TrackOfRecord[] =>
     : tracks.crateTrackList
 )
 
-const artistsSearchedTracks = computed((): TrackOfRecord[] =>
+const artistsSearchedTracks = computed((): TrackPlus[] =>
   state.searchArtists !== ""
     ? titleSearchedTracks.value.filter((i) =>
         localeContains(i.artistsFinal, state.searchArtists)
@@ -187,7 +187,7 @@ const artistsSearchedTracks = computed((): TrackOfRecord[] =>
 )
 
 // sort records by title alphabetically
-const sortedTracks = computed((): TrackOfRecord[] => {
+const sortedTracks = computed((): TrackPlus[] => {
   switch (state.sortBy) {
     case "bpm":
       return [...artistsSearchedTracks.value].sort(

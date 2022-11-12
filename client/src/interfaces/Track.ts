@@ -28,7 +28,7 @@ interface Track {
   }
 }
 
-interface TrackOfRecord extends Track {
+interface TrackPlus extends Track {
   recordID: string
   cover: string
   label: string
@@ -39,4 +39,4 @@ interface TrackOfRecord extends Track {
   durationFinal?: number
 }
 
-export { Track, TrackOfRecord }
+export { Track, TrackPlus }
