@@ -34,7 +34,7 @@ import DiscogsReleaseBasic from "@/components/discogs/DiscogsReleaseBasic.vue"
 const discogs = discogsStore()
 
 onBeforeUnmount(() => {
-  discogs.revokeDiscogsForm = false
+  discogs.revokeDiscogsModal = false
 })
 </script>
 

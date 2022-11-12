@@ -13,7 +13,7 @@ export const trackStore = defineStore("track", {
     crateTrackList: [] as TrackPlus[],
     loading: false,
     errorMsg: "",
-    addTrackTo: "", // id of record to add track to, also serves as flag for opening AddTrackForm
+    addTrackTo: "", // id of record to add track to
     toEdit: "", // id of track to be edited
     toDelete: "", // id of track to be deleted
     toShowFeatures: "", // id of track to show AudioFeatures modal for
@@ -32,27 +32,20 @@ export const trackStore = defineStore("track", {
           record,
           user.authd.token
         )
-
-        // overwrite exisiting record
         if (response.status === 201) {
-          const records = recordStore()
           const updatedRecord = (await response.json()) as Record
-          const existingRecord = records.getById(record) as Record
+          const existingRecord = recordStore().getById(record) as Record
           Object.assign(existingRecord, updatedRecord)
           this.generateTrackLists()
           this.loading = false
           this.addTrackTo = ""
           return response.status
-
-          // handle errors
         } else if (response.status === 400) {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         this.loading = false
         return response.status
-
-        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
         this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
@@ -66,26 +59,21 @@ export const trackStore = defineStore("track", {
       const user = userStore()
       try {
         const response = await trackService.updateTrack(track, user.authd.token)
-
-        // update returned track in trackList
         if (response.status === 200) {
-          const records = recordStore()
           const updatedRecord = (await response.json()) as Record
-          const existingRecord = records.getById(updatedRecord._id) as Record
+          const existingRecord = recordStore().getById(
+            updatedRecord._id
+          ) as Record
           Object.assign(existingRecord, updatedRecord)
           this.generateTrackLists()
           this.loading = false
           return response.status
-
-          // handle errors
         } else if (response.status === 400 || response.status === 401) {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         this.loading = false
         return response.status
-
-        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
         this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
@@ -103,27 +91,22 @@ export const trackStore = defineStore("track", {
             this.toDelete,
             user.authd.token
           )
-
-          // handle track deleted successfully
           if (response.status === 200) {
-            const recStore = recordStore()
             const updatedRecord = (await response.json()) as Record
-            const existingRecord = recStore.getById(updatedRecord._id) as Record
+            const existingRecord = recordStore().getById(
+              updatedRecord._id
+            ) as Record
             Object.assign(existingRecord, updatedRecord)
             this.generateTrackLists()
             this.toDelete = ""
             this.loading = false
             return response.status
-
-            // handle errors
           } else if (response.status === 400) {
             const error = await response.json()
             this.errorMsg = error.message ? error.message : "Unexpected error"
           }
           this.loading = false
           return response.status
-
-          // catch error, eg. NetworkError. console.error(error) to debug
         } catch (error) {
           this.errorMsg = "Unexpected error. Probably network error."
           this.loading = false

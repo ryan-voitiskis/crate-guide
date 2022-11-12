@@ -37,7 +37,7 @@ const spotify = spotifyStore()
 const appNamePossessive = inject("appNamePossessive")
 
 onBeforeUnmount(() => {
-  spotify.revokeSpotifyForm = false
+  spotify.revokeSpotifyModal = false
 })
 </script>
 

@@ -37,7 +37,7 @@ const discogs = discogsStore()
 const appNamePossessive = inject("appNamePossessive")
 
 onBeforeUnmount(() => {
-  discogs.revokeDiscogsForm = false
+  discogs.revokeDiscogsModal = false
 })
 </script>
 

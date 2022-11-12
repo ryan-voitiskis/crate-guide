@@ -54,7 +54,7 @@
     v-if="crates.deleteCrateModal"
     @close="crates.deleteCrateModal = false"
   >
-    <DeleteCrateForm @close="crates.deleteCrateModal = false" />
+    <ConfirmDeleteCrate @close="crates.deleteCrateModal = false" />
   </ModalBox>
 
   <ModalBox
@@ -157,7 +157,7 @@ import { userStore } from "@/stores/userStore"
 import AddCrateForm from "@/components/forms/AddCrateForm.vue"
 import AddRecordForm from "@/components/forms/AddRecordForm.vue"
 import AddTrackForm from "@/components/forms/AddTrackForm.vue"
-import DeleteCrateForm from "@/components/forms/DeleteCrateForm.vue"
+import ConfirmDeleteCrate from "@/components/forms/ConfirmDeleteCrate.vue"
 import DeleteRecordForm from "@/components/forms/ConfirmDeleteRecord.vue"
 import DeleteTrackForm from "@/components/forms/ConfirmDeleteTrack.vue"
 import DiscogsControls from "@/components/discogs/DiscogsControls.vue"

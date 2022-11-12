@@ -13,16 +13,15 @@ export const spotifyStore = defineStore("spotify", {
     importProgress: 0,
     errorMsg: "",
     loading: false,
-    importProgressModal: false,
-    albumMatchesModal: false,
-    trackMatchesModal: false,
-    completionModal: false,
-    revokeSpotifyForm: false,
+    importProgressModal: false, // displays SpotifyImportProgress.vue
+    albumMatchesModal: false, // displays AlbumMatchForm.vue
+    trackMatchesModal: false, // displays TrackMatchForm.vue
+    completionModal: false, // displays SpotifyCompletion.vue
+    revokeSpotifyModal: false, // displays ComfirmRevokeSpotify.vue
     inexactAlbumMatches: [] as InexactAlbumMatch[], // records attempted to be found on spotify w/o perfect match
     inexactTrackMatches: [] as InexactTrackMatch[],
   }),
   actions: {
-    // call and handle request that begins spotify OAuth flow
     async authorisationRequest(): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
@@ -31,20 +30,15 @@ export const spotifyStore = defineStore("spotify", {
         const response = await spotifyService.authorisationRequest(
           user.authd.token
         )
-        // handle successful update
         if (response.status === 200) {
           const res = await response.json()
           window.location.href = res
-        }
-        // handle 400 status code. see spotifyController.ts
-        else {
+        } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
-          this.loading = false // not for 200 res as redirect takes time
+          this.loading = false
         }
         return response.status
-
-        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
         this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
@@ -52,8 +46,6 @@ export const spotifyStore = defineStore("spotify", {
       }
     },
 
-    // call and handle response to request that removes spotifyToken, spotifyTokenSecret,
-    // spotifyRequestToken and spotifyRequestTokenSecret from user.
     async revokeAuthorisation(): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
@@ -62,20 +54,15 @@ export const spotifyStore = defineStore("spotify", {
         const response = await spotifyService.revokeAuthorisation(
           user.authd.token
         )
-        // handle successful update
         if (response.status === 200) {
           user.authd.isSpotifyOAuthd = false
-          this.revokeSpotifyForm = false
-        }
-        // handle 400 and 401 status codes. see userController.ts
-        else {
+          this.revokeSpotifyModal = false
+        } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         this.loading = false
         return response.status
-
-        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
         this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
@@ -83,26 +70,20 @@ export const spotifyStore = defineStore("spotify", {
       }
     },
 
-    // gets and saves tracks audio features for manually added spotifyID
     async getTrackFeatures(track: MatchedTrack): Promise<number | null> {
       this.errorMsg = ""
-      const user = userStore()
       try {
         const response = await spotifyService.getTrackFeatures(
           track,
-          user.authd.token
+          userStore().authd.token
         )
-        // handle successful update
         if (response.status === 200) return response.status
-        // handle 400 and 401 status codes. see userController.ts
         else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         this.loading = false
         return response.status
-
-        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
         this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
@@ -116,7 +97,6 @@ export const spotifyStore = defineStore("spotify", {
       this.inexactAlbumMatches = []
       this.inexactTrackMatches = []
       const records = recordStore()
-      const user = userStore()
       const body = new URLSearchParams()
       body.append("records", JSON.stringify(records.checkboxed))
 
@@ -156,7 +136,7 @@ export const spotifyStore = defineStore("spotify", {
               headers: {
                 Accept: "application/json",
                 "Content-Type": "application/x-www-form-urlencoded",
-                Authorization: `Bearer ${user.authd.token}`,
+                Authorization: `Bearer ${userStore().authd.token}`,
               },
               body: body,
               onmessage(msg) {
@@ -188,7 +168,6 @@ export const spotifyStore = defineStore("spotify", {
       this.errorMsg = ""
       this.importProgressModal = true
       const records = recordStore()
-      const user = userStore()
       const body = new URLSearchParams()
       const matchedAlbums = this.getMatchedInexactAlbums()
       const matchedTracks = this.getMatchedInexactTracks()
@@ -230,7 +209,7 @@ export const spotifyStore = defineStore("spotify", {
           headers: {
             Accept: "application/json",
             "Content-Type": "application/x-www-form-urlencoded",
-            Authorization: `Bearer ${user.authd.token}`,
+            Authorization: `Bearer ${userStore().authd.token}`,
           },
           body: body,
           onmessage(msg) {
@@ -276,6 +255,7 @@ export const spotifyStore = defineStore("spotify", {
       }
     },
 
+    // works like toggleInexactAlbumOption for tracks
     toggleInexactTrackOption(trackID: string, optionID: string) {
       const inexactMatch = this.inexactTrackMatches.find(
         (i) => i.trackID === trackID

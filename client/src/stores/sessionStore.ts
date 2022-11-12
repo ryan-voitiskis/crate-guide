@@ -9,6 +9,7 @@ interface Deck {
   pitch: number // range of -100 (-8% of rpm) to 100 (+8% of rpm)
   tappedBpm: number | null
 }
+
 export const sessionStore = defineStore("session", {
   state: () => ({
     decks: [

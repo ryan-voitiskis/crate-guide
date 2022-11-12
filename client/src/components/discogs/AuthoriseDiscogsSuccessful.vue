@@ -20,7 +20,9 @@
       Close
     </button>
     <button
-      @click=";(discogs.selectDiscogsFolder = true), $parent!.$emit('close')"
+      @click="
+        ;(discogs.selectDiscogsFolderModal = true), $parent!.$emit('close')
+      "
       class="primary"
       type="submit"
     >

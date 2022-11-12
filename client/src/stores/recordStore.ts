@@ -14,7 +14,7 @@ export const recordStore = defineStore("record", {
     errorMsg: "",
     feedbackMsg: "", // after update feedback msg
     checkAll: false, // watch from RecordSingle to select all record checkboxes
-    addRecordModal: false, // add record modal
+    addRecordModal: false, // displays AddRecordForm.vue
     toEdit: "", // id of record to be edited
     checkboxed: [] as string[], // record id(s) of records with checked checkboxes
     toDelete: [] as string[], // record id(s) to be deleted
@@ -23,24 +23,17 @@ export const recordStore = defineStore("record", {
   }),
   actions: {
     async fetchRecords(): Promise<number | null> {
-      const user = userStore()
       try {
-        const response = await recordService.getRecords(user.authd.token)
-
-        // push returned record to recordList
+        const response = await recordService.getRecords(userStore().authd.token)
         if (response.status === 200) {
           const records = (await response.json()) as Record[]
           if (records !== null) this.recordList = records
           trackStore().generateTrackLists()
-
-          // handle errors
         } else if (response.status === 400) {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         return response.status
-
-        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
         console.error(error)
         return null
@@ -50,27 +43,23 @@ export const recordStore = defineStore("record", {
     async addRecord(record: UnsavedRecord): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
-      const user = userStore()
       try {
-        const response = await recordService.addRecord(record, user.authd.token)
-
-        // push returned record to recordList
+        const response = await recordService.addRecord(
+          record,
+          userStore().authd.token
+        )
         if (response.status === 201) {
           const newRecord = (await response.json()) as Record
           this.recordList.push(newRecord)
           trackStore().generateTrackLists()
           this.loading = false
           return response.status
-
-          // handle errors
         } else if (response.status === 400) {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         this.loading = false
         return response.status
-
-        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
         this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
@@ -81,14 +70,11 @@ export const recordStore = defineStore("record", {
     async updateRecord(record: Record): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
-      const user = userStore()
       try {
         const response = await recordService.updateRecord(
           record,
-          user.authd.token
+          userStore().authd.token
         )
-
-        // update returned record in recordList
         if (response.status === 200) {
           const updatedRecord = (await response.json()) as Record
           const existingRecord = this.getById(record._id) as Record
@@ -97,16 +83,12 @@ export const recordStore = defineStore("record", {
           this.loading = false
           this.toEdit = ""
           return response.status
-
-          // handle errors
         } else if (response.status === 400 || response.status === 401) {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
         this.loading = false
         return response.status
-
-        // catch error, eg. NetworkError. console.error(error) to debug
       } catch (error) {
         this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
@@ -118,30 +100,20 @@ export const recordStore = defineStore("record", {
       const crates = crateStore()
       this.loading = true
       this.errorMsg = ""
-      const user = userStore()
       if (this.toDelete.length) {
         try {
           const response = await recordService.deleteRecords(
             this.toDelete,
-            user.authd.token
+            userStore().authd.token
           )
-
-          // handle records deleted successfully
           if (response.status === 200) {
             const res = await response.json()
-
-            // if all records deleted successfully on server
             if (res.deletedCount === this.toDelete.length) {
-              // remove deleted records from crates
               crates.removeFromCrates(this.toDelete)
-              // remove deleted records in store
               this.recordList = this.recordList.filter(
                 (i) => !this.toDelete.includes(i._id)
               )
-            }
-
-            // if not all records deleted, feedbackMsg + fetch records and crates from server
-            else {
+            } else {
               this.feedbackMsg = "<b>Error</b>: Some records were not deleted."
               this.fetchRecords()
               crates.fetchCrates()
@@ -150,16 +122,12 @@ export const recordStore = defineStore("record", {
             trackStore().generateTrackLists()
             this.loading = false
             return response.status
-
-            // handle errors
           } else if (response.status === 401) {
             const error = await response.json()
             this.errorMsg = error.message ? error.message : "Unexpected error"
           }
           this.loading = false
           return response.status
-
-          // catch error, eg. NetworkError. console.error(error) to debug
         } catch (error) {
           this.errorMsg = "Unexpected error. Probably network error."
           this.loading = false
@@ -172,7 +140,6 @@ export const recordStore = defineStore("record", {
   },
 
   getters: {
-    // gets a record by id. returns null if not found
     getById: (state) => {
       return (_id: string): Record =>
         (state.recordList.find((record) => record._id === _id) as Record) ||
@@ -199,14 +166,12 @@ export const recordStore = defineStore("record", {
         else return ""
       }
     },
-    // gets a record that contains track with id. returns null if not found
     getRecordByTrackId: (state) => {
       return (_id: string): Record =>
         (state.recordList.find((record) =>
           record.tracks.find((track) => track._id === _id)
         ) as Record) || null
     },
-    // gets a track by id. returns null if not found
     getTrackById: (state) => {
       return (_id: string): Track =>
         state.recordList.reduce<any>((prev: Record, curr: Record) => {

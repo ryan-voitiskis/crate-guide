@@ -81,7 +81,7 @@
         </div>
         <button
           v-if="user.authd.isDiscogsOAuthd"
-          @click="discogs.revokeDiscogsForm = true"
+          @click="discogs.revokeDiscogsModal = true"
         >
           Revoke Discogs access
         </button>
@@ -96,7 +96,7 @@
         >
           Connect to Spotify
         </button>
-        <button v-else @click="spotify.revokeSpotifyForm = true">
+        <button v-else @click="spotify.revokeSpotifyModal = true">
           Revoke Spotify acess
         </button>
       </fieldset>

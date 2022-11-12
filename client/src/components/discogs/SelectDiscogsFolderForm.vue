@@ -59,8 +59,8 @@ const submit = async () => {
   if (form.folder !== "") {
     const response = await discogs.getFolder(form.folder)
     if (response === 200) {
-      discogs.selectDiscogsFolder = false
-      discogs.stageImport = true
+      discogs.selectDiscogsFolderModal = false
+      discogs.stageImportModal = true
     }
   } else discogs.errorMsg = "No folder selected"
 }

@@ -73,13 +73,16 @@
     <SettingsForm />
   </ModalBox>
 
-  <ModalBox v-if="user.authDiscogs" @close="user.authDiscogs = false">
+  <ModalBox
+    v-if="discogs.authDiscogsModal"
+    @close="discogs.authDiscogsModal = false"
+  >
     <AuthoriseDiscogs />
   </ModalBox>
 
   <ModalBox
-    v-if="discogs.revokeDiscogsForm"
-    @close="discogs.revokeDiscogsForm = false"
+    v-if="discogs.revokeDiscogsModal"
+    @close="discogs.revokeDiscogsModal = false"
   >
     <ConfirmRevokeDiscogs />
   </ModalBox>
@@ -92,15 +95,15 @@
   </ModalBox>
 
   <ModalBox
-    v-if="discogs.selectDiscogsFolder"
-    @close="discogs.selectDiscogsFolder = false"
+    v-if="discogs.selectDiscogsFolderModal"
+    @close="discogs.selectDiscogsFolderModal = false"
   >
     <SelectDiscogsFolder />
   </ModalBox>
 
   <ModalBox
-    v-if="discogs.stageImport"
-    @close="discogs.stageImport = false"
+    v-if="discogs.stageImportModal"
+    @close="discogs.stageImportModal = false"
     width="680px"
   >
     <StageDiscogsImport />
@@ -122,8 +125,8 @@
   </ModalBox>
 
   <ModalBox
-    v-if="spotify.revokeSpotifyForm"
-    @close="spotify.revokeSpotifyForm = false"
+    v-if="spotify.revokeSpotifyModal"
+    @close="spotify.revokeSpotifyModal = false"
   >
     <ConfirmRevokeSpotify />
   </ModalBox>

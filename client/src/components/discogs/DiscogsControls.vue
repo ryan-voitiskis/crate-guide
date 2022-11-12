@@ -1,12 +1,17 @@
 <template>
   <div class="discogs-controls-container" v-if="user.authd.isDiscogsOAuthd">
-    <button class="icon-button" @click="discogs.selectDiscogsFolder = true">
+    <button
+      class="icon-button"
+      @click="discogs.selectDiscogsFolderModal = true"
+    >
       <ImportIcon />Import from Discogs
     </button>
     <InfoDropout :text="authdTip" />
   </div>
   <div class="discogs-controls-container" v-else>
-    <button @click=";(user.authDiscogs = true), $parent!.$emit('close')">
+    <button
+      @click=";(discogs.authDiscogsModal = true), $parent!.$emit('close')"
+    >
       Connect to Discogs
     </button>
     <InfoDropout :text="unAuthdTip" />
