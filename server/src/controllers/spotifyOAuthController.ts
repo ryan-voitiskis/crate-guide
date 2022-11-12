@@ -89,7 +89,6 @@ const revokeAuthorisation = asyncHandler(async (req, res) => {
 
 // * has side effects on user
 async function refreshToken(user: IUser) {
-  console.log("refreshToken ran")
   const basic = Buffer.from(`${clientID}:${clientSecret}`).toString("base64")
   const body = new URLSearchParams()
   body.append("grant_type", "refresh_token")
@@ -142,7 +141,6 @@ async function spotifyRequest(url: string, user: IUser): Promise<{}> {
     },
   }
   const response = (await fetch(url, options)) as Response
-  console.log(response.status + " RES made with: " + user.spotifyToken)
 
   if (response.status === 200) return await response.json()
   else if (response.status === 401) {

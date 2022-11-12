@@ -1,3 +1,6 @@
+import option from "@/interfaces/SelectOption"
+import { sortNum } from "@/utils/sortFunctions"
+
 interface key {
   pitchClass: number
   tone: string
@@ -139,6 +142,34 @@ const getKeyColour = (pitchClass: number, mode: number): string =>
 const getSortableNotation = (pitchClass: number, mode: number): number =>
   mode === 1 ? getCamelotMajor(pitchClass) : getCamelotMinor(pitchClass) + 100
 
+function keyOptionsMapFn(mode: number) {
+  return (i: key) => ({
+    id: `${mode.toString()}${i.pitchClass.toString()}`,
+    name: `${i.tone} ${mode === 1 ? "Major" : "Minor"}`,
+  })
+}
+
+function camelotOptionsMapFn(mode: number) {
+  return (i: key): option => ({
+    id: `${mode.toString()}${i.pitchClass.toString()}`,
+    name: mode === 1 ? `${i.camelotMajor}B` : `${i.camelotMinor}A`,
+  })
+}
+
+const getKeyOptions = (keyFormat: "key" | "camelot"): option[] => {
+  const keyOptionsMajor: option[] =
+    keyFormat === "key"
+      ? pitchClassMap.map(keyOptionsMapFn(1))
+      : pitchClassMap.sort(sortNum("camelotMajor")).map(camelotOptionsMapFn(1))
+  const keyOptionsMinor: option[] =
+    keyFormat === "key"
+      ? pitchClassMap.map(keyOptionsMapFn(0))
+      : pitchClassMap.sort(sortNum("camelotMinor")).map(camelotOptionsMapFn(0))
+  return [{ id: "", name: "---" }]
+    .concat(keyOptionsMinor)
+    .concat(keyOptionsMajor)
+}
+
 export {
   key,
   pitchClassMap,
@@ -147,4 +178,5 @@ export {
   getCamelotString,
   getKeyColour,
   getSortableNotation,
+  getKeyOptions,
 }

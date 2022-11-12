@@ -12,6 +12,8 @@ interface ITrack {
   key: number
   mode: number
   genre: string
+  timeSignatureUpper?: number
+  timeSignatureLower?: number
   playable: boolean
   audioFeatures: {
     acousticness: number
@@ -76,6 +78,12 @@ const trackSchema = new mongoose.Schema<ITrack>({
   },
   genre: {
     type: String,
+  },
+  timeSignatureUpper: {
+    type: Number,
+  },
+  timeSignatureLower: {
+    type: Number,
   },
   playable: {
     type: Boolean,

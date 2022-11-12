@@ -87,11 +87,19 @@
     <RemoveRecordForm />
   </ModalBox>
 
-  <ModalBox v-if="tracks.addTrackTo !== ''" @close="tracks.addTrackTo = ''">
+  <ModalBox
+    v-if="tracks.addTrackTo !== ''"
+    @close="tracks.addTrackTo = ''"
+    width="480px"
+  >
     <AddTrackForm />
   </ModalBox>
 
-  <ModalBox v-if="tracks.toEdit !== ''" @close="tracks.toEdit = ''">
+  <ModalBox
+    v-if="tracks.toEdit !== ''"
+    @close="tracks.toEdit = ''"
+    width="480px"
+  >
     <EditTrackForm />
   </ModalBox>
 

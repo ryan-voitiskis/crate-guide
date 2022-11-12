@@ -10,6 +10,8 @@ interface Track {
   key?: number
   mode?: number
   genre?: string
+  timeSignatureUpper?: number | null
+  timeSignatureLower?: number | null
   playable: boolean
   audioFeatures?: {
     acousticness: number

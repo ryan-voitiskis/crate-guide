@@ -61,6 +61,12 @@
         placeholder="Genre (recommended)"
         autocomplete="off"
       />
+      <SelectInput
+        v-model="form.timeSignature"
+        id="time_signature"
+        label="Time signature"
+        :options="timeSignatureOptions"
+      />
       <fieldset class="radio">
         <RadioInput v-model="form.rpm" name="rpm" id="33" label="33 rpm" />
         <RadioInput v-model="form.rpm" name="rpm" id="45" label="45 rpm" />
@@ -87,15 +93,32 @@
 import { reactive, onBeforeUnmount } from "vue"
 import { recordStore } from "@/stores/recordStore"
 import { trackStore } from "@/stores/trackStore"
+import { userStore } from "@/stores/userStore"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import RadioInput from "@/components/inputs/RadioInput.vue"
 import UnsavedTrack from "@/interfaces/UnsavedTrack"
 import XIcon from "@/components/icons/XIcon.vue"
+import { getDurationString, getDurationMs } from "@/utils/durationFunctions"
+import {
+  getTimeSignatureOptions,
+  getTimeSignatureNumbers,
+} from "@/utils/timeSignatures"
+import {
+  getKeyString,
+  getCamelotString,
+  getKeyColour,
+  getKeyOptions,
+} from "@/utils/pitchClassMap"
+import SelectInput from "../inputs/SelectInput.vue"
 
 const records = recordStore()
 const tracks = trackStore()
+const user = userStore()
+
+const keyOptions = getKeyOptions(user.authd.settings.keyFormat)
+const timeSignatureOptions = getTimeSignatureOptions()
 
 const form = reactive({
   position: "",
@@ -105,6 +128,7 @@ const form = reactive({
   bpm: undefined,
   rpm: "33",
   genre: "",
+  timeSignature: "",
   playable: true,
 })
 
@@ -120,6 +144,7 @@ const reset = () => {
 }
 
 const submit = async () => {
+  const timeSignatureArray = getTimeSignatureNumbers(form.timeSignature)
   const unsavedTrack: UnsavedTrack = {
     position: form.position.toUpperCase(),
     title: form.title.trim(),
@@ -128,6 +153,8 @@ const submit = async () => {
     bpm: form.bpm,
     rpm: parseInt(form.rpm),
     genre: form.genre.trim(),
+    timeSignatureUpper: timeSignatureArray[0],
+    timeSignatureLower: timeSignatureArray[1],
     playable: form.playable,
   }
   await tracks.addTrack(unsavedTrack, tracks.addTrackTo)

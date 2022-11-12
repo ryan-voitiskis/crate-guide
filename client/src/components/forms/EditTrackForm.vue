@@ -89,6 +89,12 @@
         placeholder="Genre (recommended)"
         autocomplete="off"
       />
+      <SelectInput
+        v-model="form.timeSignature"
+        id="time_signature"
+        label="Time signature"
+        :options="timeSignatureOptions"
+      />
       <fieldset class="radio">
         <RadioInput v-model="form.rpm" name="rpm" id="33" label="33 rpm" />
         <RadioInput v-model="form.rpm" name="rpm" id="45" label="45 rpm" />
@@ -126,16 +132,18 @@ import XIcon from "@/components/icons/XIcon.vue"
 import { Track } from "@/interfaces/Track"
 import MatchedTrack from "@/interfaces/MatchedTrack"
 import SelectInput from "../inputs/SelectInput.vue"
-import { sortNum } from "@/utils/sortFunctions"
 import { getDurationString, getDurationMs } from "@/utils/durationFunctions"
 import {
-  pitchClassMap,
+  getTimeSignatureOptions,
+  getTimeSignatureString,
+  getTimeSignatureNumbers,
+} from "@/utils/timeSignatures"
+import {
   getKeyString,
   getCamelotString,
   getKeyColour,
-  key,
+  getKeyOptions,
 } from "@/utils/pitchClassMap"
-import option from "@/interfaces/SelectOption"
 
 const records = recordStore()
 const spotify = spotifyStore()
@@ -146,35 +154,8 @@ const track = records.getTrackById(tracks.toEdit)
 const record = records.getRecordByTrackId(track._id)
 const noChangeMsg = "Track has not been edited."
 
-function keyOptionsMapFn(mode: number) {
-  return (i: key) => ({
-    id: `${mode.toString()}${i.pitchClass.toString()}`,
-    name: `${i.tone} ${mode === 1 ? "Major" : "Minor"}`,
-  })
-}
-
-function camelotOptionsMapFn(mode: number) {
-  return (i: key): option => ({
-    id: `${mode.toString()}${i.pitchClass.toString()}`,
-    name: mode === 1 ? `${i.camelotMajor}B` : `${i.camelotMinor}A`,
-  })
-}
-
-let keyOptionsMajor: option[] = []
-let keyOptionsMinor: option[] = []
-if (user.authd.settings.keyFormat === "key") {
-  keyOptionsMajor = pitchClassMap.map(keyOptionsMapFn(1))
-  keyOptionsMinor = pitchClassMap.map(keyOptionsMapFn(0))
-} else {
-  keyOptionsMajor = pitchClassMap
-    .sort(sortNum("camelotMajor"))
-    .map(camelotOptionsMapFn(1))
-  keyOptionsMinor = pitchClassMap
-    .sort(sortNum("camelotMinor"))
-    .map(camelotOptionsMapFn(0))
-}
-const keyOptions = keyOptionsMinor.concat(keyOptionsMajor)
-keyOptions.unshift({ id: "", name: "---" })
+const keyOptions = getKeyOptions(user.authd.settings.keyFormat)
+const timeSignatureOptions = getTimeSignatureOptions()
 
 const spotifyKeyString = track.audioFeatures
   ? track.audioFeatures.key !== -1
@@ -193,6 +174,11 @@ const bpmColour = track.audioFeatures?.tempo
   ? getBPMColour(track.audioFeatures.tempo)
   : ""
 
+const initialTimeSignature =
+  track.timeSignatureUpper && track.timeSignatureLower
+    ? getTimeSignatureString(track.timeSignatureUpper, track.timeSignatureLower)
+    : ""
+
 const form = reactive({
   spotifyID: track.spotifyID,
   position: track.position,
@@ -202,6 +188,7 @@ const form = reactive({
   bpm: track.bpm,
   rpm: track.rpm.toString(),
   genre: track.genre,
+  timeSignature: initialTimeSignature,
   key: track.mode && track.key ? `${track.mode}${track.key}` : "",
   playable: track.playable,
 })
@@ -220,11 +207,13 @@ const submit = async () => {
     form.bpm === track.bpm &&
     parseInt(form.rpm) === track.rpm &&
     form.genre?.trim() === track.genre &&
+    form.timeSignature === initialTimeSignature &&
     form.key === `${track.mode}${track.key}` &&
     form.playable === track.playable
   )
     tracks.errorMsg = noChangeMsg
   else {
+    const timeSignatureArray = getTimeSignatureNumbers(form.timeSignature)
     const editedTrack: Track = {
       _id: track._id,
       position: form.position?.toUpperCase(),
@@ -236,6 +225,8 @@ const submit = async () => {
       key: parseInt(form.key.slice(1, 3)),
       mode: parseInt(form.key.slice(0, 1)),
       genre: form.genre?.trim(),
+      timeSignatureUpper: timeSignatureArray[0],
+      timeSignatureLower: timeSignatureArray[1],
       playable: form.playable,
     }
     const newSpotifyID =
@@ -248,7 +239,6 @@ const submit = async () => {
       }
       await spotify.getTrackFeatures(matchedTrack)
     }
-    console.log(editedTrack)
 
     await tracks.updateTrack(editedTrack)
     if (spotify.errorMsg === "" && tracks.errorMsg === "") tracks.toEdit = ""

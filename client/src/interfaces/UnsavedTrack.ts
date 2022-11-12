@@ -6,5 +6,7 @@ export default interface UnsavedTrack {
   bpm?: number
   rpm?: number
   genre?: string
+  timeSignatureUpper?: number | null
+  timeSignatureLower?: number | null
   playable: boolean
 }
