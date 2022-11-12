@@ -123,10 +123,10 @@ const positionColour = computed(() =>
   display: grid;
   grid-template-columns: 40px 30px 38px 44px 44px 44px 40px 60px 2fr 1fr 1fr 1fr 1fr 38px 40px;
   width: 100%;
-  column-gap: 1rem;
+  column-gap: 10px;
   span {
     color: var(--dark-text);
-    line-height: 4rem;
+    line-height: 40px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -134,7 +134,7 @@ const positionColour = computed(() =>
     margin: 0;
   }
   .cover {
-    height: 4rem;
+    height: 40px;
     background-color: hsl(40, 13%, 82%);
     background-image: v-bind(coverImg);
     grid-area: 1 / 1 / 2 / 2;
@@ -162,7 +162,7 @@ const positionColour = computed(() =>
     margin: 0 -5px;
     background-color: transparent;
     padding: 0;
-    font-size: 1.2rem;
+    font-size: 12px;
     svg {
       width: 18px;
       margin-right: 1px;
@@ -184,19 +184,19 @@ const positionColour = computed(() =>
   }
   .key {
     grid-area: 1 / 8 / 2 / 9;
-    height: 2.6rem;
+    height: 26px;
     width: 100%;
-    line-height: 2.6rem;
+    line-height: 26px;
     justify-self: center;
     align-self: center;
     font-weight: 500;
-    padding: 0 1rem;
-    border-radius: 0.6rem;
+    padding: 0 10px;
+    border-radius: 6px;
     background-color: v-bind(keyColour);
     color: var(--key-text);
     text-align: center;
     &.long {
-      font-size: 1.2rem;
+      font-size: 12px;
     }
   }
   .title {

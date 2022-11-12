@@ -56,8 +56,8 @@ const coverImg = `url("${props.cover}")`
 .record {
   background: var(--record-bg);
   display: grid;
-  grid-template-columns: 9rem 3fr 1fr;
-  grid-template-rows: 4rem 2rem 3rem;
+  grid-template-columns: 90px 3fr 1fr;
+  grid-template-rows: 40px 20px 30px;
   width: 100%;
   .cover {
     grid-area: 1 / 1 / 5 / 2;
@@ -70,17 +70,17 @@ const coverImg = `url("${props.cover}")`
   h3.title {
     color: var(--darker-text);
     grid-area: 1 / 2 / 2 / 3;
-    line-height: 4rem;
-    margin: 0 0 0 1rem;
+    line-height: 40px;
+    margin: 0 0 0 10px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .label {
     grid-area: 2 / 2 / 3 / 3;
-    line-height: 2rem;
-    font-size: 1.2rem;
-    margin: 0 0 0 1rem;
+    line-height: 20px;
+    font-size: 12px;
+    margin: 0 0 0 10px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -93,8 +93,8 @@ const coverImg = `url("${props.cover}")`
   }
   .artists {
     grid-area: 3 / 2 / 4 / 3;
-    line-height: 3rem;
-    margin: 0 0 0 1rem;
+    line-height: 30px;
+    margin: 0 0 0 10px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -107,7 +107,7 @@ const coverImg = `url("${props.cover}")`
       align-items: center;
       justify-content: center;
       display: flex;
-      font-size: 1.2rem;
+      font-size: 12px;
     }
   }
   &.staged {

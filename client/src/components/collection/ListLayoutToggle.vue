@@ -34,9 +34,9 @@ button {
   }
 }
 button:first-child {
-  border-radius: 1rem 0 0 1rem;
+  border-radius: 10px 0 0 10px;
 }
 button:last-child {
-  border-radius: 0 1rem 1rem 0;
+  border-radius: 0 10px 10px 0;
 }
 </style>

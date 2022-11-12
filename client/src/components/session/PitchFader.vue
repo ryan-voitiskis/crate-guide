@@ -92,7 +92,7 @@ label.reset-fader {
   bottom: 11%;
   right: 13%;
   color: var(--pitch-readable);
-  font: 400 1.5rem/1.6 Digital7, sans-serif;
+  font: 400 15px/1.6 Digital7, sans-serif;
 }
 
 @mixin track() {

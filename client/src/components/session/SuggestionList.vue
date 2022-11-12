@@ -37,7 +37,7 @@ const suggestions = tracks.trackList.slice(0, 4)
 .track-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 10px;
   width: 100%;
 }
 </style>

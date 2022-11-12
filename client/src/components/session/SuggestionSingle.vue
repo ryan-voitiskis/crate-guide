@@ -113,7 +113,7 @@ const bpmColour = computed(() => (props.bpm ? getBPMColour(props.bpm) : null))
 
 <style scoped lang="scss">
 .track {
-  height: 3rem;
+  height: 30px;
   display: flex;
   .details {
     display: flex;
@@ -122,16 +122,16 @@ const bpmColour = computed(() => (props.bpm ? getBPMColour(props.bpm) : null))
     text-overflow: ellipsis;
     white-space: nowrap;
     span {
-      line-height: 3rem;
+      line-height: 30px;
     }
     .spotify-link-wrapper {
-      width: 3rem;
+      width: 30px;
       display: flex;
       height: 100%;
-      width: 3rem;
+      width: 30px;
       .spotify-link {
         height: 100%;
-        width: 3rem;
+        width: 30px;
         display: flex;
         background-color: transparent;
         justify-content: center;
@@ -139,7 +139,7 @@ const bpmColour = computed(() => (props.bpm ? getBPMColour(props.bpm) : null))
           transition: color 0.5s;
           align-self: center;
           color: var(--spotify-light-green);
-          height: 2.2rem;
+          height: 22px;
         }
         &:hover {
           svg {
@@ -151,25 +151,25 @@ const bpmColour = computed(() => (props.bpm ? getBPMColour(props.bpm) : null))
     .position {
       color: v-bind(positionColour);
       font-weight: 500;
-      line-height: 3rem;
-      margin: 0 0 0 1rem;
+      line-height: 30px;
+      margin: 0 0 0 10px;
     }
     .bpm {
       color: v-bind(bpmColour);
       font-weight: 500;
-      margin-left: 1rem;
+      margin-left: 10px;
     }
     .title {
-      margin-left: 1rem;
+      margin-left: 10px;
     }
     .duration {
       color: var(--light-text);
-      margin-left: 1rem;
+      margin-left: 10px;
     }
     .genre {
       color: var(--light-text);
       font-style: italic;
-      margin-left: 1rem;
+      margin-left: 10px;
     }
   }
   .controls {

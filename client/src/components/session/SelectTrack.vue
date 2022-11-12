@@ -189,14 +189,14 @@ const sortedTracks = computed((): TrackPlus[] => {
 <style scoped lang="scss">
 .controls {
   display: flex;
-  column-gap: 1rem;
+  column-gap: 10px;
   flex-wrap: wrap;
 }
 .track-option-header {
   width: 100%;
   display: grid;
-  column-gap: 1rem;
-  grid-template-columns: 4rem 4rem 4rem 6rem 6fr 4fr 3fr 14rem 4rem 6rem;
+  column-gap: 10px;
+  grid-template-columns: 40px 40px 40px 60px 6fr 4fr 3fr 140px 40px 60px;
   .bpm {
     grid-area: 1 / 1 / 2 / 4;
     display: flex;

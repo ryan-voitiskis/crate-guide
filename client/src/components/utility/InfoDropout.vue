@@ -32,7 +32,7 @@ const state = reactive({
 
 <style scoped lang="scss">
 .info-dropout {
-  font-size: 1.3rem;
+  font-size: 13px;
   display: flex;
   span {
     color: var(--light-text);
@@ -40,13 +40,13 @@ const state = reactive({
   }
   // wrapper exists to work around button resizing when fixed bug
   .button-wrapper {
-    height: 3.8rem;
-    width: 3.8rem;
-    margin-right: 1rem;
+    height: 38px;
+    width: 38px;
+    margin-right: 10px;
   }
   button {
-    width: 3.8rem;
-    padding: 0 0.8rem;
+    width: 38px;
+    padding: 0 8px;
     svg {
       position: absolute;
     }

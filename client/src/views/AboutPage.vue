@@ -9,7 +9,7 @@
 .controls-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 </style>

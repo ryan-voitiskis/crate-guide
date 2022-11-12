@@ -242,13 +242,13 @@ const sortedTracks = computed((): TrackPlus[] => {
 <style scoped lang="scss">
 .controls {
   display: flex;
-  column-gap: 1rem;
+  column-gap: 10px;
   flex-wrap: wrap;
 }
 .track-option-header {
   width: 100%;
   display: grid;
-  column-gap: 1rem;
+  column-gap: 10px;
   grid-template-columns: 40px 30px 38px 44px 44px 44px 40px 60px 2fr 1fr 1fr 1fr 1fr 38px 40px;
   .bpm {
     grid-area: 1 / 1 / 2 / 4;

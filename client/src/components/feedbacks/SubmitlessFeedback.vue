@@ -29,21 +29,21 @@ const user = userStore()
 
 <style scoped lang="scss">
 .feedback-container {
-  margin-top: 1rem;
-  height: 2.4rem;
+  margin-top: 10px;
+  height: 24px;
   .feedback {
     position: fixed;
     margin: 0 auto;
     left: 0;
     right: 0;
-    font-size: 1.6rem;
+    font-size: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--light-text);
     svg {
-      height: 2.4rem;
-      margin-right: 1rem;
+      height: 24px;
+      margin-right: 10px;
     }
     &.saved {
       color: var(--success);

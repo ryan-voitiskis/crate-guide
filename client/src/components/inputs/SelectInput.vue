@@ -39,6 +39,6 @@ const handleInputChange = (event: Event) =>
 
 <style scoped lang="scss">
 label {
-  margin-right: 1rem;
+  margin-right: 10px;
 }
 </style>

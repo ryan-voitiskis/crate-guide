@@ -25,19 +25,19 @@ defineProps<{
 
 <style scoped lang="scss">
 .radio-card {
-  width: 14rem;
+  width: 140px;
   display: grid;
-  grid-template-columns: 3rem auto;
-  grid-template-rows: 8rem 3rem;
+  grid-template-columns: 30px auto;
+  grid-template-rows: 80px 30px;
   margin: 0;
   background: #ddd;
-  border-radius: 1rem;
-  line-height: 3rem;
+  border-radius: 10px;
+  line-height: 30px;
   overflow: hidden;
   .sample {
     grid-column: 1 / 3;
     background: #bbc087;
-    height: 8rem;
+    height: 80px;
   }
 }
 </style>

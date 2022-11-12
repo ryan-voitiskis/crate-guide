@@ -2,9 +2,9 @@ header {
   display: flex;
   nav {
     display: flex;
-    margin: 2rem 0;
+    margin: 20px 0;
     &.radio {
-      $border-radius: 1.4rem;
+      $border-radius: 14px;
       a {
         background: var(--nav-inactive-bg);
         border: 1px var(--nav-inactive-border) solid;
@@ -55,7 +55,7 @@ header {
   }
   .welcome {
     color: var(--welcome-text);
-    font: italic 500 1.6rem/3.8rem Manrope, sans-serif;
-    padding: 0 2.4rem;
+    font: italic 500 16px/38px Manrope, sans-serif;
+    padding: 0 24px;
   }
 }

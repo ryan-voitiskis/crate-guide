@@ -23,7 +23,7 @@ defineProps<{
 .start {
   width: 45/450 * 100%;
   height: 33/350 * 100%;
-  border: 0.34rem solid #333;
+  border: 3.4px solid #333;
   border-radius: 0;
   position: absolute;
   bottom: 1/35 * 100%;

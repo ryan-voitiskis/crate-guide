@@ -38,23 +38,23 @@ onUnmounted(() => (spotify.errorMsg = ""))
 .progress-text {
   display: flex;
   justify-content: center;
-  margin-bottom: 1rem;
+  margin-bottom: 10px;
 }
 
 .progress-bar {
   width: 100%;
-  height: 2rem;
+  height: 20px;
   overflow: hidden;
-  border-radius: 1rem;
+  border-radius: 10px;
   background: var(--progress-bg);
 }
 
 .progress {
   width: v-bind(progress);
-  border-radius: 1rem;
-  height: 2rem;
+  border-radius: 10px;
+  height: 20px;
   background: var(--progress-fg);
   transition: width 0.6s;
-  box-shadow: rgba(0, 0, 0, 0.08) 0px -0.3rem 0px inset;
+  box-shadow: rgba(0, 0, 0, 0.08) 0px -3px 0px inset;
 }
 </style>

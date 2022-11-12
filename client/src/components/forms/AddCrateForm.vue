@@ -1,7 +1,7 @@
 <template>
   <div class="modal-header">
     <h2>Add crate</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button class="close" type="button" @click="crates.addCrateModal = false">
       <XIcon />
     </button>
   </div>
@@ -18,6 +18,7 @@
         placeholder="My crate"
         :focused="true"
         autocomplete="off"
+        maxlength="40"
         required
       />
       <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />

@@ -56,18 +56,18 @@ const coverImg = `url("${record.cover}")`
 <style scoped lang="scss">
 .album-match-select {
   border: 2px solid var(--border-colour);
-  padding: 1rem;
-  border-radius: 1rem;
+  padding: 10px;
+  border-radius: 10px;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 10px;
 
   .existing-record {
     display: grid;
-    grid-template-columns: 12rem 4fr;
-    grid-template-rows: 4rem 3rem 3rem 2rem;
+    grid-template-columns: 120px 4fr;
+    grid-template-rows: 40px 30px 30px 20px;
     width: 100%;
-    column-gap: 1rem;
+    column-gap: 10px;
     .cover {
       background-color: hsl(40, 13%, 82%);
       background-image: v-bind(coverImg);
@@ -78,7 +78,7 @@ const coverImg = `url("${record.cover}")`
       background-size: contain;
     }
     h3.title {
-      line-height: 4rem;
+      line-height: 40px;
       color: var(--darker-text);
       grid-area: 1 / 2 / 2 / 3;
       margin: 0;
@@ -87,10 +87,10 @@ const coverImg = `url("${record.cover}")`
       white-space: nowrap;
     }
     .label {
-      line-height: 3rem;
-      gap: 0.6rem;
+      line-height: 30px;
+      gap: 6px;
       grid-area: 2 / 2 / 3 / 3;
-      font-size: 1.2rem;
+      font-size: 12px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -102,7 +102,7 @@ const coverImg = `url("${record.cover}")`
       }
     }
     .artists {
-      line-height: 3rem;
+      line-height: 30px;
       grid-area: 3 / 2 / 4 / 3;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -114,7 +114,7 @@ const coverImg = `url("${record.cover}")`
     display: flex;
     flex-direction: column;
     width: 100%;
-    gap: 1rem;
+    gap: 10px;
     flex-wrap: wrap;
   }
   .show-more {

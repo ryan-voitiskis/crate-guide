@@ -42,10 +42,10 @@ const coverImg = `url("${props.image}")`
 .track-match-option {
   overflow: hidden;
   display: grid;
-  grid-template-columns: 12rem 1fr 12rem;
-  grid-template-rows: 4rem 4rem 4rem;
+  grid-template-columns: 120px 1fr 120px;
+  grid-template-rows: 40px 40px 40px;
   width: 100%;
-  column-gap: 1rem;
+  column-gap: 10px;
   border: transparent 2px solid;
   .cover {
     background-color: hsl(40, 13%, 82%);
@@ -58,7 +58,7 @@ const coverImg = `url("${props.image}")`
     z-index: -1;
   }
   .name {
-    line-height: 4rem;
+    line-height: 40px;
     color: var(--darker-text);
     font-weight: 500;
     grid-area: 2 / 2 / 3 / 3;
@@ -68,8 +68,8 @@ const coverImg = `url("${props.image}")`
     white-space: nowrap;
     .year {
       color: var(--light-text);
-      line-height: 2rem;
-      font-size: 1.2rem;
+      line-height: 20px;
+      font-size: 12px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -91,7 +91,7 @@ const coverImg = `url("${props.image}")`
   }
   &.selected {
     border: var(--spotify-green) 2px solid;
-    border-radius: 1rem;
+    border-radius: 10px;
     .select-toggle {
       border-radius: 0;
     }

@@ -141,8 +141,8 @@ const coverImg = `url("${props.cover}")`
 .record {
   background: linear-gradient(to right, hsl(10, 24%, 96%), hsl(35, 24%, 96%));
   display: grid;
-  grid-template-columns: 12rem 4fr 6fr;
-  grid-template-rows: 4rem 2rem 3rem 3rem;
+  grid-template-columns: 120px 4fr 6fr;
+  grid-template-rows: 40px 20px 30px 30px;
   width: 100%;
   .cover {
     background-color: hsl(40, 13%, 82%);
@@ -162,7 +162,7 @@ const coverImg = `url("${props.cover}")`
     align-items: center;
     color: var(--darker-text);
     grid-area: 1 / 2 / 2 / 3;
-    margin: 0 0 0 1rem;
+    margin: 0 0 0 10px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -170,10 +170,10 @@ const coverImg = `url("${props.cover}")`
   .label {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 6px;
     grid-area: 2 / 2 / 3 / 3;
-    font-size: 1.2rem;
-    margin: 0 0 0 1rem;
+    font-size: 12px;
+    margin: 0 0 0 10px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -188,15 +188,15 @@ const coverImg = `url("${props.cover}")`
     display: flex;
     align-items: center;
     grid-area: 3 / 2 / 4 / 3;
-    margin: 0 0 0 1rem;
+    margin: 0 0 0 10px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .controls {
     button {
-      margin: 0 1rem;
-      font-size: 1.2rem;
+      margin: 0 10px;
+      font-size: 12px;
       &.add-track {
         float: right;
       }

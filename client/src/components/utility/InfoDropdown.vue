@@ -32,7 +32,7 @@ const state = reactive({
 
 <style scoped lang="scss">
 .info-dropdown {
-  font-size: 1.3rem;
+  font-size: 13px;
   display: flex;
   justify-content: flex-end;
   flex-wrap: nowrap;
@@ -43,12 +43,12 @@ const state = reactive({
   }
   // wrapper exists to work around button resizing when fixed bug
   .button-wrapper {
-    width: 3.8rem;
-    margin-left: 0.6rem;
+    width: 38px;
+    margin-left: 6px;
   }
   button {
-    width: 3.8rem;
-    padding: 0 0.8rem;
+    width: 38px;
+    padding: 0 8px;
     svg {
       position: absolute;
     }

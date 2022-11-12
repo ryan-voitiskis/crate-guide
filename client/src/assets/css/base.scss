@@ -10,7 +10,7 @@
 }
 
 html {
-  font-size: 62.5%; // 1.5rem = 15px
+  font-size: 62.5%; // 15px = 15px
 }
 
 header {
@@ -21,32 +21,32 @@ body {
   margin: 0;
   background-color: var(--page-bg);
   color: var(--dark-text);
-  font: 400 1.5rem/1.6 Manrope, sans-serif;
+  font: 400 15px/1.6 Manrope, sans-serif;
 }
 
 h1,
 h2,
 h3,
 h4 {
-  font: 400 1.6rem/1.6 Manrope, sans-serif;
+  font: 400 16px/1.6 Manrope, sans-serif;
   margin-top: 0;
-  margin-bottom: 1.4rem;
+  margin-bottom: 14px;
 }
 
 h1 {
-  font-size: 3rem;
+  font-size: 30px;
 }
 
 h2 {
-  font-size: 2.2rem;
+  font-size: 22px;
 }
 
 h3 {
-  font-size: 2rem;
+  font-size: 20px;
 }
 
 h4 {
-  font-size: 1.8rem;
+  font-size: 18px;
 }
 
 p {
@@ -75,19 +75,19 @@ ul ul,
 ul ol,
 ol ol,
 ol ul {
-  margin: 1.5rem 0 1.5rem 3rem;
+  margin: 15px 0 15px 30px;
   font-size: 90%;
 }
 
 li {
-  margin-bottom: 1rem;
+  margin-bottom: 10px;
 }
 
 input,
 textarea,
 select,
 fieldset {
-  margin-bottom: 1.5rem;
+  margin-bottom: 15px;
 }
 
 pre,
@@ -99,12 +99,12 @@ p,
 ul,
 ol,
 form {
-  margin-bottom: 2.5rem;
+  margin-bottom: 25px;
 }
 
 hr {
   width: 100%; // flex compatability
-  margin: 1rem 0;
+  margin: 10px 0;
   border-width: 0;
   border-top: 1px solid var(--hr);
 }
@@ -157,7 +157,7 @@ input[type="button"]::-moz-focus-inner {
   max-width: 1800px;
   position: relative;
   margin: 0 auto;
-  padding: 0 1rem 1rem;
+  padding: 0 10px 10px;
 }
 
 /* Hiding class, making content visible only to screen readers but not visually

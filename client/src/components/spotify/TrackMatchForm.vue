@@ -53,6 +53,6 @@ const spotify = spotifyStore()
 .inexact-matches-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 10px;
 }
 </style>

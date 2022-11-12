@@ -106,7 +106,7 @@ onUnmounted(() => {
   }
   h3 {
     font-weight: 600;
-    font-size: 1.5rem;
+    font-size: 15px;
   }
 }
 </style>

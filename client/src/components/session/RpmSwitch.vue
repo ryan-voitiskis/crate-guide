@@ -29,7 +29,7 @@ defineProps<{
 .rpm-switch {
   width: 25/450 * 100%;
   height: 8/350 * 100%;
-  border: 0.3rem solid #333;
+  border: 3px solid #333;
   border-radius: 0;
   position: absolute;
   bottom: 1/35 * 100%;
@@ -38,7 +38,7 @@ defineProps<{
   margin: 0;
   z-index: 2;
   svg {
-    font-size: 8rem;
+    font-size: 80px;
     width: 100%;
     height: 100%;
   }

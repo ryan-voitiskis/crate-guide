@@ -66,18 +66,18 @@ const coverImg = `url("${record.cover}")`
 <style scoped lang="scss">
 .track-match-select {
   border: 2px solid var(--border-colour);
-  padding: 1rem;
-  border-radius: 1rem;
+  padding: 10px;
+  border-radius: 10px;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 10px;
 
   .existing-record {
     display: grid;
-    grid-template-columns: 12rem 4fr;
-    grid-template-rows: 3rem 3rem 3rem 3rem;
+    grid-template-columns: 120px 4fr;
+    grid-template-rows: 30px 30px 30px 30px;
     width: 100%;
-    column-gap: 1rem;
+    column-gap: 10px;
     .cover {
       background-color: hsl(40, 13%, 82%);
       background-image: v-bind(coverImg);
@@ -105,8 +105,8 @@ const coverImg = `url("${record.cover}")`
       display: flex;
       align-items: center;
       grid-area: 4 / 2 / 5 / 3;
-      gap: 0.6rem;
-      font-size: 1.2rem;
+      gap: 6px;
+      font-size: 12px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -121,7 +121,7 @@ const coverImg = `url("${record.cover}")`
       display: flex;
       align-items: center;
       grid-area: 3 / 2 / 4 / 3;
-      line-height: 3rem;
+      line-height: 30px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -130,7 +130,7 @@ const coverImg = `url("${record.cover}")`
     .from {
       color: var(--light-text);
       font-style: italic;
-      margin-right: 1rem;
+      margin-right: 10px;
     }
   }
 
@@ -138,7 +138,7 @@ const coverImg = `url("${record.cover}")`
     display: flex;
     flex-direction: column;
     width: 100%;
-    gap: 1rem;
+    gap: 10px;
     flex-wrap: wrap;
   }
   .show-more {

@@ -51,7 +51,7 @@ defineProps<{
   svg {
     margin: 0;
     align-self: center;
-    height: 1.8rem;
+    height: 18px;
   }
 }
 </style>

@@ -17,11 +17,11 @@ defineProps<{
   justify-self: start;
   align-self: center;
   color: var(--spotify-green);
-  padding: 0 1.6rem;
-  font-size: 1.2rem;
+  padding: 0 16px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.1rem;
-  border-radius: 1.9rem;
+  letter-spacing: 1px;
+  border-radius: 19px;
   margin: 0;
   svg {
     color: var(--spotify-light-green);

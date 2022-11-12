@@ -294,8 +294,8 @@ hr {
   .spotify-key {
     font-weight: 500;
     margin-left: 10px;
-    padding: 0 1rem;
-    border-radius: 0.6rem;
+    padding: 0 10px;
+    border-radius: 6px;
     background-color: v-bind(spotifyKeyColour);
     color: var(--key-text);
   }

@@ -119,11 +119,11 @@ const lastBpmColour = computed(() => getBPMColour(state.lastBpm))
   justify-content: center;
   align-items: center;
   transition: all 450ms cubic-bezier(0.19, 1, 0.22, 1);
-  outline: 0.2rem dotted;
+  outline: 2px dotted;
   outline-color: v-bind(bpmColour);
-  outline-offset: -0.1rem;
+  outline-offset: -1px;
   &:active {
-    outline-offset: 0.8rem;
+    outline-offset: 8px;
   }
 }
 

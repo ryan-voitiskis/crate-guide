@@ -175,7 +175,7 @@ watch(
 <style scoped lang="scss">
 .input-controls {
   display: flex;
-  column-gap: 1rem;
+  column-gap: 10px;
   flex-wrap: wrap;
 }
 .sort-controls {
@@ -184,17 +184,17 @@ watch(
   }
   width: 100%;
   display: flex;
-  gap: 1rem;
+  gap: 10px;
   align-items: center;
 }
 .record-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 10px;
   width: 100%;
 }
 
 .sort-by-button {
-  width: 12rem;
+  width: 120px;
 }
 </style>

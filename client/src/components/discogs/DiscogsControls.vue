@@ -34,12 +34,12 @@ const authdTip = `Import a collection of records from your Discogs account.`
 
 <style scoped lang="scss">
 button {
-  width: 22rem;
+  width: 220px;
 }
 .discogs-controls-container {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 @media (max-width: 575.98px) {

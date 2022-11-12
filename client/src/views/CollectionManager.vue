@@ -47,7 +47,7 @@
   </KeepAlive>
 
   <ModalBox v-if="crates.addCrateModal" @close="crates.addCrateModal = false">
-    <AddCrateForm @close="crates.addCrateModal = false" />
+    <AddCrateForm />
   </ModalBox>
 
   <ModalBox
@@ -198,8 +198,8 @@ onBeforeUnmount(() => {
 .controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .spotify-logo {

@@ -146,12 +146,12 @@ onUnmounted(() => {
 <style scoped lang="scss">
 fieldset {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  gap: 10px;
+  margin-bottom: 20px;
   &.controls {
     flex-direction: column;
     button {
-      width: 22rem;
+      width: 220px;
     }
   }
 }

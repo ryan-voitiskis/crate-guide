@@ -86,8 +86,8 @@ onUnmounted(() => {
 .forgot-password {
   float: right;
   cursor: pointer;
-  font-size: 1.4rem;
+  font-size: 14px;
   color: var(--light-text);
-  margin-top: 0.2rem;
+  margin-top: 2px;
 }
 </style>

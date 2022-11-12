@@ -53,23 +53,23 @@ const state = reactive({
 
 <style scoped lang="scss">
 .options-dropout {
-  font-size: 1.3rem;
+  font-size: 13px;
   display: flex;
-  margin-top: 2.9rem;
-  margin-bottom: 1.5rem;
+  margin-top: 29px;
+  margin-bottom: 15px;
   span {
     color: var(--light-text);
     align-self: center;
   }
   // wrapper exists to work around button resizing when fixed bug
   .button-wrapper {
-    height: 3.8rem;
-    width: 3.8rem;
-    margin-right: 1rem;
+    height: 38px;
+    width: 38px;
+    margin-right: 10px;
   }
   button.toggle {
-    width: 3.8rem;
-    padding: 0 0.8rem;
+    width: 38px;
+    padding: 0 8px;
     svg {
       position: absolute;
     }
@@ -78,7 +78,7 @@ const state = reactive({
 
 .options {
   display: flex;
-  gap: 1rem;
+  gap: 10px;
   width: auto;
 }
 

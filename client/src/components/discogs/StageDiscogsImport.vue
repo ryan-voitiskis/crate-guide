@@ -42,7 +42,7 @@ onBeforeUnmount(() => {
 .import-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 10px;
   overflow-y: scroll;
   width: 100%;
 }

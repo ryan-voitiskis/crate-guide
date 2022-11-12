@@ -17,21 +17,21 @@ defineProps<{
 <style scoped lang="scss">
 .invalid {
   grid-column: 1 / 3; // for use inside inline labels
-  margin: 1rem auto;
+  margin: 10px auto;
   left: 0;
   right: 0;
-  font-size: 1.6rem;
+  font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--error);
   svg {
-    height: 2.4rem;
-    margin-right: 1rem;
+    height: 24px;
+    margin-right: 10px;
     color: var(--error);
   }
   &.modal-body {
-    margin-bottom: 4rem;
+    margin-bottom: 40px;
   }
 }
 
