@@ -91,13 +91,13 @@
         label="Time signature"
         :options="timeSignatureOptions"
       />
-      <BasicInput
-        v-model="form.genre"
+      <GenreInput
         id="genre"
-        label="Genre"
-        type="text"
-        placeholder="Genre (recommended)"
-        autocomplete="off"
+        :genres="genres"
+        :addOrClearMsg="genreState.addOrClearMsg"
+        @addGenre="addGenre"
+        @removeGenre="removeGenre"
+        @updateEmptyStatus="updateEmptyStatus"
       />
       <fieldset class="radio">
         <RadioInput v-model="form.rpm" name="rpm" id="33" label="33 rpm" />
@@ -122,7 +122,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, onBeforeUnmount, watch } from "vue"
+import { reactive, onBeforeUnmount, watch, ref, Ref } from "vue"
 import { recordStore } from "@/stores/recordStore"
 import { spotifyStore } from "@/stores/spotifyStore"
 import { trackStore } from "@/stores/trackStore"
@@ -148,6 +148,7 @@ import {
   getKeyColour,
   getKeyOptions,
 } from "@/utils/pitchClassMap"
+import GenreInput from "../inputs/GenreInput.vue"
 
 const records = recordStore()
 const spotify = spotifyStore()
@@ -204,56 +205,75 @@ const form = reactive({
   playable: track.playable,
 })
 
+const genreState = reactive({
+  genreInputIsEmpty: true,
+  addOrClearMsg: false,
+})
+const genres: Ref<string[]> = ref(track.genre ? track.genre.split(", ") : [])
+const updateEmptyStatus = (isEmpty: boolean) => {
+  genreState.genreInputIsEmpty = isEmpty
+  if (isEmpty) genreState.addOrClearMsg = false
+}
+const addGenre = (genre: string) => {
+  genres.value.push(genre)
+  genreState.genreInputIsEmpty = true
+  genreState.addOrClearMsg = false
+}
+const removeGenre = (index: number) => genres.value.splice(index, 1)
+
 // check if track has been edited, if not display noChangeMsg, else updateTrack
 const submit = async () => {
-  spotify.errorMsg = ""
-  tracks.errorMsg = ""
-  if (
-    form.spotifyID === track.spotifyID &&
-    form.position === track.position &&
-    form.title.trim() === track.title &&
-    form.artists?.trim() === track.artists &&
-    form.duration?.trim() ===
-      (track.duration ? getDurationString(track.duration) : "") &&
-    form.bpm === track.bpm &&
-    parseInt(form.rpm) === track.rpm &&
-    form.genre?.trim() === track.genre &&
-    form.timeSignature === initialTimeSignature &&
-    form.key === `${track.mode}${track.key}` &&
-    form.playable === track.playable
-  )
-    tracks.errorMsg = noChangeMsg
-  else {
-    const timeSignatureArray = getTimeSignatureNumbers(form.timeSignature)
-    const editedTrack: Track = {
-      _id: track._id,
-      position: form.position?.toUpperCase(),
-      title: form.title.trim(),
-      artists: form.artists?.trim(),
-      duration: getDurationMs(form.duration?.trim()),
-      bpm: form.bpm,
-      rpm: parseInt(form.rpm),
-      key: parseInt(form.key.slice(1, 3)),
-      mode: parseInt(form.key.slice(0, 1)),
-      genre: form.genre?.trim(),
-      timeSignatureUpper: timeSignatureArray[0],
-      timeSignatureLower: timeSignatureArray[1],
-      playable: form.playable,
-    }
-    const newSpotifyID =
-      track.spotifyID !== form.spotifyID?.trim() ? form.spotifyID?.trim() : ""
-    if (newSpotifyID) {
-      const matchedTrack: MatchedTrack = {
-        recordID: record._id,
-        trackID: track._id,
-        spotifyTrackID: newSpotifyID,
+  if (genreState.genreInputIsEmpty) {
+    spotify.errorMsg = ""
+    tracks.errorMsg = ""
+    if (
+      form.spotifyID === track.spotifyID &&
+      form.position === track.position &&
+      form.title.trim() === track.title &&
+      form.artists?.trim() === track.artists &&
+      form.duration?.trim() ===
+        (track.duration ? getDurationString(track.duration) : "") &&
+      form.bpm === track.bpm &&
+      parseInt(form.rpm) === track.rpm &&
+      genres.value.join(", ") === track.genre &&
+      form.timeSignature === initialTimeSignature &&
+      form.key ===
+        (track.mode && track.key ? `${track.mode}${track.key}` : "") &&
+      form.playable === track.playable
+    )
+      tracks.errorMsg = noChangeMsg
+    else {
+      const timeSignatureArray = getTimeSignatureNumbers(form.timeSignature)
+      const editedTrack: Track = {
+        _id: track._id,
+        position: form.position?.toUpperCase(),
+        title: form.title.trim(),
+        artists: form.artists?.trim(),
+        duration: getDurationMs(form.duration?.trim()),
+        bpm: form.bpm,
+        rpm: parseInt(form.rpm),
+        key: parseInt(form.key.slice(1, 3)),
+        mode: parseInt(form.key.slice(0, 1)),
+        genre: genres.value.join(", "),
+        timeSignatureUpper: timeSignatureArray[0],
+        timeSignatureLower: timeSignatureArray[1],
+        playable: form.playable,
       }
-      await spotify.getTrackFeatures(matchedTrack)
-    }
+      const newSpotifyID =
+        track.spotifyID !== form.spotifyID?.trim() ? form.spotifyID?.trim() : ""
+      if (newSpotifyID) {
+        const matchedTrack: MatchedTrack = {
+          recordID: record._id,
+          trackID: track._id,
+          spotifyTrackID: newSpotifyID,
+        }
+        await spotify.getTrackFeatures(matchedTrack)
+      }
 
-    await tracks.updateTrack(editedTrack)
-    if (spotify.errorMsg === "" && tracks.errorMsg === "") tracks.toEdit = ""
-  }
+      await tracks.updateTrack(editedTrack)
+      if (spotify.errorMsg === "" && tracks.errorMsg === "") tracks.toEdit = ""
+    }
+  } else genreState.addOrClearMsg = true
 }
 
 // when form inputs changed, remove noChangeMsg

@@ -54,14 +54,14 @@
     v-if="crates.deleteCrateModal"
     @close="crates.deleteCrateModal = false"
   >
-    <ConfirmDeleteCrate @close="crates.deleteCrateModal = false" />
+    <ConfirmDeleteCrate />
   </ModalBox>
 
   <ModalBox
     v-if="crates.duplicateCrateModal"
     @close="crates.duplicateCrateModal = false"
   >
-    <DuplicateCrateForm @close="crates.duplicateCrateModal = false" />
+    <DuplicateCrateForm />
   </ModalBox>
 
   <ModalBox

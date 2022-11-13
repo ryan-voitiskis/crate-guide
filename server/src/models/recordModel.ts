@@ -2,20 +2,20 @@ import mongoose, { Types } from "mongoose"
 
 interface ITrack {
   _id: Types.ObjectId
-  spotifyID: string
+  spotifyID?: string
   title: string
   artists: string
   position: string
   duration?: number
-  bpm: number
+  bpm?: number
   rpm: number
-  key: number
-  mode: number
+  key?: number
+  mode?: number
   genre: string
   timeSignatureUpper?: number
   timeSignatureLower?: number
   playable: boolean
-  audioFeatures: {
+  audioFeatures?: {
     acousticness: number
     danceability: number
     duration_ms: number
@@ -35,15 +35,15 @@ interface ITrack {
 interface IRecord {
   _id: Types.ObjectId
   user: Types.ObjectId
-  discogsID: number
-  spotifyID: string
+  discogsID?: number
+  spotifyID?: string
   catno: string
   title: string
   artists: string
   label: string
   year: number
   cover: string
-  mixable: boolean
+  mixable?: boolean
   tracks: ITrack[]
 }
 

@@ -65,13 +65,13 @@
         label="Time signature"
         :options="timeSignatureOptions"
       />
-      <BasicInput
-        v-model="form.genre"
+      <GenreInput
         id="genre"
-        label="Genre"
-        type="text"
-        placeholder="Genre (recommended)"
-        autocomplete="off"
+        :genres="genres"
+        :addOrClearMsg="genreState.addOrClearMsg"
+        @addGenre="addGenre"
+        @removeGenre="removeGenre"
+        @updateEmptyStatus="updateEmptyStatus"
       />
       <fieldset class="radio">
         <RadioInput v-model="form.rpm" name="rpm" id="33" label="33 rpm" />
@@ -96,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, onBeforeUnmount } from "vue"
+import { reactive, onBeforeUnmount, ref, Ref } from "vue"
 import { recordStore } from "@/stores/recordStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
@@ -113,6 +113,7 @@ import {
 } from "@/utils/timeSignatures"
 import { getKeyOptions } from "@/utils/pitchClassMap"
 import SelectInput from "../inputs/SelectInput.vue"
+import GenreInput from "../inputs/GenreInput.vue"
 
 const records = recordStore()
 const tracks = trackStore()
@@ -146,23 +147,41 @@ const reset = () => {
   form.playable = true
 }
 
+const genreState = reactive({
+  genreInputIsEmpty: true,
+  addOrClearMsg: false,
+})
+const genres: Ref<string[]> = ref([])
+const updateEmptyStatus = (isEmpty: boolean) => {
+  genreState.genreInputIsEmpty = isEmpty
+  if (isEmpty) genreState.addOrClearMsg = false
+}
+const addGenre = (genre: string) => {
+  genres.value.push(genre)
+  genreState.genreInputIsEmpty = true
+  genreState.addOrClearMsg = false
+}
+const removeGenre = (index: number) => genres.value.splice(index, 1)
+
 const submit = async () => {
-  const timeSignatureArray = getTimeSignatureNumbers(form.timeSignature)
-  const unsavedTrack: UnsavedTrack = {
-    position: form.position.toUpperCase(),
-    title: form.title.trim(),
-    artists: form.artists.trim(),
-    duration: getDurationMs(form.duration?.trim()),
-    bpm: form.bpm,
-    key: parseInt(form.key.slice(1, 3)),
-    mode: parseInt(form.key.slice(0, 1)),
-    rpm: parseInt(form.rpm),
-    genre: form.genre.trim(),
-    timeSignatureUpper: timeSignatureArray[0],
-    timeSignatureLower: timeSignatureArray[1],
-    playable: form.playable,
-  }
-  await tracks.addTrack(unsavedTrack, tracks.addTrackTo)
+  if (genreState.genreInputIsEmpty) {
+    const timeSignatureArray = getTimeSignatureNumbers(form.timeSignature)
+    const unsavedTrack: UnsavedTrack = {
+      position: form.position.toUpperCase(),
+      title: form.title.trim(),
+      artists: form.artists.trim(),
+      duration: getDurationMs(form.duration?.trim()),
+      bpm: form.bpm,
+      key: parseInt(form.key.slice(1, 3)),
+      mode: parseInt(form.key.slice(0, 1)),
+      rpm: parseInt(form.rpm),
+      genre: genres.value.join(", "),
+      timeSignatureUpper: timeSignatureArray[0],
+      timeSignatureLower: timeSignatureArray[1],
+      playable: form.playable,
+    }
+    await tracks.addTrack(unsavedTrack, tracks.addTrackTo)
+  } else genreState.addOrClearMsg = true
 }
 
 onBeforeUnmount(() => {

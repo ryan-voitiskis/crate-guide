@@ -2,6 +2,7 @@ import asyncHandler from "express-async-handler"
 import fetch from "node-fetch"
 import genNonce from "../utils/genNonce.js"
 import oauthSignature from "oauth-signature"
+import { getDurationMs } from "../utils/durationFunctions.js"
 import { Record } from "../models/recordModel.js"
 import { IUser } from "../models/userModel.js"
 import {
@@ -207,8 +208,8 @@ function editReleases(records: ReleaseFull[], userID: string) {
             .join(", ")
         : "",
       position: j.position.trim(),
-      duration: j.duration.trim(),
-      genre: i.styles ? i.styles.toString().trim() : "",
+      duration: getDurationMs(j.duration.trim()),
+      genre: i.styles ? i.styles.join(", ") : "",
       rpm: i.formats[0].descriptions?.toString().includes("45") ? "45" : "33",
       playable: true,
     })),
