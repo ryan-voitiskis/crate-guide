@@ -2,6 +2,10 @@
   <div class="track-option">
     <div class="cover"></div>
     <span class="position" v-if="track.position">{{ track.position }}</span>
+    <div class="time-signature" v-if="timeSignature">
+      <sup>{{ timeSignature[0] }}</sup>
+      <sub>{{ timeSignature[1] }}</sub>
+    </div>
     <span class="bpm" v-if="track.bpmFinal">
       {{ Math.round(track.bpmFinal).toString() }}
     </span>
@@ -77,6 +81,14 @@ const coverImg = `url("${props.track.cover}")`
 
 const getPercent = (x: number): string => `${Math.round(x * 100).toString()}%`
 
+const timeSignature = computed(() =>
+  props.track.timeSignatureUpper && props.track.timeSignatureLower
+    ? [props.track.timeSignatureUpper, props.track.timeSignatureLower]
+    : props.track.audioFeatures
+    ? [props.track.audioFeatures.time_signature, 4]
+    : null
+)
+
 const keyAndMode = computed(() =>
   typeof props.track.key === "number" && typeof props.track.mode === "number"
     ? { key: props.track.key, mode: props.track.mode }
@@ -121,7 +133,7 @@ const positionColour = computed(() =>
 .track-option {
   overflow: hidden;
   display: grid;
-  grid-template-columns: 40px 30px 38px 44px 44px 44px 40px 60px 2fr 1fr 1fr 1fr 1fr 38px 40px;
+  grid-template-columns: 40px 26px 22px 32px 44px 44px 44px 40px 60px 2fr 1fr 1fr 1fr 1fr 38px 40px;
   width: 100%;
   column-gap: 10px;
   span {
@@ -149,13 +161,16 @@ const positionColour = computed(() =>
     text-align: center;
     color: v-bind(positionColour);
   }
-  .bpm {
+  .time-signature {
+    text-align: center;
     grid-area: 1 / 3 / 2 / 4;
+  }
+  .bpm {
+    grid-area: 1 / 4 / 2 / 5;
     text-align: center;
     color: v-bind(bpmColour);
   }
   .audio-features {
-    grid-area: 1 / 4 / 2 / 5;
     border-radius: 0;
     height: 100%;
     width: 54px;
@@ -169,21 +184,21 @@ const positionColour = computed(() =>
     }
   }
   .danceability {
-    grid-area: 1 / 4 / 2 / 5;
-  }
-  .energy {
     grid-area: 1 / 5 / 2 / 6;
   }
-  .valence {
+  .energy {
     grid-area: 1 / 6 / 2 / 7;
   }
-  .duration {
+  .valence {
     grid-area: 1 / 7 / 2 / 8;
+  }
+  .duration {
+    grid-area: 1 / 8 / 2 / 9;
     font-style: italic;
     text-align: center;
   }
   .key {
-    grid-area: 1 / 8 / 2 / 9;
+    grid-area: 1 / 9 / 2 / 10;
     height: 26px;
     width: 100%;
     line-height: 26px;
@@ -200,25 +215,25 @@ const positionColour = computed(() =>
     }
   }
   .title {
-    grid-area: 1 / 9 / 2 / 10;
-  }
-  .artists {
     grid-area: 1 / 10 / 2 / 11;
   }
-  .genre {
+  .artists {
     grid-area: 1 / 11 / 2 / 12;
   }
-  .label {
+  .genre {
     grid-area: 1 / 12 / 2 / 13;
   }
-  .catno {
+  .label {
     grid-area: 1 / 13 / 2 / 14;
   }
-  .year {
+  .catno {
     grid-area: 1 / 14 / 2 / 15;
   }
-  .edit {
+  .year {
     grid-area: 1 / 15 / 2 / 16;
+  }
+  .edit {
+    grid-area: 1 / 16 / 2 / 17;
     width: 100%;
     height: 100%;
     border-radius: 0;

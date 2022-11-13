@@ -165,7 +165,7 @@ const getKeyOptions = (keyFormat: "key" | "camelot"): option[] => {
     keyFormat === "key"
       ? pitchClassMap.map(keyOptionsMapFn(0))
       : pitchClassMap.sort(sortNum("camelotMinor")).map(camelotOptionsMapFn(0))
-  return [{ id: "", name: "---" }]
+  return [{ id: "", name: "--- optional ---" }]
     .concat(keyOptionsMinor)
     .concat(keyOptionsMajor)
 }

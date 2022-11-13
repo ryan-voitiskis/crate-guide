@@ -53,6 +53,18 @@
         pattern="\d{2,3}"
         autocomplete="off"
       />
+      <SelectInput
+        v-model="form.key"
+        id="key"
+        label="Key"
+        :options="keyOptions"
+      />
+      <SelectInput
+        v-model="form.timeSignature"
+        id="time_signature"
+        label="Time signature"
+        :options="timeSignatureOptions"
+      />
       <BasicInput
         v-model="form.genre"
         id="genre"
@@ -60,12 +72,6 @@
         type="text"
         placeholder="Genre (recommended)"
         autocomplete="off"
-      />
-      <SelectInput
-        v-model="form.timeSignature"
-        id="time_signature"
-        label="Time signature"
-        :options="timeSignatureOptions"
       />
       <fieldset class="radio">
         <RadioInput v-model="form.rpm" name="rpm" id="33" label="33 rpm" />
@@ -100,17 +106,12 @@ import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import RadioInput from "@/components/inputs/RadioInput.vue"
 import UnsavedTrack from "@/interfaces/UnsavedTrack"
 import XIcon from "@/components/icons/XIcon.vue"
-import { getDurationString, getDurationMs } from "@/utils/durationFunctions"
+import { getDurationMs } from "@/utils/durationFunctions"
 import {
   getTimeSignatureOptions,
   getTimeSignatureNumbers,
 } from "@/utils/timeSignatures"
-import {
-  getKeyString,
-  getCamelotString,
-  getKeyColour,
-  getKeyOptions,
-} from "@/utils/pitchClassMap"
+import { getKeyOptions } from "@/utils/pitchClassMap"
 import SelectInput from "../inputs/SelectInput.vue"
 
 const records = recordStore()
@@ -126,6 +127,7 @@ const form = reactive({
   artists: "",
   duration: "",
   bpm: undefined,
+  key: "",
   rpm: "33",
   genre: "",
   timeSignature: "",
@@ -138,6 +140,7 @@ const reset = () => {
   form.artists = ""
   form.duration = ""
   form.bpm = undefined
+  form.key = ""
   form.rpm = "33"
   form.genre = ""
   form.playable = true
@@ -149,8 +152,10 @@ const submit = async () => {
     position: form.position.toUpperCase(),
     title: form.title.trim(),
     artists: form.artists.trim(),
-    duration: form.duration,
+    duration: getDurationMs(form.duration?.trim()),
     bpm: form.bpm,
+    key: parseInt(form.key.slice(1, 3)),
+    mode: parseInt(form.key.slice(0, 1)),
     rpm: parseInt(form.rpm),
     genre: form.genre.trim(),
     timeSignatureUpper: timeSignatureArray[0],

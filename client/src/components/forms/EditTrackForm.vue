@@ -81,6 +81,16 @@
         label="Key"
         :options="keyOptions"
       />
+      <div class="spotify-analysed" v-if="spotifyTimeSignature">
+        Spotify estimated
+        <div class="spotify-time-sig">{{ spotifyTimeSignature }}</div>
+      </div>
+      <SelectInput
+        v-model="form.timeSignature"
+        id="time_signature"
+        label="Time signature"
+        :options="timeSignatureOptions"
+      />
       <BasicInput
         v-model="form.genre"
         id="genre"
@@ -88,12 +98,6 @@
         type="text"
         placeholder="Genre (recommended)"
         autocomplete="off"
-      />
-      <SelectInput
-        v-model="form.timeSignature"
-        id="time_signature"
-        label="Time signature"
-        :options="timeSignatureOptions"
       />
       <fieldset class="radio">
         <RadioInput v-model="form.rpm" name="rpm" id="33" label="33 rpm" />
@@ -174,6 +178,10 @@ const bpmColour = track.audioFeatures?.tempo
   ? getBPMColour(track.audioFeatures.tempo)
   : ""
 
+const spotifyTimeSignature = track.audioFeatures
+  ? `${track.audioFeatures.time_signature}/4`
+  : ""
+
 const initialTimeSignature =
   track.timeSignatureUpper && track.timeSignatureLower
     ? getTimeSignatureString(track.timeSignatureUpper, track.timeSignatureLower)
@@ -189,7 +197,10 @@ const form = reactive({
   rpm: track.rpm.toString(),
   genre: track.genre,
   timeSignature: initialTimeSignature,
-  key: track.mode && track.key ? `${track.mode}${track.key}` : "",
+  key:
+    typeof track.mode === "number" && typeof track.key === "number"
+      ? `${track.mode}${track.key}`
+      : "",
   playable: track.playable,
 })
 
@@ -288,6 +299,10 @@ hr {
     border-radius: 6px;
     background-color: v-bind(spotifyKeyColour);
     color: var(--key-text);
+  }
+  .spotify-time-sig {
+    font-style: italic;
+    margin-left: 10px;
   }
 }
 </style>

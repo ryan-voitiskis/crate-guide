@@ -4,6 +4,7 @@ import { Record } from "../models/recordModel.js"
 // @desc    add track
 // @route   POST /api/tracks
 // @access  private
+// todo: redo
 const addTrack = asyncHandler(async (req, res) => {
   if (!req.user!.id) {
     res.status(400)
@@ -12,6 +13,7 @@ const addTrack = asyncHandler(async (req, res) => {
 
   const track = JSON.parse(req.body.track)
 
+  // todo if track is Track
   if (!track.title) {
     res.status(400)
     throw new Error("Title not provided.")

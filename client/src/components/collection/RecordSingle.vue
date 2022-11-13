@@ -43,7 +43,7 @@
       </button>
       <button
         class="inline-btn add add-track"
-        @click="trckStore.addTrackTo = _id"
+        @click="trackStore().addTrackTo = _id"
         :disabled="records.checkboxed.length !== 0"
       >
         <PlusCircleIcon />Add track
@@ -72,7 +72,6 @@ import TrackSingleShort from "./TrackSingleShort.vue"
 import TrashIcon from "@/components/icons/TrashIcon.vue"
 import FolderMinusIcon from "@/components/icons/FolderMinusIcon.vue"
 const records = recordStore()
-const trckStore = trackStore() // ! "trckStore" because conflict w tracks prop
 const user = userStore()
 
 const props = defineProps<{
@@ -204,6 +203,7 @@ const coverImg = `url("${props.cover}")`
         cursor: default;
         color: var(--lighter-text);
         svg {
+          color: var(--lighter-text);
           fill: var(--lighter-text);
         }
       }

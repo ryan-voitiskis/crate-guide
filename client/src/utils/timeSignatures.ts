@@ -70,7 +70,7 @@ const timeSignatures: TimeSignature[] = [
 ]
 
 const getTimeSignatureOptions = (): option[] =>
-  [{ id: "", name: "(optional) ---" }].concat(
+  [{ id: "", name: "--- optional ---" }].concat(
     timeSignatures.map((i) => ({ id: i.string, name: i.string }))
   )
 

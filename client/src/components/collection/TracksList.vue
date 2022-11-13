@@ -249,54 +249,54 @@ const sortedTracks = computed((): TrackPlus[] => {
   width: 100%;
   display: grid;
   column-gap: 10px;
-  grid-template-columns: 40px 30px 38px 44px 44px 44px 40px 60px 2fr 1fr 1fr 1fr 1fr 38px 40px;
+  grid-template-columns: 40px 26px 22px 32px 44px 44px 44px 40px 60px 2fr 1fr 1fr 1fr 1fr 38px 40px;
   .bpm {
-    grid-area: 1 / 1 / 2 / 4;
+    grid-area: 1 / 1 / 2 / 5;
     display: flex;
     justify-content: end;
   }
   .danceability {
-    grid-area: 1 / 4 / 2 / 5;
-  }
-  .energy {
     grid-area: 1 / 5 / 2 / 6;
   }
-  .valence {
+  .energy {
     grid-area: 1 / 6 / 2 / 7;
   }
-  .duration {
+  .valence {
     grid-area: 1 / 7 / 2 / 8;
   }
-  .key {
+  .duration {
     grid-area: 1 / 8 / 2 / 9;
+  }
+  .key {
+    grid-area: 1 / 9 / 2 / 10;
     display: flex;
     justify-self: center;
   }
   .title {
-    grid-area: 1 / 9 / 2 / 10;
-    display: flex;
-    justify-content: start;
-  }
-  .artists {
     grid-area: 1 / 10 / 2 / 11;
     display: flex;
     justify-content: start;
   }
-  .genre {
+  .artists {
     grid-area: 1 / 11 / 2 / 12;
-  }
-  .label {
-    grid-area: 1 / 12 / 2 / 13;
     display: flex;
     justify-content: start;
   }
-  .catno {
+  .genre {
+    grid-area: 1 / 12 / 2 / 13;
+  }
+  .label {
     grid-area: 1 / 13 / 2 / 14;
     display: flex;
     justify-content: start;
   }
-  .year {
+  .catno {
     grid-area: 1 / 14 / 2 / 15;
+    display: flex;
+    justify-content: start;
+  }
+  .year {
+    grid-area: 1 / 15 / 2 / 17;
     display: flex;
     justify-content: start;
   }
