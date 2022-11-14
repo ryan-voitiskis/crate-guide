@@ -1,4 +1,4 @@
-<!-- svg from https://codepen.io/aurer/pen/ZEJxpO -->
+<!-- svg from https://heroicons.com/ -->
 <template>
   <svg
     xmlns="http://www.w3.org/2000/svg"

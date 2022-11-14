@@ -9,14 +9,16 @@
     </div>
   </div>
 
-  <ModalBox
-    v-if="session.loadTrackTo !== -1"
-    @close="session.loadTrackTo = -1"
-    width="1280px"
-    :fullHeight="true"
-  >
-    <SelectTrack />
-  </ModalBox>
+  <KeepAlive>
+    <ModalBox
+      v-if="session.loadTrackTo !== -1"
+      @close="session.loadTrackTo = -1"
+      width="1780px"
+      :fullHeight="true"
+    >
+      <SelectTrack />
+    </ModalBox>
+  </KeepAlive>
 </template>
 
 <script setup lang="ts">

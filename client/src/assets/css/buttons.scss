@@ -1,0 +1,133 @@
+.btn,
+button,
+input[type="submit"],
+input[type="button"] {
+  margin: 0;
+  border-radius: 8px;
+  border: none;
+  color: var(--dark-text);
+  background-color: var(--btn-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  font: 400 16px/38px Manrope, sans-serif;
+  height: 38px;
+  justify-content: center;
+  padding: 0 24px;
+  text-align: center;
+  text-decoration: none;
+  transition: background-color 0.5s, color 0.5s;
+  white-space: nowrap;
+  svg {
+    overflow: visible; // because spotify logo was being clipped by a fraction of a px
+    align-self: center;
+    height: 22px;
+    transition: fill 0.2s ease-in-out;
+  }
+  &:hover {
+    background: var(--btn-secondary-hover);
+    color: var(--darker-text);
+  }
+  &:disabled {
+    cursor: not-allowed;
+  }
+  &.primary {
+    padding: 0 40px;
+    background: var(--btn-primary);
+    font: 600 16px/38px Manrope, sans-serif;
+    color: var(--white-text);
+    border: none;
+    &:hover {
+      background: var(--btn-primary-hover);
+    }
+    &:disabled {
+      background-color: var(--btn-disabled);
+    }
+    &.delete {
+      color: var(--white-text);
+      background: var(--btn-delete);
+      &:hover {
+        background: var(--btn-delete-hover);
+        color: var(--white-text);
+      }
+    }
+  }
+  &.add {
+    color: var(--btn-primary);
+    svg {
+      color: var(--btn-primary);
+      fill: transparent;
+    }
+    &:hover {
+      color: var(--btn-primary-hover);
+      svg {
+        color: var(--btn-primary);
+        fill: var(--btn-primary-hover);
+      }
+    }
+  }
+  &.edit {
+    color: var(--btn-edit);
+    svg {
+      color: var(--btn-edit);
+      fill: transparent;
+    }
+    &:hover {
+      color: var(--btn-edit-hover);
+      svg {
+        color: var(--btn-edit);
+        fill: var(--btn-edit-hover);
+      }
+    }
+  }
+  &.delete {
+    color: var(--btn-delete);
+    svg {
+      color: var(--btn-delete);
+      fill: transparent;
+    }
+    &:hover {
+      color: var(--btn-delete-hover);
+      svg {
+        color: var(--btn-delete);
+        fill: var(--btn-delete-hover);
+      }
+    }
+  }
+  &.play {
+    color: var(--play-button);
+    svg {
+      color: var(--play-button);
+      fill: transparent;
+    }
+    &:hover {
+      svg {
+        color: var(--play-button);
+        fill: var(--play-button);
+      }
+    }
+  }
+  &.clear-filters {
+    color: var(--white-text);
+    background-color: var(--btn-edit);
+    font-weight: 600;
+    svg {
+      fill: var(--white-text);
+    }
+    &:hover {
+      background-color: var(--btn-edit-hover);
+    }
+  }
+}
+
+button.inline-btn {
+  background-color: transparent;
+  border-radius: 0;
+  height: 30px;
+  line-height: 30px;
+  padding: 0;
+  svg {
+    align-self: center;
+    height: 18px;
+    margin: 6px;
+  }
+}

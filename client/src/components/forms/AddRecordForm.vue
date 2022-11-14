@@ -6,9 +6,6 @@
     </button>
   </div>
   <form @submit.prevent="submit" @reset.prevent="reset()">
-    <InfoDropdown
-      text="Catalog #, label and year are optional.<br />Catalog # recommended for discogs integration."
-    />
     <div class="modal-body inline-labels">
       <BasicInput
         v-model="form.catno"
@@ -53,9 +50,6 @@
         pattern="\d{4}"
         autocomplete="off"
       />
-      <label class="checkbox">
-        <input type="checkbox" v-model="form.mixable" /> Mixable
-      </label>
       <ErrorFeedback :show="records.errorMsg !== ''" :msg="records.errorMsg" />
     </div>
     <div class="modal-footer">
@@ -74,7 +68,6 @@
 <script setup lang="ts">
 import { reactive, onBeforeUnmount } from "vue"
 import BasicInput from "@/components/inputs/BasicInput.vue"
-import InfoDropdown from "@/components/utility/InfoDropdown.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import XIcon from "@/components/icons/XIcon.vue"
@@ -90,7 +83,6 @@ const form = reactive({
   title: "",
   label: "",
   year: undefined,
-  mixable: true,
 })
 
 const reset = () => {
@@ -99,7 +91,6 @@ const reset = () => {
   form.title = ""
   form.label = ""
   form.year = undefined
-  form.mixable = true
 }
 
 const submit = async () => {
@@ -110,7 +101,6 @@ const submit = async () => {
     title: form.title.trim(),
     label: form.label.trim(),
     year: form.year,
-    mixable: form.mixable,
   }
   const response = await records.addRecord(unsavedRecord)
   if (response === 400) {

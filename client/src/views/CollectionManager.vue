@@ -145,14 +145,6 @@
   >
     <SpotifyCompletion />
   </ModalBox>
-
-  <ModalBox
-    v-if="tracks.toShowFeatures"
-    @close="tracks.toShowFeatures = ''"
-    width="560px"
-  >
-    <AudioFeatures />
-  </ModalBox>
 </template>
 
 <script setup lang="ts">
@@ -188,7 +180,6 @@ import TrackMatchForm from "@/components/spotify/TrackMatchForm.vue"
 import SpotifyCompletion from "@/components/spotify/SpotifyCompletion.vue"
 import ListLayoutToggle from "@/components/collection/ListLayoutToggle.vue"
 import TracksList from "@/components/collection/TracksList.vue"
-import AudioFeatures from "@/components/collection/AudioFeatures.vue"
 
 const crates = crateStore()
 const records = recordStore()

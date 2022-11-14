@@ -82,7 +82,6 @@ const props = defineProps<{
   artists: string
   label?: string
   year?: number
-  mixable?: boolean
   tracks: Track[]
 }>()
 

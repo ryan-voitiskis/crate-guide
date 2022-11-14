@@ -7,5 +7,4 @@ export default interface UnsavedRecord {
   label?: string
   year?: number
   cover?: string
-  mixable: boolean
 }

@@ -130,6 +130,14 @@
   >
     <ConfirmRevokeSpotify />
   </ModalBox>
+
+  <ModalBox
+    v-if="tracks.toShowFeatures"
+    @close="tracks.toShowFeatures = ''"
+    width="560px"
+  >
+    <AudioFeatures />
+  </ModalBox>
 </template>
 
 <script setup lang="ts">
@@ -137,6 +145,7 @@ import { reactive, watch } from "vue"
 import { useRoute } from "vue-router"
 import { discogsStore } from "@/stores/discogsStore"
 import { spotifyStore } from "@/stores/spotifyStore"
+import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import AuthoriseDiscogs from "@/components/discogs/AuthoriseDiscogs.vue"
 import AuthoriseDiscogsSuccessful from "@/components/discogs/AuthoriseDiscogsSuccessful.vue"
@@ -152,10 +161,12 @@ import SignUpForm from "@/components/forms/SignUpForm.vue"
 import StageDiscogsImport from "@/components/discogs/StageDiscogsImport.vue"
 import UpdateFeedback from "@/components/feedbacks/UpdateFeedback.vue"
 import ConfirmRevokeSpotify from "./components/spotify/ConfirmRevokeSpotify.vue"
+import AudioFeatures from "@/components/collection/AudioFeatures.vue"
 
 const route = useRoute()
 const discogs = discogsStore()
 const spotify = spotifyStore()
+const tracks = trackStore()
 const user = userStore()
 
 const state = reactive({

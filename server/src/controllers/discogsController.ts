@@ -16,6 +16,8 @@ const oauth_consumer_key = "WJSUzMPCQcGdEFidpwqn"
 const oauth_consumer_secret = "oyasysRSKMwElyRpJjulWoxFBdaXDDTS"
 const discogsAPIURL = "https://api.discogs.com/"
 const userAgent = "CrateGuide/0.2"
+const positionRx = /^[A-Z]\d{1,2}$/
+const positionRx2 = /^[A-Z]{1,20}$/ // some discogs position in format "AA", "AAA" etc.
 
 // @desc    get a list of users discogs folders
 // @route   GET /api/discogs/folders
@@ -207,7 +209,11 @@ function editReleases(records: ReleaseFull[], userID: string) {
             .map((k) => k.name.trim().replace(/ \(\d{1,3}\)$/, ""))
             .join(", ")
         : "",
-      position: j.position.trim(),
+      position: positionRx.test(j.position)
+        ? j.position
+        : positionRx2.test(j.position)
+        ? j.position[0] + j.position.length.toString()
+        : "",
       duration: getDurationMs(j.duration.trim()),
       genre: i.styles ? i.styles.join(", ") : "",
       rpm: i.formats[0].descriptions?.toString().includes("45") ? "45" : "33",

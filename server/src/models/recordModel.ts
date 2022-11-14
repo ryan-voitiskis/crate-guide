@@ -43,7 +43,6 @@ interface IRecord {
   label: string
   year: number
   cover: string
-  mixable?: boolean
   tracks: ITrack[]
 }
 
@@ -163,9 +162,6 @@ const recordSchema = new mongoose.Schema<IRecord>(
     },
     cover: {
       type: String,
-    },
-    mixable: {
-      type: Boolean,
     },
     tracks: {
       type: [trackSchema],

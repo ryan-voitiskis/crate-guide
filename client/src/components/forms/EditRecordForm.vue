@@ -6,9 +6,6 @@
     </button>
   </div>
   <form @submit.prevent="submit">
-    <InfoDropdown
-      text="Catalog #, label and year are optional.<br />Catalog # recommended for discogs integration."
-    />
     <div class="modal-body inline-labels">
       <BasicInput
         v-model="form.catno"
@@ -53,9 +50,6 @@
         pattern="\d{4}"
         autocomplete="off"
       />
-      <label class="checkbox">
-        <input type="checkbox" v-model="form.mixable" /> Mixable
-      </label>
       <ErrorFeedback :show="records.errorMsg !== ''" :msg="records.errorMsg" />
     </div>
     <div class="modal-footer">
@@ -76,7 +70,6 @@ import { recordStore } from "@/stores/recordStore"
 import { userStore } from "@/stores/userStore"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
-import InfoDropdown from "@/components/utility/InfoDropdown.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import Record from "@/interfaces/Record"
 import XIcon from "@/components/icons/XIcon.vue"
@@ -93,7 +86,6 @@ const form = reactive({
   title: record.title,
   label: record.label,
   year: record.year,
-  mixable: record.mixable,
 })
 
 // check if record has been edited, if not display noChangeMsg, else updateRecord
@@ -103,8 +95,7 @@ const submit = async () => {
     form.artists.trim() === record.artists &&
     form.title.trim() === record.title &&
     form.label?.trim() === record.label &&
-    form.year == record.year && // * not === as coersion desired
-    form.mixable === record.mixable
+    form.year == record.year // * not === as coersion desired
   )
     records.errorMsg = noChangeMsg
   else {
@@ -117,7 +108,6 @@ const submit = async () => {
       title: form.title.trim(),
       label: form.label?.trim(),
       year: form.year,
-      mixable: form.mixable,
       tracks: record.tracks,
     }
     await records.updateRecord(editedRecord)

@@ -28,9 +28,31 @@
         width="240px"
       />
     </div>
+    <div class="input-wrapper">
+      <BasicInput
+        v-model="state.filterGenre"
+        label="Filter genre"
+        type="text"
+        placeholder=""
+        autocomplete="off"
+        width="240px"
+      />
+    </div>
+    <div class="input-wrapper">
+      <BasicInput
+        v-model="state.filterYear"
+        label="Filter year"
+        type="text"
+        placeholder="1990-2000"
+        autocomplete="off"
+        width="120px"
+      />
+    </div>
+    <button class="clear-filters icon-button" @click="clearFilters()">
+      <FilterOffIcon />Clear filters
+    </button>
   </div>
   <div class="track-option-header">
-    <div class="cover"></div>
     <SortByButton
       class="bpm"
       title="BPM"
@@ -136,6 +158,7 @@ import { trackStore } from "@/stores/trackStore"
 import CrateSelect from "../inputs/CrateSelect.vue"
 import localeContains from "@/utils/localeContains"
 import SortByButton from "../utility/SortByButton.vue"
+import FilterOffIcon from "@/components/icons/FilterOffIcon.vue"
 import {
   sortStr,
   sortNumWithNull,
@@ -152,10 +175,14 @@ import TimerIcon from "../icons/TimerIcon.vue"
 import SmileIcon from "../icons/SmileIcon.vue"
 import BoltIcon from "../icons/BoltIcon.vue"
 const tracks = trackStore()
+const yearsFilterRx = /^\d{4}\s*-\s*\d{4}$/
+const yearFilterRx = /^\d{4}$/
 
 const state = reactive({
   searchTitle: "",
   searchArtists: "",
+  filterGenre: "",
+  filterYear: "",
   sortBy: "title",
   bpmRvrs: false,
   danceabilityRvrs: false,
@@ -169,6 +196,13 @@ const state = reactive({
   catnoRvrs: false,
   yearRvrs: false,
 })
+
+const clearFilters = () => {
+  state.searchTitle = ""
+  state.searchArtists = ""
+  state.filterGenre = ""
+  state.filterYear = ""
+}
 
 const titleSearchedTracks = computed((): TrackPlus[] =>
   state.searchTitle !== ""
@@ -186,15 +220,39 @@ const artistsSearchedTracks = computed((): TrackPlus[] =>
     : titleSearchedTracks.value
 )
 
+const genreFilteredTracks = computed((): TrackPlus[] =>
+  state.filterGenre !== ""
+    ? artistsSearchedTracks.value.filter(
+        (i) => i.genre && localeContains(i.genre, state.filterGenre)
+      )
+    : artistsSearchedTracks.value
+)
+
+const yearFilteredTracks = computed((): TrackPlus[] => {
+  if (yearsFilterRx.test(state.filterYear.trim())) {
+    const years = state.filterYear.matchAll(/\d{4}/g)
+    const year1 = parseInt(years.next().value[0])
+    const year2 = parseInt(years.next().value[0])
+    if (year1 && year2)
+      return genreFilteredTracks.value.filter(
+        (i) => year1 <= i.year && i.year <= year2
+      )
+  } else if (yearFilterRx.test(state.filterYear.trim()))
+    return genreFilteredTracks.value.filter(
+      (i) => parseInt(state.filterYear.trim()) === i.year
+    )
+  return genreFilteredTracks.value
+})
+
 // sort records by title alphabetically
 const sortedTracks = computed((): TrackPlus[] => {
   switch (state.sortBy) {
     case "bpm":
-      return [...artistsSearchedTracks.value].sort(
+      return [...yearFilteredTracks.value].sort(
         sortNumWithUndefined("bpmFinal", state.bpmRvrs)
       )
     case "danceability":
-      return [...artistsSearchedTracks.value].sort(
+      return [...yearFilteredTracks.value].sort(
         sortNumWithUndefined2Deep(
           "audioFeatures",
           "danceability",
@@ -202,37 +260,37 @@ const sortedTracks = computed((): TrackPlus[] => {
         )
       )
     case "energy":
-      return [...artistsSearchedTracks.value].sort(
+      return [...yearFilteredTracks.value].sort(
         sortNumWithUndefined2Deep("audioFeatures", "energy", state.energyRvrs)
       )
     case "valence":
-      return [...artistsSearchedTracks.value].sort(
+      return [...yearFilteredTracks.value].sort(
         sortNumWithUndefined2Deep("audioFeatures", "valence", state.valenceRvrs)
       )
     case "duration":
-      return [...artistsSearchedTracks.value].sort(
+      return [...yearFilteredTracks.value].sort(
         sortNumWithUndefined("durationFinal", state.durationRvrs)
       )
     case "key":
-      return [...artistsSearchedTracks.value].sort(sortKey(state.keyRvrs))
+      return [...yearFilteredTracks.value].sort(sortKey(state.keyRvrs))
     case "artists":
-      return [...artistsSearchedTracks.value].sort(
+      return [...yearFilteredTracks.value].sort(
         sortStr("artistsFinal", state.artistsRvrs)
       )
     case "label":
-      return [...artistsSearchedTracks.value].sort(
+      return [...yearFilteredTracks.value].sort(
         sortStr("label", state.labelRvrs)
       )
     case "catno":
-      return [...artistsSearchedTracks.value].sort(
+      return [...yearFilteredTracks.value].sort(
         sortStr("catno", state.catnoRvrs)
       )
     case "year":
-      return [...artistsSearchedTracks.value].sort(
+      return [...yearFilteredTracks.value].sort(
         sortNumWithNull("year", state.yearRvrs)
       )
     default: // default is title
-      return [...artistsSearchedTracks.value].sort(
+      return [...yearFilteredTracks.value].sort(
         sortStr("title", state.titleRvrs)
       )
   }
@@ -244,6 +302,10 @@ const sortedTracks = computed((): TrackPlus[] => {
   display: flex;
   column-gap: 10px;
   flex-wrap: wrap;
+}
+.clear-filters {
+  justify-self: end;
+  margin-top: 29px;
 }
 .track-option-header {
   width: 100%;

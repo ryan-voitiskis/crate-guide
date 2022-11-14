@@ -9,10 +9,8 @@
     <div class="input-wrapper">
       <BasicInput
         v-model="state.searchTitle"
-        id="search_title"
         label="Search title"
         type="text"
-        placeholder=""
         autocomplete="off"
         width="240px"
       />
@@ -20,14 +18,25 @@
     <div class="input-wrapper">
       <BasicInput
         v-model="state.searchArtists"
-        id="search_artists"
         label="Search artist"
         type="text"
-        placeholder=""
         autocomplete="off"
         width="240px"
       />
     </div>
+    <div class="input-wrapper">
+      <BasicInput
+        v-model="state.filterYear"
+        label="Filter year"
+        type="text"
+        placeholder="1990-2000"
+        autocomplete="off"
+        width="120px"
+      />
+    </div>
+    <button class="clear-filters icon-button" @click="clearFilters()">
+      <FilterOffIcon />Clear filters
+    </button>
   </div>
   <div class="sort-controls">
     <label class="checkbox-hitbox">
@@ -96,14 +105,18 @@ import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
 import CrateSelect from "../inputs/CrateSelect.vue"
 import CrateOptions from "./CrateOptions.vue"
+import FilterOffIcon from "@/components/icons/FilterOffIcon.vue"
 const user = userStore()
 const crates = crateStore()
 const records = recordStore()
+const yearsFilterRx = /^\d{4}\s*-\s*\d{4}$/
+const yearFilterRx = /^\d{4}$/
 
 const state = reactive({
   selectAll: false,
   searchTitle: "",
   searchArtists: "",
+  filterYear: "",
   sortBy: "title",
   titleRvrs: false,
   catnoRvrs: false,
@@ -111,6 +124,12 @@ const state = reactive({
   labelRvrs: false,
   yearRvrs: false,
 })
+
+const clearFilters = () => {
+  state.searchTitle = ""
+  state.searchArtists = ""
+  state.filterYear = ""
+}
 
 // records from selected crate to display
 const recordsByCrate = computed((): Record[] =>
@@ -121,7 +140,7 @@ const recordsByCrate = computed((): Record[] =>
     : records.recordList
 )
 
-const titleSearchedTracks = computed((): Record[] =>
+const titleSearchedRecords = computed((): Record[] =>
   state.searchTitle !== ""
     ? recordsByCrate.value.filter((i) =>
         localeContains(i.title, state.searchTitle)
@@ -129,35 +148,51 @@ const titleSearchedTracks = computed((): Record[] =>
     : recordsByCrate.value
 )
 
-const artistsSearchedTracks = computed((): Record[] =>
+const artistsSearchedRecords = computed((): Record[] =>
   state.searchArtists !== ""
-    ? titleSearchedTracks.value.filter((i) =>
+    ? titleSearchedRecords.value.filter((i) =>
         localeContains(i.artists, state.searchArtists)
       )
-    : titleSearchedTracks.value
+    : titleSearchedRecords.value
 )
+
+const yearFilteredRecords = computed((): Record[] => {
+  if (yearsFilterRx.test(state.filterYear.trim())) {
+    const years = state.filterYear.matchAll(/\d{4}/g)
+    const year1 = parseInt(years.next().value[0])
+    const year2 = parseInt(years.next().value[0])
+    if (year1 && year2)
+      return artistsSearchedRecords.value.filter(
+        (i) => year1 <= i.year && i.year <= year2
+      )
+  } else if (yearFilterRx.test(state.filterYear.trim()))
+    return artistsSearchedRecords.value.filter(
+      (i) => parseInt(state.filterYear.trim()) === i.year
+    )
+  return artistsSearchedRecords.value
+})
 
 // sort records by title alphabetically
 const sortedRecords = computed((): Record[] => {
   switch (state.sortBy) {
     case "catno":
-      return [...artistsSearchedTracks.value].sort(
+      return [...yearFilteredRecords.value].sort(
         sortStr("catno", state.catnoRvrs)
       )
     case "artists":
-      return [...artistsSearchedTracks.value].sort(
+      return [...yearFilteredRecords.value].sort(
         sortStr("artists", state.artistsRvrs)
       )
     case "label":
-      return [...artistsSearchedTracks.value].sort(
+      return [...yearFilteredRecords.value].sort(
         sortStr("label", state.labelRvrs)
       )
     case "year":
-      return [...artistsSearchedTracks.value].sort(
+      return [...yearFilteredRecords.value].sort(
         sortNumWithNull("year", state.yearRvrs)
       )
     default: // default is title
-      return [...artistsSearchedTracks.value].sort(
+      return [...yearFilteredRecords.value].sort(
         sortStr("title", state.titleRvrs)
       )
   }
@@ -177,6 +212,10 @@ watch(
   display: flex;
   column-gap: 10px;
   flex-wrap: wrap;
+}
+.clear-filters {
+  justify-self: end;
+  margin-top: 29px;
 }
 .sort-controls {
   .checkbox-hitbox {

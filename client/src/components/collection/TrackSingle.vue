@@ -69,6 +69,7 @@ import {
 import DanceIcon from "../icons/DanceIcon.vue"
 import BoltIcon from "../icons/BoltIcon.vue"
 import SmileIcon from "../icons/SmileIcon.vue"
+import getPercent from "@/utils/getPercent"
 
 const tracks = trackStore()
 const user = userStore()
@@ -78,8 +79,6 @@ const props = defineProps<{
 }>()
 
 const coverImg = `url("${props.track.cover}")`
-
-const getPercent = (x: number): string => `${Math.round(x * 100).toString()}%`
 
 const timeSignature = computed(() =>
   props.track.timeSignatureUpper && props.track.timeSignatureLower

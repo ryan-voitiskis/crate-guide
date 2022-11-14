@@ -10,6 +10,5 @@ export default interface Record {
   label: string
   year: number
   cover: string
-  mixable: boolean
   tracks: Track[]
 }

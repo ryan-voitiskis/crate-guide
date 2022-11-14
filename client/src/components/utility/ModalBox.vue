@@ -143,7 +143,7 @@ onUnmounted(() => {
 }
 
 .hint {
-  word-break: break-all;
+  word-break: break-word;
   display: block;
   padding: 0 40px;
   margin: -20px 0 10px 0;
