@@ -10,21 +10,21 @@
       {{ Math.round(track.bpmFinal).toString() }}
     </span>
     <button
-      class="audio-features danceability"
+      class="audio-feature danceability"
       v-if="track.audioFeatures"
       @click="tracks.toShowFeatures = track._id"
     >
       <DanceIcon />{{ getPercent(track.audioFeatures.danceability) }}
     </button>
     <button
-      class="audio-features energy"
+      class="audio-feature energy"
       v-if="track.audioFeatures"
       @click="tracks.toShowFeatures = track._id"
     >
       <BoltIcon />{{ getPercent(track.audioFeatures.energy) }}
     </button>
     <button
-      class="audio-features valence"
+      class="audio-feature valence"
       v-if="track.audioFeatures"
       @click="tracks.toShowFeatures = track._id"
     >
@@ -163,13 +163,16 @@ const positionColour = computed(() =>
   .time-signature {
     text-align: center;
     grid-area: 1 / 3 / 2 / 4;
+    font-size: 20px;
+    padding-top: 1px;
+    height: 40px;
   }
   .bpm {
     grid-area: 1 / 4 / 2 / 5;
     text-align: center;
     color: v-bind(bpmColour);
   }
-  .audio-features {
+  .audio-feature {
     border-radius: 0;
     height: 100%;
     width: 54px;

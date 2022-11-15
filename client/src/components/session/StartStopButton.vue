@@ -30,7 +30,7 @@ defineProps<{
   left: calc(1 / 45 * 100%);
   padding: 0;
   margin: 0;
-  z-index: 2;
+  z-index: 3;
   svg {
     width: 100%;
     height: 100%;

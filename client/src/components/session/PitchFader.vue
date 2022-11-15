@@ -62,6 +62,7 @@ const pitchReadable = computed(
 
 <style scoped lang="scss">
 label.reset-fader {
+  user-select: none;
   position: absolute;
   width: 3%;
   bottom: 7%;
@@ -87,6 +88,7 @@ label.reset-fader {
   }
 }
 .pitch-readable {
+  user-select: none;
   position: absolute;
   width: 3%;
   bottom: 11%;
