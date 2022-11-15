@@ -31,8 +31,8 @@ export const sessionStore = defineStore("session", {
     loadTrackTo: -1, // deck number to load track to
   }),
   actions: {
-    loadTrack(_id: string) {
-      this.decks[this.loadTrackTo].loadedTrack =
+    loadTrack(_id: string, to: number) {
+      this.decks[to].loadedTrack =
         trackStore().getTrackByIdFromCrateTrackList(_id)
     },
   },

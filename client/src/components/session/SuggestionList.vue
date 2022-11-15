@@ -1,22 +1,20 @@
 <template>
-  <div class="track-list">
+  <div class="suggestion-list">
     <SuggestionSingle
       v-for="track in suggestions"
-      v-bind="track"
+      :track="track"
       :key="track._id"
+      :deckID="deckID"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, defineProps } from "vue"
-import { crateStore } from "@/stores/crateStore"
-import { recordStore } from "@/stores/recordStore"
+import { reactive, defineProps } from "vue"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import SuggestionSingle from "@/components/session/SuggestionSingle.vue"
-const crates = crateStore()
-const records = recordStore()
+import { TrackPlus } from "@/interfaces/Track"
 const tracks = trackStore()
 const user = userStore()
 
@@ -24,20 +22,17 @@ const props = defineProps<{
   deckID: number
 }>()
 
-const state = reactive({
-  selectAll: false,
-  searchTerm: "",
-  sortBy: "title",
-})
+const state = reactive({})
 
-const suggestions = tracks.trackList.slice(0, 4)
+const suggestions: TrackPlus[] = tracks.trackList.slice(0, 30)
 </script>
 
 <style scoped lang="scss">
-.track-list {
+.suggestion-list {
+  margin-top: 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  width: 100%;
+  flex-grow: 1;
+  width: 900px;
 }
 </style>

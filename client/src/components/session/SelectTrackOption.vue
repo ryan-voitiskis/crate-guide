@@ -48,7 +48,10 @@
     <span class="year">{{ track.year }}</span>
     <button
       class="play"
-      @click="session.loadTrack(track._id), (session.loadTrackTo = -1)"
+      @click="
+        session.loadTrack(track._id, session.loadTrackTo),
+          (session.loadTrackTo = -1)
+      "
     >
       <PlayIcon />
     </button>

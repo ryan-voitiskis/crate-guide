@@ -1,19 +1,14 @@
 <template>
   <div class="session">
-    <div class="suggestions"></div>
-    <div class="decks">
-      <!-- <SuggestionList :deckID="1" /> -->
-      <RecordDeck :deckID="0" />
-      <!-- <SuggestionList :deckID="2" /> -->
-      <RecordDeck :deckID="1" />
-    </div>
+    <RecordDeck :deckID="0" />
+    <RecordDeck :deckID="1" />
   </div>
 
   <KeepAlive>
     <ModalBox
       v-if="session.loadTrackTo !== -1"
       @close="session.loadTrackTo = -1"
-      width="1780px"
+      width="1826px"
       :fullHeight="true"
     >
       <SelectTrack />
@@ -26,17 +21,16 @@ import { sessionStore } from "@/stores/sessionStore"
 import ModalBox from "@/components/utility/ModalBox.vue"
 import RecordDeck from "@/components/session/RecordDeck.vue"
 import SelectTrack from "@/components/session/SelectTrack.vue"
-import SuggestionList from "@/components/session/SuggestionList.vue"
 
 const session = sessionStore()
 </script>
 
 <style scoped lang="scss">
-.decks {
+.session {
   display: flex;
   flex-wrap: wrap;
+  gap: 10px;
   justify-content: space-around;
   width: 100%;
-  gap: 10px;
 }
 </style>

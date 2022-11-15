@@ -182,4 +182,12 @@ watch(
 )
 </script>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+.container {
+  max-width: 1846px;
+  position: relative;
+  margin: 0 auto;
+  padding: 0 10px;
+  overflow-y: scroll;
+}
+</style>

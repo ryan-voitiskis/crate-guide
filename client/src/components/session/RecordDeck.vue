@@ -1,6 +1,6 @@
 <template>
-  <div class="deck-wrapper-outer">
-    <div class="deck-wrapper-inner">
+  <div class="deck-area-container">
+    <div class="deck-wrapper">
       <div class="deck">
         <button class="load-track" @click="session.loadTrackTo = deckID">
           LOAD
@@ -64,6 +64,7 @@
         <BPMTapper :deckID="deckID" />
       </div>
     </div>
+    <SuggestionList :deckID="deckID" />
   </div>
 </template>
 
@@ -88,6 +89,7 @@ import {
   getCamelotString,
   getKeyColour,
 } from "@/utils/pitchClassMap"
+import SuggestionList from "./SuggestionList.vue"
 const session = sessionStore()
 const tracks = trackStore()
 const user = userStore()
@@ -139,26 +141,26 @@ const positionColour = computed(() =>
 </script>
 
 <style scoped lang="scss">
-.deck-wrapper-outer {
-  flex-grow: 1;
-  min-width: 600px;
-  max-width: 900px;
-}
-.deck-wrapper-inner {
-  padding-top: calc(350 / 450 * 100%);
-  overflow: hidden;
-  height: 0;
-  position: relative;
-}
-.deck {
-  position: absolute;
-  border: 4px outset;
-  top: 0;
-  left: 0;
-  width: 100%;
+.deck-area-container {
   height: 100%;
-  background: var(--deck-silver);
+  display: flex;
+  flex-direction: column;
+  .deck-wrapper {
+    position: relative;
+    .deck {
+      border-top: 4px solid rgb(192, 192, 192);
+      border-left: 4px solid rgb(163, 163, 163);
+      border-right: 4px solid rgb(105, 105, 105);
+      border-bottom: 4px solid rgb(65, 65, 65);
+      position: relative;
+      height: 700px;
+      width: 900px;
+      box-sizing: content-box;
+      background: var(--deck-silver);
+    }
+  }
 }
+
 .rpm-switch-container {
   position: absolute;
   bottom: calc(1 / 35 * 100%);
@@ -169,7 +171,6 @@ const positionColour = computed(() =>
 .t-detail {
   color: var(--darker-text);
   font-weight: 500;
-  font-size: 15px;
   height: 26px;
   line-height: 26px;
   position: absolute;
@@ -190,6 +191,7 @@ const positionColour = computed(() =>
   }
 }
 .title {
+  font-size: 18px;
   width: 48%;
   top: 2%;
   right: 2%;
@@ -198,6 +200,7 @@ const positionColour = computed(() =>
   }
 }
 .artist {
+  font-size: 18px;
   width: 39%;
   top: 7%;
   right: 2%;

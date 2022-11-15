@@ -12,7 +12,9 @@ import {
   defineProps,
   onMounted,
   defineEmits,
-  onUnmounted,
+  onBeforeUnmount,
+  onActivated,
+  onDeactivated,
 } from "vue"
 
 export interface Props {
@@ -38,9 +40,18 @@ onMounted(() => {
   document.body.addEventListener("keyup", escapeClose)
   document.body.style.overflow = "hidden" // prevent scrolling of body when modal shown
 })
-onUnmounted(() => {
-  document.body.removeEventListener("keyup", escapeClose)
+onBeforeUnmount(() => {
   document.body.style.overflow = "visible"
+  document.body.removeEventListener("keyup", escapeClose)
+})
+
+onActivated(() => {
+  document.body.addEventListener("keyup", escapeClose)
+  document.body.style.overflow = "hidden" // prevent scrolling of body when modal shown
+})
+onDeactivated(() => {
+  document.body.style.overflow = "visible"
+  document.body.removeEventListener("keyup", escapeClose)
 })
 </script>
 

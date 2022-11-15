@@ -1,180 +1,241 @@
 <template>
-  <div class="track">
-    <div class="details">
-      <div class="spotify-link-wrapper">
-        <a
-          class="spotify-link"
-          v-if="spotifyID"
-          :href="spotifyLink"
-          target="_blank"
-          ><SpotifyLogo
-        /></a>
-      </div>
-      <span class="position" v-if="position">{{ position }}</span>
-      <span class="bpm" v-if="bpm">{{ bpm }}</span>
-      <span class="title">{{ title }}</span>
-      <span class="duration" v-if="duration">"{{ duration }}"</span>
-      <span class="genre" v-if="genre">{{ genre }}</span>
+  <div class="suggestion">
+    <div class="cover"></div>
+    <span class="position" v-if="track.position">{{ track.position }}</span>
+    <div class="time-signature" v-if="timeSignature">
+      <sup>{{ timeSignature[0] }}</sup>
+      <sub>{{ timeSignature[1] }}</sub>
     </div>
-    <div class="controls">
-      <button class="inline-btn edit" @click="tracks.toEdit = _id">
-        <PencilIcon />
-      </button>
-      <button class="inline-btn delete" @click="tracks.toDelete = _id">
-        <TrashIcon />
-      </button>
-    </div>
+    <span class="bpm" v-if="track.bpmFinal">
+      {{ Math.round(track.bpmFinal).toString() }}
+    </span>
+    <button
+      class="audio-feature danceability"
+      v-if="track.audioFeatures"
+      @click="tracks.toShowFeatures = track._id"
+    >
+      <DanceIcon />{{ getPercent(track.audioFeatures.danceability) }}
+    </button>
+    <button
+      class="audio-feature energy"
+      v-if="track.audioFeatures"
+      @click="tracks.toShowFeatures = track._id"
+    >
+      <BoltIcon />{{ getPercent(track.audioFeatures.energy) }}
+    </button>
+    <button
+      class="audio-feature valence"
+      v-if="track.audioFeatures"
+      @click="tracks.toShowFeatures = track._id"
+    >
+      <SmileIcon />{{ getPercent(track.audioFeatures.valence) }}
+    </button>
+    <span class="duration" v-if="track.durationFinal">
+      {{ getDurationString(track.durationFinal) }}</span
+    >
+    <span
+      class="key"
+      v-if="keyString"
+      :class="{ long: user.authd.settings.keyFormat === 'key' }"
+    >
+      {{ keyString }}
+    </span>
+    <span class="title">{{ props.track.title }}</span>
+    <span class="artists">{{ track.artistsFinal }}</span>
+    <span class="genre" v-if="track.genre">{{ track.genre }}</span>
+    <span class="catno">{{ track.catno }}</span>
+    <span class="year">{{ track.year }}</span>
+    <button
+      class="play"
+      @click="session.loadTrack(track._id, loadTo), (session.loadTrackTo = -1)"
+    >
+      <PlayIcon />
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { defineProps, computed } from "vue"
+import { getDurationString } from "@/utils/durationFunctions"
+import { sessionStore } from "@/stores/sessionStore"
+import { TrackPlus } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
-import PencilIcon from "@/components/icons/PencilIcon.vue"
-import TrashIcon from "@/components/icons/TrashIcon.vue"
+import { userStore } from "@/stores/userStore"
+import BoltIcon from "../icons/BoltIcon.vue"
+import DanceIcon from "../icons/DanceIcon.vue"
 import getBPMColour from "@/utils/getBPMColour"
-import SpotifyLogo from "@/components/icons/SpotifyLogo.vue"
+import getPercent from "@/utils/getPercent"
+import getPositionColour from "@/utils/positionColours"
+import PlayIcon from "../icons/PlayIcon.vue"
+import SmileIcon from "../icons/SmileIcon.vue"
+import {
+  getKeyStringShort,
+  getCamelotString,
+  getKeyColour,
+} from "@/utils/pitchClassMap"
+
+const session = sessionStore()
 const tracks = trackStore()
+const user = userStore()
 
 const props = defineProps<{
-  _id: string
-  spotifyID?: string
-  position?: string
-  bpm?: number
-  title: string
-  duration?: string
-  genre?: string
-  audioFeatures?: {
-    acousticness: number
-    danceability: number
-    duration_ms: number
-    energy: number
-    instrumentalness: number
-    key: number
-    liveness: number
-    loudness: number
-    mode: number
-    speechiness: number
-    tempo: number
-    time_signature: number
-    valence: number
-  }
+  track: TrackPlus
+  deckID: number
 }>()
 
-const spotifyLink = props.spotifyID
-  ? `https://open.spotify.com/track/${props.spotifyID}`
-  : ``
+const loadTo = props.deckID === 1 ? 0 : 1
+const coverImg = `url("${props.track.cover}")`
 
-const positionColours = [
-  ["A", "hsl(342, 60%, 60%)"],
-  ["B", "hsl(210, 60%, 55%)"],
-  ["C", "hsl(157, 40%, 55%)"],
-  ["D", "hsl(30, 71%, 65%)"],
-  ["E", "hsl(89, 60%, 50%)"],
-  ["F", "hsl(259, 60%, 66%)"],
-  ["G", "hsl(55, 44%, 50%)"],
-  ["H", "hsl(108, 44%, 50%)"],
-  ["I", "hsl(342, 60%, 60%)"],
-  ["J", "hsl(210, 60%, 55%)"],
-  ["K", "hsl(157, 40%, 55%)"],
-  ["L", "hsl(30, 71%, 65%)"],
-  ["M", "hsl(89, 60%, 50%)"],
-  ["N", "hsl(259, 60%, 66%)"],
-  ["O", "hsl(55, 44%, 50%)"],
-  ["P", "hsl(108, 44%, 50%)"],
-  ["Q", "hsl(342, 60%, 60%)"],
-  ["R", "hsl(210, 60%, 55%)"],
-  ["S", "hsl(157, 40%, 55%)"],
-  ["T", "hsl(30, 71%, 65%)"],
-  ["U", "hsl(89, 60%, 50%)"],
-  ["V", "hsl(259, 60%, 66%)"],
-  ["W", "hsl(55, 44%, 50%)"],
-  ["X", "hsl(108, 44%, 50%)"],
-  ["Y", "hsl(342, 60%, 60%)"],
-  ["Z", "hsl(210, 60%, 55%)"],
-]
+const timeSignature =
+  props.track.timeSignatureUpper && props.track.timeSignatureLower
+    ? [props.track.timeSignatureUpper, props.track.timeSignatureLower]
+    : props.track.audioFeatures
+    ? [props.track.audioFeatures.time_signature, 4]
+    : null
 
-const positionColour = computed(() => {
-  if (props.position) {
-    for (let i = 0; i < positionColours.length; i++) {
-      if (
-        props.position.charAt(0).localeCompare(positionColours[i][0], "en", {
-          sensitivity: "base",
-        }) === 0
-      )
-        return positionColours[i][1]
-    }
-  }
-  return "hsl(0, 0%, 68%)"
-})
+const keyAndMode =
+  typeof props.track.key === "number" && typeof props.track.mode === "number"
+    ? { key: props.track.key, mode: props.track.mode }
+    : props.track.audioFeatures && props.track.audioFeatures.key !== -1
+    ? {
+        key: props.track.audioFeatures.key,
+        mode: props.track.audioFeatures.mode,
+      }
+    : null
 
-const bpmColour = computed(() => (props.bpm ? getBPMColour(props.bpm) : null))
+const keyString = computed(() =>
+  !keyAndMode
+    ? ""
+    : user.authd.settings.keyFormat === "key"
+    ? getKeyStringShort(keyAndMode.key, keyAndMode.mode)
+    : getCamelotString(keyAndMode.key, keyAndMode.mode)
+)
+
+const keyColour = keyAndMode
+  ? getKeyColour(keyAndMode.key, keyAndMode.mode)
+  : ""
+
+const bpmColour = props.track.bpm
+  ? getBPMColour(props.track.bpm)
+  : props.track.audioFeatures?.tempo
+  ? getBPMColour(props.track.audioFeatures.tempo)
+  : ""
+
+const positionColour = props.track.position
+  ? getPositionColour(props.track.position)
+  : "hsl(0, 0%, 68%)"
 </script>
 
 <style scoped lang="scss">
-.track {
-  height: 30px;
-  display: flex;
-  .details {
-    display: flex;
-    position: relative;
+.suggestion {
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 40px 26px 22px 32px 44px 44px 44px 40px 60px 2fr 1fr 1fr 1fr 38px 40px;
+  width: 100%;
+  span {
+    color: var(--dark-text);
+    line-height: 40px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    span {
-      line-height: 30px;
-    }
-    .spotify-link-wrapper {
-      width: 30px;
-      display: flex;
-      height: 100%;
-      width: 30px;
-      .spotify-link {
-        height: 100%;
-        width: 30px;
-        display: flex;
-        background-color: transparent;
-        justify-content: center;
-        svg {
-          transition: color 0.5s;
-          align-self: center;
-          color: var(--spotify-light-green);
-          height: 22px;
-        }
-        &:hover {
-          svg {
-            color: var(--spotify-black);
-          }
-        }
-      }
-    }
-    .position {
-      color: v-bind(positionColour);
-      font-weight: 500;
-      line-height: 30px;
-      margin: 0 0 0 10px;
-    }
-    .bpm {
-      color: v-bind(bpmColour);
-      font-weight: 500;
-      margin-left: 10px;
-    }
-    .title {
-      margin-left: 10px;
-    }
-    .duration {
-      color: var(--light-text);
-      margin-left: 10px;
-    }
-    .genre {
-      color: var(--light-text);
-      font-style: italic;
-      margin-left: 10px;
+    font-weight: 500;
+    margin: 0;
+  }
+  .cover {
+    height: 40px;
+    background-color: hsl(40, 13%, 82%);
+    background-image: v-bind(coverImg);
+    grid-area: 1 / 1 / 2 / 2;
+    overflow: hidden;
+    background-repeat: no-repeat;
+    background-size: contain;
+    z-index: -1;
+  }
+  .position {
+    grid-area: 1 / 2 / 2 / 3;
+    text-align: center;
+    color: v-bind(positionColour);
+  }
+  .time-signature {
+    text-align: center;
+    grid-area: 1 / 3 / 2 / 4;
+    font-size: 20px;
+    padding-top: 1px;
+    height: 40px;
+  }
+  .bpm {
+    grid-area: 1 / 4 / 2 / 5;
+    text-align: center;
+    color: v-bind(bpmColour);
+  }
+  .audio-feature {
+    border-radius: 0;
+    height: 100%;
+    width: 54px;
+    margin: 0 -5px;
+    background-color: transparent;
+    padding: 0;
+    font-size: 12px;
+    svg {
+      width: 18px;
+      margin-right: 1px;
     }
   }
-  .controls {
-    margin-left: auto;
-    flex-shrink: 0;
+  .danceability {
+    grid-area: 1 / 5 / 2 / 6;
+  }
+  .energy {
+    grid-area: 1 / 6 / 2 / 7;
+  }
+  .valence {
+    grid-area: 1 / 7 / 2 / 8;
+  }
+  .duration {
+    grid-area: 1 / 8 / 2 / 9;
+    font-style: italic;
+    text-align: center;
+  }
+  .key {
+    grid-area: 1 / 9 / 2 / 10;
+    height: 26px;
+    width: 100%;
+    line-height: 26px;
+    justify-self: center;
+    align-self: center;
+    font-weight: 500;
+    padding: 0 10px;
+    border-radius: 6px;
+    background-color: v-bind(keyColour);
+    color: var(--key-text);
+    text-align: center;
+    &.long {
+      font-size: 12px;
+    }
+  }
+  .title {
+    grid-area: 1 / 10 / 2 / 11;
+  }
+  .artists {
+    grid-area: 1 / 11 / 2 / 12;
+  }
+  .genre {
+    grid-area: 1 / 12 / 2 / 13;
+  }
+  .label {
+    grid-area: 1 / 13 / 2 / 14;
+  }
+  .catno {
+    grid-area: 1 / 13 / 2 / 14;
+  }
+  .year {
+    grid-area: 1 / 14 / 2 / 15;
+  }
+  .play {
+    grid-area: 1 / 15 / 2 / 16;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    background-color: transparent;
   }
 }
 </style>
