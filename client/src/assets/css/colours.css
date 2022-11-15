@@ -60,7 +60,7 @@
   /* decks */
   --deck-black: hsl(0, 0%, 20%);
   --deck-silver: hsl(0, 0%, 80%);
-  --bpm-tap-btn: radial-gradient( circle farthest-corner at 10% 20%,  rgba(255,214,171,1) 0%, rgba(255,182,182,1) 90% );
+  --bpm-tap-btn: radial-gradient( circle farthest-corner at 10% 20%,  rgba(213, 213, 213) 0%, rgba(130, 130, 130) 90% );
   --bpm-last-saved-label: hsl(0, 0%, 39%);
   --bpm-tap-label: #ff605f;
   --play-button: hsl(146, 73%, 49%);

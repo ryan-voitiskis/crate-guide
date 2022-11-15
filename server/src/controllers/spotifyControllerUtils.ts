@@ -34,11 +34,11 @@ async function searchAlbum(
   if (!isSearchAlbumResponse(response))
     throw new Error("Bad spotify response. (Search albums)")
   if (response.albums.items.length) {
-    const queryArtist = normaliseArtist(query.artist)
-    const queryAlbum = normaliseArtist(query.album)
+    const queryArtist = normalise(query.artist)
+    const queryAlbum = normalise(query.album)
     for (const item of response.albums.items) {
-      const foundArtist = normaliseArtist(item.artists[0].name)
-      const foundAlbum = normaliseArtist(item.name)
+      const foundArtist = normalise(item.artists[0].name)
+      const foundAlbum = normalise(item.name)
       if (foundArtist === queryArtist && foundAlbum === queryAlbum)
         return [editSpotifyAlbum(item, 0)]
       let distance
@@ -63,8 +63,8 @@ async function searchTrack(
   query: TrackQuery,
   user: IUser
 ): Promise<SpotifyTrackEdit[]> {
-  const queryArtist = query.artists[0].toLowerCase()
-  const queryTrack = query.track.toLowerCase()
+  const queryArtist = query.artists.map((i) => normalise(i)).join(" ")
+  const queryTrack = normaliseTitle(query.track)
   const options: string[] = []
   const params = new URLSearchParams()
   params.append("q", optimiseTrackQuery(query))
@@ -76,8 +76,8 @@ async function searchTrack(
     throw new Error("Bad spotify response. (Search tracks)")
   if (response.tracks.items.length) {
     for (const item of response.tracks.items) {
-      const foundArtist = item.artists[0].name.toLowerCase()
-      const foundTrack = item.name.toLowerCase()
+      const foundArtist = item.artists.map((i) => normalise(i.name)).join(" ")
+      const foundTrack = normaliseTitle(item.name)
       if (foundArtist === queryArtist && foundTrack === queryTrack)
         return [exactSpotifyTrack(item)]
       options.push(item.id)
@@ -93,8 +93,8 @@ async function getTrackOptions(
   query: TrackQuery,
   user: IUser
 ): Promise<SpotifyTrackEdit[]> {
-  const queryArtist = query.artists[0].toLowerCase()
-  const queryTrack = query.track.toLowerCase()
+  const queryArtist = query.artists.map((i) => normalise(i)).join(" ")
+  const queryTrack = normaliseTitle(query.track)
   const url = `${spotifyAPIURL}tracks/?ids=${options.join(",")}`
   const response = await spotifyRequest(url, user)
   if (!isTracksResponse(response))
@@ -103,8 +103,8 @@ async function getTrackOptions(
   const optionsFull: SpotifyTrackEdit[] = []
   for (const track of tracks) {
     let distance
-    const foundArtist = track.artists[0].name.toLowerCase()
-    const foundTrack = track.name.toLowerCase()
+    const foundArtist = track.artists.map((i) => normalise(i.name)).join(" ")
+    const foundTrack = normaliseTitle(track.name)
     if (foundArtist === queryArtist)
       distance = levenshtein(foundTrack, queryTrack)
     else {
@@ -256,7 +256,7 @@ function optimiseTrackQuery(query: TrackQuery): string {
 const normaliseTitle = (title: string) =>
   title.toLowerCase().trim().replace(/\(|\)/g, "").replace(/ - /, " ")
 
-const normaliseArtist = (artist: string) => artist.toLowerCase().trim()
+const normalise = (artist: string) => artist.toLowerCase().trim()
 
 const sortLevenshtein = (
   a: SpotifyAlbumEdit | SpotifyTrackEdit,
@@ -269,7 +269,7 @@ export {
   exactSpotifyTrack,
   getAudioFeatures,
   getAudioFeaturesSingle,
-  normaliseArtist,
+  normalise,
   normaliseTitle,
   optimiseAlbumQuery,
   optimiseTrackQuery,

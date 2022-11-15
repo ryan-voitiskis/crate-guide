@@ -89,7 +89,7 @@ const spinRate = computed(
 
 <style scoped lang="scss">
 .record-icon {
-  width: 305/450 * 100%;
+  width: calc(305 / 450 * 100%);
   height: 100%;
   left: 6%;
   position: absolute;

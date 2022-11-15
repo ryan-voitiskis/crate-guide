@@ -82,14 +82,15 @@ const lastBpmColour = computed(() => getBPMColour(state.lastBpm))
   position: absolute;
   height: 5%;
   width: 10%;
-  right: 8%;
+  right: 14.5%;
   display: flex;
   justify-content: center;
   align-items: center;
+  z-index: 2;
 }
 
 .saved {
-  bottom: 86%;
+  bottom: 36%;
   .saved-bpm {
     font-weight: 600;
     color: v-bind(savedBpmColour);
@@ -97,7 +98,7 @@ const lastBpmColour = computed(() => getBPMColour(state.lastBpm))
 }
 
 .last {
-  bottom: 83%;
+  bottom: 33%;
   .last-bpm {
     font-weight: 600;
     color: v-bind(lastBpmColour);
@@ -105,14 +106,15 @@ const lastBpmColour = computed(() => getBPMColour(state.lastBpm))
 }
 
 .bpm-tapper {
+  cursor: pointer;
   color: v-bind(bpmColour);
   font-weight: 600;
   user-select: none;
   position: absolute;
   width: 10%;
   height: calc(10% / 7 * 9);
-  bottom: 70%;
-  right: 8%;
+  bottom: 20%;
+  right: 14.5%;
   display: flex;
   background: var(--bpm-tap-btn);
   border-radius: 50%;
@@ -122,6 +124,7 @@ const lastBpmColour = computed(() => getBPMColour(state.lastBpm))
   outline: 2px dotted;
   outline-color: v-bind(bpmColour);
   outline-offset: -1px;
+  z-index: 2;
   &:active {
     outline-offset: 8px;
   }

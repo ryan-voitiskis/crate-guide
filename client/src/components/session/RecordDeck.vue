@@ -32,6 +32,12 @@ defineProps<{
 </script>
 
 <style scoped lang="scss">
+.load-track {
+  position: absolute;
+  top: 4%;
+  left: 4%;
+  z-index: 2;
+}
 .deck-wrapper-outer {
   flex-grow: 1;
   min-width: 600px;
@@ -53,8 +59,8 @@ defineProps<{
 }
 .rpm-switch-container {
   position: absolute;
-  bottom: 1/35 * 100%;
-  left: 20/35 * 100%;
+  bottom: calc(1 / 35 * 100%);
+  left: calc(20 / 35 * 100%);
   display: flex;
   justify-content: start;
 }

@@ -107,14 +107,19 @@ input[type="button"] {
     }
   }
   &.clear-filters {
-    color: var(--white-text);
-    background-color: var(--btn-edit);
+    border: 1px solid var(--btn-edit);
+    color: var(--btn-edit);
+    background-color: transparent;
     font-weight: 600;
     svg {
-      fill: var(--white-text);
+      fill: var(--btn-edit);
     }
     &:hover {
-      background-color: var(--btn-edit-hover);
+      background-color: var(--btn-edit);
+      color: var(--white-text);
+      svg {
+        fill: var(--white-text);
+      }
     }
   }
 }

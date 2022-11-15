@@ -27,13 +27,13 @@ defineProps<{
 
 <style scoped lang="scss">
 .rpm-switch {
-  width: 25/450 * 100%;
-  height: 8/350 * 100%;
+  width: calc(25 / 450 * 100%);
+  height: calc(8 / 350 * 100%);
   border: 3px solid #333;
   border-radius: 0;
   position: absolute;
-  bottom: 1/35 * 100%;
-  left: 59/450 * 100%;
+  bottom: calc(1 / 35 * 100%);
+  left: calc(59 / 450 * 100%);
   padding: 0;
   margin: 0;
   z-index: 2;
@@ -43,7 +43,7 @@ defineProps<{
     height: 100%;
   }
   &.second {
-    left: 82/450 * 100%;
+    left: calc(82 / 450 * 100%);
   }
 }
 .indicator-light {
