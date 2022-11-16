@@ -163,8 +163,8 @@ const positionColour = computed(() =>
 
 .rpm-switch-container {
   position: absolute;
-  bottom: calc(1 / 35 * 100%);
-  left: calc(20 / 35 * 100%);
+  bottom: 20px;
+  left: 400px;
   display: flex;
   justify-content: start;
 }

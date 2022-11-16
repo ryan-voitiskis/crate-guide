@@ -1,25 +1,22 @@
 <template>
   <div class="wrapper">
-    <label for="selectID">{{ label }} </label>
-    <select v-model="user.authd.settings.selectedCrate" id="selectID">
-      <option value="all">Collection (all)</option>
-      <option
-        v-for="crate in crates.crateList"
-        :key="crate._id"
-        :value="crate._id"
-      >
-        {{ crate.name }}
-      </option>
-    </select>
+    <SelectInput
+      v-model="user.authd.settings.selectedCrate"
+      :label="label"
+      :options="cratesList"
+      :width="width"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { defineProps, watch } from "vue"
+import { defineProps, watch, computed } from "vue"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
+import Option from "@/interfaces/SelectOption"
+import SelectInput from "./SelectInput.vue"
 const crates = crateStore()
 const records = recordStore()
 const tracks = trackStore()
@@ -31,6 +28,11 @@ defineProps<{
   width?: string
 }>()
 
+const cratesList = computed((): Option[] =>
+  [{ id: "all", name: "Collection (all)" }].concat(
+    crates.crateList.map((i) => ({ id: i._id, name: i.name }))
+  )
+)
 watch(
   () => user.authd.settings.selectedCrate, // when selectedCrate changes
   () => {
@@ -45,8 +47,5 @@ watch(
 <style scoped lang="scss">
 .wrapper {
   display: block;
-  select {
-    width: v-bind(width);
-  }
 }
 </style>

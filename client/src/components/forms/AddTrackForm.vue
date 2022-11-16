@@ -11,7 +11,6 @@
     <div class="modal-body inline-labels">
       <BasicInput
         v-model="form.position"
-        id="position"
         label="Position"
         type="text"
         placeholder="A1 (optional)"
@@ -20,7 +19,6 @@
       />
       <BasicInput
         v-model="form.title"
-        id="title"
         label="Title"
         type="text"
         placeholder="Title"
@@ -29,14 +27,12 @@
       />
       <BasicInput
         v-model="form.artists"
-        id="artists"
         label="Artists"
         type="text"
         placeholder="Artist, Artist (optional)"
       />
       <BasicInput
         v-model="form.duration"
-        id="duration"
         label="Duration"
         type="text"
         placeholder="MM:SS (optional)"
@@ -45,7 +41,6 @@
       />
       <BasicInput
         v-model="form.bpm"
-        id="bpm"
         label="BPM"
         placeholder="BPM (recommended)"
         type="text"
@@ -53,20 +48,13 @@
         pattern="\d{2,3}"
         autocomplete="off"
       />
-      <SelectInput
-        v-model="form.key"
-        id="key"
-        label="Key"
-        :options="keyOptions"
-      />
+      <SelectInput v-model="form.key" label="Key" :options="keyOptions" />
       <SelectInput
         v-model="form.timeSignature"
-        id="time_signature"
         label="Time signature"
         :options="timeSignatureOptions"
       />
       <GenreInput
-        id="genre"
         :genres="genres"
         :addOrClearMsg="genreState.addOrClearMsg"
         @addGenre="addGenre"

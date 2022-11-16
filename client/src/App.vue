@@ -46,7 +46,7 @@
     @close="user.loginModal = false"
     width="360px"
   >
-    <LoginForm @close="user.loginModal = false" />
+    <LoginForm />
   </ModalBox>
 
   <ModalBox
@@ -54,7 +54,7 @@
     @close="user.signUpModal = false"
     width="360px"
   >
-    <SignUpForm @close="user.signUpModal = false" />
+    <SignUpForm />
   </ModalBox>
 
   <ModalBox

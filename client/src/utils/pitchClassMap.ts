@@ -1,4 +1,4 @@
-import option from "@/interfaces/SelectOption"
+import Option from "@/interfaces/SelectOption"
 import { sortNum } from "@/utils/sortFunctions"
 
 interface key {
@@ -150,18 +150,18 @@ function keyOptionsMapFn(mode: number) {
 }
 
 function camelotOptionsMapFn(mode: number) {
-  return (i: key): option => ({
+  return (i: key): Option => ({
     id: `${mode.toString()}${i.pitchClass.toString()}`,
     name: mode === 1 ? `${i.camelotMajor}B` : `${i.camelotMinor}A`,
   })
 }
 
-const getKeyOptions = (keyFormat: "key" | "camelot"): option[] => {
-  const keyOptionsMajor: option[] =
+const getKeyOptions = (keyFormat: "key" | "camelot"): Option[] => {
+  const keyOptionsMajor: Option[] =
     keyFormat === "key"
       ? pitchClassMap.map(keyOptionsMapFn(1))
       : pitchClassMap.sort(sortNum("camelotMajor")).map(camelotOptionsMapFn(1))
-  const keyOptionsMinor: option[] =
+  const keyOptionsMinor: Option[] =
     keyFormat === "key"
       ? pitchClassMap.map(keyOptionsMapFn(0))
       : pitchClassMap.sort(sortNum("camelotMinor")).map(camelotOptionsMapFn(0))

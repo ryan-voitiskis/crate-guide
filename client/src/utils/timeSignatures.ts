@@ -1,4 +1,4 @@
-import option from "@/interfaces/SelectOption"
+import Option from "@/interfaces/SelectOption"
 
 interface TimeSignature {
   string: string
@@ -69,7 +69,7 @@ const timeSignatures: TimeSignature[] = [
   },
 ]
 
-const getTimeSignatureOptions = (): option[] =>
+const getTimeSignatureOptions = (): Option[] =>
   [{ id: "", name: "--- optional ---" }].concat(
     timeSignatures.map((i) => ({ id: i.string, name: i.string }))
   )

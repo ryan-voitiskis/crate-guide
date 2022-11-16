@@ -132,7 +132,7 @@ watch(
   }
 )
 
-const coverImg = `url("${props.cover}")`
+const coverImg = computed(() => `url("${props.cover}")`)
 </script>
 
 <style scoped lang="scss">

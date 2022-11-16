@@ -12,7 +12,6 @@
     <div class="modal-body inline-labels">
       <BasicInput
         v-model="form.name"
-        id="name"
         label="Crate name"
         type="text"
         placeholder="My crate"

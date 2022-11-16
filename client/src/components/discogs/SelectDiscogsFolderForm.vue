@@ -8,17 +8,11 @@
   <form @submit.prevent="submit">
     <span class="hint">Select the folder to import from Discogs.</span>
     <div v-if="discogs.folderList.length" class="modal-body inline-labels">
-      <label for="folder_select">Select folder </label>
-      <select v-model="form.folder" id="folder_select">
-        <option value="">---</option>
-        <option
-          v-for="folder in discogs.folderList"
-          :key="folder.id"
-          :value="folder.id"
-        >
-          {{ folder.name }} ({{ folder.count }})
-        </option>
-      </select>
+      <SelectInput
+        v-model="form.folder"
+        label="Select folder"
+        :options="folders"
+      />
     </div>
     <LoaderCentered v-show="discogs.loadingFolders" class="modal-body" />
     <ErrorFeedback
@@ -43,17 +37,26 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, onMounted, onUnmounted, watch } from "vue"
+import { reactive, onMounted, onUnmounted, watch, computed } from "vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import XIcon from "@/components/icons/XIcon.vue"
 import { discogsStore } from "@/stores/discogsStore"
 import LoaderCentered from "@/components/utility/LoaderCentered.vue"
+import SelectInput from "../inputs/SelectInput.vue"
+import Option from "@/interfaces/SelectOption"
 const discogs = discogsStore()
 
 const form = reactive({
   folder: "",
 })
+
+const folders = computed((): Option[] =>
+  discogs.folderList.map((i) => ({
+    id: i.id.toString(),
+    name: `${i.name} (${i.count})`,
+  }))
+)
 
 const submit = async () => {
   if (form.folder !== "") {

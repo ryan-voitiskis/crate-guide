@@ -99,7 +99,7 @@ label.reset-fader {
 
 @mixin track() {
   width: 100%;
-  height: calc(30 / 350 * 100%);
+  height: 60;
   background: #222;
 }
 

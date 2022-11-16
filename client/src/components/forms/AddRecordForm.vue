@@ -9,7 +9,6 @@
     <div class="modal-body inline-labels">
       <BasicInput
         v-model="form.catno"
-        id="catno"
         label="Catalog #"
         type="text"
         placeholder="CAT001 (optional)"
@@ -18,7 +17,6 @@
       />
       <BasicInput
         v-model="form.artists"
-        id="artists"
         label="Artists"
         type="text"
         placeholder="Artist, Artist"
@@ -26,7 +24,6 @@
       />
       <BasicInput
         v-model="form.title"
-        id="title"
         label="Title"
         type="text"
         placeholder="Title"
@@ -35,20 +32,24 @@
       />
       <BasicInput
         v-model="form.label"
-        id="label"
         label="Label"
         type="text"
         placeholder="Label (optional)"
       />
       <BasicInput
         v-model="form.year"
-        id="year"
         label="Year"
         placeholder="Year (optional)"
         type="text"
         inputmode="numeric"
         pattern="\d{4}"
         autocomplete="off"
+      />
+      <BasicInput
+        v-model="form.cover"
+        label="Cover Image"
+        type="text"
+        placeholder="Image URL (optional)"
       />
       <ErrorFeedback :show="records.errorMsg !== ''" :msg="records.errorMsg" />
     </div>
@@ -83,6 +84,7 @@ const form = reactive({
   title: "",
   label: "",
   year: undefined,
+  cover: "",
 })
 
 const reset = () => {
@@ -101,6 +103,7 @@ const submit = async () => {
     title: form.title.trim(),
     label: form.label.trim(),
     year: form.year,
+    cover: form.cover.trim(),
   }
   const response = await records.addRecord(unsavedRecord)
   if (response === 400) {

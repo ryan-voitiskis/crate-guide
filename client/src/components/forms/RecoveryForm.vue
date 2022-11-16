@@ -10,7 +10,6 @@
       <p>Enter your email for reset instructions.</p>
       <BasicInput
         v-model="user.email"
-        id="email"
         label="Email"
         type="email"
         placeholder="name@example.com"

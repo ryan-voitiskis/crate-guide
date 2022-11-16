@@ -9,7 +9,6 @@
     <div class="input-wrapper">
       <BasicInput
         v-model="state.searchTitle"
-        id="search_title"
         label="Search title"
         type="text"
         placeholder=""
@@ -20,7 +19,6 @@
     <div class="input-wrapper">
       <BasicInput
         v-model="state.searchArtists"
-        id="search_artists"
         label="Search artist"
         type="text"
         placeholder=""

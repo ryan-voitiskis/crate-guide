@@ -112,7 +112,7 @@ const lastBpmColour = computed(() => getBPMColour(state.lastBpm))
   user-select: none;
   position: absolute;
   width: 10%;
-  height: calc(10% / 7 * 9);
+  height: 90px;
   bottom: 20%;
   right: 14.5%;
   display: flex;

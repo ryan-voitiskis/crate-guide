@@ -12,7 +12,6 @@
     <div class="modal-body inline-labels">
       <BasicInput
         v-model="form.spotifyID"
-        id="spotify_id"
         label="Spotify ID"
         type="text"
         placeholder="Paste Spotify ID here"
@@ -20,7 +19,6 @@
       <hr />
       <BasicInput
         v-model="form.position"
-        id="position"
         label="Position"
         type="text"
         placeholder="A1 (optional)"
@@ -28,7 +26,6 @@
       />
       <BasicInput
         v-model="form.title"
-        id="title"
         label="Title"
         type="text"
         placeholder="Title"
@@ -37,7 +34,6 @@
       />
       <BasicInput
         v-model="form.artists"
-        id="artists"
         label="Artists"
         type="text"
         placeholder="Artist, Artist (optional)"
@@ -50,7 +46,6 @@
       </div>
       <BasicInput
         v-model="form.duration"
-        id="duration"
         label="Duration"
         type="text"
         placeholder="MM:SS (optional)"
@@ -63,7 +58,6 @@
       </div>
       <BasicInput
         v-model="form.bpm"
-        id="bpm"
         label="BPM"
         placeholder="BPM (optional)"
         type="text"
@@ -75,19 +69,13 @@
         Spotify analysed
         <div class="spotify-key">{{ spotifyKeyString }}</div>
       </div>
-      <SelectInput
-        v-model="form.key"
-        id="key"
-        label="Key"
-        :options="keyOptions"
-      />
+      <SelectInput v-model="form.key" label="Key" :options="keyOptions" />
       <div class="spotify-analysed" v-if="spotifyTimeSignature">
         Spotify estimated
         <div class="spotify-time-sig">{{ spotifyTimeSignature }}</div>
       </div>
       <SelectInput
         v-model="form.timeSignature"
-        id="time_signature"
         label="Time signature"
         :options="timeSignatureOptions"
       />

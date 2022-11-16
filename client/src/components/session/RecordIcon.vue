@@ -85,7 +85,7 @@ const coverImg = computed(
 .record-icon-wrapper {
   animation: spin v-bind(spinRate) infinite linear;
   animation-play-state: v-bind(spinState);
-  width: calc(305 / 450 * 100%);
+  width: 610px;
   height: 100%;
   position: absolute;
   left: 6%;

@@ -51,7 +51,6 @@
 
       <SelectInput
         v-model="user.authd.settings.turntablePitchRange"
-        id="turntable_pitch"
         label="Turntable pitch range"
         :options="turntablePitchOptions"
       />

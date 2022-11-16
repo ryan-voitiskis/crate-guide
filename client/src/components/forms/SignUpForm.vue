@@ -16,7 +16,6 @@
       </div>
       <BasicInput
         v-model="form.name"
-        id="name"
         label="Name"
         type="text"
         placeholder="Your name"
@@ -25,7 +24,6 @@
       />
       <BasicInput
         v-model="form.email"
-        id="email"
         label="Email"
         type="email"
         placeholder="name@example.com"
@@ -37,7 +35,6 @@
       />
       <PasswordInput
         v-model="form.password"
-        id="password"
         label="Password"
         placeholder="Enter a password"
         required

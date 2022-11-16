@@ -15,7 +15,7 @@
 
 <script setup lang="ts">
 import { defineProps } from "vue"
-import SelectOption from "@/interfaces/SelectOption"
+import Option from "@/interfaces/SelectOption"
 
 const props = defineProps<{
   label?: string
@@ -23,7 +23,8 @@ const props = defineProps<{
   placeholder?: string
   modelValue?: string | number
   focused?: boolean
-  options: SelectOption[]
+  options: Option[]
+  width?: string
 }>()
 
 // custom directive to focus input el if focused prop. used to focus first input.
@@ -40,5 +41,8 @@ const handleInputChange = (event: Event) =>
 <style scoped lang="scss">
 label {
   margin-right: 10px;
+}
+select {
+  width: v-bind(width);
 }
 </style>

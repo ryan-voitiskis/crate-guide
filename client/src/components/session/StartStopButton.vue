@@ -21,13 +21,13 @@ defineProps<{
 
 <style scoped lang="scss">
 .start {
-  width: calc(45 / 450 * 100%);
-  height: calc(33 / 350 * 100%);
+  width: 90px;
+  height: 66px;
   border: 3.4px solid #333;
   border-radius: 0;
   position: absolute;
-  bottom: calc(1 / 35 * 100%);
-  left: calc(1 / 45 * 100%);
+  bottom: 20px;
+  left: 20px;
   padding: 0;
   margin: 0;
   z-index: 3;

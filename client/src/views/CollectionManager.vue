@@ -68,7 +68,7 @@
     v-if="records.addRecordModal"
     @close="records.addRecordModal = false"
   >
-    <AddRecordForm @close="records.addRecordModal = false" />
+    <AddRecordForm />
   </ModalBox>
 
   <ModalBox v-if="records.toEdit !== ''" @close="records.toEdit = ''">
