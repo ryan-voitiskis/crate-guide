@@ -8,7 +8,7 @@
       max="100"
       class="fader"
       list="fader_labels"
-      @input="changePitch"
+      @mouseup="changePitch"
     />
 
     <label class="reset-fader" @click="resetPitch()">
