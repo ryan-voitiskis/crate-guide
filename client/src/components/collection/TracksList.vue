@@ -1,55 +1,4 @@
 <template>
-  <div class="controls">
-    <CrateSelect
-      selectID="select_track_crate_select"
-      label="Crate"
-      width="240px"
-    />
-    <CrateOptions />
-    <div class="input-wrapper">
-      <BasicInput
-        v-model="state.searchTitle"
-        label="Search title"
-        type="text"
-        placeholder=""
-        autocomplete="off"
-        width="240px"
-      />
-    </div>
-    <div class="input-wrapper">
-      <BasicInput
-        v-model="state.searchArtists"
-        label="Search artist"
-        type="text"
-        placeholder=""
-        autocomplete="off"
-        width="240px"
-      />
-    </div>
-    <div class="input-wrapper">
-      <BasicInput
-        v-model="state.filterGenre"
-        label="Filter genre"
-        type="text"
-        placeholder=""
-        autocomplete="off"
-        width="240px"
-      />
-    </div>
-    <div class="input-wrapper">
-      <BasicInput
-        v-model="state.filterYear"
-        label="Filter year"
-        type="text"
-        placeholder="1990-2000"
-        autocomplete="off"
-        width="120px"
-      />
-    </div>
-    <button class="clear-filters icon-button" @click="clearFilters()">
-      <FilterOffIcon />Clear filters
-    </button>
-  </div>
   <div class="track-option-header">
     <SortByButton
       class="bpm"
@@ -153,10 +102,8 @@
 import { reactive, computed } from "vue"
 import { TrackPlus } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
-import CrateSelect from "../inputs/CrateSelect.vue"
 import localeContains from "@/utils/localeContains"
 import SortByButton from "../utility/SortByButton.vue"
-import FilterOffIcon from "@/components/icons/FilterOffIcon.vue"
 import {
   sortStr,
   sortNumWithNull,
@@ -164,9 +111,7 @@ import {
   sortNumWithUndefined2Deep,
   sortKey,
 } from "@/utils/sortFunctions"
-import BasicInput from "../inputs/BasicInput.vue"
 import TrackSingle from "./TrackSingle.vue"
-import CrateOptions from "./CrateOptions.vue"
 import SortByButtonIcon from "../utility/SortByButtonIcon.vue"
 import DanceIcon from "../icons/DanceIcon.vue"
 import TimerIcon from "../icons/TimerIcon.vue"
@@ -176,11 +121,14 @@ const tracks = trackStore()
 const yearsFilterRx = /^\d{4}\s*-\s*\d{4}$/
 const yearFilterRx = /^\d{4}$/
 
+const props = defineProps<{
+  searchTitle: string
+  searchArtists: string
+  filterGenre: string
+  filterYear: string
+}>()
+
 const state = reactive({
-  searchTitle: "",
-  searchArtists: "",
-  filterGenre: "",
-  filterYear: "",
   sortBy: "title",
   bpmRvrs: false,
   danceabilityRvrs: false,
@@ -195,49 +143,42 @@ const state = reactive({
   yearRvrs: false,
 })
 
-const clearFilters = () => {
-  state.searchTitle = ""
-  state.searchArtists = ""
-  state.filterGenre = ""
-  state.filterYear = ""
-}
-
 const titleSearchedTracks = computed((): TrackPlus[] =>
-  state.searchTitle !== ""
+  props.searchTitle !== ""
     ? tracks.crateTrackList.filter((i) =>
-        localeContains(i.title, state.searchTitle)
+        localeContains(i.title, props.searchTitle)
       )
     : tracks.crateTrackList
 )
 
 const artistsSearchedTracks = computed((): TrackPlus[] =>
-  state.searchArtists !== ""
+  props.searchArtists !== ""
     ? titleSearchedTracks.value.filter((i) =>
-        localeContains(i.artistsFinal, state.searchArtists)
+        localeContains(i.artistsFinal, props.searchArtists)
       )
     : titleSearchedTracks.value
 )
 
 const genreFilteredTracks = computed((): TrackPlus[] =>
-  state.filterGenre !== ""
+  props.filterGenre !== ""
     ? artistsSearchedTracks.value.filter(
-        (i) => i.genre && localeContains(i.genre, state.filterGenre)
+        (i) => i.genre && localeContains(i.genre, props.filterGenre)
       )
     : artistsSearchedTracks.value
 )
 
 const yearFilteredTracks = computed((): TrackPlus[] => {
-  if (yearsFilterRx.test(state.filterYear.trim())) {
-    const years = state.filterYear.matchAll(/\d{4}/g)
+  if (yearsFilterRx.test(props.filterYear.trim())) {
+    const years = props.filterYear.matchAll(/\d{4}/g)
     const year1 = parseInt(years.next().value[0])
     const year2 = parseInt(years.next().value[0])
     if (year1 && year2)
       return genreFilteredTracks.value.filter(
         (i) => year1 <= i.year && i.year <= year2
       )
-  } else if (yearFilterRx.test(state.filterYear.trim()))
+  } else if (yearFilterRx.test(props.filterYear.trim()))
     return genreFilteredTracks.value.filter(
-      (i) => parseInt(state.filterYear.trim()) === i.year
+      (i) => parseInt(props.filterYear.trim()) === i.year
     )
   return genreFilteredTracks.value
 })
@@ -300,10 +241,6 @@ const sortedTracks = computed((): TrackPlus[] => {
   display: flex;
   column-gap: 10px;
   flex-wrap: wrap;
-}
-.clear-filters {
-  justify-self: end;
-  margin-top: 29px;
 }
 .track-option-header {
   width: 100%;

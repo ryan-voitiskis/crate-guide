@@ -1,41 +1,45 @@
 <template>
-  <div class="input-controls" v-if="user.hasUser()">
-    <CrateSelect
-      selectID="collection_crate_select"
-      label="Crate"
-      width="240px"
-    />
-    <CrateOptions />
-    <div class="input-wrapper">
-      <BasicInput
-        v-model="state.searchTitle"
-        label="Search title"
-        type="text"
-        autocomplete="off"
-        width="240px"
-      />
-    </div>
-    <div class="input-wrapper">
-      <BasicInput
-        v-model="state.searchArtists"
-        label="Search artist"
-        type="text"
-        autocomplete="off"
-        width="240px"
-      />
-    </div>
-    <div class="input-wrapper">
-      <BasicInput
-        v-model="state.filterYear"
-        label="Filter year"
-        type="text"
-        placeholder="1990-2000"
-        autocomplete="off"
-        width="120px"
-      />
-    </div>
-    <button class="clear-filters icon-button" @click="clearFilters()">
-      <FilterOffIcon />Clear filters
+  <div class="controls" v-if="user.hasUser()">
+    <button class="icon-button" @click="records.addRecordModal = true">
+      <PlusCircleIcon /> Add new record
+    </button>
+    <button
+      class="icon-button"
+      @click="records.toCrate = records.checkboxed"
+      v-if="records.checkboxed.length"
+    >
+      <FolderDownIcon />Add selected to
+      {{ user.authd.settings.selectedCrate !== "all" ? "another " : "" }}crate
+    </button>
+    <button
+      class="icon-button"
+      @click="records.fromCrate = records.checkboxed"
+      v-if="
+        user.authd.settings.selectedCrate !== 'all' && records.checkboxed.length
+      "
+    >
+      <FolderMinusIcon />Remove selected from crate
+    </button>
+    <button
+      class="icon-button"
+      @click="records.toDelete = records.checkboxed"
+      v-if="records.checkboxed.length"
+    >
+      <TrashIcon />Delete selected
+    </button>
+    <button
+      class="icon-button"
+      @click="spotify.importDataForSelectedRecords()"
+      v-if="records.checkboxed.length && user.authd.isSpotifyOAuthd"
+    >
+      <SpotifyLogo class="spotify-logo" />Get Spotify data for selected
+    </button>
+    <button
+      v-if="user.hasUser()"
+      class="icon-button"
+      @click="discogs.selectDiscogsFolderModal = true"
+    >
+      <ImportIcon />Import from Discogs
     </button>
   </div>
   <div class="sort-controls">
@@ -94,7 +98,6 @@
 
 <script setup lang="ts">
 import { computed, reactive, watch } from "vue"
-import BasicInput from "@/components/inputs/BasicInput.vue"
 import RecordSingle from "./RecordSingle.vue"
 import Record from "@/interfaces/Record"
 import SortByButton from "@/components/utility/SortByButton.vue"
@@ -103,20 +106,30 @@ import localeContains from "@/utils/localeContains"
 import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
-import CrateSelect from "../inputs/CrateSelect.vue"
-import CrateOptions from "./CrateOptions.vue"
-import FilterOffIcon from "@/components/icons/FilterOffIcon.vue"
+import { discogsStore } from "@/stores/discogsStore"
+import { spotifyStore } from "@/stores/spotifyStore"
+import PlusCircleIcon from "@/components/icons/PlusCircleIcon.vue"
+import FolderDownIcon from "@/components/icons/FolderDownIcon.vue"
+import FolderMinusIcon from "@/components/icons/FolderMinusIcon.vue"
+import TrashIcon from "@/components/icons/TrashIcon.vue"
+import SpotifyLogo from "@/components/icons/SpotifyLogo.vue"
+import ImportIcon from "../icons/ImportIcon.vue"
 const user = userStore()
 const crates = crateStore()
+const discogs = discogsStore()
 const records = recordStore()
+const spotify = spotifyStore()
 const yearsFilterRx = /^\d{4}\s*-\s*\d{4}$/
 const yearFilterRx = /^\d{4}$/
 
+const props = defineProps<{
+  searchTitle: string
+  searchArtists: string
+  filterYear: string
+}>()
+
 const state = reactive({
   selectAll: false,
-  searchTitle: "",
-  searchArtists: "",
-  filterYear: "",
   sortBy: "title",
   titleRvrs: false,
   catnoRvrs: false,
@@ -124,12 +137,6 @@ const state = reactive({
   labelRvrs: false,
   yearRvrs: false,
 })
-
-const clearFilters = () => {
-  state.searchTitle = ""
-  state.searchArtists = ""
-  state.filterYear = ""
-}
 
 // records from selected crate to display
 const recordsByCrate = computed((): Record[] =>
@@ -141,33 +148,33 @@ const recordsByCrate = computed((): Record[] =>
 )
 
 const titleSearchedRecords = computed((): Record[] =>
-  state.searchTitle !== ""
+  props.searchTitle !== ""
     ? recordsByCrate.value.filter((i) =>
-        localeContains(i.title, state.searchTitle)
+        localeContains(i.title, props.searchTitle)
       )
     : recordsByCrate.value
 )
 
 const artistsSearchedRecords = computed((): Record[] =>
-  state.searchArtists !== ""
+  props.searchArtists !== ""
     ? titleSearchedRecords.value.filter((i) =>
-        localeContains(i.artists, state.searchArtists)
+        localeContains(i.artists, props.searchArtists)
       )
     : titleSearchedRecords.value
 )
 
 const yearFilteredRecords = computed((): Record[] => {
-  if (yearsFilterRx.test(state.filterYear.trim())) {
-    const years = state.filterYear.matchAll(/\d{4}/g)
+  if (yearsFilterRx.test(props.filterYear.trim())) {
+    const years = props.filterYear.matchAll(/\d{4}/g)
     const year1 = parseInt(years.next().value[0])
     const year2 = parseInt(years.next().value[0])
     if (year1 && year2)
       return artistsSearchedRecords.value.filter(
         (i) => year1 <= i.year && i.year <= year2
       )
-  } else if (yearFilterRx.test(state.filterYear.trim()))
+  } else if (yearFilterRx.test(props.filterYear.trim()))
     return artistsSearchedRecords.value.filter(
-      (i) => parseInt(state.filterYear.trim()) === i.year
+      (i) => parseInt(props.filterYear.trim()) === i.year
     )
   return artistsSearchedRecords.value
 })
@@ -208,14 +215,19 @@ watch(
 </script>
 
 <style scoped lang="scss">
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.spotify-logo {
+  color: var(--spotify-light-green);
+}
 .input-controls {
   display: flex;
   column-gap: 10px;
   flex-wrap: wrap;
-}
-.clear-filters {
-  justify-self: end;
-  margin-top: 29px;
 }
 .sort-controls {
   .checkbox-hitbox {

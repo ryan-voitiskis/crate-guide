@@ -11,6 +11,7 @@ export const crateStore = defineStore("crate", {
     loading: false,
     errorMsg: "",
     addCrateModal: false, // displays AddCrateForm.vue
+    actionsModal: false, // displays CrateActions.vue
     duplicateCrateModal: false, // displays DuplicateCrateForm.vue
     deleteCrateModal: false, // displays ConfirmDeleteCrate.vue
     feedbackMsg: "", // after update feedback msg

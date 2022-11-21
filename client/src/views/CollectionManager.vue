@@ -1,49 +1,79 @@
 <template>
   <p v-if="!user.hasUser()">Sign in to create collections.</p>
-  <div class="controls" v-if="user.hasUser()">
-    <button class="icon-button" @click="records.addRecordModal = true">
-      <PlusCircleIcon /> Add new record
-    </button>
+  <div class="controls">
+    <CrateSelect
+      selectID="select_track_crate_select"
+      label="Crate"
+      width="240px"
+    />
     <button
-      class="icon-button"
-      @click="records.toCrate = records.checkboxed"
-      v-if="records.checkboxed.length"
+      class="crate-options"
+      type="button"
+      @click="crates.actionsModal = true"
     >
-      <FolderDownIcon />Add selected to
-      {{ user.authd.settings.selectedCrate !== "all" ? "another " : "" }}crate
+      <WrenchIcon />
     </button>
-    <button
-      class="icon-button"
-      @click="records.fromCrate = records.checkboxed"
-      v-if="
-        user.authd.settings.selectedCrate !== 'all' && records.checkboxed.length
-      "
-    >
-      <FolderMinusIcon />Remove selected from crate
+    <div class="input-wrapper">
+      <BasicInput
+        v-model="state.searchTitle"
+        label="Search title"
+        type="text"
+        placeholder=""
+        autocomplete="off"
+        width="240px"
+      />
+    </div>
+    <div class="input-wrapper">
+      <BasicInput
+        v-model="state.searchArtists"
+        label="Search artist"
+        type="text"
+        placeholder=""
+        autocomplete="off"
+        width="240px"
+      />
+    </div>
+    <div class="input-wrapper" v-show="user.authd.settings.listLayout === 1">
+      <BasicInput
+        v-model="state.filterGenre"
+        label="Filter genre"
+        type="text"
+        placeholder=""
+        autocomplete="off"
+        width="240px"
+      />
+    </div>
+    <div class="input-wrapper">
+      <BasicInput
+        v-model="state.filterYear"
+        label="Filter year"
+        type="text"
+        placeholder="1990-2000"
+        autocomplete="off"
+        width="120px"
+      />
+    </div>
+    <button class="clear-filters icon-button" @click="clearFilters()">
+      <FilterOffIcon />Clear filters
     </button>
-    <button
-      class="icon-button"
-      @click="records.toDelete = records.checkboxed"
-      v-if="records.checkboxed.length"
-    >
-      <TrashIcon />Delete selected
-    </button>
-    <button
-      class="icon-button"
-      @click="spotify.importDataForSelectedRecords()"
-      v-if="records.checkboxed.length && user.authd.isSpotifyOAuthd"
-    >
-      <SpotifyLogo class="spotify-logo" />Get Spotify data for selected
-    </button>
-    <DiscogsControls v-if="user.hasUser()" />
     <ListLayoutToggle class="list-layout" />
   </div>
-
   <KeepAlive>
-    <RecordsList v-if="user.authd.settings.listLayout === 0" />
+    <RecordsList
+      v-if="user.authd.settings.listLayout === 0"
+      :searchTitle="state.searchTitle"
+      :searchArtists="state.searchArtists"
+      :filterYear="state.filterYear"
+    />
   </KeepAlive>
   <KeepAlive>
-    <TracksList v-if="user.authd.settings.listLayout === 1" />
+    <TracksList
+      v-if="user.authd.settings.listLayout === 1"
+      :searchTitle="state.searchTitle"
+      :searchArtists="state.searchArtists"
+      :filterGenre="state.filterGenre"
+      :filterYear="state.filterYear"
+    />
   </KeepAlive>
 
   <ModalBox v-if="crates.addCrateModal" @close="crates.addCrateModal = false">
@@ -145,10 +175,12 @@
   >
     <SpotifyCompletion />
   </ModalBox>
+
+  <ModalBox v-if="crates.actionsModal"><CrateActions /></ModalBox>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount } from "vue"
+import { onBeforeUnmount, reactive } from "vue"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
 import { spotifyStore } from "@/stores/spotifyStore"
@@ -160,32 +192,45 @@ import AddTrackForm from "@/components/forms/AddTrackForm.vue"
 import ConfirmDeleteCrate from "@/components/forms/ConfirmDeleteCrate.vue"
 import DeleteRecordForm from "@/components/forms/ConfirmDeleteRecord.vue"
 import DeleteTrackForm from "@/components/forms/ConfirmDeleteTrack.vue"
-import DiscogsControls from "@/components/discogs/DiscogsControls.vue"
 import DuplicateCrateForm from "@/components/forms/DuplicateCrateForm.vue"
 import EditRecordForm from "@/components/forms/EditRecordForm.vue"
 import EditTrackForm from "@/components/forms/EditTrackForm.vue"
-import FolderDownIcon from "@/components/icons/FolderDownIcon.vue"
-import FolderMinusIcon from "@/components/icons/FolderMinusIcon.vue"
 import ModalBox from "@/components/utility/ModalBox.vue"
-import PlusCircleIcon from "@/components/icons/PlusCircleIcon.vue"
 import RecordsList from "@/components/collection/RecordsList.vue"
 import RemoveRecordForm from "@/components/forms/ConfirmRemoveRecord.vue"
 import SelectCrateForm from "@/components/forms/SelectCrateForm.vue"
-import TrashIcon from "@/components/icons/TrashIcon.vue"
 import UpdateFeedback from "@/components/feedbacks/UpdateFeedback.vue"
 import SpotifyImportProgress from "@/components/spotify/SpotifyImportProgress.vue"
-import SpotifyLogo from "@/components/icons/SpotifyLogo.vue"
 import AlbumMatchForm from "@/components/spotify/AlbumMatchForm.vue"
 import TrackMatchForm from "@/components/spotify/TrackMatchForm.vue"
 import SpotifyCompletion from "@/components/spotify/SpotifyCompletion.vue"
-import ListLayoutToggle from "@/components/collection/ListLayoutToggle.vue"
 import TracksList from "@/components/collection/TracksList.vue"
+import ListLayoutToggle from "@/components/collection/ListLayoutToggle.vue"
+import BasicInput from "@/components/inputs/BasicInput.vue"
+import FilterOffIcon from "@/components/icons/FilterOffIcon.vue"
+import CrateSelect from "@/components/inputs/CrateSelect.vue"
+import WrenchIcon from "@/components/icons/WrenchIcon.vue"
+import CrateActions from "@/components/collection/CrateActions.vue"
 
 const crates = crateStore()
 const records = recordStore()
 const spotify = spotifyStore()
 const tracks = trackStore()
 const user = userStore()
+
+const clearFilters = () => {
+  state.searchTitle = ""
+  state.searchArtists = ""
+  state.filterGenre = ""
+  state.filterYear = ""
+}
+
+const state = reactive({
+  searchTitle: "",
+  searchArtists: "",
+  filterGenre: "",
+  filterYear: "",
+})
 
 onBeforeUnmount(() => {
   records.checkboxed = []
@@ -200,11 +245,20 @@ onBeforeUnmount(() => {
   gap: 10px;
   margin-bottom: 10px;
 }
-
-.spotify-logo {
-  color: var(--spotify-light-green);
-}
 .list-layout {
   margin-left: auto;
+  margin-top: 29px;
+}
+.clear-filters {
+  justify-self: end;
+  margin-top: 29px;
+}
+.crate-options {
+  width: 38px;
+  margin-top: 29px;
+  padding: 0 8px;
+  svg {
+    position: absolute;
+  }
 }
 </style>

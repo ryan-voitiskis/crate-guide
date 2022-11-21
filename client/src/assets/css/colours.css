@@ -1,11 +1,15 @@
 :root {
+  color-scheme: light dark;
+  --key-text: hsl(0, 0%, 28%); /* exclude from theming changes */
+}
+
+:root {
   /* elements */
   --hr: hsl(0, 0%, 80%);
   --table-border: hsl(0, 0%, 53%);
   --border-colour: hsl(0, 0%, 43%);
 
   /* text and icons */
-  --site-title-text: hsl(205, 13%, 30%);
   --white-text: hsl(0, 0%, 100%); /* ! when updating: find replace JS usage of hsl val */
   --lightest-text: hsl(0, 0%, 87%); /* ! when updating: find replace JS usage of hsl val */
   --lighter-text: hsl(0, 0%, 80%); /* ! when updating: find replace JS usage of hsl val */
@@ -16,13 +20,10 @@
   --black-text: hsl(0, 0%, 0%); /* ! when updating: find replace JS usage of hsl val */
   --link-text: hsl(216, 76%, 39%); 
   --link-text-hover: hsl(216, 70%, 56%);
-  --light-bg-icon: hsl(15, 3%, 26%);
   --abbr-title: hsla(0, 0%, 5%, 0.74);
   --label-text: hsl(207, 13%, 41%);
   --input-text: hsl(207, 12%, 29%);
   --welcome-text: hsl(47, 23%, 61%);
-  --privacy-policy: hsl(47, 12%, 66%);
-  --key-text: hsl(0, 0%, 28%); /* exclude from theming changes */
 
   /* feedback */
   --success: hsl(154, 100%, 38%);
@@ -31,7 +32,7 @@
   --error-bg: hsl(3, 90%, 96%);
 
   /* navs */
-  --nav-active-bg:hsl(47, 23%, 61%);
+  --nav-active-bg:hsl(31, 48%, 51%);
   --nav-inactive-bg:hsl(0, 0%, 92%);
   --nav-inactive-text:hsl(0, 0%, 48%);
   --nav-inactive-border:hsl(0, 0%, 67%);
@@ -81,3 +82,28 @@
   --spotify-green: #1db954;
   --spotify-black: #191414;
  }
+
+ /* Default colors */
+body {
+  --text-color: #222;
+  --bkg-color: #fff;
+}
+/* Dark theme colors */
+body.dark-theme {
+  --text-color: #eee;
+  --bkg-color: #121212;
+}
+
+/* Styles for users who prefer dark mode at the OS level */
+@media (prefers-color-scheme: dark) {
+  /* defaults to dark theme */
+  body { 
+    --text-color: #eee;
+    --bkg-color: #121212;
+  }
+  /* Override dark mode with light mode styles if the user decides to swap */
+  body.light-theme {
+    --text-color: #222;
+    --bkg-color: #fff;
+  }
+}

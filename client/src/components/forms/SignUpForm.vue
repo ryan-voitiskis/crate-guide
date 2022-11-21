@@ -10,10 +10,6 @@
       <p @click="openLogin()">
         Already have an account? <span class="link-text">Log in</span>
       </p>
-      <div id="privacy-policy">
-        <h3>Privacy policy</h3>
-        <p>No data, aside from crates is stored. No emails.</p>
-      </div>
       <BasicInput
         v-model="form.name"
         label="Name"
@@ -94,16 +90,4 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped lang="scss">
-#privacy-policy {
-  p,
-  h3 {
-    color: var(--privacy-policy);
-    text-align: left;
-  }
-  h3 {
-    font-weight: 600;
-    font-size: 15px;
-  }
-}
-</style>
+<style scoped lang="scss"></style>

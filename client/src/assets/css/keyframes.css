@@ -113,7 +113,8 @@
     transform: rotate(360deg);
   }
 }
-
+/* todo: delete later if unused */
+/* 
 @keyframes drop-out-500 {
   0% {
     max-width: 0px;
@@ -130,4 +131,4 @@
   100% {
     max-width: 0px;
   }
-}
+} */

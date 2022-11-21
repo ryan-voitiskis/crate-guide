@@ -12,7 +12,7 @@
         >
         <router-link
           v-if="$router.currentRoute.value.name !== 'about'"
-          class="btn"
+          class="btn about"
           to="/about"
           >About</router-link
         >
@@ -189,5 +189,9 @@ watch(
   margin: 0 auto;
   padding: 0 10px;
   overflow-y: scroll;
+}
+
+.about:hover {
+  background: transparent;
 }
 </style>
