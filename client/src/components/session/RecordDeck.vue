@@ -69,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, computed } from "vue"
+import { defineProps, computed, watch } from "vue"
 import StartStopButton from "./StartStopButton.vue"
 import RpmSwitch from "./RpmSwitch.vue"
 import PitchFader from "./PitchFader.vue"
@@ -137,6 +137,19 @@ const positionColour = computed(() =>
   session.decks[props.deckID].loadedTrack?.position
     ? getPositionColour(session.decks[props.deckID].loadedTrack!.position!)
     : "hsl(0, 0%, 68%)"
+)
+
+// set adjustedLoadedBpm when sources change
+watch(
+  () =>
+    session.decks[props.deckID].loadedTrack?.bpmFinal
+      ? (session.decks[props.deckID].pitch *
+          0.0001 *
+          user.authd.settings.turntablePitchRange +
+          1) *
+        session.decks[props.deckID].loadedTrack!.bpmFinal!
+      : null,
+  (bpm: number | null) => (session.decks[props.deckID].adjustedLoadedBpm = bpm)
 )
 </script>
 

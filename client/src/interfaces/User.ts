@@ -10,7 +10,7 @@ export default interface User {
   settings: {
     theme: string
     turntableTheme: string
-    turntablePitchRange: string
+    turntablePitchRange: number
     selectedCrate: string
     keyFormat: "key" | "camelot" // todo: should this be on backend? also other settings or properties declared like this?
     listLayout: number

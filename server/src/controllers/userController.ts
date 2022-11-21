@@ -120,7 +120,15 @@ const updateUser = asyncHandler(async (req, res) => {
     throw new Error("User not authorised.")
   }
 
-  await User.findByIdAndUpdate(req.params.id, req.body, { new: true })
+  await User.findByIdAndUpdate(
+    req.params.id,
+    {
+      $set: { settings: JSON.parse(req.body.settings) },
+    },
+    {
+      new: true,
+    }
+  )
   res.status(200).json()
 })
 

@@ -54,7 +54,7 @@ const pitchReadable = computed(
     (
       session.decks[props.deckID].pitch *
       0.01 *
-      +user.authd.settings.turntablePitchRange
+      user.authd.settings.turntablePitchRange
     ).toFixed(1) +
     "%"
 )

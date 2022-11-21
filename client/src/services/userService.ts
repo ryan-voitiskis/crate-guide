@@ -55,11 +55,7 @@ const addUser = async (user: UnregisteredUser) => {
 // update user settings
 const updateSettings = async (user: User) => {
   const body = new URLSearchParams()
-  body.append("settings.selectedCrate", user.settings.selectedCrate)
-  body.append("settings.theme", user.settings.theme)
-  body.append("settings.turntableTheme", user.settings.turntableTheme)
-  body.append("settings.turntablePitchRange", user.settings.turntablePitchRange)
-  body.append("settings.keyFormat", user.settings.keyFormat)
+  body.append("settings", JSON.stringify(user.settings))
 
   const options = {
     method: "PUT",

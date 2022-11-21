@@ -16,7 +16,7 @@ export const userStore = defineStore("user", {
       settings: {
         theme: "light",
         turntableTheme: "silver",
-        turntablePitchRange: "8",
+        turntablePitchRange: 8,
         selectedCrate: "all",
         keyFormat: "key",
         listLayout: 0,

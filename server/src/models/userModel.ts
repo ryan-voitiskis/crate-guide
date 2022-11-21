@@ -22,7 +22,7 @@ interface IUser {
   settings: {
     theme: string
     turntableTheme: string
-    turntablePitchRange: string
+    turntablePitchRange: number
     selectedCrate: string
     keyFormat: string
     listLayout: number
@@ -96,8 +96,8 @@ const userSchema = new mongoose.Schema<IUser>(
         default: "silver",
       },
       turntablePitchRange: {
-        type: String,
-        default: "8",
+        type: Number,
+        default: 8,
       },
       selectedCrate: {
         type: String,

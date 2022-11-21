@@ -27,31 +27,37 @@ const props = defineProps<{
 
 const state = reactive({})
 
+interface TrackPlusScored {
+  track: TrackPlus
+  score: number
+}
+
 const bpmRangeFilteredTracks = computed((): TrackPlus[] | null => {
   if (!session.decks[props.deckID].loadedTrack) return null
   if (!session.decks[props.deckID].loadedTrack?.bpmFinal)
     return tracks.crateTrackList
-  const adjustedLoadedBpm =
-    (session.decks[props.deckID].pitch *
-      0.0001 *
-      +user.authd.settings.turntablePitchRange +
-      1) *
-    session.decks[props.deckID].loadedTrack!.bpmFinal!
   return tracks.crateTrackList.filter((i) => {
     if (!i.bpmFinal) return false
     if (
-      i.bpmFinal * (-0.01 * +user.authd.settings.turntablePitchRange + 1) <
-        adjustedLoadedBpm &&
-      adjustedLoadedBpm <
-        i.bpmFinal * (0.01 * +user.authd.settings.turntablePitchRange + 1)
+      i.bpmFinal * (-0.01 * user.authd.settings.turntablePitchRange + 1) <
+        session.decks[props.deckID].adjustedLoadedBpm! &&
+      session.decks[props.deckID].adjustedLoadedBpm! <
+        i.bpmFinal * (0.01 * user.authd.settings.turntablePitchRange + 1)
     )
       return true
     else return false
   })
 })
 
+const sameRecordFilteredTracks = computed(
+  (): TrackPlus[] | null =>
+    bpmRangeFilteredTracks.value?.filter(
+      (i) => i.recordID !== session.decks[props.deckID].loadedTrack?.recordID
+    ) || null
+)
+
 const suggestions = computed(
-  (): TrackPlus[] | null => bpmRangeFilteredTracks.value
+  (): TrackPlus[] | null => sameRecordFilteredTracks.value
 )
 </script>
 

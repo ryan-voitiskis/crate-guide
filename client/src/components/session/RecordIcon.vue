@@ -67,7 +67,7 @@ const spinRate = computed(
     (
       ((session.decks[props.deckID].pitch *
         -0.0001 *
-        +user.authd.settings.turntablePitchRange +
+        user.authd.settings.turntablePitchRange +
         1) *
         60) /
       session.decks[props.deckID].rpm
