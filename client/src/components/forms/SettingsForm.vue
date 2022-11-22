@@ -16,6 +16,12 @@
         <RadioCard
           v-model="user.authd.settings.theme"
           name="theme"
+          id="auto"
+          label="Automatic"
+        />
+        <RadioCard
+          v-model="user.authd.settings.theme"
+          name="theme"
           id="light"
           label="Light"
         />
@@ -106,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeMount, onUnmounted } from "vue"
+import { onBeforeMount, onUnmounted, watch } from "vue"
 import RadioCard from "@/components/inputs/RadioCard.vue"
 import SubmitlessFeedback from "@/components/feedbacks/SubmitlessFeedback.vue"
 import XIcon from "@/components/icons/XIcon.vue"
@@ -130,6 +136,39 @@ const turntablePitchOptions = [
   { id: "50", name: "±50%" },
 ]
 
+// set theme on setting change
+watch(
+  () => user.authd.settings.theme,
+  (theme: string) => {
+    const root = document.querySelector(":root")
+    switch (theme) {
+      case "auto":
+        root!.classList.remove("light")
+        root!.classList.remove("dark")
+        root!.classList.remove("contrast")
+        break
+      case "light":
+        root!.classList.remove("light")
+        root!.classList.remove("dark")
+        root!.classList.remove("contrast")
+        root!.classList.add("light")
+        break
+      case "dark":
+        root!.classList.remove("light")
+        root!.classList.remove("dark")
+        root!.classList.remove("contrast")
+        root!.classList.add("dark")
+        break
+      case "contrast":
+        root!.classList.remove("light")
+        root!.classList.remove("dark")
+        root!.classList.remove("contrast")
+        root!.classList.add("contrast")
+        break
+    }
+  }
+)
+
 // required for when settings changed elsewhere, such as selected crate
 onBeforeMount(() => {
   user.loading = false
@@ -145,6 +184,7 @@ onUnmounted(() => {
 <style scoped lang="scss">
 fieldset {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 20px;
   &.controls {

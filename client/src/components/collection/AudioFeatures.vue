@@ -19,8 +19,8 @@
     ></iframe>
     <hr />
     <p>
-      All of this data is from Spotify's API. Please look at these properties in
-      the context of the information available on
+      All of this data is from Spotify's API. Please look at these properties
+      having read the information available on
       <a
         href="https://developer.spotify.com/documentation/web-api/reference/#/operations/get-audio-features"
         class="link-text"
@@ -207,13 +207,13 @@ table.features {
 }
 
 .see-raw {
-  color: var(--btn-primary);
+  color: var(--primary);
   margin: 0 auto;
   display: block;
   border-radius: 0;
   background-color: transparent;
   &:hover {
-    color: var(--btn-primary-hover);
+    color: var(--primary-hover);
   }
 }
 

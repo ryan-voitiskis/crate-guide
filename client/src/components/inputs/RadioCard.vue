@@ -30,7 +30,7 @@ defineProps<{
   grid-template-columns: 30px auto;
   grid-template-rows: 80px 30px;
   margin: 0;
-  background: #ddd;
+  background: var(--radio-card-label);
   border-radius: 10px;
   line-height: 30px;
   overflow: hidden;

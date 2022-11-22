@@ -6,7 +6,7 @@ input[type="button"] {
   border-radius: 8px;
   border: none;
   color: var(--dark-text);
-  background-color: var(--btn-secondary);
+  background-color: var(--secondary);
   cursor: pointer;
   display: inline-flex;
   font: 400 16px/38px Manrope, sans-serif;
@@ -24,7 +24,7 @@ input[type="button"] {
     transition: fill 0.2s ease-in-out;
   }
   &:hover {
-    background: var(--btn-secondary-hover);
+    background: var(--secondary-hover);
     color: var(--darker-text);
   }
   &:disabled {
@@ -32,64 +32,64 @@ input[type="button"] {
   }
   &.primary {
     padding: 0 40px;
-    background: var(--btn-primary);
+    background: var(--primary);
     font: 600 16px/38px Manrope, sans-serif;
     color: var(--white-text);
     border: none;
     &:hover {
-      background: var(--btn-primary-hover);
+      background: var(--primary-hover);
     }
     &:disabled {
-      background-color: var(--btn-disabled);
+      background-color: var(--disabled);
     }
     &.delete {
       color: var(--white-text);
-      background: var(--btn-delete);
+      background: var(--delete);
       &:hover {
-        background: var(--btn-delete-hover);
+        background: var(--delete-hover);
         color: var(--white-text);
       }
     }
   }
   &.add {
-    color: var(--btn-primary);
+    color: var(--primary);
     svg {
-      color: var(--btn-primary);
+      color: var(--primary);
       fill: transparent;
     }
     &:hover {
-      color: var(--btn-primary-hover);
+      color: var(--primary-hover);
       svg {
-        color: var(--btn-primary);
-        fill: var(--btn-primary-hover);
+        color: var(--primary);
+        fill: var(--primary);
       }
     }
   }
   &.edit {
-    color: var(--btn-edit);
+    color: var(--edit);
     svg {
-      color: var(--btn-edit);
+      color: var(--edit);
       fill: transparent;
     }
     &:hover {
-      color: var(--btn-edit-hover);
+      color: var(--edit-hover);
       svg {
-        color: var(--btn-edit);
-        fill: var(--btn-edit-hover);
+        color: var(--edit);
+        fill: var(--edit);
       }
     }
   }
   &.delete {
-    color: var(--btn-delete);
+    color: var(--delete);
     svg {
-      color: var(--btn-delete);
+      color: var(--delete);
       fill: transparent;
     }
     &:hover {
-      color: var(--btn-delete-hover);
+      color: var(--delete-hover);
       svg {
-        color: var(--btn-delete);
-        fill: var(--btn-delete-hover);
+        color: var(--delete);
+        fill: var(--delete);
       }
     }
   }
@@ -107,15 +107,15 @@ input[type="button"] {
     }
   }
   &.clear-filters {
-    border: 1px solid var(--btn-edit);
-    color: var(--btn-edit);
+    border: 1px solid var(--edit);
+    color: var(--edit);
     background-color: transparent;
     font-weight: 600;
     svg {
-      fill: var(--btn-edit);
+      fill: var(--edit);
     }
     &:hover {
-      background-color: var(--btn-edit);
+      background-color: var(--edit);
       color: var(--white-text);
       svg {
         fill: var(--white-text);

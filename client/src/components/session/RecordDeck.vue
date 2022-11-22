@@ -267,15 +267,17 @@ watch(
 }
 .load-track {
   position: absolute;
+  height: 38px;
+  line-height: 32px;
   top: 4%;
   left: 4%;
   z-index: 3;
-  border-radius: 3px;
-  box-sizing: content-box;
+  border-radius: 8px;
+  box-sizing: border-box;
   background: transparent;
-  color: rgb(20, 102, 219);
+  color: var(--load-button);
   font-weight: 600;
-  border: 3px solid rgb(20, 102, 219);
+  border: 3px solid var(--load-button);
   &:hover {
     box-shadow: 0 0 4px 4px rgba(44, 102, 219, 0.4);
     transition: box-shadow 0.2s ease-in-out;

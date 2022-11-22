@@ -1,7 +1,10 @@
 <template>
   <div class="container">
     <header>
-      <nav v-if="$router.currentRoute.value.name !== 'about'" class="radio">
+      <nav
+        v-if="$router.currentRoute.value.name !== 'about'"
+        class="radio-toggle"
+      >
         <router-link class="btn" to="/">Session</router-link>
         <router-link class="btn" to="/collection">Collection</router-link>
       </nav>

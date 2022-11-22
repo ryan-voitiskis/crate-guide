@@ -17,7 +17,7 @@ input[type="radio"] {
   height: 18px;
   width: 18px;
   margin: 6px;
-  border: 3px solid var(--form-control);
+  border: 3px solid var(--primary);
   align-items: center;
   appearance: none;
   color: currentColor;
@@ -41,7 +41,7 @@ input[type="checkbox"] {
   background-color: var(--input-bg);
   border-radius: 3px;
   &::before {
-    box-shadow: inset 10px 10px var(--form-control-active);
+    box-shadow: inset 10px 10px var(--primary);
     clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
   }
 }
@@ -52,6 +52,6 @@ input[type="radio"] {
     height: 8px;
     width: 8px;
     border-radius: 50%;
-    box-shadow: inset 10px 10px var(--form-control-active);
+    box-shadow: inset 10px 10px var(--primary);
   }
 }

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="radio-toggle">
     <button
       class="icon-button"
       :class="{ active: user.authd.settings.listLayout === 0 }"
@@ -25,18 +25,18 @@ const user = userStore()
 </script>
 
 <style scoped lang="scss">
-button {
-  font-weight: 500;
-  color: var(--darker-text);
-  &.active {
-    color: white;
-    background-color: var(--toggle-active-bg);
-  }
-}
-button:first-child {
-  border-radius: 10px 0 0 10px;
-}
-button:last-child {
-  border-radius: 0 10px 10px 0;
-}
+// button {
+//   font-weight: 500;
+//   color: var(--darker-text);
+//   &.active {
+//     color: white;
+//     background-color: var(--primary);
+//   }
+// }
+// button:first-child {
+//   border-radius: 10px 0 0 10px;
+// }
+// button:last-child {
+//   border-radius: 0 10px 10px 0;
+// }
 </style>

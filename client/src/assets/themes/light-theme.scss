@@ -1,0 +1,76 @@
+@mixin light-theme {
+  --page-bg: #fff;
+
+  /* elements */
+  --hr: hsl(0, 0%, 80%);
+  --table-border: hsl(0, 0%, 53%);
+  --border-colour: hsl(0, 0%, 43%);
+  --modal-backdrop: rgba(0, 0, 0, 0.5);
+
+  /* text and icons */
+  --white-text: hsl(0, 0%, 100%);
+  --lighter-text: hsl(0, 0%, 80%);
+  --light-text: hsl(0, 0%, 62%);
+  --dark-text: hsl(0, 0%, 47%);
+  --darker-text: hsl(0, 0%, 33%);
+  --darkest-text: hsl(0, 0%, 27%);
+  --link-text: hsl(216, 76%, 39%);
+  --link-text-hover: hsl(216, 70%, 56%);
+  --abbr-title: hsla(0, 0%, 5%, 0.74);
+  --label-text: hsl(207, 13%, 41%);
+  --input-text: hsl(207, 12%, 29%);
+  --welcome-text: hsl(47, 23%, 61%);
+
+  /* feedback */
+  --success: hsl(152, 100%, 38%);
+  --saving: hsl(35, 84%, 54%);
+  --error: hsl(356, 75%, 60%);
+
+  /* navs */
+  --nav-active-bg: hsl(202, 50%, 45%);
+  --nav-inactive-bg: hsl(0, 0%, 92%);
+  --nav-inactive-text: hsl(0, 0%, 48%);
+  --nav-inactive-border: hsl(0, 0%, 67%);
+
+  /* forms */
+  --input-bg: hsl(0, 0%, 100%);
+  --input-border: hsl(202, 7%, 77%);
+  --input-border-focus: hsl(202, 50%, 45%);
+  --radio-card-label: hsl(0, 0%, 88%);
+
+  /* buttons */
+  --primary: hsl(202, 50%, 45%);
+  --primary-hover: hsl(202, 50%, 60%);
+  --secondary: hsl(260, 16%, 96%);
+  --secondary-hover: hsl(0, 0%, 88%);
+  --edit: hsl(35, 84%, 54%);
+  --edit-hover: hsl(35, 84%, 72%);
+  --delete: hsl(356, 75%, 60%);
+  --delete-hover: hsl(356, 75%, 80%);
+  --disabled: hsl(0, 0%, 80%);
+
+  /* records */
+  --record-bg: hsl(10, 24%, 96%);
+  --record-unstaged-bg: hsl(0, 0%, 97%);
+
+  /* progress bar */
+  --progress-fg: linear-gradient(
+    70deg,
+    rgba(245, 177, 97, 1) 0.4%,
+    rgba(236, 54, 110, 1) 100.2%
+  );
+  --progress-bg: hsl(0, 0%, 88%);
+}
+
+:root,
+:root.light {
+  background-color: #fff;
+  @include light-theme;
+}
+
+@media not (prefers-color-scheme: light) {
+  :root.light {
+    background-color: #fff;
+    @include light-theme;
+  }
+}

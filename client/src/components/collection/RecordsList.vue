@@ -232,6 +232,9 @@ watch(
 .sort-controls {
   .checkbox-hitbox {
     margin: 0;
+    input[type="checkbox"] {
+      background-color: white;
+    }
   }
   width: 100%;
   display: flex;

@@ -11,6 +11,6 @@ import LoaderIcon from "@/components/icons/LoaderIcon.vue"
   width: 100%;
   display: flex;
   justify-content: center;
-  color: var(--btn-primary);
+  color: var(--primary);
 }
 </style>

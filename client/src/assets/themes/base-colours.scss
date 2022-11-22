@@ -1,0 +1,25 @@
+:root {
+  color-scheme: light dark;
+  --key-text: hsl(0, 0%, 28%); /* exclude from theming changes */
+
+  /* decks */
+  --deck-black: hsl(0, 0%, 20%);
+  --deck-silver: hsl(0, 0%, 80%);
+  --bpm-tap-btn: radial-gradient(
+    circle farthest-corner at 10% 20%,
+    rgba(213, 213, 213) 0%,
+    rgba(130, 130, 130) 90%
+  );
+  --bpm-last-saved-label: hsl(0, 0%, 39%);
+  --bpm-tap-label: #ff605f;
+  --play-button: hsl(146, 73%, 49%);
+  --pitch-readable: hsl(0, 59%, 47%);
+  --reset-button: #444;
+  --load-button: hsl(202, 50%, 45%);
+
+  /* spotify branding */
+  /* * https://developer.spotify.com/documentation/general/design-and-branding/ */
+  --spotify-light-green: #1ed760;
+  --spotify-green: #1db954;
+  --spotify-black: #191414;
+}

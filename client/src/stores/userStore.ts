@@ -69,6 +69,7 @@ export const userStore = defineStore("user", {
           crateStore().fetchCrates()
           recordStore().fetchRecords()
           this.loading = false
+          this.setUserTheme(this.authd.settings.theme)
           return response.status
         } else if (response.status === 401) {
           const error = await response.json()
@@ -132,8 +133,9 @@ export const userStore = defineStore("user", {
       this.errorMsg = ""
       try {
         const response = await userService.updateSettings(this.authd)
-        if (response.status === 200) this.success = true
-        else {
+        if (response.status === 200) {
+          this.success = true
+        } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
@@ -143,6 +145,21 @@ export const userStore = defineStore("user", {
         this.errorMsg = "Unexpected error. Probably network error."
         this.loading = false
         return null
+      }
+    },
+
+    setUserTheme(theme: string) {
+      const root = document.querySelector(":root")
+      switch (theme) {
+        case "light":
+          root!.classList.add("light")
+          break
+        case "dark":
+          root!.classList.add("dark")
+          break
+        case "contrast":
+          root!.classList.add("contrast")
+          break
       }
     },
 

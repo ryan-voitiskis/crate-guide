@@ -58,7 +58,7 @@ onDeactivated(() => {
 <style lang="scss">
 .modal-backdrop {
   position: fixed;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--modal-backdrop);
   top: 0;
   left: 0;
   width: 100%;
@@ -68,7 +68,7 @@ onDeactivated(() => {
   align-items: center;
   z-index: 99;
   .modal {
-    background: white;
+    background: var(--page-bg);
     border-radius: 10px;
     z-index: 100;
     display: flex;
@@ -127,7 +127,7 @@ onDeactivated(() => {
   width: 100%;
   display: flex;
   justify-content: end;
-  background: var(--btn-secondary);
+  background: var(--secondary);
   border-radius: 0 0 10px 10px;
   button[type="reset"] {
     margin-right: auto;

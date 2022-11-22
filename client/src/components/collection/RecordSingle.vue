@@ -137,7 +137,7 @@ const coverImg = computed(() => `url("${props.cover}")`)
 
 <style scoped lang="scss">
 .record {
-  background: linear-gradient(to right, hsl(10, 24%, 96%), hsl(35, 24%, 96%));
+  background: var(--record-bg);
   display: grid;
   grid-template-columns: 120px 4fr 6fr;
   grid-template-rows: 40px 20px 30px 30px;
@@ -154,6 +154,9 @@ const coverImg = computed(() => `url("${props.cover}")`)
   .checkbox-hitbox {
     grid-area: 1 / 1 / 5 / 2;
     z-index: 1;
+    input[type="checkbox"] {
+      background-color: white;
+    }
   }
   h3.title {
     display: flex;

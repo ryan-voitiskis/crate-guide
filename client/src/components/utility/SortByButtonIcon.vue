@@ -33,7 +33,7 @@ defineProps<{
     width: 18px;
   }
   &.active {
-    color: var(--form-control-active);
+    color: var(--primary);
   }
   &.reversed {
     svg {

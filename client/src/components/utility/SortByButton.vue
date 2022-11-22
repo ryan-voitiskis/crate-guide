@@ -28,7 +28,7 @@ button {
     margin-right: 0;
   }
   &.active {
-    color: var(--form-control-active);
+    color: var(--primary);
   }
   &.reversed {
     svg {

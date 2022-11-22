@@ -104,7 +104,7 @@ const vFocus = {
     display: flex;
     height: 28px;
     line-height: 28px;
-    background-color: var(--btn-secondary);
+    background-color: var(--secondary);
     border-radius: 4px;
     padding-left: 10px;
     button {
@@ -115,7 +115,7 @@ const vFocus = {
       padding: 0;
       background-color: transparent;
       &:hover {
-        background-color: var(--btn-secondary-hover);
+        background-color: var(--secondary-hover);
       }
     }
   }
