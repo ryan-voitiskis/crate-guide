@@ -1,7 +1,6 @@
 import { TrackPlus } from "@/interfaces/Track"
 import { defineStore } from "pinia"
 import { trackStore } from "@/stores/trackStore"
-import { reactive, watch, onBeforeUnmount } from "vue"
 
 interface Deck {
   loadedTrack: TrackPlus | null
@@ -9,7 +8,8 @@ interface Deck {
   rpm: number
   pitch: number // range of -100 (-8% of rpm) to 100 (+8% of rpm)
   tappedBpm: number | null
-  adjustedLoadedBpm: number | null
+  adjustedBpm: number | null
+  adjustedKey: number | null
 }
 
 export const sessionStore = defineStore("session", {
@@ -19,9 +19,10 @@ export const sessionStore = defineStore("session", {
         loadedTrack: null,
         playing: false,
         rpm: 33,
-        pitch: 10,
+        pitch: 0,
         tappedBpm: null,
-        adjustedLoadedBpm: null,
+        adjustedBpm: null,
+        adjustedKey: null,
       },
       {
         loadedTrack: null,
@@ -29,7 +30,8 @@ export const sessionStore = defineStore("session", {
         rpm: 33,
         pitch: 0,
         tappedBpm: null,
-        adjustedLoadedBpm: null,
+        adjustedBpm: null,
+        adjustedKey: null,
       },
     ] as Deck[],
     loadTrackTo: -1, // deck number to load track to

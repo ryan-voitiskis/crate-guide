@@ -1,3 +1,5 @@
+import { KeyAndMode, HarmonyScore } from "@/utils/pitchClassFunctions"
+
 interface Track {
   _id: string
   spotifyID?: string
@@ -39,6 +41,13 @@ interface TrackPlus extends Track {
   bpmFinal?: number
   artistsFinal: string
   durationFinal?: number
+  keyAndMode: KeyAndMode | null
+  keyString: string
+  timeSignature: number[] | null
 }
 
-export { Track, TrackPlus }
+interface TrackScored extends TrackPlus {
+  score: HarmonyScore
+}
+
+export { Track, TrackPlus, TrackScored }

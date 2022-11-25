@@ -99,7 +99,7 @@ import {
   getTimeSignatureOptions,
   getTimeSignatureNumbers,
 } from "@/utils/timeSignatures"
-import { getKeyOptions } from "@/utils/pitchClassMap"
+import { getKeyOptions } from "@/utils/pitchClassFunctions"
 import SelectInput from "../inputs/SelectInput.vue"
 import GenreInput from "../inputs/GenreInput.vue"
 

@@ -88,7 +88,8 @@ import {
   getKeyStringShort,
   getCamelotString,
   getKeyColour,
-} from "@/utils/pitchClassMap"
+  adjustKey,
+} from "@/utils/pitchClassFunctions"
 import SuggestionList from "./SuggestionList.vue"
 const session = sessionStore()
 const tracks = trackStore()
@@ -139,7 +140,7 @@ const positionColour = computed(() =>
     : "hsl(0, 0%, 68%)"
 )
 
-// set adjustedLoadedBpm when sources change
+// set adjustedLoadedBpm when dependencies change
 watch(
   () =>
     session.decks[props.deckID].loadedTrack?.bpmFinal
@@ -149,7 +150,23 @@ watch(
           1) *
         session.decks[props.deckID].loadedTrack!.bpmFinal!
       : null,
-  (bpm: number | null) => (session.decks[props.deckID].adjustedLoadedBpm = bpm)
+  (bpm: number | null) => (session.decks[props.deckID].adjustedBpm = bpm)
+)
+
+// set adjustedKey when dependencies change
+watch(
+  () =>
+    session.decks[props.deckID].loadedTrack?.keyAndMode &&
+    session.decks[props.deckID].loadedTrack?.keyAndMode
+      ? adjustKey(
+          session.decks[props.deckID].loadedTrack!.keyAndMode!.key!,
+          session.decks[props.deckID].pitch *
+            0.0001 *
+            user.authd.settings.turntablePitchRange +
+            1
+        )
+      : null,
+  (bpm: number | null) => (session.decks[props.deckID].adjustedKey = bpm)
 )
 </script>
 

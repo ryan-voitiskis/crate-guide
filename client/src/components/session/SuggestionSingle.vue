@@ -2,9 +2,9 @@
   <div class="suggestion">
     <div class="cover"></div>
     <span class="position" v-if="track.position">{{ track.position }}</span>
-    <div class="time-signature" v-if="timeSignature">
-      <sup>{{ timeSignature[0] }}</sup>
-      <sub>{{ timeSignature[1] }}</sub>
+    <div class="time-signature" v-if="track.timeSignature">
+      <sup>{{ track.timeSignature[0] }}</sup>
+      <sub>{{ track.timeSignature[1] }}</sub>
     </div>
     <span class="bpm" v-if="track.bpmFinal">
       {{ Math.round(track.bpmFinal).toString() }}
@@ -35,13 +35,17 @@
     >
     <span
       class="key"
-      v-if="keyString"
+      v-if="track.keyString"
       :class="{ long: user.authd.settings.keyFormat === 'key' }"
     >
-      {{ keyString }}
+      {{ track.keyString }}
     </span>
-    <span class="title">{{ props.track.title }}</span>
-    <span class="artists">{{ track.artistsFinal }}</span>
+    <!-- <span class="title">{{ props.track.title }}</span> -->
+    <span class="title">{{ props.track.score.closeness }}</span>
+    <!-- <span class="artists">{{ track.artistsFinal }}</span> -->
+    <span class="artists">{{
+      keyCombinations[props.track.score.combination]
+    }}</span>
     <span class="genre" v-if="track.genre">{{ track.genre }}</span>
     <span class="catno">{{ track.catno }}</span>
     <span class="year">{{ track.year }}</span>
@@ -55,10 +59,11 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, computed } from "vue"
+import { defineProps } from "vue"
 import { getDurationString } from "@/utils/durationFunctions"
+import { getKeyColour } from "@/utils/pitchClassFunctions"
 import { sessionStore } from "@/stores/sessionStore"
-import { TrackPlus } from "@/interfaces/Track"
+import { TrackScored } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import BoltIcon from "../icons/BoltIcon.vue"
@@ -68,51 +73,23 @@ import getPercent from "@/utils/getPercent"
 import getPositionColour from "@/utils/positionColours"
 import PlayIcon from "../icons/PlayIcon.vue"
 import SmileIcon from "../icons/SmileIcon.vue"
-import {
-  getKeyStringShort,
-  getCamelotString,
-  getKeyColour,
-} from "@/utils/pitchClassMap"
+import { keyCombinations } from "@/utils/pitchClassFunctions"
 
 const session = sessionStore()
 const tracks = trackStore()
 const user = userStore()
 
 const props = defineProps<{
-  track: TrackPlus
+  track: TrackScored
   deckID: number
 }>()
 
 const loadTo = props.deckID === 1 ? 0 : 1
+
 const coverImg = `url("${props.track.cover}")`
 
-const timeSignature =
-  props.track.timeSignatureUpper && props.track.timeSignatureLower
-    ? [props.track.timeSignatureUpper, props.track.timeSignatureLower]
-    : props.track.audioFeatures
-    ? [props.track.audioFeatures.time_signature, 4]
-    : null
-
-const keyAndMode =
-  typeof props.track.key === "number" && typeof props.track.mode === "number"
-    ? { key: props.track.key, mode: props.track.mode }
-    : props.track.audioFeatures && props.track.audioFeatures.key !== -1
-    ? {
-        key: props.track.audioFeatures.key,
-        mode: props.track.audioFeatures.mode,
-      }
-    : null
-
-const keyString = computed(() =>
-  !keyAndMode
-    ? ""
-    : user.authd.settings.keyFormat === "key"
-    ? getKeyStringShort(keyAndMode.key, keyAndMode.mode)
-    : getCamelotString(keyAndMode.key, keyAndMode.mode)
-)
-
-const keyColour = keyAndMode
-  ? getKeyColour(keyAndMode.key, keyAndMode.mode)
+const keyColour = props.track.keyAndMode
+  ? getKeyColour(props.track.keyAndMode.key, props.track.keyAndMode.mode)
   : ""
 
 const bpmColour = props.track.bpm

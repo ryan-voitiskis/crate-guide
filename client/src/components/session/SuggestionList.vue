@@ -10,13 +10,14 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineProps, computed, Ref, ref } from "vue"
+import { reactive, defineProps, computed } from "vue"
 import { sessionStore } from "@/stores/sessionStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import SuggestionSingle from "@/components/session/SuggestionSingle.vue"
-import { TrackPlus } from "@/interfaces/Track"
-import unsign from "@/utils/unsign"
+import { TrackPlus, TrackScored } from "@/interfaces/Track"
+import { adjustKey, scoreHarmony } from "@/utils/pitchClassFunctions"
+import { sortNumWithNull2Deep } from "@/utils/sortFunctions"
 const session = sessionStore()
 const tracks = trackStore()
 const user = userStore()
@@ -27,11 +28,6 @@ const props = defineProps<{
 
 const state = reactive({})
 
-interface TrackPlusScored {
-  track: TrackPlus
-  score: number
-}
-
 const bpmRangeFilteredTracks = computed((): TrackPlus[] | null => {
   if (!session.decks[props.deckID].loadedTrack) return null
   if (!session.decks[props.deckID].loadedTrack?.bpmFinal)
@@ -40,8 +36,8 @@ const bpmRangeFilteredTracks = computed((): TrackPlus[] | null => {
     if (!i.bpmFinal) return false
     if (
       i.bpmFinal * (-0.01 * user.authd.settings.turntablePitchRange + 1) <
-        session.decks[props.deckID].adjustedLoadedBpm! &&
-      session.decks[props.deckID].adjustedLoadedBpm! <
+        session.decks[props.deckID].adjustedBpm! &&
+      session.decks[props.deckID].adjustedBpm! <
         i.bpmFinal * (0.01 * user.authd.settings.turntablePitchRange + 1)
     )
       return true
@@ -56,8 +52,47 @@ const sameRecordFilteredTracks = computed(
     ) || null
 )
 
-const suggestions = computed(
-  (): TrackPlus[] | null => sameRecordFilteredTracks.value
+const keyScoredTracks = computed((): TrackScored[] | null =>
+  sameRecordFilteredTracks.value
+    ? sameRecordFilteredTracks.value.map((i) => {
+        const keyAdjusted =
+          i.bpmFinal && i.keyAndMode && session.decks[props.deckID].adjustedBpm
+            ? adjustKey(
+                i.keyAndMode.key,
+                session.decks[props.deckID].adjustedBpm! / i.bpmFinal
+              )
+            : null
+        return typeof keyAdjusted === "number" &&
+          typeof session.decks[props.deckID].adjustedKey === "number" &&
+          i.keyAndMode
+          ? {
+              ...i,
+              score: scoreHarmony(
+                {
+                  key: session.decks[props.deckID].adjustedKey!,
+                  mode: session.decks[props.deckID].loadedTrack!.keyAndMode!
+                    .mode!,
+                },
+                { key: keyAdjusted, mode: i.keyAndMode.mode }
+              ),
+            }
+          : {
+              ...i,
+              score: {
+                closeness: 0,
+                combination: -1,
+              },
+            }
+      })
+    : null
+)
+
+const suggestions = computed((): TrackScored[] | null =>
+  keyScoredTracks.value
+    ? [...keyScoredTracks.value]
+        .sort(sortNumWithNull2Deep("score", "closeness", true))
+        .slice(0, 50)
+    : null
 )
 </script>
 

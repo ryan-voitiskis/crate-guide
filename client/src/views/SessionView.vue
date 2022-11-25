@@ -11,7 +11,7 @@
       width="1826px"
       :fullHeight="true"
     >
-      <SelectTrack />
+      <SelectTrackList />
     </ModalBox>
   </KeepAlive>
 </template>
@@ -20,7 +20,7 @@
 import { sessionStore } from "@/stores/sessionStore"
 import ModalBox from "@/components/utility/ModalBox.vue"
 import RecordDeck from "@/components/session/RecordDeck.vue"
-import SelectTrack from "@/components/session/SelectTrack.vue"
+import SelectTrackList from "@/components/session/SelectTrackList.vue"
 
 const session = sessionStore()
 </script>

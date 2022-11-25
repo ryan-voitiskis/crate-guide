@@ -1,7 +1,7 @@
 import Option from "@/interfaces/SelectOption"
 import { sortNum } from "@/utils/sortFunctions"
 
-interface key {
+interface Key {
   pitchClass: number
   tone: string
   camelotMajor: number
@@ -10,7 +10,25 @@ interface key {
   minorColour: string
 }
 
-const pitchClassMap: key[] = [
+interface KeyAndMode {
+  key: number
+  mode: number
+}
+
+interface HarmonyScore {
+  closeness: number
+  combination: number // the index of keyCombinations array
+}
+
+const keyCombinations = [
+  "Same key",
+  "Up a fifth",
+  "Down a fifth",
+  "Minor to Major",
+  "Major to Minor",
+]
+
+const pitchClassMap: Key[] = [
   {
     pitchClass: 0,
     tone: "C",
@@ -143,14 +161,14 @@ const getSortableNotation = (pitchClass: number, mode: number): number =>
   mode === 1 ? getCamelotMajor(pitchClass) : getCamelotMinor(pitchClass) + 100
 
 function keyOptionsMapFn(mode: number) {
-  return (i: key) => ({
+  return (i: Key) => ({
     id: `${mode.toString()}${i.pitchClass.toString()}`,
     name: `${i.tone} ${mode === 1 ? "Major" : "Minor"}`,
   })
 }
 
 function camelotOptionsMapFn(mode: number) {
-  return (i: key): Option => ({
+  return (i: Key): Option => ({
     id: `${mode.toString()}${i.pitchClass.toString()}`,
     name: mode === 1 ? `${i.camelotMajor}B` : `${i.camelotMinor}A`,
   })
@@ -170,8 +188,48 @@ const getKeyOptions = (keyFormat: "key" | "camelot"): Option[] => {
     .concat(keyOptionsMajor)
 }
 
+// % operator returns wrong results for negative nominator in JS, hence workaround fn
+// * https://stackoverflow.com/a/17323608/7259172
+const mod = (n: number, m: number): number => ((n % m) + m) % m
+
+// * https://music.stackexchange.com/a/118424/89457
+const adjustKey = (key: number, factor: number): number =>
+  mod(key + 12 * (Math.log(factor) / Math.log(2)), 12)
+
+// scoring some of the key combinations from:
+// * http://blog.dubspot.com/harmonic-mixing-w-dj-endo-part-1/
+function scoreHarmony(a: KeyAndMode, b: KeyAndMode): HarmonyScore {
+  if (a.mode === b.mode) {
+    if (Math.abs(a.key - b.key) < 0.5)
+      return { closeness: 1 - Math.abs(a.key - b.key), combination: 0 }
+    if (Math.abs(mod(a.key + 5, 12) - b.key) < 0.5)
+      return {
+        closeness: 1 - Math.abs(mod(a.key + 5, 12) - b.key),
+        combination: 2,
+      }
+    if (Math.abs(mod(a.key - 5, 12) - b.key) < 0.5)
+      return {
+        closeness: 1 - Math.abs(mod(a.key - 5, 12) - b.key),
+        combination: 1,
+      }
+  } else {
+    if (Math.abs(a.key - b.key) < 0.5)
+      return {
+        closeness: 1 - Math.abs(a.key - b.key),
+        combination: a.mode < b.mode ? 3 : 4,
+      }
+  }
+  return {
+    closeness: 0,
+    combination: -1,
+  }
+}
+
 export {
-  key,
+  Key,
+  KeyAndMode,
+  HarmonyScore,
+  keyCombinations,
   pitchClassMap,
   getKeyString,
   getKeyStringShort,
@@ -179,4 +237,6 @@ export {
   getKeyColour,
   getSortableNotation,
   getKeyOptions,
+  adjustKey,
+  scoreHarmony,
 }

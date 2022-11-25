@@ -2,7 +2,6 @@ import { Record } from "../models/recordModel.js"
 import { IUser } from "../models/userModel.js"
 import { spotifyRequest } from "./spotifyOAuthController.js"
 import levenshtein from "js-levenshtein"
-import unsign from "../utils/unsign.js"
 import {
   TrackQuery,
   AlbumQuery,
@@ -51,7 +50,7 @@ async function searchAlbum(
       }
       if (query.year) {
         const foundYear = new Date(item.release_date).getFullYear()
-        distance = distance + unsign(query.year - foundYear)
+        distance = distance + Math.abs(query.year - foundYear)
       }
       inexactAlbumMatches.push(editSpotifyAlbum(item, distance))
     }
@@ -114,7 +113,7 @@ async function getTrackOptions(
     }
     if (query.year) {
       const foundYear = new Date(track.album.release_date).getFullYear()
-      distance = distance + unsign(query.year - foundYear)
+      distance = distance + Math.abs(query.year - foundYear)
     }
     const image640 = track.album.images.find((i) => i.height === 640)
     optionsFull.push({

@@ -2,9 +2,9 @@
   <div class="track-option">
     <div class="cover"></div>
     <span class="position" v-if="track.position">{{ track.position }}</span>
-    <div class="time-signature" v-if="timeSignature">
-      <sup>{{ timeSignature[0] }}</sup>
-      <sub>{{ timeSignature[1] }}</sub>
+    <div class="time-signature" v-if="track.timeSignature">
+      <sup>{{ track.timeSignature[0] }}</sup>
+      <sub>{{ track.timeSignature[1] }}</sub>
     </div>
     <span class="bpm" v-if="track.bpmFinal">
       {{ Math.round(track.bpmFinal).toString() }}
@@ -35,10 +35,10 @@
     >
     <span
       class="key"
-      v-if="keyString"
+      v-if="track.keyString"
       :class="{ long: user.authd.settings.keyFormat === 'key' }"
     >
-      {{ keyString }}
+      {{ track.keyString }}
     </span>
     <span class="title">{{ props.track.title }}</span>
     <span class="artists">{{ track.artistsFinal }}</span>
@@ -54,22 +54,18 @@
 
 <script setup lang="ts">
 import { defineProps, computed } from "vue"
+import { getDurationString } from "@/utils/durationFunctions"
+import { getKeyColour } from "@/utils/pitchClassFunctions"
 import { TrackPlus } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
+import BoltIcon from "../icons/BoltIcon.vue"
+import DanceIcon from "../icons/DanceIcon.vue"
 import getBPMColour from "@/utils/getBPMColour"
+import getPercent from "@/utils/getPercent"
 import getPositionColour from "@/utils/positionColours"
 import PencilIcon from "../icons/PencilIcon.vue"
-import { getDurationString } from "@/utils/durationFunctions"
-import {
-  getKeyStringShort,
-  getCamelotString,
-  getKeyColour,
-} from "@/utils/pitchClassMap"
-import DanceIcon from "../icons/DanceIcon.vue"
-import BoltIcon from "../icons/BoltIcon.vue"
 import SmileIcon from "../icons/SmileIcon.vue"
-import getPercent from "@/utils/getPercent"
 
 const tracks = trackStore()
 const user = userStore()
@@ -80,36 +76,9 @@ const props = defineProps<{
 
 const coverImg = `url("${props.track.cover}")`
 
-const timeSignature = computed(() =>
-  props.track.timeSignatureUpper && props.track.timeSignatureLower
-    ? [props.track.timeSignatureUpper, props.track.timeSignatureLower]
-    : props.track.audioFeatures
-    ? [props.track.audioFeatures.time_signature, 4]
-    : null
-)
-
-const keyAndMode = computed(() =>
-  typeof props.track.key === "number" && typeof props.track.mode === "number"
-    ? { key: props.track.key, mode: props.track.mode }
-    : props.track.audioFeatures && props.track.audioFeatures.key !== -1
-    ? {
-        key: props.track.audioFeatures.key,
-        mode: props.track.audioFeatures.mode,
-      }
-    : null
-)
-
-const keyString = computed(() =>
-  !keyAndMode.value
-    ? ""
-    : user.authd.settings.keyFormat === "key"
-    ? getKeyStringShort(keyAndMode.value.key, keyAndMode.value.mode)
-    : getCamelotString(keyAndMode.value.key, keyAndMode.value.mode)
-)
-
 const keyColour = computed(() =>
-  keyAndMode.value
-    ? getKeyColour(keyAndMode.value.key, keyAndMode.value.mode)
+  props.track.keyAndMode
+    ? getKeyColour(props.track.keyAndMode.key, props.track.keyAndMode.mode)
     : ""
 )
 

@@ -6,6 +6,10 @@ import Record from "@/interfaces/Record"
 import { Track, TrackPlus } from "@/interfaces/Track"
 import trackService from "@/services/trackService"
 import UnsavedTrack from "@/interfaces/UnsavedTrack"
+import {
+  getKeyStringShort,
+  getCamelotString,
+} from "@/utils/pitchClassFunctions"
 
 export const trackStore = defineStore("track", {
   state: () => ({
@@ -118,26 +122,47 @@ export const trackStore = defineStore("track", {
     },
 
     generateTrackLists(): void {
+      const user = userStore()
       this.trackList = recordStore().recordList.flatMap((i) =>
-        [...i.tracks].map((j) => ({
-          ...j,
-          recordID: i._id,
-          cover: i.cover,
-          label: i.label,
-          year: i.year,
-          catno: i.catno,
-          bpmFinal: j.bpm
-            ? j.bpm
-            : j.audioFeatures?.tempo
-            ? Math.round(j.audioFeatures.tempo)
-            : undefined,
-          artistsFinal: j.artists ? j.artists : i.artists ? i.artists : "",
-          durationFinal: j.duration
-            ? j.duration
-            : j.audioFeatures
-            ? j.audioFeatures.duration_ms
-            : undefined,
-        }))
+        [...i.tracks].map((j) => {
+          const keyAndMode =
+            typeof j.key === "number" && typeof j.mode === "number"
+              ? { key: j.key, mode: j.mode }
+              : j.audioFeatures && j.audioFeatures.key !== -1
+              ? { key: j.audioFeatures.key, mode: j.audioFeatures.mode }
+              : null
+          return {
+            ...j,
+            recordID: i._id,
+            cover: i.cover,
+            label: i.label,
+            year: i.year,
+            catno: i.catno,
+            bpmFinal: j.bpm
+              ? j.bpm
+              : j.audioFeatures?.tempo
+              ? Math.round(j.audioFeatures.tempo)
+              : undefined,
+            artistsFinal: j.artists ? j.artists : i.artists ? i.artists : "",
+            durationFinal: j.duration
+              ? j.duration
+              : j.audioFeatures
+              ? j.audioFeatures.duration_ms
+              : undefined,
+            keyAndMode: keyAndMode,
+            keyString: !keyAndMode
+              ? ""
+              : user.authd.settings.keyFormat === "key"
+              ? getKeyStringShort(keyAndMode.key, keyAndMode.mode)
+              : getCamelotString(keyAndMode.key, keyAndMode.mode),
+            timeSignature:
+              j.timeSignatureUpper && j.timeSignatureLower
+                ? [j.timeSignatureUpper, j.timeSignatureLower]
+                : j.audioFeatures
+                ? [j.audioFeatures.time_signature, 4]
+                : null,
+          }
+        })
       )
       this.generateCrateTrackList()
     },

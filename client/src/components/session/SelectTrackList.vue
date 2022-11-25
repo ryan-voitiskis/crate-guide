@@ -149,7 +149,7 @@
   </div>
   <div class="modal-body">
     <div class="track-list">
-      <SelectTrackOption
+      <SelectTrackSingle
         v-for="track in sortedTracks"
         :track="track"
         :key="track._id"
@@ -164,7 +164,7 @@ import { TrackPlus } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
 import CrateSelect from "../inputs/CrateSelect.vue"
 import localeContains from "@/utils/localeContains"
-import SelectTrackOption from "@/components/session/SelectTrackOption.vue"
+import SelectTrackSingle from "@/components/session/SelectTrackSingle.vue"
 import SortByButton from "@/components/utility/SortByButton.vue"
 import XIcon from "@/components/icons/XIcon.vue"
 import FilterOffIcon from "@/components/icons/FilterOffIcon.vue"

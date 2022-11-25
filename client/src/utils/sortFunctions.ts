@@ -1,5 +1,5 @@
 import { Track } from "@/interfaces/Track"
-import { getSortableNotation } from "@/utils/pitchClassMap"
+import { getSortableNotation } from "@/utils/pitchClassFunctions"
 
 // * https://stackoverflow.com/questions/74356048/typescript-declare-type-of-a-keyof-a-generic-object-param
 type KeysOfType<O, T> = {
@@ -47,6 +47,29 @@ const sortNumWithUndefined = (
       : a[field] !== undefined && b[field] === undefined
       ? -1 // a is defined, b is null: sort a before b
       : a[field] === undefined && b[field] !== undefined
+      ? 1 // a is null, b is defined: sort b before a
+      : 0 // both a + b null: keep original order
+}
+
+// custom number sort function. sorts null last, reverse optional
+const sortNumWithNull2Deep = (
+  field: KeysOfType<any, number>,
+  field2: KeysOfType<any, number>,
+  reverse = false
+) => {
+  return (a: any, b: any) =>
+    a[field] === null && b[field] === null
+      ? 0
+      : a[field] !== null && b[field] === null
+      ? -1
+      : a[field] === null && b[field] !== null
+      ? 1
+      : a[field][field2] !== null && b[field][field2] !== null
+      ? (reverse ? -1 : 1) *
+        ((a[field][field2] as number) - (b[field][field2] as number)) // both a + b defined: sort lowest before highest, unless reversed
+      : a[field][field2] !== null && b[field][field2] === null
+      ? -1 // a is defined, b is null: sort a before b
+      : a[field][field2] === null && b[field][field2] !== null
       ? 1 // a is null, b is defined: sort b before a
       : 0 // both a + b null: keep original order
 }
@@ -120,6 +143,7 @@ export {
   sortStr,
   sortNumWithNull,
   sortNumWithUndefined,
+  sortNumWithNull2Deep,
   sortNumWithUndefined2Deep,
   sortKey,
 }
