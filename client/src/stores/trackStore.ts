@@ -9,6 +9,7 @@ import UnsavedTrack from "@/interfaces/UnsavedTrack"
 import {
   getKeyStringShort,
   getCamelotString,
+  getKeyColour,
 } from "@/utils/pitchClassFunctions"
 
 export const trackStore = defineStore("track", {
@@ -122,10 +123,9 @@ export const trackStore = defineStore("track", {
     },
 
     generateTrackLists(): void {
-      const user = userStore()
       this.trackList = recordStore().recordList.flatMap((i) =>
         [...i.tracks].map((j) => {
-          const keyAndMode =
+          const keyMode =
             typeof j.key === "number" && typeof j.mode === "number"
               ? { key: j.key, mode: j.mode }
               : j.audioFeatures && j.audioFeatures.key !== -1
@@ -149,12 +149,15 @@ export const trackStore = defineStore("track", {
               : j.audioFeatures
               ? j.audioFeatures.duration_ms
               : undefined,
-            keyAndMode: keyAndMode,
-            keyString: !keyAndMode
-              ? ""
-              : user.authd.settings.keyFormat === "key"
-              ? getKeyStringShort(keyAndMode.key, keyAndMode.mode)
-              : getCamelotString(keyAndMode.key, keyAndMode.mode),
+            keyFinal: keyMode
+              ? {
+                  key: keyMode.key,
+                  mode: keyMode.mode,
+                  keyString: getKeyStringShort(keyMode.key, keyMode.mode),
+                  camelotString: getCamelotString(keyMode.key, keyMode.mode),
+                  colour: getKeyColour(keyMode.key, keyMode.mode),
+                }
+              : null,
             timeSignature:
               j.timeSignatureUpper && j.timeSignatureLower
                 ? [j.timeSignatureUpper, j.timeSignatureLower]

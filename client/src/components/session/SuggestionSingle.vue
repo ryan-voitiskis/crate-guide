@@ -35,10 +35,14 @@
     >
     <span
       class="key"
-      v-if="track.keyString"
+      v-if="track.keyFinal"
       :class="{ long: user.authd.settings.keyFormat === 'key' }"
     >
-      {{ track.keyString }}
+      {{
+        user.authd.settings.keyFormat === "key"
+          ? track.keyFinal.keyString
+          : track.keyFinal.camelotString
+      }}
     </span>
     <!-- <span class="title">{{ props.track.title }}</span> -->
     <span class="title">{{ props.track.score.closeness }}</span>
@@ -61,7 +65,6 @@
 <script setup lang="ts">
 import { defineProps } from "vue"
 import { getDurationString } from "@/utils/durationFunctions"
-import { getKeyColour } from "@/utils/pitchClassFunctions"
 import { sessionStore } from "@/stores/sessionStore"
 import { TrackScored } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
@@ -88,9 +91,7 @@ const loadTo = props.deckID === 1 ? 0 : 1
 
 const coverImg = `url("${props.track.cover}")`
 
-const keyColour = props.track.keyAndMode
-  ? getKeyColour(props.track.keyAndMode.key, props.track.keyAndMode.mode)
-  : ""
+const keyColour = props.track.keyFinal ? props.track.keyFinal.colour : null
 
 const bpmColour = props.track.bpm
   ? getBPMColour(props.track.bpm)

@@ -1,5 +1,6 @@
 import Option from "@/interfaces/SelectOption"
 import { sortNum } from "@/utils/sortFunctions"
+import { KeyFinal, HarmonyScore } from "@/interfaces/Track"
 
 interface Key {
   pitchClass: number
@@ -8,16 +9,6 @@ interface Key {
   camelotMinor: number
   majorColour: string
   minorColour: string
-}
-
-interface KeyAndMode {
-  key: number
-  mode: number
-}
-
-interface HarmonyScore {
-  closeness: number
-  combination: number // the index of keyCombinations array
 }
 
 const keyCombinations = [
@@ -198,7 +189,7 @@ const adjustKey = (key: number, factor: number): number =>
 
 // scoring some of the key combinations from:
 // * http://blog.dubspot.com/harmonic-mixing-w-dj-endo-part-1/
-function scoreHarmony(a: KeyAndMode, b: KeyAndMode): HarmonyScore {
+function scoreHarmony(a: KeyFinal, b: KeyFinal): HarmonyScore {
   if (a.mode === b.mode) {
     if (Math.abs(a.key - b.key) < 0.5)
       return { closeness: 1 - Math.abs(a.key - b.key), combination: 0 }
@@ -227,8 +218,6 @@ function scoreHarmony(a: KeyAndMode, b: KeyAndMode): HarmonyScore {
 
 export {
   Key,
-  KeyAndMode,
-  HarmonyScore,
   keyCombinations,
   pitchClassMap,
   getKeyString,

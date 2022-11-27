@@ -69,6 +69,7 @@ onDeactivated(() => {
   z-index: 99;
   .modal {
     background: var(--page-bg);
+    transition: background-color 0.5s, color 0.5s;
     border-radius: 10px;
     z-index: 100;
     display: flex;

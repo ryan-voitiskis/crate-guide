@@ -35,10 +35,14 @@
     >
     <span
       class="key"
-      v-if="track.keyString"
+      v-if="track.keyFinal"
       :class="{ long: user.authd.settings.keyFormat === 'key' }"
     >
-      {{ track.keyString }}
+      {{
+        user.authd.settings.keyFormat === "key"
+          ? track.keyFinal.keyString
+          : track.keyFinal.camelotString
+      }}
     </span>
     <span class="title">{{ props.track.title }}</span>
     <span class="artists">{{ track.artistsFinal }}</span>
@@ -55,7 +59,6 @@
 <script setup lang="ts">
 import { defineProps, computed } from "vue"
 import { getDurationString } from "@/utils/durationFunctions"
-import { getKeyColour } from "@/utils/pitchClassFunctions"
 import { TrackPlus } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
@@ -77,9 +80,7 @@ const props = defineProps<{
 const coverImg = `url("${props.track.cover}")`
 
 const keyColour = computed(() =>
-  props.track.keyAndMode
-    ? getKeyColour(props.track.keyAndMode.key, props.track.keyAndMode.mode)
-    : ""
+  props.track.keyFinal ? props.track.keyFinal.colour : null
 )
 
 const bpmColour = computed(() =>

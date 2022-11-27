@@ -1,4 +1,15 @@
-import { KeyAndMode, HarmonyScore } from "@/utils/pitchClassFunctions"
+interface KeyFinal {
+  key: number
+  mode: number
+  keyString: string
+  camelotString: string
+  colour: string
+}
+
+interface HarmonyScore {
+  closeness: number
+  combination: number // the index of keyCombinations array
+}
 
 interface Track {
   _id: string
@@ -41,8 +52,7 @@ interface TrackPlus extends Track {
   bpmFinal?: number
   artistsFinal: string
   durationFinal?: number
-  keyAndMode: KeyAndMode | null
-  keyString: string
+  keyFinal: KeyFinal | null
   timeSignature: number[] | null
 }
 
@@ -50,4 +60,4 @@ interface TrackScored extends TrackPlus {
   score: HarmonyScore
 }
 
-export { Track, TrackPlus, TrackScored }
+export { KeyFinal, HarmonyScore, Track, TrackPlus, TrackScored }
