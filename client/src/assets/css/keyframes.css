@@ -108,27 +108,31 @@
   }
 }
 
+@keyframes drop-down-78 {
+  0% {
+    opacity: 0;
+    max-height: 0px;
+  }
+  100% {
+    opacity: 1;
+    max-height: 60px;
+  }
+}
+
+
+@keyframes drop-up-78 {
+  0% {
+    opacity: 1;
+    max-height: 60px;
+  }
+  100% {
+    opacity: 0;
+    max-height: 0px;
+  }
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
-/* todo: delete later if unused */
-/* 
-@keyframes drop-out-500 {
-  0% {
-    max-width: 0px;
-  }
-  100% {
-    max-width: 500px;
-  }
-}
-
-@keyframes drop-in-500 {
-  0% {
-    max-width: 500px;
-  }
-  100% {
-    max-width: 0px;
-  }
-} */

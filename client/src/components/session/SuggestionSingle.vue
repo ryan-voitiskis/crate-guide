@@ -76,7 +76,7 @@ import getPercent from "@/utils/getPercent"
 import getPositionColour from "@/utils/positionColours"
 import PlayIcon from "../icons/PlayIcon.vue"
 import SmileIcon from "../icons/SmileIcon.vue"
-import { keyCombinations } from "@/utils/pitchClassFunctions"
+import { keyCombinations } from "@/utils/keyFunctions"
 
 const session = sessionStore()
 const tracks = trackStore()

@@ -135,7 +135,7 @@ import {
   getCamelotString,
   getKeyColour,
   getKeyOptions,
-} from "@/utils/pitchClassFunctions"
+} from "@/utils/keyFunctions"
 import GenreInput from "../inputs/GenreInput.vue"
 
 const records = recordStore()

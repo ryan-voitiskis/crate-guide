@@ -1,5 +1,5 @@
 import { Track } from "@/interfaces/Track"
-import { getSortableNotation } from "@/utils/pitchClassFunctions"
+import { getSortableNotation } from "@/utils/keyFunctions"
 
 // * https://stackoverflow.com/questions/74356048/typescript-declare-type-of-a-keyof-a-generic-object-param
 type KeysOfType<O, T> = {

@@ -35,6 +35,7 @@ export const sessionStore = defineStore("session", {
       },
     ] as Deck[],
     loadTrackTo: -1, // deck number to load track to
+    collapseHeader: false,
   }),
   actions: {
     loadTrack(_id: string, to: number) {

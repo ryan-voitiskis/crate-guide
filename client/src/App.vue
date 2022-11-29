@@ -1,46 +1,48 @@
 <template>
   <div class="container">
-    <header>
-      <nav
-        v-if="$router.currentRoute.value.name !== 'about'"
-        class="radio-toggle"
-      >
-        <router-link class="btn" to="/">Session</router-link>
-        <router-link class="btn" to="/collection">Collection</router-link>
-      </nav>
-      <nav class="account">
-        <span class="welcome" v-if="user.hasUser()"
-          >Welcome
-          {{ user.authd.name != "" ? user.authd.name : user.authd.email }}</span
-        >
-        <router-link
+    <transition name="drop">
+      <header v-show="!session.collapseHeader">
+        <nav
           v-if="$router.currentRoute.value.name !== 'about'"
-          class="btn about"
-          to="/about"
-          >About</router-link
+          class="radio-toggle"
         >
-        <button
-          type="button"
-          v-if="!user.hasUser()"
-          @click="user.signUpModal = true"
-        >
-          Create account
-        </button>
-        <button
-          type="button"
-          v-if="!user.hasUser()"
-          @click="user.loginModal = true"
-        >
-          Log in
-        </button>
-        <button type="button" v-if="user.hasUser()" @click="user.$reset()">
-          Log out
-        </button>
-        <button type="button" @click="user.settingsModal = true">
-          <CogIcon />
-        </button>
-      </nav>
-    </header>
+          <router-link class="btn" to="/">Session</router-link>
+          <router-link class="btn" to="/collection">Collection</router-link>
+        </nav>
+        <nav class="account">
+          <span class="welcome" v-if="user.hasUser()">
+            Welcome
+            {{ user.authd.name != "" ? user.authd.name : user.authd.email }}
+          </span>
+          <router-link
+            v-if="$router.currentRoute.value.name !== 'about'"
+            class="btn about"
+            to="/about"
+            >About</router-link
+          >
+          <button
+            type="button"
+            v-if="!user.hasUser()"
+            @click="user.signUpModal = true"
+          >
+            Create account
+          </button>
+          <button
+            type="button"
+            v-if="!user.hasUser()"
+            @click="user.loginModal = true"
+          >
+            Log in
+          </button>
+          <button type="button" v-if="user.hasUser()" @click="user.$reset()">
+            Log out
+          </button>
+          <button type="button" @click="user.settingsModal = true">
+            <CogIcon />
+          </button>
+        </nav>
+      </header>
+    </transition>
     <router-view />
   </div>
 
@@ -147,6 +149,7 @@
 import { reactive, watch } from "vue"
 import { useRoute } from "vue-router"
 import { discogsStore } from "@/stores/discogsStore"
+import { sessionStore } from "@/stores/sessionStore"
 import { spotifyStore } from "@/stores/spotifyStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
@@ -164,10 +167,11 @@ import SignUpForm from "@/components/forms/SignUpForm.vue"
 import StageDiscogsImport from "@/components/discogs/StageDiscogsImport.vue"
 import UpdateFeedback from "@/components/feedbacks/UpdateFeedback.vue"
 import ConfirmRevokeSpotify from "./components/spotify/ConfirmRevokeSpotify.vue"
-import AudioFeatures from "@/components/collection/AudioFeatures.vue"
+import AudioFeatures from "@/components/utility/AudioFeatures.vue"
 
-const route = useRoute()
 const discogs = discogsStore()
+const route = useRoute()
+const session = sessionStore()
 const spotify = spotifyStore()
 const tracks = trackStore()
 const user = userStore()
@@ -186,6 +190,12 @@ watch(
 </script>
 
 <style scoped lang="scss">
+header {
+  transition: height 0.4s;
+}
+header.collapsed {
+  height: 0;
+}
 .container {
   max-width: 1846px;
   position: relative;
@@ -196,5 +206,13 @@ watch(
 
 .about:hover {
   background: transparent;
+}
+
+.drop-enter-active {
+  animation: drop-down-78 0.4s linear;
+}
+
+.drop-leave-active {
+  animation: drop-up-78 0.4s linear;
 }
 </style>

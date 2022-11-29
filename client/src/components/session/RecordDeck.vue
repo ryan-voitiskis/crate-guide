@@ -89,7 +89,7 @@ import {
   getCamelotString,
   getKeyColour,
   adjustKey,
-} from "@/utils/pitchClassFunctions"
+} from "@/utils/keyFunctions"
 import SuggestionList from "./SuggestionList.vue"
 const session = sessionStore()
 const tracks = trackStore()
@@ -156,10 +156,10 @@ watch(
 // set adjustedKey when dependencies change
 watch(
   () =>
-    session.decks[props.deckID].loadedTrack?.keyAndMode &&
-    session.decks[props.deckID].loadedTrack?.keyAndMode
+    session.decks[props.deckID].loadedTrack?.keyFinal &&
+    session.decks[props.deckID].loadedTrack?.keyFinal
       ? adjustKey(
-          session.decks[props.deckID].loadedTrack!.keyAndMode!.key!,
+          session.decks[props.deckID].loadedTrack!.keyFinal!.key!,
           session.decks[props.deckID].pitch *
             0.0001 *
             user.authd.settings.turntablePitchRange +

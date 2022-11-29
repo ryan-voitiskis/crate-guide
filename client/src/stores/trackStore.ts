@@ -10,7 +10,7 @@ import {
   getKeyStringShort,
   getCamelotString,
   getKeyColour,
-} from "@/utils/pitchClassFunctions"
+} from "@/utils/keyFunctions"
 
 export const trackStore = defineStore("track", {
   state: () => ({

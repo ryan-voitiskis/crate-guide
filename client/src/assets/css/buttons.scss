@@ -29,6 +29,7 @@ input[type="button"] {
   }
   &:disabled {
     cursor: not-allowed;
+    background-color: var(--disabled);
   }
   &.primary {
     padding: 0 40px;

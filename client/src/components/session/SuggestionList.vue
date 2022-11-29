@@ -16,7 +16,7 @@ import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import SuggestionSingle from "@/components/session/SuggestionSingle.vue"
 import { TrackPlus, TrackScored } from "@/interfaces/Track"
-import { adjustKey, scoreHarmony } from "@/utils/pitchClassFunctions"
+import { adjustKey, scoreHarmony } from "@/utils/keyFunctions"
 import { sortNumWithNull2Deep } from "@/utils/sortFunctions"
 const session = sessionStore()
 const tracks = trackStore()
@@ -53,27 +53,28 @@ const sameRecordFilteredTracks = computed(
 )
 
 const keyScoredTracks = computed((): TrackScored[] | null =>
-  sameRecordFilteredTracks.value
+  sameRecordFilteredTracks.value &&
+  session.decks[props.deckID].loadedTrack?.keyFinal
     ? sameRecordFilteredTracks.value.map((i) => {
         const keyAdjusted =
-          i.bpmFinal && i.keyAndMode && session.decks[props.deckID].adjustedBpm
+          i.bpmFinal && i.keyFinal && session.decks[props.deckID].adjustedBpm
             ? adjustKey(
-                i.keyAndMode.key,
+                i.keyFinal.key,
                 session.decks[props.deckID].adjustedBpm! / i.bpmFinal
               )
             : null
         return typeof keyAdjusted === "number" &&
           typeof session.decks[props.deckID].adjustedKey === "number" &&
-          i.keyAndMode
+          i.keyFinal
           ? {
               ...i,
               score: scoreHarmony(
                 {
                   key: session.decks[props.deckID].adjustedKey!,
-                  mode: session.decks[props.deckID].loadedTrack!.keyAndMode!
+                  mode: session.decks[props.deckID].loadedTrack!.keyFinal!
                     .mode!,
                 },
-                { key: keyAdjusted, mode: i.keyAndMode.mode }
+                { key: keyAdjusted, mode: i.keyFinal.mode }
               ),
             }
           : {
