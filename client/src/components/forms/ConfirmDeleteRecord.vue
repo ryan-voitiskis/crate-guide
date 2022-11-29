@@ -43,7 +43,6 @@ const submit = async () => {
 
 onBeforeUnmount(() => {
   records.toDelete = []
-  records.checkboxed = []
   records.errorMsg = ""
 })
 </script>

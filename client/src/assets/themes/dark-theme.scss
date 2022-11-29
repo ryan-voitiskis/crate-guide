@@ -20,6 +20,7 @@
   --label-text: hsl(207, 13%, 77%);
   --input-text: white;
   --welcome-text: hsl(47, 23%, 61%);
+  --highlight: rgb(87, 86, 78);
 
   /* feedback */
   --success: hsl(152, 100%, 38%);
@@ -59,7 +60,7 @@
     rgba(245, 177, 97, 1) 0.4%,
     rgba(236, 54, 110, 1) 100.2%
   );
-  --progress-bg: hsl(0, 0%, 88%);
+  --progress-bg: hsl(214, 13%, 24%);
 }
 
 :root.dark {

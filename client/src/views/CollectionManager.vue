@@ -180,7 +180,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, reactive } from "vue"
+import { reactive } from "vue"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
 import { spotifyStore } from "@/stores/spotifyStore"
@@ -230,11 +230,6 @@ const state = reactive({
   searchArtists: "",
   filterGenre: "",
   filterYear: "",
-})
-
-onBeforeUnmount(() => {
-  records.checkboxed = []
-  records.checkAll = false
 })
 </script>
 

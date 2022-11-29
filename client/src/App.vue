@@ -43,7 +43,11 @@
         </nav>
       </header>
     </transition>
-    <router-view />
+    <router-view v-slot="{ Component }">
+      <keep-alive>
+        <component :is="Component" :key="$route.fullPath"></component>
+      </keep-alive>
+    </router-view>
   </div>
 
   <ModalBox

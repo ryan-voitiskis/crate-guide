@@ -109,7 +109,7 @@ export const recordStore = defineStore("record", {
           if (response.status === 200) {
             const res = await response.json()
             if (res.deletedCount === this.toDelete.length) {
-              crates.removeFromCrates(this.toDelete)
+              crates.removeDeletedFromCrates(this.toDelete)
               this.recordList = this.recordList.filter(
                 (i) => !this.toDelete.includes(i._id)
               )

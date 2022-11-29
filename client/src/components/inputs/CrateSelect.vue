@@ -33,6 +33,7 @@ const cratesList = computed((): Option[] =>
     crates.crateList.map((i) => ({ id: i._id, name: i.name }))
   )
 )
+
 watch(
   () => user.authd.settings.selectedCrate, // when selectedCrate changes
   () => {

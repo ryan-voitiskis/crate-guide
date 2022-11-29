@@ -44,7 +44,7 @@ const appName = inject("appName")
 .url {
   text-align: center;
   span {
-    background-color: palegoldenrod;
+    background-color: var(--highlight);
   }
 }
 </style>

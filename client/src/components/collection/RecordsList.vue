@@ -210,6 +210,11 @@ watch(
   () => records.checkAll,
   () => {
     if (records.checkAll === false) records.checkboxed = []
+    else
+      records.checkboxed =
+        user.authd.settings.selectedCrate === "all"
+          ? records.recordList.map((i) => i._id)
+          : crates.getRecordIDsByCrate(user.authd.settings.selectedCrate)
   }
 )
 </script>

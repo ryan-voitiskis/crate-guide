@@ -214,6 +214,7 @@ const submit = async () => {
   if (genreState.genreInputIsEmpty) {
     spotify.errorMsg = ""
     tracks.errorMsg = ""
+    const notKeyEmptied = track.key?.toString() !== "" && form.key !== ""
     if (
       form.spotifyID === track.spotifyID &&
       form.position === track.position &&
@@ -227,6 +228,7 @@ const submit = async () => {
       form.timeSignature === initialTimeSignature &&
       form.key ===
         (track.mode && track.key ? `${track.mode}${track.key}` : "") &&
+      notKeyEmptied &&
       form.playable === track.playable
     )
       tracks.errorMsg = noChangeMsg

@@ -80,7 +80,6 @@ watch(
 
 onBeforeUnmount(() => {
   records.toCrate = []
-  records.checkboxed = []
   crates.errorMsg = ""
 })
 </script>

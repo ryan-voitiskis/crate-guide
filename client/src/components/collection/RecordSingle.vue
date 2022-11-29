@@ -2,7 +2,7 @@
   <div class="record">
     <div class="cover"></div>
     <label class="checkbox-hitbox">
-      <input type="checkbox" v-model="state.checked" />
+      <input type="checkbox" v-model="state.checked" @change="updateChecked" />
     </label>
     <h3 class="title">{{ title }}</h3>
     <div class="label">
@@ -105,16 +105,12 @@ const sortedTracks = computed((): Track[] =>
   )
 )
 
-// when checkbox changed, either add or remove record from checkboxed array
-watch(
-  () => state.checked,
-  () => {
-    if (state.checked && !records.checkboxed.includes(props._id))
-      records.checkboxed.push(props._id)
-    else if (!state.checked && records.checkboxed.includes(props._id))
-      records.checkboxed = records.checkboxed.filter((i) => i !== props._id)
-  }
-)
+const updateChecked = () => {
+  if (state.checked && !records.checkboxed.includes(props._id))
+    records.checkboxed.push(props._id)
+  else if (!state.checked && records.checkboxed.includes(props._id))
+    records.checkboxed = records.checkboxed.filter((i) => i !== props._id)
+}
 
 // when checkbox changed, either add or remove record from checkboxed array
 watch(

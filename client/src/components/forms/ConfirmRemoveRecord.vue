@@ -56,7 +56,6 @@ const submit = async () => {
 
 onBeforeUnmount(() => {
   records.fromCrate = []
-  records.checkboxed = []
   crates.errorMsg = ""
 })
 </script>

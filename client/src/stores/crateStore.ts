@@ -1,5 +1,6 @@
 import { defineStore } from "pinia"
 import { recordStore } from "@/stores/recordStore"
+import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import Crate from "@/interfaces/Crate"
 import crateService from "@/services/crateService"
@@ -107,6 +108,7 @@ export const crateStore = defineStore("crate", {
             if (response.status === 200) {
               crate.records.push(...difference)
               this.pushToCrateFeedback(intersection, difference)
+              trackStore().generateTrackLists()
               this.loading = false
               return response.status
             } else if (response.status === 400 || response.status === 401) {
@@ -153,8 +155,10 @@ export const crateStore = defineStore("crate", {
             clonedCrate,
             userStore().authd.token
           )
-          if (response.status === 200) crate.records = remainingRecords
-          else if (response.status === 400 || response.status === 401) {
+          if (response.status === 200) {
+            crate.records = remainingRecords
+            trackStore().generateTrackLists()
+          } else if (response.status === 400 || response.status === 401) {
             const error = await response.json()
             this.errorMsg = error.message ? error.message : "Unexpected error"
           }
@@ -189,7 +193,7 @@ export const crateStore = defineStore("crate", {
     },
 
     // this is done by deleteRecords() in recordController on the server
-    removeFromCrates(records: string[]) {
+    removeDeletedFromCrates(records: string[]) {
       this.crateList.forEach((crate) => {
         crate.records = crate.records.filter((i) => !records.includes(i))
       })
