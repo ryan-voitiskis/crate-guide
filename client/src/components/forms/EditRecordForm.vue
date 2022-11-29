@@ -1,7 +1,7 @@
 <template>
   <div class="modal-header">
     <h2>Edit record</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button class="close" type="button" @click="records.toEdit = ''">
       <XIcon />
     </button>
   </div>
@@ -54,7 +54,7 @@
       <ErrorFeedback :show="records.errorMsg !== ''" :msg="records.errorMsg" />
     </div>
     <div class="modal-footer">
-      <button class="close" type="button" @click="$parent!.$emit('close')">
+      <button class="close" type="button" @click="records.toEdit = ''">
         Close
       </button>
       <button class="primary" type="submit">

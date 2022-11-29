@@ -1,7 +1,11 @@
 <template>
   <div class="modal-header">
     <h2>Revoke discogs access</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="discogs.revokeDiscogsModal = false"
+    >
       <XIcon />
     </button>
   </div>
@@ -13,7 +17,11 @@
     <ErrorFeedback :show="discogs.errorMsg !== ''" :msg="discogs.errorMsg" />
   </div>
   <div class="modal-footer-plain">
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="discogs.revokeDiscogsModal = false"
+    >
       Cancel
     </button>
     <button

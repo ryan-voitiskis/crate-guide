@@ -1,7 +1,11 @@
 <template>
   <div class="modal-header">
     <h2>Duplicate crate</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="crates.duplicateCrateModal = false"
+    >
       <XIcon />
     </button>
   </div>
@@ -20,7 +24,11 @@
     </div>
     <div class="modal-footer">
       <button type="reset">Clear</button>
-      <button class="close" type="button" @click="$parent!.$emit('close')">
+      <button
+        class="close"
+        type="button"
+        @click="crates.duplicateCrateModal = false"
+      >
         Close
       </button>
       <button class="primary" type="submit">

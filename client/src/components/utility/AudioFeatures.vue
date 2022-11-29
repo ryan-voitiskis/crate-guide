@@ -3,7 +3,7 @@
     <h2>
       <img src="@/assets/images/Spotify_Logo_RGB_Green.png" />audio features
     </h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button class="close" type="button" @click="tracks.toShowFeatures = ''">
       <XIcon />
     </button>
   </div>

@@ -1,7 +1,11 @@
 <template>
   <div class="modal-header">
     <h2>Inexact record match selection</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="spotify.albumMatchesModal = false"
+    >
       <XIcon />
     </button>
   </div>
@@ -32,7 +36,11 @@
     <ErrorFeedback :show="spotify.errorMsg !== ''" :msg="spotify.errorMsg" />
   </div>
   <div class="modal-footer">
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="spotify.albumMatchesModal = false"
+    >
       Close
     </button>
     <button @click="submit()" class="primary" type="submit">

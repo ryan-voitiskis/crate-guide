@@ -1,0 +1,65 @@
+:root.contrast {
+  background-color: black;
+  --page-bg: black;
+
+  /* elements */
+  --hr: white;
+  --table-border: white;
+  --border-colour: white;
+  --modal-backdrop: rgba(255, 255, 255, 0.7);
+
+  /* text and icons */
+  --white-text: white;
+  --lighter-text: white;
+  --light-text: white;
+  --dark-text: white;
+  --darker-text: white;
+  --darkest-text: white;
+  --link-text: hsl(202, 100%, 68%);
+  --link-text-hover: hsl(202, 100%, 92%);
+  --abbr-title: hsla(0, 0%, 100%, 0.74);
+  --label-text: white;
+  --input-text: white;
+  --welcome-text: hsl(48, 100%, 87%);
+  --highlight: rgb(87, 86, 78);
+
+  /* feedback */
+  --success: hsl(152, 100%, 50%);
+  --saving: hsl(35, 100%, 50%);
+  --error: hsl(356, 100%, 50%);
+
+  /* navs */
+  --nav-active-bg: hsl(202, 100%, 36%);
+  --nav-inactive-bg: hsl(0, 0%, 0%);
+  --nav-inactive-text: white;
+  --nav-inactive-border: hsl(0, 0%, 67%);
+
+  /* forms */
+  --input-bg: hsl(0, 0%, 0%);
+  --input-border: hsl(0, 0%, 100%);
+  --input-border-focus: hsl(202, 50%, 50%);
+  --radio-card-label: hsl(0, 0%, 12%);
+
+  /* buttons */
+  --primary: hsl(202, 100%, 50%);
+  --primary-hover: hsl(202, 100%, 72%);
+  --secondary: hsl(0, 0%, 12%);
+  --secondary-hover: hsl(0, 0%, 27%);
+  --edit: hsl(35, 100%, 50%);
+  --edit-hover: hsl(35, 84%, 72%);
+  --delete: hsl(356, 100%, 50%);
+  --delete-hover: hsl(356, 100%, 72%);
+  --disabled: hsl(0, 0%, 80%);
+
+  /* records */
+  --record-bg: hsl(0, 0%, 8%);
+  --record-unstaged-bg: hsl(0, 0%, 36%);
+
+  /* progress bar */
+  --progress-fg: linear-gradient(
+    70deg,
+    rgba(245, 177, 97, 1) 0.4%,
+    rgba(236, 54, 110, 1) 100.2%
+  );
+  --progress-bg: hsl(0, 0%, 17%);
+}

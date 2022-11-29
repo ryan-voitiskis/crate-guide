@@ -4,7 +4,7 @@
       Edit track
       <span>(from {{ records.getRecordNameByTrackId(tracks.toEdit) }})</span>
     </h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button class="close" type="button" @click="tracks.toEdit = ''">
       <XIcon />
     </button>
   </div>
@@ -98,7 +98,7 @@
       <ErrorFeedback :show="tracks.errorMsg !== ''" :msg="tracks.errorMsg" />
     </div>
     <div class="modal-footer">
-      <button class="close" type="button" @click="$parent!.$emit('close')">
+      <button class="close" type="button" @click="tracks.toEdit = ''">
         Close
       </button>
       <button class="primary" type="submit">

@@ -1,7 +1,11 @@
 <template>
   <div class="modal-header">
     <h2>Inexact track match selection</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="spotify.trackMatchesModal = false"
+    >
       <XIcon />
     </button>
   </div>
@@ -23,7 +27,11 @@
     <ErrorFeedback :show="spotify.errorMsg !== ''" :msg="spotify.errorMsg" />
   </div>
   <div class="modal-footer">
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="spotify.trackMatchesModal = false"
+    >
       Close
     </button>
     <button

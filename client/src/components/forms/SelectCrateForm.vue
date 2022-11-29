@@ -1,7 +1,7 @@
 <template>
   <div class="modal-header">
     <h2>Select crate</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button class="close" type="button" @click="records.toCrate = []">
       <XIcon />
     </button>
   </div>
@@ -18,7 +18,7 @@
       <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
     </div>
     <div class="modal-footer">
-      <button class="close" type="button" @click="$parent!.$emit('close')">
+      <button class="close" type="button" @click="records.toCrate = []">
         Close
       </button>
       <button class="primary" type="submit">

@@ -1,7 +1,11 @@
 <template>
   <div class="modal-header">
     <h2>Delete crate</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="crates.deleteCrateModal = false"
+    >
       <XIcon />
     </button>
   </div>
@@ -26,7 +30,11 @@
       <ErrorFeedback :show="crates.errorMsg !== ''" :msg="crates.errorMsg" />
     </div>
     <div class="modal-footer">
-      <button class="close" type="button" @click="$parent!.$emit('close')">
+      <button
+        class="close"
+        type="button"
+        @click="crates.deleteCrateModal = false"
+      >
         Close
       </button>
       <button class="primary" type="submit">

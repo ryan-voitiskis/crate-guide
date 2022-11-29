@@ -1,7 +1,11 @@
 <template>
   <div class="modal-header">
     <h2>Select folder</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="discogs.selectDiscogsFolderModal = false"
+    >
       <XIcon />
     </button>
   </div>
@@ -21,7 +25,11 @@
       :msg="discogs.errorMsg"
     />
     <div class="modal-footer">
-      <button class="close" type="button" @click="$parent!.$emit('close')">
+      <button
+        class="close"
+        type="button"
+        @click="discogs.selectDiscogsFolderModal = false"
+      >
         Close
       </button>
       <button

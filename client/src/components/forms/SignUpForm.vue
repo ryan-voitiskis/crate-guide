@@ -1,7 +1,7 @@
 <template>
   <div class="modal-header">
     <h2>Sign up</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button class="close" type="button" @click="user.signUpModal = false">
       <XIcon />
     </button>
   </div>

@@ -1,7 +1,7 @@
 <template>
   <div class="modal-header">
     <h2>Add record</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button class="close" type="button" @click="records.addRecordModal = false">
       <XIcon />
     </button>
   </div>
@@ -55,7 +55,11 @@
     </div>
     <div class="modal-footer">
       <button type="reset">Clear</button>
-      <button class="close" type="button" @click="$parent!.$emit('close')">
+      <button
+        class="close"
+        type="button"
+        @click="records.addRecordModal = false"
+      >
         Close
       </button>
       <button class="primary" type="submit">

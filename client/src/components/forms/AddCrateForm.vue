@@ -24,7 +24,7 @@
     </div>
     <div class="modal-footer">
       <button type="reset">Clear</button>
-      <button class="close" type="button" @click="$parent!.$emit('close')">
+      <button class="close" type="button" @click="crates.addCrateModal = false">
         Close
       </button>
       <button class="primary" type="submit">

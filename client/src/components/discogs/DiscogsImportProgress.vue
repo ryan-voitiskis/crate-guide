@@ -1,7 +1,11 @@
 <template>
   <div class="modal-header">
     <h2>Importing your records!</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="discogs.importProgressModal = false"
+    >
       <XIcon />
     </button>
   </div>

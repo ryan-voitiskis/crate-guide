@@ -1,7 +1,7 @@
 <template>
   <div class="modal-header">
     <h2>Select a track to load</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button class="close" type="button" @click="session.loadTrackTo = -1">
       <XIcon />
     </button>
   </div>
@@ -161,6 +161,7 @@
 <script setup lang="ts">
 import { reactive, computed } from "vue"
 import { TrackPlus } from "@/interfaces/Track"
+import { sessionStore } from "@/stores/sessionStore"
 import { trackStore } from "@/stores/trackStore"
 import CrateSelect from "../inputs/CrateSelect.vue"
 import localeContains from "@/utils/localeContains"
@@ -181,7 +182,9 @@ import SmileIcon from "../icons/SmileIcon.vue"
 import BoltIcon from "../icons/BoltIcon.vue"
 import TimerIcon from "../icons/TimerIcon.vue"
 import DanceIcon from "../icons/DanceIcon.vue"
+const session = sessionStore()
 const tracks = trackStore()
+
 const yearsFilterRx = /^\d{4}\s*-\s*\d{4}$/
 const yearFilterRx = /^\d{4}$/
 

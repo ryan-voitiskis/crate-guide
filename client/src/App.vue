@@ -50,78 +50,43 @@
     </router-view>
   </div>
 
-  <ModalBox
-    v-if="user.loginModal"
-    @close="user.loginModal = false"
-    width="360px"
-  >
+  <ModalBox v-if="user.loginModal" width="360px">
     <LoginForm />
   </ModalBox>
 
-  <ModalBox
-    v-if="user.signUpModal"
-    @close="user.signUpModal = false"
-    width="360px"
-  >
+  <ModalBox v-if="user.signUpModal" width="360px">
     <SignUpForm />
   </ModalBox>
 
-  <ModalBox
-    v-if="user.recoveryModal"
-    @close="user.recoveryModal = false"
-    width="360px"
-  >
+  <ModalBox v-if="user.recoveryModal" width="360px">
     <RecoveryForm />
   </ModalBox>
 
-  <ModalBox
-    v-if="user.settingsModal"
-    @close="user.settingsModal = false"
-    width="540px"
-  >
+  <ModalBox v-if="user.settingsModal" width="540px">
     <SettingsForm />
   </ModalBox>
 
-  <ModalBox
-    v-if="discogs.authDiscogsModal"
-    @close="discogs.authDiscogsModal = false"
-  >
+  <ModalBox v-if="discogs.authDiscogsModal">
     <AuthoriseDiscogs />
   </ModalBox>
 
-  <ModalBox
-    v-if="discogs.revokeDiscogsModal"
-    @close="discogs.revokeDiscogsModal = false"
-  >
+  <ModalBox v-if="discogs.revokeDiscogsModal">
     <ConfirmRevokeDiscogs />
   </ModalBox>
 
-  <ModalBox
-    v-if="user.authd.justCompleteDiscogsOAuth"
-    @close="user.authd.justCompleteDiscogsOAuth = false"
-  >
+  <ModalBox v-if="user.authd.justCompleteDiscogsOAuth">
     <AuthoriseDiscogsSuccessful />
   </ModalBox>
 
-  <ModalBox
-    v-if="discogs.selectDiscogsFolderModal"
-    @close="discogs.selectDiscogsFolderModal = false"
-  >
+  <ModalBox v-if="discogs.selectDiscogsFolderModal">
     <SelectDiscogsFolder />
   </ModalBox>
 
-  <ModalBox
-    v-if="discogs.stageImportModal"
-    @close="discogs.stageImportModal = false"
-    width="680px"
-  >
+  <ModalBox v-if="discogs.stageImportModal" width="680px">
     <StageDiscogsImport />
   </ModalBox>
 
-  <ModalBox
-    v-if="discogs.importProgressModal"
-    @close="discogs.importProgressModal = false"
-  >
+  <ModalBox v-if="discogs.importProgressModal">
     <DiscogsImportProgress />
   </ModalBox>
 
@@ -133,18 +98,11 @@
     <UpdateFeedback :text="state.queryMsg" />
   </ModalBox>
 
-  <ModalBox
-    v-if="spotify.revokeSpotifyModal"
-    @close="spotify.revokeSpotifyModal = false"
-  >
+  <ModalBox v-if="spotify.revokeSpotifyModal">
     <ConfirmRevokeSpotify />
   </ModalBox>
 
-  <ModalBox
-    v-if="tracks.toShowFeatures"
-    @close="tracks.toShowFeatures = ''"
-    width="560px"
-  >
+  <ModalBox v-if="tracks.toShowFeatures" width="560px">
     <AudioFeatures />
   </ModalBox>
 </template>

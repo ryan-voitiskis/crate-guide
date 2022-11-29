@@ -10,7 +10,7 @@
   </div>
   <div class="discogs-controls-container" v-else>
     <button
-      @click=";(discogs.authDiscogsModal = true), $parent!.$emit('close')"
+      @click=";(user.settingsModal = false), (discogs.authDiscogsModal = true)"
     >
       Connect to Discogs
     </button>

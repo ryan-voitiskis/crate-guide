@@ -1,7 +1,11 @@
 <template>
   <div class="modal-header">
     <h2>Stage import of discogs folder</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="discogs.stageImportModal = false"
+    >
       <XIcon />
     </button>
   </div>
@@ -14,7 +18,11 @@
   </div>
   <LoaderCentered v-else class="modal-body" />
   <div class="modal-footer">
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="discogs.stageImportModal = false"
+    >
       Close
     </button>
     <button @click="discogs.importStaged()" class="primary" type="submit">

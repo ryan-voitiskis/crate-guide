@@ -1,7 +1,11 @@
 <template>
   <div class="modal-header">
     <h2>Importing Spotify data complete!</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="spotify.completionModal = false"
+    >
       <XIcon />
     </button>
   </div>
@@ -27,7 +31,11 @@
     </p>
   </div>
   <div class="modal-footer">
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="spotify.completionModal = false"
+    >
       Close
     </button>
   </div>
@@ -35,8 +43,9 @@
 
 <script setup lang="ts">
 import { inject } from "vue"
+import { spotifyStore } from "@/stores/spotifyStore"
 import XIcon from "@/components/icons/XIcon.vue"
-
+const spotify = spotifyStore()
 const appName = inject("appName")
 </script>
 

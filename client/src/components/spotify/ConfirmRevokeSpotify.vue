@@ -1,7 +1,11 @@
 <template>
   <div class="modal-header">
     <h2>Revoke spotify access</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="spotify.revokeSpotifyModal = false"
+    >
       <XIcon />
     </button>
   </div>
@@ -13,7 +17,11 @@
     <ErrorFeedback :show="spotify.errorMsg !== ''" :msg="spotify.errorMsg" />
   </div>
   <div class="modal-footer-plain">
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="spotify.revokeSpotifyModal = false"
+    >
       Cancel
     </button>
     <button

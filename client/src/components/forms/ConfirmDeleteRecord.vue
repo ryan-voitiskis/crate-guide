@@ -1,7 +1,7 @@
 <template>
   <div class="modal-header">
     <h2>Delete record</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button class="close" type="button" @click="records.toDelete = []">
       <XIcon />
     </button>
   </div>
@@ -12,7 +12,7 @@
     <ErrorFeedback :show="records.errorMsg !== ''" :msg="records.errorMsg" />
   </div>
   <div class="modal-footer-plain">
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button class="close" type="button" @click="records.toDelete = []">
       Cancel
     </button>
     <button @click="submit()" class="primary delete" type="submit">

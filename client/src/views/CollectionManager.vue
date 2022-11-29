@@ -76,64 +76,47 @@
     />
   </KeepAlive>
 
-  <ModalBox v-if="crates.addCrateModal" @close="crates.addCrateModal = false">
+  <ModalBox v-if="crates.addCrateModal">
     <AddCrateForm />
   </ModalBox>
 
-  <ModalBox
-    v-if="crates.deleteCrateModal"
-    @close="crates.deleteCrateModal = false"
-  >
+  <ModalBox v-if="crates.deleteCrateModal">
     <ConfirmDeleteCrate />
   </ModalBox>
 
-  <ModalBox
-    v-if="crates.duplicateCrateModal"
-    @close="crates.duplicateCrateModal = false"
-  >
+  <ModalBox v-if="crates.duplicateCrateModal">
     <DuplicateCrateForm />
   </ModalBox>
 
-  <ModalBox
-    v-if="records.addRecordModal"
-    @close="records.addRecordModal = false"
-  >
+  <ModalBox v-if="records.addRecordModal">
     <AddRecordForm />
   </ModalBox>
 
-  <ModalBox v-if="records.toEdit !== ''" @close="records.toEdit = ''">
+  <ModalBox v-if="records.toEdit !== ''">
     <EditRecordForm />
   </ModalBox>
 
-  <ModalBox v-if="records.toDelete.length" @close="records.toDelete = []">
+  <ModalBox v-if="records.toDelete.length">
     <DeleteRecordForm />
   </ModalBox>
 
-  <ModalBox v-if="records.toCrate.length" @close="records.toCrate = []">
+  <ModalBox v-if="records.toCrate.length">
     <SelectCrateForm />
   </ModalBox>
 
-  <ModalBox v-if="records.fromCrate.length" @close="records.fromCrate = []">
+  <ModalBox v-if="records.fromCrate.length">
     <RemoveRecordForm />
   </ModalBox>
 
-  <ModalBox
-    v-if="tracks.addTrackTo !== ''"
-    @close="tracks.addTrackTo = ''"
-    width="480px"
-  >
+  <ModalBox v-if="tracks.addTrackTo !== ''" width="480px">
     <AddTrackForm />
   </ModalBox>
 
-  <ModalBox
-    v-if="tracks.toEdit !== ''"
-    @close="tracks.toEdit = ''"
-    width="480px"
-  >
+  <ModalBox v-if="tracks.toEdit !== ''" width="480px">
     <EditTrackForm />
   </ModalBox>
 
-  <ModalBox v-if="tracks.toDelete !== ''" @close="tracks.toDelete = ''">
+  <ModalBox v-if="tracks.toDelete !== ''">
     <DeleteTrackForm />
   </ModalBox>
 
@@ -145,34 +128,19 @@
     <UpdateFeedback :text="crates.feedbackMsg" />
   </ModalBox>
 
-  <ModalBox
-    v-if="spotify.importProgressModal"
-    @close="spotify.importProgressModal = false"
-  >
+  <ModalBox v-if="spotify.importProgressModal">
     <SpotifyImportProgress />
   </ModalBox>
 
-  <ModalBox
-    v-if="spotify.albumMatchesModal"
-    @close="spotify.albumMatchesModal = false"
-    width="880px"
-  >
+  <ModalBox v-if="spotify.albumMatchesModal" width="880px">
     <AlbumMatchForm />
   </ModalBox>
 
-  <ModalBox
-    v-if="spotify.trackMatchesModal"
-    @close="spotify.trackMatchesModal = false"
-    width="880px"
-  >
+  <ModalBox v-if="spotify.trackMatchesModal" width="880px">
     <TrackMatchForm />
   </ModalBox>
 
-  <ModalBox
-    v-if="spotify.completionModal"
-    @close="spotify.completionModal = false"
-    width="680px"
-  >
+  <ModalBox v-if="spotify.completionModal" width="680px">
     <SpotifyCompletion />
   </ModalBox>
 

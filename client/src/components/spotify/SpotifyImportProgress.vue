@@ -1,7 +1,11 @@
 <template>
   <div class="modal-header">
     <h2>Importing audio feature from Spotify!</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="spotify.importProgressModal = false"
+    >
       <XIcon />
     </button>
   </div>

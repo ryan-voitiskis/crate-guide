@@ -3,7 +3,7 @@
     <h2>
       Add track <span>(to {{ records.getNameById(tracks.addTrackTo) }})</span>
     </h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button class="close" type="button" @click="tracks.addTrackTo = ''">
       <XIcon />
     </button>
   </div>
@@ -72,7 +72,7 @@
     </div>
     <div class="modal-footer">
       <button type="reset">Clear</button>
-      <button class="close" type="button" @click="$parent!.$emit('close')">
+      <button class="close" type="button" @click="tracks.addTrackTo = ''">
         Close
       </button>
       <button class="primary" type="submit">

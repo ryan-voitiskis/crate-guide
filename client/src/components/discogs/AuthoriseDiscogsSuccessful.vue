@@ -1,7 +1,11 @@
 <template>
   <div class="modal-header">
     <h2>Authorisation successful</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="user.authd.justCompleteDiscogsOAuth = false"
+    >
       <XIcon />
     </button>
   </div>
@@ -16,12 +20,17 @@
     </p>
   </div>
   <div class="modal-footer">
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button
+      class="close"
+      type="button"
+      @click="user.authd.justCompleteDiscogsOAuth = false"
+    >
       Close
     </button>
     <button
       @click="
-        ;(discogs.selectDiscogsFolderModal = true), $parent!.$emit('close')
+        ;(discogs.selectDiscogsFolderModal = true),
+          (user.authd.justCompleteDiscogsOAuth = false)
       "
       class="primary"
       type="submit"
@@ -35,7 +44,9 @@
 import { inject } from "vue"
 import XIcon from "@/components/icons/XIcon.vue"
 import { discogsStore } from "@/stores/discogsStore"
+import { userStore } from "@/stores/userStore"
 const discogs = discogsStore()
+const user = userStore()
 
 const appName = inject("appName")
 </script>

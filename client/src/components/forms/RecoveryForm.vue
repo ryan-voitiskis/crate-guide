@@ -1,7 +1,7 @@
 <template>
   <div class="modal-header">
     <h2>Forgot password?</h2>
-    <button class="close" type="button" @click="$parent!.$emit('close')">
+    <button class="close" type="button" @click="user.recoveryModal = false">
       <XIcon />
     </button>
   </div>
@@ -9,7 +9,7 @@
     <div class="modal-body">
       <p>Enter your email for reset instructions.</p>
       <BasicInput
-        v-model="user.email"
+        v-model="form.email"
         label="Email"
         type="email"
         placeholder="name@example.com"
@@ -23,8 +23,10 @@
 import { reactive } from "vue"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import XIcon from "@/components/icons/XIcon.vue"
+import { userStore } from "@/stores/userStore"
+const user = userStore()
 
-const user = reactive({
+const form = reactive({
   email: "",
 })
 
