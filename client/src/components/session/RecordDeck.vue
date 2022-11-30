@@ -226,6 +226,7 @@ watch(
   top: 2%;
   right: 2%;
   .position {
+    font-weight: 800;
     color: v-bind(positionColour);
   }
 }

@@ -10,7 +10,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, defineProps, computed } from "vue"
+import { defineProps, computed } from "vue"
 import { sessionStore } from "@/stores/sessionStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
@@ -25,8 +25,6 @@ const user = userStore()
 const props = defineProps<{
   deckID: number
 }>()
-
-const state = reactive({})
 
 const bpmRangeFilteredTracks = computed((): TrackPlus[] | null => {
   if (!session.decks[props.deckID].loadedTrack) return null
@@ -52,10 +50,28 @@ const sameRecordFilteredTracks = computed(
     ) || null
 )
 
+const tempoScoredTracks = computed((): TrackScored[] | null =>
+  sameRecordFilteredTracks.value && session.decks[props.deckID].adjustedBpm
+    ? sameRecordFilteredTracks.value.map((i) => ({
+        ...i,
+        tempoScore: {
+          pitchAdjustment:
+            1 - session.decks[props.deckID].adjustedBpm! / i.bpmFinal!,
+          tempoCloseness:
+            1 -
+            (Math.abs(
+              1 - session.decks[props.deckID].adjustedBpm! / i.bpmFinal!
+            ) *
+              100) /
+              user.authd.settings.turntablePitchRange,
+        },
+      }))
+    : null
+)
+
 const keyScoredTracks = computed((): TrackScored[] | null =>
-  sameRecordFilteredTracks.value &&
-  session.decks[props.deckID].loadedTrack?.keyFinal
-    ? sameRecordFilteredTracks.value.map((i) => {
+  tempoScoredTracks.value && session.decks[props.deckID].loadedTrack?.keyFinal
+    ? tempoScoredTracks.value.map((i) => {
         const keyAdjusted =
           i.bpmFinal && i.keyFinal && session.decks[props.deckID].adjustedBpm
             ? adjustKey(
@@ -68,7 +84,7 @@ const keyScoredTracks = computed((): TrackScored[] | null =>
           i.keyFinal
           ? {
               ...i,
-              score: scoreHarmony(
+              harmonyScore: scoreHarmony(
                 {
                   key: session.decks[props.deckID].adjustedKey!,
                   mode: session.decks[props.deckID].loadedTrack!.keyFinal!
@@ -79,9 +95,9 @@ const keyScoredTracks = computed((): TrackScored[] | null =>
             }
           : {
               ...i,
-              score: {
-                closeness: 0,
-                combination: -1,
+              harmonyScore: {
+                harmonicAffinity: 0,
+                keyCombination: -1,
               },
             }
       })
@@ -91,7 +107,7 @@ const keyScoredTracks = computed((): TrackScored[] | null =>
 const suggestions = computed((): TrackScored[] | null =>
   keyScoredTracks.value
     ? [...keyScoredTracks.value]
-        .sort(sortNumWithNull2Deep("score", "closeness", true))
+        .sort(sortNumWithNull2Deep("harmonyScore", "harmonicAffinity", true))
         .slice(0, 50)
     : null
 )
@@ -100,9 +116,11 @@ const suggestions = computed((): TrackScored[] | null =>
 <style scoped lang="scss">
 .suggestion-list {
   margin-top: 12px;
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
+  overflow-y: scroll;
   width: 900px;
+  height: calc(100% - 688px);
+  .suggestion:nth-child(even) {
+    background-color: var(--even-row-bg);
+  }
 }
 </style>

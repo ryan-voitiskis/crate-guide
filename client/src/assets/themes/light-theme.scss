@@ -1,11 +1,13 @@
 @mixin light-theme {
-  --page-bg: #fff;
+  --page-bg: hsl(0, 0%, 100%);
 
   /* elements */
   --hr: hsl(0, 0%, 80%);
   --table-border: hsl(0, 0%, 53%);
   --border-colour: hsl(0, 0%, 43%);
-  --modal-backdrop: rgba(0, 0, 0, 0.5);
+  --modal-backdrop: hsla(0, 0%, 0%, 0.5);
+  --even-row-bg: hsl(45, 38%, 94%);
+  --key-text: hsl(0, 0%, 28%);
 
   /* text and icons */
   --white-text: hsl(0, 0%, 100%);
@@ -20,7 +22,7 @@
   --label-text: hsl(207, 13%, 41%);
   --input-text: hsl(207, 12%, 29%);
   --welcome-text: hsl(47, 23%, 61%);
-  --highlight: palegoldenrod;
+  --highlight: hsl(55, 67%, 80%);
 
   /* feedback */
   --success: hsl(152, 100%, 38%);
@@ -53,25 +55,17 @@
   /* records */
   --record-bg: hsl(10, 24%, 96%);
   --record-unstaged-bg: hsl(0, 0%, 97%);
-
-  /* progress bar */
-  --progress-fg: linear-gradient(
-    70deg,
-    rgba(245, 177, 97, 1) 0.4%,
-    rgba(236, 54, 110, 1) 100.2%
-  );
-  --progress-bg: hsl(0, 0%, 88%);
 }
 
 :root,
 :root.light {
-  background-color: #fff;
+  background-color: hsl(0, 0%, 100%);
   @include light-theme;
 }
 
 @media not (prefers-color-scheme: light) {
   :root.light {
-    background-color: #fff;
+    background-color: hsl(0, 0%, 100%);
     @include light-theme;
   }
 }

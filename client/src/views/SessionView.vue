@@ -36,7 +36,7 @@ const session = sessionStore()
   width: 100%;
   display: flex;
   justify-content: center;
-  margin-top: -30px;
+  margin-top: -32px;
   button {
     height: 12px;
     margin: 10px;
@@ -61,5 +61,6 @@ const session = sessionStore()
   gap: 10px;
   justify-content: space-around;
   width: 100%;
+  height: 100%;
 }
 </style>

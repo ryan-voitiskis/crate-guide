@@ -197,27 +197,30 @@ const adjustKey = (key: number, factor: number): number =>
 function scoreHarmony(a: KeyAndMode, b: KeyAndMode): HarmonyScore {
   if (a.mode === b.mode) {
     if (Math.abs(a.key - b.key) < 0.5)
-      return { closeness: 1 - Math.abs(a.key - b.key), combination: 0 }
+      return {
+        harmonicAffinity: 1 - Math.abs(a.key - b.key),
+        keyCombination: 0,
+      }
     if (Math.abs(mod(a.key + 5, 12) - b.key) < 0.5)
       return {
-        closeness: 1 - Math.abs(mod(a.key + 5, 12) - b.key),
-        combination: 2,
+        harmonicAffinity: 1 - Math.abs(mod(a.key + 5, 12) - b.key),
+        keyCombination: 2,
       }
     if (Math.abs(mod(a.key - 5, 12) - b.key) < 0.5)
       return {
-        closeness: 1 - Math.abs(mod(a.key - 5, 12) - b.key),
-        combination: 1,
+        harmonicAffinity: 1 - Math.abs(mod(a.key - 5, 12) - b.key),
+        keyCombination: 1,
       }
   } else {
     if (Math.abs(a.key - b.key) < 0.5)
       return {
-        closeness: 1 - Math.abs(a.key - b.key),
-        combination: a.mode < b.mode ? 3 : 4,
+        harmonicAffinity: 1 - Math.abs(a.key - b.key),
+        keyCombination: a.mode < b.mode ? 3 : 4,
       }
   }
   return {
-    closeness: 0,
-    combination: -1,
+    harmonicAffinity: 0,
+    keyCombination: -1,
   }
 }
 

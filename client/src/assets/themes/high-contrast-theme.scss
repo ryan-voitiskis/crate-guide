@@ -1,27 +1,29 @@
 :root.contrast {
-  background-color: black;
-  --page-bg: black;
+  background-color: hsl(0, 0%, 0%);
+  --page-bg: hsl(0, 0%, 0%);
 
   /* elements */
-  --hr: white;
-  --table-border: white;
-  --border-colour: white;
-  --modal-backdrop: rgba(255, 255, 255, 0.7);
+  --hr: hsl(0, 0%, 100%);
+  --table-border: hsl(0, 0%, 100%);
+  --border-colour: hsl(0, 0%, 100%);
+  --modal-backdrop: hsla(0, 0%, 100%, 0.7);
+  --even-row-bg: hsl(0, 0%, 9%);
+  --key-text: hsl(0, 0%, 0%);
 
   /* text and icons */
-  --white-text: white;
-  --lighter-text: white;
-  --light-text: white;
-  --dark-text: white;
-  --darker-text: white;
-  --darkest-text: white;
+  --white-text: hsl(0, 0%, 100%);
+  --lighter-text: hsl(0, 0%, 100%);
+  --light-text: hsl(0, 0%, 100%);
+  --dark-text: hsl(0, 0%, 100%);
+  --darker-text: hsl(0, 0%, 100%);
+  --darkest-text: hsl(0, 0%, 100%);
   --link-text: hsl(202, 100%, 68%);
   --link-text-hover: hsl(202, 100%, 92%);
   --abbr-title: hsla(0, 0%, 100%, 0.74);
-  --label-text: white;
-  --input-text: white;
+  --label-text: hsl(0, 0%, 100%);
+  --input-text: hsl(0, 0%, 100%);
   --welcome-text: hsl(48, 100%, 87%);
-  --highlight: rgb(87, 86, 78);
+  --highlight: hsl(53, 5%, 32%);
 
   /* feedback */
   --success: hsl(152, 100%, 50%);
@@ -31,7 +33,7 @@
   /* navs */
   --nav-active-bg: hsl(202, 100%, 36%);
   --nav-inactive-bg: hsl(0, 0%, 0%);
-  --nav-inactive-text: white;
+  --nav-inactive-text: hsl(0, 0%, 100%);
   --nav-inactive-border: hsl(0, 0%, 67%);
 
   /* forms */
@@ -54,12 +56,4 @@
   /* records */
   --record-bg: hsl(0, 0%, 8%);
   --record-unstaged-bg: hsl(0, 0%, 36%);
-
-  /* progress bar */
-  --progress-fg: linear-gradient(
-    70deg,
-    rgba(245, 177, 97, 1) 0.4%,
-    rgba(236, 54, 110, 1) 100.2%
-  );
-  --progress-bg: hsl(0, 0%, 17%);
 }

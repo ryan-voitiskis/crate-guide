@@ -7,8 +7,13 @@ interface KeyFinal {
 }
 
 interface HarmonyScore {
-  closeness: number
-  combination: number // the index of keyCombinations array
+  harmonicAffinity: number | null // 0 - 1 compatibility of keys, 1 is a perfect combination
+  keyCombination: number // the index of keyCombinations array
+}
+
+interface TempoScore {
+  pitchAdjustment: number // % of pitch adj. required to mix
+  tempoCloseness: number // 0 - 1, 1 being same tempo, 0 being maximum possible shift
 }
 
 interface Track {
@@ -57,7 +62,8 @@ interface TrackPlus extends Track {
 }
 
 interface TrackScored extends TrackPlus {
-  score: HarmonyScore
+  harmonyScore?: HarmonyScore
+  tempoScore?: TempoScore
 }
 
-export { KeyFinal, HarmonyScore, Track, TrackPlus, TrackScored }
+export { KeyFinal, HarmonyScore, TempoScore, Track, TrackPlus, TrackScored }

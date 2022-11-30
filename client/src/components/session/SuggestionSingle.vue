@@ -1,58 +1,73 @@
 <template>
   <div class="suggestion">
     <div class="cover"></div>
-    <span class="position" v-if="track.position">{{ track.position }}</span>
-    <div class="time-signature" v-if="track.timeSignature">
-      <sup>{{ track.timeSignature[0] }}</sup>
-      <sub>{{ track.timeSignature[1] }}</sub>
+    <div class="top-row">
+      <span class="position" v-if="track.position">{{ track.position }}</span>
+      <span class="catno">{{ track.catno }}</span>
+      <span class="title-artists">
+        {{ props.track.title }} - {{ track.artistsFinal }}
+      </span>
+      <span class="genre" v-if="track.genre">{{ track.genre }}</span>
+      <span class="year" v-if="track.year">{{ track.year }}</span>
     </div>
-    <span class="bpm" v-if="track.bpmFinal">
-      {{ Math.round(track.bpmFinal).toString() }}
-    </span>
-    <button
-      class="audio-feature danceability"
-      v-if="track.audioFeatures"
-      @click="tracks.toShowFeatures = track._id"
-    >
-      <DanceIcon />{{ getPercent(track.audioFeatures.danceability) }}
-    </button>
-    <button
-      class="audio-feature energy"
-      v-if="track.audioFeatures"
-      @click="tracks.toShowFeatures = track._id"
-    >
-      <BoltIcon />{{ getPercent(track.audioFeatures.energy) }}
-    </button>
-    <button
-      class="audio-feature valence"
-      v-if="track.audioFeatures"
-      @click="tracks.toShowFeatures = track._id"
-    >
-      <SmileIcon />{{ getPercent(track.audioFeatures.valence) }}
-    </button>
-    <span class="duration" v-if="track.durationFinal">
-      {{ getDurationString(track.durationFinal) }}</span
-    >
-    <span
-      class="key"
-      v-if="track.keyFinal"
-      :class="{ long: user.authd.settings.keyFormat === 'key' }"
-    >
-      {{
-        user.authd.settings.keyFormat === "key"
-          ? track.keyFinal.keyString
-          : track.keyFinal.camelotString
-      }}
-    </span>
-    <!-- <span class="title">{{ props.track.title }}</span> -->
-    <span class="title">{{ props.track.score.closeness }}</span>
-    <!-- <span class="artists">{{ track.artistsFinal }}</span> -->
-    <span class="artists">{{
-      keyCombinations[props.track.score.combination]
-    }}</span>
-    <span class="genre" v-if="track.genre">{{ track.genre }}</span>
-    <span class="catno">{{ track.catno }}</span>
-    <span class="year">{{ track.year }}</span>
+    <div class="bottom-row">
+      <span class="bpm" v-if="track.bpmFinal">
+        {{ Math.round(track.bpmFinal).toString() }}
+      </span>
+      <div class="time-signature" v-if="track.timeSignature">
+        <sup>{{ track.timeSignature[0] }}</sup>
+        <sub>{{ track.timeSignature[1] }}</sub>
+      </div>
+      <span class="duration" v-if="track.durationFinal">
+        {{ getDurationString(track.durationFinal) }}
+      </span>
+      <span
+        class="key"
+        v-if="track.keyFinal"
+        :class="{ long: user.authd.settings.keyFormat === 'key' }"
+      >
+        {{
+          user.authd.settings.keyFormat === "key"
+            ? track.keyFinal.keyString
+            : track.keyFinal.camelotString
+        }}
+      </span>
+      <span
+        class="key-relation"
+        v-if="props.track.harmonyScore?.harmonicAffinity"
+      >
+        {{ (props.track.harmonyScore.harmonicAffinity * 100).toFixed(1) }}% -
+        {{ keyCombinations[props.track.harmonyScore.keyCombination] }}
+      </span>
+      <span
+        class="tempo-distance"
+        v-if="typeof props.track.tempoScore?.pitchAdjustment === 'number'"
+      >
+        {{ (props.track.tempoScore.pitchAdjustment * 100).toFixed(1) }}% pitch
+        adj.
+      </span>
+      <button
+        class="audio-feature danceability"
+        v-if="track.audioFeatures"
+        @click="tracks.toShowFeatures = track._id"
+      >
+        <DanceIcon />{{ getPercent(track.audioFeatures.danceability) }}
+      </button>
+      <button
+        class="audio-feature energy"
+        v-if="track.audioFeatures"
+        @click="tracks.toShowFeatures = track._id"
+      >
+        <BoltIcon />{{ getPercent(track.audioFeatures.energy) }}
+      </button>
+      <button
+        class="audio-feature valence"
+        v-if="track.audioFeatures"
+        @click="tracks.toShowFeatures = track._id"
+      >
+        <SmileIcon />{{ getPercent(track.audioFeatures.valence) }}
+      </button>
+    </div>
     <button
       class="play"
       @click="session.loadTrack(track._id, loadTo), (session.loadTrackTo = -1)"
@@ -108,11 +123,12 @@ const positionColour = props.track.position
 .suggestion {
   overflow: hidden;
   display: grid;
-  grid-template-columns: 40px 26px 22px 32px 44px 44px 44px 40px 60px 2fr 1fr 1fr 1fr 38px 40px;
+  grid-template-columns: 60px auto 40px;
+  grid-template-rows: 30px 30px;
   width: 100%;
   span {
     color: var(--dark-text);
-    line-height: 40px;
+    line-height: 30px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -120,98 +136,117 @@ const positionColour = props.track.position
     margin: 0;
   }
   .cover {
-    height: 40px;
     background-color: hsl(40, 13%, 82%);
     background-image: v-bind(coverImg);
-    grid-area: 1 / 1 / 2 / 2;
+    grid-area: 1 / 1 / 3 / 2;
     overflow: hidden;
     background-repeat: no-repeat;
     background-size: contain;
-    z-index: -1;
   }
-  .position {
-    grid-area: 1 / 2 / 2 / 3;
-    text-align: center;
-    color: v-bind(positionColour);
-  }
-  .time-signature {
-    text-align: center;
-    grid-area: 1 / 3 / 2 / 4;
-    font-size: 20px;
-    padding-top: 1px;
-    height: 40px;
-  }
-  .bpm {
-    grid-area: 1 / 4 / 2 / 5;
-    text-align: center;
-    color: v-bind(bpmColour);
-  }
-  .audio-feature {
-    border-radius: 0;
-    height: 100%;
-    width: 54px;
-    margin: 0 -5px;
-    background-color: transparent;
-    padding: 0;
-    font-size: 12px;
-    svg {
-      width: 18px;
-      margin-right: 1px;
+  .top-row {
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 40px 138px 1fr 1fr 40px;
+    grid-template-rows: 30px;
+    .position {
+      grid-area: 1 / 1 / 2 / 2;
+      text-align: center;
+      color: v-bind(positionColour);
+    }
+    .catno {
+      grid-area: 1 / 2 / 2 / 3;
+    }
+    .title-artists {
+      padding-left: 8px;
+      grid-area: 1 / 3 / 2 / 4;
+    }
+    .genre {
+      grid-area: 1 / 4 / 2 / 5;
+    }
+    .year {
+      grid-area: 1 / 5 / 2 / 6;
     }
   }
-  .danceability {
-    grid-area: 1 / 5 / 2 / 6;
-  }
-  .energy {
-    grid-area: 1 / 6 / 2 / 7;
-  }
-  .valence {
-    grid-area: 1 / 7 / 2 / 8;
-  }
-  .duration {
-    grid-area: 1 / 8 / 2 / 9;
-    font-style: italic;
-    text-align: center;
-  }
-  .key {
-    grid-area: 1 / 9 / 2 / 10;
-    height: 26px;
-    width: 100%;
-    line-height: 26px;
-    justify-self: center;
-    align-self: center;
-    font-weight: 500;
-    padding: 0 10px;
-    border-radius: 6px;
-    background-color: v-bind(keyColour);
-    color: var(--key-text);
-    text-align: center;
-    &.long {
+  .bottom-row {
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 40px 28px 50px 60px 1fr 1fr 58px 58px 58px;
+    grid-template-rows: 30px;
+    .bpm {
+      grid-area: 1 / 1 / 2 / 2;
+      text-align: center;
+      color: v-bind(bpmColour);
+    }
+    .time-signature {
+      text-align: center;
+      grid-area: 1 / 2 / 2 / 3;
+      font-size: 18px;
+      margin-top: -2px;
+      height: 32px;
+    }
+    .duration {
+      grid-area: 1 / 3 / 2 / 4;
+      font-style: italic;
+      text-align: center;
+    }
+    .key {
+      grid-area: 1 / 4 / 2 / 5;
+      height: 26px;
+      width: 100%;
+      line-height: 26px;
+      justify-self: center;
+      align-self: center;
+      font-weight: 500;
+      padding: 0 10px;
+      border-radius: 6px;
+      background-color: v-bind(keyColour);
+      color: var(--key-text);
+      text-align: center;
+      &.long {
+        font-size: 12px;
+      }
+    }
+    .key-relation {
+      grid-area: 1 / 5 / 2 / 6;
+      padding-left: 8px;
+      font-style: italic;
+    }
+    .tempo-distance {
+      grid-area: 1 / 6 / 2 / 7;
+      padding-left: 8px;
+      font-style: italic;
+    }
+    .audio-feature {
+      height: 30px;
+      line-height: 30px;
+      border-radius: 0;
+      height: 100%;
+      width: 58px;
+      margin: 0 -5px;
+      background-color: transparent;
+      padding: 0;
       font-size: 12px;
+      svg {
+        width: 18px;
+        margin-right: 1px;
+      }
     }
-  }
-  .title {
-    grid-area: 1 / 10 / 2 / 11;
-  }
-  .artists {
-    grid-area: 1 / 11 / 2 / 12;
-  }
-  .genre {
-    grid-area: 1 / 12 / 2 / 13;
-  }
-  .label {
-    grid-area: 1 / 13 / 2 / 14;
-  }
-  .catno {
-    grid-area: 1 / 13 / 2 / 14;
-  }
-  .year {
-    grid-area: 1 / 14 / 2 / 15;
+    .danceability {
+      grid-area: 1 / 7 / 2 / 8;
+    }
+    .energy {
+      grid-area: 1 / 8 / 2 / 9;
+    }
+    .valence {
+      grid-area: 1 / 9 / 2 / 10;
+    }
   }
   .play {
-    grid-area: 1 / 15 / 2 / 16;
+    grid-area: 1 / 3 / 3 / 4;
     width: 100%;
     height: 100%;
+    padding: 0;
+    margin: 0;
     border-radius: 0;
     background-color: transparent;
   }

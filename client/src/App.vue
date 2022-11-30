@@ -1,5 +1,11 @@
 <template>
-  <div class="container">
+  <div
+    class="container"
+    :class="{
+      full: $router.currentRoute.value.name === 'session',
+      collapsed: session.collapseHeader,
+    }"
+  >
     <transition name="drop">
       <header v-show="!session.collapseHeader">
         <nav
@@ -154,16 +160,22 @@ watch(
 <style scoped lang="scss">
 header {
   transition: height 0.4s;
-}
-header.collapsed {
-  height: 0;
+  &.collapsed {
+    height: 0;
+  }
 }
 .container {
   max-width: 1846px;
   position: relative;
   margin: 0 auto;
   padding: 0 10px;
-  overflow-y: scroll;
+  transition: height 0.4s;
+  &.full {
+    height: calc(100% - 78px);
+  }
+  &.collapsed {
+    height: calc(100% - 12px);
+  }
 }
 
 .about:hover {

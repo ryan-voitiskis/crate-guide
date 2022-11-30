@@ -14,6 +14,12 @@ html {
   transition: background-color 0.5s, color 0.5s;
 }
 
+html,
+body,
+#app {
+  height: 100%;
+}
+
 header {
   background-color: var(--header-bg);
 }

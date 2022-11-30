@@ -108,7 +108,6 @@ onDeactivated(() => {
 .modal-body {
   padding: 0 40px;
   margin-bottom: 40px;
-  // max-height: 60%;
   overflow-y: scroll;
   overflow-x: hidden;
   p {
