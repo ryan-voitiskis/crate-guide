@@ -1,34 +1,40 @@
 <template>
   <div class="deck-area-container">
     <div class="deck-wrapper">
-      <div class="deck">
+      <div
+        class="deck"
+        :class="{
+          silver: user.authd.settings.turntableTheme === 'silver',
+          black: user.authd.settings.turntableTheme === 'black',
+        }"
+      >
         <button class="load-track" @click="session.loadTrackTo = deckID">
           LOAD
         </button>
-        <div class="t-detail title">
+        <div class="loaded-detail title">
           <span class="position">
             {{ track?.position }}
           </span>
           {{ track?.title }}
         </div>
-        <span class="t-detail artist">
+        <span class="loaded-detail artist">
           {{ track?.artistsFinal }}
         </span>
-        <div class="t-detail album-details">
+        <div class="loaded-detail album-details">
           <span class="catno">{{ track?.catno }}</span>
           <span class="year">{{ track?.year }}</span>
         </div>
-        <span class="t-detail genre">
+        <span class="loaded-detail genre">
           {{ track?.genre }}
         </span>
-        <span class="t-detail duration" v-if="track?.durationFinal">
+        <span class="loaded-detail duration" v-if="track?.durationFinal">
           "{{ getDurationString(track.durationFinal) }}"
         </span>
-        <span class="t-detail key" v-if="keyString">
+        <span class="loaded-detail key" v-if="keyString">
           {{ keyString }}
         </span>
         <button
-          class="t-detail audio-feature danceability"
+          class="loaded-detail audio-feature danceability"
           v-if="track?.audioFeatures"
           @click="tracks.toShowFeatures = track?._id || ''"
         >
@@ -37,14 +43,14 @@
           }}</span>
         </button>
         <button
-          class="t-detail audio-feature energy"
+          class="loaded-detail audio-feature energy"
           v-if="track?.audioFeatures"
           @click="tracks.toShowFeatures = track?._id || ''"
         >
           <BoltIcon /><span>{{ getPercent(track.audioFeatures.energy) }}</span>
         </button>
         <button
-          class="t-detail audio-feature valence"
+          class="loaded-detail audio-feature valence"
           v-if="track?.audioFeatures"
           @click="tracks.toShowFeatures = track?._id || ''"
         >
@@ -52,7 +58,7 @@
             getPercent(track.audioFeatures.valence)
           }}</span>
         </button>
-        <div class="t-detail time-signature" v-if="timeSignature">
+        <div class="loaded-detail time-signature" v-if="timeSignature">
           <sup>{{ timeSignature[0] }}</sup>
           <sub>{{ timeSignature[1] }}</sub>
         </div>
@@ -153,6 +159,20 @@ watch(
   (bpm: number | null) => (session.decks[props.deckID].adjustedBpm = bpm)
 )
 
+// set adjustedLoadedBpm when dependencies change
+watch(
+  () =>
+    session.decks[props.deckID].loadedTrack?.bpmFinal
+      ? (session.decks[props.deckID].pitchReadable *
+          0.0001 *
+          user.authd.settings.turntablePitchRange +
+          1) *
+        session.decks[props.deckID].loadedTrack!.bpmFinal!
+      : null,
+  (bpm: number | null) =>
+    (session.decks[props.deckID].adjustedBpmReadable = bpm)
+)
+
 // set adjustedKey when dependencies change
 watch(
   () =>
@@ -178,15 +198,17 @@ watch(
   .deck-wrapper {
     position: relative;
     .deck {
-      border-top: 4px solid rgb(192, 192, 192);
-      border-left: 4px solid rgb(163, 163, 163);
-      border-right: 4px solid rgb(105, 105, 105);
-      border-bottom: 4px solid rgb(65, 65, 65);
+      background: var(--deck-bg);
+      border-top-color: var(--deck-border-top);
+      border-right-color: var(--deck-border-right);
+      border-bottom-color: var(--deck-border-bottom);
+      border-left-color: var(--deck-border-left);
+      border-width: 4px;
+      border-style: solid;
       position: relative;
       height: 700px;
       width: 900px;
       box-sizing: content-box;
-      background: var(--deck-silver);
     }
   }
 }
@@ -198,8 +220,8 @@ watch(
   display: flex;
   justify-content: start;
 }
-.t-detail {
-  color: var(--darker-text);
+.loaded-detail {
+  color: var(--loaded-text);
   font-weight: 500;
   height: 26px;
   line-height: 26px;
@@ -242,7 +264,7 @@ watch(
   right: 2%;
   .year {
     margin-left: 18px;
-    color: var(--dark-text);
+    color: var(--loaded-year-text);
   }
 }
 .genre {
@@ -296,9 +318,9 @@ watch(
   color: var(--load-button);
   font-weight: 600;
   border: 3px solid var(--load-button);
+  transition: box-shadow 0.2s ease-in-out;
   &:hover {
-    box-shadow: 0 0 4px 4px rgba(44, 102, 219, 0.4);
-    transition: box-shadow 0.2s ease-in-out;
+    box-shadow: 0 0 4px 4px var(--load-button-shadow);
   }
 }
 </style>

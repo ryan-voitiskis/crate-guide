@@ -82,7 +82,7 @@ const lastBpmColour = computed(() => getBPMColour(state.lastBpm))
   position: absolute;
   height: 5%;
   width: 10%;
-  right: 14.5%;
+  right: 14.6%;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -114,18 +114,20 @@ const lastBpmColour = computed(() => getBPMColour(state.lastBpm))
   width: 10%;
   height: 90px;
   bottom: 20%;
-  right: 14.5%;
+  right: 14.6%;
   display: flex;
-  background: var(--bpm-tap-btn);
+  background: var(--deck-button);
+  border: 3px solid var(--deck-button-border);
   border-radius: 50%;
   justify-content: center;
   align-items: center;
-  transition: all 450ms cubic-bezier(0.19, 1, 0.22, 1);
-  outline: 2px dotted;
-  outline-color: v-bind(bpmColour);
-  outline-offset: -1px;
+  transition: outline-color 450ms cubic-bezier(0.19, 1, 0.22, 1),
+    outline-offset 450ms cubic-bezier(0.19, 1, 0.22, 1);
+  outline: 3px dotted;
+  outline-color: transparent;
   z-index: 2;
   &:active {
+    outline-color: v-bind(bpmColour);
     outline-offset: 8px;
   }
 }

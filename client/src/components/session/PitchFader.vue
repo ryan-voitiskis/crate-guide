@@ -9,16 +9,14 @@
       class="fader"
       list="fader_labels"
       @mouseup="changePitch"
+      @input="changePitchReadable"
     />
 
-    <label class="reset-fader" @click="resetPitch()">
-      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="50" cy="50" r="50" />
-      </svg>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80">
-        <text dominant-baseline="middle" x="50%" y="50%">reset</text>
-      </svg>
-    </label>
+    <div class="reset-fader" @click="resetPitch()"></div>
+    <label class="reset-fader-label" @click="resetPitch()">reset</label>
+    <span class="bpm-readable">
+      {{ bpmReadable }}
+    </span>
     <span class="pitch-readable">
       {{ pitchReadable }}
     </span>
@@ -40,73 +38,105 @@ const faderEl = ref<HTMLInputElement | null>(null)
 
 const changePitch = (event: Event) => {
   const target = event.target as HTMLInputElement
-  if (target) session.decks[props.deckID].pitch = Number(target.value) * -1 // * -1 as input could not be reversed when vertical
+  if (target) session.decks[props.deckID].pitch = Number(target.value) * -1
+}
+
+const changePitchReadable = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target)
+    session.decks[props.deckID].pitchReadable = Number(target.value) * -1
 }
 
 const resetPitch = () => {
   session.decks[props.deckID].pitch = 0
+  session.decks[props.deckID].pitchReadable = 0
   faderEl!.value!.value = "0"
 }
 
 const pitchReadable = computed(
   () =>
-    (session.decks[props.deckID].pitch >= 0 ? "+" : "") +
+    (session.decks[props.deckID].pitchReadable >= 0 ? "+" : "") +
     (
-      session.decks[props.deckID].pitch *
+      session.decks[props.deckID].pitchReadable *
       0.01 *
       user.authd.settings.turntablePitchRange
     ).toFixed(1) +
     "%"
 )
+
+const bpmReadable = computed(() =>
+  session.decks[props.deckID].adjustedBpmReadable?.toFixed(1)
+)
 </script>
 
 <style scoped lang="scss">
-label.reset-fader {
+.reset-fader {
   user-select: none;
   position: absolute;
-  width: 3%;
-  bottom: 7%;
+  width: 28px;
+  height: 28px;
+  bottom: 11%;
   right: 18%;
-  display: flex;
-  flex-direction: column;
+  background: var(--deck-button);
+  border: 3px solid var(--deck-button-border);
+  border-radius: 50%;
   cursor: pointer;
   z-index: 3;
-  button {
-    height: unset;
-    width: 100%;
-    background: var(--reset-button);
-    border: none;
-    border-radius: 50%;
-    aspect-ratio: 1;
-    margin: 0;
-  }
-  svg {
-    font-size: 2.2em;
-    text {
-      text-anchor: middle;
-    }
-  }
 }
-.pitch-readable {
+
+.reset-fader-label {
+  font-size: 12px;
+  user-select: none;
+  position: absolute;
+  color: var(--reset-text);
+  width: 28px;
+  height: 28px;
+  bottom: 6.2%;
+  right: 18%;
+  z-index: 3;
+}
+
+.pitch-readable,
+.bpm-readable {
   user-select: none;
   position: absolute;
   width: 3%;
   bottom: 11%;
   right: 13%;
   color: var(--pitch-readable);
-  font: 400 15px/1.6 Digital7, sans-serif;
+  font: 800 18px/1.6 Digital7, sans-serif;
+}
+
+.pitch-readable {
+  bottom: 11%;
+}
+
+.bpm-readable {
+  bottom: 14%;
 }
 
 @mixin track() {
   width: 100%;
   height: 60;
-  background: #222;
+  background: var(--fader-track);
 }
 
 @mixin thumb() {
-  width: 10%;
+  width: 14%;
   height: 100vw;
-  background: #333;
+  background: linear-gradient(
+    to left,
+    hsl(0, 0%, 87%) 0%,
+    hsl(0, 0%, 56%) 33%,
+    hsl(0, 0%, 87%) 33%,
+    hsl(0, 0%, 87%) 47%,
+    hsl(0, 0%, 0%) 47%,
+    hsl(0, 0%, 0%) 53%,
+    hsl(0, 0%, 87%) 53%,
+    hsl(0, 0%, 87%) 67%,
+    hsl(0, 0%, 67%) 67%,
+    hsl(0, 0%, 87%) 100%
+  );
   border: none;
   border-radius: 0;
   cursor: grab;
@@ -131,7 +161,7 @@ input[type="range"] {
   padding: 0;
   margin: 0;
   transform: translate(-50%, -50%) rotate(-90deg) scaleY(-1);
-  background-color: #aaa;
+  background-color: var(--fader-bg);
   font-size: 1em;
   cursor: pointer;
   z-index: 2;

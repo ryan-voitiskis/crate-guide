@@ -27,9 +27,10 @@ defineProps<{
 
 <style scoped lang="scss">
 .rpm-switch {
+  background-color: var(--deck-button);
   width: 50px;
   height: 16px;
-  border: 3px solid #333;
+  border: 3px solid var(--deck-button-border);
   border-radius: 0;
   position: absolute;
   bottom: 20px;
@@ -41,6 +42,10 @@ defineProps<{
     font-size: 80px;
     width: 100%;
     height: 100%;
+    text {
+      font-weight: 500;
+      fill: var(--deck-button-text);
+    }
   }
   &.second {
     left: 164px;

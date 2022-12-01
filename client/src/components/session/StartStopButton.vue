@@ -21,9 +21,10 @@ defineProps<{
 
 <style scoped lang="scss">
 .start {
+  background-color: var(--deck-button);
   width: 90px;
   height: 66px;
-  border: 3.4px solid #333;
+  border: 3.4px solid var(--deck-button-border);
   border-radius: 0;
   position: absolute;
   bottom: 20px;
@@ -34,6 +35,10 @@ defineProps<{
   svg {
     width: 100%;
     height: 100%;
+    text {
+      font-weight: 500;
+      fill: var(--deck-button-text);
+    }
   }
 }
 </style>

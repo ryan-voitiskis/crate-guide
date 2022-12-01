@@ -7,8 +7,10 @@ interface Deck {
   playing: boolean
   rpm: number
   pitch: number // range of -100 (-8% of rpm) to 100 (+8% of rpm)
+  pitchReadable: number // range of -100 (-8% of rpm) to 100 (+8% of rpm)
   tappedBpm: number | null
   adjustedBpm: number | null
+  adjustedBpmReadable: number | null
   adjustedKey: number | null
 }
 
@@ -20,8 +22,10 @@ export const sessionStore = defineStore("session", {
         playing: false,
         rpm: 33,
         pitch: 0,
+        pitchReadable: 0,
         tappedBpm: null,
         adjustedBpm: null,
+        adjustedBpmReadable: null,
         adjustedKey: null,
       },
       {
@@ -29,8 +33,10 @@ export const sessionStore = defineStore("session", {
         playing: false,
         rpm: 33,
         pitch: 0,
+        pitchReadable: 0,
         tappedBpm: null,
         adjustedBpm: null,
+        adjustedBpmReadable: null,
         adjustedKey: null,
       },
     ] as Deck[],

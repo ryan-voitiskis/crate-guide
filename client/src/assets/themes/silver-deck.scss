@@ -1,0 +1,39 @@
+.deck.silver {
+  --deck-bg: linear-gradient(
+    to right bottom,
+    #8f8d97,
+    #9d9ca6,
+    #acacb4,
+    #bbbcc3,
+    #cbccd2,
+    #cfd0d6,
+    #d3d4d9,
+    #d7d8dd,
+    #d0d0d6,
+    #c8c9cf,
+    #c1c1c9,
+    #babac2
+  );
+  --deck-border-top: hsl(252, 5%, 28%);
+  --deck-border-right: hsl(252, 5%, 42%);
+  --deck-border-bottom: hsl(252, 5%, 56%);
+  --deck-border-left: hsl(252, 5%, 38%);
+
+  --loaded-text: hsl(0, 0%, 30%);
+  --loaded-year-text: hsl(0, 0%, 52%);
+
+  --load-button: hsl(212, 95%, 40%);
+  --load-button-shadow: hsla(212, 95%, 50%, 0.4);
+
+  --deck-button: hsl(230, 14%, 91%);
+  --deck-button-text: hsl(0, 0%, 15%);
+  --deck-button-border: hsl(0, 0%, 23%);
+
+  --bpm-last-saved-label: hsl(0, 0%, 30%);
+  --bpm-tap-label: hsl(0, 0%, 20%);
+  --pitch-readable: hsl(0, 76%, 41%);
+  --reset-text: hsl(0, 0%, 15%);
+
+  --fader-track: hsl(0, 0%, 13%);
+  --fader-bg: hsl(240, 2%, 71%);
+}
