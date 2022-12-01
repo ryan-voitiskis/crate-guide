@@ -2,14 +2,13 @@
   <div class="fader-container">
     <input
       ref="faderEl"
-      value="0"
       type="range"
       min="-100"
       max="100"
       class="fader"
       list="fader_labels"
+      v-model="session.decks[deckID].faderPosition"
       @mouseup="changePitch"
-      @input="changePitchReadable"
     />
 
     <div class="reset-fader" @click="resetPitch()"></div>
@@ -24,9 +23,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, defineProps } from "vue"
+import { computed, defineProps, watch } from "vue"
 import { sessionStore } from "@/stores/sessionStore"
 import { userStore } from "@/stores/userStore"
+import { adjustKey } from "@/utils/keyFunctions"
 const session = sessionStore()
 const user = userStore()
 
@@ -34,30 +34,21 @@ const props = defineProps<{
   deckID: number
 }>()
 
-const faderEl = ref<HTMLInputElement | null>(null)
-
 const changePitch = (event: Event) => {
   const target = event.target as HTMLInputElement
-  if (target) session.decks[props.deckID].pitch = Number(target.value) * -1
-}
-
-const changePitchReadable = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  if (target)
-    session.decks[props.deckID].pitchReadable = Number(target.value) * -1
+  if (target) session.decks[props.deckID].pitch = Number(target.value)
 }
 
 const resetPitch = () => {
-  session.decks[props.deckID].pitch = 0
-  session.decks[props.deckID].pitchReadable = 0
-  faderEl!.value!.value = "0"
+  session.decks[props.deckID].faderPosition = 0
+  session.decks[props.deckID].faderPosition = 0
 }
 
 const pitchReadable = computed(
   () =>
-    (session.decks[props.deckID].pitchReadable >= 0 ? "+" : "") +
+    (session.decks[props.deckID].faderPosition >= 0 ? "+" : "") +
     (
-      session.decks[props.deckID].pitchReadable *
+      session.decks[props.deckID].faderPosition *
       0.01 *
       user.authd.settings.turntablePitchRange
     ).toFixed(1) +
@@ -66,6 +57,49 @@ const pitchReadable = computed(
 
 const bpmReadable = computed(() =>
   session.decks[props.deckID].adjustedBpmReadable?.toFixed(1)
+)
+
+// set adjustedBpmReadable when dependencies change
+watch(
+  () =>
+    session.decks[props.deckID].loadedTrack?.bpmFinal
+      ? (session.decks[props.deckID].faderPosition *
+          0.0001 *
+          user.authd.settings.turntablePitchRange +
+          1) *
+        session.decks[props.deckID].loadedTrack!.bpmFinal!
+      : null,
+  (bpm: number | null) =>
+    (session.decks[props.deckID].adjustedBpmReadable = bpm)
+)
+
+// set adjustedBpm when dependencies change
+watch(
+  () =>
+    session.decks[props.deckID].loadedTrack?.bpmFinal
+      ? (session.decks[props.deckID].pitch *
+          0.0001 *
+          user.authd.settings.turntablePitchRange +
+          1) *
+        session.decks[props.deckID].loadedTrack!.bpmFinal!
+      : null,
+  (bpm: number | null) => (session.decks[props.deckID].adjustedBpm = bpm)
+)
+
+// set adjustedKey when dependencies change
+watch(
+  () =>
+    session.decks[props.deckID].loadedTrack?.keyFinal &&
+    session.decks[props.deckID].loadedTrack?.keyFinal
+      ? adjustKey(
+          session.decks[props.deckID].loadedTrack!.keyFinal!.key!,
+          session.decks[props.deckID].pitch *
+            0.0001 *
+            user.authd.settings.turntablePitchRange +
+            1
+        )
+      : null,
+  (bpm: number | null) => (session.decks[props.deckID].adjustedKey = bpm)
 )
 </script>
 
@@ -127,14 +161,14 @@ const bpmReadable = computed(() =>
   background: linear-gradient(
     to left,
     hsl(0, 0%, 87%) 0%,
-    hsl(0, 0%, 56%) 33%,
+    hsl(0, 0%, 67%) 33%,
     hsl(0, 0%, 87%) 33%,
     hsl(0, 0%, 87%) 47%,
     hsl(0, 0%, 0%) 47%,
     hsl(0, 0%, 0%) 53%,
     hsl(0, 0%, 87%) 53%,
     hsl(0, 0%, 87%) 67%,
-    hsl(0, 0%, 67%) 67%,
+    hsl(0, 0%, 56%) 67%,
     hsl(0, 0%, 87%) 100%
   );
   border: none;
@@ -160,7 +194,7 @@ input[type="range"] {
   right: -21.2%;
   padding: 0;
   margin: 0;
-  transform: translate(-50%, -50%) rotate(-90deg) scaleY(-1);
+  transform: translate(-50%, -50%) rotate(90deg) scaleY(-1);
   background-color: var(--fader-bg);
   font-size: 1em;
   cursor: pointer;

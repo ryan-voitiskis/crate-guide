@@ -68,10 +68,7 @@
         <SmileIcon />{{ getPercent(track.audioFeatures.valence) }}
       </button>
     </div>
-    <button
-      class="play"
-      @click="session.loadTrack(track._id, loadTo), (session.loadTrackTo = -1)"
-    >
+    <button class="play" @click="load">
       <PlayIcon />
     </button>
   </div>
@@ -103,6 +100,13 @@ const props = defineProps<{
 }>()
 
 const loadTo = props.deckID === 1 ? 0 : 1
+
+const load = () => {
+  session.decks[props.deckID].adjustedBpm
+    ? session.loadTrack(props.track._id, loadTo, true)
+    : session.loadTrack(props.track._id, loadTo)
+  session.loadTrackTo = -1
+}
 
 const coverImg = `url("${props.track.cover}")`
 

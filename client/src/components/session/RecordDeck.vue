@@ -75,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, computed, watch } from "vue"
+import { defineProps, computed } from "vue"
 import StartStopButton from "./StartStopButton.vue"
 import RpmSwitch from "./RpmSwitch.vue"
 import PitchFader from "./PitchFader.vue"
@@ -94,7 +94,6 @@ import {
   getKeyStringShort,
   getCamelotString,
   getKeyColour,
-  adjustKey,
 } from "@/utils/keyFunctions"
 import SuggestionList from "./SuggestionList.vue"
 const session = sessionStore()
@@ -144,49 +143,6 @@ const positionColour = computed(() =>
   session.decks[props.deckID].loadedTrack?.position
     ? getPositionColour(session.decks[props.deckID].loadedTrack!.position!)
     : "hsl(0, 0%, 68%)"
-)
-
-// set adjustedLoadedBpm when dependencies change
-watch(
-  () =>
-    session.decks[props.deckID].loadedTrack?.bpmFinal
-      ? (session.decks[props.deckID].pitch *
-          0.0001 *
-          user.authd.settings.turntablePitchRange +
-          1) *
-        session.decks[props.deckID].loadedTrack!.bpmFinal!
-      : null,
-  (bpm: number | null) => (session.decks[props.deckID].adjustedBpm = bpm)
-)
-
-// set adjustedLoadedBpm when dependencies change
-watch(
-  () =>
-    session.decks[props.deckID].loadedTrack?.bpmFinal
-      ? (session.decks[props.deckID].pitchReadable *
-          0.0001 *
-          user.authd.settings.turntablePitchRange +
-          1) *
-        session.decks[props.deckID].loadedTrack!.bpmFinal!
-      : null,
-  (bpm: number | null) =>
-    (session.decks[props.deckID].adjustedBpmReadable = bpm)
-)
-
-// set adjustedKey when dependencies change
-watch(
-  () =>
-    session.decks[props.deckID].loadedTrack?.keyFinal &&
-    session.decks[props.deckID].loadedTrack?.keyFinal
-      ? adjustKey(
-          session.decks[props.deckID].loadedTrack!.keyFinal!.key!,
-          session.decks[props.deckID].pitch *
-            0.0001 *
-            user.authd.settings.turntablePitchRange +
-            1
-        )
-      : null,
-  (bpm: number | null) => (session.decks[props.deckID].adjustedKey = bpm)
 )
 </script>
 

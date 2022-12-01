@@ -56,7 +56,7 @@ const tempoScoredTracks = computed((): TrackScored[] | null =>
         ...i,
         tempoScore: {
           pitchAdjustment:
-            1 - session.decks[props.deckID].adjustedBpm! / i.bpmFinal!,
+            (1 - session.decks[props.deckID].adjustedBpm! / i.bpmFinal!) * -1,
           tempoCloseness:
             1 -
             (Math.abs(
