@@ -1,4 +1,5 @@
-const API_URL = `172.104.238.253:3037/api/`
+const API_URL = `/api/`
+// const API_URL = `http://localhost:5001/api/`
 
 export default {
   APP_NAME: `Crate Guide`,
