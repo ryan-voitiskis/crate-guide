@@ -12,7 +12,7 @@ import {
 
 const clientID = "72f1c76a0d384bd6bd667a72afe04b84"
 const clientSecret = "58bc4f20244b47b7887def2674c19052"
-const redirectURI = "http://localhost:5001/api/spotify/callback"
+const redirectURI = `${process.env.SITE_URL}/api/spotify/callback`
 const scope = "playlist-read-private playlist-read-collaborative"
 const authoriseURL = "https://accounts.spotify.com/authorize?"
 const tokenURL = "https://accounts.spotify.com/api/token"
