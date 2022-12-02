@@ -19,12 +19,12 @@ In development: DJ app to assist in finding compatible tracks within a users phy
   - single Track (user provided ID)
   - whole Record (searched for programatically)
   - entire collection / selection of records (searched for programatically)
+- Load track onto Deck
+- Suggest compatible tracks for currently playing track
 
 ### Features to be implemented:
 
 - recover account and reset password
-- Load track onto Deck
-- Suggest compatible tracks for currently playing track
 
 ## Project setup
 
