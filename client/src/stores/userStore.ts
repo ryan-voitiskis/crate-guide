@@ -1,6 +1,10 @@
 import { defineStore } from "pinia"
 import { crateStore } from "@/stores/crateStore"
+import { discogsStore } from "@/stores/discogsStore"
 import { recordStore } from "@/stores/recordStore"
+import { sessionStore } from "@/stores/sessionStore"
+import { spotifyStore } from "@/stores/spotifyStore"
+import { trackStore } from "@/stores/trackStore"
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
 import User from "@/interfaces/User"
 import userService from "@/services/userService"
@@ -45,6 +49,7 @@ export const userStore = defineStore("user", {
           crateStore().fetchCrates()
           recordStore().fetchRecords()
           this.loading = false
+          this.setUserTheme(this.authd.settings.theme)
           return response.status
         } else if (response.status === 401) {
           this.invalidCreds = true
@@ -152,15 +157,32 @@ export const userStore = defineStore("user", {
       const root = document.querySelector(":root")
       switch (theme) {
         case "light":
+          root!.classList.remove("dark")
+          root!.classList.remove("contrast")
           root!.classList.add("light")
           break
         case "dark":
+          root!.classList.remove("light")
+          root!.classList.remove("contrast")
           root!.classList.add("dark")
           break
         case "contrast":
+          root!.classList.remove("light")
+          root!.classList.remove("dark")
           root!.classList.add("contrast")
           break
       }
+    },
+
+    logout() {
+      this.$reset()
+      document.cookie = `crate_guide_jwt=0; SameSite=Strict; Secure;max-age=0`
+      this.setUserTheme("light")
+      crateStore().$reset()
+      discogsStore().$reset()
+      recordStore().$reset()
+      sessionStore().$reset()
+      trackStore().$reset()
     },
 
     hasUser(): boolean {

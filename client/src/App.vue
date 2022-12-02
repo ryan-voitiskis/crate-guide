@@ -40,7 +40,7 @@
           >
             Log in
           </button>
-          <button type="button" v-if="user.hasUser()" @click="user.$reset()">
+          <button type="button" v-if="user.hasUser()" @click="user.logout()">
             Log out
           </button>
           <button type="button" @click="user.settingsModal = true">

@@ -68,7 +68,14 @@ const loginUser = asyncHandler(async (req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
-      settings: user.settings,
+      settings: {
+        theme: user.settings.theme,
+        turntableTheme: user.settings.turntableTheme,
+        turntablePitchRange: user.settings.turntablePitchRange,
+        selectedCrate: user.settings.selectedCrate,
+        keyFormat: user.settings.keyFormat,
+        listLayout: 0, // always record view on load. avoids frequent updateSettings API calls
+      },
       token: generateToken(user.id),
       discogsUsername: user.discogsUsername,
       isDiscogsOAuthd:
@@ -95,7 +102,14 @@ const getUser = asyncHandler(async (req, res) => {
     _id: req.user!._id,
     name: req.user!.name,
     email: req.user!.email,
-    settings: req.user!.settings,
+    settings: {
+      theme: req.user!.settings.theme,
+      turntableTheme: req.user!.settings.turntableTheme,
+      turntablePitchRange: req.user!.settings.turntablePitchRange,
+      selectedCrate: req.user!.settings.selectedCrate,
+      keyFormat: req.user!.settings.keyFormat,
+      listLayout: 0, // always record view on load. avoids frequent updateSettings API calls
+    },
     token: generateToken(req.user!.id),
     discogsUsername: req.user!.discogsUsername,
     isDiscogsOAuthd:
