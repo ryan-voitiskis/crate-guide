@@ -107,19 +107,6 @@ input[type="button"] {
       }
     }
   }
-  &.play {
-    color: var(--play-button);
-    svg {
-      color: var(--play-button);
-      fill: transparent;
-    }
-    &:hover {
-      svg {
-        color: var(--play-button);
-        fill: var(--play-button);
-      }
-    }
-  }
   &.clear-filters {
     border: 1px solid var(--edit);
     color: var(--edit);

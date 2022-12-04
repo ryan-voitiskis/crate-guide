@@ -1,5 +1,5 @@
 <template>
-  <div class="track-option">
+  <div class="track-option" @click="load">
     <div class="cover"></div>
     <span class="position" v-if="track.position">{{ track.position }}</span>
     <div class="time-signature" v-if="track.timeSignature">
@@ -12,21 +12,21 @@
     <button
       class="audio-feature danceability"
       v-if="track.audioFeatures"
-      @click="tracks.toShowFeatures = track._id"
+      @click.stop="tracks.toShowFeatures = track._id"
     >
       <DanceIcon />{{ getPercent(track.audioFeatures.danceability) }}
     </button>
     <button
       class="audio-feature energy"
       v-if="track.audioFeatures"
-      @click="tracks.toShowFeatures = track._id"
+      @click.stop="tracks.toShowFeatures = track._id"
     >
       <BoltIcon />{{ getPercent(track.audioFeatures.energy) }}
     </button>
     <button
       class="audio-feature valence"
       v-if="track.audioFeatures"
-      @click="tracks.toShowFeatures = track._id"
+      @click.stop="tracks.toShowFeatures = track._id"
     >
       <SmileIcon />{{ getPercent(track.audioFeatures.valence) }}
     </button>
@@ -50,13 +50,7 @@
     <span class="label">{{ track.label }}</span>
     <span class="catno">{{ track.catno }}</span>
     <span class="year">{{ track.year }}</span>
-    <button
-      class="play"
-      @click="
-        session.loadTrack(track._id, session.loadTrackTo),
-          (session.loadTrackTo = -1)
-      "
-    >
+    <button class="play" @click="load">
       <PlayIcon />
     </button>
   </div>
@@ -98,6 +92,11 @@ const bpmColour = props.track.bpm
 const positionColour = props.track.position
   ? getPositionColour(props.track.position)
   : "hsl(0, 0%, 68%)"
+
+const load = () => {
+  session.loadTrack(props.track._id, session.loadTrackTo)
+  session.loadTrackTo = -1
+}
 </script>
 
 <style scoped lang="scss">
@@ -107,6 +106,8 @@ const positionColour = props.track.position
   grid-template-columns: 40px 26px 22px 32px 44px 44px 44px 40px 60px 2fr 1fr 1fr 1fr 1fr 38px 40px;
   width: 100%;
   column-gap: 10px;
+  transition: background-color 50ms linear;
+  cursor: pointer;
   span {
     color: var(--dark-text);
     line-height: 40px;
@@ -124,7 +125,6 @@ const positionColour = props.track.position
     overflow: hidden;
     background-repeat: no-repeat;
     background-size: contain;
-    z-index: -1;
   }
   .position {
     grid-area: 1 / 2 / 2 / 3;
@@ -154,6 +154,9 @@ const positionColour = props.track.position
     svg {
       width: 18px;
       margin-right: 1px;
+    }
+    &:hover {
+      background-color: var(--track-features-hover);
     }
   }
   .danceability {
@@ -211,6 +214,26 @@ const positionColour = props.track.position
     height: 100%;
     border-radius: 0;
     background-color: transparent;
+    color: var(--play-button);
+    svg {
+      fill: transparent;
+      transition: fill 80ms linear;
+    }
+  }
+  &:hover {
+    background-color: var(--track-hover);
+    .play {
+      svg {
+        color: var(--play-button);
+        fill: var(--play-button);
+      }
+    }
+  }
+  &:nth-child(even) {
+    background-color: var(--even-row-bg);
+    &:hover {
+      background-color: var(--track-hover);
+    }
   }
 }
 </style>

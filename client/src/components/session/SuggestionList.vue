@@ -119,8 +119,5 @@ const suggestions = computed((): TrackScored[] | null =>
   overflow-y: scroll;
   width: 900px;
   height: calc(100% - 688px);
-  .suggestion:nth-child(even) {
-    background-color: var(--even-row-bg);
-  }
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="suggestion">
+  <div class="suggestion" @click="load">
     <div class="cover"></div>
     <div class="top-row">
       <span class="position" v-if="track.position">{{ track.position }}</span>
@@ -49,21 +49,21 @@
       <button
         class="audio-feature danceability"
         v-if="track.audioFeatures"
-        @click="tracks.toShowFeatures = track._id"
+        @click.stop="tracks.toShowFeatures = track._id"
       >
         <DanceIcon />{{ getPercent(track.audioFeatures.danceability) }}
       </button>
       <button
         class="audio-feature energy"
         v-if="track.audioFeatures"
-        @click="tracks.toShowFeatures = track._id"
+        @click.stop="tracks.toShowFeatures = track._id"
       >
         <BoltIcon />{{ getPercent(track.audioFeatures.energy) }}
       </button>
       <button
         class="audio-feature valence"
         v-if="track.audioFeatures"
-        @click="tracks.toShowFeatures = track._id"
+        @click.stop="tracks.toShowFeatures = track._id"
       >
         <SmileIcon />{{ getPercent(track.audioFeatures.valence) }}
       </button>
@@ -130,6 +130,8 @@ const positionColour = props.track.position
   grid-template-columns: 60px auto 40px;
   grid-template-rows: 30px 30px;
   width: 100%;
+  transition: background-color 50ms linear;
+  cursor: pointer;
   span {
     color: var(--dark-text);
     line-height: 30px;
@@ -230,9 +232,13 @@ const positionColour = props.track.position
       background-color: transparent;
       padding: 0;
       font-size: 12px;
+
       svg {
         width: 18px;
         margin-right: 1px;
+      }
+      &:hover {
+        background-color: var(--track-features-hover);
       }
     }
     .danceability {
@@ -253,6 +259,26 @@ const positionColour = props.track.position
     margin: 0;
     border-radius: 0;
     background-color: transparent;
+    color: var(--play-button);
+    svg {
+      fill: transparent;
+      transition: fill 80ms linear;
+    }
+  }
+  &:hover {
+    background-color: var(--track-hover);
+    .play {
+      svg {
+        color: var(--play-button);
+        fill: var(--play-button);
+      }
+    }
+  }
+  &:nth-child(even) {
+    background-color: var(--even-row-bg);
+    &:hover {
+      background-color: var(--track-hover);
+    }
   }
 }
 </style>

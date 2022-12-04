@@ -54,6 +54,14 @@
   --disabled: hsl(215, 8%, 22%);
   --disabled-text: hsl(215, 8%, 66%);
 
+  /* records */
+  --record-bg: hsl(0, 0%, 8%);
+  --record-unstaged-bg: hsl(0, 0%, 36%);
+
+  /* tracks, suggestions */
+  --track-hover: hsl(146, 50%, 16%);
+  --track-features-hover: hsl(146, 70%, 50%);
+
   /* progress bar */
   --progress-fg: linear-gradient(
     70deg,
@@ -61,8 +69,4 @@
     rgba(236, 54, 110, 1) 100.2%
   );
   --progress-bg: hsl(0, 0%, 17%);
-
-  /* records */
-  --record-bg: hsl(0, 0%, 8%);
-  --record-unstaged-bg: hsl(0, 0%, 36%);
 }
