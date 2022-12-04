@@ -3,7 +3,6 @@ import { crateStore } from "@/stores/crateStore"
 import { discogsStore } from "@/stores/discogsStore"
 import { recordStore } from "@/stores/recordStore"
 import { sessionStore } from "@/stores/sessionStore"
-import { spotifyStore } from "@/stores/spotifyStore"
 import { trackStore } from "@/stores/trackStore"
 import UnregisteredUser from "@/interfaces/UnregisteredUser"
 import User from "@/interfaces/User"
@@ -18,7 +17,7 @@ export const userStore = defineStore("user", {
       token: "",
       discogsUsername: "",
       settings: {
-        theme: "light",
+        theme: "auto",
         turntableTheme: "silver",
         turntablePitchRange: 8,
         selectedCrate: "all",
@@ -183,10 +182,6 @@ export const userStore = defineStore("user", {
       recordStore().$reset()
       sessionStore().$reset()
       trackStore().$reset()
-    },
-
-    hasUser(): boolean {
-      return this.authd._id !== ""
     },
   },
 })

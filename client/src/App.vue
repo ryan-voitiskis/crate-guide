@@ -16,7 +16,7 @@
           <router-link class="btn" to="/collection">Collection</router-link>
         </nav>
         <nav class="account">
-          <span class="welcome" v-if="user.hasUser()">
+          <span class="welcome" v-if="user.authd._id">
             Welcome
             {{ user.authd.name != "" ? user.authd.name : user.authd.email }}
           </span>
@@ -28,19 +28,19 @@
           >
           <button
             type="button"
-            v-if="!user.hasUser()"
+            v-if="!user.authd._id"
             @click="user.signUpModal = true"
           >
             Create account
           </button>
           <button
             type="button"
-            v-if="!user.hasUser()"
+            v-if="!user.authd._id"
             @click="user.loginModal = true"
           >
             Log in
           </button>
-          <button type="button" v-if="user.hasUser()" @click="user.logout()">
+          <button type="button" v-if="user.authd._id" @click="user.logout()">
             Log out
           </button>
           <button type="button" @click="user.settingsModal = true">
@@ -56,43 +56,78 @@
     </router-view>
   </div>
 
-  <ModalBox v-if="user.loginModal" width="360px">
+  <ModalBox
+    v-if="user.loginModal"
+    @close="user.loginModal = false"
+    width="360px"
+  >
     <LoginForm />
   </ModalBox>
 
-  <ModalBox v-if="user.signUpModal" width="360px">
+  <ModalBox
+    v-if="user.signUpModal"
+    @close="user.signUpModal = false"
+    width="360px"
+  >
     <SignUpForm />
   </ModalBox>
 
-  <ModalBox v-if="user.recoveryModal" width="360px">
+  <ModalBox
+    v-if="user.recoveryModal"
+    @close="user.recoveryModal = false"
+    width="360px"
+  >
     <RecoveryForm />
   </ModalBox>
 
-  <ModalBox v-if="user.settingsModal" width="540px">
+  <ModalBox
+    v-if="user.settingsModal"
+    @close="user.settingsModal = false"
+    width="540px"
+  >
     <SettingsForm />
   </ModalBox>
 
-  <ModalBox v-if="discogs.authDiscogsModal">
+  <ModalBox
+    v-if="discogs.authDiscogsModal"
+    @close="discogs.authDiscogsModal = false"
+  >
     <AuthoriseDiscogs />
   </ModalBox>
 
-  <ModalBox v-if="discogs.revokeDiscogsModal">
+  <ModalBox
+    v-if="discogs.revokeDiscogsModal"
+    @close="discogs.revokeDiscogsModal = false"
+  >
     <ConfirmRevokeDiscogs />
   </ModalBox>
 
-  <ModalBox v-if="user.authd.justCompleteDiscogsOAuth">
+  <ModalBox
+    v-if="user.authd.justCompleteDiscogsOAuth"
+    @close="user.authd.justCompleteDiscogsOAuth = false"
+  >
     <AuthoriseDiscogsSuccessful />
   </ModalBox>
 
-  <ModalBox v-if="discogs.selectDiscogsFolderModal">
+  <ModalBox
+    v-if="discogs.selectDiscogsFolderModal"
+    @close="discogs.selectDiscogsFolderModal = false"
+  >
     <SelectDiscogsFolder />
   </ModalBox>
 
-  <ModalBox v-if="discogs.stageImportModal" width="680px">
+  <ModalBox
+    v-if="discogs.stageImportModal"
+    @close="discogs.stageImportModal = false"
+    width="680px"
+  >
     <StageDiscogsImport />
   </ModalBox>
 
-  <ModalBox v-if="discogs.importProgressModal">
+  <ModalBox
+    v-if="discogs.importProgressModal"
+    @close="discogs.importProgressModal = false"
+  >
     <DiscogsImportProgress />
   </ModalBox>
 
@@ -104,11 +139,18 @@
     <UpdateFeedback :text="state.queryMsg" />
   </ModalBox>
 
-  <ModalBox v-if="spotify.revokeSpotifyModal">
+  <ModalBox
+    v-if="spotify.revokeSpotifyModal"
+    @close="spotify.revokeSpotifyModal = false"
+  >
     <ConfirmRevokeSpotify />
   </ModalBox>
 
-  <ModalBox v-if="tracks.toShowFeatures" width="560px">
+  <ModalBox
+    v-if="tracks.toShowFeatures"
+    @close="tracks.toShowFeatures = ''"
+    width="560px"
+  >
     <AudioFeatures />
   </ModalBox>
 </template>

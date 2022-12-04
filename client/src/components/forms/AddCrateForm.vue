@@ -7,7 +7,7 @@
   </div>
   <form @submit.prevent="submit">
     <InfoDropdown
-      text="Crates are collections of records that, when selected a crate will limits session recommendations. A crate could represent a crate of records taken to a gig."
+      text="Crates are collections of records that, when selected a crate will limits session suggestion options and track load options. A crate could represent a crate of records taken to a gig."
     />
     <div class="modal-body inline-labels">
       <BasicInput

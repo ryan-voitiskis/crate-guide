@@ -29,7 +29,12 @@ input[type="button"] {
   }
   &:disabled {
     cursor: not-allowed;
+    color: var(--disabled-text);
     background-color: var(--disabled);
+    svg {
+      color: var(--disabled-text);
+      fill: transparent;
+    }
   }
   &.primary {
     padding: 0 40px;
@@ -46,9 +51,17 @@ input[type="button"] {
     &.delete {
       color: var(--white-text);
       background: var(--delete);
+      svg {
+        color: var(--white-text);
+        fill: transparent;
+      }
       &:hover {
         background: var(--delete-hover);
         color: var(--white-text);
+        svg {
+          color: var(--white-text);
+          fill: var(--white-text);
+        }
       }
     }
   }

@@ -5,9 +5,9 @@
       <XIcon />
     </button>
   </div>
-  <form v-on="user.hasUser() ? { change: updateSettings } : {}" @submit.prevent>
+  <form v-on="user.authd._id ? { change: updateSettings } : {}" @submit.prevent>
     <div class="modal-body">
-      <p v-if="!user.hasUser()">
+      <p v-if="!user.authd._id">
         <b>You are not logged in.</b><br />Settings changed here are for this
         session only.
       </p>
@@ -77,7 +77,7 @@
         />
       </fieldset>
 
-      <fieldset class="controls" v-if="user.hasUser()">
+      <fieldset class="controls" v-if="user.authd._id">
         <legend>Discogs API</legend>
         <div v-if="user.authd.discogsUsername !== ''">
           <span class="username">
@@ -93,7 +93,7 @@
         <DiscogsControls />
       </fieldset>
 
-      <fieldset class="controls" v-if="user.hasUser()">
+      <fieldset class="controls" v-if="user.authd._id">
         <legend>Spotify API</legend>
         <button
           v-if="!user.authd.isSpotifyOAuthd"

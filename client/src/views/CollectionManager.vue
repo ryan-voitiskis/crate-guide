@@ -1,5 +1,4 @@
 <template>
-  <p v-if="!user.hasUser()">Sign in to create collections.</p>
   <div class="controls">
     <CrateSelect
       selectID="select_track_crate_select"
@@ -10,6 +9,7 @@
       class="crate-options"
       type="button"
       @click="crates.actionsModal = true"
+      :disabled="!user.authd._id"
     >
       <WrenchIcon />
     </button>
@@ -75,48 +75,68 @@
       :filterYear="state.filterYear"
     />
   </KeepAlive>
+  <span class="sign-in-message" v-if="!user.authd._id">
+    Sign in to create collections.
+  </span>
 
-  <ModalBox v-if="crates.addCrateModal">
+  <ModalBox v-if="crates.addCrateModal" @close="crates.addCrateModal = false">
     <AddCrateForm />
   </ModalBox>
 
-  <ModalBox v-if="crates.deleteCrateModal">
+  <ModalBox
+    v-if="crates.deleteCrateModal"
+    @close="crates.deleteCrateModal = false"
+  >
     <ConfirmDeleteCrate />
   </ModalBox>
 
-  <ModalBox v-if="crates.duplicateCrateModal">
+  <ModalBox
+    v-if="crates.duplicateCrateModal"
+    @close="crates.duplicateCrateModal = false"
+  >
     <DuplicateCrateForm />
   </ModalBox>
 
-  <ModalBox v-if="records.addRecordModal">
+  <ModalBox
+    v-if="records.addRecordModal"
+    @close="records.addRecordModal = false"
+  >
     <AddRecordForm />
   </ModalBox>
 
-  <ModalBox v-if="records.toEdit !== ''">
+  <ModalBox v-if="records.toEdit !== ''" @close="records.toEdit = ''">
     <EditRecordForm />
   </ModalBox>
 
-  <ModalBox v-if="records.toDelete.length">
+  <ModalBox v-if="records.toDelete.length" @close="records.toDelete = []">
     <DeleteRecordForm />
   </ModalBox>
 
-  <ModalBox v-if="records.toCrate.length">
+  <ModalBox v-if="records.toCrate.length" @close="records.toCrate = []">
     <SelectCrateForm />
   </ModalBox>
 
-  <ModalBox v-if="records.fromCrate.length">
+  <ModalBox v-if="records.fromCrate.length" @close="records.fromCrate = []">
     <RemoveRecordForm />
   </ModalBox>
 
-  <ModalBox v-if="tracks.addTrackTo !== ''" width="480px">
+  <ModalBox
+    v-if="tracks.addTrackTo !== ''"
+    @close="tracks.addTrackTo = ''"
+    width="480px"
+  >
     <AddTrackForm />
   </ModalBox>
 
-  <ModalBox v-if="tracks.toEdit !== ''" width="480px">
+  <ModalBox
+    v-if="tracks.toEdit !== ''"
+    @close="tracks.toEdit = ''"
+    width="480px"
+  >
     <EditTrackForm />
   </ModalBox>
 
-  <ModalBox v-if="tracks.toDelete !== ''">
+  <ModalBox v-if="tracks.toDelete !== ''" @close="tracks.toDelete = ''">
     <DeleteTrackForm />
   </ModalBox>
 
@@ -128,23 +148,40 @@
     <UpdateFeedback :text="crates.feedbackMsg" />
   </ModalBox>
 
-  <ModalBox v-if="spotify.importProgressModal">
+  <ModalBox
+    v-if="spotify.importProgressModal"
+    @close="spotify.importProgressModal = false"
+  >
     <SpotifyImportProgress />
   </ModalBox>
 
-  <ModalBox v-if="spotify.albumMatchesModal" width="880px">
+  <ModalBox
+    v-if="spotify.albumMatchesModal"
+    @close="spotify.albumMatchesModal = false"
+    width="880px"
+  >
     <AlbumMatchForm />
   </ModalBox>
 
-  <ModalBox v-if="spotify.trackMatchesModal" width="880px">
+  <ModalBox
+    v-if="spotify.trackMatchesModal"
+    @close="spotify.trackMatchesModal = false"
+    width="880px"
+  >
     <TrackMatchForm />
   </ModalBox>
 
-  <ModalBox v-if="spotify.completionModal" width="680px">
+  <ModalBox
+    v-if="spotify.completionModal"
+    @close="spotify.completionModal = false"
+    width="680px"
+  >
     <SpotifyCompletion />
   </ModalBox>
 
-  <ModalBox v-if="crates.actionsModal"><CrateActions /></ModalBox>
+  <ModalBox v-if="crates.actionsModal" @close="crates.actionsModal = false">
+    <CrateActions />
+  </ModalBox>
 </template>
 
 <script setup lang="ts">
@@ -208,14 +245,17 @@ const state = reactive({
   gap: 10px;
   margin-bottom: 10px;
 }
+
 .list-layout {
   margin-left: auto;
   margin-top: 29px;
 }
+
 .clear-filters {
   justify-self: end;
   margin-top: 29px;
 }
+
 .crate-options {
   width: 38px;
   margin-top: 29px;
@@ -223,5 +263,13 @@ const state = reactive({
   svg {
     position: absolute;
   }
+}
+
+.sign-in-message {
+  width: 100%;
+  margin: 20px;
+  display: block;
+  text-align: center;
+  font-size: 22px;
 }
 </style>

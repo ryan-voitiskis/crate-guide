@@ -50,11 +50,20 @@
   --edit-hover: hsl(35, 84%, 72%);
   --delete: hsl(356, 75%, 60%);
   --delete-hover: hsl(356, 75%, 80%);
-  --disabled: hsl(0, 0%, 80%);
+  --disabled: hsl(215, 8%, 24%);
+  --disabled-text: hsl(215, 8%, 36%);
 
   /* records */
   --record-bg: hsl(214, 13%, 24%);
   --record-unstaged-bg: hsl(0, 0%, 97%);
+
+  /* progress bar */
+  --progress-fg: linear-gradient(
+    70deg,
+    rgba(245, 177, 97, 1) 0.4%,
+    rgba(236, 54, 110, 1) 100.2%
+  );
+  --progress-bg: hsl(0, 0%, 17%);
 }
 
 :root.dark {

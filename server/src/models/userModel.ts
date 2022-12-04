@@ -89,7 +89,7 @@ const userSchema = new mongoose.Schema<IUser>(
     settings: {
       theme: {
         type: String,
-        default: "light",
+        default: "auto",
       },
       turntableTheme: {
         type: String,

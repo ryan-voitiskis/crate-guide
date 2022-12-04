@@ -41,7 +41,7 @@ const changePitch = (event: Event) => {
 
 const resetPitch = () => {
   session.decks[props.deckID].faderPosition = 0
-  session.decks[props.deckID].faderPosition = 0
+  session.decks[props.deckID].pitch = 0
 }
 
 const pitchReadable = computed(

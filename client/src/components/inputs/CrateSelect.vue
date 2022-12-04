@@ -37,7 +37,7 @@ const cratesList = computed((): Option[] =>
 watch(
   () => user.authd.settings.selectedCrate, // when selectedCrate changes
   () => {
-    if (user.hasUser()) user.updateSettings() // hasUser() check to avoid call on logout
+    if (user.authd._id) user.updateSettings() // hasUser() check to avoid call on logout
     records.checkboxed = [] // clear checkboxed
     records.checkAll = false // set select all checkbox to false
     tracks.generateCrateTrackList()

@@ -1,5 +1,5 @@
 <template>
-  <div class="controls" v-if="user.hasUser()">
+  <div class="controls" v-if="user.authd._id">
     <button class="icon-button" @click="records.addRecordModal = true">
       <PlusCircleIcon /> Add new record
     </button>
@@ -35,12 +35,13 @@
       <SpotifyLogo class="spotify-logo" />Get Spotify data for selected
     </button>
     <button
-      v-if="user.hasUser()"
       class="icon-button"
+      :disabled="!user.authd.isDiscogsOAuthd"
       @click="discogs.selectDiscogsFolderModal = true"
     >
       <ImportIcon />Import from Discogs
     </button>
+    <InfoDropout v-if="!user.authd.isDiscogsOAuthd" :text="unAuthdTip" />
   </div>
   <div class="sort-controls">
     <label class="checkbox-hitbox">
@@ -97,7 +98,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from "vue"
+import { computed, reactive, watch, inject } from "vue"
 import RecordSingle from "./RecordSingle.vue"
 import Record from "@/interfaces/Record"
 import SortByButton from "@/components/utility/SortByButton.vue"
@@ -114,6 +115,7 @@ import FolderMinusIcon from "@/components/icons/FolderMinusIcon.vue"
 import TrashIcon from "@/components/icons/TrashIcon.vue"
 import SpotifyLogo from "@/components/icons/SpotifyLogo.vue"
 import ImportIcon from "../icons/ImportIcon.vue"
+import InfoDropout from "../utility/InfoDropout.vue"
 const user = userStore()
 const crates = crateStore()
 const discogs = discogsStore()
@@ -121,6 +123,9 @@ const records = recordStore()
 const spotify = spotifyStore()
 const yearsFilterRx = /^\d{4}\s*-\s*\d{4}$/
 const yearFilterRx = /^\d{4}$/
+
+const appName = inject("appName")
+const unAuthdTip = `Connect ${appName} to your Discogs account first in settings.`
 
 const props = defineProps<{
   searchTitle: string

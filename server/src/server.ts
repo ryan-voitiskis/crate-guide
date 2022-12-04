@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url"
 import express from "express"
 import cors from "cors"
 // import helmet from "helmet"
-import dotenv from "dotenv"
+import env from "./env.js"
 import errorHandler from "./middleware/errorMiddleware.js"
 import errorHandlerSSE from "./middleware/errorMiddlewareSSE.js"
 import connectDB from "./config/db.js"
@@ -17,11 +17,8 @@ import discogsRoutesSSE from "./routes/discogsRoutesSSE.js"
 import spotifyRoutesSSE from "./routes/spotifyRoutesSSE.js"
 // import history from "connect-history-api-fallback"
 
-dotenv.config()
-
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const port = process.env.PORT || 5000
 
 connectDB()
 
@@ -59,4 +56,4 @@ app.use("/api/spotify_sse", errorHandlerSSE)
 // serve frontend
 app.use(express.static(path.join(__dirname, "../../client/dist/")))
 
-app.listen(port, () => console.log(`Server started on port ${port}`))
+app.listen(env.PORT, () => console.log(`Server started on port ${env.PORT}`))
