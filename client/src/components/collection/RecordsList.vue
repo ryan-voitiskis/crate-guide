@@ -3,37 +3,7 @@
     <button class="icon-button" @click="records.addRecordModal = true">
       <PlusCircleIcon /> Add new record
     </button>
-    <button
-      class="icon-button"
-      @click="records.toCrate = records.checkboxed"
-      v-if="records.checkboxed.length"
-    >
-      <FolderDownIcon />Add selected to
-      {{ user.authd.settings.selectedCrate !== "all" ? "another " : "" }}crate
-    </button>
-    <button
-      class="icon-button"
-      @click="records.fromCrate = records.checkboxed"
-      v-if="
-        user.authd.settings.selectedCrate !== 'all' && records.checkboxed.length
-      "
-    >
-      <FolderMinusIcon />Remove selected from crate
-    </button>
-    <button
-      class="icon-button"
-      @click="records.toDelete = records.checkboxed"
-      v-if="records.checkboxed.length"
-    >
-      <TrashIcon />Delete selected
-    </button>
-    <button
-      class="icon-button"
-      @click="spotify.importDataForSelectedRecords()"
-      v-if="records.checkboxed.length && user.authd.isSpotifyOAuthd"
-    >
-      <SpotifyLogo class="spotify-logo" />Get Spotify data for selected
-    </button>
+
     <button
       class="icon-button"
       :disabled="!user.authd.isDiscogsOAuthd"
@@ -42,6 +12,38 @@
       <ImportIcon />Import from Discogs
     </button>
     <InfoDropout v-if="!user.authd.isDiscogsOAuthd" :text="unAuthdTip" />
+    <button
+      class="icon-button selected-action"
+      @click="records.toCrate = records.checkboxed"
+      v-if="records.checkboxed.length"
+    >
+      <FolderDownIcon />Add <span>&nbsp;selected&nbsp;</span> to
+      {{ user.authd.settings.selectedCrate !== "all" ? "another " : "" }}crate
+    </button>
+    <button
+      class="icon-button selected-action"
+      @click="records.fromCrate = records.checkboxed"
+      v-if="
+        user.authd.settings.selectedCrate !== 'all' && records.checkboxed.length
+      "
+    >
+      <FolderMinusIcon />Remove <span>&nbsp;selected&nbsp;</span> from crate
+    </button>
+    <button
+      class="icon-button selected-action"
+      @click="records.toDelete = records.checkboxed"
+      v-if="records.checkboxed.length"
+    >
+      <TrashIcon />Delete <span>&nbsp;selected&nbsp;</span>
+    </button>
+    <button
+      class="icon-button selected-action"
+      @click="spotify.importDataForSelectedRecords()"
+      v-if="records.checkboxed.length && user.authd.isSpotifyOAuthd"
+    >
+      <SpotifyLogo class="spotify-logo" />Get
+      <span>&nbsp;selected&nbsp;</span> Spotify data
+    </button>
   </div>
   <div class="sort-controls">
     <label class="checkbox-hitbox">
@@ -260,5 +262,13 @@ watch(
 
 .sort-by-button {
   width: 120px;
+}
+
+.selected-action {
+  border: 1px solid var(--selected-action);
+  line-height: 36px;
+  span {
+    color: var(--selected-action);
+  }
 }
 </style>

@@ -5,7 +5,7 @@
       <span class="position" v-if="track.position">{{ track.position }}</span>
       <span class="catno">{{ track.catno }}</span>
       <span class="title-artists">
-        {{ props.track.title }} - {{ track.artistsFinal }}
+        {{ track.title }} - {{ track.artistsFinal }}
       </span>
       <span class="genre" v-if="track.genre">{{ track.genre }}</span>
       <span class="year" v-if="track.year">{{ track.year }}</span>
@@ -32,19 +32,15 @@
             : track.keyFinal.camelotString
         }}
       </span>
-      <span
-        class="key-relation"
-        v-if="props.track.harmonyScore?.harmonicAffinity"
-      >
-        {{ (props.track.harmonyScore.harmonicAffinity * 100).toFixed(1) }}% -
-        {{ keyCombinations[props.track.harmonyScore.keyCombination] }}
+      <span class="key-relation" v-if="track.harmonyScore?.harmonicAffinity">
+        {{ (track.harmonyScore.harmonicAffinity * 100).toFixed(1) }}% -
+        {{ keyCombinations[track.harmonyScore.keyCombination] }}
       </span>
       <span
         class="tempo-distance"
-        v-if="typeof props.track.tempoScore?.pitchAdjustment === 'number'"
+        v-if="typeof track.tempoScore?.pitchAdjustment === 'number'"
       >
-        {{ (props.track.tempoScore.pitchAdjustment * 100).toFixed(1) }}% pitch
-        adj.
+        {{ (track.tempoScore.pitchAdjustment * 100).toFixed(1) }}% pitch adj.
       </span>
       <button
         class="audio-feature danceability"
@@ -112,11 +108,9 @@ const coverImg = `url("${props.track.cover}")`
 
 const keyColour = props.track.keyFinal ? props.track.keyFinal.colour : null
 
-const bpmColour = props.track.bpm
-  ? getBPMColour(props.track.bpm)
-  : props.track.audioFeatures?.tempo
-  ? getBPMColour(props.track.audioFeatures.tempo)
-  : ""
+const bpmColour = props.track.bpmFinal
+  ? getBPMColour(props.track.bpmFinal)
+  : null
 
 const positionColour = props.track.position
   ? getPositionColour(props.track.position)
@@ -200,7 +194,6 @@ const positionColour = props.track.position
       height: 26px;
       width: 100%;
       line-height: 26px;
-      justify-self: center;
       align-self: center;
       font-weight: 500;
       padding: 0 10px;

@@ -119,6 +119,7 @@ export const recordStore = defineStore("record", {
               crates.fetchCrates()
             }
             this.toDelete = []
+            recordStore().checkboxed = []
             trackStore().generateTrackLists()
             this.loading = false
             return response.status

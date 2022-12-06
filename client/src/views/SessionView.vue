@@ -6,6 +6,7 @@
   </div>
   <div class="session">
     <RecordDeck :deckID="0" />
+    <HistoryList />
     <RecordDeck :deckID="1" />
   </div>
 
@@ -19,6 +20,13 @@
       <SelectTrackList />
     </ModalBox>
   </KeepAlive>
+
+  <ModalBox
+    v-if="session.confirmClearHistory"
+    @close="session.confirmClearHistory = false"
+  >
+    <ConfirmDeleteHistory />
+  </ModalBox>
 </template>
 
 <script setup lang="ts">
@@ -27,6 +35,8 @@ import ModalBox from "@/components/utility/ModalBox.vue"
 import RecordDeck from "@/components/session/RecordDeck.vue"
 import SelectTrackList from "@/components/session/SelectTrackList.vue"
 import ChevronUpIcon from "@/components/icons/ChevronUpIcon.vue"
+import HistoryList from "@/components/session/HistoryList.vue"
+import ConfirmDeleteHistory from "@/components/forms/ConfirmDeleteHistory.vue"
 
 const session = sessionStore()
 </script>
@@ -59,8 +69,13 @@ const session = sessionStore()
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  justify-content: space-around;
+  justify-content: center;
   width: 100%;
   height: 100%;
+}
+@media (max-width: 2100px) {
+  .session {
+    flex-wrap: wrap;
+  }
 }
 </style>

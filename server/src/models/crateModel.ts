@@ -1,6 +1,13 @@
-import mongoose from "mongoose"
+import mongoose, { Types } from "mongoose"
 
-const crateSchema = new mongoose.Schema(
+interface ICrate {
+  _id: Types.ObjectId
+  user: Types.ObjectId
+  name: string
+  records: string[]
+}
+
+const crateSchema = new mongoose.Schema<ICrate>(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -19,4 +26,5 @@ const crateSchema = new mongoose.Schema(
   }
 )
 
-export default mongoose.model("Crate", crateSchema)
+const Crate = mongoose.model("Crate", crateSchema)
+export { ICrate, Crate }

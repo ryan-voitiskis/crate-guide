@@ -108,6 +108,7 @@ export const crateStore = defineStore("crate", {
             if (response.status === 200) {
               crate.records.push(...difference)
               this.pushToCrateFeedback(intersection, difference)
+              recordStore().checkboxed = []
               trackStore().generateTrackLists()
               this.loading = false
               return response.status
@@ -157,6 +158,7 @@ export const crateStore = defineStore("crate", {
           )
           if (response.status === 200) {
             crate.records = remainingRecords
+            recordStore().checkboxed = []
             trackStore().generateTrackLists()
           } else if (response.status === 400 || response.status === 401) {
             const error = await response.json()

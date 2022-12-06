@@ -2,6 +2,7 @@ import { TrackPlus } from "@/interfaces/Track"
 import { defineStore } from "pinia"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "./userStore"
+import PlayedTrack from "@/interfaces/PlayedTrack"
 
 interface Deck {
   loadedTrack: TrackPlus | null
@@ -41,15 +42,18 @@ export const sessionStore = defineStore("session", {
         adjustedKey: null,
       },
     ] as Deck[],
+    history: [] as PlayedTrack[],
     loadTrackTo: -1, // deck number to load track to
+    confirmClearHistory: false,
     collapseHeader: false,
   }),
   actions: {
     loadTrack(_id: string, to: number, matchTempo?: boolean) {
       this.decks[to].loadedTrack =
         trackStore().getTrackByIdFromCrateTrackList(_id)
+      let otherBpm = null
       if (matchTempo) {
-        const otherBpm = this.decks[to === 1 ? 0 : 1].adjustedBpm
+        otherBpm = this.decks[to === 1 ? 0 : 1].adjustedBpm
         if (otherBpm && this.decks[to].loadedTrack!.bpmFinal) {
           const pitch =
             ((otherBpm / this.decks[to].loadedTrack!.bpmFinal! - 1) /
@@ -59,6 +63,12 @@ export const sessionStore = defineStore("session", {
           this.decks[to].pitch = pitch
         }
       }
+      this.history.push({
+        _id: _id,
+        timeAdded: Date.now(),
+        adjustedBpm: otherBpm,
+        transitionFromRating: null,
+      })
     },
   },
   getters: {},

@@ -11,11 +11,11 @@
 
   /* text and icons */
   --white-text: hsl(0, 0%, 100%);
-  --lighter-text: hsl(0, 0%, 80%);
-  --light-text: hsl(0, 0%, 62%);
-  --dark-text: hsl(0, 0%, 47%);
-  --darker-text: hsl(0, 0%, 33%);
-  --darkest-text: hsl(0, 0%, 27%);
+  --lighter-text: hsl(0, 0%, 76%);
+  --light-text: hsl(0, 0%, 57%);
+  --dark-text: hsl(0, 0%, 41%);
+  --darker-text: hsl(0, 0%, 28%);
+  --darkest-text: hsl(0, 0%, 20%);
   --link-text: hsl(216, 76%, 39%);
   --link-text-hover: hsl(216, 70%, 56%);
   --abbr-title: hsla(0, 0%, 5%, 0.74);
@@ -56,6 +56,8 @@
   /* records */
   --record-bg: hsl(10, 24%, 96%);
   --record-unstaged-bg: hsl(0, 0%, 97%);
+  --selected-action: hsl(277, 50%, 30%);
+  --record-selected-bg: hsl(277, 13%, 86%);
 
   /* tracks, suggestions */
   --track-hover: hsl(146, 50%, 86%);

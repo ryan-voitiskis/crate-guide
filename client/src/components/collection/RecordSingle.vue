@@ -1,5 +1,5 @@
 <template>
-  <div class="record">
+  <div class="record" :class="{ selected: state.checked }">
     <div class="cover"></div>
     <label class="checkbox-hitbox">
       <input type="checkbox" v-model="state.checked" @change="updateChecked" />
@@ -212,6 +212,9 @@ const coverImg = computed(() => `url("${props.cover}")`)
     overflow-y: scroll;
     scrollbar-color: hsl(210, 46%, 67%) hsla(210, 46%, 84%, 0.437);
     scrollbar-gutter: stable both-edges;
+  }
+  &.selected {
+    background-color: var(--record-selected-bg);
   }
 }
 </style>

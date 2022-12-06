@@ -44,7 +44,7 @@
           : track.keyFinal.camelotString
       }}
     </span>
-    <span class="title">{{ props.track.title }}</span>
+    <span class="title">{{ track.title }}</span>
     <span class="artists">{{ track.artistsFinal }}</span>
     <span class="genre" v-if="track.genre">{{ track.genre }}</span>
     <span class="label">{{ track.label }}</span>
@@ -83,11 +83,9 @@ const coverImg = `url("${props.track.cover}")`
 
 const keyColour = props.track.keyFinal ? props.track.keyFinal.colour : null
 
-const bpmColour = props.track.bpm
-  ? getBPMColour(props.track.bpm)
-  : props.track.audioFeatures?.tempo
-  ? getBPMColour(props.track.audioFeatures.tempo)
-  : ""
+const bpmColour = props.track.bpmFinal
+  ? getBPMColour(props.track.bpmFinal)
+  : null
 
 const positionColour = props.track.position
   ? getPositionColour(props.track.position)
