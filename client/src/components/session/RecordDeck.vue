@@ -164,7 +164,6 @@ const positionColour = computed(() =>
       position: relative;
       height: 700px;
       width: 900px;
-      box-sizing: content-box;
     }
   }
 }
@@ -277,6 +276,15 @@ const positionColour = computed(() =>
   transition: box-shadow 0.2s ease-in-out;
   &:hover {
     box-shadow: 0 0 4px 4px var(--load-button-shadow);
+  }
+}
+
+@media (max-width: 1830px) {
+  .deck-area-container {
+    width: 100%;
+  }
+  .deck-wrapper {
+    margin: 0 auto;
   }
 }
 </style>

@@ -33,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps } from "vue"
+import { defineProps, defineEmits, onMounted } from "vue"
 import { sessionStore } from "@/stores/sessionStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
@@ -64,13 +64,17 @@ const positionColour = foundTrack.position
   ? getPositionColour(foundTrack.position)
   : "hsl(0, 0%, 68%)"
 
+const emit = defineEmits<{
+  (e: "newTrackMounted"): void
+}>()
+
 const remove = () => {
-  if (session.history.length !== props.index + 1) {
-    console.log(session.history.length, props.index)
-    session.history[props.index + 1].transitionFromRating = null
-  }
-  session.history.splice(props.index, 1)
+  if (session.transitionHistory.length !== props.index + 1)
+    session.transitionHistory[props.index + 1].transitionRating = null
+  session.transitionHistory.splice(props.index, 1)
 }
+
+onMounted(() => emit("newTrackMounted"))
 </script>
 
 <style scoped lang="scss">

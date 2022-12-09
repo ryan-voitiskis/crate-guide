@@ -27,6 +27,13 @@
   >
     <ConfirmDeleteHistory />
   </ModalBox>
+
+  <ModalBox
+    v-if="session.saveHistoryForm"
+    @close="session.saveHistoryForm = false"
+  >
+    <SaveHistoryForm />
+  </ModalBox>
 </template>
 
 <script setup lang="ts">
@@ -37,6 +44,7 @@ import SelectTrackList from "@/components/session/SelectTrackList.vue"
 import ChevronUpIcon from "@/components/icons/ChevronUpIcon.vue"
 import HistoryList from "@/components/session/HistoryList.vue"
 import ConfirmDeleteHistory from "@/components/forms/ConfirmDeleteHistory.vue"
+import SaveHistoryForm from "@/components/forms/SaveHistoryForm.vue"
 
 const session = sessionStore()
 </script>
@@ -67,13 +75,12 @@ const session = sessionStore()
 }
 .session {
   display: flex;
-  flex-wrap: wrap;
   gap: 10px;
   justify-content: center;
   width: 100%;
   height: 100%;
 }
-@media (max-width: 2100px) {
+@media (max-width: 2200px) {
   .session {
     flex-wrap: wrap;
   }

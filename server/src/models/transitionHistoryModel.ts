@@ -4,10 +4,10 @@ interface IPlayedTrack {
   _id: Types.ObjectId
   timeAdded: number
   adjustedBpm: number | null // bpm of track when loaded
-  transitionFromRating: number | null // star rating of transition FROM previous track, null for first or unrated
+  transitionRating: number | null // star rating of transition FROM previous track, null for first or unrated
 }
 
-interface IHistory {
+interface ITransitionHistory {
   _id: Types.ObjectId
   user: Types.ObjectId
   name?: string
@@ -21,12 +21,12 @@ const playedTrackSchema = new mongoose.Schema<IPlayedTrack>({
   adjustedBpm: {
     type: Number,
   },
-  transitionFromRating: {
+  transitionRating: {
     type: Number,
   },
 })
 
-const historySchema = new mongoose.Schema<IHistory>(
+const transitionHistorySchema = new mongoose.Schema<ITransitionHistory>(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -46,5 +46,9 @@ const historySchema = new mongoose.Schema<IHistory>(
   }
 )
 
-const History = mongoose.model("History", historySchema)
-export { IPlayedTrack, IHistory, History }
+const TransitionHistory = mongoose.model(
+  "TransitionHistory",
+  transitionHistorySchema
+)
+
+export { IPlayedTrack, ITransitionHistory, TransitionHistory }

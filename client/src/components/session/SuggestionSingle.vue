@@ -1,5 +1,9 @@
 <template>
-  <div class="suggestion" @click="load">
+  <div
+    class="suggestion"
+    :class="{ 'deck-2-suggestion': deckID === 1 }"
+    @click="load"
+  >
     <div class="cover"></div>
     <div class="top-row">
       <span class="position" v-if="track.position">{{ track.position }}</span>
@@ -271,6 +275,30 @@ const positionColour = props.track.position
     background-color: var(--even-row-bg);
     &:hover {
       background-color: var(--track-hover);
+    }
+  }
+}
+
+.deck-2-suggestion {
+  .play {
+    svg {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+@media (max-width: 1830px) {
+  .play {
+    svg {
+      transform: rotate(90deg);
+    }
+  }
+
+  .deck-2-suggestion {
+    .play {
+      svg {
+        transform: rotate(-90deg);
+      }
     }
   }
 }

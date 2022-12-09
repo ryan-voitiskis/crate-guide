@@ -6,7 +6,7 @@
       width="240px"
     />
     <button
-      class="crate-options"
+      class="icon-only-button crate-actions-button"
       type="button"
       @click="crates.actionsModal = true"
       :disabled="!user.authd._id"
@@ -256,20 +256,15 @@ const state = reactive({
   margin-top: 29px;
 }
 
-.crate-options {
-  width: 38px;
-  margin-top: 29px;
-  padding: 0 8px;
-  svg {
-    position: absolute;
-  }
-}
-
 .sign-in-message {
   width: 100%;
   margin: 20px;
   display: block;
   text-align: center;
   font-size: 22px;
+}
+
+.crate-actions-button {
+  margin-top: 29px;
 }
 </style>

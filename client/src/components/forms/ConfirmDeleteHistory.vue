@@ -23,7 +23,9 @@
       Cancel
     </button>
     <button
-      @click=";(session.history = []), (session.confirmClearHistory = false)"
+      @click="
+        ;(session.transitionHistory = []), (session.confirmClearHistory = false)
+      "
       class="primary delete"
       type="submit"
     >

@@ -1,55 +1,91 @@
 <template>
-  <div class="history-list">
+  <div class="history-list-container">
     <div class="header">
       <span class="label">Transition history</span>
-      <button
-        class="icon-button"
-        @click="session.confirmClearHistory = true"
-        v-show="session.history.length"
-      >
-        <TrashIcon />Clear
-      </button>
-      <button class="icon-button" v-show="session.history.length">
-        <SaveIcon />Save
-      </button>
+      <div class="controls">
+        <button
+          class="icon-only-button"
+          @click="session.confirmClearHistory = true"
+          v-show="session.transitionHistory.length"
+        >
+          <TrashIcon />
+        </button>
+        <button
+          class="icon-only-button"
+          v-show="session.transitionHistory.length"
+          @click="session.saveHistoryForm = true"
+        >
+          <SaveIcon />
+        </button>
+      </div>
     </div>
-    <PlayedTrack
-      v-for="(track, index) in session.history"
-      :track="track"
-      :index="index"
-      :key="track.timeAdded"
-    />
+    <div class="history-list" ref="list">
+      <PlayedTrack
+        v-for="(track, index) in session.transitionHistory"
+        :track="track"
+        :index="index"
+        :key="track.timeAdded"
+        @newTrackMounted="scrollBottom"
+      />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue"
 import { sessionStore } from "@/stores/sessionStore"
 import SaveIcon from "../icons/SaveIcon.vue"
 import TrashIcon from "../icons/TrashIcon.vue"
 import PlayedTrack from "./PlayedTrack.vue"
 const session = sessionStore()
+
+const list = ref<HTMLInputElement | null>(null)
+
+function scrollBottom() {
+  list.value ? (list.value.scrollTop = list.value.scrollHeight) : null
+}
 </script>
 
 <style scoped lang="scss">
-.header {
-  display: flex;
-  margin-bottom: 10px;
-  gap: 10px;
-  .label {
-    line-height: 38px;
-    font-size: 18px;
-    font-weight: 500;
-    width: 100%;
-  }
-  button {
-    margin-left: auto;
-  }
-}
-.history-list {
+.history-list-container {
   flex-grow: 1;
   flex-shrink: 1;
-  overflow-y: scroll;
-  height: calc(100% - 12px);
-  max-width: 600px;
+  max-width: 720px;
+  min-width: 360px;
+  .header {
+    display: flex;
+    margin-bottom: 10px;
+    gap: 10px;
+    width: 100%;
+    .label {
+      line-height: 38px;
+      font-size: 20px;
+      font-weight: 600;
+      width: 100%;
+      flex-shrink: 1;
+      overflow-x: hidden;
+      text-overflow: ellipsis;
+      flex-basis: content;
+    }
+    .controls {
+      display: flex;
+      justify-items: right;
+      gap: 10px;
+      margin-left: auto;
+    }
+  }
+  .history-list {
+    overflow-y: scroll;
+    height: calc(100% - 48px);
+  }
+}
+
+@media (max-width: 2200px) {
+  .history-list-container {
+    order: 3;
+    flex-wrap: wrap;
+    height: auto;
+    max-height: 668px;
+  }
 }
 </style>

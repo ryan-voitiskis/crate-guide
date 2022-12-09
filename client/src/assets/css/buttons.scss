@@ -123,6 +123,18 @@ input[type="button"] {
       }
     }
   }
+  &.icon-button {
+    svg {
+      margin-right: 10px;
+    }
+  }
+  &.icon-only-button {
+    width: 38px;
+    padding: 0 8px;
+    svg {
+      position: absolute;
+    }
+  }
 }
 
 button.inline-btn {

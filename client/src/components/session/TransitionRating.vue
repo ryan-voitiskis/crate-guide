@@ -19,11 +19,11 @@ const props = defineProps<{
 }>()
 
 const rating = computed(
-  () => session.history[props.index].transitionFromRating || 0
+  () => session.transitionHistory[props.index].transitionRating || 0
 )
 
 const rate = (rating: number) =>
-  (session.history[props.index].transitionFromRating = rating)
+  (session.transitionHistory[props.index].transitionRating = rating)
 </script>
 
 <style scoped lang="scss">

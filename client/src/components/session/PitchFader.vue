@@ -1,7 +1,6 @@
 <template>
   <div class="fader-container">
     <input
-      ref="faderEl"
       type="range"
       min="-100"
       max="100"
