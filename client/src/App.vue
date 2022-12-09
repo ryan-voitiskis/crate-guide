@@ -207,7 +207,7 @@ header {
   }
 }
 .container {
-  width: 100%;
+  max-width: 2560px;
   position: relative;
   margin: 0 auto;
   padding: 0 10px;

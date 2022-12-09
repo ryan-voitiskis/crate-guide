@@ -5,6 +5,7 @@
       min="-100"
       max="100"
       class="fader"
+      :class="{ sliding: session.decks[deckID].faderSliding }"
       list="fader_labels"
       v-model="session.decks[deckID].faderPosition"
       @mouseup="changePitch"
@@ -39,7 +40,7 @@ function changePitch(event: Event) {
 }
 
 function resetPitch() {
-  session.decks[props.deckID].faderPosition = 0
+  session.slideFader(props.deckID, 0)
   session.decks[props.deckID].pitch = 0
 }
 
@@ -178,6 +179,9 @@ watch(
   }
 }
 
+@mixin thumb-sliding() {
+}
+
 input[type="range"] {
   &,
   &::-webkit-slider-runnable-track,
@@ -198,6 +202,7 @@ input[type="range"] {
   font-size: 1em;
   cursor: pointer;
   z-index: 2;
+  transition: box-shadow 1600ms ease-out;
 
   &::-webkit-slider-runnable-track {
     @include track();
@@ -218,6 +223,7 @@ input[type="range"] {
   &::-moz-range-thumb {
     @include thumb();
   }
+  // todo: is this required?
   &::-ms-thumb {
     margin-top: -20em;
     @include thumb();
@@ -226,6 +232,11 @@ input[type="range"] {
   &::-ms-fill-lower,
   &::-ms-tooltip {
     display: none;
+  }
+
+  &.sliding {
+    box-shadow: var(--fader-sliding-shadow);
+    transition: none;
   }
 }
 </style>

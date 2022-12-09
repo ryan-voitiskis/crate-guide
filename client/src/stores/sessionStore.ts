@@ -17,6 +17,7 @@ interface Deck {
   adjustedBpm: number | null
   adjustedBpmReadable: number | null
   adjustedKey: number | null
+  faderSliding: boolean
 }
 
 export const sessionStore = defineStore("session", {
@@ -32,6 +33,7 @@ export const sessionStore = defineStore("session", {
         adjustedBpm: null,
         adjustedBpmReadable: null,
         adjustedKey: null,
+        faderSliding: false,
       },
       {
         loadedTrack: null,
@@ -43,6 +45,7 @@ export const sessionStore = defineStore("session", {
         adjustedBpm: null,
         adjustedBpmReadable: null,
         adjustedKey: null,
+        faderSliding: false,
       },
     ] as Deck[],
     transitionHistory: [] as PlayedTrack[],
@@ -55,19 +58,19 @@ export const sessionStore = defineStore("session", {
     loading: false,
   }),
   actions: {
-    loadTrack(_id: string, to: number, matchTempo?: boolean) {
-      this.decks[to].loadedTrack =
+    async loadTrack(_id: string, deckID: number, matchTempo?: boolean) {
+      this.decks[deckID].loadedTrack =
         trackStore().getTrackByIdFromCrateTrackList(_id)
       let otherBpm = null
       if (matchTempo) {
-        otherBpm = this.decks[to === 1 ? 0 : 1].adjustedBpm
-        if (otherBpm && this.decks[to].loadedTrack!.bpmFinal) {
+        otherBpm = this.decks[deckID === 1 ? 0 : 1].adjustedBpm
+        if (otherBpm && this.decks[deckID].loadedTrack!.bpmFinal) {
           const pitch =
-            ((otherBpm / this.decks[to].loadedTrack!.bpmFinal! - 1) /
+            ((otherBpm / this.decks[deckID].loadedTrack!.bpmFinal! - 1) /
               (userStore().authd.settings.turntablePitchRange / 100)) *
             100
-          this.decks[to].faderPosition = pitch
-          this.decks[to].pitch = pitch
+          this.slideFader(deckID, pitch)
+          this.decks[deckID].pitch = pitch
         }
       }
       this.transitionHistory.push({
@@ -76,6 +79,18 @@ export const sessionStore = defineStore("session", {
         adjustedBpm: otherBpm,
         transitionRating: null,
       })
+    },
+
+    async slideFader(deckID: number, pitch: number) {
+      this.decks[deckID].faderSliding = true
+      let current: number = this.decks[deckID].faderPosition
+      while (Math.abs(current - pitch) > 3) {
+        current = pitch - current > 0 ? +current + 2 : current - 2
+        this.decks[deckID].faderPosition = current
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      }
+      this.decks[deckID].faderPosition = pitch
+      this.decks[deckID].faderSliding = false
     },
 
     async saveHistory(history: UnsavedHistory): Promise<number | null> {

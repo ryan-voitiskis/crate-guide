@@ -123,7 +123,6 @@ const positionColour = computed(() =>
     z-index: 0;
     background-repeat: no-repeat;
     background-size: contain;
-    z-index: -1;
   }
   .position {
     grid-area: 1 / 2 / 2 / 3;
@@ -210,6 +209,12 @@ const positionColour = computed(() =>
     height: 100%;
     border-radius: 0;
     background-color: transparent;
+  }
+  &:nth-child(even) {
+    background-color: var(--even-row-bg);
+    &:hover {
+      background-color: var(--track-hover);
+    }
   }
 }
 </style>
