@@ -1,6 +1,6 @@
 import Option from "@/interfaces/SelectOption"
 import { sortNum } from "@/utils/sortFunctions"
-import { KeyFinal, HarmonyScore } from "@/interfaces/Track"
+import { HarmonyScore } from "@/interfaces/Track"
 
 interface KeyAndMode {
   key: number
@@ -123,38 +123,49 @@ const pitchClassMap: Key[] = [
   },
 ]
 
-const getCamelotMajor = (pitchClass: number): number =>
-  pitchClassMap.find((i) => i.pitchClass === pitchClass)!.camelotMajor
+function getCamelotMajor(pitchClass: number): number {
+  return pitchClassMap.find((i) => i.pitchClass === pitchClass)!.camelotMajor
+}
 
-const getCamelotMinor = (pitchClass: number): number =>
-  pitchClassMap.find((i) => i.pitchClass === pitchClass)!.camelotMinor
+function getCamelotMinor(pitchClass: number): number {
+  return pitchClassMap.find((i) => i.pitchClass === pitchClass)!.camelotMinor
+}
 
-const getMajorColour = (pitchClass: number): string =>
-  pitchClassMap.find((i) => i.pitchClass === pitchClass)!.majorColour
+function getMajorColour(pitchClass: number): string {
+  return pitchClassMap.find((i) => i.pitchClass === pitchClass)!.majorColour
+}
 
-const getMinorColour = (pitchClass: number): string =>
-  pitchClassMap.find((i) => i.pitchClass === pitchClass)!.minorColour
+function getMinorColour(pitchClass: number): string {
+  return pitchClassMap.find((i) => i.pitchClass === pitchClass)!.minorColour
+}
 
-const getKeyString = (pitchClass: number, mode: number): string =>
-  `${pitchClassMap.find((i) => i.pitchClass === pitchClass)?.tone} ${
+function getKeyString(pitchClass: number, mode: number): string {
+  return `${pitchClassMap.find((i) => i.pitchClass === pitchClass)?.tone} ${
     mode === 0 ? `Minor` : `Major`
   }`
+}
 
-const getKeyStringShort = (pitchClass: number, mode: number): string =>
-  `${pitchClassMap
+function getKeyStringShort(pitchClass: number, mode: number): string {
+  return `${pitchClassMap
     .find((i) => i.pitchClass === pitchClass)
     ?.tone.slice(0, 2)} ${mode === 0 ? `Min` : `Maj`}`
+}
 
-const getCamelotString = (pitchClass: number, mode: number): string =>
-  mode === 0
+function getCamelotString(pitchClass: number, mode: number): string {
+  return mode === 0
     ? `${getCamelotMinor(pitchClass)?.toString()}${mode === 0 ? `A` : `B`}`
     : `${getCamelotMajor(pitchClass)?.toString()}${mode === 0 ? `A` : `B`}`
+}
 
-const getKeyColour = (pitchClass: number, mode: number): string =>
-  mode === 0 ? getMinorColour(pitchClass) : getMajorColour(pitchClass)
+function getKeyColour(pitchClass: number, mode: number): string {
+  return mode === 0 ? getMinorColour(pitchClass) : getMajorColour(pitchClass)
+}
 
-const getSortableNotation = (pitchClass: number, mode: number): number =>
-  mode === 1 ? getCamelotMajor(pitchClass) : getCamelotMinor(pitchClass) + 100
+function getSortableNotation(pitchClass: number, mode: number): number {
+  return mode === 1
+    ? getCamelotMajor(pitchClass)
+    : getCamelotMinor(pitchClass) + 100
+}
 
 function keyOptionsMapFn(mode: number) {
   return (i: Key) => ({
@@ -186,11 +197,14 @@ const getKeyOptions = (keyFormat: "key" | "camelot"): Option[] => {
 
 // % operator returns wrong results for negative nominator in JS, hence workaround fn
 // * https://stackoverflow.com/a/17323608/7259172
-const mod = (n: number, m: number): number => ((n % m) + m) % m
+function mod(n: number, m: number): number {
+  return ((n % m) + m) % m
+}
 
 // * https://music.stackexchange.com/a/118424/89457
-const adjustKey = (key: number, factor: number): number =>
-  mod(key + 12 * (Math.log(factor) / Math.log(2)), 12)
+function adjustKey(key: number, factor: number): number {
+  return mod(key + 12 * (Math.log(factor) / Math.log(2)), 12)
+}
 
 // scoring some of the key combinations from:
 // * http://blog.dubspot.com/harmonic-mixing-w-dj-endo-part-1/

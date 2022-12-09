@@ -36,9 +36,9 @@ const recordText =
     ? records.toDelete.map((i) => records.getNameById(i)).join(", ")
     : `${records.toDelete.length.toString()} records`
 
-const submit = async () => {
+function submit() {
   records.checkAll = false
-  if (records.toDelete) await records.deleteRecords()
+  if (records.toDelete) records.deleteRecords()
 }
 
 onBeforeUnmount(() => {

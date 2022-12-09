@@ -198,19 +198,24 @@ const genreState = reactive({
   addOrClearMsg: false,
 })
 const genres: Ref<string[]> = ref(track.genre ? track.genre.split(", ") : [])
-const updateEmptyStatus = (isEmpty: boolean) => {
+
+function updateEmptyStatus(isEmpty: boolean) {
   genreState.genreInputIsEmpty = isEmpty
   if (isEmpty) genreState.addOrClearMsg = false
 }
-const addGenre = (genre: string) => {
+
+function addGenre(genre: string) {
   genres.value.push(genre)
   genreState.genreInputIsEmpty = true
   genreState.addOrClearMsg = false
 }
-const removeGenre = (index: number) => genres.value.splice(index, 1)
+
+function removeGenre(index: number) {
+  return genres.value.splice(index, 1)
+}
 
 // check if track has been edited, if not display noChangeMsg, else updateTrack
-const submit = async () => {
+async function submit() {
   if (genreState.genreInputIsEmpty) {
     spotify.errorMsg = ""
     tracks.errorMsg = ""
@@ -259,7 +264,6 @@ const submit = async () => {
         }
         await spotify.getTrackFeatures(matchedTrack)
       }
-
       await tracks.updateTrack(editedTrack)
       if (spotify.errorMsg === "" && tracks.errorMsg === "") tracks.toEdit = ""
     }

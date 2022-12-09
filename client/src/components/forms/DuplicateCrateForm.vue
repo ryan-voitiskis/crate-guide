@@ -55,18 +55,14 @@ const form = reactive({
   name: "",
 })
 
-const submit = async () => {
+function submit() {
   const records = crates.getById(user.authd.settings.selectedCrate)
     ?.records as string[]
   const unsavedCrate: UnsavedCrate = {
-    user: user.authd._id,
     name: form.name,
     records: records,
   }
-  const response = await crates.addCrate(unsavedCrate)
-  if (response === 400) {
-    console.error(`AddCrateForm: crate.addCrate returned status ${response}`)
-  } else if (response === 201) crates.duplicateCrateModal = false
+  crates.addCrate(unsavedCrate)
 }
 
 onBeforeUnmount(() => {

@@ -5,9 +5,9 @@
       <XIcon />
     </button>
   </div>
-  <form @submit.prevent="submit">
+  <form @submit.prevent="user.login(form.email, form.password)">
     <div class="modal-body">
-      <p @click="openSignUp()">
+      <p @click=";(user.loginModal = false), (user.signUpModal = true)">
         Don't have an account? <span class="link-text">Sign up</span>
       </p>
       <BasicInput
@@ -24,7 +24,10 @@
         placeholder="Enter your password"
         required
       >
-        <span @click="openRecovery()" class="forgot-password">
+        <span
+          @click=";(user.loginModal = false), (user.recoveryModal = true)"
+          class="forgot-password"
+        >
           Forgot password?
         </span>
       </PasswordInput>
@@ -45,35 +48,12 @@ import PasswordInput from "@/components/inputs/PasswordInput.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import XIcon from "@/components/icons/XIcon.vue"
 import { userStore } from "@/stores/userStore"
-import { crateStore } from "@/stores/crateStore"
-import { recordStore } from "@/stores/recordStore"
 const user = userStore()
-const crates = crateStore()
-const records = recordStore()
 
 const form = reactive({
   email: "",
   password: "",
 })
-
-const submit = async () => {
-  const response = await user.login(form.email, form.password)
-  if (response === 200) {
-    user.loginModal = false
-    crates.fetchCrates()
-    records.fetchRecords()
-  }
-}
-
-const openSignUp = () => {
-  user.loginModal = false
-  user.signUpModal = true
-}
-
-const openRecovery = () => {
-  user.loginModal = false
-  user.recoveryModal = true
-}
 
 onUnmounted(() => {
   user.errorMsg = ""

@@ -207,7 +207,7 @@ const state = reactive({
   yearRvrs: false,
 })
 
-const clearFilters = () => {
+function clearFilters() {
   state.searchTitle = ""
   state.searchArtists = ""
   state.filterGenre = ""

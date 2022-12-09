@@ -7,6 +7,7 @@
 <script setup lang="ts">
 import { defineProps } from "vue"
 import SpotifyLogo from "../icons/SpotifyLogo.vue"
+
 defineProps<{
   href: string
 }>()

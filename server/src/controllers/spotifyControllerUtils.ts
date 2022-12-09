@@ -252,15 +252,20 @@ function optimiseTrackQuery(query: TrackQuery): string {
   return queryString.slice(0, 100)
 }
 
-const normaliseTitle = (title: string) =>
-  title.toLowerCase().trim().replace(/\(|\)/g, "").replace(/ - /, " ")
+function normaliseTitle(title: string) {
+  return title.toLowerCase().trim().replace(/\(|\)/g, "").replace(/ - /, " ")
+}
 
-const normalise = (artist: string) => artist.toLowerCase().trim()
+function normalise(artist: string) {
+  return artist.toLowerCase().trim()
+}
 
-const sortLevenshtein = (
+function sortLevenshtein(
   a: SpotifyAlbumEdit | SpotifyTrackEdit,
   b: SpotifyAlbumEdit | SpotifyTrackEdit
-): number => a.levenshtein - b.levenshtein
+): number {
+  return a.levenshtein - b.levenshtein
+}
 
 export {
   editAudioFeatures,

@@ -16,6 +16,7 @@ const getRecords = asyncHandler(async (req, res) => {
 // @access  private
 const addRecord = asyncHandler(async (req, res) => {
   const record = JSON.parse(req.body.record)
+  record.user = req.user!.id
 
   if (!record.title) {
     res.status(400)

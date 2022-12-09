@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, computed } from "vue"
+import { defineProps } from "vue"
 import PlayOnSpotifyButton from "./PlayOnSpotifyButton.vue"
 import { spotifyStore } from "@/stores/spotifyStore"
 

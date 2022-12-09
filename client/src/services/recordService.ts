@@ -3,7 +3,7 @@ import Record from "@/interfaces/Record"
 import globals from "@/globals"
 
 // get user records
-const getRecords = async (token: string) => {
+async function getRecords(token: string) {
   const options = {
     method: "GET",
     headers: {
@@ -17,7 +17,7 @@ const getRecords = async (token: string) => {
 }
 
 // add new record
-const addRecord = async (record: UnsavedRecord, token: string) => {
+async function addRecord(record: UnsavedRecord, token: string) {
   const body = new URLSearchParams()
   body.append("record", JSON.stringify(record))
 
@@ -35,7 +35,7 @@ const addRecord = async (record: UnsavedRecord, token: string) => {
 }
 
 // update record
-const updateRecord = async (record: Record, token: string) => {
+async function updateRecord(record: Record, token: string) {
   const body = new URLSearchParams()
   body.append("record", JSON.stringify(record))
 
@@ -53,7 +53,7 @@ const updateRecord = async (record: Record, token: string) => {
 }
 
 // delete array of records
-const deleteRecords = async (records: string[], token: string) => {
+async function deleteRecords(records: string[], token: string) {
   const body = new URLSearchParams()
   body.append("records", JSON.stringify(records))
   const options = {

@@ -89,6 +89,13 @@ const state = reactive({
   checked: false,
 })
 
+function updateChecked() {
+  if (state.checked && !records.checkboxed.includes(props._id))
+    records.checkboxed.push(props._id)
+  else if (!state.checked && records.checkboxed.includes(props._id))
+    records.checkboxed = records.checkboxed.filter((i) => i !== props._id)
+}
+
 // sort tracks by position
 const sortedTracks = computed((): Track[] =>
   [...props.tracks].sort(
@@ -104,13 +111,6 @@ const sortedTracks = computed((): Track[] =>
         : 0 // both a + b empty: keep original order
   )
 )
-
-const updateChecked = () => {
-  if (state.checked && !records.checkboxed.includes(props._id))
-    records.checkboxed.push(props._id)
-  else if (!state.checked && records.checkboxed.includes(props._id))
-    records.checkboxed = records.checkboxed.filter((i) => i !== props._id)
-}
 
 // when checkbox changed, either add or remove record from checkboxed array
 watch(

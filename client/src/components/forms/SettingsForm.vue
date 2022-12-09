@@ -5,7 +5,10 @@
       <XIcon />
     </button>
   </div>
-  <form v-on="user.authd._id ? { change: updateSettings } : {}" @submit.prevent>
+  <form
+    v-on="user.authd._id ? { change: user.updateSettings() } : {}"
+    @submit.prevent
+  >
     <div class="modal-body">
       <p v-if="!user.authd._id">
         <b>You are not logged in.</b><br />Settings changed here are for this
@@ -125,9 +128,6 @@ import SelectInput from "../inputs/SelectInput.vue"
 const discogs = discogsStore()
 const spotify = spotifyStore()
 const user = userStore()
-
-// ! breaks when called directly from <form v-on="">. cpu spike + browser non-responsive
-const updateSettings = () => user.updateSettings()
 
 const turntablePitchOptions = [
   { id: "8", name: "±8%" },

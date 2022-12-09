@@ -68,7 +68,7 @@ const emit = defineEmits<{
   (e: "newTrackMounted"): void
 }>()
 
-const remove = () => {
+function remove() {
   if (session.transitionHistory.length !== props.index + 1)
     session.transitionHistory[props.index + 1].transitionRating = null
   session.transitionHistory.splice(props.index, 1)

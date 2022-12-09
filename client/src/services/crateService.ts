@@ -3,7 +3,7 @@ import UnsavedCrate from "@/interfaces/UnsavedCrate"
 import globals from "@/globals"
 
 // get user crates
-const getCrates = async (token: string) => {
+async function getCrates(token: string) {
   const options = {
     method: "GET",
     headers: {
@@ -17,7 +17,7 @@ const getCrates = async (token: string) => {
 }
 
 // add new crate
-const addCrate = async (crate: UnsavedCrate, token: string) => {
+async function addCrate(crate: UnsavedCrate, token: string) {
   const body = new URLSearchParams()
   body.append("crate", JSON.stringify(crate))
 
@@ -35,7 +35,7 @@ const addCrate = async (crate: UnsavedCrate, token: string) => {
 }
 
 // update new crate
-const updateCrate = async (crate: Crate, token: string) => {
+async function updateCrate(crate: Crate, token: string) {
   const body = new URLSearchParams()
   body.append("crate", JSON.stringify(crate))
 
@@ -53,7 +53,7 @@ const updateCrate = async (crate: Crate, token: string) => {
 }
 
 // Delete user crate
-const deleteCrate = async (_id: string, token: string) => {
+async function deleteCrate(_id: string, token: string) {
   const options = {
     method: "DELETE",
     headers: {

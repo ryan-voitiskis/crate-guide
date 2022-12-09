@@ -43,15 +43,13 @@ const recordText =
 // name of crate records are to be removed from
 const crateName = crates.getById(user.authd.settings.selectedCrate)?.name
 
-const submit = async () => {
+function submit() {
   records.checkAll = false
-  if (records.fromCrate.length) {
-    const response = await crates.removeFromCrate(
+  if (records.fromCrate.length)
+    crates.removeFromCrate(
       records.fromCrate as string[],
       user.authd.settings.selectedCrate
     )
-    if (response === 200 || response === 1) records.fromCrate = []
-  }
 }
 
 onBeforeUnmount(() => {

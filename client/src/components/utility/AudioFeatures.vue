@@ -138,7 +138,7 @@
 
 <script setup lang="ts">
 import { reactive } from "vue"
-import getPercent from "@/utils/getPercentage"
+import getPercent from "@/utils/getPercent"
 import { trackStore } from "@/stores/trackStore"
 import XIcon from "@/components/icons/XIcon.vue"
 import DanceIcon from "@/components/icons/DanceIcon.vue"

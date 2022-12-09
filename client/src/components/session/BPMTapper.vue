@@ -40,7 +40,7 @@ const savedTrackBpm = computed(
   () => session.decks[props.deckID].loadedTrack?.bpmFinal
 )
 
-const reset = () => {
+function reset() {
   state.lastBpm = state.bpm
   state.bpm = 0
   state.tapCount = 0
@@ -50,7 +50,7 @@ const reset = () => {
 
 let timeout = setTimeout(reset, 0)
 
-const tap = () => {
+function tap() {
   if (state.tapCount === 0) {
     state.initialTime = Date.now()
     state.showTapPrompt = false

@@ -91,7 +91,7 @@ const form = reactive({
 })
 
 // check if record has been edited, if not display noChangeMsg, else updateRecord
-const submit = async () => {
+function submit() {
   if (
     form.catno?.trim() === record.catno &&
     form.artists.trim() === record.artists &&
@@ -113,7 +113,7 @@ const submit = async () => {
       tracks: record.tracks,
       cover: form.cover.trim(),
     }
-    await records.updateRecord(editedRecord)
+    records.updateRecord(editedRecord)
   }
 }
 

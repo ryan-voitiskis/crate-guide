@@ -47,18 +47,16 @@ import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import XIcon from "@/components/icons/XIcon.vue"
 import UnsavedHistory from "@/interfaces/UnsavedHistory"
-import { userStore } from "@/stores/userStore"
 import { sessionStore } from "@/stores/sessionStore"
-const user = userStore()
 const session = sessionStore()
+
+const namePlaceholder = `eg. "Set from a gig"`
 
 const form = reactive({
   name: "",
 })
 
-// todo: user: user.authd._id, move this and addCrate user to uid from protected on server
-const namePlaceholder = `eg. "Set from a gig"`
-const submit = async () => {
+function submit() {
   const unsavedHistory: UnsavedHistory = {
     name: form.name.trim(),
     history: session.transitionHistory,

@@ -3,7 +3,7 @@ import UnregisteredUser from "@/interfaces/UnregisteredUser"
 import User from "@/interfaces/User"
 
 // authenticate user
-const login = async (email: string, password: string) => {
+async function login(email: string, password: string) {
   const body = new URLSearchParams()
   body.append("email", email)
   body.append("password", password)
@@ -21,7 +21,7 @@ const login = async (email: string, password: string) => {
 }
 
 // fetch user data using jwt. used when cookie exists but no user in userStore
-const fetchUser = async (token: string) => {
+async function fetchUser(token: string) {
   const options = {
     method: "GET",
     headers: {
@@ -35,7 +35,7 @@ const fetchUser = async (token: string) => {
 }
 
 // add new user
-const addUser = async (user: UnregisteredUser) => {
+async function addUser(user: UnregisteredUser) {
   const body = new URLSearchParams()
   body.append("name", user.name)
   body.append("email", user.email)
@@ -53,7 +53,7 @@ const addUser = async (user: UnregisteredUser) => {
 }
 
 // update user settings
-const updateSettings = async (user: User) => {
+async function updateSettings(user: User) {
   const body = new URLSearchParams()
   body.append("settings", JSON.stringify(user.settings))
 

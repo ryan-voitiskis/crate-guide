@@ -52,12 +52,13 @@ const emit = defineEmits<{
   (e: "removeGenre", index: number): void
 }>()
 
-const updateEmptyStatus = () =>
+function updateEmptyStatus() {
   form.genreInput
     ? emit("updateEmptyStatus", false)
     : emit("updateEmptyStatus", true)
+}
 
-const addGenre = () => {
+function addGenre() {
   if (form.genreInput.trim()) {
     emit("addGenre", form.genreInput.trim())
     form.genreInput = ""

@@ -39,12 +39,12 @@ const state = reactive({
   staged: true,
 })
 
-const unstage = () => {
+function unstage() {
   state.staged = false
   discogs.unstagedImports.push(props.id)
 }
 
-const stage = () => {
+function stage() {
   state.staged = true
   discogs.unstagedImports.splice(discogs.unstagedImports.indexOf(props.id), 1)
 }

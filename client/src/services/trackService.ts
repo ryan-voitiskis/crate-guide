@@ -3,7 +3,7 @@ import { Track } from "@/interfaces/Track"
 import globals from "@/globals"
 
 // add new track
-const addTrack = async (track: UnsavedTrack, record: string, token: string) => {
+async function addTrack(track: UnsavedTrack, record: string, token: string) {
   const body = new URLSearchParams()
   body.append("track", JSON.stringify(track))
   body.append("recordID", record)
@@ -22,7 +22,7 @@ const addTrack = async (track: UnsavedTrack, record: string, token: string) => {
 }
 
 // update track
-const updateTrack = async (track: Track, token: string) => {
+async function updateTrack(track: Track, token: string) {
   const body = new URLSearchParams()
   body.append("track", JSON.stringify(track))
 
@@ -41,7 +41,7 @@ const updateTrack = async (track: Track, token: string) => {
 }
 
 // delete single track
-const deleteTrack = async (_id: string, token: string) => {
+async function deleteTrack(_id: string, token: string) {
   const options = {
     method: "DELETE",
     headers: {

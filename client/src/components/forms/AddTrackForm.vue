@@ -123,7 +123,7 @@ const form = reactive({
   playable: true,
 })
 
-const reset = () => {
+function reset() {
   form.position = ""
   form.title = ""
   form.artists = ""
@@ -139,19 +139,25 @@ const genreState = reactive({
   genreInputIsEmpty: true,
   addOrClearMsg: false,
 })
+
 const genres: Ref<string[]> = ref([])
-const updateEmptyStatus = (isEmpty: boolean) => {
+
+function updateEmptyStatus(isEmpty: boolean) {
   genreState.genreInputIsEmpty = isEmpty
   if (isEmpty) genreState.addOrClearMsg = false
 }
-const addGenre = (genre: string) => {
+
+function addGenre(genre: string) {
   genres.value.push(genre)
   genreState.genreInputIsEmpty = true
   genreState.addOrClearMsg = false
 }
-const removeGenre = (index: number) => genres.value.splice(index, 1)
 
-const submit = async () => {
+function removeGenre(index: number) {
+  return genres.value.splice(index, 1)
+}
+
+function submit() {
   if (genreState.genreInputIsEmpty) {
     const timeSignatureArray = getTimeSignatureNumbers(form.timeSignature)
     const unsavedTrack: UnsavedTrack = {
@@ -168,7 +174,7 @@ const submit = async () => {
       timeSignatureLower: timeSignatureArray[1],
       playable: form.playable,
     }
-    await tracks.addTrack(unsavedTrack, tracks.addTrackTo)
+    tracks.addTrack(unsavedTrack, tracks.addTrackTo)
   } else genreState.addOrClearMsg = true
 }
 

@@ -69,18 +69,22 @@ const timeSignatures: TimeSignature[] = [
   },
 ]
 
-const getTimeSignatureOptions = (): Option[] =>
-  [{ id: "", name: "--- optional ---" }].concat(
+function getTimeSignatureOptions(): Option[] {
+  return [{ id: "", name: "--- optional ---" }].concat(
     timeSignatures.map((i) => ({ id: i.string, name: i.string }))
   )
+}
 
-const getTimeSignatureString = (upper: number, lower: number): string =>
-  timeSignatures.find((i) => i.upper === upper && i.lower === lower)?.string ||
-  ""
+function getTimeSignatureString(upper: number, lower: number): string {
+  return (
+    timeSignatures.find((i) => i.upper === upper && i.lower === lower)
+      ?.string || ""
+  )
+}
 
-const getTimeSignatureNumbers = (
+function getTimeSignatureNumbers(
   string: string
-): [number | null, number | null] => {
+): [number | null, number | null] {
   const signature = timeSignatures.find((i) => i.string === string)
   return signature ? [signature.upper, signature.lower] : [null, null]
 }

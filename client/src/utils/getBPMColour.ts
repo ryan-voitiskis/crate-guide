@@ -1,6 +1,6 @@
 import * as d3 from "d3-interpolate"
 
-const getBPMColour = (bpm: number): string => {
+function getBPMColour(bpm: number): string {
   const min = 80 // low end of bpm range clamp
   const max = 180 // high end of bpm range clamp
   const lowColour = "hsl(190, 94%, 55%)"

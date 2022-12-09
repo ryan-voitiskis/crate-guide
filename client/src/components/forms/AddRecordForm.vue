@@ -77,9 +77,7 @@ import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import XIcon from "@/components/icons/XIcon.vue"
 import UnsavedRecord from "@/interfaces/UnsavedRecord"
-import { userStore } from "@/stores/userStore"
 import { recordStore } from "@/stores/recordStore"
-const user = userStore()
 const records = recordStore()
 
 const form = reactive({
@@ -91,7 +89,7 @@ const form = reactive({
   cover: "",
 })
 
-const reset = () => {
+function reset() {
   form.catno = ""
   form.artists = ""
   form.title = ""
@@ -99,9 +97,8 @@ const reset = () => {
   form.year = undefined
 }
 
-const submit = async () => {
+function submit() {
   const unsavedRecord: UnsavedRecord = {
-    user: user.authd._id,
     catno: form.catno.trim(),
     artists: form.artists.trim(),
     title: form.title.trim(),
@@ -109,10 +106,7 @@ const submit = async () => {
     year: form.year,
     cover: form.cover.trim(),
   }
-  const response = await records.addRecord(unsavedRecord)
-  if (response === 400) {
-    console.error(`AddRecordForm: record.addRecord returned status ${response}`)
-  } else if (response === 201) records.addRecordModal = false
+  records.addRecord(unsavedRecord)
 }
 
 onBeforeUnmount(() => {

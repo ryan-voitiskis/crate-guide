@@ -33,12 +33,12 @@ const props = defineProps<{
   deckID: number
 }>()
 
-const changePitch = (event: Event) => {
+function changePitch(event: Event) {
   const target = event.target as HTMLInputElement
   if (target) session.decks[props.deckID].pitch = Number(target.value)
 }
 
-const resetPitch = () => {
+function resetPitch() {
   session.decks[props.deckID].faderPosition = 0
   session.decks[props.deckID].pitch = 0
 }

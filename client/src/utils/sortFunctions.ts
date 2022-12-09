@@ -7,12 +7,12 @@ type KeysOfType<O, T> = {
 }[keyof O]
 
 // custom number sort function. sorts null last, reverse optional
-const sortNum = (field: KeysOfType<any, number>, reverse = false) => {
+function sortNum(field: KeysOfType<any, number>, reverse = false) {
   return (a: any, b: any) => (a[field] - b[field]) * (reverse ? -1 : 1)
 }
 
 // custom string sort function. sorts "" last, reverse optional
-const sortStr = (field: KeysOfType<any, string>, reverse = false) => {
+function sortStr(field: KeysOfType<any, string>, reverse = false) {
   return (a: any, b: any) =>
     a[field] !== "" && b[field] !== ""
       ? (reverse ? -1 : 1) *
@@ -25,7 +25,7 @@ const sortStr = (field: KeysOfType<any, string>, reverse = false) => {
 }
 
 // custom number sort function. sorts null last, reverse optional
-const sortNumWithNull = (field: KeysOfType<any, number>, reverse = false) => {
+function sortNumWithNull(field: KeysOfType<any, number>, reverse = false) {
   return (a: any, b: any) =>
     a[field] !== null && b[field] !== null
       ? (reverse ? -1 : 1) * ((a[field] as number) - (b[field] as number)) // both a + b defined: sort lowest before highest, unless reversed
@@ -37,10 +37,7 @@ const sortNumWithNull = (field: KeysOfType<any, number>, reverse = false) => {
 }
 
 // custom number sort function. sorts null last, reverse optional
-const sortNumWithUndefined = (
-  field: KeysOfType<any, number>,
-  reverse = false
-) => {
+function sortNumWithUndefined(field: KeysOfType<any, number>, reverse = false) {
   return (a: any, b: any) =>
     a[field] !== undefined && b[field] !== undefined
       ? (reverse ? -1 : 1) * ((a[field] as number) - (b[field] as number)) // both a + b defined: sort lowest before highest, unless reversed
@@ -52,11 +49,11 @@ const sortNumWithUndefined = (
 }
 
 // custom number sort function. sorts null last, reverse optional
-const sortNumWithNull2Deep = (
+function sortNumWithNull2Deep(
   field: KeysOfType<any, number>,
   field2: KeysOfType<any, number>,
   reverse = false
-) => {
+) {
   return (a: any, b: any) =>
     a[field] === null && b[field] === null
       ? 0
@@ -75,11 +72,11 @@ const sortNumWithNull2Deep = (
 }
 
 // custom number sort function. sorts null last, reverse optional
-const sortNumWithUndefined2Deep = (
+function sortNumWithUndefined2Deep(
   field: KeysOfType<any, number>,
   field2: KeysOfType<any, number>,
   reverse = false
-) => {
+) {
   return (a: any, b: any) =>
     a[field] === undefined && b[field] === undefined
       ? 0
@@ -98,7 +95,7 @@ const sortNumWithUndefined2Deep = (
 }
 
 // sorts Track array. sorts null/undefined last
-const sortKey = (reverse = false) => {
+function sortKey(reverse = false) {
   return (a: Track, b: Track) => {
     const aKey = Number.isInteger(a.key)
       ? a.key

@@ -101,13 +101,6 @@ const props = defineProps<{
 
 const loadTo = props.deckID === 1 ? 0 : 1
 
-const load = () => {
-  session.decks[props.deckID].adjustedBpm
-    ? session.loadTrack(props.track._id, loadTo, true)
-    : session.loadTrack(props.track._id, loadTo)
-  session.loadTrackTo = -1
-}
-
 const coverImg = `url("${props.track.cover}")`
 
 const keyColour = props.track.keyFinal ? props.track.keyFinal.colour : null
@@ -119,6 +112,13 @@ const bpmColour = props.track.bpmFinal
 const positionColour = props.track.position
   ? getPositionColour(props.track.position)
   : "hsl(0, 0%, 68%)"
+
+function load() {
+  session.decks[props.deckID].adjustedBpm
+    ? session.loadTrack(props.track._id, loadTo, true)
+    : session.loadTrack(props.track._id, loadTo)
+  session.loadTrackTo = -1
+}
 </script>
 
 <style scoped lang="scss">

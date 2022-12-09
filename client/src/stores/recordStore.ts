@@ -51,6 +51,7 @@ export const recordStore = defineStore("record", {
         if (response.status === 201) {
           const newRecord = (await response.json()) as Record
           this.recordList.push(newRecord)
+          this.addRecordModal = false
           trackStore().generateTrackLists()
           this.loading = false
           return response.status

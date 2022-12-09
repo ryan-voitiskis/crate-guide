@@ -1,4 +1,4 @@
-const genNonce = (length: number): string => {
+function genNonce(length: number): string {
   let text = ""
   const possible =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"

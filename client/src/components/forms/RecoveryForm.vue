@@ -30,7 +30,7 @@ const form = reactive({
   email: "",
 })
 
-const submitRecovery = () => {
+function submitRecovery() {
   console.log("password recovery form submitted")
 }
 </script>

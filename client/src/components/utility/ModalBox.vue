@@ -32,7 +32,7 @@ const emit = defineEmits<{
   (e: "close"): void
 }>()
 
-const escapeClose = (e: KeyboardEvent) => {
+function escapeClose(e: KeyboardEvent) {
   if (e.key === "Escape") emit("close")
 }
 

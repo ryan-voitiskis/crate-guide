@@ -35,8 +35,8 @@ const tracks = trackStore()
 // title of track to be deleted
 const trackTitle = records.getTrackById(tracks.toDelete).title
 
-const submit = async () => {
-  if (tracks.toDelete) await tracks.deleteTrack()
+function submit() {
+  if (tracks.toDelete) tracks.deleteTrack()
 }
 
 onBeforeUnmount(() => {

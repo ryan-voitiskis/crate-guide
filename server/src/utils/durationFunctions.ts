@@ -1,4 +1,4 @@
-const getDurationString = (duration: number): string => {
+function getDurationString(duration: number): string {
   if (!(duration < 3600000)) return ""
   const min = (Math.floor(duration / 60000) % 60).toString()
   const sec = (Math.floor(duration / 1000) % 60).toString()
@@ -6,7 +6,7 @@ const getDurationString = (duration: number): string => {
   return `${min}:${secFinal}`
 }
 
-const getDurationMs = (duration: string): number | null => {
+function getDurationMs(duration: string): number | null {
   if (!duration) return null
   const durationSplit = duration.split(":")
   return durationSplit.length === 2

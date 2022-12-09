@@ -47,6 +47,8 @@ export const crateStore = defineStore("crate", {
         if (response.status === 201) {
           const newCrate = (await response.json()) as Crate
           this.crateList.push(newCrate)
+          this.addCrateModal = false
+          this.duplicateCrateModal = false
           this.loading = false
           return response.status
         } else if (response.status === 400) {
@@ -66,12 +68,12 @@ export const crateStore = defineStore("crate", {
       this.loading = true
       this.errorMsg = ""
       try {
-        const response = await crateService.deleteCrate(
-          _id,
-          userStore().authd.token
-        )
+        const user = userStore()
+        const response = await crateService.deleteCrate(_id, user.authd.token)
         if (response.status === 200) {
           this.crateList = this.crateList.filter((i) => i._id !== _id)
+          crateStore().deleteCrateModal = false
+          user.authd.settings.selectedCrate = "all"
           this.loading = false
           return response.status
         } else if (response.status === 400 || response.status === 401) {
@@ -106,9 +108,11 @@ export const crateStore = defineStore("crate", {
               userStore().authd.token
             )
             if (response.status === 200) {
+              const records = recordStore()
               crate.records.push(...difference)
               this.pushToCrateFeedback(intersection, difference)
-              recordStore().checkboxed = []
+              records.toCrate = []
+              records.checkboxed = []
               trackStore().generateTrackLists()
               this.loading = false
               return response.status
@@ -157,8 +161,10 @@ export const crateStore = defineStore("crate", {
             userStore().authd.token
           )
           if (response.status === 200) {
+            const records = recordStore()
             crate.records = remainingRecords
-            recordStore().checkboxed = []
+            records.checkboxed = []
+            records.fromCrate = []
             trackStore().generateTrackLists()
           } else if (response.status === 400 || response.status === 401) {
             const error = await response.json()

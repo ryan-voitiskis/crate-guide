@@ -49,6 +49,9 @@ export const userStore = defineStore("user", {
           recordStore().fetchRecords()
           this.loading = false
           this.setUserTheme(this.authd.settings.theme)
+          this.loginModal = false
+          crateStore().fetchCrates()
+          recordStore().fetchRecords()
           return response.status
         } else if (response.status === 401) {
           this.invalidCreds = true
@@ -114,6 +117,7 @@ export const userStore = defineStore("user", {
             },
           }
           Object.assign(this.authd, registeringUser)
+          this.signUpModal = false
           this.loading = false
           return response.status
         } else if (response.status === 409) {

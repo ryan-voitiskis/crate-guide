@@ -3,7 +3,7 @@ import MatchedTrack from "@/interfaces/MatchedTrack"
 
 // request to server to then make request of OAuth token as per step 2 of:
 // * https://www.spotify.com/developers/#page:authentication,header:authentication-oauth-flow
-const authorisationRequest = async (token: string) => {
+async function authorisationRequest(token: string) {
   const options = {
     method: "GET",
     headers: {
@@ -20,7 +20,7 @@ const authorisationRequest = async (token: string) => {
 }
 
 // request to removes spotify api credentials from user
-const revokeAuthorisation = async (token: string) => {
+async function revokeAuthorisation(token: string) {
   const options = {
     method: "PUT",
     headers: {
@@ -34,7 +34,7 @@ const revokeAuthorisation = async (token: string) => {
 }
 
 // request to get and save a track's audio features for manually added spotifyID
-const getTrackFeatures = async (matchedTrack: MatchedTrack, token: string) => {
+async function getTrackFeatures(matchedTrack: MatchedTrack, token: string) {
   const body = new URLSearchParams()
   body.append("matchedTrack", JSON.stringify(matchedTrack))
 

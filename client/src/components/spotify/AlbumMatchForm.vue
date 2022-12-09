@@ -61,7 +61,7 @@ import LoaderIcon from "../icons/LoaderIcon.vue"
 const appName = inject("appName")
 const spotify = spotifyStore()
 
-const submit = () => {
+function submit() {
   if (spotify.inexactTrackMatches.length) {
     spotify.albumMatchesModal = false
     spotify.trackMatchesModal = true

@@ -59,16 +59,11 @@ const options = selectCrates.map((i) => ({ id: i._id, name: i.name }))
 // array of either catno if available or title of records to be deleted
 const recordNames = records.toDelete.map((i) => records.getNameById(i))
 
-const submit = async () => {
+function submit() {
   records.checkAll = false
   if (form.crate !== "") {
-    if (records.toCrate.length) {
-      const response = await crates.pushToCrate(
-        records.toCrate as string[],
-        form.crate
-      )
-      if (response === 200 || response === 1) records.toCrate = []
-    }
+    if (records.toCrate.length)
+      crates.pushToCrate(records.toCrate as string[], form.crate)
   } else crates.errorMsg = "No crate selected"
 }
 

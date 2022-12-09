@@ -91,7 +91,7 @@ const positionColour = props.track.position
   ? getPositionColour(props.track.position)
   : "hsl(0, 0%, 68%)"
 
-const load = () => {
+function load() {
   session.loadTrack(props.track._id, session.loadTrackTo)
   session.loadTrackTo = -1
 }

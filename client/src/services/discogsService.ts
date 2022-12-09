@@ -2,7 +2,7 @@ import globals from "@/globals"
 
 // request to server to then make request of OAuth token as per step 2 of:
 // * https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
-const requestToken = async (token: string) => {
+async function requestToken(token: string) {
   const options = {
     method: "GET",
     headers: {
@@ -19,7 +19,7 @@ const requestToken = async (token: string) => {
 }
 
 // request to removes discogs api credentials from user
-const revokeAuthorisation = async (token: string) => {
+async function revokeAuthorisation(token: string) {
   const options = {
     method: "PUT",
     headers: {
@@ -35,7 +35,7 @@ const revokeAuthorisation = async (token: string) => {
   return response
 }
 
-const getFolders = async (token: string) => {
+async function getFolders(token: string) {
   const options = {
     method: "GET",
     headers: {
@@ -48,7 +48,7 @@ const getFolders = async (token: string) => {
   return response
 }
 
-const getFolder = async (folder: string, token: string) => {
+async function getFolder(folder: string, token: string) {
   const options = {
     method: "GET",
     headers: {

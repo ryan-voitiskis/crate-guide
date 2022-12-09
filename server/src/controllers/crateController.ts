@@ -15,6 +15,7 @@ const getCrates = asyncHandler(async (req, res) => {
 // @access  private
 const addCrate = asyncHandler(async (req, res) => {
   const crate = JSON.parse(req.body.crate)
+  crate.user = req.user!.id
 
   if (!crate.name) {
     res.status(400)

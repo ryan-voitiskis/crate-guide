@@ -61,14 +61,18 @@ const form = reactive({
   password: "",
 })
 
-const submit = async () => {
+function submit() {
   const newUser: UnregisteredUser = {
     name: form.name,
     email: form.email,
     password: form.password,
   }
-  const response = await user.addUser(newUser)
-  if (response === 201) user.signUpModal = false
+  user.addUser(newUser)
+}
+
+function openLogin() {
+  user.loginModal = true
+  user.signUpModal = false
 }
 
 // remove email duplicate warning if email field changes
@@ -79,11 +83,6 @@ watch(
       user.errorMsg = ""
   }
 )
-
-const openLogin = () => {
-  user.loginModal = true
-  user.signUpModal = false
-}
 
 onUnmounted(() => {
   user.errorMsg = ""

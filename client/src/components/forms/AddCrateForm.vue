@@ -43,23 +43,19 @@ import InfoDropdown from "@/components/utility/InfoDropdown.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import XIcon from "@/components/icons/XIcon.vue"
 import UnsavedCrate from "@/interfaces/UnsavedCrate"
-import { userStore } from "@/stores/userStore"
 import { crateStore } from "@/stores/crateStore"
-const user = userStore()
 const crates = crateStore()
 
 const form = reactive({
   name: "",
 })
 
-const submit = async () => {
+function submit() {
   const unsavedCrate: UnsavedCrate = {
-    user: user.authd._id,
     name: form.name.trim(),
     records: [],
   }
-  const response = await crates.addCrate(unsavedCrate)
-  if (response === 201) crates.addCrateModal = false
+  crates.addCrate(unsavedCrate)
 }
 
 onBeforeUnmount(() => {

@@ -1,8 +1,8 @@
 import globals from "@/globals"
 import UnsavedHistory from "@/interfaces/UnsavedHistory"
 
-// get user crates
-const getHistories = async (token: string) => {
+// get histories
+async function getHistories(token: string) {
   const options = {
     method: "GET",
     headers: {
@@ -16,7 +16,7 @@ const getHistories = async (token: string) => {
 }
 
 // save new history
-const saveHistory = async (history: UnsavedHistory, token: string) => {
+async function saveHistory(history: UnsavedHistory, token: string) {
   const body = new URLSearchParams()
   body.append("history", JSON.stringify(history))
 
@@ -33,8 +33,8 @@ const saveHistory = async (history: UnsavedHistory, token: string) => {
   return response
 }
 
-// Delete user crate
-const deleteHistory = async (_id: string, token: string) => {
+// Delete a history
+async function deleteHistory(_id: string, token: string) {
   const options = {
     method: "DELETE",
     headers: {
