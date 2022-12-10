@@ -182,7 +182,7 @@ export const trackStore = defineStore("track", {
       } else this.crateTrackList = this.trackList
     },
 
-    // todo: if performance needed on large collections, add, update, delete of records update track list like this
+    // * if performance needed on large collections, add, update, delete of records update track list like this
     // * probably significantly faster than generating whole list, however that assumption may be wrong, test if perf req'd
     // addToTrackList(record: Record): void {
     //   this.trackList = this.trackList.concat(

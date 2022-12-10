@@ -54,14 +54,13 @@
   --disabled: hsl(215, 8%, 22%);
   --disabled-text: hsl(215, 8%, 66%);
 
-  /* records */
-  --record-bg: hsl(0, 0%, 8%);
+  /* records and tracks */
+  --item-bg: hsl(0, 0%, 8%);
   --record-unstaged-bg: hsl(0, 0%, 36%);
   --selected-action: hsl(277, 100%, 80%);
   --record-selected-bg: hsl(277, 18%, 24%);
-
-  /* tracks, suggestions */
-  --track-hover: hsl(146, 50%, 16%);
+  --item-hover: hsl(146, 50%, 16%);
+  --item-active: hsl(146, 70%, 50%);
   --track-features-hover: hsl(146, 70%, 50%);
 
   /* progress bar */

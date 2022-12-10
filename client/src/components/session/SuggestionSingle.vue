@@ -263,7 +263,7 @@ function load() {
     }
   }
   &:hover {
-    background-color: var(--track-hover);
+    background-color: var(--item-hover);
     .play {
       svg {
         color: var(--play-button);
@@ -274,7 +274,7 @@ function load() {
   &:nth-child(even) {
     background-color: var(--even-row-bg);
     &:hover {
-      background-color: var(--track-hover);
+      background-color: var(--item-hover);
     }
   }
 }

@@ -5,4 +5,5 @@ export default interface TransitionHistory {
   user: string
   name?: string
   history: PlayedTrack[]
+  createdAt?: string
 }

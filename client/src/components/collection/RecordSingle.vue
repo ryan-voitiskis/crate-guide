@@ -133,7 +133,7 @@ const coverImg = computed(() => `url("${props.cover}")`)
 
 <style scoped lang="scss">
 .record {
-  background: var(--record-bg);
+  background: var(--item-bg);
   display: grid;
   grid-template-columns: 120px 4fr 6fr;
   grid-template-rows: 40px 20px 30px 30px;

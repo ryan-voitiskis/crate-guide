@@ -34,6 +34,15 @@
   >
     <SaveHistoryForm />
   </ModalBox>
+
+  <ModalBox
+    v-if="session.historyManager"
+    @close="session.historyManager = false"
+    width="900px"
+    :fullHeight="true"
+  >
+    <HistoryManager />
+  </ModalBox>
 </template>
 
 <script setup lang="ts">
@@ -45,6 +54,7 @@ import ChevronUpIcon from "@/components/icons/ChevronUpIcon.vue"
 import HistoryList from "@/components/session/HistoryList.vue"
 import ConfirmDeleteHistory from "@/components/forms/ConfirmDeleteHistory.vue"
 import SaveHistoryForm from "@/components/forms/SaveHistoryForm.vue"
+import HistoryManager from "@/components/session/HistoryManager.vue"
 
 const session = sessionStore()
 </script>

@@ -53,12 +53,13 @@ export const sessionStore = defineStore("session", {
     loadTrackTo: -1, // deck number to load track to
     confirmClearHistory: false,
     saveHistoryForm: false, // displays SaveHistoryForm.vue
+    historyManager: false, // displays HistoryManager.vue
     collapseHeader: false,
     errorMsg: "",
     loading: false,
   }),
   actions: {
-    async loadTrack(_id: string, deckID: number, matchTempo?: boolean) {
+    loadTrack(_id: string, deckID: number, matchTempo?: boolean) {
       this.decks[deckID].loadedTrack =
         trackStore().getTrackByIdFromCrateTrackList(_id)
       let otherBpm = null
@@ -91,6 +92,26 @@ export const sessionStore = defineStore("session", {
       }
       this.decks[deckID].faderPosition = pitch
       this.decks[deckID].faderSliding = false
+    },
+
+    async fetchHistories(): Promise<number | null> {
+      try {
+        const response = await sessionService.getHistories(
+          userStore().authd.token
+        )
+        if (response.status === 200) {
+          const histories = (await response.json()) as TransitionHistory[]
+          if (histories !== null) this.savedTransitionHistories = histories
+          return response.status
+        } else if (response.status === 400) {
+          const error = await response.json()
+          this.errorMsg = error.message ? error.message : "Unexpected error"
+        }
+        return response.status
+      } catch (error) {
+        console.error(error)
+        return null
+      }
     },
 
     async saveHistory(history: UnsavedHistory): Promise<number | null> {

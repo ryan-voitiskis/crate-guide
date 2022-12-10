@@ -17,6 +17,9 @@
         >
           <SaveIcon />
         </button>
+        <button class="icon-only-button" @click="session.historyManager = true">
+          <FolderIcon />
+        </button>
       </div>
     </div>
     <div class="history-list" ref="list">
@@ -37,6 +40,7 @@ import { sessionStore } from "@/stores/sessionStore"
 import SaveIcon from "../icons/SaveIcon.vue"
 import TrashIcon from "../icons/TrashIcon.vue"
 import PlayedTrack from "./PlayedTrack.vue"
+import FolderIcon from "../icons/FolderIcon.vue"
 const session = sessionStore()
 
 const list = ref<HTMLInputElement | null>(null)

@@ -33,8 +33,8 @@ export const discogsStore = defineStore("discogs", {
           userStore().authd.token
         )
         if (response.status === 200) {
-          const res = await response.json()
-          window.location.href = `https://discogs.com/oauth/authorize?oauth_token=${res}`
+          const token = await response.json()
+          window.location.href = `https://discogs.com/oauth/authorize?oauth_token=${token}`
         } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"

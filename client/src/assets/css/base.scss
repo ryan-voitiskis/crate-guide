@@ -89,14 +89,6 @@ li {
   margin-bottom: 10px;
 }
 
-// todo: remove later if unused
-input,
-textarea,
-select,
-fieldset {
-  // margin-bottom: 15px;
-}
-
 pre,
 blockquote,
 dl,
@@ -178,4 +170,34 @@ from: https://css-tricks.com/video-screencasts/142-hiding-things-with-css/ */
   &:hover {
     color: var(--link-text-hover);
   }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 11px;
+}
+::-webkit-scrollbar-button {
+  width: 0px;
+  height: 0px;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(211, 20%, 60%);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(211, 60%, 55%);
+}
+::-webkit-scrollbar-thumb:active {
+  background: hsl(211, 60%, 55%);
+}
+::-webkit-scrollbar-track {
+  background: hsla(0, 0%, 50%, 0.2);
+  border: 0px none #ffffff;
+  border-radius: 53px;
+}
+::-webkit-scrollbar-track:hover {
+  background: hsla(0, 0%, 50%, 0.3);
+}
+::-webkit-scrollbar-track:active {
+  background: hsla(0, 0%, 50%, 0.2);
 }

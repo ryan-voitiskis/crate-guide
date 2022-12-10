@@ -1,5 +1,11 @@
 <template>
-  <TransitionRating v-if="index > 0" :index="index" />
+  <div class="rating" v-if="index > 0">
+    <StarIcon :class="{ lit: rating > 0 }" />
+    <StarIcon :class="{ lit: rating > 1 }" />
+    <StarIcon :class="{ lit: rating > 2 }" />
+    <StarIcon :class="{ lit: rating > 3 }" />
+    <StarIcon :class="{ lit: rating > 4 }" />
+  </div>
   <div class="played-track">
     <div class="cover"></div>
     <span class="position" v-if="foundTrack.position">{{
@@ -23,9 +29,6 @@
           : foundTrack.keyFinal.camelotString
       }}
     </span>
-    <button class="delete" @click="remove">
-      <TrashIcon />
-    </button>
     <span class="title-artists">
       {{ foundTrack.title }} - {{ foundTrack.artistsFinal }}
     </span>
@@ -34,16 +37,13 @@
 
 <script setup lang="ts">
 import { defineProps, defineEmits, onMounted } from "vue"
-import { sessionStore } from "@/stores/sessionStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import getBPMColour from "@/utils/getBPMColour"
 import getPositionColour from "@/utils/positionColours"
-import TrashIcon from "../icons/TrashIcon.vue"
-import TransitionRating from "@/components/session/TransitionRating.vue"
 import PlayedTrack from "@/interfaces/PlayedTrack"
+import StarIcon from "../icons/StarIcon.vue"
 
-const session = sessionStore()
 const tracks = trackStore()
 const user = userStore()
 
@@ -51,7 +51,8 @@ const props = defineProps<{
   track: PlayedTrack
   index: number
 }>()
-console.log(props.index)
+
+const rating = props.track.transitionRating ? props.track.transitionRating : 0
 
 const foundTrack = tracks.getTrackByIdFromTrackList(props.track._id)!
 
@@ -71,12 +72,6 @@ const emit = defineEmits<{
   (e: "newTrackMounted"): void
 }>()
 
-function remove() {
-  if (session.transitionHistory.length !== props.index + 1)
-    session.transitionHistory[props.index + 1].transitionRating = null
-  session.transitionHistory.splice(props.index, 1)
-}
-
 onMounted(() => emit("newTrackMounted"))
 </script>
 
@@ -84,7 +79,7 @@ onMounted(() => emit("newTrackMounted"))
 .played-track {
   overflow: hidden;
   display: grid;
-  grid-template-columns: 60px 30px 1fr 36px 50px 50px 30px;
+  grid-template-columns: 60px 30px 1fr 36px 50px 50px;
   grid-template-rows: 30px 30px;
   width: 100%;
   transition: background-color 50ms linear;
@@ -151,6 +146,22 @@ onMounted(() => emit("newTrackMounted"))
     margin: 0;
     border-radius: 0;
     background-color: transparent;
+  }
+}
+
+.rating {
+  display: flex;
+  width: 100%;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  svg {
+    height: 18px;
+    padding: 0 10px;
+    &.lit {
+      fill: hsl(51, 100%, 42%);
+      color: hsl(51, 100%, 42%);
+    }
   }
 }
 </style>

@@ -54,14 +54,13 @@
   --disabled: hsl(260, 2%, 93%);
   --disabled-text: hsl(260, 2%, 82%);
 
-  /* records */
-  --record-bg: hsl(10, 24%, 96%);
+  /* records and tracks */
+  --item-bg: hsl(10, 24%, 96%);
   --record-unstaged-bg: hsl(0, 0%, 97%);
   --selected-action: hsl(277, 50%, 30%);
   --record-selected-bg: hsl(277, 13%, 86%);
-
-  /* tracks, suggestions */
-  --track-hover: hsl(146, 50%, 86%);
+  --item-hover: hsl(146, 50%, 86%);
+  --item-active: hsl(146, 50%, 68%);
   --track-features-hover: hsl(146, 50%, 68%);
 
   /* progress bar */
@@ -84,38 +83,4 @@
     background-color: hsl(0, 0%, 100%);
     @include light-theme;
   }
-}
-
-// TODO
-::-webkit-scrollbar {
-  width: 6px;
-  height: 11px;
-}
-::-webkit-scrollbar-button {
-  width: 0px;
-  height: 0px;
-}
-::-webkit-scrollbar-thumb {
-  background: hsla(191, 100%, 26%, 0.98);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #f90000;
-}
-::-webkit-scrollbar-thumb:active {
-  background: #ff2b2b;
-}
-::-webkit-scrollbar-track {
-  background: #e80000;
-  border: 0px none #ffffff;
-  border-radius: 53px;
-}
-::-webkit-scrollbar-track:hover {
-  background: #666666;
-}
-::-webkit-scrollbar-track:active {
-  background: #333333;
-}
-::-webkit-scrollbar-corner {
-  background: transparent;
 }

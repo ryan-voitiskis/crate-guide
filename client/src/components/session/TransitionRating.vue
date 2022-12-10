@@ -29,7 +29,6 @@ const rating = computed(
 
 <style scoped lang="scss">
 .rating {
-  $rating: 3;
   display: flex;
   width: 100%;
   height: 20px;
