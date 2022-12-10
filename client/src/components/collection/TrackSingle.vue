@@ -85,9 +85,9 @@ const keyColour = computed(() =>
 
 const bpmColour = computed(() =>
   props.track.bpm
-    ? getBPMColour(props.track.bpm)
+    ? getBPMColour(props.track.bpm, user.authd.settings.theme)
     : props.track.audioFeatures?.tempo
-    ? getBPMColour(props.track.audioFeatures.tempo)
+    ? getBPMColour(props.track.audioFeatures.tempo, user.authd.settings.theme)
     : ""
 )
 

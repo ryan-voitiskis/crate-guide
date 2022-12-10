@@ -84,7 +84,7 @@ const coverImg = `url("${props.track.cover}")`
 const keyColour = props.track.keyFinal ? props.track.keyFinal.colour : null
 
 const bpmColour = props.track.bpmFinal
-  ? getBPMColour(props.track.bpmFinal)
+  ? getBPMColour(props.track.bpmFinal, user.authd.settings.theme)
   : null
 
 const positionColour = props.track.position

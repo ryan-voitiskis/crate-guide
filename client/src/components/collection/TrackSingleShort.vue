@@ -30,12 +30,15 @@
 import { defineProps, computed } from "vue"
 import { Track } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
+import { userStore } from "@/stores/userStore"
 import PencilIcon from "@/components/icons/PencilIcon.vue"
 import TrashIcon from "@/components/icons/TrashIcon.vue"
 import getBPMColour from "@/utils/getBPMColour"
 import SpotifyLogo from "@/components/icons/SpotifyLogo.vue"
 import getPositionColour from "@/utils/positionColours"
+
 const tracks = trackStore()
+const user = userStore()
 
 const props = defineProps<{
   track: Track
@@ -59,7 +62,9 @@ const bpm = computed(() =>
     : null
 )
 
-const bpmColour = computed(() => (bpm.value ? getBPMColour(bpm.value) : null))
+const bpmColour = computed(() =>
+  bpm.value ? getBPMColour(bpm.value, user.authd.settings.theme) : null
+)
 </script>
 
 <style scoped lang="scss">

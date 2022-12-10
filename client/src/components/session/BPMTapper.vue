@@ -21,7 +21,10 @@
 import { defineProps, reactive, computed } from "vue"
 import getBPMColour from "@/utils/getBPMColour"
 import { sessionStore } from "@/stores/sessionStore"
+import { userStore } from "@/stores/userStore"
+
 const session = sessionStore()
+const user = userStore()
 
 const props = defineProps<{
   deckID: number
@@ -64,14 +67,18 @@ function tap() {
 }
 
 const bpmColour = computed(() =>
-  state.bpm ? getBPMColour(state.bpm) : "white"
+  state.bpm ? getBPMColour(state.bpm, user.authd.settings.theme) : "white"
 )
 
 const savedBpmColour = computed(() =>
-  savedTrackBpm.value ? getBPMColour(savedTrackBpm.value) : null
+  savedTrackBpm.value
+    ? getBPMColour(savedTrackBpm.value, user.authd.settings.theme)
+    : null
 )
 
-const lastBpmColour = computed(() => getBPMColour(state.lastBpm))
+const lastBpmColour = computed(() =>
+  getBPMColour(state.lastBpm, user.authd.settings.theme)
+)
 </script>
 
 <style scoped lang="scss">

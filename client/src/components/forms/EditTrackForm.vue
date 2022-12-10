@@ -164,7 +164,7 @@ const spotifyKeyColour =
     : "#ddd"
 
 const bpmColour = track.audioFeatures?.tempo
-  ? getBPMColour(track.audioFeatures.tempo)
+  ? getBPMColour(track.audioFeatures.tempo, user.authd.settings.theme)
   : ""
 
 const spotifyTimeSignature = track.audioFeatures

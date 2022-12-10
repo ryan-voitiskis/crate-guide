@@ -58,7 +58,9 @@ const coverImg = `url("${foundTrack.cover}")`
 
 const keyColour = foundTrack.keyFinal ? foundTrack.keyFinal.colour : null
 
-const bpmColour = foundTrack.bpmFinal ? getBPMColour(foundTrack.bpmFinal) : null
+const bpmColour = foundTrack.bpmFinal
+  ? getBPMColour(foundTrack.bpmFinal, user.authd.settings.theme)
+  : null
 
 const positionColour = foundTrack.position
   ? getPositionColour(foundTrack.position)

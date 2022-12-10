@@ -1,4 +1,5 @@
 @mixin light-theme {
+  //! if light theme --page-bg updated, update line 12 of utils/getBPMColour.ts
   --page-bg: hsl(0, 0%, 100%);
 
   /* elements */
