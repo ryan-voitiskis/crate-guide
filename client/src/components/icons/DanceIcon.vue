@@ -1,3 +1,4 @@
+<!-- modified using Inkscape from https://publicdomainvectors.org/en/free-clipart/Dance-move-silhouette/58198.html -->
 <template>
   <svg
     fill="none"

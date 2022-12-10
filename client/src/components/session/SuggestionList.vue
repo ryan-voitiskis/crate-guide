@@ -43,9 +43,20 @@ const bpmRangeFilteredTracks = computed((): TrackPlus[] | null => {
   })
 })
 
+const alreadyPlayedFilteredTracks = computed((): TrackPlus[] | null => {
+  if (bpmRangeFilteredTracks.value) {
+    if (session.transitionHistory.length) {
+      const playedTracks = session.transitionHistory.map((i) => i._id)
+      return bpmRangeFilteredTracks.value.filter(
+        (i) => !playedTracks.includes(i._id)
+      )
+    } else return bpmRangeFilteredTracks.value
+  } else return null
+})
+
 const sameRecordFilteredTracks = computed(
   (): TrackPlus[] | null =>
-    bpmRangeFilteredTracks.value?.filter(
+    alreadyPlayedFilteredTracks.value?.filter(
       (i) => i.recordID !== session.decks[props.deckID].loadedTrack?.recordID
     ) || null
 )
