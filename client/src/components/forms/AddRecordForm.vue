@@ -8,6 +8,7 @@
   <form @submit.prevent="submit" @reset.prevent="reset()">
     <div class="modal-body inline-labels">
       <BasicInput
+        id="catno"
         v-model="form.catno"
         label="Catalog #"
         type="text"
@@ -16,6 +17,7 @@
         autocomplete="off"
       />
       <BasicInput
+        id="artists"
         v-model="form.artists"
         label="Artists"
         type="text"
@@ -23,6 +25,7 @@
         required
       />
       <BasicInput
+        id="title"
         v-model="form.title"
         label="Title"
         type="text"
@@ -31,12 +34,14 @@
         required
       />
       <BasicInput
+        id="label"
         v-model="form.label"
         label="Label"
         type="text"
         placeholder="Label (optional)"
       />
       <BasicInput
+        id="year"
         v-model="form.year"
         label="Year"
         placeholder="Year (optional)"
@@ -46,6 +51,7 @@
         autocomplete="off"
       />
       <BasicInput
+        id="cover"
         v-model="form.cover"
         label="Cover Image"
         type="text"

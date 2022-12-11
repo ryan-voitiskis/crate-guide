@@ -12,6 +12,7 @@
   <form @submit.prevent="submit">
     <div class="modal-body inline-labels">
       <BasicInput
+        id="name"
         v-model="form.name"
         label="Name"
         type="text"

@@ -59,6 +59,7 @@
       </fieldset>
 
       <SelectInput
+        id="turntable_pitch_range"
         v-model="user.authd.settings.turntablePitchRange"
         label="Turntable pitch range"
         :options="turntablePitchOptions"

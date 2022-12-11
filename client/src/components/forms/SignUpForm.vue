@@ -11,6 +11,7 @@
         Already have an account? <span class="link-text">Log in</span>
       </p>
       <BasicInput
+        id="name"
         v-model="form.name"
         label="Name"
         type="text"
@@ -19,6 +20,7 @@
         required
       />
       <BasicInput
+        id="email"
         v-model="form.email"
         label="Email"
         type="email"
@@ -30,6 +32,7 @@
         required
       />
       <PasswordInput
+        id="password"
         v-model="form.password"
         label="Password"
         placeholder="Enter a password"

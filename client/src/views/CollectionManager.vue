@@ -15,6 +15,7 @@
     </button>
     <div class="input-wrapper">
       <BasicInput
+        id="search_title"
         v-model="state.searchTitle"
         label="Search title"
         type="text"
@@ -25,6 +26,7 @@
     </div>
     <div class="input-wrapper">
       <BasicInput
+        id="search_artists"
         v-model="state.searchArtists"
         label="Search artist"
         type="text"
@@ -35,6 +37,7 @@
     </div>
     <div class="input-wrapper" v-show="user.authd.settings.listLayout === 1">
       <BasicInput
+        id="filter_genre"
         v-model="state.filterGenre"
         label="Filter genre"
         type="text"
@@ -45,6 +48,7 @@
     </div>
     <div class="input-wrapper">
       <BasicInput
+        id="filter_year"
         v-model="state.filterYear"
         label="Filter year"
         type="text"

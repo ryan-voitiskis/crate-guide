@@ -11,6 +11,7 @@
     />
     <div class="modal-body inline-labels">
       <BasicInput
+        id="crate_name"
         v-model="form.name"
         label="Crate name"
         type="text"

@@ -10,6 +10,7 @@
   <form @submit.prevent="submit" @reset.prevent="reset()">
     <div class="modal-body inline-labels">
       <BasicInput
+        id="position"
         v-model="form.position"
         label="Position"
         type="text"
@@ -18,6 +19,7 @@
         :focused="true"
       />
       <BasicInput
+        id="title"
         v-model="form.title"
         label="Title"
         type="text"
@@ -26,12 +28,14 @@
         required
       />
       <BasicInput
+        id="artists"
         v-model="form.artists"
         label="Artists"
         type="text"
         placeholder="Artist, Artist (optional)"
       />
       <BasicInput
+        id="duration"
         v-model="form.duration"
         label="Duration"
         type="text"
@@ -40,6 +44,7 @@
         pattern="^(?:(?:([01]?\d|2[0-3]):)?([0-5]?\d):)?([0-5]?\d)$"
       />
       <BasicInput
+        id="bpm"
         v-model="form.bpm"
         label="BPM"
         placeholder="BPM (recommended)"
@@ -48,13 +53,20 @@
         pattern="\d{2,3}"
         autocomplete="off"
       />
-      <SelectInput v-model="form.key" label="Key" :options="keyOptions" />
       <SelectInput
+        id="key"
+        v-model="form.key"
+        label="Key"
+        :options="keyOptions"
+      />
+      <SelectInput
+        id="time_signature"
         v-model="form.timeSignature"
         label="Time signature"
         :options="timeSignatureOptions"
       />
       <GenreInput
+        id="genres"
         :genres="genres"
         :addOrClearMsg="genreState.addOrClearMsg"
         @addGenre="addGenre"

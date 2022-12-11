@@ -32,6 +32,7 @@
       </transition>
       <hr />
       <BasicInput
+        id="position"
         v-model="form.position"
         label="Position"
         type="text"
@@ -39,6 +40,7 @@
         pattern="[A-Za-z][0-9]?"
       />
       <BasicInput
+        id="title"
         v-model="form.title"
         label="Title"
         type="text"
@@ -47,6 +49,7 @@
         required
       />
       <BasicInput
+        id="artists"
         v-model="form.artists"
         label="Artists"
         type="text"
@@ -59,6 +62,7 @@
         </div>
       </div>
       <BasicInput
+        id="duration"
         v-model="form.duration"
         label="Duration"
         type="text"
@@ -71,6 +75,7 @@
         <div class="spotify-bpm">{{ track.audioFeatures.tempo }}</div>
       </div>
       <BasicInput
+        id="bpm"
         v-model="form.bpm"
         label="BPM"
         placeholder="BPM (optional)"
@@ -83,12 +88,18 @@
         Spotify analysed
         <div class="spotify-key">{{ spotifyKeyString }}</div>
       </div>
-      <SelectInput v-model="form.key" label="Key" :options="keyOptions" />
+      <SelectInput
+        id="key"
+        v-model="form.key"
+        label="Key"
+        :options="keyOptions"
+      />
       <div class="spotify-analysed" v-if="spotifyTimeSignature">
         Spotify estimated
         <div class="spotify-time-sig">{{ spotifyTimeSignature }}</div>
       </div>
       <SelectInput
+        id="time_signature"
         v-model="form.timeSignature"
         label="Time signature"
         :options="timeSignatureOptions"

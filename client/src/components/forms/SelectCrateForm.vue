@@ -11,6 +11,7 @@
     >
     <div class="modal-body inline-labels">
       <SelectInput
+        id="select_crate"
         v-model="form.crate"
         label="Select crate"
         :options="options"

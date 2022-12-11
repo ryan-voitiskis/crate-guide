@@ -13,6 +13,7 @@
     <span class="hint">Select the folder to import from Discogs.</span>
     <div v-if="discogs.folderList.length" class="modal-body inline-labels">
       <SelectInput
+        id="select_folder"
         v-model="form.folder"
         label="Select folder"
         :options="folders"

@@ -15,7 +15,7 @@ import { defineProps } from "vue"
 
 const props = defineProps<{
   label?: string
-  id?: string
+  id: string
   placeholder?: string
   modelValue?: string | number
   focused?: boolean

@@ -1,6 +1,7 @@
 <template>
   <div class="wrapper">
     <SelectInput
+      id="crate_select"
       v-model="user.authd.settings.selectedCrate"
       :label="label"
       :options="cratesList"

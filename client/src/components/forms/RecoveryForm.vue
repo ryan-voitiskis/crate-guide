@@ -9,6 +9,7 @@
     <div class="modal-body">
       <p>Enter your email for reset instructions.</p>
       <BasicInput
+        id="email"
         v-model="form.email"
         label="Email"
         type="email"

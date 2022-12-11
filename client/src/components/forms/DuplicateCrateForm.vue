@@ -13,6 +13,7 @@
     <p class="hint">Enter the duplicated crate name.</p>
     <div class="modal-body inline-labels">
       <BasicInput
+        id="name"
         v-model="form.name"
         label="Crate name"
         type="text"
