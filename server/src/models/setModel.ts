@@ -7,11 +7,11 @@ interface IPlayedTrack {
   transitionRating: number | null // star rating of transition FROM previous track, null for first or unrated
 }
 
-interface ITransitionHistory {
+interface ISet {
   _id: Types.ObjectId
   user: Types.ObjectId
   name?: string
-  history: IPlayedTrack[]
+  set: IPlayedTrack[]
 }
 
 const playedTrackSchema = new mongoose.Schema<IPlayedTrack>({
@@ -26,19 +26,19 @@ const playedTrackSchema = new mongoose.Schema<IPlayedTrack>({
   },
 })
 
-const transitionHistorySchema = new mongoose.Schema<ITransitionHistory>(
+const setSchema = new mongoose.Schema<ISet>(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
-      required: [true, "History model: No user provided."],
+      required: [true, "Set model: No user provided."],
       ref: "User",
     },
     name: {
       type: String,
     },
-    history: {
+    set: {
       type: [playedTrackSchema],
-      required: [true, "History model: No history provided."],
+      required: [true, "Set model: No history provided."],
     },
   },
   {
@@ -46,9 +46,6 @@ const transitionHistorySchema = new mongoose.Schema<ITransitionHistory>(
   }
 )
 
-const TransitionHistory = mongoose.model(
-  "TransitionHistory",
-  transitionHistorySchema
-)
+const Set = mongoose.model("Set", setSchema)
 
-export { IPlayedTrack, ITransitionHistory, TransitionHistory }
+export { IPlayedTrack, ISet, Set }

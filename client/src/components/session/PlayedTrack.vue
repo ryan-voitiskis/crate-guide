@@ -51,7 +51,6 @@ const props = defineProps<{
   track: PlayedTrack
   index: number
 }>()
-console.log(props.index)
 
 const foundTrack = tracks.getTrackByIdFromTrackList(props.track._id)!
 
@@ -72,9 +71,9 @@ const emit = defineEmits<{
 }>()
 
 function remove() {
-  if (session.transitionHistory.length !== props.index + 1)
-    session.transitionHistory[props.index + 1].transitionRating = null
-  session.transitionHistory.splice(props.index, 1)
+  if (session.set.length !== props.index + 1)
+    session.set[props.index + 1].transitionRating = null
+  session.set.splice(props.index, 1)
 }
 
 onMounted(() => emit("newTrackMounted"))
@@ -87,7 +86,6 @@ onMounted(() => emit("newTrackMounted"))
   grid-template-columns: 60px 30px 1fr 36px 50px 50px 30px;
   grid-template-rows: 30px 30px;
   width: 100%;
-  transition: background-color 50ms linear;
   span {
     color: var(--dark-text);
     line-height: 30px;

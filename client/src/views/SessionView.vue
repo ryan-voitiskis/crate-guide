@@ -25,7 +25,7 @@
     v-if="session.confirmClearHistory"
     @close="session.confirmClearHistory = false"
   >
-    <ConfirmDeleteHistory />
+    <ConfirmClearHistory />
   </ModalBox>
 
   <ModalBox
@@ -36,12 +36,19 @@
   </ModalBox>
 
   <ModalBox
-    v-if="session.historyManager"
-    @close="session.historyManager = false"
+    v-if="session.setManager"
+    @close="session.setManager = false"
     width="900px"
     :fullHeight="true"
   >
-    <HistoryManager />
+    <SetManager />
+  </ModalBox>
+
+  <ModalBox
+    v-if="session.confirmDeleteSet"
+    @close="session.confirmDeleteSet = false"
+  >
+    <ConfirmDeleteSet />
   </ModalBox>
 </template>
 
@@ -52,9 +59,10 @@ import RecordDeck from "@/components/session/RecordDeck.vue"
 import SelectTrackList from "@/components/session/SelectTrackList.vue"
 import ChevronUpIcon from "@/components/icons/ChevronUpIcon.vue"
 import HistoryList from "@/components/session/HistoryList.vue"
-import ConfirmDeleteHistory from "@/components/forms/ConfirmDeleteHistory.vue"
+import ConfirmClearHistory from "@/components/forms/ConfirmClearHistory.vue"
 import SaveHistoryForm from "@/components/forms/SaveHistoryForm.vue"
-import HistoryManager from "@/components/session/HistoryManager.vue"
+import SetManager from "@/components/session/SetManager.vue"
+import ConfirmDeleteSet from "@/components/forms/ConfirmDeleteSet.vue"
 
 const session = sessionStore()
 </script>

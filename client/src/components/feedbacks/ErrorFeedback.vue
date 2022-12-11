@@ -1,5 +1,8 @@
 <template>
-  <transition name="drop">
+  <span class="invalid" v-if="noAnimation && show">
+    <ExclamationIcon /> {{ msg }}
+  </span>
+  <transition name="drop" v-else>
     <span class="invalid" v-if="show"> <ExclamationIcon /> {{ msg }} </span>
   </transition>
 </template>
@@ -11,6 +14,7 @@ import ExclamationIcon from "@/components/icons/ExclamationIcon.vue"
 defineProps<{
   show: boolean
   msg: string
+  noAnimation?: boolean
 }>()
 </script>
 

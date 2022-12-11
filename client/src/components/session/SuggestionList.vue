@@ -45,8 +45,8 @@ const bpmRangeFilteredTracks = computed((): TrackPlus[] | null => {
 
 const alreadyPlayedFilteredTracks = computed((): TrackPlus[] | null => {
   if (bpmRangeFilteredTracks.value) {
-    if (session.transitionHistory.length) {
-      const playedTracks = session.transitionHistory.map((i) => i._id)
+    if (session.set.length) {
+      const playedTracks = session.set.map((i) => i._id)
       return bpmRangeFilteredTracks.value.filter(
         (i) => !playedTracks.includes(i._id)
       )

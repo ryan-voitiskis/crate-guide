@@ -1,8 +1,8 @@
 import globals from "@/globals"
-import UnsavedHistory from "@/interfaces/UnsavedHistory"
+import UnsavedSet from "@/interfaces/UnsavedSet"
 
-// get histories
-async function getHistories(token: string) {
+// get sets
+async function getSets(token: string) {
   const options = {
     method: "GET",
     headers: {
@@ -11,14 +11,14 @@ async function getHistories(token: string) {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(globals.API_HISTORIES_URL, options)
+  const response = await fetch(globals.API_SETS_URL, options)
   return response
 }
 
 // save new history
-async function saveHistory(history: UnsavedHistory, token: string) {
+async function saveSet(history: UnsavedSet, token: string) {
   const body = new URLSearchParams()
-  body.append("history", JSON.stringify(history))
+  body.append("set", JSON.stringify(history))
 
   const options = {
     method: "POST",
@@ -29,12 +29,12 @@ async function saveHistory(history: UnsavedHistory, token: string) {
     },
     body: body,
   }
-  const response = await fetch(globals.API_HISTORIES_URL, options)
+  const response = await fetch(globals.API_SETS_URL, options)
   return response
 }
 
 // Delete a history
-async function deleteHistory(_id: string, token: string) {
+async function deleteSet(_id: string, token: string) {
   const options = {
     method: "DELETE",
     headers: {
@@ -43,13 +43,13 @@ async function deleteHistory(_id: string, token: string) {
       Authorization: `Bearer ${token}`,
     },
   }
-  const response = await fetch(globals.API_HISTORIES_URL + _id, options)
+  const response = await fetch(globals.API_SETS_URL + _id, options)
   return response
 }
 
 const sessionService = {
-  getHistories,
-  saveHistory,
-  deleteHistory,
+  getSets,
+  saveSet,
+  deleteSet,
 }
 export default sessionService

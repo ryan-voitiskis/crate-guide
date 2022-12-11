@@ -1,6 +1,6 @@
 <template>
   <div class="modal-header">
-    <h2>Save transition history</h2>
+    <h2>Save set</h2>
     <button
       class="close"
       type="button"
@@ -46,7 +46,7 @@ import BasicInput from "@/components/inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import XIcon from "@/components/icons/XIcon.vue"
-import UnsavedHistory from "@/interfaces/UnsavedHistory"
+import UnsavedSet from "@/interfaces/UnsavedSet"
 import { sessionStore } from "@/stores/sessionStore"
 const session = sessionStore()
 
@@ -57,11 +57,11 @@ const form = reactive({
 })
 
 function submit() {
-  const unsavedHistory: UnsavedHistory = {
+  const unsavedSet: UnsavedSet = {
     name: form.name.trim(),
-    history: session.transitionHistory,
+    set: session.set,
   }
-  session.saveHistory(unsavedHistory)
+  session.saveSet(unsavedSet)
 }
 
 onBeforeUnmount(() => {

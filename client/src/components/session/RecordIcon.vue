@@ -76,8 +76,10 @@ const spinRate = computed(
       .toString() + "s"
 )
 
-const coverImg = computed(
-  () => `url("${session.decks[props.deckID].loadedTrack?.cover}")`
+const coverImg = computed(() =>
+  session.decks[props.deckID].loadedTrack?.cover
+    ? `url("${session.decks[props.deckID].loadedTrack?.cover}")`
+    : null
 )
 </script>
 

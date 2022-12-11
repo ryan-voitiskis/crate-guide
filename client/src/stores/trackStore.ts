@@ -42,9 +42,7 @@ export const trackStore = defineStore("track", {
           const existingRecord = recordStore().getById(record) as Record
           Object.assign(existingRecord, updatedRecord)
           this.generateTrackLists()
-          this.loading = false
           this.addTrackTo = ""
-          return response.status
         } else if (response.status === 400) {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
@@ -71,8 +69,6 @@ export const trackStore = defineStore("track", {
           ) as Record
           Object.assign(existingRecord, updatedRecord)
           this.generateTrackLists()
-          this.loading = false
-          return response.status
         } else if (response.status === 400 || response.status === 401) {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
@@ -104,8 +100,6 @@ export const trackStore = defineStore("track", {
             Object.assign(existingRecord, updatedRecord)
             this.generateTrackLists()
             this.toDelete = ""
-            this.loading = false
-            return response.status
           } else if (response.status === 400) {
             const error = await response.json()
             this.errorMsg = error.message ? error.message : "Unexpected error"

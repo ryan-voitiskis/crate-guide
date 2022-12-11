@@ -6,25 +6,25 @@
         <button
           class="icon-only-button"
           @click="session.confirmClearHistory = true"
-          v-show="session.transitionHistory.length"
+          v-show="session.set.length"
         >
           <TrashIcon />
         </button>
         <button
           class="icon-only-button"
-          v-show="session.transitionHistory.length"
+          v-show="session.set.length"
           @click="session.saveHistoryForm = true"
         >
           <SaveIcon />
         </button>
-        <button class="icon-only-button" @click="session.historyManager = true">
+        <button class="icon-only-button" @click="session.setManager = true">
           <FolderIcon />
         </button>
       </div>
     </div>
     <div class="history-list" ref="list">
       <PlayedTrack
-        v-for="(track, index) in session.transitionHistory"
+        v-for="(track, index) in session.set"
         :track="track"
         :index="index"
         :key="track.timeAdded"

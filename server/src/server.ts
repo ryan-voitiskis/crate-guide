@@ -9,7 +9,7 @@ import errorHandlerSSE from "./middleware/errorMiddlewareSSE.js"
 import connectDB from "./config/db.js"
 import crateRoutes from "./routes/crateRoutes.js"
 import discogsRoutes from "./routes/discogsRoutes.js"
-import transitionHistoryRoutes from "./routes/transitionHistoryRoutes.js"
+import setRoutes from "./routes/setRoutes.js"
 import recordRoutes from "./routes/recordRoutes.js"
 import spotifyRoutes from "./routes/spotifyRoutes.js"
 import trackRoutes from "./routes/trackRoutes.js"
@@ -37,8 +37,7 @@ app.use(cors())
 
 app.use("/api/crates", crateRoutes)
 app.use("/api/discogs", discogsRoutes)
-app.use("/api/discogs", discogsRoutes)
-app.use("/api/histories", transitionHistoryRoutes)
+app.use("/api/sets", setRoutes)
 app.use("/api/records", recordRoutes)
 app.use("/api/spotify", spotifyRoutes)
 app.use("/api/tracks", trackRoutes)
@@ -48,6 +47,7 @@ app.use("/api/spotify_sse", spotifyRoutesSSE)
 
 app.use("/api/crates", errorHandler)
 app.use("/api/discogs", errorHandler)
+app.use("/api/sets", errorHandler)
 app.use("/api/records", errorHandler)
 app.use("/api/spotify", errorHandler)
 app.use("/api/tracks", errorHandler)

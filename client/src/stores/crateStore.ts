@@ -24,7 +24,6 @@ export const crateStore = defineStore("crate", {
         if (response.status === 200) {
           const crates = (await response.json()) as Crate[]
           if (crates !== null) this.crateList = crates
-          return response.status
         } else if (response.status === 400) {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
@@ -49,8 +48,6 @@ export const crateStore = defineStore("crate", {
           this.crateList.push(newCrate)
           this.addCrateModal = false
           this.duplicateCrateModal = false
-          this.loading = false
-          return response.status
         } else if (response.status === 400) {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
@@ -72,10 +69,8 @@ export const crateStore = defineStore("crate", {
         const response = await crateService.deleteCrate(_id, user.authd.token)
         if (response.status === 200) {
           this.crateList = this.crateList.filter((i) => i._id !== _id)
-          crateStore().deleteCrateModal = false
+          this.deleteCrateModal = false
           user.authd.settings.selectedCrate = "all"
-          this.loading = false
-          return response.status
         } else if (response.status === 400 || response.status === 401) {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
@@ -114,8 +109,6 @@ export const crateStore = defineStore("crate", {
               records.toCrate = []
               records.checkboxed = []
               trackStore().generateTrackLists()
-              this.loading = false
-              return response.status
             } else if (response.status === 400 || response.status === 401) {
               const error = await response.json()
               this.errorMsg = error.message ? error.message : "Unexpected error"

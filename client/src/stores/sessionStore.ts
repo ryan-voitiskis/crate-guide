@@ -3,9 +3,9 @@ import { defineStore } from "pinia"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "./userStore"
 import PlayedTrack from "@/interfaces/PlayedTrack"
-import UnsavedHistory from "@/interfaces/UnsavedHistory"
+import UnsavedSet from "@/interfaces/UnsavedSet"
 import sessionService from "@/services/sessionService"
-import TransitionHistory from "@/interfaces/TransitionHistory"
+import Set from "@/interfaces/Set"
 
 interface Deck {
   loadedTrack: TrackPlus | null
@@ -48,12 +48,15 @@ export const sessionStore = defineStore("session", {
         faderSliding: false,
       },
     ] as Deck[],
-    transitionHistory: [] as PlayedTrack[],
-    savedTransitionHistories: [] as TransitionHistory[],
+    set: [] as PlayedTrack[],
+    savedSets: [] as Set[],
     loadTrackTo: -1, // deck number to load track to
+    selectedSetIndex: -1, // index of savedSets to display in SetManager.vue
+    setToDelete: "",
     confirmClearHistory: false,
-    saveHistoryForm: false, // displays SaveHistoryForm.vue
-    historyManager: false, // displays HistoryManager.vue
+    saveHistoryForm: false, // displays SaveSetForm.vue
+    setManager: false, // displays SetManager.vue
+    confirmDeleteSet: false, // displays ConfirmDeleteSet.vue
     collapseHeader: false,
     errorMsg: "",
     loading: false,
@@ -74,7 +77,7 @@ export const sessionStore = defineStore("session", {
           this.decks[deckID].pitch = pitch
         }
       }
-      this.transitionHistory.push({
+      this.set.push({
         _id: _id,
         timeAdded: Date.now(),
         adjustedBpm: otherBpm,
@@ -94,15 +97,12 @@ export const sessionStore = defineStore("session", {
       this.decks[deckID].faderSliding = false
     },
 
-    async fetchHistories(): Promise<number | null> {
+    async fetchSets(): Promise<number | null> {
       try {
-        const response = await sessionService.getHistories(
-          userStore().authd.token
-        )
+        const response = await sessionService.getSets(userStore().authd.token)
         if (response.status === 200) {
-          const histories = (await response.json()) as TransitionHistory[]
-          if (histories !== null) this.savedTransitionHistories = histories
-          return response.status
+          const sets = (await response.json()) as Set[]
+          if (sets !== null) this.savedSets = sets
         } else if (response.status === 400) {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
@@ -114,22 +114,51 @@ export const sessionStore = defineStore("session", {
       }
     },
 
-    async saveHistory(history: UnsavedHistory): Promise<number | null> {
+    async saveSet(history: UnsavedSet): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
       try {
-        const response = await sessionService.saveHistory(
+        const response = await sessionService.saveSet(
           history,
           userStore().authd.token
         )
         if (response.status === 201) {
-          const newTransitionHistory =
-            (await response.json()) as TransitionHistory
-          this.savedTransitionHistories.push(newTransitionHistory)
+          const newSet = (await response.json()) as Set
+          this.savedSets.push(newSet)
           this.loading = false
           this.saveHistoryForm = false
           return response.status
         } else if (response.status === 400) {
+          const error = await response.json()
+          this.errorMsg = error.message ? error.message : "Unexpected error"
+        }
+        this.loading = false
+        return response.status
+      } catch (error) {
+        this.errorMsg = "Unexpected error. Probably network error."
+        this.loading = false
+        return null
+      }
+    },
+
+    async deleteSet(): Promise<number | null> {
+      this.loading = true
+      this.errorMsg = ""
+      try {
+        const user = userStore()
+        const response = await sessionService.deleteSet(
+          this.setToDelete,
+          user.authd.token
+        )
+        if (response.status === 200) {
+          this.selectedSetIndex = -1
+          this.savedSets = this.savedSets.filter(
+            (i) => i._id !== this.setToDelete
+          )
+          this.setToDelete = ""
+          this.confirmDeleteSet = false
+          user.authd.settings.selectedCrate = "all"
+        } else if (response.status === 400 || response.status === 401) {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }

@@ -47,12 +47,10 @@ export const userStore = defineStore("user", {
           document.cookie = `crate_guide_jwt=${this.authd.token}; SameSite=Strict; Secure;`
           crateStore().fetchCrates()
           recordStore().fetchRecords()
-          this.loading = false
           this.setUserTheme(this.authd.settings.theme)
           this.loginModal = false
           crateStore().fetchCrates()
           recordStore().fetchRecords()
-          return response.status
         } else if (response.status === 401) {
           this.invalidCreds = true
           this.errorMsg = "Invalid credentials"
@@ -75,9 +73,7 @@ export const userStore = defineStore("user", {
           document.cookie = `crate_guide_jwt=${this.authd.token}; SameSite=Strict; Secure;`
           crateStore().fetchCrates()
           recordStore().fetchRecords()
-          this.loading = false
           this.setUserTheme(this.authd.settings.theme)
-          return response.status
         } else if (response.status === 401) {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
@@ -118,8 +114,6 @@ export const userStore = defineStore("user", {
           }
           Object.assign(this.authd, registeringUser)
           this.signUpModal = false
-          this.loading = false
-          return response.status
         } else if (response.status === 409) {
           this.errorMsg = "An account with that email already exists."
         } else if (response.status === 400) {

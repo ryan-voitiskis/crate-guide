@@ -6,7 +6,7 @@
     <StarIcon :class="{ lit: rating > 3 }" />
     <StarIcon :class="{ lit: rating > 4 }" />
   </div>
-  <div class="played-track">
+  <div class="played-track" v-if="foundTrack">
     <div class="cover"></div>
     <span class="position" v-if="foundTrack.position">{{
       foundTrack.position
@@ -15,8 +15,8 @@
     <span class="bpm" v-if="foundTrack.bpmFinal">
       {{ Math.round(foundTrack.bpmFinal).toString() }}
     </span>
-    <span class="bpm-adjusted" v-if="track.adjustedBpm">
-      @{{ Math.round(track.adjustedBpm).toString() }}
+    <span class="bpm-adjusted" v-if="playedTrack.adjustedBpm">
+      @{{ Math.round(playedTrack.adjustedBpm).toString() }}
     </span>
     <span
       class="key"
@@ -33,6 +33,7 @@
       {{ foundTrack.title }} - {{ foundTrack.artistsFinal }}
     </span>
   </div>
+  <div class="deleted" v-else>This track has been deleted</div>
 </template>
 
 <script setup lang="ts">
@@ -48,23 +49,34 @@ const tracks = trackStore()
 const user = userStore()
 
 const props = defineProps<{
-  track: PlayedTrack
+  playedTrack: PlayedTrack
   index: number
 }>()
 
-const rating = props.track.transitionRating ? props.track.transitionRating : 0
+const foundTrack =
+  tracks.getTrackByIdFromTrackList(props.playedTrack._id) || null
 
-const foundTrack = tracks.getTrackByIdFromTrackList(props.track._id)!
+const rating = props.playedTrack.transitionRating
+  ? props.playedTrack.transitionRating
+  : 0
 
-const coverImg = `url("${foundTrack.cover}")`
+const coverImg = foundTrack ? `url("${foundTrack.cover}")` : null
 
-const keyColour = foundTrack.keyFinal ? foundTrack.keyFinal.colour : null
+const keyColour = !foundTrack
+  ? null
+  : foundTrack.keyFinal
+  ? foundTrack.keyFinal.colour
+  : null
 
-const bpmColour = foundTrack.bpmFinal
+const bpmColour = !foundTrack
+  ? null
+  : foundTrack.bpmFinal
   ? getBPMColour(foundTrack.bpmFinal, user.authd.settings.theme)
   : null
 
-const positionColour = foundTrack.position
+const positionColour = !foundTrack
+  ? null
+  : foundTrack.position
   ? getPositionColour(foundTrack.position)
   : "hsl(0, 0%, 68%)"
 
@@ -82,7 +94,6 @@ onMounted(() => emit("newTrackMounted"))
   grid-template-columns: 60px 30px 1fr 36px 50px 50px;
   grid-template-rows: 30px 30px;
   width: 100%;
-  transition: background-color 50ms linear;
   span {
     color: var(--dark-text);
     line-height: 30px;
@@ -147,6 +158,17 @@ onMounted(() => emit("newTrackMounted"))
     border-radius: 0;
     background-color: transparent;
   }
+}
+
+.deleted {
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  height: 60px;
+  line-height: 60px;
+  width: 100%;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .rating {

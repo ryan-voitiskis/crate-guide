@@ -1,34 +1,28 @@
 <template>
   <div class="modal-header">
-    <h2>Clear history</h2>
+    <h2>Delete saved set</h2>
     <button
       class="close"
       type="button"
-      @click="session.confirmClearHistory = false"
+      @click="session.confirmDeleteSet = false"
     >
       <XIcon />
     </button>
   </div>
   <div class="modal-body">
     <span class="question">
-      Are you sure you wish to clear the transition history?
+      Are you sure you wish to delete this saved set?
     </span>
   </div>
   <div class="modal-footer-plain">
     <button
       class="close"
       type="button"
-      @click="session.confirmClearHistory = false"
+      @click="session.confirmDeleteSet = false"
     >
       Cancel
     </button>
-    <button
-      @click="
-        ;(session.transitionHistory = []), (session.confirmClearHistory = false)
-      "
-      class="primary delete"
-      type="submit"
-    >
+    <button @click="session.deleteSet" class="primary delete" type="submit">
       Clear
     </button>
   </div>

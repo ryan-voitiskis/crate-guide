@@ -38,8 +38,8 @@ export const discogsStore = defineStore("discogs", {
         } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
-          this.loading = false
         }
+        this.loading = false
         return response.status
       } catch (error) {
         this.errorMsg = "Unexpected error. Probably network error."
