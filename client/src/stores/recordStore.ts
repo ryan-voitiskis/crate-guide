@@ -27,7 +27,7 @@ export const recordStore = defineStore("record", {
         const response = await recordService.getRecords(userStore().authd.token)
         if (response.status === 200) {
           const records = (await response.json()) as Record[]
-          if (records !== null) this.recordList = records
+          if (records) this.recordList = records
           trackStore().generateTrackLists()
         } else if (response.status === 400) {
           const error = await response.json()

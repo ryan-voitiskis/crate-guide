@@ -10,12 +10,26 @@
   </div>
   <form @submit.prevent="submit">
     <div class="modal-body inline-labels">
-      <BasicInput
-        v-model="form.spotifyID"
-        label="Spotify ID"
-        type="text"
+      <label for="spotify_id" class="spotify-id-label">
+        Spotify ID
+        <button
+          class="icon-only-button"
+          @click.prevent="state.showSpotifyIdTip = !state.showSpotifyIdTip"
+        >
+          <HelpIcon />
+        </button>
+      </label>
+      <input
+        id="spotify_id"
         placeholder="Paste Spotify ID here"
+        v-model="form.spotifyID"
+        type="text"
       />
+      <transition name="drop">
+        <span class="spotify-id-tip" v-show="state.showSpotifyIdTip">
+          ID will be searched for on Spotify upon save.
+        </span>
+      </transition>
       <hr />
       <BasicInput
         v-model="form.position"
@@ -121,6 +135,7 @@ import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import RadioInput from "@/components/inputs/RadioInput.vue"
 import getBPMColour from "@/utils/getBPMColour"
 import XIcon from "@/components/icons/XIcon.vue"
+import HelpIcon from "@/components/icons/HelpIcon.vue"
 import { Track } from "@/interfaces/Track"
 import MatchedTrack from "@/interfaces/MatchedTrack"
 import SelectInput from "../inputs/SelectInput.vue"
@@ -149,6 +164,10 @@ const noChangeMsg = "Track has not been edited."
 
 const keyOptions = getKeyOptions(user.authd.settings.keyFormat)
 const timeSignatureOptions = getTimeSignatureOptions()
+
+const state = reactive({
+  showSpotifyIdTip: false,
+})
 
 const spotifyKeyString = track.audioFeatures
   ? track.audioFeatures.key !== -1
@@ -318,5 +337,40 @@ hr {
     font-style: italic;
     margin-left: 10px;
   }
+}
+
+.spotify-id-label {
+  display: flex;
+  button {
+    color: var(--dark-text);
+    background: transparent;
+    border-radius: 0;
+    svg {
+      align-self: center;
+      height: 22px;
+      margin: 0 10px;
+    }
+    &:hover {
+      color: var(--primary-hover);
+    }
+  }
+}
+
+.spotify-id-tip {
+  color: var(--light-text);
+  height: 28px;
+  line-height: 28px;
+  font-size: 14px;
+  width: 100%;
+  text-align: center;
+  grid-column: 1 / 3;
+}
+
+.drop-enter-active {
+  animation: drop-down-28 0.4s linear;
+}
+
+.drop-leave-active {
+  animation: drop-up-28 0.4s linear;
 }
 </style>

@@ -84,7 +84,7 @@ export const discogsStore = defineStore("discogs", {
         )
         if (response.status === 200) {
           const folders = (await response.json()) as DiscogsFolder[]
-          if (folders !== null) this.folderList = folders
+          if (folders) this.folderList = folders
         } else if (response.status === 400) {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
@@ -107,7 +107,7 @@ export const discogsStore = defineStore("discogs", {
         )
         if (response.status === 200) {
           const folder = (await response.json()) as DiscogsReleaseBasic[]
-          if (folder !== null) this.toImport = folder
+          if (folder) this.toImport = folder
           this.selectDiscogsFolderModal = false
           this.stageImportModal = true
         } else if (response.status === 400) {

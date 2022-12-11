@@ -57,6 +57,7 @@ export const sessionStore = defineStore("session", {
     saveHistoryForm: false, // displays SaveSetForm.vue
     setManager: false, // displays SetManager.vue
     confirmDeleteSet: false, // displays ConfirmDeleteSet.vue
+    historyListModal: false, // displays HistoryListModal.vue
     collapseHeader: false,
     errorMsg: "",
     loading: false,
@@ -102,7 +103,7 @@ export const sessionStore = defineStore("session", {
         const response = await sessionService.getSets(userStore().authd.token)
         if (response.status === 200) {
           const sets = (await response.json()) as Set[]
-          if (sets !== null) this.savedSets = sets
+          if (sets) this.savedSets = sets
         } else if (response.status === 400) {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"

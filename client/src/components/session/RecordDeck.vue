@@ -279,7 +279,7 @@ const positionColour = computed(() =>
   }
 }
 
-@media (max-width: 1830px) {
+@media (max-width: 1878px) {
   .deck-area-container {
     width: 100%;
   }

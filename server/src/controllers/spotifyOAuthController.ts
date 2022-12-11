@@ -38,7 +38,7 @@ const authorisationRequest = asyncHandler(async (req, res) => {
 const authorisationCallback = asyncHandler(async (req, res) => {
   const code = req.query.code || null
   const state = req.query.state || null
-  if (state !== null) {
+  if (state) {
     const user = await User.findOne({ spotifyNonce: state })
     if (user) {
       const basic = Buffer.from(`${clientID}:${clientSecret}`).toString(

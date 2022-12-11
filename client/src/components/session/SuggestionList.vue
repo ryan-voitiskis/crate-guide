@@ -132,7 +132,7 @@ const suggestions = computed((): TrackScored[] | null =>
   height: calc(100% - 688px);
 }
 
-@media (max-width: 1846px) {
+@media (max-width: 1878px) {
   .suggestion-list {
     margin: 0 auto;
   }

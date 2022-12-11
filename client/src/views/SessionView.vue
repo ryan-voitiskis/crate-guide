@@ -6,6 +6,9 @@
   </div>
   <div class="session">
     <RecordDeck :deckID="0" />
+    <button class="toggle-history" @click="session.historyListModal = true">
+      <HistoryIcon />{{ session.set.length }}
+    </button>
     <HistoryList />
     <RecordDeck :deckID="1" />
   </div>
@@ -20,6 +23,15 @@
       <SelectTrackList />
     </ModalBox>
   </KeepAlive>
+
+  <ModalBox
+    v-if="session.historyListModal"
+    @close="session.historyListModal = false"
+    width="760px"
+    :fullHeight="true"
+  >
+    <HistoryListModal />
+  </ModalBox>
 
   <ModalBox
     v-if="session.confirmClearHistory"
@@ -63,6 +75,8 @@ import ConfirmClearHistory from "@/components/forms/ConfirmClearHistory.vue"
 import SaveHistoryForm from "@/components/forms/SaveHistoryForm.vue"
 import SetManager from "@/components/session/SetManager.vue"
 import ConfirmDeleteSet from "@/components/forms/ConfirmDeleteSet.vue"
+import HistoryIcon from "@/components/icons/HistoryIcon.vue"
+import HistoryListModal from "@/components/session/HistoryListModal.vue"
 
 const session = sessionStore()
 </script>
@@ -91,6 +105,7 @@ const session = sessionStore()
     }
   }
 }
+
 .session {
   display: flex;
   gap: 10px;
@@ -98,9 +113,33 @@ const session = sessionStore()
   width: 100%;
   height: 100%;
 }
+
+.toggle-history {
+  width: 38px;
+  height: auto;
+  padding: 10px 0 0;
+  display: none;
+  flex-direction: column;
+}
+
 @media (max-width: 2200px) {
   .session {
     flex-wrap: wrap;
+  }
+  .toggle-history {
+    display: flex;
+    align-self: center;
+  }
+}
+
+@media (max-width: 1878px) {
+  .toggle-history {
+    flex-direction: row;
+    padding: 0px 10px;
+    width: auto;
+    svg {
+      margin-right: 10px;
+    }
   }
 }
 </style>

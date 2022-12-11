@@ -86,10 +86,7 @@ function scrollBottom() {
 
 @media (max-width: 2200px) {
   .history-list-container {
-    order: 3;
-    flex-wrap: wrap;
-    height: auto;
-    max-height: 668px;
+    display: none;
   }
 }
 </style>

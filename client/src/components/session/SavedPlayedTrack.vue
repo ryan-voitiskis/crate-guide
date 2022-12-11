@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits, onMounted } from "vue"
+import { defineProps, defineEmits, onMounted, computed } from "vue"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import getBPMColour from "@/utils/getBPMColour"
@@ -56,9 +56,9 @@ const props = defineProps<{
 const foundTrack =
   tracks.getTrackByIdFromTrackList(props.playedTrack._id) || null
 
-const rating = props.playedTrack.transitionRating
-  ? props.playedTrack.transitionRating
-  : 0
+const rating = computed(() =>
+  props.playedTrack.transitionRating ? props.playedTrack.transitionRating : 0
+)
 
 const coverImg = foundTrack ? `url("${foundTrack.cover}")` : null
 

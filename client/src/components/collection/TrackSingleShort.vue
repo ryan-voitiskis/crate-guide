@@ -44,9 +44,11 @@ const props = defineProps<{
   track: Track
 }>()
 
-const spotifyLink = props.track.spotifyID
-  ? `https://open.spotify.com/track/${props.track.spotifyID}`
-  : ``
+const spotifyLink = computed(() =>
+  props.track.spotifyID
+    ? `https://open.spotify.com/track/${props.track.spotifyID}`
+    : ``
+)
 
 const positionColour = computed(() =>
   props.track.position
@@ -99,7 +101,7 @@ const bpmColour = computed(() =>
         }
         &:hover {
           svg {
-            color: var(--spotify-black);
+            color: var(--spotify-icon-hover);
           }
         }
       }

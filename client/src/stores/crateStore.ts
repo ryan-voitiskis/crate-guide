@@ -23,7 +23,7 @@ export const crateStore = defineStore("crate", {
         const response = await crateService.getCrates(userStore().authd.token)
         if (response.status === 200) {
           const crates = (await response.json()) as Crate[]
-          if (crates !== null) this.crateList = crates
+          if (crates) this.crateList = crates
         } else if (response.status === 400) {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"

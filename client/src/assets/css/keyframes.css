@@ -79,6 +79,35 @@
   }
 }
 
+@keyframes drop-down-28 {
+  0% {
+    opacity: 0;
+    max-height: 0px;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    max-height: 28px;
+  }
+}
+
+
+@keyframes drop-up-28 {
+  0% {
+    opacity: 1;
+    max-height: 28px;
+  }
+  50% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+    max-height: 0px;
+  }
+}
+
 @keyframes drop-down-60 {
   0% {
     opacity: 0;

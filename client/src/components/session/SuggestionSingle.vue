@@ -287,7 +287,7 @@ function load() {
   }
 }
 
-@media (max-width: 1830px) {
+@media (max-width: 1878px) {
   .play {
     svg {
       transform: rotate(90deg);
