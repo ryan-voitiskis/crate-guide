@@ -46,12 +46,18 @@ interface Image {
   type: string
 }
 
+interface ExtraArtist {
+  name: string
+  role: string
+}
+
 interface Track {
   duration: string
   position: string
   artists?: Artist[]
   title: string
   type_: string
+  extraartists: ExtraArtist[]
 }
 
 interface Release {
@@ -105,4 +111,5 @@ export {
   Release,
   FolderResponse,
   ReleaseFull,
+  ExtraArtist,
 }

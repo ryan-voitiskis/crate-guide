@@ -10,6 +10,7 @@ import {
   Release,
   FolderResponse,
   ReleaseFull,
+  ExtraArtist,
 } from "../types/discogsController-types.js"
 
 const oauth_consumer_key = "WJSUzMPCQcGdEFidpwqn"
@@ -18,6 +19,15 @@ const discogsAPIURL = "https://api.discogs.com/"
 const userAgent = "CrateGuide/0.2"
 const positionRx = /^[A-Z]\d{1,2}$/
 const positionRx2 = /^[A-Z]{1,20}$/ // some discogs position in format "AA", "AAA" etc.
+const titleSuffixableRoles = [
+  "mix",
+  "remix",
+  "re-mix",
+  "re-edit",
+  "edit",
+  "dub",
+  "version",
+]
 
 // @desc    get a list of users discogs folders
 // @route   GET /api/discogs/folders
@@ -202,24 +212,41 @@ function editReleases(records: ReleaseFull[], userID: string) {
     cover:
       i.images.find((j) => j.type === "primary")?.resource_url ||
       i.images[0].resource_url,
-    tracks: i.tracklist.map((j) => ({
-      title: j.title.trim(),
-      artists: j.artists
-        ? j.artists
-            .map((k) => k.name.trim().replace(/ \(\d{1,3}\)$/, ""))
-            .join(", ")
-        : "",
-      position: positionRx.test(j.position)
-        ? j.position
-        : positionRx2.test(j.position)
-        ? j.position[0] + j.position.length.toString()
-        : "",
-      duration: getDurationMs(j.duration.trim()),
-      genre: i.styles ? i.styles.join(", ") : "",
-      rpm: i.formats[0].descriptions?.toString().includes("45") ? "45" : "33",
-      playable: true,
-    })),
+    tracks: i.tracklist.map((j) => {
+      const extraArtists: ExtraArtist[] = j.extraartists ? j.extraartists : []
+      const extraArtistsSuffixable = extraArtists.find((k) =>
+        titleSuffixableRoles.includes(k.role.toLowerCase())
+      )
+      const title =
+        extraArtistsSuffixable && j.title.trim().slice(-1) !== ")"
+          ? `${j.title.trim()} (${normaliseArtist(
+              extraArtistsSuffixable.name
+            )} ${extraArtistsSuffixable.role})`
+          : j.title.trim()
+      const artists: string[] = j.artists
+        ? j.artists.map((k) => normaliseArtist(k.name))
+        : []
+      const allArtists: string[] = extraArtists
+        ? artists.concat(extraArtists.map((k) => normaliseArtist(k.name)))
+        : artists
+      return {
+        title: title,
+        artists: allArtists.join(", "),
+        position: positionRx.test(j.position)
+          ? j.position
+          : positionRx2.test(j.position)
+          ? j.position[0] + j.position.length.toString()
+          : "",
+        duration: getDurationMs(j.duration.trim()),
+        genre: i.styles ? i.styles.join(", ") : "",
+        rpm: i.formats[0].descriptions?.toString().includes("45") ? "45" : "33",
+        playable: true,
+      }
+    }),
   }))
 }
+
+const normaliseArtist = (artist: string): string =>
+  artist.trim().replace(/ \(\d{1,3}\)$/, "")
 
 export { getFolders, getFolder, importRecords }

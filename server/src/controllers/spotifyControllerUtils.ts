@@ -253,7 +253,13 @@ function optimiseTrackQuery(query: TrackQuery): string {
 }
 
 function normaliseTitle(title: string) {
-  return title.toLowerCase().trim().replace(/\(|\)/g, "").replace(/ - /, " ")
+  return title
+    .toLowerCase()
+    .trim()
+    .replace(/\(|\)/g, "")
+    .replace(/ - /, " ")
+    .replace(/original mix$/g, "")
+    .trim()
 }
 
 function normalise(artist: string) {
