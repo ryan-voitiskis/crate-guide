@@ -152,6 +152,7 @@ export const spotifyStore = defineStore("spotify", {
                 console.error(err)
                 handleError(err)
               },
+              openWhenHidden: true, //! request resent on tab activated if not specified
             }
           )
         } catch (error) {
@@ -225,6 +226,7 @@ export const spotifyStore = defineStore("spotify", {
             console.error(err)
             handleError(err)
           },
+          openWhenHidden: true, //! request resent on tab activated if not specified
         })
       } catch (error) {
         console.error(error)

@@ -71,7 +71,7 @@ function scrollBottom() {
     .label {
       line-height: 38px;
       font-size: 20px;
-      font-weight: 600;
+      font-weight: 500;
       width: 100%;
       flex-shrink: 1;
       overflow-x: hidden;

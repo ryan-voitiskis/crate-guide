@@ -244,6 +244,7 @@ const sortedTracks = computed((): TrackPlus[] => {
   column-gap: 10px;
   flex-wrap: wrap;
 }
+
 .track-option-header {
   width: 100%;
   display: grid;
@@ -254,6 +255,7 @@ const sortedTracks = computed((): TrackPlus[] => {
     display: flex;
     justify-content: end;
   }
+
   .danceability {
     grid-area: 1 / 5 / 2 / 6;
   }
@@ -298,6 +300,13 @@ const sortedTracks = computed((): TrackPlus[] => {
     grid-area: 1 / 15 / 2 / 17;
     display: flex;
     justify-content: start;
+  }
+}
+
+.track-list {
+  overflow: auto;
+  .track:last-of-type {
+    margin-bottom: 360px;
   }
 }
 </style>

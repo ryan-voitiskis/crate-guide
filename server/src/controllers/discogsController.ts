@@ -13,8 +13,8 @@ import {
   ExtraArtist,
 } from "../types/discogsController-types.js"
 
-const oauth_consumer_key = "WJSUzMPCQcGdEFidpwqn"
-const oauth_consumer_secret = "oyasysRSKMwElyRpJjulWoxFBdaXDDTS"
+const oauth_consumer_key = process.env.DISCOGS_CONSUMER_KEY as string
+const oauth_consumer_secret = process.env.DISCOGS_CONSUMER_SECRET as string
 const discogsAPIURL = "https://api.discogs.com/"
 const userAgent = "CrateGuide/0.2"
 const positionRx = /^[A-Z]\d{1,2}$/

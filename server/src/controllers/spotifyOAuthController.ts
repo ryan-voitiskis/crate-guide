@@ -10,8 +10,8 @@ import {
   isRefreshTokenResponse,
 } from "../types/spotifyOAuthController-types.js"
 
-const clientID = "72f1c76a0d384bd6bd667a72afe04b84"
-const clientSecret = "58bc4f20244b47b7887def2674c19052"
+const clientID = process.env.SPOTIFY_CLIENT_ID as string
+const clientSecret = process.env.SPOTIFY_CLIENT_SECRET as string
 const redirectURI = `${process.env.SITE_URL}/api/spotify/callback`
 const scope = "playlist-read-private playlist-read-collaborative"
 const authoriseURL = "https://accounts.spotify.com/authorize?"

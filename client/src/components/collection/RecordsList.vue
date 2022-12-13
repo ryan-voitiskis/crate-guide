@@ -256,10 +256,14 @@ watch(
   align-items: center;
 }
 .record-list {
+  overflow: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
   width: 100%;
+  .record:last-of-type {
+    margin-bottom: 360px;
+  }
 }
 
 .sort-by-button {

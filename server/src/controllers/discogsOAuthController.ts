@@ -12,8 +12,8 @@ import {
   isCaptureVerifierQuery,
 } from "../types/discogsOAuthController-types.js"
 
-const oauth_consumer_key = "WJSUzMPCQcGdEFidpwqn"
-const oauth_consumer_secret = "oyasysRSKMwElyRpJjulWoxFBdaXDDTS"
+const oauth_consumer_key = process.env.DISCOGS_CONSUMER_KEY as string
+const oauth_consumer_secret = process.env.DISCOGS_CONSUMER_SECRET as string
 const requestTokenURL = "https://api.discogs.com/oauth/request_token"
 const accessTokenURL = "https://api.discogs.com/oauth/access_token"
 const identityURL = "https://api.discogs.com/oauth/identity"
