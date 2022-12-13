@@ -16,7 +16,7 @@
         <BasicInput
           id="search_title"
           v-model="state.searchTitle"
-          label="Search title"
+          label="Search title / catalog no."
           type="text"
           placeholder=""
           autocomplete="off"
@@ -220,8 +220,10 @@ function clearFilters() {
 
 const titleSearchedTracks = computed((): TrackPlus[] =>
   state.searchTitle !== ""
-    ? tracks.crateTrackList.filter((i) =>
-        localeContains(i.title, state.searchTitle)
+    ? tracks.crateTrackList.filter(
+        (i) =>
+          localeContains(i.title, state.searchTitle) ||
+          localeContains(i.catno, state.searchTitle)
       )
     : tracks.crateTrackList
 )

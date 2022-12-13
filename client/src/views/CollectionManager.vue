@@ -17,7 +17,7 @@
       <BasicInput
         id="search_title"
         v-model="state.searchTitle"
-        label="Search title"
+        label="Search title / catalog no."
         type="text"
         placeholder=""
         autocomplete="off"

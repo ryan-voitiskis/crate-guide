@@ -145,8 +145,10 @@ const state = reactive({
 
 const titleSearchedTracks = computed((): TrackPlus[] =>
   props.searchTitle !== ""
-    ? tracks.crateTrackList.filter((i) =>
-        localeContains(i.title, props.searchTitle)
+    ? tracks.crateTrackList.filter(
+        (i) =>
+          localeContains(i.title, props.searchTitle) ||
+          localeContains(i.catno, props.searchTitle)
       )
     : tracks.crateTrackList
 )

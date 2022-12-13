@@ -156,8 +156,10 @@ const recordsByCrate = computed((): Record[] =>
 
 const titleSearchedRecords = computed((): Record[] =>
   props.searchTitle !== ""
-    ? recordsByCrate.value.filter((i) =>
-        localeContains(i.title, props.searchTitle)
+    ? recordsByCrate.value.filter(
+        (i) =>
+          localeContains(i.title, props.searchTitle) ||
+          localeContains(i.catno, props.searchTitle)
       )
     : recordsByCrate.value
 )
