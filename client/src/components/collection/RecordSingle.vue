@@ -135,7 +135,7 @@ const coverImg = computed(() => `url("${props.cover}")`)
 .record {
   background: var(--item-bg);
   display: grid;
-  grid-template-columns: 120px 4fr 6fr;
+  grid-template-columns: 120px 560px 1fr;
   grid-template-rows: 40px 20px 30px 30px;
   width: 100%;
   .cover {
@@ -215,6 +215,25 @@ const coverImg = computed(() => `url("${props.cover}")`)
   }
   &.selected {
     background-color: var(--record-selected-bg);
+    .tracks > .track:nth-child(odd) {
+      background-color: var(--track-short-odd-selected);
+    }
+  }
+}
+
+@media (max-width: 1720px) {
+  .record {
+    grid-template-columns: 120px 400px 1fr;
+  }
+}
+
+@media (max-width: 1420px) {
+  .record {
+    grid-template-columns: 120px 1fr;
+    grid-template-rows: 40px 20px 30px 30px 120px;
+    .tracks {
+      grid-area: 5 / 1 / 6 / 3;
+    }
   }
 }
 </style>

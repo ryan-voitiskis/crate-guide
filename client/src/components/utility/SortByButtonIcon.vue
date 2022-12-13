@@ -29,7 +29,7 @@ defineProps<{
   padding: 0;
   svg {
     margin: 0;
-    transition: transform 0.4s;
+    transition: transform 400ms;
     width: 18px;
   }
   &.active {

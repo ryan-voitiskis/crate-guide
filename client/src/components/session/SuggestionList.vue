@@ -61,6 +61,7 @@ const sameRecordFilteredTracks = computed(
     ) || null
 )
 
+// todo: tempoCloseness combined with harmonyScore to generate score with which suggestions are sorted by
 const tempoScoredTracks = computed((): TrackScored[] | null =>
   sameRecordFilteredTracks.value && session.decks[props.deckID].adjustedBpm
     ? sameRecordFilteredTracks.value.map((i) => ({

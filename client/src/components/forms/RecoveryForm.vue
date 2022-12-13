@@ -6,7 +6,7 @@
     </button>
   </div>
   <form @submit.prevent="submitRecovery">
-    <div class="modal-body">
+    <div class="modal-body block-labels">
       <p>Enter your email for reset instructions.</p>
       <BasicInput
         id="email"

@@ -1,13 +1,12 @@
 @mixin light-theme {
   //! if light theme --page-bg updated, update line 12 of utils/getBPMColour.ts
-  --page-bg: hsl(0, 0%, 100%);
+  --page-bg: hsl(40, 20%, 97%);
 
   /* elements */
   --hr: hsl(0, 0%, 80%);
   --table-border: hsl(0, 0%, 53%);
   --border-colour: hsl(0, 0%, 43%);
   --modal-backdrop: hsla(0, 0%, 0%, 0.5);
-  --even-row-bg: hsl(45, 38%, 94%);
   --key-text: hsl(0, 0%, 28%);
 
   /* text and icons */
@@ -30,23 +29,24 @@
   --saving: hsl(35, 84%, 54%);
   --error: hsl(356, 75%, 60%);
 
-  /* navs */
+  /* nav */
   --nav-active-bg: hsl(202, 50%, 45%);
-  --nav-inactive-bg: hsl(0, 0%, 92%);
+  --nav-inactive-bg: hsl(40, 20%, 97%);
   --nav-inactive-text: hsl(0, 0%, 48%);
   --nav-inactive-border: hsl(0, 0%, 67%);
+  --nav-inactive-hover: hsl(40, 20%, 86%);
 
   /* forms */
-  --input-bg: hsl(0, 0%, 100%);
+  --input-bg: hsl(0, 0%, 98%);
   --input-border: hsl(202, 7%, 77%);
   --input-border-focus: hsl(202, 80%, 55%);
-  --radio-card-label: hsl(0, 0%, 88%);
+  --radio-card-label: hsl(40, 16%, 90%);
 
   /* buttons */
   --primary: hsl(202, 50%, 45%);
   --primary-hover: hsl(202, 50%, 60%);
-  --secondary: hsl(260, 16%, 96%);
-  --secondary-hover: hsl(0, 0%, 88%);
+  --secondary: hsl(40, 16%, 90%);
+  --secondary-hover: hsl(40, 16%, 80%);
   --edit: hsl(35, 84%, 54%);
   --edit-hover: hsl(35, 84%, 72%);
   --delete: hsl(356, 75%, 60%);
@@ -55,13 +55,21 @@
   --disabled-text: hsl(260, 2%, 82%);
 
   /* records and tracks */
-  --item-bg: hsl(10, 24%, 96%);
+  --item-bg: hsl(42, 24%, 92%);
   --record-unstaged-bg: hsl(0, 0%, 97%);
+  --even-row-bg: hsl(42, 38%, 88%);
+  --track-short-odd: hsl(42, 25%, 86%);
+  --track-short-odd-selected: hsl(277, 13%, 81%);
   --selected-action: hsl(277, 50%, 30%);
   --record-selected-bg: hsl(277, 13%, 86%);
   --item-hover: hsl(146, 50%, 86%);
   --item-active: hsl(146, 50%, 68%);
   --track-features-hover: hsl(146, 50%, 68%);
+  --artists-color: hsl(278, 23%, 51%);
+
+  /* webkit */
+  --webkit-scrollbar: hsl(200, 30%, 60%);
+  --webkit-scrollbar-hover: hsl(200, 60%, 55%);
 
   --spotify-icon-hover: var(--spotify-black);
 
@@ -76,13 +84,13 @@
 
 :root,
 :root.light {
-  background-color: hsl(0, 0%, 100%);
+  background-color: hsl(40, 20%, 97%);
   @include light-theme;
 }
 
 @media not (prefers-color-scheme: light) {
   :root.light {
-    background-color: hsl(0, 0%, 100%);
+    background-color: hsl(40, 20%, 97%);
     @include light-theme;
   }
 }

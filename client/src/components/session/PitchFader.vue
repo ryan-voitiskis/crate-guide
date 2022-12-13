@@ -206,11 +206,16 @@ input[type="range"] {
 
   &::-webkit-slider-runnable-track {
     @include track();
+    height: 3px;
   }
   &::-moz-range-track {
     @include track();
   }
-
+  &::-ms-track {
+    @include track();
+    border: none;
+    color: transparent;
+  }
   &::-webkit-slider-thumb {
     margin-top: -20em;
     @include thumb();
@@ -218,7 +223,15 @@ input[type="range"] {
   &::-moz-range-thumb {
     @include thumb();
   }
-
+  // todo: is this required?
+  &::-ms-thumb {
+    margin-top: -20em;
+    @include thumb();
+  }
+  &::-ms-fill-lower,
+  &::-ms-tooltip {
+    display: none;
+  }
   &.sliding {
     box-shadow: var(--fader-sliding-shadow);
     transition: none;

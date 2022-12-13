@@ -31,7 +31,7 @@ defineProps<{
   grid-template-rows: 80px 30px;
   margin: 0;
   background: var(--radio-card-label);
-  transition: background-color 0.5s, color 0.5s;
+  transition: background-color 800ms, color 800ms;
   border-radius: 10px;
   line-height: 30px;
   overflow: hidden;

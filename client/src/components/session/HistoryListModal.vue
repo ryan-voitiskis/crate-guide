@@ -19,13 +19,18 @@
         <TrashIcon />Clear
       </button>
       <button
+        v-if="user.authd._id"
         class="icon-button"
         v-show="session.set.length"
         @click="session.saveHistoryForm = true"
       >
         <SaveIcon />Save
       </button>
-      <button class="icon-button" @click="session.setManager = true">
+      <button
+        v-if="user.authd._id"
+        class="icon-button"
+        @click="session.setManager = true"
+      >
         <FolderIcon />View saved
       </button>
     </div>
@@ -49,7 +54,9 @@ import PlayedTrack from "./PlayedTrack.vue"
 import TrashIcon from "../icons/TrashIcon.vue"
 import SaveIcon from "../icons/SaveIcon.vue"
 import FolderIcon from "../icons/FolderIcon.vue"
+import { userStore } from "@/stores/userStore"
 const session = sessionStore()
+const user = userStore()
 </script>
 
 <style scoped lang="scss">

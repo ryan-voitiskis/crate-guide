@@ -1,12 +1,11 @@
 @mixin dark-theme {
-  --page-bg: hsl(215, 15%, 16%);
+  --page-bg: hsl(216, 15%, 16%);
 
   /* elements */
   --hr: hsl(0, 0%, 80%);
   --table-border: hsl(0, 0%, 53%);
   --border-colour: hsl(0, 0%, 43%);
   --modal-backdrop: rgba(0, 0, 0, 0.7);
-  --even-row-bg: hsl(217, 15%, 24%);
   --key-text: hsl(0, 0%, 28%);
 
   /* text and icons */
@@ -16,8 +15,8 @@
   --dark-text: hsl(0, 0%, 88%);
   --darker-text: hsl(0, 0%, 97%);
   --darkest-text: hsl(0, 0%, 100%);
-  --link-text: hsl(202, 70%, 55%);
-  --link-text-hover: hsl(202, 70%, 65%);
+  --link-text: hsl(40, 90%, 65%);
+  --link-text-hover: hsl(40, 70%, 78%);
   --abbr-title: hsla(0, 0%, 5%, 0.74);
   --label-text: hsl(207, 13%, 77%);
   --input-text: hsl(0, 0%, 100%);
@@ -29,17 +28,18 @@
   --saving: hsl(35, 84%, 54%);
   --error: hsl(356, 75%, 60%);
 
-  /* navs */
+  /* nav */
   --nav-active-bg: hsl(202, 50%, 45%);
-  --nav-inactive-bg: hsl(214, 13%, 24%);
+  --nav-inactive-bg: hsl(216, 13%, 24%);
   --nav-inactive-text: hsl(0, 0%, 100%);
   --nav-inactive-border: hsl(0, 0%, 67%);
+  --nav-inactive-hover: hsl(202, 10%, 32%);
 
   /* forms */
-  --input-bg: hsl(214, 13%, 24%);
+  --input-bg: hsl(216, 13%, 24%);
   --input-border: hsl(202, 7%, 70%);
   --input-border-focus: hsl(202, 80%, 55%);
-  --radio-card-label: hsl(214, 13%, 24%);
+  --radio-card-label: hsl(216, 13%, 24%);
 
   /* buttons */
   --primary: hsl(202, 70%, 55%);
@@ -50,18 +50,25 @@
   --edit-hover: hsl(35, 84%, 72%);
   --delete: hsl(356, 75%, 60%);
   --delete-hover: hsl(356, 75%, 80%);
-  --disabled: hsl(215, 8%, 24%);
-  --disabled-text: hsl(215, 8%, 36%);
+  --disabled: hsl(216, 8%, 24%);
+  --disabled-text: hsl(216, 8%, 36%);
 
   /* records and tracks */
-  --item-bg: hsl(214, 13%, 24%);
-  --record-unstaged-bg: hsl(0, 0%, 97%);
+  --item-bg: hsl(216, 13%, 24%);
+  --record-unstaged-bg: hsl(216, 13%, 34%);
+  --even-row-bg: hsl(216, 13%, 22%);
+  --track-short-odd: hsl(216, 13%, 29%);
+  --track-short-odd-selected: hsl(277, 13%, 30%);
   --selected-action: hsl(277, 100%, 77%);
   --record-selected-bg: hsl(277, 13%, 24%);
   --item-hover: hsl(146, 30%, 22%);
   --item-active: hsl(146, 70%, 30%);
   --track-features-hover: hsl(146, 70%, 30%);
+  --artists-color: hsl(278, 32%, 70%);
 
+  /* webkit */
+  --webkit-scrollbar: hsl(315, 30%, 45%);
+  --webkit-scrollbar-hover: hsl(315, 50%, 50%);
   --spotify-icon-hover: white;
 
   /* progress bar */
@@ -74,13 +81,13 @@
 }
 
 :root.dark {
-  background-color: hsl(215, 15%, 16%);
+  background-color: hsl(216, 15%, 16%);
   @include dark-theme;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    background-color: hsl(215, 15%, 16%);
+    background-color: hsl(216, 15%, 16%);
     @include dark-theme;
   }
 }

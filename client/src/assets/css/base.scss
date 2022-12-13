@@ -7,11 +7,11 @@
 *:before,
 *:after {
   box-sizing: border-box;
+  transition: background-color 80ms, background 80ms, color 160ms;
 }
 
 html {
   font-size: 62.5%; // 15px = 15px
-  transition: background-color 0.5s, background 0.5s, color 0.5s;
 }
 
 html,
@@ -44,15 +44,16 @@ h1 {
 }
 
 h2 {
-  font-size: 22px;
+  font-size: 24px;
 }
 
 h3 {
-  font-size: 20px;
+  font-size: 22px;
 }
 
 h4 {
-  font-size: 18px;
+  font-size: 17px;
+  font-weight: 500;
 }
 
 p {
@@ -64,7 +65,8 @@ a {
 }
 
 ul {
-  list-style: circle inside;
+  margin-left: 20px;
+  list-style: disc inside;
 }
 
 ol {
@@ -86,7 +88,7 @@ ol ul {
 }
 
 li {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 pre,
@@ -164,6 +166,7 @@ from: https://css-tricks.com/video-screencasts/142-hiding-things-with-css/ */
   width: 1px;
 }
 
+a,
 .link-text {
   color: var(--link-text);
   cursor: pointer;
@@ -181,23 +184,19 @@ from: https://css-tricks.com/video-screencasts/142-hiding-things-with-css/ */
   height: 0px;
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(211, 20%, 60%);
+  background: var(--webkit-scrollbar);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(211, 60%, 55%);
-}
-::-webkit-scrollbar-thumb:active {
-  background: hsl(211, 60%, 55%);
+  background: var(--webkit-scrollbar-hover);
 }
 ::-webkit-scrollbar-track {
-  background: hsla(0, 0%, 50%, 0.2);
-  border: 0px none #ffffff;
-  border-radius: 53px;
+  border: 0px none #fff;
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-track:hover {
-  background: hsla(0, 0%, 50%, 0.3);
+  background: hsla(0, 0%, 50%, 0.12);
 }
 ::-webkit-scrollbar-track:active {
-  background: hsla(0, 0%, 50%, 0.2);
+  background: hsla(0, 0%, 50%, 0.28);
 }

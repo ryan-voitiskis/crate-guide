@@ -6,7 +6,7 @@
     </button>
   </div>
   <form @submit.prevent="user.login(form.email, form.password)">
-    <div class="modal-body">
+    <div class="modal-body block-labels">
       <p @click=";(user.loginModal = false), (user.signUpModal = true)">
         Don't have an account? <span class="link-text">Sign up</span>
       </p>
@@ -69,5 +69,8 @@ onUnmounted(() => {
   font-size: 14px;
   color: var(--light-text);
   margin-top: 2px;
+  &:hover {
+    color: var(--lighter-text);
+  }
 }
 </style>

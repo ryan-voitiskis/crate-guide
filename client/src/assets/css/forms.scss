@@ -135,6 +135,15 @@ select:-moz-focusring {
   text-shadow: 0 0 0 #000;
 }
 
+.block-labels {
+  input:not([type="checkbox"]) {
+    margin-bottom: 20px;
+  }
+  button[type="submit"] {
+    width: 100%;
+  }
+}
+
 .inline-labels {
   display: grid;
   gap: 14px 28px;

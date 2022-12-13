@@ -62,6 +62,10 @@ const bpmColour = foundTrack.bpmFinal
   ? getBPMColour(foundTrack.bpmFinal, user.authd.settings.theme)
   : null
 
+const bpmAdjustedColour = props.track.adjustedBpm
+  ? getBPMColour(props.track.adjustedBpm, user.authd.settings.theme)
+  : null
+
 const positionColour = foundTrack.position
   ? getPositionColour(foundTrack.position)
   : "hsl(0, 0%, 68%)"
@@ -119,7 +123,7 @@ onMounted(() => emit("newTrackMounted"))
   }
   .bpm-adjusted {
     grid-area: 1 / 5 / 2 / 6;
-    color: v-bind(bpmColour);
+    color: v-bind(bpmAdjustedColour);
     text-align: center;
   }
   .key {

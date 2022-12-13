@@ -59,6 +59,7 @@ onDeactivated(() => {
 .modal-backdrop {
   position: fixed;
   background: var(--modal-backdrop);
+  backdrop-filter: blur(2px);
   top: 0;
   left: 0;
   width: 100%;
@@ -69,7 +70,7 @@ onDeactivated(() => {
   z-index: 99;
   .modal {
     background: var(--page-bg);
-    transition: background-color 0.5s, color 0.5s;
+    transition: background-color 200ms, color 200ms;
     border-radius: 10px;
     z-index: 100;
     display: flex;

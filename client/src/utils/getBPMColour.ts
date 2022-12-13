@@ -9,7 +9,7 @@ function getBPMColour(bpm: number, userTheme: string): string {
       document.documentElement
     ).getPropertyValue("--page-bg")
     //! if light theme --page-bg updated, update condition below: "hsl(0, 0%, 100%)" -> new --page-bg
-    isLight = pageBackground === "hsl(0, 0%, 100%)" ? true : false
+    isLight = pageBackground === "hsl(40, 20%, 97%)" ? true : false
   } else isLight = userTheme === "light" ? true : false
   const lowColour = isLight ? "hsl(155, 100%, 40%)" : "hsl(155, 100%, 65%)"
   const highColour = isLight ? "hsl(342, 100%, 45%)" : "hsl(342, 100%, 65%)"

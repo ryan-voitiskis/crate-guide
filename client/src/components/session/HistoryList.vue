@@ -11,13 +11,18 @@
           <TrashIcon />
         </button>
         <button
+          v-if="user.authd._id"
           class="icon-only-button"
           v-show="session.set.length"
           @click="session.saveHistoryForm = true"
         >
           <SaveIcon />
         </button>
-        <button class="icon-only-button" @click="session.setManager = true">
+        <button
+          v-if="user.authd._id"
+          class="icon-only-button"
+          @click="session.setManager = true"
+        >
           <FolderIcon />
         </button>
       </div>
@@ -41,7 +46,9 @@ import SaveIcon from "../icons/SaveIcon.vue"
 import TrashIcon from "../icons/TrashIcon.vue"
 import PlayedTrack from "./PlayedTrack.vue"
 import FolderIcon from "../icons/FolderIcon.vue"
+import { userStore } from "@/stores/userStore"
 const session = sessionStore()
+const user = userStore()
 
 const list = ref<HTMLInputElement | null>(null)
 

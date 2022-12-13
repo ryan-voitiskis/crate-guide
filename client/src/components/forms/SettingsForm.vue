@@ -5,10 +5,7 @@
       <XIcon />
     </button>
   </div>
-  <form
-    v-on="user.authd._id ? { change: user.updateSettings() } : {}"
-    @submit.prevent
-  >
+  <form @change="updateSettings" @submit.prevent>
     <div class="modal-body">
       <p v-if="!user.authd._id">
         <b>You are not logged in.</b><br />Settings changed here are for this
@@ -109,6 +106,7 @@
           Revoke Spotify acess
         </button>
       </fieldset>
+      <p v-else>Login to connect to the Spotify and Discogs APIs.</p>
 
       <SubmitlessFeedback />
     </div>
@@ -136,6 +134,10 @@ const turntablePitchOptions = [
   { id: "24", name: "±24%" },
   { id: "50", name: "±50%" },
 ]
+
+function updateSettings() {
+  if (user.authd._id) user.updateSettings()
+}
 
 // set theme on setting change
 watch(

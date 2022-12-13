@@ -6,7 +6,7 @@
     </button>
   </div>
   <form @submit.prevent="submit">
-    <div class="modal-body">
+    <div class="modal-body block-labels">
       <p @click="openLogin()">
         Already have an account? <span class="link-text">Log in</span>
       </p>

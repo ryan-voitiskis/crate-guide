@@ -24,7 +24,7 @@ button {
   font-weight: 500;
   color: var(--darker-text);
   svg {
-    transition: transform 0.4s;
+    transition: transform 400ms;
     margin-right: 0;
   }
   &.active {

@@ -1,30 +1,42 @@
-# Crate guide
+# Crate Guide
 
-In development: DJ app to assist in finding compatible tracks within a users physical record collection.
+demo: [https://crate.guide](https://crate.guide)
 
-- Management of collection record attributes.
-- Session view allows loading of 2 decks with records from collection.
-- Suggestions for next track to be provided after a deck is loaded with a track from collection.
-- Suggestions will consider bpm, turntable pitch range, key and genre.
+Crate Guide is a DJ app designed to assist in finding compatible tracks
+within a users physical record collection. Records can be added manually
+or imported from your Discogs collection. Audio features from your tracks
+can then be imported from Spotify.
 
 ### Features implemented:
 
-- create account and login
-- create, edit and delete Records, Tracks and Crates
-- connect to Discogs API using OAuth 1.0
-- select from folders in Discogs collection and import records
+- Create account and login
+- Create, edit and delete Records, Tracks and Crates
+- Connect to Discogs API using OAuth 1.0
+- Select from folders in Discogs collection and import records
 - BPM tapper for loaded track, option to save to track
-- connect to Spotify API using OAuth 2.0
-- fetch BPM + other audio features from Spotify for:
-  - single Track (user provided ID)
-  - whole Record (searched for programatically)
-  - entire collection / selection of records (searched for programatically)
+- Connect to Spotify API using OAuth 2.0
+- Fetch BPM + other audio features from Spotify for:
+  - Single Track (user provided ID)
+  - Whole Record
+  - Entire collection / selection of records
 - Load track onto Deck
-- Suggest compatible tracks for currently playing track
+- Suggest compatible tracks for currently playing track:
+  - Track is able to match the BPM of the currently playing track with the users turntable pitch adjustment range (Option in settings).
+  - Track hasn't been played yet during this session. Transition history can be cleared.
+  - Track isn't from the same record as currently playing track.
+  - Suggestions are then sorted by their harmonic compatibility.
 
 ### Features to be implemented:
 
-- recover account and reset password
+- Recover account and reset password
+- Suggestions sorted by a final score which is generated as a combination of harmonic compatibility and tempo closeness.
+- 33 / 45 RPM button is adjusted automatically when a track is loaded. Requires accurate RPM data imported.
+- RecordIcon on the deck component to be of higher quality and reflect the design of a real turntable.
+
+### Feature to be possibly implemented
+
+- Mobile and tablet support, design separate UI, particularly Session view only utilising one simplified deck.
+- Safari tested and supported (probably important because many DJs use Safari).
 
 ## Project setup
 
@@ -59,3 +71,16 @@ npm run build
 cd client
 npm run lint
 ```
+
+### License
+
+This project is licensed under the MIT License.
+
+### Contributions
+
+Crate Guide is an open source project, contributions are welcome.
+
+### Author
+
+Created and maintained by Ryan Voitiskis.
+[ryanvoitiskis@pm.me](mailto:ryanvoitiskis@pm.me) | [GitHub](https://github.com/ryan-voitiskis)

@@ -58,7 +58,7 @@ onUnmounted(() => (spotify.errorMsg = ""))
   border-radius: 10px;
   height: 20px;
   background: var(--progress-fg);
-  transition: width 0.6s;
+  transition: width 600ms;
   box-shadow: rgba(0, 0, 0, 0.08) 0px -3px 0px inset;
 }
 </style>

@@ -32,4 +32,8 @@ function handleInputChange(event: Event) {
 }
 </script>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+.show-password {
+  margin-bottom: 20px;
+}
+</style>

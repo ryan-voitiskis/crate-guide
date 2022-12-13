@@ -273,7 +273,7 @@ const positionColour = computed(() =>
   color: var(--load-button);
   font-weight: 600;
   border: 3px solid var(--load-button);
-  transition: box-shadow 0.2s ease-in-out;
+  transition: box-shadow 200ms;
   &:hover {
     box-shadow: 0 0 4px 4px var(--load-button-shadow);
   }

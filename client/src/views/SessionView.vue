@@ -90,9 +90,9 @@ const session = sessionStore()
   button {
     height: 12px;
     margin: 10px;
-    transition: margin 0.4s;
+    transition: margin 400ms;
     svg {
-      transition: transform 0.4s;
+      transition: transform 400ms;
     }
   }
   &.collapsed {
