@@ -1,5 +1,5 @@
 <template>
-  <div class="track-option">
+  <div class="track">
     <div class="cover"></div>
     <span class="position" v-if="track.position">{{ track.position }}</span>
     <div class="time-signature" v-if="track.timeSignature">
@@ -99,7 +99,7 @@ const positionColour = computed(() =>
 </script>
 
 <style scoped lang="scss">
-.track-option {
+.track {
   overflow: hidden;
   display: grid;
   grid-template-columns: 40px 26px 22px 32px 44px 44px 44px 40px 60px 2fr 1fr 1fr 1fr 1fr 38px 40px;

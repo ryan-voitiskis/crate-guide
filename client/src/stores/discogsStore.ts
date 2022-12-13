@@ -165,6 +165,7 @@ export const discogsStore = defineStore("discogs", {
                 console.error(err)
                 handleError(err)
               },
+              openWhenHidden: true, //! request resent on tab activated if not specified
             }
           )
         } catch (error) {
