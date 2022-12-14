@@ -1,5 +1,5 @@
 :root.contrast {
-  background-color: hsl(0, 0%, 0%);
+  background-color: hsl(0, 0%, 0%); // ! also change SettingsForm.vue
   --page-bg: hsl(0, 0%, 0%);
 
   /* elements */
@@ -13,7 +13,7 @@
   --white-text: hsl(0, 0%, 100%);
   --lighter-text: hsl(0, 0%, 100%);
   --light-text: hsl(0, 0%, 100%);
-  --dark-text: hsl(0, 0%, 100%);
+  --dark-text: hsl(0, 0%, 100%); // ! also change SettingsForm.vue
   --darker-text: hsl(0, 0%, 100%);
   --darkest-text: hsl(0, 0%, 100%);
   --link-text: hsl(202, 100%, 55%);
@@ -43,9 +43,9 @@
   --radio-card-label: hsl(0, 0%, 12%);
 
   /* buttons */
-  --primary: hsl(202, 100%, 50%);
+  --primary: hsl(202, 100%, 50%); // ! also change SettingsForm.vue
   --primary-hover: hsl(202, 100%, 72%);
-  --secondary: hsl(0, 0%, 12%);
+  --secondary: hsl(0, 0%, 12%); // ! also change SettingsForm.vue
   --secondary-hover: hsl(0, 0%, 27%);
   --edit: hsl(35, 100%, 50%);
   --edit-hover: hsl(35, 84%, 72%);
@@ -55,10 +55,10 @@
   --disabled-text: hsl(215, 8%, 66%);
 
   /* records and tracks */
-  --item-bg: hsl(0, 0%, 8%);
+  --item-bg: hsl(0, 0%, 8%); // ! also change SettingsForm.vue
   --record-unstaged-bg: hsl(0, 0%, 36%);
   --even-row-bg: hsl(0, 0%, 9%);
-  --track-short-odd: hsl(0, 0%, 16%);
+  --track-short-odd: hsl(0, 0%, 16%); // ! also change SettingsForm.vue
   --track-short-odd-selected: hsl(277, 13%, 32%);
   --selected-action: hsl(277, 100%, 80%);
   --record-selected-bg: hsl(277, 18%, 24%);

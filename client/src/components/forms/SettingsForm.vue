@@ -13,45 +13,71 @@
       </p>
       <fieldset>
         <legend>Theme</legend>
-        <RadioCard
+        <RadioTheme
           v-model="user.authd.settings.theme"
           name="theme"
           id="auto"
           label="Automatic"
+          :themeBackground="autoThemeOptionScheme.themeBackground"
+          :themePrimary="autoThemeOptionScheme.themePrimary"
+          :themeSecondary="autoThemeOptionScheme.themeSecondary"
+          :themeDarkText="autoThemeOptionScheme.themeDarkText"
+          :themeRecord="autoThemeOptionScheme.themeRecord"
+          :themeTrackOdd="autoThemeOptionScheme.themeTrackOdd"
         />
-        <RadioCard
+        <RadioTheme
           v-model="user.authd.settings.theme"
           name="theme"
           id="light"
           label="Light"
+          themeBackground="hsl(40, 20%, 97%)"
+          themePrimary="hsl(202, 50%, 45%)"
+          themeSecondary="hsl(40, 16%, 90%)"
+          themeDarkText="hsl(0, 0%, 41%)"
+          themeRecord="hsl(42, 24%, 92%)"
+          themeTrackOdd="hsl(42, 25%, 86%)"
         />
-        <RadioCard
+        <RadioTheme
           v-model="user.authd.settings.theme"
           name="theme"
           id="dark"
           label="Dark"
+          themeBackground="hsl(216, 15%, 16%)"
+          themePrimary="hsl(202, 70%, 55%)"
+          themeSecondary="hsl(214, 13%, 24%)"
+          themeDarkText="hsl(0, 0%, 41%)"
+          themeRecord="hsl(216, 13%, 24%)"
+          themeTrackOdd="hsl(216, 13%, 29%)"
         />
-        <RadioCard
+        <RadioTheme
           v-model="user.authd.settings.theme"
           name="theme"
           id="contrast"
           label="High contrast"
+          themeBackground="hsl(0, 0%, 0%)"
+          themePrimary="hsl(202, 100%, 50%)"
+          themeSecondary="hsl(0, 0%, 12%)"
+          themeDarkText="hsl(0, 0%, 100%)"
+          themeRecord="hsl(0, 0%, 8%)"
+          themeTrackOdd="hsl(0, 0%, 16%)"
         />
       </fieldset>
 
       <fieldset>
         <legend>Turntable colour</legend>
-        <RadioCard
+        <RadioDeck
           v-model="user.authd.settings.turntableTheme"
           name="turntable_colour"
           id="silver"
           label="Silver"
+          :deckBackground="silverDeckBackground"
         />
-        <RadioCard
+        <RadioDeck
           v-model="user.authd.settings.turntableTheme"
           name="turntable_colour"
           id="black"
           label="Black"
+          :deckBackground="blackDeckBackground"
         />
       </fieldset>
 
@@ -115,15 +141,16 @@
 
 <script setup lang="ts">
 import { onBeforeMount, onUnmounted, watch } from "vue"
-import RadioCard from "@/components/inputs/RadioCard.vue"
-import SubmitlessFeedback from "@/components/feedbacks/SubmitlessFeedback.vue"
-import XIcon from "@/components/icons/XIcon.vue"
 import { discogsStore } from "@/stores/discogsStore"
 import { spotifyStore } from "@/stores/spotifyStore"
 import { userStore } from "@/stores/userStore"
 import DiscogsControls from "../discogs/DiscogsControls.vue"
+import RadioDeck from "../inputs/RadioDeck.vue"
 import RadioInput from "../inputs/RadioInput.vue"
+import RadioTheme from "@/components/inputs/RadioTheme.vue"
 import SelectInput from "../inputs/SelectInput.vue"
+import SubmitlessFeedback from "@/components/feedbacks/SubmitlessFeedback.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 const discogs = discogsStore()
 const spotify = spotifyStore()
 const user = userStore()
@@ -134,6 +161,57 @@ const turntablePitchOptions = [
   { id: "24", name: "±24%" },
   { id: "50", name: "±50%" },
 ]
+
+const autoThemeOptionScheme = window.matchMedia("(prefers-color-scheme: dark)")
+  .matches
+  ? {
+      themeBackground: "hsl(216, 15%, 16%)",
+      themePrimary: "hsl(202, 70%, 55%)",
+      themeSecondary: "hsl(214, 13%, 24%)",
+      themeDarkText: "hsl(0, 0%, 41%)",
+      themeRecord: "hsl(216, 13%, 24%)",
+      themeTrackOdd: "hsl(216, 13%, 29%)",
+    }
+  : {
+      themeBackground: "hsl(40, 20%, 97%)",
+      themePrimary: "hsl(202, 50%, 45%)",
+      themeSecondary: "hsl(40, 16%, 90%)",
+      themeDarkText: "hsl(0, 0%, 41%)",
+      themeRecord: "hsl(42, 24%, 92%)",
+      themeTrackOdd: "hsl(42, 25%, 86%)",
+    }
+
+const silverDeckBackground = `linear-gradient(
+    to right bottom,
+    #8f8d97,
+    #9d9ca6,
+    #acacb4,
+    #bbbcc3,
+    #cbccd2,
+    #cfd0d6,
+    #d3d4d9,
+    #d7d8dd,
+    #d0d0d6,
+    #c8c9cf,
+    #c1c1c9,
+    #babac2
+  )`
+
+const blackDeckBackground = `linear-gradient(
+    to right bottom,
+    #282727,
+    #2d2c2c,
+    #323132,
+    #373737,
+    #3c3c3c,
+    #3c3c3c,
+    #3c3c3c,
+    #3c3c3c,
+    #373737,
+    #323132,
+    #2d2c2c,
+    #282727
+  )`
 
 function updateSettings() {
   if (user.authd._id) user.updateSettings()

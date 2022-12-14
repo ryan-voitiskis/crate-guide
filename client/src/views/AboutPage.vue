@@ -11,10 +11,6 @@
     <hr />
     <h3>How to use</h3>
     <p>
-      It is recommended that you import your collection from Discogs, then
-      import the audio features from Spotify for all of your tracks.
-    </p>
-    <p>
       Crate Guide has been designed to be used on a laptop or desktop in
       fullscreen mode. To use the app in fullscreen, press <i>F11</i>. The
       Session view has an arrow button in the header that hides the header to
@@ -30,7 +26,22 @@
       Please use a recent version of Firefox or Chrome. Other browsers aren't
       supported.
     </p>
+    <p>
+      It is recommended that you import your collection from Discogs, then
+      import the audio features from Spotify for all of your tracks.
+    </p>
     <h4>Importing your collection from Discogs</h4>
+    <p>
+      When importing records from Discogs it is important that the records you
+      import are in the <i>Vinyl</i> format. The format can be found on a
+      Discogs release page just under the label, below the title. Another quick
+      way to determine the format is to look at the numbering of the
+      <i>Tracklist</i> section. If the numbering section has record side
+      lettering eg. <i>A1, A2, B1</i> then it is a Vinyl release. If you realise
+      that a release in your Discogs collection is not in the vinyl format, you
+      should be able to find the vinyl format in the
+      <i>Other versions</i> section of the release page.
+    </p>
     <p>
       To import from Discogs you must first authenticate your Crate Guide
       account with Discogs. To do so, navigate to the settings at the top right
@@ -39,6 +50,14 @@
       Spotify (highly recommended). A Discogs collection or folder can then be
       imported by clicking the <i>Import from Discogs</i> button in the
       Collection view.
+    </p>
+    <p>
+      After importing your collection from Discogs, it is highly recommended you
+      check the tracks of each record haven't been imported with errors.
+      Sometimes a Discogs release will have been edited in a way such that
+      tracks have been added that aren't part of the release. A common example
+      of this would be tracks with the titles "This side", or "That side".
+      Please remove these invalid tracks before importing Spotify data.
     </p>
     <h4>Importing audio features from Spotify</h4>
     <p>

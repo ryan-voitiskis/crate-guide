@@ -32,6 +32,7 @@ can then be imported from Spotify.
 - Suggestions sorted by a final score which is generated as a combination of harmonic compatibility and tempo closeness.
 - 33 / 45 RPM button is adjusted automatically when a track is loaded. Requires accurate RPM data imported.
 - RecordIcon on the deck component to be of higher quality and reflect the design of a real turntable.
+- De-dupe records button
 
 ### Feature to be possibly implemented
 

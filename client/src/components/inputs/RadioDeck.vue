@@ -20,6 +20,7 @@ defineProps<{
   name: string
   id: string
   modelValue: string
+  deckBackground: string
 }>()
 </script>
 
@@ -37,8 +38,7 @@ defineProps<{
   overflow: hidden;
   .sample {
     grid-column: 1 / 3;
-    background: #bbc087;
-    height: 80px;
+    background: v-bind(deckBackground);
   }
 }
 </style>

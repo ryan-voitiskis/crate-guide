@@ -2,7 +2,7 @@ import { Track } from "@/interfaces/Track"
 
 export default interface Record {
   _id: string
-  discogsID?: string
+  discogsID?: number
   user: string
   catno: string
   title: string

@@ -6,10 +6,11 @@ import Record from "@/interfaces/Record"
 import recordService from "@/services/recordService"
 import { Track } from "@/interfaces/Track"
 import UnsavedRecord from "@/interfaces/UnsavedRecord"
+import demoRecords from "@/data/demo-records"
 
 export const recordStore = defineStore("record", {
   state: () => ({
-    recordList: [] as Record[],
+    recordList: demoRecords as Record[],
     loading: false,
     errorMsg: "",
     feedbackMsg: "", // after update feedback msg

@@ -20,6 +20,7 @@ import { userStore } from "@/stores/userStore"
 import App from "./App.vue"
 import router from "./router"
 import globals from "./globals"
+import { trackStore } from "./stores/trackStore"
 
 const pinia = createPinia()
 const app = createApp(App)
@@ -39,3 +40,4 @@ const cookieValue = document.cookie
   .find((row) => row.startsWith("crate_guide_jwt="))
   ?.split("=")[1]
 if (cookieValue) user.fetchUser(cookieValue)
+else trackStore().generateTrackLists()

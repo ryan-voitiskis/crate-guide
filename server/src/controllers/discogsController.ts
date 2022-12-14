@@ -97,6 +97,8 @@ const getFolder = asyncHandler(async (req, res) => {
 // @access  private
 const importRecords = asyncHandler(async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream")
+  res.setHeader("X-Accel-Buffering", "no") //! SSE won't work in production without this
+  //*https://stackoverflow.com/questions/27898622/server-sent-events-stopped-work-after-enabling-ssl-on-proxy
   res.write("data: " + `0\n\n`)
 
   const recordIDs: number[] = JSON.parse(req.body.records)
@@ -230,7 +232,9 @@ function editReleases(records: ReleaseFull[], userID: string) {
         ? artists.concat(extraArtists.map((k) => normaliseArtist(k.name)))
         : artists
       return {
-        title: title,
+        title: title
+          ? title
+          : "Error (Discogs track has no title, if this track doesn't exist, please delete it.)", // occured on https://www.discogs.com/release/6756442-Mr-Tophat-Art-Alfie-KVK900
         artists: allArtists.join(", "),
         position: positionRx.test(j.position)
           ? j.position

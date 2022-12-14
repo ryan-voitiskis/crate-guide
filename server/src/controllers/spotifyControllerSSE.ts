@@ -26,6 +26,9 @@ const spotifyAPIURL = "https://api.spotify.com/v1/"
 // @access  private
 const importRecordFeatures = asyncHandler(async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream")
+  res.setHeader("X-Accel-Buffering", "no") //! SSE won't work in production without this
+  //*https://stackoverflow.com/questions/27898622/server-sent-events-stopped-work-after-enabling-ssl-on-proxy
+
   let user = req.user! as IUser
   await checkRefreshToken(user)
   const records = JSON.parse(req.body.records)
@@ -63,6 +66,9 @@ const importRecordFeatures = asyncHandler(async (req, res) => {
 // @access  private
 const importMatchedFeatures = asyncHandler(async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream")
+  res.setHeader("X-Accel-Buffering", "no") //! SSE won't work in production without this
+  //*https://stackoverflow.com/questions/27898622/server-sent-events-stopped-work-after-enabling-ssl-on-proxy
+
   let user = req.user! as IUser
   await checkRefreshToken(user)
   const matchedAlbumsParsed = JSON.parse(req.body.matchedAlbums)

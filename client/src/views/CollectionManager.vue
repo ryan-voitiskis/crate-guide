@@ -80,7 +80,7 @@
     />
   </KeepAlive>
   <span class="sign-in-message" v-if="!user.authd._id">
-    Sign in to create collections.
+    This is a demo collection. Sign in to create your own.
   </span>
 
   <ModalBox v-if="crates.addCrateModal" @close="crates.addCrateModal = false">

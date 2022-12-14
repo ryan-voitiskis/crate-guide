@@ -17,7 +17,7 @@
       {{ bpmReadable }}
     </span>
     <span class="pitch-readable">
-      {{ pitchReadable }}
+      {{ pitchReadable }}<span class="pitch-readable-percent">%</span>
     </span>
   </div>
 </template>
@@ -51,8 +51,7 @@ const pitchReadable = computed(
       session.decks[props.deckID].faderPosition *
       0.01 *
       user.authd.settings.turntablePitchRange
-    ).toFixed(1) +
-    "%"
+    ).toFixed(1)
 )
 
 const bpmReadable = computed(() =>
@@ -138,11 +137,14 @@ watch(
   bottom: 11%;
   right: 13%;
   color: var(--pitch-readable);
-  font: 800 18px/1.6 Digital7, sans-serif;
+  font: 600 18px/1.6 Digital7, sans-serif;
 }
 
 .pitch-readable {
   bottom: 11%;
+  .pitch-readable-percent {
+    margin-left: 3px;
+  }
 }
 
 .bpm-readable {

@@ -8,6 +8,7 @@ server/dist
 .env.*.local
 server/.env.local
 server/.env.*.local
+server/.env
 
 # Log files
 npm-debug.log*
