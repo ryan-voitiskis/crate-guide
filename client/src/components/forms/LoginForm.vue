@@ -44,12 +44,12 @@
 
 <script setup lang="ts">
 import { reactive, onUnmounted } from "vue"
+import { userStore } from "@/stores/userStore"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
-import PasswordInput from "@/components/inputs/PasswordInput.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
+import PasswordInput from "@/components/inputs/PasswordInput.vue"
 import XIcon from "@/components/icons/XIcon.vue"
-import { userStore } from "@/stores/userStore"
 const user = userStore()
 
 const form = reactive({

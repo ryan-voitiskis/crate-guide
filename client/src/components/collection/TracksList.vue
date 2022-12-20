@@ -102,8 +102,14 @@
 import { reactive, computed } from "vue"
 import { TrackPlus } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
+import BoltIcon from "../icons/BoltIcon.vue"
+import DanceIcon from "../icons/DanceIcon.vue"
 import localeContains from "@/utils/localeContains"
+import SmileIcon from "../icons/SmileIcon.vue"
 import SortByButton from "../utility/SortByButton.vue"
+import SortByButtonIcon from "../utility/SortByButtonIcon.vue"
+import TimerIcon from "../icons/TimerIcon.vue"
+import TrackSingle from "./TrackSingle.vue"
 import {
   sortStr,
   sortNumWithNull,
@@ -111,12 +117,7 @@ import {
   sortNumWithUndefined2Deep,
   sortKey,
 } from "@/utils/sortFunctions"
-import TrackSingle from "./TrackSingle.vue"
-import SortByButtonIcon from "../utility/SortByButtonIcon.vue"
-import DanceIcon from "../icons/DanceIcon.vue"
-import TimerIcon from "../icons/TimerIcon.vue"
-import SmileIcon from "../icons/SmileIcon.vue"
-import BoltIcon from "../icons/BoltIcon.vue"
+
 const tracks = trackStore()
 const yearsFilterRx = /^\d{4}\s*-\s*\d{4}$/
 const yearFilterRx = /^\d{4}$/

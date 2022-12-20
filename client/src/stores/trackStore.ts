@@ -1,9 +1,9 @@
 import { defineStore } from "pinia"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
+import { Track, TrackPlus } from "@/interfaces/Track"
 import { userStore } from "@/stores/userStore"
 import Record from "@/interfaces/Record"
-import { Track, TrackPlus } from "@/interfaces/Track"
 import trackService from "@/services/trackService"
 import UnsavedTrack from "@/interfaces/UnsavedTrack"
 import {
@@ -43,7 +43,7 @@ export const trackStore = defineStore("track", {
           Object.assign(existingRecord, updatedRecord)
           this.generateTrackLists()
           this.addTrackTo = ""
-        } else if (response.status === 400) {
+        } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
@@ -69,7 +69,7 @@ export const trackStore = defineStore("track", {
           ) as Record
           Object.assign(existingRecord, updatedRecord)
           this.generateTrackLists()
-        } else if (response.status === 400 || response.status === 401) {
+        } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
@@ -100,7 +100,7 @@ export const trackStore = defineStore("track", {
             Object.assign(existingRecord, updatedRecord)
             this.generateTrackLists()
             this.toDelete = ""
-          } else if (response.status === 400) {
+          } else {
             const error = await response.json()
             this.errorMsg = error.message ? error.message : "Unexpected error"
           }
@@ -190,6 +190,7 @@ export const trackStore = defineStore("track", {
       return (_id: string): TrackPlus | null =>
         state.trackList.find((i) => i._id === _id) || null
     },
+
     // slight optimisation on getTrackByIdFromTrackList, may be significant for huge collections
     getTrackByIdFromCrateTrackList: (state) => {
       return (_id: string): TrackPlus | null =>

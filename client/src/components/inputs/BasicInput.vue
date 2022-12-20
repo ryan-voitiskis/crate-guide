@@ -6,21 +6,27 @@
     :placeholder="placeholder"
     :value="modelValue"
     @input="$emit('update:modelValue', handleInputChange($event))"
+    :maxlength="maxlength"
     v-focus
   />
 </template>
 
 <script setup lang="ts">
-import { defineProps } from "vue"
+import { defineProps, withDefaults } from "vue"
 
-const props = defineProps<{
+export interface Props {
   label?: string
   id: string
   placeholder?: string
   modelValue?: string | number
   focused?: boolean
   width?: string
-}>()
+  maxlength?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  maxlength: "140",
+})
 
 // custom directive to focus input el if focused prop. used to focus first input.
 const vFocus = {

@@ -20,9 +20,9 @@
 
 <script setup lang="ts">
 import { defineProps } from "vue"
+import { sessionStore } from "@/stores/sessionStore"
 import Set from "@/interfaces/Set"
 import TrashIcon from "../icons/TrashIcon.vue"
-import { sessionStore } from "@/stores/sessionStore"
 const session = sessionStore()
 
 const props = defineProps<{

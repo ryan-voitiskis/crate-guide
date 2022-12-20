@@ -32,8 +32,8 @@
 
 <script setup lang="ts">
 import { defineProps, reactive, defineEmits } from "vue"
-import XIcon from "@/components/icons/XIcon.vue"
 import PlusCircleIcon from "../icons/PlusCircleIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 
 const props = defineProps<{
   genres: string[]

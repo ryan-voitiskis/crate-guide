@@ -34,11 +34,11 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount } from "vue"
-import XIcon from "@/components/icons/XIcon.vue"
-import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import { discogsStore } from "@/stores/discogsStore"
-import LoaderCentered from "@/components/utility/LoaderCentered.vue"
 import DiscogsReleaseBasic from "@/components/discogs/DiscogsReleaseBasic.vue"
+import LoaderCentered from "@/components/utility/LoaderCentered.vue"
+import LoaderIcon from "@/components/icons/LoaderIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 const discogs = discogsStore()
 
 onBeforeUnmount(() => {

@@ -77,6 +77,7 @@
 <script setup lang="ts">
 import { defineProps } from "vue"
 import { getDurationString } from "@/utils/durationFunctions"
+import { keyCombinations } from "@/utils/keyFunctions"
 import { sessionStore } from "@/stores/sessionStore"
 import { TrackScored } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
@@ -88,7 +89,6 @@ import getPercent from "@/utils/getPercent"
 import getPositionColour from "@/utils/positionColours"
 import PlayIcon from "../icons/PlayIcon.vue"
 import SmileIcon from "../icons/SmileIcon.vue"
-import { keyCombinations } from "@/utils/keyFunctions"
 
 const session = sessionStore()
 const tracks = trackStore()

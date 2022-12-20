@@ -116,7 +116,7 @@ export const userStore = defineStore("user", {
           this.signUpModal = false
         } else if (response.status === 409) {
           this.errorMsg = "An account with that email already exists."
-        } else if (response.status === 400) {
+        } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }

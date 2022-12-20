@@ -42,11 +42,11 @@
 <script setup lang="ts">
 import { ref } from "vue"
 import { sessionStore } from "@/stores/sessionStore"
+import { userStore } from "@/stores/userStore"
+import FolderIcon from "../icons/FolderIcon.vue"
+import PlayedTrack from "./PlayedTrack.vue"
 import SaveIcon from "../icons/SaveIcon.vue"
 import TrashIcon from "../icons/TrashIcon.vue"
-import PlayedTrack from "./PlayedTrack.vue"
-import FolderIcon from "../icons/FolderIcon.vue"
-import { userStore } from "@/stores/userStore"
 const session = sessionStore()
 const user = userStore()
 

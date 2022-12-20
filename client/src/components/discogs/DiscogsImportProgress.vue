@@ -30,9 +30,9 @@
 <script setup lang="ts">
 import { computed, inject } from "vue"
 import { discogsStore } from "@/stores/discogsStore"
-import XIcon from "@/components/icons/XIcon.vue"
-import LoaderCentered from "@/components/utility/LoaderCentered.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
+import LoaderCentered from "@/components/utility/LoaderCentered.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 
 const appName = inject("appName")
 const discogs = discogsStore()

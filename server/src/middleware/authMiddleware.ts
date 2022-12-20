@@ -1,7 +1,7 @@
-import jwt from "jsonwebtoken"
-import asyncHandler from "express-async-handler"
 import { User, IUser } from "../models/userModel.js"
+import asyncHandler from "express-async-handler"
 import env from "../env.js"
+import jwt from "jsonwebtoken"
 
 interface JwtPayload {
   id: string

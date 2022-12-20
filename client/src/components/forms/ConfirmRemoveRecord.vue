@@ -24,12 +24,12 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount } from "vue"
+import { crateStore } from "@/stores/crateStore"
+import { recordStore } from "@/stores/recordStore"
+import { userStore } from "@/stores/userStore"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import XIcon from "@/components/icons/XIcon.vue"
-import { userStore } from "@/stores/userStore"
-import { recordStore } from "@/stores/recordStore"
-import { crateStore } from "@/stores/crateStore"
 const user = userStore()
 const records = recordStore()
 const crates = crateStore()

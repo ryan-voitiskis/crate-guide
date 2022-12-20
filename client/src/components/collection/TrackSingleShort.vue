@@ -62,6 +62,7 @@
 
 <script setup lang="ts">
 import { defineProps, computed } from "vue"
+import { getDurationString } from "@/utils/durationFunctions"
 import { Track } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
@@ -79,7 +80,6 @@ import {
   getKeyColour,
   getKeyStringShort,
 } from "@/utils/keyFunctions"
-import { getDurationString } from "@/utils/durationFunctions"
 
 const tracks = trackStore()
 const user = userStore()

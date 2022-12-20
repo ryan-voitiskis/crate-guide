@@ -1,10 +1,10 @@
 // OAuth flow as per:
 // * https://developer.spotify.com/documentation/general/guides/authorization/code-flow/
+import { User, IUser } from "../models/userModel.js"
 import asyncHandler from "express-async-handler"
 import env from "../env.js"
 import fetch from "node-fetch"
 import genNonce from "../utils/genNonce.js"
-import { User, IUser } from "../models/userModel.js"
 import {
   isAccessTokenResponse,
   isRefreshTokenResponse,

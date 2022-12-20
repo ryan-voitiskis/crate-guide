@@ -53,10 +53,10 @@
 <script setup lang="ts">
 import { inject } from "vue"
 import { spotifyStore } from "@/stores/spotifyStore"
-import XIcon from "@/components/icons/XIcon.vue"
-import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import AlbumMatchSelect from "./AlbumMatchSelect.vue"
+import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "../icons/LoaderIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 
 const appName = inject("appName")
 const spotify = spotifyStore()

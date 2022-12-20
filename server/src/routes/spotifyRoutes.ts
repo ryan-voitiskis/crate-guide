@@ -1,3 +1,4 @@
+import { getTrackFeatures } from "../controllers/spotifyController.js"
 import express from "express"
 import protect from "../middleware/authMiddleware.js"
 import {
@@ -5,7 +6,6 @@ import {
   authorisationCallback,
   revokeAuthorisation,
 } from "../controllers/spotifyOAuthController.js"
-import { getTrackFeatures } from "../controllers/spotifyController.js"
 
 const router = express.Router()
 

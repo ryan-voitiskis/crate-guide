@@ -1,6 +1,6 @@
+import { importRecords } from "../controllers/discogsController.js"
 import express from "express"
 import protect from "../middleware/authMiddleware.js"
-import { importRecords } from "../controllers/discogsController.js"
 
 const router = express.Router()
 

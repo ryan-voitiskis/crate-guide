@@ -18,8 +18,8 @@
 
 <script setup lang="ts">
 import { defineProps, reactive } from "vue"
-import InfoIcon from "@/components/icons/InfoIcon.vue"
 import ChevronUpIcon from "@/components/icons/ChevronUpIcon.vue"
+import InfoIcon from "@/components/icons/InfoIcon.vue"
 
 defineProps<{
   text: string // animation keyframes set to max-height: 200px.

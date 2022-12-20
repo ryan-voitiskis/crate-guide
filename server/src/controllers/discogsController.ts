@@ -1,10 +1,10 @@
+import { getDurationMs } from "../utils/durationFunctions.js"
+import { IUser } from "../models/userModel.js"
+import { Record } from "../models/recordModel.js"
 import asyncHandler from "express-async-handler"
 import fetch from "node-fetch"
 import genNonce from "../utils/genNonce.js"
 import oauthSignature from "oauth-signature"
-import { getDurationMs } from "../utils/durationFunctions.js"
-import { Record } from "../models/recordModel.js"
-import { IUser } from "../models/userModel.js"
 import {
   isFoldersResponse,
   Release,

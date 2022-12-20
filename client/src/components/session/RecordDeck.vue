@@ -76,26 +76,26 @@
 
 <script setup lang="ts">
 import { defineProps, computed } from "vue"
-import StartStopButton from "./StartStopButton.vue"
-import RpmSwitch from "./RpmSwitch.vue"
-import PitchFader from "./PitchFader.vue"
-import RecordIcon from "./RecordIcon.vue"
-import BPMTapper from "./BPMTapper.vue"
-import { userStore } from "@/stores/userStore"
+import { getDurationString } from "@/utils/durationFunctions"
 import { sessionStore } from "@/stores/sessionStore"
 import { trackStore } from "@/stores/trackStore"
-import getPositionColour from "@/utils/positionColours"
-import { getDurationString } from "@/utils/durationFunctions"
-import getPercent from "@/utils/getPercent"
-import DanceIcon from "../icons/DanceIcon.vue"
+import { userStore } from "@/stores/userStore"
 import BoltIcon from "../icons/BoltIcon.vue"
+import BPMTapper from "./BPMTapper.vue"
+import DanceIcon from "../icons/DanceIcon.vue"
+import getPercent from "@/utils/getPercent"
+import getPositionColour from "@/utils/positionColours"
+import PitchFader from "./PitchFader.vue"
+import RecordIcon from "./RecordIcon.vue"
+import RpmSwitch from "./RpmSwitch.vue"
 import SmileIcon from "../icons/SmileIcon.vue"
+import StartStopButton from "./StartStopButton.vue"
+import SuggestionList from "./SuggestionList.vue"
 import {
   getKeyStringShort,
   getCamelotString,
   getKeyColour,
 } from "@/utils/keyFunctions"
-import SuggestionList from "./SuggestionList.vue"
 const session = sessionStore()
 const tracks = trackStore()
 const user = userStore()

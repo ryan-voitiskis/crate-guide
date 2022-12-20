@@ -212,9 +212,6 @@ const positionColour = computed(() =>
   }
   &:nth-child(even) {
     background-color: var(--even-row-bg);
-    &:hover {
-      background-color: var(--item-hover);
-    }
   }
 }
 </style>

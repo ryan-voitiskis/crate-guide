@@ -164,15 +164,21 @@
 
 <script setup lang="ts">
 import { reactive, computed } from "vue"
-import { TrackPlus } from "@/interfaces/Track"
 import { sessionStore } from "@/stores/sessionStore"
+import { TrackPlus } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
+import BasicInput from "../inputs/BasicInput.vue"
+import BoltIcon from "../icons/BoltIcon.vue"
 import CrateSelect from "../inputs/CrateSelect.vue"
+import DanceIcon from "../icons/DanceIcon.vue"
+import FilterOffIcon from "@/components/icons/FilterOffIcon.vue"
 import localeContains from "@/utils/localeContains"
 import SelectTrackSingle from "@/components/session/SelectTrackSingle.vue"
+import SmileIcon from "../icons/SmileIcon.vue"
 import SortByButton from "@/components/utility/SortByButton.vue"
+import SortByButtonIcon from "../utility/SortByButtonIcon.vue"
+import TimerIcon from "../icons/TimerIcon.vue"
 import XIcon from "@/components/icons/XIcon.vue"
-import FilterOffIcon from "@/components/icons/FilterOffIcon.vue"
 import {
   sortStr,
   sortNumWithNull,
@@ -180,12 +186,6 @@ import {
   sortNumWithUndefined2Deep,
   sortKey,
 } from "@/utils/sortFunctions"
-import BasicInput from "../inputs/BasicInput.vue"
-import SortByButtonIcon from "../utility/SortByButtonIcon.vue"
-import SmileIcon from "../icons/SmileIcon.vue"
-import BoltIcon from "../icons/BoltIcon.vue"
-import TimerIcon from "../icons/TimerIcon.vue"
-import DanceIcon from "../icons/DanceIcon.vue"
 const session = sessionStore()
 const tracks = trackStore()
 

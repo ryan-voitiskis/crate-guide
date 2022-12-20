@@ -1,8 +1,8 @@
-import asyncHandler from "express-async-handler"
-import { IUser } from "../models/userModel.js"
-import { Record } from "../models/recordModel.js"
 import { getAudioFeaturesSingle } from "./spotifyControllerUtils.js"
+import { IUser } from "../models/userModel.js"
 import { MatchedTrack } from "../types/spotifyController-types.js"
+import { Record } from "../models/recordModel.js"
+import asyncHandler from "express-async-handler"
 
 // @desc    gets and saves a track's audio features
 // @route   GET /api/spotify/get_track_features

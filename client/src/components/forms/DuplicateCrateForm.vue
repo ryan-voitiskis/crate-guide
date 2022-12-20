@@ -42,13 +42,13 @@
 
 <script setup lang="ts">
 import { reactive, onBeforeUnmount } from "vue"
+import { crateStore } from "@/stores/crateStore"
+import { userStore } from "@/stores/userStore"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
-import XIcon from "@/components/icons/XIcon.vue"
 import UnsavedCrate from "@/interfaces/UnsavedCrate"
-import { userStore } from "@/stores/userStore"
-import { crateStore } from "@/stores/crateStore"
+import XIcon from "@/components/icons/XIcon.vue"
 const user = userStore()
 const crates = crateStore()
 

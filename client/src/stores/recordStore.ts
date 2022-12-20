@@ -1,12 +1,12 @@
 import { defineStore } from "pinia"
 import { crateStore } from "@/stores/crateStore"
+import { Track } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
+import demoRecords from "@/data/demo-records"
 import Record from "@/interfaces/Record"
 import recordService from "@/services/recordService"
-import { Track } from "@/interfaces/Track"
 import UnsavedRecord from "@/interfaces/UnsavedRecord"
-import demoRecords from "@/data/demo-records"
 
 export const recordStore = defineStore("record", {
   state: () => ({
@@ -30,7 +30,7 @@ export const recordStore = defineStore("record", {
           const records = (await response.json()) as Record[]
           if (records) this.recordList = records
           trackStore().generateTrackLists()
-        } else if (response.status === 400) {
+        } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
@@ -54,7 +54,7 @@ export const recordStore = defineStore("record", {
           this.recordList.push(newRecord)
           this.addRecordModal = false
           trackStore().generateTrackLists()
-        } else if (response.status === 400) {
+        } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
@@ -81,7 +81,7 @@ export const recordStore = defineStore("record", {
           Object.assign(existingRecord, updatedRecord)
           trackStore().generateTrackLists()
           this.toEdit = ""
-        } else if (response.status === 400 || response.status === 401) {
+        } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
@@ -142,6 +142,7 @@ export const recordStore = defineStore("record", {
         (state.recordList.find((record) => record._id === _id) as Record) ||
         null
     },
+
     // returns record catno, if no catno returns title
     getNameById: (state) => {
       return (_id: string): string => {
@@ -152,6 +153,7 @@ export const recordStore = defineStore("record", {
         else return ""
       }
     },
+
     // returns record catno, if no catno returns title. if no record returns ""
     getRecordNameByTrackId: (state) => {
       return (_id: string): string => {
@@ -163,12 +165,14 @@ export const recordStore = defineStore("record", {
         else return ""
       }
     },
+
     getRecordByTrackId: (state) => {
       return (_id: string): Record =>
         (state.recordList.find((record) =>
           record.tracks.find((track) => track._id === _id)
         ) as Record) || null
     },
+
     getTrackById: (state) => {
       return (_id: string): Track =>
         state.recordList.reduce<any>((prev: Record, curr: Record) => {

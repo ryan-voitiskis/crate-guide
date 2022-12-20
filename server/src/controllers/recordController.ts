@@ -1,6 +1,6 @@
-import asyncHandler from "express-async-handler"
 import { Crate } from "../models/crateModel.js"
 import { Record } from "../models/recordModel.js"
+import asyncHandler from "express-async-handler"
 
 // @desc    get records
 // @route   GET /api/records

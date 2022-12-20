@@ -1,6 +1,6 @@
 import Crate from "@/interfaces/Crate"
-import UnsavedCrate from "@/interfaces/UnsavedCrate"
 import globals from "@/globals"
+import UnsavedCrate from "@/interfaces/UnsavedCrate"
 
 // get user crates
 async function getCrates(token: string) {

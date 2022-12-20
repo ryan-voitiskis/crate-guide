@@ -1,9 +1,9 @@
+import { User } from "../models/userModel.js"
 import asyncHandler from "express-async-handler"
 import env from "../env.js"
 import fetch from "node-fetch"
 import genNonce from "../utils/genNonce.js"
 import oauthSignature from "oauth-signature"
-import { User } from "../models/userModel.js"
 import {
   AccessTokenResponse,
   isAccessTokenResponse,

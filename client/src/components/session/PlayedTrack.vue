@@ -39,10 +39,9 @@ import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import getBPMColour from "@/utils/getBPMColour"
 import getPositionColour from "@/utils/positionColours"
-import TrashIcon from "../icons/TrashIcon.vue"
-import TransitionRating from "@/components/session/TransitionRating.vue"
 import PlayedTrack from "@/interfaces/PlayedTrack"
-
+import TransitionRating from "@/components/session/TransitionRating.vue"
+import TrashIcon from "../icons/TrashIcon.vue"
 const session = sessionStore()
 const tracks = trackStore()
 const user = userStore()

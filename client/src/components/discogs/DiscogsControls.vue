@@ -22,8 +22,8 @@
 import { inject } from "vue"
 import { discogsStore } from "@/stores/discogsStore"
 import { userStore } from "@/stores/userStore"
-import InfoDropout from "@/components/utility/InfoDropout.vue"
 import ImportIcon from "@/components/icons/ImportIcon.vue"
+import InfoDropout from "@/components/utility/InfoDropout.vue"
 const discogs = discogsStore()
 
 const user = userStore()

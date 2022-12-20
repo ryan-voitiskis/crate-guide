@@ -292,6 +292,7 @@ export const spotifyStore = defineStore("spotify", {
             album: i.matches.find((i) => i.selected),
           }))
     },
+
     // creates an array of the Unselected record IDs and corresponding spotify album IDs
     getUnmatchedInexactAlbums: (state) => {
       return () =>
@@ -299,6 +300,7 @@ export const spotifyStore = defineStore("spotify", {
           .filter((i) => !i.matches.find((i) => i.selected))
           .map((i) => i.recordID)
     },
+
     // creates an array of the selected track spotify track IDs with corresponding record and track _id
     getMatchedInexactTracks: (state) => {
       return () =>

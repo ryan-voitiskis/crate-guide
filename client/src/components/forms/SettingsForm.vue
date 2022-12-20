@@ -129,7 +129,7 @@
           Connect to Spotify
         </button>
         <button v-else @click="spotify.revokeSpotifyModal = true">
-          Revoke Spotify acess
+          Revoke Spotify access
         </button>
       </fieldset>
       <p v-else>Login to connect to the Spotify and Discogs APIs.</p>

@@ -136,21 +136,21 @@
 
 <script setup lang="ts">
 import { reactive, onBeforeUnmount, watch, ref, Ref } from "vue"
+import { getDurationString, getDurationMs } from "@/utils/durationFunctions"
 import { recordStore } from "@/stores/recordStore"
 import { spotifyStore } from "@/stores/spotifyStore"
+import { Track } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
-import LoaderIcon from "@/components/icons/LoaderIcon.vue"
-import RadioInput from "@/components/inputs/RadioInput.vue"
 import getBPMColour from "@/utils/getBPMColour"
-import XIcon from "@/components/icons/XIcon.vue"
 import HelpIcon from "@/components/icons/HelpIcon.vue"
-import { Track } from "@/interfaces/Track"
+import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import MatchedTrack from "@/interfaces/MatchedTrack"
+import RadioInput from "@/components/inputs/RadioInput.vue"
 import SelectInput from "../inputs/SelectInput.vue"
-import { getDurationString, getDurationMs } from "@/utils/durationFunctions"
+import XIcon from "@/components/icons/XIcon.vue"
 import {
   getTimeSignatureOptions,
   getTimeSignatureString,

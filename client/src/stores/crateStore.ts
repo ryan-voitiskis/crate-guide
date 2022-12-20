@@ -24,7 +24,7 @@ export const crateStore = defineStore("crate", {
         if (response.status === 200) {
           const crates = (await response.json()) as Crate[]
           if (crates) this.crateList = crates
-        } else if (response.status === 400) {
+        } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
@@ -48,7 +48,7 @@ export const crateStore = defineStore("crate", {
           this.crateList.push(newCrate)
           this.addCrateModal = false
           this.duplicateCrateModal = false
-        } else if (response.status === 400) {
+        } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
@@ -71,7 +71,7 @@ export const crateStore = defineStore("crate", {
           this.crateList = this.crateList.filter((i) => i._id !== _id)
           this.deleteCrateModal = false
           user.authd.settings.selectedCrate = "all"
-        } else if (response.status === 400 || response.status === 401) {
+        } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
@@ -109,7 +109,7 @@ export const crateStore = defineStore("crate", {
               records.toCrate = []
               records.checkboxed = []
               trackStore().generateTrackLists()
-            } else if (response.status === 400 || response.status === 401) {
+            } else {
               const error = await response.json()
               this.errorMsg = error.message ? error.message : "Unexpected error"
             }
@@ -159,7 +159,7 @@ export const crateStore = defineStore("crate", {
             records.checkboxed = []
             records.fromCrate = []
             trackStore().generateTrackLists()
-          } else if (response.status === 400 || response.status === 401) {
+          } else {
             const error = await response.json()
             this.errorMsg = error.message ? error.message : "Unexpected error"
           }
@@ -205,11 +205,13 @@ export const crateStore = defineStore("crate", {
       return (_id: string): Crate | null =>
         state.crateList.find((crate) => crate._id === _id) || null
     },
+
     getRecordIDsByCrate: (state) => {
       return (_id: string): string[] =>
         state.crateList.find((crate) => crate._id === _id)?.records ||
         ([] as string[])
     },
+
     getRecordName() {
       const records = recordStore()
       return records.getNameById

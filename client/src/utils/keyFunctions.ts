@@ -1,6 +1,6 @@
-import Option from "@/interfaces/SelectOption"
-import { sortNum } from "@/utils/sortFunctions"
 import { HarmonyScore } from "@/interfaces/Track"
+import { sortNum } from "@/utils/sortFunctions"
+import Option from "@/interfaces/SelectOption"
 
 interface KeyAndMode {
   key: number

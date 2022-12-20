@@ -17,8 +17,8 @@
 
 <script setup lang="ts">
 import { defineProps } from "vue"
-import PlayOnSpotifyButton from "./PlayOnSpotifyButton.vue"
 import { spotifyStore } from "@/stores/spotifyStore"
+import PlayOnSpotifyButton from "./PlayOnSpotifyButton.vue"
 
 const spotify = spotifyStore()
 

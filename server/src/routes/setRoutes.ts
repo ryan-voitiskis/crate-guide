@@ -1,6 +1,6 @@
+import { getSets, saveSet, deleteSet } from "../controllers/setController.js"
 import express from "express"
 import protect from "../middleware/authMiddleware.js"
-import { getSets, saveSet, deleteSet } from "../controllers/setController.js"
 
 const router = express.Router()
 

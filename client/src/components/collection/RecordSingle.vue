@@ -10,7 +10,7 @@
       <span class="year">{{ year }}</span>
     </div>
     <span class="artists">{{ artists }}</span>
-    <div class="controls">
+    <div class="controls" v-if="user.authd._id">
       <button
         class="inline-btn edit"
         @click="records.toEdit = _id"
@@ -62,15 +62,15 @@
 <script setup lang="ts">
 import { defineProps, reactive, watch, computed } from "vue"
 import { recordStore } from "@/stores/recordStore"
+import { Track } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import FolderDownIcon from "@/components/icons/FolderDownIcon.vue"
+import FolderMinusIcon from "@/components/icons/FolderMinusIcon.vue"
 import PencilIcon from "@/components/icons/PencilIcon.vue"
 import PlusCircleIcon from "@/components/icons/PlusCircleIcon.vue"
-import { Track } from "@/interfaces/Track"
 import TrackSingleShort from "./TrackSingleShort.vue"
 import TrashIcon from "@/components/icons/TrashIcon.vue"
-import FolderMinusIcon from "@/components/icons/FolderMinusIcon.vue"
 const records = recordStore()
 const user = userStore()
 

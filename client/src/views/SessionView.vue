@@ -66,17 +66,17 @@
 
 <script setup lang="ts">
 import { sessionStore } from "@/stores/sessionStore"
-import ModalBox from "@/components/utility/ModalBox.vue"
-import RecordDeck from "@/components/session/RecordDeck.vue"
-import SelectTrackList from "@/components/session/SelectTrackList.vue"
 import ChevronUpIcon from "@/components/icons/ChevronUpIcon.vue"
-import HistoryList from "@/components/session/HistoryList.vue"
 import ConfirmClearHistory from "@/components/forms/ConfirmClearHistory.vue"
-import SaveHistoryForm from "@/components/forms/SaveHistoryForm.vue"
-import SetManager from "@/components/session/SetManager.vue"
 import ConfirmDeleteSet from "@/components/forms/ConfirmDeleteSet.vue"
 import HistoryIcon from "@/components/icons/HistoryIcon.vue"
+import HistoryList from "@/components/session/HistoryList.vue"
 import HistoryListModal from "@/components/session/HistoryListModal.vue"
+import ModalBox from "@/components/utility/ModalBox.vue"
+import RecordDeck from "@/components/session/RecordDeck.vue"
+import SaveHistoryForm from "@/components/forms/SaveHistoryForm.vue"
+import SelectTrackList from "@/components/session/SelectTrackList.vue"
+import SetManager from "@/components/session/SetManager.vue"
 
 const session = sessionStore()
 </script>

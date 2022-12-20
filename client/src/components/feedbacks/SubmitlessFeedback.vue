@@ -20,10 +20,10 @@
 </template>
 
 <script setup lang="ts">
+import { userStore } from "@/stores/userStore"
 import CheckIcon from "@/components/icons/CheckIcon.vue"
 import ExclamationIcon from "@/components/icons/ExclamationIcon.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
-import { userStore } from "@/stores/userStore"
 const user = userStore()
 </script>
 

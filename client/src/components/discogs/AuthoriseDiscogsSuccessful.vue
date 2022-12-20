@@ -42,9 +42,9 @@
 
 <script setup lang="ts">
 import { inject } from "vue"
-import XIcon from "@/components/icons/XIcon.vue"
 import { discogsStore } from "@/stores/discogsStore"
 import { userStore } from "@/stores/userStore"
+import XIcon from "@/components/icons/XIcon.vue"
 const discogs = discogsStore()
 const user = userStore()
 

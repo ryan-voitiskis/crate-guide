@@ -22,9 +22,9 @@
 
 <script setup lang="ts">
 import { reactive } from "vue"
+import { userStore } from "@/stores/userStore"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import XIcon from "@/components/icons/XIcon.vue"
-import { userStore } from "@/stores/userStore"
 const user = userStore()
 
 const form = reactive({

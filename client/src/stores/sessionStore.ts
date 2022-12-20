@@ -3,9 +3,9 @@ import { defineStore } from "pinia"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "./userStore"
 import PlayedTrack from "@/interfaces/PlayedTrack"
-import UnsavedSet from "@/interfaces/UnsavedSet"
 import sessionService from "@/services/sessionService"
 import Set from "@/interfaces/Set"
+import UnsavedSet from "@/interfaces/UnsavedSet"
 
 interface Deck {
   loadedTrack: TrackPlus | null
@@ -104,7 +104,7 @@ export const sessionStore = defineStore("session", {
         if (response.status === 200) {
           const sets = (await response.json()) as Set[]
           if (sets) this.savedSets = sets
-        } else if (response.status === 400) {
+        } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
@@ -129,7 +129,7 @@ export const sessionStore = defineStore("session", {
           this.loading = false
           this.saveHistoryForm = false
           return response.status
-        } else if (response.status === 400) {
+        } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }
@@ -159,7 +159,7 @@ export const sessionStore = defineStore("session", {
           this.setToDelete = ""
           this.confirmDeleteSet = false
           user.authd.settings.selectedCrate = "all"
-        } else if (response.status === 400 || response.status === 401) {
+        } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
         }

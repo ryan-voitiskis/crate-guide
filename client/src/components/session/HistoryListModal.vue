@@ -49,12 +49,12 @@
 
 <script setup lang="ts">
 import { sessionStore } from "@/stores/sessionStore"
-import XIcon from "@/components/icons/XIcon.vue"
-import PlayedTrack from "./PlayedTrack.vue"
-import TrashIcon from "../icons/TrashIcon.vue"
-import SaveIcon from "../icons/SaveIcon.vue"
-import FolderIcon from "../icons/FolderIcon.vue"
 import { userStore } from "@/stores/userStore"
+import FolderIcon from "../icons/FolderIcon.vue"
+import PlayedTrack from "./PlayedTrack.vue"
+import SaveIcon from "../icons/SaveIcon.vue"
+import TrashIcon from "../icons/TrashIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 const session = sessionStore()
 const user = userStore()
 </script>

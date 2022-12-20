@@ -26,9 +26,9 @@
 <script setup lang="ts">
 import { computed, inject, onUnmounted } from "vue"
 import { spotifyStore } from "@/stores/spotifyStore"
-import XIcon from "@/components/icons/XIcon.vue"
-import LoaderCentered from "@/components/utility/LoaderCentered.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
+import LoaderCentered from "@/components/utility/LoaderCentered.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 
 const appName = inject("appName")
 const spotify = spotifyStore()

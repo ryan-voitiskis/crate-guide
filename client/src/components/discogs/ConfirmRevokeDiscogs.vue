@@ -37,10 +37,10 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, inject } from "vue"
-import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
-import XIcon from "@/components/icons/XIcon.vue"
-import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import { discogsStore } from "@/stores/discogsStore"
+import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
+import LoaderIcon from "@/components/icons/LoaderIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 const discogs = discogsStore()
 const appNamePossessive = inject("appNamePossessive")
 

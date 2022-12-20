@@ -138,17 +138,17 @@
 
 <script setup lang="ts">
 import { reactive } from "vue"
-import getPercent from "@/utils/getPercent"
 import { trackStore } from "@/stores/trackStore"
-import XIcon from "@/components/icons/XIcon.vue"
-import DanceIcon from "@/components/icons/DanceIcon.vue"
-import SmileIcon from "@/components/icons/SmileIcon.vue"
 import BoltIcon from "@/components/icons/BoltIcon.vue"
-import SpeechIcon from "@/components/icons/SpeechIcon.vue"
+import DanceIcon from "@/components/icons/DanceIcon.vue"
+import EqualizerIcon from "@/components/icons/EqualizerIcon.vue"
+import getPercent from "@/utils/getPercent"
 import GuitarIcon from "@/components/icons/GuitarIcon.vue"
 import PianoIcon from "@/components/icons/PianoIcon.vue"
-import EqualizerIcon from "@/components/icons/EqualizerIcon.vue"
+import SmileIcon from "@/components/icons/SmileIcon.vue"
 import SpeakerIcon from "@/components/icons/SpeakerIcon.vue"
+import SpeechIcon from "@/components/icons/SpeechIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 const tracks = trackStore()
 
 const state = reactive({

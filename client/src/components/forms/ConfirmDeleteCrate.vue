@@ -17,6 +17,7 @@
     </span>
     <div class="modal-body inline-labels">
       <BasicInput
+        id="delete_crate_name"
         v-model="form.name"
         label="Crate name"
         type="text"

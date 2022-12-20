@@ -97,23 +97,23 @@
 
 <script setup lang="ts">
 import { reactive, onBeforeUnmount, ref, Ref } from "vue"
+import { getDurationMs } from "@/utils/durationFunctions"
+import { getKeyOptions } from "@/utils/keyFunctions"
 import { recordStore } from "@/stores/recordStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
+import GenreInput from "../inputs/GenreInput.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
 import RadioInput from "@/components/inputs/RadioInput.vue"
+import SelectInput from "../inputs/SelectInput.vue"
 import UnsavedTrack from "@/interfaces/UnsavedTrack"
 import XIcon from "@/components/icons/XIcon.vue"
-import { getDurationMs } from "@/utils/durationFunctions"
 import {
   getTimeSignatureOptions,
   getTimeSignatureNumbers,
 } from "@/utils/timeSignatures"
-import { getKeyOptions } from "@/utils/keyFunctions"
-import SelectInput from "../inputs/SelectInput.vue"
-import GenreInput from "../inputs/GenreInput.vue"
 
 const records = recordStore()
 const tracks = trackStore()

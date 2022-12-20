@@ -60,14 +60,14 @@
 
 <script setup lang="ts">
 import { computed } from "vue"
-import XIcon from "@/components/icons/XIcon.vue"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
 import { userStore } from "@/stores/userStore"
-import TrashIcon from "../icons/TrashIcon.vue"
-import FolderPlusIcon from "../icons/FolderPlusIcon.vue"
-import DuplicateIcon from "../icons/DuplicateIcon.vue"
 import CrateSelect from "../inputs/CrateSelect.vue"
+import DuplicateIcon from "../icons/DuplicateIcon.vue"
+import FolderPlusIcon from "../icons/FolderPlusIcon.vue"
+import TrashIcon from "../icons/TrashIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 const crates = crateStore()
 const records = recordStore()
 const user = userStore()

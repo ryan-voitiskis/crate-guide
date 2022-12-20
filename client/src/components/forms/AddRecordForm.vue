@@ -78,12 +78,12 @@
 
 <script setup lang="ts">
 import { reactive, onBeforeUnmount } from "vue"
+import { recordStore } from "@/stores/recordStore"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
-import XIcon from "@/components/icons/XIcon.vue"
 import UnsavedRecord from "@/interfaces/UnsavedRecord"
-import { recordStore } from "@/stores/recordStore"
+import XIcon from "@/components/icons/XIcon.vue"
 const records = recordStore()
 
 const form = reactive({

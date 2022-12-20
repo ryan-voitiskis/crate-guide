@@ -19,6 +19,7 @@ const props = defineProps<{
 }>()
 
 function rate(rating: number) {
+  if (session.set[props.index].transitionRating === rating) rating = 0
   session.set[props.index].transitionRating = rating
 }
 

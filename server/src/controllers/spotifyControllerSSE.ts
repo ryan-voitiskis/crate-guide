@@ -1,9 +1,9 @@
-import asyncHandler from "express-async-handler"
-import levenshtein from "js-levenshtein"
 import { IRecord, Record } from "../models/recordModel.js"
 import { IUser } from "../models/userModel.js"
-import { spotifyRequest, checkRefreshToken } from "./spotifyOAuthController.js"
 import { Response as ExpressResponse } from "express"
+import { spotifyRequest, checkRefreshToken } from "./spotifyOAuthController.js"
+import asyncHandler from "express-async-handler"
+import levenshtein from "js-levenshtein"
 import {
   searchAlbum,
   searchTrack,

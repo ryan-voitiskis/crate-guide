@@ -62,6 +62,10 @@
     </button>
     <ListLayoutToggle class="list-layout" />
   </div>
+
+  <span class="sign-in-message" v-if="!user.authd._id">
+    This is a demo collection. Sign in to create your own.
+  </span>
   <KeepAlive>
     <RecordsList
       v-if="user.authd.settings.listLayout === 0"
@@ -79,9 +83,6 @@
       :filterYear="state.filterYear"
     />
   </KeepAlive>
-  <span class="sign-in-message" v-if="!user.authd._id">
-    This is a demo collection. Sign in to create your own.
-  </span>
 
   <ModalBox v-if="crates.addCrateModal" @close="crates.addCrateModal = false">
     <AddCrateForm />
@@ -198,29 +199,28 @@ import { userStore } from "@/stores/userStore"
 import AddCrateForm from "@/components/forms/AddCrateForm.vue"
 import AddRecordForm from "@/components/forms/AddRecordForm.vue"
 import AddTrackForm from "@/components/forms/AddTrackForm.vue"
+import AlbumMatchForm from "@/components/spotify/AlbumMatchForm.vue"
+import BasicInput from "@/components/inputs/BasicInput.vue"
 import ConfirmDeleteCrate from "@/components/forms/ConfirmDeleteCrate.vue"
+import CrateActions from "@/components/collection/CrateActions.vue"
+import CrateSelect from "@/components/inputs/CrateSelect.vue"
 import DeleteRecordForm from "@/components/forms/ConfirmDeleteRecord.vue"
 import DeleteTrackForm from "@/components/forms/ConfirmDeleteTrack.vue"
 import DuplicateCrateForm from "@/components/forms/DuplicateCrateForm.vue"
 import EditRecordForm from "@/components/forms/EditRecordForm.vue"
 import EditTrackForm from "@/components/forms/EditTrackForm.vue"
+import FilterOffIcon from "@/components/icons/FilterOffIcon.vue"
+import ListLayoutToggle from "@/components/collection/ListLayoutToggle.vue"
 import ModalBox from "@/components/utility/ModalBox.vue"
 import RecordsList from "@/components/collection/RecordsList.vue"
 import RemoveRecordForm from "@/components/forms/ConfirmRemoveRecord.vue"
 import SelectCrateForm from "@/components/forms/SelectCrateForm.vue"
-import UpdateFeedback from "@/components/feedbacks/UpdateFeedback.vue"
-import SpotifyImportProgress from "@/components/spotify/SpotifyImportProgress.vue"
-import AlbumMatchForm from "@/components/spotify/AlbumMatchForm.vue"
-import TrackMatchForm from "@/components/spotify/TrackMatchForm.vue"
 import SpotifyCompletion from "@/components/spotify/SpotifyCompletion.vue"
+import SpotifyImportProgress from "@/components/spotify/SpotifyImportProgress.vue"
+import TrackMatchForm from "@/components/spotify/TrackMatchForm.vue"
 import TracksList from "@/components/collection/TracksList.vue"
-import ListLayoutToggle from "@/components/collection/ListLayoutToggle.vue"
-import BasicInput from "@/components/inputs/BasicInput.vue"
-import FilterOffIcon from "@/components/icons/FilterOffIcon.vue"
-import CrateSelect from "@/components/inputs/CrateSelect.vue"
+import UpdateFeedback from "@/components/feedbacks/UpdateFeedback.vue"
 import WrenchIcon from "@/components/icons/WrenchIcon.vue"
-import CrateActions from "@/components/collection/CrateActions.vue"
-
 const crates = crateStore()
 const records = recordStore()
 const spotify = spotifyStore()
@@ -260,15 +260,15 @@ const state = reactive({
   margin-top: 29px;
 }
 
+.crate-actions-button {
+  margin-top: 29px;
+}
+
 .sign-in-message {
   width: 100%;
   margin: 20px;
   display: block;
   text-align: center;
   font-size: 22px;
-}
-
-.crate-actions-button {
-  margin-top: 29px;
 }
 </style>

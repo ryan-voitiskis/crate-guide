@@ -1,6 +1,6 @@
-import UnsavedTrack from "@/interfaces/UnsavedTrack"
 import { Track } from "@/interfaces/Track"
 import globals from "@/globals"
+import UnsavedTrack from "@/interfaces/UnsavedTrack"
 
 // add new track
 async function addTrack(track: UnsavedTrack, record: string, token: string) {

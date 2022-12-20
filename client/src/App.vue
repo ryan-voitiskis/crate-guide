@@ -157,28 +157,27 @@
 
 <script setup lang="ts">
 import { reactive, watch } from "vue"
-import { useRoute } from "vue-router"
 import { discogsStore } from "@/stores/discogsStore"
 import { sessionStore } from "@/stores/sessionStore"
 import { spotifyStore } from "@/stores/spotifyStore"
 import { trackStore } from "@/stores/trackStore"
+import { useRoute } from "vue-router"
 import { userStore } from "@/stores/userStore"
+import AudioFeatures from "@/components/utility/AudioFeatures.vue"
 import AuthoriseDiscogs from "@/components/discogs/AuthoriseDiscogs.vue"
 import AuthoriseDiscogsSuccessful from "@/components/discogs/AuthoriseDiscogsSuccessful.vue"
 import CogIcon from "@/components/icons/CogIcon.vue"
+import ConfirmRevokeDiscogs from "@/components/discogs/ConfirmRevokeDiscogs.vue"
+import ConfirmRevokeSpotify from "./components/spotify/ConfirmRevokeSpotify.vue"
 import DiscogsImportProgress from "@/components/discogs/DiscogsImportProgress.vue"
 import LoginForm from "@/components/forms/LoginForm.vue"
 import ModalBox from "@/components/utility/ModalBox.vue"
 import RecoveryForm from "@/components/forms/RecoveryForm.vue"
-import ConfirmRevokeDiscogs from "@/components/discogs/ConfirmRevokeDiscogs.vue"
 import SelectDiscogsFolder from "@/components/discogs/SelectDiscogsFolderForm.vue"
 import SettingsForm from "@/components/forms/SettingsForm.vue"
 import SignUpForm from "@/components/forms/SignUpForm.vue"
 import StageDiscogsImport from "@/components/discogs/StageDiscogsImport.vue"
 import UpdateFeedback from "@/components/feedbacks/UpdateFeedback.vue"
-import ConfirmRevokeSpotify from "./components/spotify/ConfirmRevokeSpotify.vue"
-import AudioFeatures from "@/components/utility/AudioFeatures.vue"
-
 const discogs = discogsStore()
 const route = useRoute()
 const session = sessionStore()

@@ -43,12 +43,12 @@
 
 <script setup lang="ts">
 import { reactive, onBeforeUnmount } from "vue"
+import { sessionStore } from "@/stores/sessionStore"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import ErrorFeedback from "@/components/feedbacks/ErrorFeedback.vue"
 import LoaderIcon from "@/components/icons/LoaderIcon.vue"
-import XIcon from "@/components/icons/XIcon.vue"
 import UnsavedSet from "@/interfaces/UnsavedSet"
-import { sessionStore } from "@/stores/sessionStore"
+import XIcon from "@/components/icons/XIcon.vue"
 const session = sessionStore()
 
 const namePlaceholder = `eg. "Set from a gig"`

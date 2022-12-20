@@ -1,5 +1,5 @@
-import { Record } from "../models/recordModel.js"
 import { IUser } from "../models/userModel.js"
+import { Record } from "../models/recordModel.js"
 import { spotifyRequest } from "./spotifyOAuthController.js"
 import levenshtein from "js-levenshtein"
 import {

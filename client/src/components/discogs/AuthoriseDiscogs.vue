@@ -37,11 +37,11 @@
 
 <script setup lang="ts">
 import { inject } from "vue"
-import LoaderIcon from "@/components/icons/LoaderIcon.vue"
-import XIcon from "@/components/icons/XIcon.vue"
-import InfoDropdown from "../utility/InfoDropdown.vue"
 import { discogsStore } from "@/stores/discogsStore"
 import ErrorFeedback from "../feedbacks/ErrorFeedback.vue"
+import InfoDropdown from "../utility/InfoDropdown.vue"
+import LoaderIcon from "@/components/icons/LoaderIcon.vue"
+import XIcon from "@/components/icons/XIcon.vue"
 const discogs = discogsStore()
 
 const appName = inject("appName")

@@ -1,5 +1,5 @@
-import asyncHandler from "express-async-handler"
 import { Record } from "../models/recordModel.js"
+import asyncHandler from "express-async-handler"
 
 // @desc    add track
 // @route   POST /api/tracks

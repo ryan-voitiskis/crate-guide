@@ -11,13 +11,13 @@
 
 <script setup lang="ts">
 import { defineProps, computed } from "vue"
+import { adjustKey, scoreHarmony } from "@/utils/keyFunctions"
 import { sessionStore } from "@/stores/sessionStore"
+import { sortNumWithNull2Deep } from "@/utils/sortFunctions"
+import { TrackPlus, TrackScored } from "@/interfaces/Track"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
 import SuggestionSingle from "@/components/session/SuggestionSingle.vue"
-import { TrackPlus, TrackScored } from "@/interfaces/Track"
-import { adjustKey, scoreHarmony } from "@/utils/keyFunctions"
-import { sortNumWithNull2Deep } from "@/utils/sortFunctions"
 const session = sessionStore()
 const tracks = trackStore()
 const user = userStore()

@@ -1,5 +1,5 @@
-import mongoose from "mongoose"
 import env from "../env.js"
+import mongoose from "mongoose"
 
 const connectDB = async () => {
   try {

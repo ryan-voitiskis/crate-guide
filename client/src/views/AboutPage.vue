@@ -134,6 +134,25 @@
       to be recalculated. A suggestion will only be shown if it is within the
       achievable adjusted BPM range of the current playing tracks BPM.
     </p>
+    <p>
+      Session transition history keeps track of the tracks played during a
+      session. If your display is wide enough, the transition history will
+      appear between the decks, else a button between the decks will open a
+      modal containing the transition history. If you only see the button and
+      would like to see how the app looks on wider displays, try zooming out (<i
+        >Ctrl</i
+      >
+      + <i>minus</i>).
+    </p>
+    <p>
+      Sets can be saved and viewed again later. It may be helpful to rate
+      transitions before saving for future reference. To remove a rating, simply
+      click again on the currenty rating.
+    </p>
+    <p>
+      Your past transition ratings may be used in a future feature to help score
+      the suggestions.
+    </p>
     <hr />
     <h3>License <ScaleIcon /></h3>
     <p>

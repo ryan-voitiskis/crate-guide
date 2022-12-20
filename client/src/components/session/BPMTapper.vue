@@ -19,9 +19,9 @@
 
 <script setup lang="ts">
 import { defineProps, reactive, computed } from "vue"
-import getBPMColour from "@/utils/getBPMColour"
 import { sessionStore } from "@/stores/sessionStore"
 import { userStore } from "@/stores/userStore"
+import getBPMColour from "@/utils/getBPMColour"
 
 const session = sessionStore()
 const user = userStore()

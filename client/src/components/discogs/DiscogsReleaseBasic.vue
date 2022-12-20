@@ -21,8 +21,8 @@
 <script setup lang="ts">
 import { defineProps, reactive } from "vue"
 import { discogsStore } from "@/stores/discogsStore"
-import TrashIcon from "@/components/icons/TrashIcon.vue"
 import PlusCircleIcon from "@/components/icons/PlusCircleIcon.vue"
+import TrashIcon from "@/components/icons/TrashIcon.vue"
 const discogs = discogsStore()
 
 const props = defineProps<{

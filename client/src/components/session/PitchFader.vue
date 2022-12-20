@@ -24,9 +24,9 @@
 
 <script setup lang="ts">
 import { computed, defineProps, watch } from "vue"
+import { adjustKey } from "@/utils/keyFunctions"
 import { sessionStore } from "@/stores/sessionStore"
 import { userStore } from "@/stores/userStore"
-import { adjustKey } from "@/utils/keyFunctions"
 const session = sessionStore()
 const user = userStore()
 

@@ -1,5 +1,5 @@
-import asyncHandler from "express-async-handler"
 import { Set } from "../models/setModel.js"
+import asyncHandler from "express-async-handler"
 
 // @desc    get sets
 // @route   GET /api/sets

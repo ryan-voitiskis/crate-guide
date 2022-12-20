@@ -1,6 +1,6 @@
-import UnsavedRecord from "@/interfaces/UnsavedRecord"
-import Record from "@/interfaces/Record"
 import globals from "@/globals"
+import Record from "@/interfaces/Record"
+import UnsavedRecord from "@/interfaces/UnsavedRecord"
 
 // get user records
 async function getRecords(token: string) {
