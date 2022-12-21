@@ -3,6 +3,9 @@ import asyncHandler from "express-async-handler"
 import bcrypt from "bcryptjs"
 import env from "../env.js"
 import jwt from "jsonwebtoken"
+import { v4 } from "uuid"
+
+const elasticmail_send_endpoint = "https://api.elasticemail.com/v2/email/send"
 
 // generate JWT
 const generateToken = (id: string) => {
@@ -146,4 +149,69 @@ const updateUser = asyncHandler(async (req, res) => {
   res.status(200).json()
 })
 
-export { addUser, loginUser, getUser, updateUser }
+// todo: move this later
+interface ElastimailSendResponse {
+  success: boolean
+}
+
+// @desc    send user a reset password link
+// @route   POST /api/users/forgot-password
+// @access  public
+const sendResetPassword = asyncHandler(async (req, res) => {
+  const user = await User.findOne({
+    email: req.body.email,
+  })
+
+  if (!user) {
+    res.status(404)
+    throw new Error("No user with that email.")
+  }
+
+  const resetToken = v4()
+  const resetUrl = `${env.SITE_URL}/reset-password/${resetToken}`
+
+  // todo: move this later, possibly fn with name and resetURL params
+  const bodyHtml = `<p>Hi ${user.name},</p>
+  <p>Click the link below to reset your password.</p>
+  <a href="${resetUrl}">Reset password</a>
+  <p>If you didn't request a password reset, please ignore this email.</p>
+  <p>Please note that this link will expire in 1 hour.</p>
+  <p>Don't reply to this email. It's not monitored.</p>`
+
+  const URLParams = new URLSearchParams()
+  URLParams.append("apikey", env.ELASTICMAIL_KEY)
+  URLParams.append("subject", "Reset password for Crate Guide")
+  URLParams.append("from", "admin@crate.guide")
+  URLParams.append("to", user.email)
+  URLParams.append("bodyHtml", bodyHtml)
+  URLParams.append("isTransactional", "true")
+
+  const options = {
+    method: "POST",
+  }
+
+  const response = await fetch(
+    elasticmail_send_endpoint + "?" + URLParams,
+    options
+  )
+
+  if (response.status === 200) {
+    const responseJSON = (await response.json()) as ElastimailSendResponse
+    console.log(responseJSON)
+    if (responseJSON.success) {
+      await User.findByIdAndUpdate(user._id, {
+        $set: {
+          passwordResetToken: resetToken,
+          passwordResetTokenCreatedAt: Date.now(),
+        },
+      })
+      res.status(200).json()
+    }
+  }
+  res.status(404)
+  throw new Error(
+    "Recovery email couldn't be sent. Please email ryanvoitiskis@pm.me"
+  )
+})
+
+export { addUser, loginUser, getUser, updateUser, sendResetPassword }

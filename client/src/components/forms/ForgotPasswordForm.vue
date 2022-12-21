@@ -5,7 +5,7 @@
       <XIcon />
     </button>
   </div>
-  <form @submit.prevent="submitRecovery">
+  <form @submit.prevent="user.forgotPasword(form.email)">
     <div class="modal-body block-labels">
       <p>Enter your email for reset instructions.</p>
       <BasicInput
@@ -15,25 +15,31 @@
         type="email"
         placeholder="name@example.com"
       />
+      <ErrorFeedback :show="user.errorMsg !== ''" :msg="user.errorMsg" />
       <button class="primary" type="submit">Send recovery email</button>
     </div>
   </form>
 </template>
 
 <script setup lang="ts">
-import { reactive } from "vue"
+import { reactive, onUnmounted } from "vue"
 import { userStore } from "@/stores/userStore"
 import BasicInput from "@/components/inputs/BasicInput.vue"
 import XIcon from "@/components/icons/XIcon.vue"
+import ErrorFeedback from "../feedbacks/ErrorFeedback.vue"
 const user = userStore()
 
 const form = reactive({
   email: "",
 })
 
-function submitRecovery() {
-  console.log("password recovery form submitted")
-}
+onUnmounted(() => {
+  user.errorMsg = ""
+})
 </script>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+.primary {
+  margin-top: 20px;
+}
+</style>

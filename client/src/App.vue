@@ -77,7 +77,7 @@
     @close="user.recoveryModal = false"
     width="360px"
   >
-    <RecoveryForm />
+    <ForgotPasswordForm />
   </ModalBox>
 
   <ModalBox
@@ -172,7 +172,7 @@ import ConfirmRevokeSpotify from "./components/spotify/ConfirmRevokeSpotify.vue"
 import DiscogsImportProgress from "@/components/discogs/DiscogsImportProgress.vue"
 import LoginForm from "@/components/forms/LoginForm.vue"
 import ModalBox from "@/components/utility/ModalBox.vue"
-import RecoveryForm from "@/components/forms/RecoveryForm.vue"
+import ForgotPasswordForm from "@/components/forms/ForgotPasswordForm.vue"
 import SelectDiscogsFolder from "@/components/discogs/SelectDiscogsFolderForm.vue"
 import SettingsForm from "@/components/forms/SettingsForm.vue"
 import SignUpForm from "@/components/forms/SignUpForm.vue"

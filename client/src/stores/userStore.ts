@@ -150,6 +150,27 @@ export const userStore = defineStore("user", {
       }
     },
 
+    async forgotPasword(email: string): Promise<number | null> {
+      this.success = false
+      this.loading = true
+      this.errorMsg = ""
+      try {
+        const response = await userService.forgotPassword(email)
+        if (response.status === 200) {
+          this.success = true
+        } else {
+          const error = await response.json()
+          this.errorMsg = error.message ? error.message : "Unexpected error"
+        }
+        this.loading = false
+        return response.status
+      } catch (error) {
+        this.errorMsg = "Unexpected error. Probably network error."
+        this.loading = false
+        return null
+      }
+    },
+
     setUserTheme(theme: string) {
       const root = document.querySelector(":root")
       switch (theme) {

@@ -19,6 +19,8 @@ interface IUser {
   spotifyNonce: string
   spotifyTokenTimestamp: number
   spotifyTokenExpiresIn: number
+  passwordResetToken: string
+  passwordResetTokenCreatedAt: string
   settings: {
     theme: string
     turntableTheme: string
