@@ -28,6 +28,7 @@ defineProps<{
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   color: var(--error);
   svg {
     height: 24px;

@@ -73,11 +73,19 @@
   </ModalBox>
 
   <ModalBox
-    v-if="user.recoveryModal"
-    @close="user.recoveryModal = false"
+    v-if="user.forgotPasswordModal"
+    @close="user.forgotPasswordModal = false"
     width="360px"
   >
     <ForgotPasswordForm />
+  </ModalBox>
+
+  <ModalBox
+    v-if="user.resetPasswordModal"
+    @close="user.resetPasswordModal = false"
+    width="360px"
+  >
+    <ResetPasswordForm />
   </ModalBox>
 
   <ModalBox
@@ -178,6 +186,7 @@ import SettingsForm from "@/components/forms/SettingsForm.vue"
 import SignUpForm from "@/components/forms/SignUpForm.vue"
 import StageDiscogsImport from "@/components/discogs/StageDiscogsImport.vue"
 import UpdateFeedback from "@/components/feedbacks/UpdateFeedback.vue"
+import ResetPasswordForm from "./components/forms/ResetPasswordForm.vue"
 const discogs = discogsStore()
 const route = useRoute()
 const session = sessionStore()
@@ -194,6 +203,16 @@ watch(
   () => route.query.msg,
   () => {
     state.queryMsg = route.query.msg?.toString() || ""
+  }
+)
+
+watch(
+  () => route.query.reset_token,
+  () => {
+    if (route.query.reset_token) {
+      user.resetPasswordModal = true
+      user.resetToken = route.query.reset_token.toString()
+    }
   }
 )
 </script>

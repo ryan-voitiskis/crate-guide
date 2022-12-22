@@ -60,6 +60,7 @@ const user = userStore()
 .fade-enter-active {
   animation: fade-in 0.6s linear;
 }
+
 .fade-leave-active {
   animation: fade-out 0.6s linear;
 }

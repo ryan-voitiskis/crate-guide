@@ -67,25 +67,8 @@ const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body
   const user = await User.findOne({ email })
   if (user && (await bcrypt.compare(password, user.password))) {
-    res.json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      settings: {
-        theme: user.settings.theme,
-        turntableTheme: user.settings.turntableTheme,
-        turntablePitchRange: user.settings.turntablePitchRange,
-        selectedCrate: user.settings.selectedCrate,
-        keyFormat: user.settings.keyFormat,
-        listLayout: 0, // always record view on load. avoids frequent updateSettings API calls
-      },
-      token: generateToken(user.id),
-      discogsUsername: user.discogsUsername,
-      isDiscogsOAuthd:
-        user.discogsToken && user.discogsTokenSecret ? true : false,
-      justCompleteDiscogsOAuth: user.justCompleteDiscogsOAuth, // user shouldn't have to login after OAuth flow, but just incase
-      isSpotifyOAuthd: user.spotifyToken ? true : false,
-    })
+    res.status(200).json(generateAuthenticatedUserJson(user))
+
     // set justCompleteDiscogsOAuth flag to false if true
     if (user.justCompleteDiscogsOAuth)
       await User.findByIdAndUpdate(user._id, {
@@ -120,6 +103,7 @@ const getUser = asyncHandler(async (req, res) => {
     justCompleteDiscogsOAuth: req.user!.justCompleteDiscogsOAuth,
     isSpotifyOAuthd: req.user!.spotifyToken ? true : false,
   })
+
   // set justCompleteDiscogsOAuth flag to false if true
   if (req.user!.justCompleteDiscogsOAuth)
     await User.findByIdAndUpdate(req.user!._id, {
@@ -157,18 +141,18 @@ interface ElastimailSendResponse {
 // @desc    send user a reset password link
 // @route   POST /api/users/forgot-password
 // @access  public
-const sendResetPassword = asyncHandler(async (req, res) => {
+const sendResetPasswordEmail = asyncHandler(async (req, res) => {
   const user = await User.findOne({
     email: req.body.email,
   })
 
   if (!user) {
-    res.status(404)
-    throw new Error("No user with that email.")
+    res.status(200).json() // same response if no email found is intentional
+    return
   }
 
   const resetToken = v4()
-  const resetUrl = `${env.SITE_URL}/reset-password/${resetToken}`
+  const resetUrl = `${env.SITE_URL}?reset_token=${resetToken}`
 
   // todo: move this later, possibly fn with name and resetURL params
   const bodyHtml = `<p>Hi ${user.name},</p>
@@ -197,7 +181,6 @@ const sendResetPassword = asyncHandler(async (req, res) => {
 
   if (response.status === 200) {
     const responseJSON = (await response.json()) as ElastimailSendResponse
-    console.log(responseJSON)
     if (responseJSON.success) {
       await User.findByIdAndUpdate(user._id, {
         $set: {
@@ -206,6 +189,7 @@ const sendResetPassword = asyncHandler(async (req, res) => {
         },
       })
       res.status(200).json()
+      return
     }
   }
   res.status(404)
@@ -214,4 +198,66 @@ const sendResetPassword = asyncHandler(async (req, res) => {
   )
 })
 
-export { addUser, loginUser, getUser, updateUser, sendResetPassword }
+// @desc    reset user password
+// @route   POST /api/users/reset-password/:token
+// @access  public
+const resetPassword = asyncHandler(async (req, res) => {
+  if (!req.body.token) {
+    res.status(404)
+    throw new Error("Invalid or expired token.")
+  }
+
+  const user = await User.findOne({
+    passwordResetToken: req.body.token,
+    passwordResetTokenCreatedAt: {
+      $gt: Date.now() - 3600000,
+    },
+  })
+
+  if (!user) {
+    res.status(404)
+    throw new Error("Invalid or expired token.")
+  }
+
+  const salt = await bcrypt.genSalt(10)
+  const hashedPassword = await bcrypt.hash(req.body.password, salt)
+
+  await User.findByIdAndUpdate(user._id, {
+    $set: {
+      password: hashedPassword,
+      passwordResetToken: null,
+    },
+  })
+  res.status(200).json(generateAuthenticatedUserJson(user))
+})
+
+function generateAuthenticatedUserJson(user: any) {
+  return {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    settings: {
+      theme: user.settings.theme,
+      turntableTheme: user.settings.turntableTheme,
+      turntablePitchRange: user.settings.turntablePitchRange,
+      selectedCrate: user.settings.selectedCrate,
+      keyFormat: user.settings.keyFormat,
+      listLayout: 0, // always record view on load. avoids frequent updateSettings API calls
+    },
+    token: generateToken(user.id),
+    discogsUsername: user.discogsUsername,
+    isDiscogsOAuthd:
+      user.discogsToken && user.discogsTokenSecret ? true : false,
+    justCompleteDiscogsOAuth: user.justCompleteDiscogsOAuth, // user shouldn't have to login after OAuth flow, but just incase
+    isSpotifyOAuthd: user.spotifyToken ? true : false,
+  }
+}
+
+export {
+  addUser,
+  loginUser,
+  getUser,
+  updateUser,
+  sendResetPasswordEmail,
+  resetPassword,
+}

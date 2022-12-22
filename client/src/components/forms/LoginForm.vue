@@ -27,7 +27,7 @@
         required
       >
         <span
-          @click=";(user.loginModal = false), (user.recoveryModal = true)"
+          @click=";(user.loginModal = false), (user.forgotPasswordModal = true)"
           class="forgot-password"
         >
           Forgot password?

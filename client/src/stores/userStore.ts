@@ -31,8 +31,10 @@ export const userStore = defineStore("user", {
     success: false,
     loginModal: false, // displays LoginForm.vue
     signUpModal: false, // displays SignUpForm.vue
-    recoveryModal: false, // displays RecoveryForm.vue
+    forgotPasswordModal: false, // displays RecoveryForm.vue
     settingsModal: false, // displays SettingsForm.vue
+    resetPasswordModal: false, // displays ResetPasswordForm.vue
+    resetToken: "", // used to verify password reset token
   }),
   actions: {
     async login(email: string, password: string): Promise<number | null> {
@@ -42,15 +44,7 @@ export const userStore = defineStore("user", {
       try {
         const response = await userService.login(email, password)
         if (response.status === 200) {
-          const data = await response.json()
-          Object.assign(this.authd, data)
-          document.cookie = `crate_guide_jwt=${this.authd.token}; SameSite=Strict; Secure;`
-          crateStore().fetchCrates()
-          recordStore().fetchRecords()
-          this.setUserTheme(this.authd.settings.theme)
-          this.loginModal = false
-          crateStore().fetchCrates()
-          recordStore().fetchRecords()
+          this.setUserAndFetchData(await response.json())
         } else if (response.status === 401) {
           this.invalidCreds = true
           this.errorMsg = "Invalid credentials"
@@ -171,6 +165,31 @@ export const userStore = defineStore("user", {
       }
     },
 
+    async resetPassword(password: string): Promise<number | null> {
+      this.success = false
+      this.loading = true
+      this.errorMsg = ""
+      try {
+        const response = await userService.resetPassword(
+          password,
+          this.resetToken
+        )
+        if (response.status === 200) {
+          this.success = true
+          this.setUserAndFetchData(await response.json())
+        } else {
+          const error = await response.json()
+          this.errorMsg = error.message ? error.message : "Unexpected error"
+        }
+        this.loading = false
+        return response.status
+      } catch (error) {
+        this.errorMsg = "Unexpected error. Probably network error."
+        this.loading = false
+        return null
+      }
+    },
+
     setUserTheme(theme: string) {
       const root = document.querySelector(":root")
       switch (theme) {
@@ -190,6 +209,17 @@ export const userStore = defineStore("user", {
           root!.classList.add("contrast")
           break
       }
+    },
+
+    setUserAndFetchData(user: User) {
+      Object.assign(this.authd, user)
+      document.cookie = `crate_guide_jwt=${this.authd.token}; SameSite=Strict; Secure;`
+      crateStore().fetchCrates()
+      recordStore().fetchRecords()
+      this.setUserTheme(this.authd.settings.theme)
+      this.loginModal = false
+      crateStore().fetchCrates()
+      recordStore().fetchRecords()
     },
 
     logout() {

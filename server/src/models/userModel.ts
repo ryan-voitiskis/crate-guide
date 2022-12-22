@@ -88,6 +88,14 @@ const userSchema = new mongoose.Schema<IUser>(
     spotifyTokenExpiresIn: {
       type: Number,
     },
+    // token used to reset password
+    passwordResetToken: {
+      type: String,
+    },
+    // time token was created
+    passwordResetTokenCreatedAt: {
+      type: String,
+    },
     settings: {
       theme: {
         type: String,

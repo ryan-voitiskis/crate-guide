@@ -90,11 +90,32 @@ async function forgotPassword(email: string) {
   return response
 }
 
+async function resetPassword(password: string, token: string) {
+  const body = new URLSearchParams()
+  body.append("password", password)
+  body.append("token", token)
+
+  const options = {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: body,
+  }
+  const response = await fetch(
+    globals.API_USERS_URL + "reset-password",
+    options
+  )
+  return response
+}
+
 const userService = {
   login,
   fetchUser,
   addUser,
   updateSettings,
   forgotPassword,
+  resetPassword,
 }
 export default userService
