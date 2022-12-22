@@ -7,6 +7,7 @@ import {
   updateUser,
   sendResetPasswordEmail,
   resetPassword,
+  changePassword,
 } from "../controllers/userController.js"
 
 const router = express.Router()
@@ -17,5 +18,6 @@ router.get("/", protect, getUser)
 router.put("/:id", protect, updateUser)
 router.post("/forgot-password", sendResetPasswordEmail)
 router.post("/reset-password/", resetPassword)
+router.post("/change-password/", protect, changePassword)
 
 export default router

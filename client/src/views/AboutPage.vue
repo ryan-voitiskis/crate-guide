@@ -121,6 +121,11 @@
       sort the suggestions currently.
     </p>
     <p>
+      The accuracy of the harmonic compatibility depends on the accuracy of the
+      provided Keys for each track, whether added manually or imported from
+      Spotify.
+    </p>
+    <p>
       A future update will improve the sorting of suggestions to consider genre
       and the closeness of the pitch adjustment required to 0%.
     </p>

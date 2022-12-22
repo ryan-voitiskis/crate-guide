@@ -68,16 +68,16 @@
         <RadioDeck
           v-model="user.authd.settings.turntableTheme"
           name="turntable_colour"
-          id="silver"
-          label="Silver"
-          :deckBackground="silverDeckBackground"
+          id="black"
+          label="Black"
+          :deckBackground="blackDeckBackground"
         />
         <RadioDeck
           v-model="user.authd.settings.turntableTheme"
           name="turntable_colour"
-          id="black"
-          label="Black"
-          :deckBackground="blackDeckBackground"
+          id="silver"
+          label="Silver"
+          :deckBackground="silverDeckBackground"
         />
       </fieldset>
 
@@ -130,6 +130,18 @@
         </button>
         <button v-else @click="spotify.revokeSpotifyModal = true">
           Revoke Spotify access
+        </button>
+      </fieldset>
+      <p v-else>Login to connect to the Spotify and Discogs APIs.</p>
+
+      <fieldset class="controls" v-if="user.authd._id">
+        <legend>Account management</legend>
+        <button
+          @click="
+            ;(user.changePasswordModal = true), (user.settingsModal = false)
+          "
+        >
+          Change password
         </button>
       </fieldset>
       <p v-else>Login to connect to the Spotify and Discogs APIs.</p>

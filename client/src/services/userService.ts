@@ -110,6 +110,31 @@ async function resetPassword(password: string, token: string) {
   return response
 }
 
+async function changePassword(
+  currentPassword: string,
+  password: string,
+  user: User
+) {
+  const body = new URLSearchParams()
+  body.append("currentPassword", currentPassword)
+  body.append("password", password)
+
+  const options = {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Bearer ${user.token}`,
+    },
+    body: body,
+  }
+  const response = await fetch(
+    globals.API_USERS_URL + "change-password",
+    options
+  )
+  return response
+}
+
 const userService = {
   login,
   fetchUser,
@@ -117,5 +142,6 @@ const userService = {
   updateSettings,
   forgotPassword,
   resetPassword,
+  changePassword,
 }
 export default userService

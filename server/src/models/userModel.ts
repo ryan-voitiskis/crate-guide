@@ -103,7 +103,7 @@ const userSchema = new mongoose.Schema<IUser>(
       },
       turntableTheme: {
         type: String,
-        default: "silver",
+        default: "black",
       },
       turntablePitchRange: {
         type: Number,

@@ -20,34 +20,36 @@ interface Deck {
   faderSliding: boolean
 }
 
+const emptyDecks: Deck[] = [
+  {
+    loadedTrack: null,
+    playing: false,
+    rpm: 33,
+    faderPosition: 0,
+    pitch: 0,
+    tappedBpm: null,
+    adjustedBpm: null,
+    adjustedBpmReadable: null,
+    adjustedKey: null,
+    faderSliding: false,
+  },
+  {
+    loadedTrack: null,
+    playing: false,
+    rpm: 33,
+    faderPosition: 0,
+    pitch: 0,
+    tappedBpm: null,
+    adjustedBpm: null,
+    adjustedBpmReadable: null,
+    adjustedKey: null,
+    faderSliding: false,
+  },
+]
+
 export const sessionStore = defineStore("session", {
   state: () => ({
-    decks: [
-      {
-        loadedTrack: null,
-        playing: false,
-        rpm: 33,
-        faderPosition: 0,
-        pitch: 0,
-        tappedBpm: null,
-        adjustedBpm: null,
-        adjustedBpmReadable: null,
-        adjustedKey: null,
-        faderSliding: false,
-      },
-      {
-        loadedTrack: null,
-        playing: false,
-        rpm: 33,
-        faderPosition: 0,
-        pitch: 0,
-        tappedBpm: null,
-        adjustedBpm: null,
-        adjustedBpmReadable: null,
-        adjustedKey: null,
-        faderSliding: false,
-      },
-    ] as Deck[],
+    decks: emptyDecks as Deck[],
     set: [] as PlayedTrack[],
     savedSets: [] as Set[],
     loadTrackTo: -1, // deck number to load track to
@@ -171,6 +173,24 @@ export const sessionStore = defineStore("session", {
         return null
       }
     },
+
+    clearSession() {
+      // ! this.$reset() doesn't work for some reason
+      // ! neither does this.decks = emptyDecks
+      this.decks.forEach((deck) => {
+        deck.loadedTrack = null
+        deck.playing = false
+        deck.faderPosition = 0
+        deck.pitch = 0
+        deck.tappedBpm = null
+        deck.adjustedBpm = null
+        deck.adjustedBpmReadable = null
+        deck.adjustedKey = null
+        deck.faderSliding = false
+      })
+      this.$reset()
+    },
   },
+
   getters: {},
 })

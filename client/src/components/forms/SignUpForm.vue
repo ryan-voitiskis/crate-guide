@@ -36,6 +36,7 @@
         v-model="form.password"
         label="Password"
         placeholder="Enter a password"
+        minlength="8"
         required
       />
       <ErrorFeedback :show="user.errorMsg !== ''" :msg="user.errorMsg" />

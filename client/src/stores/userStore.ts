@@ -18,7 +18,7 @@ export const userStore = defineStore("user", {
       discogsUsername: "",
       settings: {
         theme: "auto",
-        turntableTheme: "silver",
+        turntableTheme: "black",
         turntablePitchRange: 8,
         selectedCrate: "all",
         keyFormat: "key",
@@ -34,6 +34,7 @@ export const userStore = defineStore("user", {
     forgotPasswordModal: false, // displays RecoveryForm.vue
     settingsModal: false, // displays SettingsForm.vue
     resetPasswordModal: false, // displays ResetPasswordForm.vue
+    changePasswordModal: false, // displays ChangePasswordForm.vue
     resetToken: "", // used to verify password reset token
   }),
   actions: {
@@ -165,6 +166,7 @@ export const userStore = defineStore("user", {
       }
     },
 
+    // password reset from ForgotPasswordForm.vue after clicking link in email
     async resetPassword(password: string): Promise<number | null> {
       this.success = false
       this.loading = true
@@ -177,6 +179,35 @@ export const userStore = defineStore("user", {
         if (response.status === 200) {
           this.success = true
           this.setUserAndFetchData(await response.json())
+        } else {
+          const error = await response.json()
+          this.errorMsg = error.message ? error.message : "Unexpected error"
+        }
+        this.loading = false
+        return response.status
+      } catch (error) {
+        this.errorMsg = "Unexpected error. Probably network error."
+        this.loading = false
+        return null
+      }
+    },
+
+    // password changed from logged in ChangePasswordForm.vue
+    async changePassword(
+      currentPassword: string,
+      password: string
+    ): Promise<number | null> {
+      this.success = false
+      this.loading = true
+      this.errorMsg = ""
+      try {
+        const response = await userService.changePassword(
+          currentPassword,
+          password,
+          this.authd
+        )
+        if (response.status === 200) {
+          this.success = true
         } else {
           const error = await response.json()
           this.errorMsg = error.message ? error.message : "Unexpected error"
@@ -214,6 +245,7 @@ export const userStore = defineStore("user", {
     setUserAndFetchData(user: User) {
       Object.assign(this.authd, user)
       document.cookie = `crate_guide_jwt=${this.authd.token}; SameSite=Strict; Secure;`
+      sessionStore().clearSession()
       crateStore().fetchCrates()
       recordStore().fetchRecords()
       this.setUserTheme(this.authd.settings.theme)
@@ -226,10 +258,10 @@ export const userStore = defineStore("user", {
       this.$reset()
       document.cookie = `crate_guide_jwt=0; SameSite=Strict; Secure;max-age=0`
       this.setUserTheme("light")
+      sessionStore().clearSession()
       crateStore().$reset()
       discogsStore().$reset()
       recordStore().$reset()
-      sessionStore().$reset()
       trackStore().$reset()
     },
   },

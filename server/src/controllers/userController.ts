@@ -231,6 +231,30 @@ const resetPassword = asyncHandler(async (req, res) => {
   res.status(200).json(generateAuthenticatedUserJson(user))
 })
 
+// @desc    change password
+// @route   POST /api/users/change-password
+// @access  private
+const changePassword = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user!._id)
+  const isMatch = await bcrypt.compare(req.body.currentPassword, user!.password)
+
+  if (!isMatch) {
+    res.status(401)
+    throw new Error("Incorrect password.")
+  }
+
+  const salt = await bcrypt.genSalt(10)
+  const hashedPassword = await bcrypt.hash(req.body.password, salt)
+
+  await User.findByIdAndUpdate(user!._id, {
+    $set: {
+      password: hashedPassword,
+    },
+  })
+
+  res.status(200).json()
+})
+
 function generateAuthenticatedUserJson(user: any) {
   return {
     _id: user._id,
@@ -260,4 +284,5 @@ export {
   updateUser,
   sendResetPasswordEmail,
   resetPassword,
+  changePassword,
 }

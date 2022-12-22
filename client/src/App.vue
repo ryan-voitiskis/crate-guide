@@ -89,6 +89,14 @@
   </ModalBox>
 
   <ModalBox
+    v-if="user.changePasswordModal"
+    @close="user.changePasswordModal = false"
+    width="360px"
+  >
+    <ChangePasswordForm />
+  </ModalBox>
+
+  <ModalBox
     v-if="user.settingsModal"
     @close="user.settingsModal = false"
     width="540px"
@@ -187,6 +195,7 @@ import SignUpForm from "@/components/forms/SignUpForm.vue"
 import StageDiscogsImport from "@/components/discogs/StageDiscogsImport.vue"
 import UpdateFeedback from "@/components/feedbacks/UpdateFeedback.vue"
 import ResetPasswordForm from "./components/forms/ResetPasswordForm.vue"
+import ChangePasswordForm from "./components/forms/ChangePasswordForm.vue"
 const discogs = discogsStore()
 const route = useRoute()
 const session = sessionStore()

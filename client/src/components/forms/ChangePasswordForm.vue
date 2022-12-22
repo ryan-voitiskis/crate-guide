@@ -1,17 +1,26 @@
 <template>
   <div class="modal-header">
-    <h2>{{ user.success ? "Password changed" : "Reset password" }}</h2>
+    <h2>{{ user.success ? "Password changed" : "Change password" }}</h2>
     <button
       class="close"
       type="button"
-      @click="user.resetPasswordModal = false"
+      @click="user.changePasswordModal = false"
     >
       <XIcon />
     </button>
   </div>
-  <form @submit.prevent="submit" v-if="!user.success">
+  <form @submit.prevent="submit" v-if="!user.success" class="change=password">
     <div class="modal-body block-labels">
       <p>Enter a new password.</p>
+      <BasicInput
+        id="current_password"
+        v-model="form.currentPassword"
+        label="Current password"
+        :type="passwordType"
+        :focused="true"
+        autocomplete="off"
+        required
+      />
       <BasicInput
         id="new_password"
         v-model="form.password"
@@ -32,10 +41,14 @@
       <label class="show-password checkbox">
         <input type="checkbox" v-model="showPassword" /> Show password
       </label>
+      <ErrorFeedback
+        :show="state.oldIsNew"
+        msg="New password must be different from old password"
+      />
       <ErrorFeedback :show="state.mismatch" msg="Passwords don't match" />
       <ErrorFeedback :show="user.errorMsg !== ''" :msg="user.errorMsg" />
       <button class="primary" type="submit" v-if="!user.success">
-        {{ user.loading ? null : "Reset password" }}
+        {{ user.loading ? null : "Change password" }}
         <LoaderIcon v-show="user.loading" />
       </button>
     </div>
@@ -61,17 +74,23 @@ const user = userStore()
 const showPassword = ref(false)
 
 const form = reactive({
+  currentPassword: "",
   password: "",
   passwordConfirm: "",
 })
 
 const state = reactive({
+  oldIsNew: false, // only true after a submit attempt
   mismatch: false, // only true after a submit attempt
 })
 
 function submit() {
+  if (form.currentPassword === form.password) {
+    state.oldIsNew = true
+    return
+  }
   if (form.password !== form.passwordConfirm) state.mismatch = true
-  else user.resetPassword(form.password)
+  else user.changePassword(form.currentPassword, form.password)
 }
 
 const passwordType = computed(() => (showPassword.value ? "text" : "password"))
@@ -81,12 +100,14 @@ onUnmounted(() => {
   user.success = false
 })
 
-// when input text matches crate name, remove mismatch message
 watch(
-  () => ({ ...form }),
-  () => {
-    if (form.password === form.passwordConfirm) state.mismatch = false
-  }
+  () => form.passwordConfirm !== form.password,
+  () => (state.mismatch = false)
+)
+
+watch(
+  () => form.currentPassword !== form.password,
+  () => (state.oldIsNew = false)
 )
 </script>
 
@@ -111,5 +132,13 @@ watch(
 
 .fade-enter-active {
   animation: fade-in 0.6s linear;
+}
+</style>
+
+<style lang="scss">
+#new_password,
+#current_password,
+#confirm_password {
+  border: 1px solid var(--input-border);
 }
 </style>
