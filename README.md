@@ -10,6 +10,7 @@ can then be imported from Spotify.
 ### Features implemented:
 
 - Create account and login
+- Recover account and change password
 - Create, edit and delete Records, Tracks and Crates
 - Connect to Discogs API using OAuth 1.0
 - Select from folders in Discogs collection and import records
@@ -28,7 +29,6 @@ can then be imported from Spotify.
 
 ### Features to be implemented:
 
-- Recover account and reset password
 - Suggestions sorted by a final score which is generated as a combination of harmonic compatibility and tempo closeness.
 - 33 / 45 RPM button is adjusted automatically when a track is loaded. Requires accurate RPM data imported.
 - RecordIcon on the deck component to be of higher quality and reflect the design of a real turntable.
