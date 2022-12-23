@@ -111,7 +111,7 @@ select.invalid {
 }
 
 input:-webkit-autofill {
-  -webkit-box-shadow: 0 0 0 1000px white inset !important; //removes autofill yellow background
+  -webkit-box-shadow: 0 0 0 1000px var(--input-bg) inset !important; //removes autofill yellow background
 }
 
 // non-default styling, background url is svg images/cheveron-down-lighter.svg

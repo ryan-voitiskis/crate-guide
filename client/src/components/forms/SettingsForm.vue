@@ -144,7 +144,6 @@
           Change password
         </button>
       </fieldset>
-      <p v-else>Login to connect to the Spotify and Discogs APIs.</p>
 
       <SubmitlessFeedback />
     </div>
