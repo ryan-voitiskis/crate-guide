@@ -310,4 +310,22 @@ const sortedTracks = computed((): TrackPlus[] => {
     margin-bottom: 360px;
   }
 }
+
+@media screen and (max-width: 1400px) {
+  .track-option-header {
+    grid-template-columns: 40px 26px 22px 32px 44px 44px 44px 40px 60px 2fr 1fr 1fr 0 1fr 38px 40px;
+    .label {
+      display: none;
+    }
+  }
+}
+
+@media screen and (max-width: 1200px) {
+  .track-option-header {
+    grid-template-columns: 40px 26px 22px 32px 44px 44px 44px 40px 60px 2fr 1fr 0 0 1fr 38px 40px;
+    .genre {
+      display: none;
+    }
+  }
+}
 </style>

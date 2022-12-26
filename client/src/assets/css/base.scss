@@ -154,18 +154,6 @@ input[type="button"]::-moz-focus-inner {
   outline: none;
 }
 
-/* Hiding class, making content visible only to screen readers but not visually
-from: https://css-tricks.com/video-screencasts/142-hiding-things-with-css/ */
-.screen-reader-only:not(:focus):not(:active) {
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  height: 1px;
-  overflow: hidden;
-  position: absolute;
-  white-space: nowrap;
-  width: 1px;
-}
-
 a,
 .link-text {
   color: var(--link-text);

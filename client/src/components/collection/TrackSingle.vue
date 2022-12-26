@@ -214,4 +214,26 @@ const positionColour = computed(() =>
     background-color: var(--even-row-bg);
   }
 }
+
+@media screen and (max-width: 1400px) {
+  .track {
+    grid-template-columns: 40px 26px 22px 32px 44px 44px 44px 40px 60px 2fr 1fr 1fr 0 1fr 38px 40px;
+    column-gap: 8px;
+    .audio-feature {
+      width: 52px;
+      margin: 0 -4px;
+    }
+  }
+}
+
+@media screen and (max-width: 1200px) {
+  .track {
+    grid-template-columns: 40px 26px 22px 32px 44px 44px 44px 40px 60px 2fr 1fr 0 0 1fr 38px 40px;
+    column-gap: 2px;
+    .audio-feature {
+      width: 46px;
+      margin: 0 -1px;
+    }
+  }
+}
 </style>

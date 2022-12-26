@@ -4,6 +4,7 @@
     :class="{
       full: $router.currentRoute.value.name === 'session',
       collapsed: session.collapseHeader,
+      hidden: state.smallScreen,
     }"
   >
     <transition name="drop">
@@ -169,6 +170,11 @@
   >
     <AudioFeatures />
   </ModalBox>
+
+  <SmallScreenWarning
+    v-if="state.smallScreen"
+    @close="state.smallScreen = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -196,6 +202,7 @@ import StageDiscogsImport from "@/components/discogs/StageDiscogsImport.vue"
 import UpdateFeedback from "@/components/feedbacks/UpdateFeedback.vue"
 import ResetPasswordForm from "./components/forms/ResetPasswordForm.vue"
 import ChangePasswordForm from "./components/forms/ChangePasswordForm.vue"
+import SmallScreenWarning from "./components/utility/SmallScreenWarning.vue"
 const discogs = discogsStore()
 const route = useRoute()
 const session = sessionStore()
@@ -205,7 +212,10 @@ const user = userStore()
 
 const state = reactive({
   queryMsg: route.query.msg?.toString() || "",
+  smallScreen: false,
 })
+
+if (window.innerWidth < 920) state.smallScreen = true
 
 // get msg from query string, doesn't work with lifecycle hooks :/
 watch(
@@ -244,6 +254,9 @@ header {
   }
   &.collapsed {
     height: calc(100% - 12px);
+  }
+  &.hidden {
+    display: none;
   }
 }
 

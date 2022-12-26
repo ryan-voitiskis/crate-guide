@@ -69,7 +69,7 @@ const authorisationCallback = asyncHandler(async (req, res) => {
             spotifyTokenTimestamp: Date.now(),
             spotifyTokenExpiresIn: accessTokenResponse.expires_in,
           })
-          res.redirect(`${env.SITE_URL}?msg=Spotify success.`)
+          res.redirect(`${env.SITE_URL}?msg=Spotify authorisation success.`)
         } else res.redirect(`${env.SITE_URL}?msg=Response wasn't AccessToken.`)
       }
     } else res.redirect(`${env.SITE_URL}?msg=User not found from state(nonce).`)
