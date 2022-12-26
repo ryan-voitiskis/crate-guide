@@ -1,3 +1,13 @@
-<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M8.00251 14.9297L0 1.07422H6.14651L8.00251 4.27503L9.84583 1.07422H16L8.00251 14.9297Z" fill="black"/>
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="64" cy="64" r="60" fill="#000"/>
+  <circle cx="64" cy="64" r="59" fill="#181818"/>
+  <circle cx="64" cy="64" r="51" fill="#000"/>
+  <circle cx="64" cy="64" r="50" fill="#181818"/>
+  <circle cx="64" cy="64" r="41" fill="#000"/>
+  <circle cx="64" cy="64" r="40" fill="#181818"/>
+  <circle cx="64" cy="64" r="31" fill="#000"/>
+  <circle cx="64" cy="64" r="30" fill="#181818"/>
+  <circle cx="64" cy="64" r="22" fill="#000"/>
+  <circle cx="64" cy="64" r="20" fill="#f9f2de"/>
+  <circle cx="64" cy="64" r="1" fill="#000"/>
 </svg>
