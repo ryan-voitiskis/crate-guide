@@ -1,46 +1,91 @@
 <template>
   <div class="record-icon-wrapper">
     <svg
-      version="1.1"
+      width="366"
+      height="366"
+      viewBox="0 0 366 366"
+      fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      x="0px"
-      y="0px"
-      width="366.047px"
-      height="366.046px"
-      fill="#161616"
-      viewBox="0 0 366.047 366.046"
-      xml:space="preserve"
       class="record-icon"
     >
-      <g>
-        <g>
-          <g>
-            <path
-              d="M183.035,0.006C82.101,0.006,0,82.088,0,182.994c0,100.932,82.101,183.047,183.035,183.047
-				c100.92,0,183.012-82.115,183.012-183.047C366.053,82.088,283.955,0.006,183.035,0.006z M159.295,25.452
-				c1.144-0.505,11.646-4.906,29.613-4.906c15.903,0,32.524,3.441,49.41,10.238l2.57,1.027l-0.318,0.669l-41.139,83.95l-2.186-0.853
-				c-2.757-1.06-5.939-1.619-9.212-1.619c-2.51,0-4.278,0.318-4.471,0.37l-2.377,0.486l-0.168-0.628L157.29,26.343L159.295,25.452z
-				 M183.035,244.773c-34.059,0-61.753-27.693-61.753-61.75c0-34.077,27.694-61.783,61.753-61.783
-				c34.062,0,61.757,27.712,61.757,61.783C244.804,217.08,217.098,244.773,183.035,244.773z"
-            />
-          </g>
-        </g>
-      </g>
-      <g></g>
-      <g></g>
-      <g></g>
-      <g></g>
-      <g></g>
-      <g></g>
-      <g></g>
-      <g></g>
-      <g></g>
-      <g></g>
-      <g></g>
-      <g></g>
-      <g></g>
-      <g></g>
-      <g></g>
+      <circle cx="183" cy="183" r="183" fill="#000" />
+      <circle cx="183" cy="183" r="181" fill="url(#gradient_silver)" />
+      <circle cx="183" cy="183" r="180" fill="url(#gradient)" />
+      <circle
+        cx="183"
+        cy="183"
+        r="177.7"
+        stroke="url(#gradient_silver)"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-dasharray="0,3.333333"
+      />
+      <circle
+        cx="183"
+        cy="183"
+        r="174"
+        stroke="url(#gradient_silver)"
+        stroke-width="2.2"
+        stroke-linecap="round"
+        stroke-dasharray="0,3.333333"
+      />
+      <circle
+        cx="183"
+        cy="183"
+        r="170"
+        stroke="url(#gradient_silver)"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-dasharray="0,3.338"
+      />
+      <circle
+        cx="183"
+        cy="183"
+        r="167"
+        stroke="url(#gradient_silver)"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-dasharray="0,3.418"
+      />
+      <circle cx="183" cy="183" r="165" fill="url(#gradient_silver)" />
+      <circle cx="183" cy="183" r="164" fill="#000" />
+      <circle cx="183" cy="183" r="163" fill="#181818" />
+      <circle cx="183" cy="183" r="139" fill="#000" />
+      <circle cx="183" cy="183" r="138" fill="#181818" />
+      <circle cx="183" cy="183" r="109" fill="#000" />
+      <circle cx="183" cy="183" r="108" fill="#181818" />
+      <circle cx="183" cy="183" r="79" fill="#000" />
+      <circle cx="183" cy="183" r="78" fill="#181818" />
+      <circle cx="183" cy="183" r="52" fill="#000" />
+      <circle cx="183" cy="183" r="51" fill="#f9f2de" />
+      <circle cx="183" cy="183" r="2" fill="#000" />
+
+      <defs>
+        <linearGradient
+          id="gradient_silver"
+          gradientUnits="userSpaceOnUse"
+          x1="183"
+          y1="0"
+          x2="183"
+          y2="366"
+          gradientTransform="rotate(-30)"
+        >
+          <stop offset="0" stop-color="#8f8d97" />
+          <stop offset="1" stop-color="#d7d8dd" />
+        </linearGradient>
+        <linearGradient
+          id="gradient"
+          gradientUnits="userSpaceOnUse"
+          x1="183"
+          y1="0"
+          x2="183"
+          y2="366"
+          gradientTransform="rotate(-30)"
+        >
+          <stop offset="0" stop-color="#111" />
+          <stop offset="1" stop-color="#333" />
+        </linearGradient>
+      </defs>
     </svg>
     <div class="record-label"></div>
   </div>
@@ -87,10 +132,10 @@ const coverImg = computed(() =>
 .record-icon-wrapper {
   animation: spin v-bind(spinRate) infinite linear;
   animation-play-state: v-bind(spinState);
-  width: 610px;
+  width: 660px;
   height: 100%;
   position: absolute;
-  left: 6%;
+  left: 2%;
   z-index: 1;
 }
 .record-icon {
