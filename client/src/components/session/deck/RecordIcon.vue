@@ -18,7 +18,7 @@
         stroke="url(#gradient_silver)"
         stroke-width="1.6"
         stroke-linecap="round"
-        stroke-dasharray="0,3.333333"
+        stroke-dasharray="0,3.303"
       />
       <circle
         cx="183"
@@ -36,7 +36,7 @@
         stroke="url(#gradient_silver)"
         stroke-width="1.6"
         stroke-linecap="round"
-        stroke-dasharray="0,3.338"
+        stroke-dasharray="0,3.3702"
       />
       <circle
         cx="183"

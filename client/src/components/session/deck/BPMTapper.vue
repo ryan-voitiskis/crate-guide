@@ -67,12 +67,20 @@ function tap() {
 }
 
 const bpmColour = computed(() =>
-  state.bpm ? getBPMColour(state.bpm, user.authd.settings.theme) : "white"
+  state.bpm
+    ? getBPMColour(
+        state.bpm,
+        user.authd.settings.turntableTheme === "black" ? "dark" : "light"
+      )
+    : "white"
 )
 
 const savedBpmColour = computed(() =>
   savedTrackBpm.value
-    ? getBPMColour(savedTrackBpm.value, user.authd.settings.theme)
+    ? getBPMColour(
+        savedTrackBpm.value,
+        user.authd.settings.turntableTheme === "black" ? "dark" : "light"
+      )
     : null
 )
 
@@ -89,7 +97,7 @@ const lastBpmColour = computed(() =>
   position: absolute;
   height: 5%;
   width: 10%;
-  right: 14.6%;
+  right: 14%;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -97,7 +105,7 @@ const lastBpmColour = computed(() =>
 }
 
 .saved {
-  bottom: 36%;
+  bottom: 37%;
   .saved-bpm {
     font-weight: 600;
     color: v-bind(savedBpmColour);
@@ -105,7 +113,7 @@ const lastBpmColour = computed(() =>
 }
 
 .last {
-  bottom: 33%;
+  bottom: 34%;
   .last-bpm {
     font-weight: 600;
     color: v-bind(lastBpmColour);
@@ -120,8 +128,8 @@ const lastBpmColour = computed(() =>
   position: absolute;
   width: 10%;
   height: 90px;
-  bottom: 20%;
-  right: 14.6%;
+  bottom: 21%;
+  right: 14%;
   display: flex;
   background: var(--deck-button);
   border: 3px solid var(--deck-button-border);

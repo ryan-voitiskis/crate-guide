@@ -1,11 +1,11 @@
 # Crate Guide
 
-demo: [https://crate.guide](https://crate.guide)
+Live site: [https://crate.guide](https://crate.guide)
 
 Crate Guide is a DJ app designed to assist in finding compatible tracks
-within a users physical record collection. Records can be added manually
+within a users vinyl record collection. Records can be added manually
 or imported from your Discogs collection. Audio features from your tracks
-can then be imported from Spotify.
+can then be imported from Spotify through a mostly automated process.
 
 ### Features implemented:
 

@@ -10,12 +10,11 @@
       v-model="session.decks[deckID].faderPosition"
       @mouseup="changePitch"
     />
-
+    <PitchFaderLegend />
     <div class="reset-fader" @click="resetPitch()"></div>
     <label class="reset-fader-label" @click="resetPitch()">reset</label>
-    <span class="bpm-readable">
-      {{ bpmReadable }}
-    </span>
+    <span class="bpm-readable-label" v-if="bpmReadable">BPM</span>
+    <span class="bpm-readable" v-if="bpmReadable">{{ bpmReadable }}</span>
     <span class="pitch-readable">
       {{ pitchReadable }}<span class="pitch-readable-percent">%</span>
     </span>
@@ -27,6 +26,7 @@ import { computed, defineProps, watch } from "vue"
 import { adjustKey } from "@/utils/keyFunctions"
 import { sessionStore } from "@/stores/sessionStore"
 import { userStore } from "@/stores/userStore"
+import PitchFaderLegend from "./PitchFaderLegend.vue"
 const session = sessionStore()
 const user = userStore()
 
@@ -108,8 +108,8 @@ watch(
   position: absolute;
   width: 28px;
   height: 28px;
-  bottom: 11%;
-  right: 18%;
+  bottom: 94px;
+  right: 120px;
   background: var(--deck-button);
   border: 3px solid var(--deck-button-border);
   border-radius: 50%;
@@ -118,37 +118,39 @@ watch(
 }
 
 .reset-fader-label {
-  font-size: 12px;
+  font-size: 11px;
   user-select: none;
   position: absolute;
   color: var(--reset-text);
-  width: 28px;
   height: 28px;
-  bottom: 6.2%;
-  right: 18%;
+  bottom: 58px;
+  right: 121px;
   z-index: 3;
 }
 
 .pitch-readable,
-.bpm-readable {
+.bpm-readable,
+.bpm-readable-label {
   user-select: none;
   position: absolute;
-  width: 3%;
-  bottom: 11%;
-  right: 13%;
+  bottom: 20px;
   color: var(--pitch-readable);
   font: 600 18px/1.6 Digital7, sans-serif;
-}
-
-.pitch-readable {
-  bottom: 11%;
   .pitch-readable-percent {
     margin-left: 3px;
   }
 }
 
+.pitch-readable {
+  right: 40px;
+}
+
+.bpm-readable-label {
+  right: 184px;
+}
+
 .bpm-readable {
-  bottom: 14%;
+  right: 136px;
 }
 
 @mixin track() {
@@ -191,12 +193,12 @@ input[type="range"] {
     -webkit-appearance: none;
   }
   overflow: hidden;
-  height: 6%;
-  width: 28%;
+  height: 42px;
+  width: 250px;
   border-radius: 0;
   position: absolute;
-  bottom: 21%;
-  right: -21.2%;
+  bottom: 146px;
+  right: -189px;
   padding: 0;
   margin: 0;
   transform: translate(-50%, -50%) rotate(90deg) scaleY(-1);
