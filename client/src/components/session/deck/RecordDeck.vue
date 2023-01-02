@@ -62,6 +62,7 @@
           <sup>{{ timeSignature[0] }}</sup>
           <sub>{{ timeSignature[1] }}</sub>
         </div>
+        <StroboscopicLegend />
         <StartStopButton :deckID="deckID" />
         <RpmSwitch :deckID="deckID" :speed="33" />
         <RpmSwitch :deckID="deckID" :speed="45" />
@@ -80,22 +81,23 @@ import { getDurationString } from "@/utils/durationFunctions"
 import { sessionStore } from "@/stores/sessionStore"
 import { trackStore } from "@/stores/trackStore"
 import { userStore } from "@/stores/userStore"
-import BoltIcon from "../icons/BoltIcon.vue"
+import BoltIcon from "../../icons/BoltIcon.vue"
 import BPMTapper from "./BPMTapper.vue"
-import DanceIcon from "../icons/DanceIcon.vue"
+import DanceIcon from "../../icons/DanceIcon.vue"
 import getPercent from "@/utils/getPercent"
 import getPositionColour from "@/utils/positionColours"
 import PitchFader from "./PitchFader.vue"
 import RecordIcon from "./RecordIcon.vue"
 import RpmSwitch from "./RpmSwitch.vue"
-import SmileIcon from "../icons/SmileIcon.vue"
+import SmileIcon from "../../icons/SmileIcon.vue"
 import StartStopButton from "./StartStopButton.vue"
-import SuggestionList from "./SuggestionList.vue"
+import SuggestionList from "../SuggestionList.vue"
 import {
   getKeyStringShort,
   getCamelotString,
   getKeyColour,
 } from "@/utils/keyFunctions"
+import StroboscopicLegend from "./StroboscopicLegend.vue"
 const session = sessionStore()
 const tracks = trackStore()
 const user = userStore()
