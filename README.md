@@ -17,15 +17,20 @@ can then be imported from Spotify through a mostly automated process.
 - BPM tapper for loaded track, option to save to track
 - Connect to Spotify API using OAuth 2.0
 - Fetch BPM + other audio features from Spotify for:
+
   - Single Track (user provided ID)
   - Whole Record
   - Entire collection / selection of records
+
 - Load track onto Deck
 - Suggest compatible tracks for currently playing track:
+
   - Track is able to match the BPM of the currently playing track with the users turntable pitch adjustment range (Option in settings).
   - Track hasn't been played yet during this session. Transition history can be cleared.
   - Track isn't from the same record as currently playing track.
   - Suggestions are then sorted by their harmonic compatibility.
+
+- Record deck UI layout and styling close to a turntable.
 
 ### Features to be implemented:
 
@@ -41,47 +46,53 @@ can then be imported from Spotify through a mostly automated process.
 
 ## Project setup
 
-```
-npm install
-```
-
-### Compiles and hot-reloads client for development
+Set crate-guide/client/src/globals.ts const API_URL appropriately.
 
 ```
-cd client
-npm run client
+client# npm i
+client# npm run build
+client# npm run client
 ```
 
-### Compiles and hot-reloads server for development
+Save crate-guide/server/.env with the following:
 
 ```
-cd server
-npm run server
+# NODE_ENV=production
+NODE_ENV=development
+
+PORT=3037
+SITE_URL="https://crate.guide"
+MONGO_URI=
+JWT_SECRET=
+SPOTIFY_CLIENT_ID=
+SPOTIFY_CLIENT_SECRET=
+DISCOGS_CONSUMER_KEY=
+DISCOGS_CONSUMER_SECRET=
+ELASTICMAIL_KEY=
+
+PORT_DEV=5000
+SITE_URL_DEV="http://localhost:5000"
+MONGO_URI_DEV="mongodb://127.0.0.1:27017/crate-guide"
 ```
 
-### Compiles and minifies for production
+and
 
 ```
-cd client
-npm run build
+server# npm i
+server# npm run build
+server# npm run server
 ```
 
-### Lints and fixes files
-
-```
-cd client
-npm run lint
-```
-
-### License
+## License
 
 This project is licensed under the MIT License.
 
-### Contributions
+## Contributions
 
 Crate Guide is an open source project, contributions are welcome.
 
-### Author
+## Author
 
 Created and maintained by Ryan Voitiskis.
-[ryanvoitiskis@pm.me](mailto:ryanvoitiskis@pm.me) | [GitHub](https://github.com/ryan-voitiskis)
+
+[ryanvoitiskis.com](https://ryanvoitiskis.com) | [ryanvoitiskis@pm.me](mailto:ryanvoitiskis@pm.me) | [GitHub](https://github.com/ryan-voitiskis)

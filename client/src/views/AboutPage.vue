@@ -4,9 +4,9 @@
     <button @click="$router.go(-1)" class="back">Back to app</button>
     <p>
       Crate Guide is a DJ app designed to assist in finding compatible tracks
-      within a users physical record collection. Records can be added manually
-      or imported from your Discogs collection. Audio features from your tracks
-      can then be imported from Spotify.
+      within a users vinyl record collection. Records can be added manually or
+      imported from your Discogs collection. Audio features from your tracks can
+      then be imported from Spotify through a mostly automated process.
     </p>
     <hr />
     <h3>How to use</h3>
@@ -177,6 +177,7 @@
       suggestions.
     </p>
     <p class="last-p">
+      <a href="https://ryanvoitiskis.com">ryanvoitiskis.com</a> |
       <a href="mailto:ryanvoitiskis@pm.me">ryanvoitiskis@pm.me</a> |
       <a href="https://github.com/ryan-voitiskis">GitHub</a>
     </p>
