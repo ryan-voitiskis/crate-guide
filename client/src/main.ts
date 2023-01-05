@@ -1,5 +1,3 @@
-import "@fontsource/manrope"
-import "@fontsource/sonsie-one"
 import "./assets/css/base.scss"
 import "./assets/css/buttons.scss"
 import "./assets/css/crate-guide.scss"
@@ -23,6 +21,12 @@ import { userStore } from "@/stores/userStore"
 import App from "./App.vue"
 import globals from "./globals"
 import router from "./router"
+import "@fontsource/manrope/400.css"
+import "@fontsource/manrope/500.css"
+import "@fontsource/manrope/600.css"
+import "@fontsource/manrope/700.css"
+import "@fontsource/manrope/800.css"
+import "@fontsource/sonsie-one"
 
 const pinia = createPinia()
 const app = createApp(App)

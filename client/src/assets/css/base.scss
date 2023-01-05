@@ -27,14 +27,18 @@ header {
 body {
   margin: 0;
   color: var(--dark-text);
-  font: 400 15px/1.6 Manrope, sans-serif;
+  font-family: Manrope, sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 h1,
 h2,
 h3,
 h4 {
-  font: 600 16px/1.6 Manrope, sans-serif;
+  font-family: Manrope, sans-serif;
+  font-weight: 600;
   margin-top: 0;
   margin-bottom: 14px;
 }
@@ -52,6 +56,7 @@ h3 {
 }
 
 h4 {
+  font-weight: 700;
   font-size: 17px;
 }
 

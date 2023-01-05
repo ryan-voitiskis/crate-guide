@@ -133,6 +133,9 @@
       The <i>start • stop</i> button can be used to help keep track of which
       deck is currently playing, however this feature is only useful as a visual
       indicator and does not affect suggestions or any other part of the app.
+      Stroboscopic dots on the platter will move correctly according to the
+      pitch adjustment on 60Hz displays. Using this feature may use alot of
+      computer resources.
     </p>
     <p>
       Adjusting the pitch fader of a loaded deck will result in the suggestions

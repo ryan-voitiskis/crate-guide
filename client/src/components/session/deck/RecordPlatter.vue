@@ -1,12 +1,13 @@
 <template>
-  <div class="record-icon-wrapper">
+  <div class="record-platter-wrapper">
     <svg
       width="366"
       height="366"
       viewBox="0 0 366 366"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      class="record-icon"
+      class="record-platter"
+      ref="platter"
     >
       <circle cx="183" cy="183" r="183" fill="#000" />
       <circle cx="183" cy="183" r="181" fill="#d7d8dd" />
@@ -108,7 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, computed } from "vue"
+import { defineProps, computed, ref, watch } from "vue"
 import { sessionStore } from "@/stores/sessionStore"
 import { userStore } from "@/stores/userStore"
 const user = userStore()
@@ -118,23 +119,50 @@ const props = defineProps<{
   deckID: number
 }>()
 
-const spinState = computed(() =>
-  session.decks[props.deckID].playing ? "running" : "paused"
+const platter = ref<SVGElement>()
+
+// duration of a full rotation in ms
+const fullRotationDuration = computed(
+  () =>
+    (((session.decks[props.deckID].faderPosition *
+      -0.0001 *
+      user.authd.settings.turntablePitchRange +
+      1) *
+      60) /
+      session.decks[props.deckID].rpm) *
+    1000
 )
 
-// spinRate is duration of rotaion in seconds: required for rotate animation eg. 1.82s for 33rpm with 0% pitch adjustment
-const spinRate = computed(
-  () =>
-    (
-      ((session.decks[props.deckID].pitch *
-        -0.0001 *
-        user.authd.settings.turntablePitchRange +
-        1) *
-        60) /
-      session.decks[props.deckID].rpm
-    )
-      .toFixed(2)
-      .toString() + "s"
+let lastTime = 0 // timestamp of the last frame
+let angle = 0 // current angle of rotation
+
+function updateAnimation(time: number) {
+  // if not playing or no platter exit function
+  if (!session.decks[props.deckID].playing || !platter.value) return
+
+  const elapsedTime = time - lastTime
+
+  // update the angle of rotation
+  angle = (angle % 360) + (360 * elapsedTime) / fullRotationDuration.value
+
+  // update transform property of the platter SVG element
+  platter.value.style.transform = `rotate(${angle}deg)`
+
+  lastTime = time
+
+  // request next frame
+  requestAnimationFrame(updateAnimation)
+}
+
+// watch playing state, if playing, start animation
+watch(
+  () => session.decks[props.deckID].playing,
+  (playing: boolean) => {
+    if (playing) {
+      lastTime = performance.now()
+      requestAnimationFrame(updateAnimation)
+    }
+  }
 )
 
 const coverImg = computed(() =>
@@ -145,9 +173,9 @@ const coverImg = computed(() =>
 </script>
 
 <style scoped lang="scss">
-.record-icon-wrapper {
-  animation: spin v-bind(spinRate) infinite linear;
-  animation-play-state: v-bind(spinState);
+.record-platter-wrapper {
+  // animation: spin v-bind(spinRate) infinite linear;
+  // animation-play-state: v-bind(spinState);
   width: 660px;
   height: 100%;
   position: absolute;
@@ -155,7 +183,7 @@ const coverImg = computed(() =>
   z-index: 1;
 }
 
-.record-icon {
+.record-platter {
   width: 100%;
   height: 100%;
   position: absolute;
