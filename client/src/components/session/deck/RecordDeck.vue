@@ -67,7 +67,7 @@
         <RpmSwitch :deckID="deckID" :speed="33" />
         <RpmSwitch :deckID="deckID" :speed="45" />
         <PitchFader :deckID="deckID" />
-        <RecordIcon :deckID="deckID" />
+        <RecordPlatter :deckID="deckID" />
         <BPMTapper :deckID="deckID" />
       </div>
     </div>
@@ -87,7 +87,7 @@ import DanceIcon from "../../icons/DanceIcon.vue"
 import getPercent from "@/utils/getPercent"
 import getPositionColour from "@/utils/positionColours"
 import PitchFader from "./PitchFader.vue"
-import RecordIcon from "./RecordIcon.vue"
+import RecordPlatter from "./RecordPlatter.vue"
 import RpmSwitch from "./RpmSwitch.vue"
 import SmileIcon from "../../icons/SmileIcon.vue"
 import StartStopButton from "./StartStopButton.vue"
@@ -179,7 +179,7 @@ const positionColour = computed(() =>
 }
 .loaded-detail {
   color: var(--loaded-text);
-  font-weight: 500;
+  font-weight: 600;
   height: 26px;
   line-height: 26px;
   position: absolute;
@@ -205,7 +205,6 @@ const positionColour = computed(() =>
   top: 2%;
   right: 2%;
   .position {
-    font-weight: 800;
     color: v-bind(positionColour);
   }
 }

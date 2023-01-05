@@ -93,7 +93,7 @@ const lastBpmColour = computed(() =>
 .last,
 .saved {
   color: var(--bpm-last-saved-label);
-  font-weight: 500;
+  font-weight: 600;
   position: absolute;
   height: 5%;
   width: 10%;
@@ -107,7 +107,6 @@ const lastBpmColour = computed(() =>
 .saved {
   bottom: 37%;
   .saved-bpm {
-    font-weight: 600;
     color: v-bind(savedBpmColour);
   }
 }
@@ -115,7 +114,6 @@ const lastBpmColour = computed(() =>
 .last {
   bottom: 34%;
   .last-bpm {
-    font-weight: 600;
     color: v-bind(lastBpmColour);
   }
 }

@@ -8,6 +8,8 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
+    "@fontsource/manrope": "^4.5.12",
+    "@fontsource/sonsie-one": "^4.5.10",
     "@microsoft/fetch-event-source": "^2.0.1",
     "@types/d3-interpolate": "^3.0.1",
     "core-js": "^3.8.3",

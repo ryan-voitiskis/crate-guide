@@ -9,13 +9,13 @@
       class="record-icon"
     >
       <circle cx="183" cy="183" r="183" fill="#000" />
-      <circle cx="183" cy="183" r="181" fill="url(#gradient_silver)" />
-      <circle cx="183" cy="183" r="180" fill="url(#gradient)" />
+      <circle cx="183" cy="183" r="181" fill="#d7d8dd" />
+      <circle cx="183" cy="183" r="180" fill="#222" />
       <circle
         cx="183"
         cy="183"
         r="177.7"
-        stroke="url(#gradient_silver)"
+        stroke="#d7d8dd"
         stroke-width="1.6"
         stroke-linecap="round"
         stroke-dasharray="0,3.303"
@@ -24,7 +24,7 @@
         cx="183"
         cy="183"
         r="174"
-        stroke="url(#gradient_silver)"
+        stroke="#d7d8dd"
         stroke-width="2.2"
         stroke-linecap="round"
         stroke-dasharray="0,3.333333"
@@ -33,7 +33,7 @@
         cx="183"
         cy="183"
         r="170"
-        stroke="url(#gradient_silver)"
+        stroke="#d7d8dd"
         stroke-width="1.6"
         stroke-linecap="round"
         stroke-dasharray="0,3.3702"
@@ -42,52 +42,68 @@
         cx="183"
         cy="183"
         r="167"
-        stroke="url(#gradient_silver)"
+        stroke="#d7d8dd"
         stroke-width="1.6"
         stroke-linecap="round"
         stroke-dasharray="0,3.418"
       />
-      <circle cx="183" cy="183" r="165" fill="url(#gradient_silver)" />
-      <circle cx="183" cy="183" r="164" fill="#000" />
-      <circle cx="183" cy="183" r="163" fill="#181818" />
-      <circle cx="183" cy="183" r="139" fill="#000" />
-      <circle cx="183" cy="183" r="138" fill="#181818" />
-      <circle cx="183" cy="183" r="109" fill="#000" />
-      <circle cx="183" cy="183" r="108" fill="#181818" />
-      <circle cx="183" cy="183" r="79" fill="#000" />
-      <circle cx="183" cy="183" r="78" fill="#181818" />
-      <circle cx="183" cy="183" r="52" fill="#000" />
-      <circle cx="183" cy="183" r="51" fill="#f9f2de" />
-      <circle cx="183" cy="183" r="2" fill="#000" />
+      <circle cx="183" cy="183" r="165" fill="#d7d8dd" />
 
-      <defs>
-        <linearGradient
-          id="gradient_silver"
-          gradientUnits="userSpaceOnUse"
-          x1="183"
-          y1="0"
-          x2="183"
-          y2="366"
-          gradientTransform="rotate(-30)"
+      <g v-if="session.decks[deckID].loadedTrack?.recordID">
+        <clipPath id="myClip">
+          <circle cx="183" cy="183" r="51" />
+        </clipPath>
+        <circle cx="183" cy="183" r="164" fill="#000" />
+        <circle cx="183" cy="183" r="162.2" fill="#151515" />
+        <circle cx="183" cy="183" r="142" fill="#000" />
+        <circle cx="183" cy="183" r="141" fill="#151515" />
+        <circle cx="183" cy="183" r="122" fill="#000" />
+        <circle cx="183" cy="183" r="121" fill="#151515" />
+        <circle cx="183" cy="183" r="100" fill="#000" />
+        <circle cx="183" cy="183" r="99" fill="#151515" />
+        <circle cx="183" cy="183" r="66" fill="#030303" />
+        <image
+          :href="coverImg"
+          height="104"
+          width="104"
+          clip-path="url(#myClip)"
+          x="131"
+          y="131"
+        />
+        <circle cx="183" cy="183" r="2" fill="#d7d8dd" />
+      </g>
+
+      <g class="slipmat" v-else>
+        <circle cx="183" cy="183" r="164" fill="#222" />
+        <circle
+          cx="183"
+          cy="183"
+          r="146"
+          stroke-width="10"
+          stroke="#8c4394"
+          fill="transparent"
+        />
+        <text
+          x="183"
+          y="160"
+          class="slipmat-title"
+          fill="#8c4394"
+          :transform="deckID === 1 ? 'rotate(180, 183, 183)' : ''"
         >
-          <stop offset="0" stop-color="#8f8d97" />
-          <stop offset="1" stop-color="#d7d8dd" />
-        </linearGradient>
-        <linearGradient
-          id="gradient"
-          gradientUnits="userSpaceOnUse"
-          x1="183"
-          y1="0"
-          x2="183"
-          y2="366"
-          gradientTransform="rotate(-30)"
+          Crate
+        </text>
+        <text
+          x="183"
+          y="160"
+          class="slipmat-title"
+          fill="#b9adda"
+          :transform="deckID === 0 ? 'rotate(180, 183, 183)' : ''"
         >
-          <stop offset="0" stop-color="#111" />
-          <stop offset="1" stop-color="#333" />
-        </linearGradient>
-      </defs>
+          Guide
+        </text>
+        <circle cx="183" cy="183" r="2" fill="#d7d8dd" />
+      </g>
     </svg>
-    <div class="record-label"></div>
   </div>
 </template>
 
@@ -123,8 +139,8 @@ const spinRate = computed(
 
 const coverImg = computed(() =>
   session.decks[props.deckID].loadedTrack?.cover
-    ? `url("${session.decks[props.deckID].loadedTrack?.cover}")`
-    : null
+    ? session.decks[props.deckID].loadedTrack?.cover
+    : ""
 )
 </script>
 
@@ -138,12 +154,14 @@ const coverImg = computed(() =>
   left: 2%;
   z-index: 1;
 }
+
 .record-icon {
   width: 100%;
   height: 100%;
   position: absolute;
   z-index: 3;
 }
+
 .record-label {
   overflow: hidden;
   background-repeat: no-repeat;
@@ -156,5 +174,14 @@ const coverImg = computed(() =>
   position: absolute;
 
   background-image: v-bind(coverImg);
+}
+
+.slipmat-title {
+  font-size: 5rem;
+  font-weight: 600;
+  letter-spacing: 0.1rem;
+  text-anchor: middle;
+  font-family: "Sonsie One", serif;
+  user-select: none;
 }
 </style>

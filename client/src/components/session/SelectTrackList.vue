@@ -318,6 +318,7 @@ const sortedTracks = computed((): TrackPlus[] => {
   display: flex;
   column-gap: 10px;
   flex-wrap: wrap;
+  margin-bottom: 10px;
 }
 .clear-filters {
   justify-self: end;

@@ -1,3 +1,5 @@
+import "@fontsource/manrope"
+import "@fontsource/sonsie-one"
 import "./assets/css/base.scss"
 import "./assets/css/buttons.scss"
 import "./assets/css/crate-guide.scss"

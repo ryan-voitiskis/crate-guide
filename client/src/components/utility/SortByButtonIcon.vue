@@ -20,7 +20,7 @@ defineProps<{
 
 <style scoped lang="scss">
 .sort-by-icon {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--darker-text);
   background-color: transparent;
   border-radius: 0;
