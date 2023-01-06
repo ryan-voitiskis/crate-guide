@@ -9,100 +9,61 @@
       class="record-platter"
       ref="platter"
     >
-      <circle cx="183" cy="183" r="183" fill="#000" />
-      <circle cx="183" cy="183" r="181" fill="#d7d8dd" />
-      <circle cx="183" cy="183" r="180" fill="#222" />
-      <circle
-        cx="183"
-        cy="183"
-        r="177.7"
-        stroke="#d7d8dd"
-        stroke-width="1.6"
-        stroke-linecap="round"
-        stroke-dasharray="0,3.303"
-      />
-      <circle
-        cx="183"
-        cy="183"
-        r="174"
-        stroke="#d7d8dd"
-        stroke-width="2.2"
-        stroke-linecap="round"
-        stroke-dasharray="0,3.333333"
-      />
-      <circle
-        cx="183"
-        cy="183"
-        r="170"
-        stroke="#d7d8dd"
-        stroke-width="1.6"
-        stroke-linecap="round"
-        stroke-dasharray="0,3.3702"
-      />
-      <circle
-        cx="183"
-        cy="183"
-        r="167"
-        stroke="#d7d8dd"
-        stroke-width="1.6"
-        stroke-linecap="round"
-        stroke-dasharray="0,3.418"
-      />
-      <circle cx="183" cy="183" r="165" fill="#d7d8dd" />
+      <!-- the platter ring -->
+      <g>
+        <circle r="183" fill="#000" />
+        <circle r="181" fill="#d7d8dd" />
+        <circle r="180" fill="#222" />
+        <circle class="dots" r="177.7" stroke-dasharray="0,3.303" />
+        <circle class="dots large" r="174" stroke-dasharray="0,3.33333" />
+        <circle class="dots" r="170" stroke-dasharray="0,3.3702" />
+        <circle class="dots" r="167" stroke-dasharray="0,3.418" />
+        <circle r="165" fill="#d7d8dd" />
+      </g>
 
+      <!-- the record -->
       <g v-if="session.decks[deckID].loadedTrack?.recordID">
-        <clipPath id="myClip">
-          <circle cx="183" cy="183" r="51" />
+        <clipPath id="coverClip">
+          <circle r="51" />
         </clipPath>
-        <circle cx="183" cy="183" r="164" fill="#000" />
-        <circle cx="183" cy="183" r="162.2" fill="#151515" />
-        <circle cx="183" cy="183" r="142" fill="#000" />
-        <circle cx="183" cy="183" r="141" fill="#151515" />
-        <circle cx="183" cy="183" r="122" fill="#000" />
-        <circle cx="183" cy="183" r="121" fill="#151515" />
-        <circle cx="183" cy="183" r="100" fill="#000" />
-        <circle cx="183" cy="183" r="99" fill="#151515" />
-        <circle cx="183" cy="183" r="66" fill="#030303" />
+        <circle r="164" fill="#000" />
+        <circle r="162.2" fill="#151515" />
+        <circle r="142" fill="#000" />
+        <circle r="141" fill="#151515" />
+        <circle r="122" fill="#000" />
+        <circle r="121" fill="#151515" />
+        <circle r="100" fill="#000" />
+        <circle r="99" fill="#151515" />
+        <circle r="66" fill="#030303" />
         <image
           :href="coverImg"
           height="104"
           width="104"
-          clip-path="url(#myClip)"
-          x="131"
-          y="131"
+          clip-path="url(#coverClip)"
+          x="-52"
+          y="-52"
         />
-        <circle cx="183" cy="183" r="2" fill="#d7d8dd" />
       </g>
 
+      <!-- the slipmat -->
       <g class="slipmat" v-else>
-        <circle cx="183" cy="183" r="164" fill="#222" />
-        <circle
-          cx="183"
-          cy="183"
-          r="146"
-          stroke-width="10"
-          stroke="#8c4394"
-          fill="transparent"
-        />
+        <circle r="164" fill="#222" />
+        <circle r="146" stroke-width="10" stroke="#8c4394" fill="transparent" />
         <text
-          x="183"
-          y="160"
-          class="slipmat-title"
+          y="-23"
           fill="#8c4394"
-          :transform="deckID === 1 ? 'rotate(180, 183, 183)' : ''"
+          :transform="deckID === 1 ? 'rotate(180)' : ''"
         >
           Crate
         </text>
         <text
-          x="183"
-          y="160"
-          class="slipmat-title"
+          y="-23"
           fill="#b9adda"
-          :transform="deckID === 0 ? 'rotate(180, 183, 183)' : ''"
+          :transform="deckID === 0 ? 'rotate(180)' : ''"
         >
           Guide
         </text>
-        <circle cx="183" cy="183" r="2" fill="#d7d8dd" />
+        <circle r="2" fill="#d7d8dd" />
       </g>
     </svg>
   </div>
@@ -135,15 +96,22 @@ const fullRotationDuration = computed(
 
 let lastTime = 0 // timestamp of the last frame
 let angle = 0 // current angle of rotation
+let speedUpRotationDuration = 0 // duration of a full rotation in ms when speeding up
+let slowDownRotationDuration = 0 // duration of a full rotation in ms when slowing down
 
 function updateAnimation(time: number) {
   // if not playing or no platter exit function
-  if (!session.decks[props.deckID].playing || !platter.value) return
+  if (!platter.value) return
+  if (!session.decks[props.deckID].playing) {
+    slowDownRotationDuration = fullRotationDuration.value
+    requestAnimationFrame(slowDownAnimation)
+    return
+  }
 
   const elapsedTime = time - lastTime
 
   // update the angle of rotation
-  angle = (angle % 360) + (360 * elapsedTime) / fullRotationDuration.value
+  angle = (angle % 360) + (elapsedTime / fullRotationDuration.value) * 360
 
   // update transform property of the platter SVG element
   platter.value.style.transform = `rotate(${angle}deg)`
@@ -154,13 +122,36 @@ function updateAnimation(time: number) {
   requestAnimationFrame(updateAnimation)
 }
 
+function speedUpAnimation(time: number) {
+  if (!session.decks[props.deckID].playing || !platter.value) return
+  const elapsedTime = time - lastTime
+  angle = (angle % 360) + (elapsedTime / speedUpRotationDuration) * 360
+  speedUpRotationDuration -= 200
+  platter.value.style.transform = `rotate(${angle}deg)`
+  lastTime = time
+  if (speedUpRotationDuration <= fullRotationDuration.value)
+    requestAnimationFrame(updateAnimation)
+  else requestAnimationFrame(speedUpAnimation)
+}
+
+function slowDownAnimation(time: number) {
+  if (!platter.value) return
+  const elapsedTime = time - lastTime
+  angle = (angle % 360) + (elapsedTime / slowDownRotationDuration) * 360
+  slowDownRotationDuration += 200
+  platter.value.style.transform = `rotate(${angle}deg)`
+  lastTime = time
+  if (slowDownRotationDuration <= 8000) requestAnimationFrame(slowDownAnimation)
+}
+
 // watch playing state, if playing, start animation
 watch(
   () => session.decks[props.deckID].playing,
   (playing: boolean) => {
     if (playing) {
+      speedUpRotationDuration = fullRotationDuration.value + 6000
       lastTime = performance.now()
-      requestAnimationFrame(updateAnimation)
+      requestAnimationFrame(speedUpAnimation)
     }
   }
 )
@@ -174,8 +165,6 @@ const coverImg = computed(() =>
 
 <style scoped lang="scss">
 .record-platter-wrapper {
-  // animation: spin v-bind(spinRate) infinite linear;
-  // animation-play-state: v-bind(spinState);
   width: 660px;
   height: 100%;
   position: absolute;
@@ -188,28 +177,26 @@ const coverImg = computed(() =>
   height: 100%;
   position: absolute;
   z-index: 3;
-}
-
-.record-label {
-  overflow: hidden;
-  background-repeat: no-repeat;
-  background-size: contain;
-  z-index: 2;
-  width: 37.8%;
-  height: 37.8%;
-  left: 31.1%;
-  bottom: 28.6%;
-  position: absolute;
-
-  background-image: v-bind(coverImg);
-}
-
-.slipmat-title {
-  font-size: 5rem;
-  font-weight: 600;
-  letter-spacing: 0.1rem;
-  text-anchor: middle;
-  font-family: "Sonsie One", serif;
-  user-select: none;
+  g {
+    transform: translate(183px, 183px);
+  }
+  .dots {
+    stroke: #d7d8dd;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    &.large {
+      stroke-width: 2.2;
+    }
+  }
+  .slipmat {
+    text {
+      font-size: 5rem;
+      font-weight: 600;
+      letter-spacing: 0.1rem;
+      text-anchor: middle;
+      font-family: "Sonsie One", serif;
+      user-select: none;
+    }
+  }
 }
 </style>

@@ -41,6 +41,7 @@
   z-index: 1;
   color: var(--loaded-text);
   text {
+    user-select: none;
     font-size: 1rem;
     font-weight: 100;
     font-family: Arial, Helvetica, sans-serif;

@@ -28,6 +28,7 @@
 
 <style scoped lang="scss">
 .stroboscopic-legend {
+  user-select: none;
   width: 50px;
   height: 50px;
   position: absolute;
