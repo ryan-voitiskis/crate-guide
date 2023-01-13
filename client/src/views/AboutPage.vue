@@ -134,8 +134,11 @@
       deck is currently playing, however this feature is only useful as a visual
       indicator and does not affect suggestions or any other part of the app.
       Stroboscopic dots on the platter will move correctly according to the
-      pitch adjustment on 60Hz displays. Using this feature may use alot of
-      computer resources.
+      pitch adjustment on 60Hz displays. Using this feature may use a lot of
+      computer resources. If you experience performance issues, try enabling
+      hardware acceleration in your browser. You will need to restart the
+      browser for this to take effect. If the platter animation is causing
+      performance issues, please try to avoid using the feature.
     </p>
     <p>
       Adjusting the pitch fader of a loaded deck will result in the suggestions
@@ -155,7 +158,7 @@
     <p>
       Sets can be saved and viewed again later. It may be helpful to rate
       transitions before saving for future reference. To remove a rating, simply
-      click again on the currenty rating.
+      click again on the current rating.
     </p>
     <p>
       Your past transition ratings may be used in a future feature to help score

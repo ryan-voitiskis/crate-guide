@@ -78,6 +78,9 @@ onDeactivated(() => {
     max-width: v-bind(width);
     width: 100%;
     margin: 10px;
+    form {
+      overflow-y: scroll;
+    }
     &.dynamic {
       max-height: calc(100% - 20px);
     }

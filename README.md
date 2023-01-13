@@ -35,11 +35,11 @@ can then be imported from Spotify through a mostly automated process.
 ### Features to be implemented:
 
 - Suggestions sorted by a final score which is generated as a combination of harmonic compatibility and tempo closeness.
+- De-dupe records button (with warning about users having multiple of same record intentionally).
+- Import 7"/10"12" record format from Discogs and adjust Record SVG accordingly.
 - 33 / 45 RPM button is adjusted automatically when a track is loaded. Requires accurate RPM data imported.
-- RecordIcon on the deck component to be of higher quality and reflect the design of a real turntable.
-- De-dupe records button
 
-### Feature to be possibly implemented
+### Feature to be possibly implemented:
 
 - Mobile and tablet support, design separate UI, particularly Session view only utilising one simplified deck.
 - Safari tested and supported (probably important because many DJs use Safari).
@@ -62,13 +62,13 @@ NODE_ENV=development
 
 PORT=3037
 SITE_URL="https://crate.guide"
-MONGO_URI=
-JWT_SECRET=
-SPOTIFY_CLIENT_ID=
-SPOTIFY_CLIENT_SECRET=
-DISCOGS_CONSUMER_KEY=
-DISCOGS_CONSUMER_SECRET=
-ELASTICMAIL_KEY=
+MONGO_URI=<YOUR_MONGO_URI>
+JWT_SECRET=<YOUR_JWT_SECRET>
+SPOTIFY_CLIENT_ID=<YOUR_SPOTIFY_CLIENT_ID>
+SPOTIFY_CLIENT_SECRET=<YOUR_SPOTIFY_CLIENT_SECRET>
+DISCOGS_CONSUMER_KEY=<YOUR_DISCOGS_CONSUMER_KEY>
+DISCOGS_CONSUMER_SECRET=<YOUR_DISCOGS_CONSUMER_SECRET>
+ELASTICMAIL_KEY=<YOUR_ELASTICMAIL_KEY>
 
 PORT_DEV=5000
 SITE_URL_DEV="http://localhost:5000"
