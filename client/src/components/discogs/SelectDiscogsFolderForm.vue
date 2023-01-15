@@ -9,8 +9,8 @@
       <XIcon />
     </button>
   </div>
+  <span class="hint">Select the folder to import from Discogs.</span>
   <form @submit.prevent="submit">
-    <span class="hint">Select the folder to import from Discogs.</span>
     <div v-if="discogs.folderList.length" class="modal-body inline-labels">
       <SelectInput
         id="select_folder"

@@ -5,10 +5,10 @@
       <XIcon />
     </button>
   </div>
+  <span class="hint">
+    Select the crate to add {{ recordNames.join(", ") }} to.
+  </span>
   <form @submit.prevent="submit">
-    <span class="hint"
-      >Select the crate to add {{ recordNames.join(", ") }} to.</span
-    >
     <div class="modal-body inline-labels">
       <SelectInput
         id="select_crate"

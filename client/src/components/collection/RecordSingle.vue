@@ -223,7 +223,7 @@ const coverImg = computed(() => `url("${props.cover}")`)
 
 @media (max-width: 1720px) {
   .record {
-    grid-template-columns: 120px 400px 1fr;
+    grid-template-columns: 120px 440px 1fr;
   }
 }
 

@@ -251,17 +251,17 @@ const duration = computed(() =>
       }
     }
     .title {
-      margin-left: 10px;
+      padding: 0 5px;
     }
     .artists {
-      margin-left: 10px;
+      padding: 0 5px;
       font-weight: 500;
       color: var(--artists-color);
     }
     .genre {
       color: var(--light-text);
       font-style: italic;
-      margin-left: 10px;
+      padding: 0 5px;
     }
   }
   .controls {

@@ -190,7 +190,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from "vue"
+import { reactive, watch } from "vue"
 import { crateStore } from "@/stores/crateStore"
 import { recordStore } from "@/stores/recordStore"
 import { spotifyStore } from "@/stores/spotifyStore"
@@ -240,6 +240,13 @@ const state = reactive({
   filterGenre: "",
   filterYear: "",
 })
+
+watch(
+  () => user.authd.settings.selectedCrate,
+  (crate: string) => {
+    if (crate !== "all") clearFilters()
+  }
+)
 </script>
 
 <style scoped lang="scss">

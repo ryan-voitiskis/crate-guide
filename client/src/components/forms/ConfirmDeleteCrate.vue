@@ -9,12 +9,12 @@
       <XIcon />
     </button>
   </div>
+  <span class="hint">
+    Enter the name &quot;<i>{{ crate.name }}</i
+    >&quot; to delete crate.<br />
+    <b>This can't be undone.</b>
+  </span>
   <form @submit.prevent="submit">
-    <span class="hint">
-      Enter the name &quot;<i>{{ crate.name }}</i
-      >&quot; to delete crate.<br />
-      <b>This can't be undone.</b>
-    </span>
     <div class="modal-body inline-labels">
       <BasicInput
         id="delete_crate_name"

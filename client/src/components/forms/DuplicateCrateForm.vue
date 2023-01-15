@@ -9,8 +9,8 @@
       <XIcon />
     </button>
   </div>
+  <span class="hint">Enter the duplicated crate name.</span>
   <form @submit.prevent="submit">
-    <p class="hint">Enter the duplicated crate name.</p>
     <div class="modal-body inline-labels">
       <BasicInput
         id="name"

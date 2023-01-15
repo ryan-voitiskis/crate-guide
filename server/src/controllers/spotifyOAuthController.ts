@@ -13,7 +13,7 @@ import {
 const clientID = process.env.SPOTIFY_CLIENT_ID as string
 const clientSecret = process.env.SPOTIFY_CLIENT_SECRET as string
 const redirectURI = `${process.env.SITE_URL}/api/spotify/callback`
-const scope = "playlist-read-private playlist-read-collaborative"
+const scope = ""
 const authoriseURL = "https://accounts.spotify.com/authorize?"
 const tokenURL = "https://accounts.spotify.com/api/token"
 
