@@ -1,5 +1,5 @@
-// const API_URL = `/api/` // production
-const API_URL = `http://localhost:5000/api/` // development
+let API_URL = `http://localhost:5000/api/` // development
+API_URL = `/api/` // ! MUST BE UNCOMMENTED FOR PRODUCTION !! client# npm run build after uncommenting
 
 export default {
   APP_NAME: `Crate Guide`,

@@ -1,6 +1,6 @@
 {
   "name": "crate-guide",
-  "version": "0.3.0",
+  "version": "1.0.1",
   "private": false,
   "scripts": {
     "client": "vue-cli-service serve",
