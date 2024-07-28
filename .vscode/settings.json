@@ -1,8 +1,9 @@
 {
+	"editor.codeActionsOnSave": {
+		"source.fixAll.eslint": "explicit"
+	},
 	"deno.enablePaths": ["supabase/functions"],
 	"deno.lint": true,
 	"deno.unstable": true,
-	"[typescript]": {
-		"editor.defaultFormatter": "denoland.vscode-deno"
-	}
+	"editor.defaultFormatter": "esbenp.prettier-vscode"
 }
