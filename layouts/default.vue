@@ -16,7 +16,7 @@
 			</div>
 		</header>
 
-		<div class="min-h-[calc(100vh_-_56px)] pt-8">
+		<div class="min-h-[calc(100vh_-_56px)]">
 			<!-- root node of slot should be <main> for semantic purpose -->
 			<slot />
 		</div>
