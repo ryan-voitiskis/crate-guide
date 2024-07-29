@@ -20,3 +20,16 @@ create policy "Users can only access their own records"
   using (auth.uid() = user_id);
 
 create index idx_records_user_id on public.records (user_id);
+
+create or replace function update_updated_at_column()
+returns trigger as $$
+begin
+    new.updated_at = now();
+    return new;
+end;
+$$ language 'plpgsql';
+
+create trigger update_crates_updated_at
+before update on public.records
+for each row
+execute function update_updated_at_column();

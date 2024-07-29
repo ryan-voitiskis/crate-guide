@@ -30,6 +30,7 @@ create table public.tracks (
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
+-- sp_af prefix == spotify audio features
 
 alter table public.tracks enable row level security;
 
@@ -48,4 +49,15 @@ create policy "Users can perform CRUD on tracks of their own records"
 
 create index idx_tracks_record_id ON public.tracks(record_id);
 
+create or replace function update_updated_at_column()
+returns trigger as $$
+begin
+    new.updated_at = now();
+    return new;
+end;
+$$ language 'plpgsql';
 
+create trigger update_crates_updated_at
+before update on public.tracks
+for each row
+execute function update_updated_at_column();
