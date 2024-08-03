@@ -1,4 +1,11 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+const supabase = useSupabaseClient()
+
+onMounted(async () => {
+	const { data, error } = await supabase.from('records').select('*')
+	console.log(data)
+})
+</script>
 
 <template>
 	<div>

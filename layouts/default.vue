@@ -1,18 +1,30 @@
+<script setup lang="ts">
+const user = useSupabaseUser()
+</script>
+
 <template>
 	<div class="bg-background">
 		<header class="flex h-14 w-full justify-between border-b bg-muted">
 			<div
-				class="mx-auto flex w-full max-w-[1120px] flex-row items-center justify-between p-4"
+				class="mx-auto flex w-full max-w-[1600px] flex-row items-center justify-between p-4"
 			>
-				<nav id="main_nav" class="-ml-4 flex flex-wrap gap-y-4">
-					<Button as-child class="-my-4">
+				<nav class="flex flex-wrap gap-4">
+					<Button as-child>
 						<NuxtLink to="/">session</NuxtLink>
 					</Button>
-					<Button as-child class="-my-4">
+					<Button as-child>
 						<NuxtLink to="/collection">collection</NuxtLink>
 					</Button>
 				</nav>
-				<!-- <ThemeToggle class="-my-2" /> -->
+				<AvatarGreeting v-if="user" />
+				<div v-else class="flex gap-4">
+					<Button as-child variant="ghost">
+						<NuxtLink to="/signup">Sign up</NuxtLink>
+					</Button>
+					<Button as-child variant="ghost">
+						<NuxtLink to="/login">Log in</NuxtLink>
+					</Button>
+				</div>
 			</div>
 		</header>
 

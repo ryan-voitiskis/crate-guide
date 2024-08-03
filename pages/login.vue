@@ -1,23 +1,62 @@
 <script setup lang="ts">
+import { toast } from 'vue-sonner'
+
+definePageMeta({ layout: 'blank' })
+
 const supabase = useSupabaseClient()
 const router = useRouter()
 
-definePageMeta({ layout: 'blank' })
+const signingIn = ref(false)
+const signingInWithGithub = ref(false)
+const signingInWithGoogle = ref(false)
 
 const email = ref('')
 const password = ref('')
 
-async function handleSignUp() {
+async function signIn() {
+	signingIn.value = true
 	try {
-		const { error } = await supabase.auth.signUp({
+		const { error } = await supabase.auth.signInWithPassword({
 			email: email.value,
 			password: password.value
 		})
 		if (error) throw error
+		toast.success(`Sign in successful!`)
 		router.push({ path: '/' })
 	} catch (error) {
-		console.error('Error signing up:', error)
+		toast.error(`Error signing in.`)
 	}
+	signingIn.value = false
+}
+
+async function signInWithGithub() {
+	signingInWithGithub.value = true
+	try {
+		const { error } = await supabase.auth.signInWithOAuth({
+			provider: 'github'
+		})
+		if (error) throw error
+		toast.success(`Sign in successful!`)
+		router.push({ path: '/' })
+	} catch (error) {
+		toast.error(`Error signing in.`)
+	}
+	signingInWithGithub.value = false
+}
+
+async function signInWithGoogle() {
+	signingInWithGoogle.value = true
+	try {
+		const { error } = await supabase.auth.signInWithOAuth({
+			provider: 'google'
+		})
+		if (error) throw error
+		toast.success(`Sign in successful!`)
+		router.push({ path: '/' })
+	} catch (error) {
+		toast.error(`Error signing in.`)
+	}
+	signingInWithGoogle.value = false
 }
 </script>
 
@@ -25,30 +64,26 @@ async function handleSignUp() {
 	<div class="flex items-center justify-center h-screen">
 		<Card class="max-w-md w-full p-6 bg-white rounded-lg shadow-md">
 			<CardHeader class="space-y-1">
-				<CardTitle class="text-2xl">Create an account</CardTitle>
-				<CardDescription>
-					Enter your email below to create your account
-				</CardDescription>
+				<CardTitle class="text-2xl">Log in</CardTitle>
+				<CardDescription>Welcome back, log in with</CardDescription>
 			</CardHeader>
 			<CardContent class="grid gap-4">
-				<div class="grid grid-cols-2 gap-6">
-					<Button variant="outline">
+				<div class="grid grid-cols-2 gap-4">
+					<Button variant="outline" @click="signInWithGithub">
 						<IconGithub class="mr-2 w-4" />
 						GitHub
 					</Button>
-					<Button variant="outline">
+					<Button variant="outline" @click="signInWithGoogle">
 						<IconGoogle class="mr-2 w-4" />
 						Google
 					</Button>
 				</div>
-				<div class="relative">
+				<div class="relative pb-1">
 					<div class="absolute inset-0 flex items-center">
 						<span class="w-full border-t" />
 					</div>
-					<div class="relative flex justify-center text-xs uppercase">
-						<span class="bg-background px-2 text-muted-foreground">
-							Or continue with
-						</span>
+					<div class="relative flex justify-center">
+						<span class="bg-background px-2 text-muted-foreground">or</span>
 					</div>
 				</div>
 				<div class="grid gap-2">
@@ -57,7 +92,7 @@ async function handleSignUp() {
 						id="email"
 						v-model="email"
 						type="email"
-						placeholder="old_mate@example.com"
+						placeholder="user@domain.com"
 					/>
 				</div>
 				<div class="grid gap-2">
@@ -65,8 +100,14 @@ async function handleSignUp() {
 					<Input id="password" v-model="password" type="password" />
 				</div>
 			</CardContent>
-			<CardFooter>
-				<Button class="w-full" @click="handleSignUp">Create account</Button>
+			<CardFooter class="flex-col gap-4">
+				<Button class="w-full" :loading="true" @click="signIn">Sign in</Button>
+				<span>
+					Don't have an account?
+					<Button variant="link" as-child>
+						<NuxtLink to="/signup">Sign up</NuxtLink>
+					</Button>
+				</span>
 			</CardFooter>
 		</Card>
 	</div>

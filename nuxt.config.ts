@@ -8,6 +8,9 @@ export default defineNuxtConfig({
 		'@nuxtjs/tailwindcss',
 		'shadcn-nuxt'
 	],
+	imports: {
+		dirs: ['types']
+	},
 	app: {
 		head: {
 			htmlAttrs: { lang: 'en' },
@@ -24,12 +27,7 @@ export default defineNuxtConfig({
 	supabase: {
 		url: process.env.SUPABASE_URL,
 		key: process.env.SUPABASE_KEY,
-		redirectOptions: {
-			login: '/login',
-			callback: '/confirm',
-			include: undefined,
-			exclude: [],
-			cookieRedirect: false
-		}
+		redirect: false,
+		types: 'types/database.ts'
 	}
 })

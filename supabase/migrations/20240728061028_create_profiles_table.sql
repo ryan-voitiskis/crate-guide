@@ -14,3 +14,20 @@ create table public.profiles (
 );
 
 alter table public.profiles enable row level security;
+
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, name)
+  values (NEW.id, NEW.raw_user_meta_data->>'name');
+  return NEW;
+end;
+$$ language plpgsql security definer;
+
+create or replace trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+create policy "Users can only access their own profile"
+  on public.profiles for all
+  using (auth.uid() = id);

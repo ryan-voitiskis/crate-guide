@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { type HTMLAttributes, computed } from 'vue'
 import { cn } from '@/lib/utils'
-import { Label, type LabelProps } from 'radix-vue'
+import { TabsList, type TabsListProps } from 'radix-vue'
 
-const props = defineProps<LabelProps & { class?: HTMLAttributes['class'] }>()
+const props = defineProps<TabsListProps & { class?: HTMLAttributes['class'] }>()
 
 const delegatedProps = computed(() => {
 	const { class: _, ...delegated } = props
@@ -13,15 +13,15 @@ const delegatedProps = computed(() => {
 </script>
 
 <template>
-	<Label
+	<TabsList
 		v-bind="delegatedProps"
 		:class="
 			cn(
-				'text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
+				'inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground',
 				props.class
 			)
 		"
 	>
 		<slot />
-	</Label>
+	</TabsList>
 </template>

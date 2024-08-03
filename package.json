@@ -8,7 +8,9 @@
 		"generate": "nuxt generate",
 		"preview": "nuxt preview",
 		"postinstall": "nuxt prepare",
-		"format": "prettier --write '**/*.{ts,js,vue,scss,css,md,json}'"
+		"format": "prettier --write '**/*.{ts,js,vue,scss,css,md,json}'",
+		"genTypes": "supabase gen types --lang=typescript --project-id luhufzpayswbgewenudn > types/database.ts",
+		"genLocalTypes": "supabase gen types --lang=typescript --local > types/database.ts"
 	},
 	"dependencies": {
 		"@nuxt/eslint": "^0.4.0",
@@ -22,7 +24,8 @@
 		"shadcn-nuxt": "^0.10.4",
 		"tailwind-merge": "^2.4.0",
 		"tailwindcss-animate": "^1.0.7",
-		"vue": "latest"
+		"vue": "latest",
+		"vue-sonner": "^1.1.4"
 	},
 	"devDependencies": {
 		"@nuxtjs/tailwindcss": "^6.12.1",
