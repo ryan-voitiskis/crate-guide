@@ -33,11 +33,21 @@ const onSubmit = form.handleSubmit((values) => {
 			</CardHeader>
 			<CardContent class="grid gap-4">
 				<div class="grid grid-cols-2 gap-4">
-					<Button variant="outline" @click="user.signInWithProvider('github')">
+					<Button
+						variant="outline"
+						:loading="user.signingInWithGithub"
+						:disabled="user.signingInWithGoogle || user.signingInWithEmail"
+						@click="user.signInWithProvider('github')"
+					>
 						<IconGithub class="mr-2 w-4" />
 						GitHub
 					</Button>
-					<Button variant="outline" @click="user.signInWithProvider('google')">
+					<Button
+						variant="outline"
+						:loading="user.signingInWithGoogle"
+						:disabled="user.signingInWithGithub || user.signingInWithEmail"
+						@click="user.signInWithProvider('google')"
+					>
 						<IconGoogle class="mr-2 w-4" />
 						Google
 					</Button>
@@ -66,7 +76,14 @@ const onSubmit = form.handleSubmit((values) => {
 						</FormItem>
 					</FormField>
 
-					<Button class="w-full mt-3" type="submit">Create account</Button>
+					<Button
+						class="w-full mt-3"
+						type="submit"
+						:disabled="user.signingInWithGithub || user.signingInWithGoogle"
+						:loading="user.signingInWithEmail"
+					>
+						Create account
+					</Button>
 				</form>
 				<span class="text-center">
 					Already have an account?

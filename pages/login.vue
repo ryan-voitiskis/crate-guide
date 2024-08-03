@@ -35,13 +35,19 @@ const onSubmit = form.handleSubmit((values) => {
 				<div class="grid grid-cols-2 gap-4">
 					<Button
 						variant="outline"
-						:disabled="user.signingInWithGithub"
+						:loading="user.signingInWithGithub"
+						:disabled="user.signingInWithGoogle || user.signingInWithEmail"
 						@click="user.signInWithProvider('github')"
 					>
 						<IconGithub class="mr-2 w-4" />
 						GitHub
 					</Button>
-					<Button variant="outline" @click="user.signInWithProvider('google')">
+					<Button
+						variant="outline"
+						:loading="user.signingInWithGoogle"
+						:disabled="user.signingInWithGithub || user.signingInWithEmail"
+						@click="user.signInWithProvider('google')"
+					>
 						<IconGoogle class="mr-2 w-4" />
 						Google
 					</Button>
@@ -70,7 +76,14 @@ const onSubmit = form.handleSubmit((values) => {
 						</FormItem>
 					</FormField>
 
-					<Button class="w-full mt-3" type="submit">Sign in</Button>
+					<Button
+						class="w-full mt-3"
+						type="submit"
+						:disabled="user.signingInWithGithub || user.signingInWithGoogle"
+						:loading="user.signingInWithEmail"
+					>
+						Sign in
+					</Button>
 				</form>
 				<span class="text-center">
 					Don't have an account?
