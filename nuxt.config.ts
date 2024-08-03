@@ -6,10 +6,11 @@ export default defineNuxtConfig({
 		'@nuxt/eslint',
 		'@nuxtjs/supabase',
 		'@nuxtjs/tailwindcss',
+		'@pinia/nuxt',
 		'shadcn-nuxt'
 	],
 	imports: {
-		dirs: ['types']
+		dirs: ['types', 'stores']
 	},
 	app: {
 		head: {

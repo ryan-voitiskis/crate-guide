@@ -1,6 +1,7 @@
 import { toast } from 'vue-sonner'
+import { defineStore } from 'pinia'
 
-export function useAuth() {
+export const useUserStore = defineStore('user', () => {
 	const supabase = useSupabaseClient()
 	const router = useRouter()
 
@@ -62,4 +63,4 @@ export function useAuth() {
 		signInWithEmail,
 		signInWithProvider
 	}
-}
+})

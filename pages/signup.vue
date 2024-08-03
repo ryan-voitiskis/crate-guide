@@ -5,7 +5,7 @@ import * as z from 'zod'
 
 definePageMeta({ layout: 'blank' })
 
-const auth = useAuth()
+const user = useUserStore()
 
 const formSchema = toTypedSchema(
 	z.object({
@@ -20,7 +20,7 @@ const formSchema = toTypedSchema(
 const form = useForm({ validationSchema: formSchema })
 
 const onSubmit = form.handleSubmit((values) => {
-	auth.signUpWithEmail(values.email, values.password)
+	user.signUpWithEmail(values.email, values.password)
 })
 </script>
 
@@ -33,11 +33,11 @@ const onSubmit = form.handleSubmit((values) => {
 			</CardHeader>
 			<CardContent class="grid gap-4">
 				<div class="grid grid-cols-2 gap-4">
-					<Button variant="outline" @click="auth.signInWithProvider('github')">
+					<Button variant="outline" @click="user.signInWithProvider('github')">
 						<IconGithub class="mr-2 w-4" />
 						GitHub
 					</Button>
-					<Button variant="outline" @click="auth.signInWithProvider('google')">
+					<Button variant="outline" @click="user.signInWithProvider('google')">
 						<IconGoogle class="mr-2 w-4" />
 						Google
 					</Button>
