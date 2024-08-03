@@ -1,63 +1,10 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
-
 definePageMeta({ layout: 'blank' })
 
-const supabase = useSupabaseClient()
-const router = useRouter()
-
-const signingIn = ref(false)
-const signingInWithGithub = ref(false)
-const signingInWithGoogle = ref(false)
+const auth = useAuth()
 
 const email = ref('')
 const password = ref('')
-
-async function signIn() {
-	signingIn.value = true
-	try {
-		const { error } = await supabase.auth.signInWithPassword({
-			email: email.value,
-			password: password.value
-		})
-		if (error) throw error
-		toast.success(`Sign in successful!`)
-		router.push({ path: '/' })
-	} catch (error) {
-		toast.error(`Error signing in.`)
-	}
-	signingIn.value = false
-}
-
-async function signInWithGithub() {
-	signingInWithGithub.value = true
-	try {
-		const { error } = await supabase.auth.signInWithOAuth({
-			provider: 'github'
-		})
-		if (error) throw error
-		toast.success(`Sign in successful!`)
-		router.push({ path: '/' })
-	} catch (error) {
-		toast.error(`Error signing in.`)
-	}
-	signingInWithGithub.value = false
-}
-
-async function signInWithGoogle() {
-	signingInWithGoogle.value = true
-	try {
-		const { error } = await supabase.auth.signInWithOAuth({
-			provider: 'google'
-		})
-		if (error) throw error
-		toast.success(`Sign in successful!`)
-		router.push({ path: '/' })
-	} catch (error) {
-		toast.error(`Error signing in.`)
-	}
-	signingInWithGoogle.value = false
-}
 </script>
 
 <template>
@@ -69,11 +16,11 @@ async function signInWithGoogle() {
 			</CardHeader>
 			<CardContent class="grid gap-4">
 				<div class="grid grid-cols-2 gap-4">
-					<Button variant="outline" @click="signInWithGithub">
+					<Button variant="outline" @click="auth.signInWithProvider('github')">
 						<IconGithub class="mr-2 w-4" />
 						GitHub
 					</Button>
-					<Button variant="outline" @click="signInWithGoogle">
+					<Button variant="outline" @click="auth.signInWithProvider('google')">
 						<IconGoogle class="mr-2 w-4" />
 						Google
 					</Button>
@@ -101,7 +48,9 @@ async function signInWithGoogle() {
 				</div>
 			</CardContent>
 			<CardFooter class="flex-col gap-4">
-				<Button class="w-full" :loading="true" @click="signIn">Sign in</Button>
+				<Button class="w-full" @click="auth.signInWithEmail(email, password)">
+					Sign in
+				</Button>
 				<span>
 					Don't have an account?
 					<Button variant="link" as-child>
