@@ -5,5 +5,12 @@
 	"deno.enablePaths": ["supabase/functions"],
 	"deno.lint": true,
 	"deno.unstable": true,
-	"editor.defaultFormatter": "esbenp.prettier-vscode"
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"inlineFold.unfoldOnLineSelect": false,
+	"inlineFold.autoFold": false,
+	"tailwindCSS.experimental.classRegex": [
+		["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+		["cx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"],
+		["cn\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"]
+	]
 }
