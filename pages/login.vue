@@ -1,10 +1,27 @@
 <script setup lang="ts">
+import { toTypedSchema } from '@vee-validate/zod'
+import { useForm } from 'vee-validate'
+import * as z from 'zod'
+
 definePageMeta({ layout: 'blank' })
 
 const auth = useAuth()
 
-const email = ref('')
-const password = ref('')
+const formSchema = toTypedSchema(
+	z.object({
+		email: z.string().trim().email().max(254),
+		password: z
+			.string()
+			.min(8, 'Password must be at least 8 characters')
+			.max(64, 'Password cannot exceed 64 characters')
+	})
+)
+
+const form = useForm({ validationSchema: formSchema })
+
+const onSubmit = form.handleSubmit((values) => {
+	auth.signInWithEmail(values.email, values.password)
+})
 </script>
 
 <template>
@@ -25,39 +42,39 @@ const password = ref('')
 						Google
 					</Button>
 				</div>
-				<div class="relative pb-1">
-					<div class="absolute inset-0 flex items-center">
-						<span class="w-full border-t" />
-					</div>
-					<div class="relative flex justify-center">
-						<span class="bg-background px-2 text-muted-foreground">or</span>
-					</div>
-				</div>
-				<div class="grid gap-2">
-					<Label for="email">Email</Label>
-					<Input
-						id="email"
-						v-model="email"
-						type="email"
-						placeholder="user@domain.com"
-					/>
-				</div>
-				<div class="grid gap-2">
-					<Label for="password">Password</Label>
-					<Input id="password" v-model="password" type="password" />
-				</div>
-			</CardContent>
-			<CardFooter class="flex-col gap-4">
-				<Button class="w-full" @click="auth.signInWithEmail(email, password)">
-					Sign in
-				</Button>
-				<span>
+
+				<Separator label="OR" class="my-2" />
+
+				<form class="flex flex-col gap-3" @submit="onSubmit">
+					<FormField v-slot="{ componentField }" name="email">
+						<FormItem>
+							<FormLabel>Email</FormLabel>
+							<FormControl>
+								<Input placeholder="user@domain.com" v-bind="componentField" />
+							</FormControl>
+							<FormMessage />
+						</FormItem>
+					</FormField>
+
+					<FormField v-slot="{ componentField }" name="password">
+						<FormItem>
+							<FormLabel>Password</FormLabel>
+							<FormControl>
+								<Input type="password" v-bind="componentField" />
+							</FormControl>
+							<FormMessage />
+						</FormItem>
+					</FormField>
+
+					<Button class="w-full mt-3" type="submit">Sign in</Button>
+				</form>
+				<span class="text-center">
 					Don't have an account?
 					<Button variant="link" as-child>
 						<NuxtLink to="/signup">Sign up</NuxtLink>
 					</Button>
 				</span>
-			</CardFooter>
+			</CardContent>
 		</Card>
 	</div>
 </template>

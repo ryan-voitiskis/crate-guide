@@ -1,9 +1,10 @@
 import withNuxt from './.nuxt/eslint.config.mjs'
 
 export default withNuxt({
-	files: ['**/*.ts', '**/*.tsx'],
+	files: ['**/*.ts', '**/*.vue'],
 	rules: {
 		'no-console': 'off',
+		'vue/require-default-prop': 'off',
 		'vue/component-tags-order': [
 			'error',
 			{
