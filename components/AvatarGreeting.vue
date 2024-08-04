@@ -7,6 +7,7 @@ const user = useUserStore()
 		<PopoverTrigger as-child>
 			<Avatar class="bg-slate-200 cursor-pointer">
 				<AvatarImage
+					v-if="user.supaUser.user_metadata.avatar_url"
 					:src="user.supaUser.user_metadata.avatar_url"
 					alt="Your avatar"
 				/>

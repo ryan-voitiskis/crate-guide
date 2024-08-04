@@ -37,13 +37,12 @@ export const useUserStore = defineStore('user', () => {
 	async function signInWithEmail(email: string, password: string) {
 		signingInWithEmail.value = true
 		try {
-			const { data, error } = await supabase.auth.signInWithPassword({
+			const { error } = await supabase.auth.signInWithPassword({
 				email,
 				password
 			})
 			if (error) throw error
-			if (!data.user) throw Error('No user id returned.')
-			fetchProfile(data.user.id)
+			router.push('/')
 			toast.success('Sign in successful!')
 		} catch (e) {
 			toast.error(isError(e) ? e.message : 'Error signing in.', {
