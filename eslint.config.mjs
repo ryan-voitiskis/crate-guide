@@ -5,6 +5,7 @@ export default withNuxt({
 	rules: {
 		'no-console': 'off',
 		'vue/require-default-prop': 'off',
+		'vue/html-self-closing': 'off',
 		'vue/component-tags-order': [
 			'error',
 			{

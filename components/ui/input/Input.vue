@@ -6,6 +6,7 @@ const props = defineProps<{
 	defaultValue?: string | number
 	modelValue?: string | number
 	class?: HTMLAttributes['class']
+	name: string
 }>()
 
 const emits = defineEmits<{
@@ -16,6 +17,8 @@ const modelValue = useVModel(props, 'modelValue', emits, {
 	passive: true,
 	defaultValue: props.defaultValue
 })
+
+const { validationListeners } = useValidation(() => props.name)
 </script>
 
 <template>
@@ -27,5 +30,6 @@ const modelValue = useVModel(props, 'modelValue', emits, {
 				props.class
 			)
 		"
+		v-on="validationListeners"
 	/>
 </template>
