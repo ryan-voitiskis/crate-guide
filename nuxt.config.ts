@@ -13,6 +13,7 @@ export default defineNuxtConfig({
 	imports: {
 		dirs: ['types', 'stores']
 	},
+	css: ['~/assets/css/fonts.css'],
 	app: {
 		head: {
 			htmlAttrs: { lang: 'en' },

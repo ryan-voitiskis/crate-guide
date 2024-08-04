@@ -4,6 +4,7 @@ import { defineStore } from 'pinia'
 export const useUserStore = defineStore('user', () => {
 	const supabase = useSupabaseClient()
 	const supaUser = useSupabaseUser()
+	const router = useRouter()
 
 	const profile = ref<Profile | null>(null)
 
@@ -11,15 +12,24 @@ export const useUserStore = defineStore('user', () => {
 	const signingInWithEmail = ref(false)
 	const signingInWithGithub = ref(false)
 	const signingInWithGoogle = ref(false)
+	const userAlreadyRegistered = ref(false)
 
 	async function signUpWithEmail(email: string, password: string) {
 		signingUpWithEmail.value = true
 		try {
 			const { error } = await supabase.auth.signUp({ email, password })
+			if (error?.message === 'User already registered') {
+				userAlreadyRegistered.value = true
+				signingUpWithEmail.value = false
+				router.push('/login')
+				toast.warning(`You've already created an account.`)
+				return
+			}
 			if (error) throw error
-			toast.success('Account creation successful!')
 		} catch (e) {
-			toast.error(`Error signing up${isError(e) ? `: ${e.message}` : ''}.`)
+			toast.error(isError(e) ? e.message : 'Error signing up.', {
+				duration: 30000
+			})
 		}
 		signingUpWithEmail.value = false
 	}
@@ -27,14 +37,18 @@ export const useUserStore = defineStore('user', () => {
 	async function signInWithEmail(email: string, password: string) {
 		signingInWithEmail.value = true
 		try {
-			const { error } = await supabase.auth.signInWithPassword({
+			const { data, error } = await supabase.auth.signInWithPassword({
 				email,
 				password
 			})
 			if (error) throw error
+			if (!data.user) throw Error('No user id returned.')
+			fetchProfile(data.user.id)
 			toast.success('Sign in successful!')
 		} catch (e) {
-			toast.error(`Error signing in${isError(e) ? `: ${e.message}` : ''}.`)
+			toast.error(isError(e) ? e.message : 'Error signing in.', {
+				duration: 30000
+			})
 		}
 		signingInWithEmail.value = false
 	}
@@ -48,7 +62,9 @@ export const useUserStore = defineStore('user', () => {
 			if (error) throw error
 			toast.success('Sign in successful!')
 		} catch (e) {
-			toast.error(`Error signing in${isError(e) ? `: ${e.message}` : ''}.`)
+			toast.error(isError(e) ? e.message : 'Error signing in.', {
+				duration: 30000
+			})
 		}
 		signingInRef.value = false
 	}
@@ -59,7 +75,7 @@ export const useUserStore = defineStore('user', () => {
 			if (error) throw error
 			toast.success('You are now signed out.')
 		} catch (e) {
-			toast.error(`Error signing out.`)
+			toast.error(`Error signing out.`, { duration: 30000 })
 		}
 	}
 
@@ -73,14 +89,14 @@ export const useUserStore = defineStore('user', () => {
 			if (error) throw error
 			profile.value = data
 		} catch (e) {
-			toast.error(`Error getting your profile.`)
+			toast.error(`Error getting your profile.`, { duration: 30000 })
 		}
 	}
 
 	watch(
 		supaUser,
 		() => {
-			if (supaUser.value.id) fetchProfile(supaUser.value.id)
+			if (supaUser.value?.id) fetchProfile(supaUser.value.id)
 		},
 		{ immediate: true }
 	)
@@ -92,6 +108,7 @@ export const useUserStore = defineStore('user', () => {
 		signingInWithEmail,
 		signingInWithGithub,
 		signingInWithGoogle,
+		userAlreadyRegistered,
 		signUpWithEmail,
 		signInWithEmail,
 		signInWithProvider,

@@ -26,7 +26,15 @@ const onSubmit = form.handleSubmit((values) => {
 		<Card class="max-w-md w-full p-6 bg-white rounded-lg shadow-md">
 			<CardHeader class="space-y-1">
 				<CardTitle class="text-2xl">Log in</CardTitle>
-				<CardDescription>Welcome back, log in with</CardDescription>
+				<CardDescription v-if="user.userAlreadyRegistered">
+					<NoticeWarning>
+						<template #title>
+							It looks like you've already created an account
+						</template>
+						Try sign in with GitHub or Google, or enter your email and password
+					</NoticeWarning>
+				</CardDescription>
+				<CardDescription v-else>Welcome back, log in with</CardDescription>
 			</CardHeader>
 			<CardContent class="grid gap-4">
 				<div class="grid grid-cols-2 gap-4">
