@@ -1,6 +1,6 @@
 create table public.profiles (
   id uuid not null references auth.users on delete cascade,
-  name varchar not null,
+  name varchar,
   ui_theme varchar default 'auto' not null,
   turntable_theme varchar default 'black' not null,
   turntable_pitch_range int2 default 8 not null,

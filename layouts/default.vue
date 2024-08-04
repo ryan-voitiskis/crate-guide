@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const user = useSupabaseUser()
+const user = useUserStore()
 </script>
 
 <template>
@@ -16,7 +16,7 @@ const user = useSupabaseUser()
 						<NuxtLink to="/collection">collection</NuxtLink>
 					</Button>
 				</nav>
-				<AvatarGreeting v-if="user" />
+				<AvatarGreeting v-if="user.supaUser" />
 				<div v-else class="flex gap-4">
 					<Button as-child variant="ghost">
 						<NuxtLink to="/signup">Sign up</NuxtLink>
