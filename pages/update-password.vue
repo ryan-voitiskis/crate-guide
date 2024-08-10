@@ -46,9 +46,9 @@ const onSubmit = form.handleSubmit(async (values) => {
 					<Button
 						class="w-full mt-3"
 						type="submit"
-						:loading="user.sendingPasswordResetEmail"
+						:loading="form.isSubmitting.value"
 					>
-						Sign in
+						Update password
 					</Button>
 				</form>
 				<span class="text-center">
