@@ -90,6 +90,12 @@ const onSubmit = form.handleSubmit((values) => {
 						Sign in
 					</Button>
 				</form>
+				<span class="text-center -mb-4">
+					Forgot your password?
+					<Button variant="link" as-child>
+						<NuxtLink to="/reset-password">Reset it</NuxtLink>
+					</Button>
+				</span>
 				<span class="text-center">
 					Don't have an account?
 					<Button variant="link" as-child>

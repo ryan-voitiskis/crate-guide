@@ -13,6 +13,7 @@ export const useUserStore = defineStore('user', () => {
 	const signingInWithGithub = ref(false)
 	const signingInWithGoogle = ref(false)
 	const userAlreadyRegistered = ref(false)
+	const sendingPasswordResetEmail = ref(false)
 
 	async function signUpWithEmail(email: string, password: string) {
 		signingUpWithEmail.value = true
@@ -27,9 +28,7 @@ export const useUserStore = defineStore('user', () => {
 			}
 			if (error) throw error
 		} catch (e) {
-			toast.error(isError(e) ? e.message : 'Error signing up.', {
-				duration: 30000
-			})
+			toast.error(isError(e) ? e.message : 'Error signing up.')
 		}
 		signingUpWithEmail.value = false
 	}
@@ -45,9 +44,7 @@ export const useUserStore = defineStore('user', () => {
 			router.push('/')
 			toast.success('Sign in successful!')
 		} catch (e) {
-			toast.error(isError(e) ? e.message : 'Error signing in.', {
-				duration: 30000
-			})
+			toast.error(isError(e) ? e.message : 'Error signing in.')
 		}
 		signingInWithEmail.value = false
 	}
@@ -61,9 +58,7 @@ export const useUserStore = defineStore('user', () => {
 			if (error) throw error
 			toast.success('Sign in successful!')
 		} catch (e) {
-			toast.error(isError(e) ? e.message : 'Error signing in.', {
-				duration: 30000
-			})
+			toast.error(isError(e) ? e.message : 'Error signing in.')
 		}
 		signingInRef.value = false
 	}
@@ -75,6 +70,35 @@ export const useUserStore = defineStore('user', () => {
 			toast.success('You are now signed out.')
 		} catch (e) {
 			toast.error(`Error signing out.`, { duration: 30000 })
+		}
+	}
+
+	async function sendPasswordResetEmail(email: string): Promise<boolean> {
+		sendingPasswordResetEmail.value = true
+		try {
+			const { error } = await supabase.auth.resetPasswordForEmail(email, {
+				// TODO: ternary using env == prod
+				redirectTo: 'http://localhost:3000/update-password'
+			})
+			if (error) throw error
+			toast.success('Password reset email sent!')
+			sendingPasswordResetEmail.value = false
+			return true
+		} catch (e) {
+			toast.error(isError(e) ? e.message : 'Error sending link.')
+			sendingPasswordResetEmail.value = false
+			return false
+		}
+	}
+
+	async function resetPassword(password: string) {
+		try {
+			const { error } = await supabase.auth.updateUser({ password })
+			if (error) throw error
+			router.push('/')
+			toast.success('Password reset successful!')
+		} catch (e) {
+			toast.error(isError(e) ? e.message : 'Error resetting password.')
 		}
 	}
 
@@ -108,9 +132,12 @@ export const useUserStore = defineStore('user', () => {
 		signingInWithGithub,
 		signingInWithGoogle,
 		userAlreadyRegistered,
+		sendingPasswordResetEmail,
 		signUpWithEmail,
 		signInWithEmail,
 		signInWithProvider,
-		signOut
+		signOut,
+		sendPasswordResetEmail,
+		resetPassword
 	}
 })

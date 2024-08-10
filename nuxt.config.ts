@@ -15,6 +15,7 @@ export default defineNuxtConfig({
 	},
 	css: ['~/assets/css/fonts.css'],
 	app: {
+		keepalive: true,
 		head: {
 			htmlAttrs: { lang: 'en' },
 			charset: 'utf-8',

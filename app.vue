@@ -4,7 +4,7 @@ import { Toaster } from '@/components/ui/sonner'
 
 <template>
 	<NuxtLayout>
-		<NuxtPage keepalive />
+		<NuxtPage />
 	</NuxtLayout>
 
 	<Toaster position="bottom-center" />
