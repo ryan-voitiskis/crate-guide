@@ -7,6 +7,9 @@ definePageMeta({ layout: 'blank' })
 
 const user = useUserStore()
 
+const signingInWithGithub = ref(false)
+const signingInWithGoogle = ref(false)
+
 const formSchema = toTypedSchema(
 	z.object({
 		email: z.string().trim().email().max(254),
@@ -18,6 +21,18 @@ const formSchema = toTypedSchema(
 )
 
 const form = useForm({ validationSchema: formSchema })
+
+async function signInWithGithub() {
+	signingInWithGithub.value = true
+	await user.signInWithProvider('github')
+	signingInWithGithub.value = false
+}
+
+async function signInWithGoogle() {
+	signingInWithGoogle.value = true
+	await user.signInWithProvider('google')
+	signingInWithGoogle.value = false
+}
 
 const onSubmit = form.handleSubmit((values) => {
 	user.signUpWithEmail(values.email, values.password)
@@ -35,18 +50,18 @@ const onSubmit = form.handleSubmit((values) => {
 				<div class="grid grid-cols-2 gap-4">
 					<Button
 						variant="outline"
-						:loading="user.signingInWithGithub"
-						:disabled="user.signingInWithGoogle || user.signingInWithEmail"
-						@click="user.signInWithProvider('github')"
+						:loading="signingInWithGithub"
+						:disabled="signingInWithGoogle || form.isSubmitting.value"
+						@click="signInWithGithub"
 					>
 						<IconGithub class="mr-2 w-4" />
 						GitHub
 					</Button>
 					<Button
 						variant="outline"
-						:loading="user.signingInWithGoogle"
-						:disabled="user.signingInWithGithub || user.signingInWithEmail"
-						@click="user.signInWithProvider('google')"
+						:loading="signingInWithGoogle"
+						:disabled="signingInWithGithub || form.isSubmitting.value"
+						@click="signInWithGoogle"
 					>
 						<IconGoogle class="mr-2 w-4" />
 						Google
@@ -79,8 +94,8 @@ const onSubmit = form.handleSubmit((values) => {
 					<Button
 						class="w-full mt-3"
 						type="submit"
-						:disabled="user.signingInWithGithub || user.signingInWithGoogle"
-						:loading="user.signingInWithEmail"
+						:disabled="signingInWithGithub || signingInWithGoogle"
+						:loading="form.isSubmitting.value"
 					>
 						Create account
 					</Button>

@@ -52,7 +52,7 @@ const onSubmit = form.handleSubmit(async (values) => {
 					<Button
 						class="w-full mt-3"
 						type="submit"
-						:loading="user.sendingPasswordResetEmail"
+						:loading="form.isSubmitting.value"
 					>
 						Send reset link
 					</Button>

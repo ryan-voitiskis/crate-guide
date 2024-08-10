@@ -8,20 +8,13 @@ export const useUserStore = defineStore('user', () => {
 
 	const profile = ref<Profile | null>(null)
 
-	const signingUpWithEmail = ref(false)
-	const signingInWithEmail = ref(false)
-	const signingInWithGithub = ref(false)
-	const signingInWithGoogle = ref(false)
 	const userAlreadyRegistered = ref(false)
-	const sendingPasswordResetEmail = ref(false)
 
 	async function signUpWithEmail(email: string, password: string) {
-		signingUpWithEmail.value = true
 		try {
 			const { error } = await supabase.auth.signUp({ email, password })
 			if (error?.message === 'User already registered') {
 				userAlreadyRegistered.value = true
-				signingUpWithEmail.value = false
 				router.push('/login')
 				toast.warning(`You've already created an account.`)
 				return
@@ -30,11 +23,9 @@ export const useUserStore = defineStore('user', () => {
 		} catch (e) {
 			toast.error(isError(e) ? e.message : 'Error signing up.')
 		}
-		signingUpWithEmail.value = false
 	}
 
 	async function signInWithEmail(email: string, password: string) {
-		signingInWithEmail.value = true
 		try {
 			const { error } = await supabase.auth.signInWithPassword({
 				email,
@@ -46,21 +37,17 @@ export const useUserStore = defineStore('user', () => {
 		} catch (e) {
 			toast.error(isError(e) ? e.message : 'Error signing in.')
 		}
-		signingInWithEmail.value = false
 	}
 
 	async function signInWithProvider(provider: 'github' | 'google') {
-		const signingInRef =
-			provider === 'github' ? signingInWithGithub : signingInWithGoogle
-		signingInRef.value = true
 		try {
 			const { error } = await supabase.auth.signInWithOAuth({ provider })
 			if (error) throw error
+			router.push('/')
 			toast.success('Sign in successful!')
 		} catch (e) {
 			toast.error(isError(e) ? e.message : 'Error signing in.')
 		}
-		signingInRef.value = false
 	}
 
 	async function signOut() {
@@ -74,7 +61,6 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	async function sendPasswordResetEmail(email: string): Promise<boolean> {
-		sendingPasswordResetEmail.value = true
 		try {
 			const { error } = await supabase.auth.resetPasswordForEmail(email, {
 				// TODO: ternary using env == prod
@@ -82,11 +68,9 @@ export const useUserStore = defineStore('user', () => {
 			})
 			if (error) throw error
 			toast.success('Password reset email sent!')
-			sendingPasswordResetEmail.value = false
 			return true
 		} catch (e) {
 			toast.error(isError(e) ? e.message : 'Error sending link.')
-			sendingPasswordResetEmail.value = false
 			return false
 		}
 	}
@@ -127,12 +111,7 @@ export const useUserStore = defineStore('user', () => {
 	return {
 		supaUser,
 		profile,
-		signingUpWithEmail,
-		signingInWithEmail,
-		signingInWithGithub,
-		signingInWithGoogle,
 		userAlreadyRegistered,
-		sendingPasswordResetEmail,
 		signUpWithEmail,
 		signInWithEmail,
 		signInWithProvider,
