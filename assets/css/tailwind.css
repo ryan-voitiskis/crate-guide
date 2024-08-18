@@ -10,6 +10,9 @@
 		--spotify-green: #1db954;
 		--spotify-black: #191414;
 
+		--logo-medium: hsl(312, 38%, 58%);
+		--logo-light: hsl(313, 20%, 77%);
+
 		--background: 40 20% 97%;
 		--foreground: 40 20% 28%;
 
@@ -43,7 +46,7 @@
 		--warning: 39 84% 55%;
 		--warning-foreground: 39 89% 35%;
 
-		--ring: 222.2 84% 4.9%;
+		--ring: 312 69% 69%;
 
 		--radius: 0.5rem;
 	}

@@ -12,11 +12,11 @@
 				cy="183"
 				r="163"
 				stroke-width="10"
-				stroke="#8c4394"
+				stroke="var(--logo-medium)"
 				fill="transparent"
 			/>
-			<text x="183" y="158" fill="#8c4394">Crate</text>
-			<text x="183" y="258" fill="#b9adda">Guide</text>
+			<text x="183" y="158" fill="var(--logo-medium)">Crate</text>
+			<text x="183" y="258" fill="var(--logo-light)">Guide</text>
 			<circle cx="183" cy="183" r="2" fill="#d7d8dd" />
 		</g>
 	</svg>

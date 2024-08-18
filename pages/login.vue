@@ -40,7 +40,11 @@ const onSubmit = form.handleSubmit((values) =>
 	<div class="flex items-center justify-center h-screen">
 		<Card class="max-w-md w-full p-6 rounded-lg shadow-md">
 			<CardHeader class="space-y-1">
-				<IconCrateGuide class="w-24 mb-2 mx-auto" />
+				<Button variant="blank" size="xl-icon" class="mx-auto mb-2" as-child>
+					<NuxtLink to="/">
+						<CrateGuideLogo class="w-24" />
+					</NuxtLink>
+				</Button>
 				<CardTitle class="text-2xl">Log in</CardTitle>
 				<CardDescription v-if="user.userAlreadyRegistered">
 					<NoticeWarning>
