@@ -2,10 +2,21 @@
 
 Live site: [https://crate.guide](https://crate.guide)
 
-Crate Guide is a DJ app designed to assist in finding compatible tracks
-within a users vinyl record collection. Records can be added manually
-or imported from your Discogs collection. Audio features from your tracks
-can then be imported from Spotify through a mostly automated process.
+Crate Guide is a DJ app for finding compatible tracks within your vinyl record collection.
+
+## v2
+
+I have started working on a version 2. Check it out
+
+```sh
+git checkout v2
+```
+
+The current MongoDB / Express backend will not support future features I would like to build. I have also changed my opinion on document databases since choosing MongoDB.
+
+I am also investigating options for getting basic audio features like BPM and Key for tracks without using the Spotify API. I was unable to have Crate Guide approved by Spotify because you might play a vinyl record whilst using the app which counts as playback from other sources.
+
+## v1
 
 ### Features implemented:
 
@@ -89,7 +100,7 @@ This project is licensed under the MIT License.
 
 ## Contributions
 
-Crate Guide is an open source project, contributions are welcome.
+Crate Guide is an open source project, talk to me, open an issue, submit a PR or fork it.
 
 ## Author
 
