@@ -3,26 +3,31 @@ import { type VariantProps, cva } from 'class-variance-authority'
 export { default as Button } from './Button.vue'
 
 export const buttonVariants = cva(
-	'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+	'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 font-medium',
 	{
 		variants: {
 			variant: {
-				default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+				default:
+					'bg-primary text-primary-foreground shadow hover:bg-primary/80',
 				destructive:
-					'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+					'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
 				outline:
-					'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
+					'border text-primary hover:no-underline shadow-sm hover:bg-foreground/10 hover:border-primary',
 				secondary:
-					'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+					'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
 				ghost: 'hover:bg-accent hover:text-accent-foreground',
-				link: 'text-primary underline-offset-4 hover:underline'
+				link: 'text-primary underline-offset-4 hover:underline',
+				blank: 'whitespace-normal',
+				image: 'focus-visible:ring-8'
 			},
 			size: {
-				default: 'h-10 px-4 py-2',
-				xs: 'h-7 rounded px-2',
-				sm: 'h-9 rounded-md px-3',
-				lg: 'h-11 rounded-md px-8',
-				icon: 'h-10 w-10'
+				default: 'h-9 px-4 py-2',
+				sm: 'h-8 rounded-md px-3 text-xs',
+				lg: 'h-10 rounded-md px-8',
+				icon: 'h-9 w-9',
+				'lg-icon': 'h-12 w-12 p-2',
+				'xl-icon': 'h-24 w-24 focus-visible:ring-4',
+				image: 'h-full w-full object-cover'
 			}
 		},
 		defaultVariants: {
