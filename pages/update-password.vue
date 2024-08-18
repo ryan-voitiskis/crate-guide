@@ -3,8 +3,6 @@ import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import * as z from 'zod'
 
-definePageMeta({ layout: 'blank' })
-
 const user = useUserStore()
 
 const formSchema = toTypedSchema(

@@ -3,7 +3,7 @@ import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import * as z from 'zod'
 
-definePageMeta({ layout: 'blank', keepalive: false })
+definePageMeta({ keepalive: false })
 
 const user = useUserStore()
 const linkSent = ref(false)
