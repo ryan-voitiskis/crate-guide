@@ -11,19 +11,19 @@
 		--spotify-black: #191414;
 
 		--background: 40 20% 97%;
-		--foreground: 40 14% 20%;
+		--foreground: 40 20% 28%;
 
 		--muted: 40 20% 94%;
-		--muted-foreground: 40 16.3% 46.9%;
+		--muted-foreground: 40 20% 28%;
 
 		--popover: 0 0% 100%;
 		--popover-foreground: 222.2 84% 4.9%;
 
-		--card: 40 20% 98%;
+		--card: 40 20% 99%;
 		--card-foreground: 222.2 84% 4.9%;
 
-		--border: 214.3 31.8% 91.4%;
-		--input: 214.3 31.8% 91.4%;
+		--border: 40 31.8% 91.4%;
+		--input: 40 31.8% 91.4%;
 
 		--primary: 311 13% 50%;
 		--primary-foreground: 210 40% 98%;

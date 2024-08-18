@@ -3,12 +3,15 @@ import { type HTMLAttributes, computed } from 'vue'
 import { Separator, type SeparatorProps } from 'radix-vue'
 
 const props = defineProps<
-	SeparatorProps & { class?: HTMLAttributes['class']; label?: string }
+	SeparatorProps & {
+		class?: HTMLAttributes['class']
+		label?: string
+		spanClass?: HTMLAttributes['class']
+	}
 >()
 
 const delegatedProps = computed(() => {
-	const { class: _, ...delegated } = props
-
+	const { class: _, spanClass: __, ...delegated } = props
 	return delegated
 })
 </script>
@@ -31,7 +34,8 @@ const delegatedProps = computed(() => {
 					'text-xs text-muted-foreground bg-background absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex justify-center items-center',
 					props.orientation === 'vertical'
 						? 'w-[1px] px-1 py-2'
-						: 'h-[1px] py-1 px-2'
+						: 'h-[1px] py-1 px-2',
+					props.spanClass
 				)
 			"
 		>

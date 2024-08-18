@@ -31,3 +31,11 @@
 	src: url('/fonts/BerkeleyMonoVariable-Italic.woff2')
 		format('woff2-variations');
 }
+
+@font-face {
+	font-family: 'Egyptian505';
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url('/fonts/egyptian-505-bold.otf') format('opentype');
+}
