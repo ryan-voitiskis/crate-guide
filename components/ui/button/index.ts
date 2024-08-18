@@ -2,6 +2,7 @@ import { type VariantProps, cva } from 'class-variance-authority'
 
 export { default as Button } from './Button.vue'
 
+// TODO: remove unused variants and sizes on final cleanup
 export const buttonVariants = cva(
 	'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 font-medium',
 	{

@@ -13,8 +13,8 @@
 		--background: 40 20% 97%;
 		--foreground: 40 20% 28%;
 
-		--muted: 40 20% 94%;
-		--muted-foreground: 40 20% 28%;
+		--muted: 40 20% 90%;
+		--muted-foreground: 40 1% 50%;
 
 		--popover: 0 0% 100%;
 		--popover-foreground: 222.2 84% 4.9%;
@@ -25,7 +25,7 @@
 		--border: 40 31.8% 91.4%;
 		--input: 40 31.8% 91.4%;
 
-		--primary: 311 13% 50%;
+		--primary: 311 20% 44%;
 		--primary-foreground: 210 40% 98%;
 
 		--secondary: 210 40% 96.1%;

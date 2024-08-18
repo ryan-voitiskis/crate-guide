@@ -4,16 +4,26 @@ const user = useUserStore()
 
 <template>
 	<div class="bg-background">
-		<header class="flex h-14 w-full justify-between border-b bg-muted">
+		<header class="flex h-14 w-full justify-between">
 			<div
 				class="mx-auto flex w-full max-w-[1600px] flex-row items-center justify-between p-4"
 			>
-				<nav class="flex flex-wrap gap-4">
-					<Button as-child>
-						<NuxtLink to="/">session</NuxtLink>
+				<nav class="flex flex-wrap bg-muted rounded-lg p-1">
+					<Button
+						variant="blank"
+						class="text-muted-foreground w-32"
+						active-class="bg-background shadow-sm !text-foreground"
+						as-child
+					>
+						<NuxtLink to="/">Session</NuxtLink>
 					</Button>
-					<Button as-child>
-						<NuxtLink to="/collection">collection</NuxtLink>
+					<Button
+						variant="blank"
+						class="text-muted-foreground w-32"
+						active-class="bg-background shadow-sm !text-foreground"
+						as-child
+					>
+						<NuxtLink to="/collection">Collection</NuxtLink>
 					</Button>
 				</nav>
 
