@@ -17,7 +17,6 @@
 			/>
 			<text x="183" y="158" fill="var(--logo-medium)">Crate</text>
 			<text x="183" y="258" fill="var(--logo-light)">Guide</text>
-			<circle cx="183" cy="183" r="2" fill="#d7d8dd" />
 		</g>
 	</svg>
 </template>

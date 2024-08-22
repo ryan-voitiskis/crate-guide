@@ -71,7 +71,7 @@ const onSubmit = form.handleSubmit((values) => {
 					</Button>
 				</div>
 
-				<Separator label="OR" class="my-2" />
+				<Separator label="OR" class="my-2" span-class="bg-card" />
 
 				<form class="flex flex-col gap-3" @submit="onSubmit">
 					<FormField v-slot="{ componentField }" name="email">
@@ -88,7 +88,7 @@ const onSubmit = form.handleSubmit((values) => {
 						<FormItem>
 							<FormLabel>Password</FormLabel>
 							<FormControl>
-								<Input type="password" v-bind="componentField" />
+								<PasswordInput v-bind="componentField" />
 							</FormControl>
 							<FormMessage />
 						</FormItem>
