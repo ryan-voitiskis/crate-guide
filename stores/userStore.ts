@@ -1,4 +1,5 @@
 import { toast } from 'vue-sonner'
+import type { EmailOtpType } from '@supabase/supabase-js'
 import { defineStore } from 'pinia'
 
 export const useUserStore = defineStore('user', () => {
@@ -86,6 +87,17 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
+	async function verifyOtp(token_hash: string, type: EmailOtpType) {
+		try {
+			const { error } = await supabase.auth.verifyOtp({ token_hash, type })
+			if (error) throw error
+			router.push('/')
+			toast.success('Sign in successful!')
+		} catch (e) {
+			toast.error(isError(e) ? e.message : 'Error resetting password.')
+		}
+	}
+
 	async function fetchProfile(id: string) {
 		try {
 			const { data, error } = await supabase
@@ -117,6 +129,7 @@ export const useUserStore = defineStore('user', () => {
 		signInWithProvider,
 		signOut,
 		sendPasswordResetEmail,
-		resetPassword
+		resetPassword,
+		verifyOtp
 	}
 })
