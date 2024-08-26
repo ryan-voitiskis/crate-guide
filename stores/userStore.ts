@@ -42,10 +42,13 @@ export const useUserStore = defineStore('user', () => {
 
 	async function signInWithProvider(provider: 'github' | 'google') {
 		try {
-			const { error } = await supabase.auth.signInWithOAuth({ provider })
+			const { error } = await supabase.auth.signInWithOAuth({
+				provider,
+				options: {
+					redirectTo: 'http://localhost:3000/auth/finalising'
+				}
+			})
 			if (error) throw error
-			router.push('/')
-			toast.success('Sign in successful!')
 		} catch (e) {
 			toast.error(isError(e) ? e.message : 'Error signing in.')
 		}

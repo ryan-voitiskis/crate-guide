@@ -20,13 +20,11 @@ const form = useForm({ validationSchema: formSchema })
 async function signInWithGithub() {
 	signingInWithGithub.value = true
 	await user.signInWithProvider('github')
-	signingInWithGithub.value = false
 }
 
 async function signInWithGoogle() {
 	signingInWithGoogle.value = true
 	await user.signInWithProvider('google')
-	signingInWithGoogle.value = false
 }
 
 const onSubmit = form.handleSubmit((values) =>
