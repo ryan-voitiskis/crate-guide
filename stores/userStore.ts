@@ -5,7 +5,11 @@ import { defineStore } from 'pinia'
 export const useUserStore = defineStore('user', () => {
 	const supabase = useSupabaseClient()
 	const supaUser = useSupabaseUser()
+	const config = useRuntimeConfig()
 	const router = useRouter()
+
+	const url =
+		config.buildId === 'dev' ? 'http://localhost:3000' : 'https://crate.guide'
 
 	const profile = ref<Profile | null>(null)
 
@@ -44,9 +48,7 @@ export const useUserStore = defineStore('user', () => {
 		try {
 			const { error } = await supabase.auth.signInWithOAuth({
 				provider,
-				options: {
-					redirectTo: 'http://localhost:3000/auth/finalising'
-				}
+				options: { redirectTo: `${url}/auth/finalising` }
 			})
 			if (error) throw error
 		} catch (e) {
@@ -67,8 +69,7 @@ export const useUserStore = defineStore('user', () => {
 	async function sendPasswordResetEmail(email: string): Promise<boolean> {
 		try {
 			const { error } = await supabase.auth.resetPasswordForEmail(email, {
-				// TODO: ternary using env == prod
-				redirectTo: 'http://localhost:3000/update-password'
+				redirectTo: `${url}/update-password'`
 			})
 			if (error) throw error
 			toast.success('Password reset email sent!')
