@@ -14,6 +14,11 @@ export default defineNuxtConfig({
 		dirs: ['types', 'stores']
 	},
 	css: ['~/assets/css/fonts.css'],
+	components: [
+		{ path: '~/components', pathPrefix: false },
+		{ path: '~/components/icons', prefix: 'Icon' },
+		{ path: '~/components/notices', prefix: 'Notice' }
+	],
 	app: {
 		keepalive: true,
 		head: {

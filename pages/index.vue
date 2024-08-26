@@ -15,7 +15,7 @@ const activeTab = ref('session')
 				<TabsTrigger value="session" class="w-32">Session</TabsTrigger>
 				<TabsTrigger value="collection" class="w-32">Collection</TabsTrigger>
 			</TabsList>
-			<AvatarGreeting v-if="user.supaUser" />
+			<UserSettings v-if="user.supaUser" />
 			<div v-else class="flex gap-4">
 				<Button as-child variant="ghost">
 					<NuxtLink to="/signup">Sign up</NuxtLink>
