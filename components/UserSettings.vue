@@ -1,6 +1,14 @@
 <script setup lang="ts">
 const user = useUserStore()
 const discogs = useDiscogsStore()
+
+const isDiscogsConnecting = ref(false)
+
+async function handleDiscogsConnect() {
+	isDiscogsConnecting.value = true
+	const success = await discogs.getDiscogsRequestToken()
+	if (!success) isDiscogsConnecting.value = false
+}
 </script>
 
 <template>
@@ -27,8 +35,8 @@ const discogs = useDiscogsStore()
 					</p>
 					<pre>{{ user.profile }}</pre>
 				</div>
-				<Button @click="discogs.getDiscogsRequestToken()">
-					Connect to discogs
+				<Button @click="handleDiscogsConnect" :loading="isDiscogsConnecting">
+					Connect to Discogs
 				</Button>
 				<ThemeToggle />
 				<div class="flex">
