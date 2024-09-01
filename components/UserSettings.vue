@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const user = useUserStore()
+const discogs = useDiscogsStore()
 </script>
 
 <template>
@@ -26,6 +27,9 @@ const user = useUserStore()
 					</p>
 					<pre>{{ user.profile }}</pre>
 				</div>
+				<Button @click="discogs.getDiscogsRequestToken()">
+					Connect to discogs
+				</Button>
 				<ThemeToggle />
 				<div class="flex">
 					<Button v-if="user.supaUser" @click="user.signOut">Logout</Button>

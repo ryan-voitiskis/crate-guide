@@ -10,7 +10,8 @@
 		"postinstall": "nuxt prepare",
 		"format": "prettier --write '**/*.{ts,js,vue,scss,css,md,json}'",
 		"genTypes": "supabase gen types --lang=typescript --project-id luhufzpayswbgewenudn > types/database.ts",
-		"genLocalTypes": "supabase gen types --lang=typescript --local > types/database.ts"
+		"genLocalTypes": "supabase gen types --lang=typescript --local > types/database.ts",
+		"setSupabaseSecrets": "npx supabase secrets set --project-ref=luhufzpayswbgewenudn --env-file ./supabase/.env"
 	},
 	"dependencies": {
 		"@nuxt/eslint": "^0.4.0",
