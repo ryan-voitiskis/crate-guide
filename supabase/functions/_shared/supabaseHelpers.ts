@@ -29,8 +29,11 @@ export async function getUser(authHeader: string) {
 	return user
 }
 
-export async function getUserProfile(authHeader: string): Promise<Profile> {
-	if (cachedProfile) return cachedProfile
+export async function getUserProfile(
+	authHeader: string,
+	ignoreCache = false
+): Promise<Profile> {
+	if (cachedProfile && !ignoreCache) return cachedProfile
 	const supabase = getAuthedSupabaseClient(authHeader)
 	const user = await getUser(authHeader)
 	const { data, error } = await supabase

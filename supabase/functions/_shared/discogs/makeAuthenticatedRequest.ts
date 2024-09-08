@@ -13,7 +13,7 @@ export async function makeAuthenticatedRequest(
 	page?: number,
 	per_page?: number
 ) {
-	const profile = await getUserProfile(authHeader)
+	const profile = await getUserProfile(authHeader, true)
 	if (!profile.discogs_access_token)
 		throw new Error('Missing Discogs access token.')
 	if (!profile.discogs_access_secret)
