@@ -43,8 +43,8 @@ Deno.serve(async (req) => {
 		const { error } = await supabase
 			.from('profiles')
 			.update({
-				discogs_token: discogsResponse.oauth_token,
-				discogs_token_secret: discogsResponse.oauth_token_secret
+				discogs_request_token: discogsResponse.oauth_token,
+				discogs_request_secret: discogsResponse.oauth_token_secret
 			})
 			.eq('id', user.id)
 		if (error) throw error

@@ -7,8 +7,6 @@
 				<slot name="title" />
 			</h2>
 		</header>
-		<p>
-			<slot />
-		</p>
+		<slot />
 	</div>
 </template>

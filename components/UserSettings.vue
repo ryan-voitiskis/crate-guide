@@ -1,14 +1,5 @@
 <script setup lang="ts">
 const user = useUserStore()
-const discogs = useDiscogsStore()
-
-const isDiscogsConnecting = ref(false)
-
-async function handleDiscogsConnect() {
-	isDiscogsConnecting.value = true
-	const success = await discogs.getDiscogsRequestToken()
-	if (!success) isDiscogsConnecting.value = false
-}
 </script>
 
 <template>
@@ -26,18 +17,16 @@ async function handleDiscogsConnect() {
 		<PopoverContent side="bottom" align="end" :side-offset="5" class="w-120">
 			<div class="grid gap-4">
 				<div class="space-y-2">
-					<h4 class="font-medium leading-none">
+					<h2 class="font-medium leading-none">
 						Welcome back
 						{{ user.supaUser.user_metadata.full_name || user.supaUser.email }}
-					</h4>
+					</h2>
 					<p class="text-sm text-muted-foreground">
 						This text hasn't been decided upon yet.
 					</p>
-					<pre>{{ user.profile }}</pre>
+					<pre class="text-xs">{{ user.profile }}</pre>
 				</div>
-				<Button @click="handleDiscogsConnect" :loading="isDiscogsConnecting">
-					Connect to Discogs
-				</Button>
+				<ManageDiscogsOAuth />
 				<ThemeToggle />
 				<div class="flex">
 					<Button v-if="user.supaUser" @click="user.signOut">Logout</Button>

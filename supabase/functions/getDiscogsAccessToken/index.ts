@@ -1,15 +1,19 @@
 import { corsHeaders } from '../_shared/corsHeaders.ts'
+import { fetchAndSetIdentity } from '../_shared/discogs/fetchAndSetIdentity.ts'
 import { generateToken } from '../_shared/generateToken.ts'
 import {
 	getAuthedSupabaseClient,
 	getUserProfile
 } from '../_shared/supabaseHelpers.ts'
+import { Profile } from '../_shared/types/supabase.ts'
 
 const oauth_consumer_key = Deno.env.get('DISCOGS_CONSUMER_KEY') || ''
 const oauth_consumer_secret = Deno.env.get('DISCOGS_CONSUMER_SECRET') || ''
 const accessTokenURL = 'https://api.discogs.com/oauth/access_token'
 const userAgent = 'CrateGuide/0.2'
 
+// make post request to discogs access token endpoint as per step 4 of
+// https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
 Deno.serve(async (req) => {
 	if (req.method === 'OPTIONS')
 		return new Response(null, { status: 204, headers: corsHeaders })
@@ -25,15 +29,13 @@ Deno.serve(async (req) => {
 
 		const supabase = getAuthedSupabaseClient(authHeader)
 		const profile = await getUserProfile(authHeader)
+		const oauthSignature = genOAuthSignature(oauth_consumer_secret, profile)
 
 		const params = new URLSearchParams()
 		params.append('oauth_consumer_key', oauth_consumer_key)
 		params.append('oauth_nonce', await generateToken())
 		params.append('oauth_token', oauth_token)
-		params.append(
-			'oauth_signature',
-			`${oauth_consumer_secret}%26${profile.discogs_token_secret}`
-		)
+		params.append('oauth_signature', oauthSignature)
 		params.append('oauth_signature_method', 'PLAINTEXT')
 		params.append('oauth_timestamp', Date.now().toString())
 		params.append('oauth_verifier', oauth_verifier)
@@ -54,11 +56,13 @@ Deno.serve(async (req) => {
 		const { error } = await supabase
 			.from('profiles')
 			.update({
-				discogs_token: discogsResponse.oauth_token,
-				discogs_token_secret: discogsResponse.oauth_token_secret
+				discogs_access_token: discogsResponse.oauth_token,
+				discogs_access_secret: discogsResponse.oauth_token_secret
 			})
 			.eq('id', profile.id)
 		if (error) throw error
+
+		await fetchAndSetIdentity(authHeader)
 
 		return new Response(null, { headers: corsHeaders, status: 200 })
 	} catch (e) {
@@ -69,3 +73,9 @@ Deno.serve(async (req) => {
 		})
 	}
 })
+
+function genOAuthSignature(consumerSecret: string, profile: Profile) {
+	if (!profile.discogs_request_secret)
+		throw new Error('Missing Discogs request secret.')
+	return `${consumerSecret}%26${profile.discogs_request_secret}`
+}

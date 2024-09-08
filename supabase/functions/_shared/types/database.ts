@@ -46,8 +46,11 @@ export type Database = {
       }
       profiles: {
         Row: {
-          discogs_token: string | null
-          discogs_token_secret: string | null
+          discogs_access_secret: string | null
+          discogs_access_token: string | null
+          discogs_avatar_url: string | null
+          discogs_request_secret: string | null
+          discogs_request_token: string | null
           discogs_username: string | null
           id: string
           key_format: string
@@ -59,8 +62,11 @@ export type Database = {
           ui_theme: string
         }
         Insert: {
-          discogs_token?: string | null
-          discogs_token_secret?: string | null
+          discogs_access_secret?: string | null
+          discogs_access_token?: string | null
+          discogs_avatar_url?: string | null
+          discogs_request_secret?: string | null
+          discogs_request_token?: string | null
           discogs_username?: string | null
           id: string
           key_format?: string
@@ -72,8 +78,11 @@ export type Database = {
           ui_theme?: string
         }
         Update: {
-          discogs_token?: string | null
-          discogs_token_secret?: string | null
+          discogs_access_secret?: string | null
+          discogs_access_token?: string | null
+          discogs_avatar_url?: string | null
+          discogs_request_secret?: string | null
+          discogs_request_token?: string | null
           discogs_username?: string | null
           id?: string
           key_format?: string
