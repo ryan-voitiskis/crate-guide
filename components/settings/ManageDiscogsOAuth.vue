@@ -2,7 +2,7 @@
 import { toast } from 'vue-sonner'
 
 const user = useUserStore()
-const supabase = useSupabaseClient()
+const supabase = useSupabaseClient<Database>()
 
 const isDiscogsConnecting = ref(false)
 
@@ -28,16 +28,37 @@ async function initDiscogsOAuthFlow() {
 <template>
 	<div class="space-y-2">
 		<h2 class="font-medium leading-none">Discogs Integration</h2>
-		<p class="text-sm text-muted-foreground">
-			Connect Crate Guide to your Discogs account so you can import your
-			collection.
-		</p>
-		<Button
-			@click="initDiscogsOAuthFlow"
-			variant="secondary"
-			:loading="isDiscogsConnecting"
-		>
-			Authenticate with Discogs
-		</Button>
+		<div v-if="user.profile?.discogs_username" class="space-y-2">
+			<span class="text-sm text-muted-foreground">
+				Crate Guide is connected to your Discogs account
+			</span>
+			<div class="flex items-center gap-2">
+				<Avatar class="bg-primary text-primary-foreground cursor-pointer">
+					<AvatarImage
+						v-if="user.profile.discogs_avatar_url"
+						:src="user.profile.discogs_avatar_url"
+						alt="Your Discogs avatar"
+					/>
+					<AvatarFallback><IconUser class="h-7 w-7" /></AvatarFallback>
+				</Avatar>
+				<span class="font-medium text-sm">
+					{{ user.profile.discogs_username }}
+				</span>
+				<DisconnectDiscogsDialog />
+			</div>
+		</div>
+		<div v-else>
+			<p class="text-sm text-muted-foreground">
+				Connect Crate Guide to your Discogs account so you can import your
+				collection.
+			</p>
+			<Button
+				@click="initDiscogsOAuthFlow"
+				variant="secondary"
+				:loading="isDiscogsConnecting"
+			>
+				Authenticate with Discogs
+			</Button>
+		</div>
 	</div>
 </template>

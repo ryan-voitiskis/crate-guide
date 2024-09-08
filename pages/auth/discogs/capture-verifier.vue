@@ -2,7 +2,7 @@
 import { FunctionsError } from '@supabase/supabase-js'
 
 const route = useRoute()
-const supabase = useSupabaseClient()
+const supabase = useSupabaseClient<Database>()
 
 const failed = ref(false)
 

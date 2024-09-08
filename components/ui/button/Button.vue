@@ -29,6 +29,8 @@ const props = withDefaults(defineProps<Props>(), {
 		>
 			<LoadingSpinner class="opacity-80" />
 		</span>
-		<slot v-else />
+		<div :class="{ 'opacity-0': loading }">
+			<slot />
+		</div>
 	</Primitive>
 </template>

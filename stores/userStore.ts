@@ -3,17 +3,16 @@ import type { EmailOtpType } from '@supabase/supabase-js'
 import { defineStore } from 'pinia'
 
 export const useUserStore = defineStore('user', () => {
-	const supabase = useSupabaseClient()
+	const supabase = useSupabaseClient<Database>()
 	const supaUser = useSupabaseUser()
 	const config = useRuntimeConfig()
 	const router = useRouter()
 
+	const profile = ref<Profile | null>(null)
+	const userAlreadyRegistered = ref(false)
+
 	const url =
 		config.buildId === 'dev' ? 'http://localhost:3000' : 'https://crate.guide'
-
-	const profile = ref<Profile | null>(null)
-
-	const userAlreadyRegistered = ref(false)
 
 	async function signUpWithEmail(email: string, password: string) {
 		try {

@@ -97,3 +97,7 @@
 		@apply bg-background text-foreground;
 	}
 }
+
+p {
+	margin-bottom: 1rem;
+}
