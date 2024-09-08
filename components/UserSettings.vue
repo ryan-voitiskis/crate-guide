@@ -5,7 +5,7 @@ const user = useUserStore()
 <template>
 	<Popover>
 		<PopoverTrigger as-child>
-			<Avatar class="bg-primary text-primary-foreground cursor-pointer">
+			<Avatar class="cursor-pointer bg-primary text-primary-foreground">
 				<AvatarImage
 					v-if="user.supaUser.user_metadata.avatar_url"
 					:src="user.supaUser.user_metadata.avatar_url"
@@ -18,7 +18,7 @@ const user = useUserStore()
 			side="bottom"
 			align="end"
 			:side-offset="5"
-			class="w-full max-w-[96vw] sm:max-w-96 flex flex-col gap-4"
+			class="flex w-full max-w-[96vw] flex-col gap-4 sm:max-w-96"
 		>
 			<div class="space-y-2">
 				<h2 class="font-medium leading-none">

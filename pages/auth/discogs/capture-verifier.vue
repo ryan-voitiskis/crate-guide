@@ -19,18 +19,18 @@ onMounted(async () => {
 </script>
 
 <template>
-	<div class="w-full h-screen flex justify-center items-center">
-		<div v-if="!failed" class="flex justify-center items-center flex-col gap-4">
-			<LoadingSpinner class="w-24 h-24 text-primary/30" />
+	<div class="flex h-screen w-full items-center justify-center">
+		<div v-if="!failed" class="flex flex-col items-center justify-center gap-4">
+			<LoadingSpinner class="h-24 w-24 text-primary/30" />
 			<div class="text-lg text-muted-foreground">
 				Authenticating with Discogs...
 			</div>
 		</div>
 
-		<div v-if="failed" class="max-w-md flex flex-col gap-6">
+		<div v-if="failed" class="flex max-w-md flex-col gap-6">
 			<NoticeWarning>
 				<template #title>
-					<IconTriangleAlert class="w-5 h-5 mr-1 inline" />
+					<IconTriangleAlert class="mr-1 inline h-5 w-5" />
 					Failed to authenticate with Discogs.
 				</template>
 				An error occurred while authenticating with Discogs. Please go back and

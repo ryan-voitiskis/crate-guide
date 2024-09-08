@@ -33,8 +33,8 @@ const onSubmit = form.handleSubmit((values) =>
 </script>
 
 <template>
-	<div class="flex items-center justify-center h-screen">
-		<Card class="max-w-md w-full p-6 rounded-lg shadow-md">
+	<div class="flex h-screen items-center justify-center">
+		<Card class="w-full max-w-md rounded-lg p-6 shadow-md">
 			<CardHeader class="space-y-1">
 				<Button variant="blank" size="xl-icon" class="mx-auto mb-2" as-child>
 					<NuxtLink to="/">
@@ -98,7 +98,7 @@ const onSubmit = form.handleSubmit((values) =>
 					</FormField>
 
 					<Button
-						class="w-full mt-3"
+						class="mt-3 w-full"
 						type="submit"
 						:disabled="signingInWithGithub || signingInWithGoogle"
 						:loading="form.isSubmitting.value"
@@ -106,7 +106,7 @@ const onSubmit = form.handleSubmit((values) =>
 						Sign in
 					</Button>
 				</form>
-				<span class="text-center -mb-4">
+				<span class="-mb-4 text-center">
 					Forgot your password?
 					<Button variant="link" as-child>
 						<NuxtLink to="/reset-password">Reset it</NuxtLink>

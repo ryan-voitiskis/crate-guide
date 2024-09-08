@@ -1,9 +1,9 @@
 <template>
 	<div
-		class="p-4 border border-warning/30 rounded-md bg-warning/10 text-warning-foreground"
+		class="rounded-md border border-warning/30 bg-warning/10 p-4 text-warning-foreground"
 	>
 		<header>
-			<h2 class="font-semibold mb-1">
+			<h2 class="mb-1 font-semibold">
 				<slot name="title" />
 			</h2>
 		</header>

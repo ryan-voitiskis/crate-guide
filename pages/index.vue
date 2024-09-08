@@ -8,7 +8,7 @@ const activeTab = ref('session')
 	<Tabs
 		v-model="activeTab"
 		default-value="session"
-		class="flex flex-col w-full max-w-[1600px] mx-auto"
+		class="mx-auto flex w-full max-w-[1600px] flex-col"
 	>
 		<div class="flex w-full justify-between p-2">
 			<TabsList>

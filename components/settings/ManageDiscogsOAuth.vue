@@ -33,7 +33,7 @@ async function initDiscogsOAuthFlow() {
 				Crate Guide is connected to your Discogs account
 			</span>
 			<div class="flex items-center gap-2">
-				<Avatar class="bg-primary text-primary-foreground cursor-pointer">
+				<Avatar class="cursor-pointer bg-primary text-primary-foreground">
 					<AvatarImage
 						v-if="user.profile.discogs_avatar_url"
 						:src="user.profile.discogs_avatar_url"
@@ -41,7 +41,7 @@ async function initDiscogsOAuthFlow() {
 					/>
 					<AvatarFallback><IconUser class="h-7 w-7" /></AvatarFallback>
 				</Avatar>
-				<span class="font-medium text-sm">
+				<span class="text-sm font-medium">
 					{{ user.profile.discogs_username }}
 				</span>
 				<DisconnectDiscogsDialog />

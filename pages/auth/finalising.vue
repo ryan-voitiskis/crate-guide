@@ -12,7 +12,7 @@ watch(
 </script>
 
 <template>
-	<div class="w-full h-screen flex justify-center items-center">
-		<LoadingSpinner class="w-24 h-24 text-primary/30" />
+	<div class="flex h-screen w-full items-center justify-center">
+		<LoadingSpinner class="h-24 w-24 text-primary/30" />
 	</div>
 </template>

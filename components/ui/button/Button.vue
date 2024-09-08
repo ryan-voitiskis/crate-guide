@@ -25,7 +25,7 @@ const props = withDefaults(defineProps<Props>(), {
 	>
 		<span
 			v-if="loading"
-			class="absolute inset-0 flex items-center justify-center opacity-1"
+			class="opacity-1 absolute inset-0 flex items-center justify-center"
 		>
 			<LoadingSpinner class="opacity-80" />
 		</span>

@@ -13,7 +13,7 @@ export const toggleVariants = cva(
 			},
 			size: {
 				default: 'h-9 px-3',
-				badge: 'h-7 px-3 rounded-full',
+				badge: 'h-7 rounded-full px-3',
 				sm: 'h-8 px-2',
 				lg: 'h-10 px-3',
 				icon: 'h-9 w-9'

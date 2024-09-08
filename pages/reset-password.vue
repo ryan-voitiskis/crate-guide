@@ -23,8 +23,8 @@ const onSubmit = form.handleSubmit(async (values) => {
 </script>
 
 <template>
-	<div class="flex items-center justify-center h-screen">
-		<Card class="max-w-md w-full p-6 bg-white rounded-lg shadow-md">
+	<div class="flex h-screen items-center justify-center">
+		<Card class="w-full max-w-md rounded-lg bg-white p-6 shadow-md">
 			<CardHeader class="space-y-1">
 				<Button variant="blank" size="xl-icon" class="mx-auto mb-2" as-child>
 					<NuxtLink to="/">
@@ -55,7 +55,7 @@ const onSubmit = form.handleSubmit(async (values) => {
 					</FormField>
 
 					<Button
-						class="w-full mt-3"
+						class="mt-3 w-full"
 						type="submit"
 						:loading="form.isSubmitting.value"
 					>
