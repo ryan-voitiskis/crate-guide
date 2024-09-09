@@ -1,7 +1,8 @@
-import { corsHeaders } from '../_shared/corsHeaders.ts'
+import { corsHeaders } from '../_shared/cors.ts'
 import { generateToken } from '../_shared/generateToken.ts'
 import { getAuthedSupabaseClient, getUser } from '../_shared/supabaseHelpers.ts'
 
+const headers = { ...corsHeaders, 'Content-Type': 'application/json' }
 const oauth_consumer_key = Deno.env.get('DISCOGS_CONSUMER_KEY') || ''
 const oauth_consumer_secret = Deno.env.get('DISCOGS_CONSUMER_SECRET') || ''
 const requestTokenURL = 'https://api.discogs.com/oauth/request_token'
@@ -9,12 +10,10 @@ const oauthCallback = `${Deno.env.get('SITE_URL')}/auth/discogs/capture-verifier
 const userAgent = 'CrateGuide/0.2'
 
 Deno.serve(async (req) => {
-	if (req.method === 'OPTIONS')
-		return new Response(null, { status: 204, headers: corsHeaders })
+	if (req.method === 'OPTIONS') return new Response('ok', { headers })
 
 	const authHeader = req.headers.get('Authorization')
-	if (!authHeader)
-		return new Response(null, { status: 401, headers: corsHeaders })
+	if (!authHeader) return new Response(null, { headers, status: 401 })
 
 	try {
 		const params = new URLSearchParams()
@@ -50,14 +49,11 @@ Deno.serve(async (req) => {
 		if (error) throw error
 
 		return new Response(JSON.stringify(discogsResponse.oauth_token), {
-			headers: corsHeaders,
+			headers,
 			status: 200
 		})
 	} catch (e) {
 		console.error(e)
-		return new Response(JSON.stringify(e), {
-			headers: corsHeaders,
-			status: 400
-		})
+		return new Response(JSON.stringify(e), { headers, status: 500 })
 	}
 })

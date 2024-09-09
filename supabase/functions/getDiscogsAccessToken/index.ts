@@ -1,4 +1,4 @@
-import { corsHeaders } from '../_shared/corsHeaders.ts'
+import { corsHeaders } from '../_shared/cors.ts'
 import { fetchAndSetIdentity } from '../_shared/discogs/fetchAndSetIdentity.ts'
 import { generateToken } from '../_shared/generateToken.ts'
 import {
@@ -6,6 +6,8 @@ import {
 	getUserProfile
 } from '../_shared/supabaseHelpers.ts'
 import { Profile } from '../_shared/types/supabase.ts'
+
+const headers = { ...corsHeaders, 'Content-Type': 'application/json' }
 
 const oauth_consumer_key = Deno.env.get('DISCOGS_CONSUMER_KEY') || ''
 const oauth_consumer_secret = Deno.env.get('DISCOGS_CONSUMER_SECRET') || ''
@@ -15,12 +17,10 @@ const userAgent = 'CrateGuide/0.2'
 // make post request to discogs access token endpoint as per step 4 of
 // https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
 Deno.serve(async (req) => {
-	if (req.method === 'OPTIONS')
-		return new Response(null, { status: 204, headers: corsHeaders })
+	if (req.method === 'OPTIONS') return new Response('ok', { headers })
 
 	const authHeader = req.headers.get('Authorization')
-	if (!authHeader)
-		return new Response(null, { status: 401, headers: corsHeaders })
+	if (!authHeader) return new Response(null, { headers, status: 401 })
 
 	try {
 		const { oauth_token, oauth_verifier } = await req.json()
@@ -64,13 +64,10 @@ Deno.serve(async (req) => {
 
 		await fetchAndSetIdentity(authHeader)
 
-		return new Response(null, { headers: corsHeaders, status: 200 })
+		return new Response(null, { headers, status: 200 })
 	} catch (e) {
 		console.error(e)
-		return new Response(JSON.stringify(e), {
-			headers: corsHeaders,
-			status: 400
-		})
+		return new Response(JSON.stringify(e), { headers, status: 500 })
 	}
 })
 
