@@ -1,5 +1,3 @@
-export type ThemeOptions = 'light' | 'dark' | 'contrast'
-
 export function isThemeOption(value: unknown): value is ThemeOptions {
 	return value === 'light' || value === 'dark' || value === 'contrast'
 }

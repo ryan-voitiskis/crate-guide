@@ -30,6 +30,7 @@ const user = useUserStore()
 				</p>
 			</div>
 			<ManageDiscogsOAuth />
+			<TurntableColourToggle />
 			<ThemeToggle />
 			<div class="flex">
 				<Button v-if="user.supaUser" @click="user.signOut">Logout</Button>

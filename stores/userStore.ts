@@ -115,6 +115,26 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
+	async function updateSettings(settingsPartial: Partial<Profile>) {
+		// optimistically update the local state
+		if (profile.value) profile.value = { ...profile.value, ...settingsPartial }
+		try {
+			const { data, error } = await supabase
+				.from('profiles')
+				.update(settingsPartial)
+				.eq('id', supaUser.value?.id)
+				.select()
+				.single()
+			if (error) throw error
+			// update with the server response to ensure consistency
+			profile.value = data
+		} catch (e) {
+			// revert the optimistic update
+			fetchProfile(supaUser.value?.id)
+			toast.error(`Error updating your settings.`, { duration: 30000 })
+		}
+	}
+
 	watch(
 		supaUser,
 		() => {
@@ -133,6 +153,7 @@ export const useUserStore = defineStore('user', () => {
 		signOut,
 		sendPasswordResetEmail,
 		resetPassword,
-		verifyOtp
+		verifyOtp,
+		updateSettings
 	}
 })
