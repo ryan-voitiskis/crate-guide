@@ -36,6 +36,7 @@ const avatarImg = computed(() => {
 			<ManageDiscogsOAuth />
 			<TurntableColourToggle />
 			<ThemeToggle />
+			<PitchRangeSelect />
 			<div class="flex">
 				<Button v-if="user.supaUser" @click="user.signOut">Logout</Button>
 			</div>
