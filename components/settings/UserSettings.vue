@@ -1,16 +1,20 @@
 <script setup lang="ts">
 const user = useUserStore()
+
+const avatarImg = computed(() => {
+	return (
+		user.supaUser.user_metadata.avatar_url ??
+		user.profile?.discogs_avatar_url ??
+		null
+	)
+})
 </script>
 
 <template>
 	<Popover>
 		<PopoverTrigger as-child>
 			<Avatar class="cursor-pointer bg-primary text-primary-foreground">
-				<AvatarImage
-					v-if="user.supaUser.user_metadata.avatar_url"
-					:src="user.supaUser.user_metadata.avatar_url"
-					alt="Your avatar"
-				/>
+				<AvatarImage v-if="avatarImg" :src="avatarImg" alt="Your avatar" />
 				<AvatarFallback><IconUser class="h-7 w-7" /></AvatarFallback>
 			</Avatar>
 		</PopoverTrigger>

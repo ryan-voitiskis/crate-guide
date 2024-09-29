@@ -11,8 +11,8 @@ const headers = { ...corsHeaders, 'Content-Type': 'application/json' }
 
 const oauth_consumer_key = Deno.env.get('DISCOGS_CONSUMER_KEY') || ''
 const oauth_consumer_secret = Deno.env.get('DISCOGS_CONSUMER_SECRET') || ''
+const userAgent = Deno.env.get('DISCOGS_USER_AGENT') || ''
 const accessTokenURL = 'https://api.discogs.com/oauth/access_token'
-const userAgent = 'CrateGuide/0.2'
 
 // make post request to discogs access token endpoint as per step 4 of
 // https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow

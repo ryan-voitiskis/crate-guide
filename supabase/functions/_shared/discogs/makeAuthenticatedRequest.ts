@@ -12,14 +12,14 @@ export async function makeAuthenticatedRequest(
 	authHeader: string,
 	page?: number,
 	per_page?: number
-) {
+): Promise<Response> {
 	const profile = await getUserProfile(authHeader, true)
 	if (!profile.discogs_access_token)
 		throw new Error('Missing Discogs access token.')
 	if (!profile.discogs_access_secret)
 		throw new Error('Missing Discogs access token secret.')
 
-	const oauth_nonce = await generateToken()
+	const oauth_nonce = await generateToken(12)
 	const oauth_timestamp = Date.now().toString()
 
 	let signatureParams = {

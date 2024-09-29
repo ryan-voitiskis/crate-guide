@@ -25,7 +25,12 @@ const activeTab = ref('session')
 				</Button>
 			</div>
 		</div>
-		<TabsContent value="session">Session</TabsContent>
-		<TabsContent value="collection">Collection</TabsContent>
+
+		<TabsContent value="session">
+			<Session />
+		</TabsContent>
+		<TabsContent value="collection">
+			<Collection />
+		</TabsContent>
 	</Tabs>
 </template>
