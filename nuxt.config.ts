@@ -10,6 +10,10 @@ export default defineNuxtConfig({
 		'@pinia/nuxt',
 		'shadcn-nuxt'
 	],
+	shadcn: {
+		prefix: '',
+		componentDir: './components/ui'
+	},
 	imports: {
 		dirs: ['types', 'stores']
 	},
@@ -35,7 +39,7 @@ export default defineNuxtConfig({
 	},
 	supabase: {
 		url: process.env.SUPABASE_URL,
-		key: process.env.SUPABASE_KEY,
+		key: process.env.SUPABASE_ANON_KEY,
 		redirect: false,
 		types: 'types/database.ts'
 	}

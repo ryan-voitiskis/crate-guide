@@ -12,7 +12,9 @@ export const useUserStore = defineStore('user', () => {
 	const userAlreadyRegistered = ref(false)
 
 	const url =
-		config.buildId === 'dev' ? 'http://localhost:3000' : 'https://crate.guide'
+		process.env.NODE_ENV === 'development'
+			? 'http://localhost:3000'
+			: 'https://crate.guide'
 
 	async function signUpWithEmail(email: string, password: string) {
 		try {
