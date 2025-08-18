@@ -1,6 +1,11 @@
 {
-	"name": "nuxt-app",
-	"private": true,
+	"name": "crate-guide",
+	"author": {
+		"name": "Ryan Voitiskis",
+		"email": "ryanvoitiskis@protonmail.com",
+		"url": "https://ryanvoitiskis.com"
+	},
+	"private": false,
 	"type": "module",
 	"scripts": {
 		"build": "nuxt build",
