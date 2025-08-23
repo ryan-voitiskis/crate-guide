@@ -12,8 +12,7 @@
 		"@supabase/supabase-js": "npm:@supabase/supabase-js@2",
 		"cors": "https://deno.land/x/cors@v1.2.2/mod.ts",
 		"std/": "https://deno.land/std@0.208.0/",
-		"oak": "https://deno.land/x/oak@v12.6.1/mod.ts",
-		"nanoid/": "https://deno.land/x/nanoid@v3.0.0/"
+		"oak": "https://deno.land/x/oak@v12.6.1/mod.ts"
 	},
 	"tasks": {
 		"start": "deno run --allow-all --watch=functions/ functions/serve.ts",

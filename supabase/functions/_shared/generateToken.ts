@@ -1,4 +1,4 @@
-import { customAlphabet } from 'nanoid/async.ts'
+import { customAlphabet } from 'https://deno.land/x/nanoid@v3.0.0/async.ts'
 
 export async function generateToken(size?: number): Promise<string> {
 	return (
