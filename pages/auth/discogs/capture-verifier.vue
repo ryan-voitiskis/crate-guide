@@ -10,9 +10,10 @@ onMounted(async () => {
 	const oauth_token = route.query.oauth_token as string
 	const oauth_verifier = route.query.oauth_verifier as string
 
-	const { error } = await supabase.functions.invoke('getDiscogsAccessToken', {
-		body: JSON.stringify({ oauth_token, oauth_verifier })
-	})
+	const { error } = await supabase.functions.invoke(
+		'get-discogs-access-token',
+		{ body: JSON.stringify({ oauth_token, oauth_verifier }) }
+	)
 	if (error instanceof FunctionsError) failed.value = true
 	else navigateTo('/')
 })

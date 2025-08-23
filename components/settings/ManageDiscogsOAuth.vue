@@ -16,7 +16,7 @@ const isDiscogsConnecting = ref(false)
 async function initDiscogsOAuthFlow() {
 	isDiscogsConnecting.value = true
 	const { data, error } = await supabase.functions.invoke(
-		'getDiscogsRequestToken'
+		'get-discogs-request-token'
 	)
 	if (error) toast.error('Error authenticating with Discogs.')
 	else if (data)

@@ -22,7 +22,7 @@ async function getUsersDiscogsFolders() {
 	const url = `https://api.discogs.com/users/${user.profile?.discogs_username}/collection/folders`
 	const url2 = `https://api.discogs.com/oauth/identity`
 	const { data, error } = await supabase.functions.invoke(
-		'authenticatedDiscogsRequest',
+		'authenticated-discogs-request',
 		{
 			body: JSON.stringify({
 				httpMethod: 'GET',

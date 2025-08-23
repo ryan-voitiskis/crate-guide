@@ -2,7 +2,7 @@ import {
 	type SupabaseClient,
 	type User,
 	createClient
-} from 'npm:@supabase/supabase-js@2'
+} from '@supabase/supabase-js'
 import { type Profile } from './types/supabase.ts'
 
 let cachedSupabaseClient: SupabaseClient | null = null
