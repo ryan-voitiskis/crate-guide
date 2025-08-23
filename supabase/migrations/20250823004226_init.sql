@@ -18,6 +18,39 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Function to validate played_tracks JSONB array structure
+CREATE OR REPLACE FUNCTION public.validate_played_tracks()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Check if it's an array
+    IF jsonb_typeof(NEW.played_tracks) != 'array' THEN
+        RAISE EXCEPTION 'played_tracks must be a JSON array';
+    END IF;
+
+    -- Validate each track in the array
+    FOR i IN 0..jsonb_array_length(NEW.played_tracks) - 1 LOOP
+        -- Check required fields
+        IF NEW.played_tracks->i->>'track_id' IS NULL THEN
+            RAISE EXCEPTION 'track_id is required for all played tracks';
+        END IF;
+
+        IF NEW.played_tracks->i->>'time_added' IS NULL THEN
+            RAISE EXCEPTION 'time_added is required for all played tracks';
+        END IF;
+
+        -- Validate transition_rating if present (must be 1-5)
+        IF NEW.played_tracks->i->>'transition_rating' IS NOT NULL THEN
+            IF (NEW.played_tracks->i->>'transition_rating')::integer < 1 OR
+               (NEW.played_tracks->i->>'transition_rating')::integer > 5 THEN
+                RAISE EXCEPTION 'transition_rating must be between 1 and 5';
+            END IF;
+        END IF;
+    END LOOP;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- ============================================================================
 -- PROFILES TABLE
 -- ============================================================================
@@ -197,29 +230,8 @@ CREATE TABLE public.sets (
     played_tracks jsonb DEFAULT '[]'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT NOW(),
     updated_at timestamp with time zone DEFAULT NOW(),
-    -- Basic validation for played_tracks array structure
-    CONSTRAINT valid_played_tracks CHECK (
-        jsonb_typeof(played_tracks) = 'array' AND
-        (
-            jsonb_array_length(played_tracks) = 0 OR
-            NOT EXISTS (
-                SELECT 1
-                FROM jsonb_array_elements(played_tracks) AS track
-                WHERE
-                    -- Check required fields exist and are correct type
-                    track->>'track_id' IS NULL OR
-                    track->>'time_added' IS NULL OR
-                    -- Check transition_rating is between 1-5 if present
-                    (
-                        track->>'transition_rating' IS NOT NULL AND
-                        (
-                            (track->>'transition_rating')::integer < 1 OR
-                            (track->>'transition_rating')::integer > 5
-                        )
-                    )
-            )
-        )
-    )
+    -- Simple check that it's an array
+    CONSTRAINT valid_played_tracks_type CHECK (jsonb_typeof(played_tracks) = 'array')
 );
 
 -- Enable RLS for sets
@@ -239,6 +251,12 @@ CREATE TRIGGER update_sets_updated_at
     BEFORE UPDATE ON public.sets
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+-- Trigger for complex validation of played_tracks
+CREATE TRIGGER validate_sets_played_tracks
+    BEFORE INSERT OR UPDATE ON public.sets
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_played_tracks();
 
 -- ============================================================================
 -- COMMENTS ON JSONB STRUCTURE
