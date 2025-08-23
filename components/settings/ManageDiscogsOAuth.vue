@@ -21,7 +21,7 @@ async function initDiscogsOAuthFlow() {
 	if (error) toast.error('Error authenticating with Discogs.')
 	else if (data)
 		window.location.href = `https://discogs.com/oauth/authorize?oauth_token=${data}`
-	else isDiscogsConnecting.value = false
+	isDiscogsConnecting.value = false
 }
 </script>
 

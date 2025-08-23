@@ -13,7 +13,8 @@
 	"type": "module",
 	"scripts": {
 		"build": "nuxt build",
-		"dev": "./scripts/dev-start.sh",
+		"dev": "nuxt dev",
+		"dev:all": "./scripts/dev-start.sh",
 		"generate": "nuxt generate",
 		"preview": "nuxt preview",
 		"postinstall": "nuxt prepare",

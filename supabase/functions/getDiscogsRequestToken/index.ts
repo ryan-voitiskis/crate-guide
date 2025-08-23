@@ -7,7 +7,7 @@ const oauth_consumer_key = Deno.env.get('DISCOGS_CONSUMER_KEY') || ''
 const oauth_consumer_secret = Deno.env.get('DISCOGS_CONSUMER_SECRET') || ''
 const userAgent = Deno.env.get('DISCOGS_USER_AGENT') || ''
 const requestTokenURL = 'https://api.discogs.com/oauth/request_token'
-const oauthCallback = `${Deno.env.get('SITE_URL')}/auth/discogs/capture-verifier`
+const oauthCallback = `${Deno.env.get('SITE_URL')}auth/discogs/capture-verifier`
 
 Deno.serve(async (req) => {
 	if (req.method === 'OPTIONS') return new Response('ok', { headers })
