@@ -1,48 +1,9 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
-
 const discogs = useDiscogsStore()
-const user = useUserStore()
-const supabase = useSupabaseClient<Database>()
-
-type Folder = {
-	id: number
-	name: string
-	count: number
-}
-
-const gettingFolders = ref(false)
-const folders = ref<Folder[]>([])
-
-async function getUsersDiscogsFolders() {
-	gettingFolders.value = true
-	console.log(
-		`https://api.discogs.com/users/${user.profile?.discogs_username}/collection/folders`
-	)
-	const url = `https://api.discogs.com/users/${user.profile?.discogs_username}/collection/folders`
-	const url2 = `https://api.discogs.com/oauth/identity`
-	const { data, error } = await supabase.functions.invoke(
-		'authenticated-discogs-request',
-		{
-			body: JSON.stringify({
-				httpMethod: 'GET',
-				url: url
-			})
-		}
-	)
-	console.log(data)
-
-	if (error) toast.error('Error fetching folders.')
-	if (!data.folders) toast.error('No folders found.')
-	else {
-		folders.value = data.folders
-	}
-	gettingFolders.value = false
-}
 </script>
 
 <template>
-	<Dialog @update:open="getUsersDiscogsFolders">
+	<Dialog @update:open="discogs.getFolders()">
 		<DialogTrigger as-child>
 			<Button variant="secondary" class="ml-auto">
 				Import Discogs Collection
@@ -51,32 +12,45 @@ async function getUsersDiscogsFolders() {
 		<DialogContent class="sm:max-w-[425px]">
 			<DialogHeader>
 				<DialogTitle>Import Discogs Collection</DialogTitle>
-				<div class="text-sm text-muted-foreground">
-					<p>
-						Lorem ipsum dolor sit amet consectetur, adipisicing elit. Doloribus
-						dolor ratione vero delectus officiis porro omnis! Praesentium
-						facilis aut illo numquam est delectus possimus pariatur, soluta
-						nobis rem et quis?
-					</p>
+				<div class="mb-4 text-sm text-muted-foreground">
+					Select the folder you want to import from. You'll be able to deselect
+					releases from it.
 				</div>
 				<LoadingSpinner
-					v-if="gettingFolders"
+					v-if="discogs.isLoadingFolders"
 					class="mx-auto h-16 w-16 text-primary/30"
 				/>
+				<div v-else-if="discogs.folders.length === 0">
+					<div class="mx-auto h-16 w-16 text-primary/30">No folders found</div>
+				</div>
 				<div v-else>
-					<div v-for="folder in folders" :key="folder.id">
-						{{ folder.name }} ({{ folder.count }})
-					</div>
+					<RadioGroup v-model="discogs.selectedFolder" class="space-y-0.5">
+						<Label
+							v-for="folder in discogs.folders"
+							:key="folder.id"
+							class="[&:has([data-state=checked])>div]:border-primary"
+						>
+							<RadioGroupItem :value="folder.name" class="sr-only" />
+							<div
+								class="flex w-full cursor-pointer items-center justify-between rounded-lg border-2 border-muted p-3 hover:border-accent"
+							>
+								<span class="font-medium">{{ folder.name }}</span>
+								<span class="text-sm text-muted-foreground">
+									({{ folder.count }} releases)
+								</span>
+							</div>
+						</Label>
+					</RadioGroup>
 				</div>
 			</DialogHeader>
 			<DialogFooter>
-				<!-- <Button
-					@click="disconnectDiscogs"
-					variant="destructive"
-					:loading="isDiscogsDisconnecting"
+				<Button
+					@click="discogs.getSelectedFolder()"
+					variant="default"
+					:loading="discogs.isLoadingSelectedFolder"
 				>
-					Disconnect
-				</Button> -->
+					Confirm
+				</Button>
 			</DialogFooter>
 		</DialogContent>
 	</Dialog>

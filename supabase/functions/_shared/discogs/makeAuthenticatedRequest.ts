@@ -20,7 +20,7 @@ export async function makeAuthenticatedRequest(
 		throw new Error('Missing Discogs access token secret.')
 
 	const oauth_nonce = await generateToken(12)
-	const oauth_timestamp = Date.now().toString()
+	const oauth_timestamp = Math.floor(Date.now() / 1000).toString()
 
 	let signatureParams = {
 		oauth_consumer_key,
@@ -30,8 +30,8 @@ export async function makeAuthenticatedRequest(
 		oauth_signature_method: 'HMAC-SHA1',
 		oauth_version: '1.0'
 	}
-	if (page && per_page)
-		signatureParams = Object.assign(signatureParams, { page, per_page })
+	if (page) signatureParams = Object.assign(signatureParams, { page })
+	if (per_page) signatureParams = Object.assign(signatureParams, { per_page })
 
 	// generates a RFC 3986 encoded, BASE64 encoded HMAC-SHA1 hash
 	const encodedSignature = oauthSignature.generate(
@@ -50,10 +50,8 @@ export async function makeAuthenticatedRequest(
 	URLParams.append('oauth_timestamp', oauth_timestamp)
 	URLParams.append('oauth_nonce', oauth_nonce)
 	URLParams.append('oauth_version', '1.0')
-	if (page && per_page) {
-		URLParams.append('page', page.toString())
-		URLParams.append('per_page', per_page.toString())
-	}
+	if (page) URLParams.append('page', page.toString())
+	if (per_page) URLParams.append('per_page', per_page.toString())
 
 	const options = {
 		method: httpMethod,

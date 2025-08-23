@@ -5,12 +5,12 @@ import { defineStore } from 'pinia'
 export const useUserStore = defineStore('user', () => {
 	const supabase = useSupabaseClient<Database>()
 	const supaUser = useSupabaseUser()
-	const config = useRuntimeConfig()
 	const router = useRouter()
 
 	const profile = ref<Profile | null>(null)
 	const userAlreadyRegistered = ref(false)
 
+	// TODO: add SITE_URL to env and replace this
 	const url =
 		process.env.NODE_ENV === 'development'
 			? 'http://localhost:3000'
