@@ -5,18 +5,18 @@ import * as z from 'zod'
 
 const user = useUserStore()
 
-const formSchema = toTypedSchema(
-	z.object({
-		password: z
-			.string()
-			.min(8, 'Password must be at least 8 characters')
-			.max(64, 'Password cannot exceed 64 characters')
-	})
-)
+const schema = z.object({
+	password: z
+		.string()
+		.min(8, 'Password must be at least 8 characters')
+		.max(64, 'Password cannot exceed 64 characters')
+})
 
-const form = useForm({ validationSchema: formSchema })
+type UpdatePasswordFormValues = z.infer<typeof schema>
 
-const onSubmit = form.handleSubmit(async (values) => {
+const form = useForm({ validationSchema: toTypedSchema(schema) })
+
+const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
 	await user.resetPassword(values.password)
 	form.resetForm()
 })

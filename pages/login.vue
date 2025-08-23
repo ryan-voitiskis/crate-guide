@@ -8,14 +8,14 @@ const user = useUserStore()
 const signingInWithGithub = ref(false)
 const signingInWithGoogle = ref(false)
 
-const formSchema = toTypedSchema(
-	z.object({
-		email: z.string().trim().email().max(254),
-		password: z.string().max(64, 'Password cannot exceed 64 characters')
-	})
-)
+const schema = z.object({
+	email: z.string().trim().email().max(254),
+	password: z.string().max(64, 'Password cannot exceed 64 characters')
+})
 
-const form = useForm({ validationSchema: formSchema })
+type LoginFormValues = z.infer<typeof schema>
+
+const form = useForm({ validationSchema: toTypedSchema(schema) })
 
 async function signInWithGithub() {
 	signingInWithGithub.value = true
@@ -27,7 +27,7 @@ async function signInWithGoogle() {
 	await user.signInWithProvider('google')
 }
 
-const onSubmit = form.handleSubmit((values) =>
+const onSubmit = form.handleSubmit((values: LoginFormValues) =>
 	user.signInWithEmail(values.email, values.password)
 )
 </script>

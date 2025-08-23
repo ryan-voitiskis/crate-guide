@@ -8,15 +8,15 @@ definePageMeta({ keepalive: false })
 const user = useUserStore()
 const linkSent = ref(false)
 
-const formSchema = toTypedSchema(
-	z.object({
-		email: z.string().trim().email().max(254)
-	})
-)
+const schema = z.object({
+	email: z.string().trim().email().max(254)
+})
 
-const form = useForm({ validationSchema: formSchema })
+type ResetPasswordFormValues = z.infer<typeof schema>
 
-const onSubmit = form.handleSubmit(async (values) => {
+const form = useForm({ validationSchema: toTypedSchema(schema) })
+
+const onSubmit = form.handleSubmit(async (values: ResetPasswordFormValues) => {
 	linkSent.value = await user.sendPasswordResetEmail(values.email)
 	form.resetForm()
 })
