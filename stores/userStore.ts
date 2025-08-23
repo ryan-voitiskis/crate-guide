@@ -26,6 +26,8 @@ export const useUserStore = defineStore('user', () => {
 				return
 			}
 			if (error) throw error
+			router.push('/')
+			toast.success('Sign up successful!')
 		} catch (e) {
 			toast.error(isError(e) ? e.message : 'Error signing up.')
 		}
