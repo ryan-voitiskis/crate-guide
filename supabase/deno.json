@@ -1,0 +1,62 @@
+{
+	"compilerOptions": {
+		"allowJs": true,
+		"lib": ["deno.ns", "deno.unstable", "dom", "dom.asynciterable"],
+		"strict": true,
+		"noImplicitAny": true,
+		"noImplicitReturns": true,
+		"noUnusedLocals": false,
+		"noUnusedParameters": false
+	},
+	"imports": {
+		"@supabase/supabase-js": "npm:@supabase/supabase-js@2",
+		"cors": "https://deno.land/x/cors@v1.2.2/mod.ts",
+		"std/": "https://deno.land/std@0.208.0/",
+		"oak": "https://deno.land/x/oak@v12.6.1/mod.ts"
+	},
+	"tasks": {
+		"start": "deno run --allow-all --watch=functions/ functions/serve.ts",
+		"dev": "supabase functions serve --debug",
+		"deploy": "supabase functions deploy",
+		"deploy-all": "supabase functions deploy --no-verify-jwt",
+		"test": "deno test --allow-all functions/**/*test.ts",
+		"check": "deno check functions/**/*.ts",
+		"fmt": "deno fmt functions/",
+		"lint": "deno lint functions/"
+	},
+	"fmt": {
+		"files": {
+			"include": ["functions/"],
+			"exclude": ["functions/_shared/node_modules/"]
+		},
+		"options": {
+			"useTabs": true,
+			"lineWidth": 80,
+			"indentWidth": 2,
+			"semiColons": false,
+			"singleQuote": true,
+			"proseWrap": "preserve"
+		}
+	},
+	"lint": {
+		"files": {
+			"include": ["functions/"],
+			"exclude": ["functions/_shared/node_modules/"]
+		},
+		"rules": {
+			"tags": ["recommended"],
+			"exclude": ["no-unused-vars"]
+		}
+	},
+	"test": {
+		"files": {
+			"include": ["functions/**/*test.ts", "functions/**/*test.js"],
+			"exclude": ["functions/_shared/node_modules/"]
+		}
+	},
+	"exclude": [
+		"functions/_shared/node_modules/",
+		"functions/.temp/",
+		"functions/**/*.log"
+	]
+}

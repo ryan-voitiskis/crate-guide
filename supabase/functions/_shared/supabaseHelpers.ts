@@ -1,5 +1,8 @@
-import { type SupabaseClient, createClient } from 'jsr:@supabase/supabase-js@2'
-import { type User } from 'jsr:@supabase/supabase-js@2'
+import {
+	type SupabaseClient,
+	type User,
+	createClient
+} from 'npm:@supabase/supabase-js@2'
 import { type Profile } from './types/supabase.ts'
 
 let cachedSupabaseClient: SupabaseClient | null = null

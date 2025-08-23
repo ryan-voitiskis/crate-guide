@@ -181,6 +181,8 @@ enabled = true
 # Use `oneshot` for hot reload, or `per_worker` for load testing.
 policy = "oneshot"
 inspector_port = 8083
+# Use Deno 2.x runtime for improved npm compatibility and performance
+deno_version = 2
 
 [analytics]
 enabled = true
