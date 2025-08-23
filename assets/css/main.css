@@ -1,0 +1,136 @@
+@import 'tailwindcss';
+@import './fonts.css' layer(base);
+
+:root {
+	--background: hsl(40 20% 97%);
+	--foreground: hsl(40 20% 28%);
+
+	--muted: hsl(40 20% 90%);
+	--muted-foreground: hsl(40 1% 50%);
+
+	--vmuted: hsl(40 20% 87%);
+
+	--popover: hsl(40 20% 97%);
+	--popover-foreground: hsl(222.2 84% 4.9%);
+
+	--card: hsl(40 20% 99%);
+	--card-foreground: hsl(222.2 84% 4.9%);
+
+	--primary: hsl(311 20% 44%);
+	--primary-foreground: hsl(210 40% 98%);
+
+	/* accessibility fix for contrast w vmuted */
+	--primary-on-vmuted: hsl(311 20% 44%);
+
+	--secondary: hsl(40 10% 95%);
+	--secondary-foreground: hsl(40 1% 40%);
+
+	--accent: hsl(210 40% 96.1%);
+	--accent-foreground: hsl(222.2 47.4% 11.2%);
+
+	--destructive: hsl(0 44% 55%);
+	--destructive-foreground: hsl(210 40% 98%);
+
+	--border: hsl(40 31.8% 91.4%);
+	--input: var(--muted);
+	--ring: hsl(312 69% 69%);
+
+	--radius: 0.5rem;
+
+	--hr: hsl(0 0% 80%);
+	--backdrop: hsla(0, 0%, 0%, 0.7);
+	--heading-text: hsl(216 40% 38%);
+	--selection: hsla(337, 80%, 90%, 80%);
+	--code-selection: hsl(200 11% 85%);
+
+	--webkit-scrollbar: hsla(0, 0%, 50%, 0.3);
+}
+
+.dark {
+	--background: hsl(222.2 84% 4.9%);
+	--foreground: hsl(210 40% 98%);
+
+	--muted: hsl(217.2 32.6% 17.5%);
+	--muted-foreground: hsl(215 20.2% 65.1%);
+
+	--vmuted: hsl(216 15% 23%);
+
+	--popover: hsl(222.2 84% 4.9%);
+	--popover-foreground: hsl(210 40% 98%);
+
+	--card: hsl(222.2 84% 4.9%);
+	--card-foreground: hsl(210 40% 98%);
+
+	--primary: hsl(210 40% 98%);
+	--primary-foreground: hsl(222.2 47.4% 11.2%);
+	--primary-on-vmuted: hsl(210 40% 98%); /* same as primary */
+
+	--secondary: hsl(217.2 32.6% 17.5%);
+	--secondary-foreground: hsl(210 40% 98%);
+
+	--accent: hsl(217.2 32.6% 17.5%);
+	--accent-foreground: hsl(210 40% 98%);
+
+	--destructive: hsl(0 62.8% 30.6%);
+	--destructive-foreground: hsl(210 40% 98%);
+
+	--border: hsl(217.2 32.6% 17.5%);
+	--input: var(--muted);
+	--ring: hsl(212.7 26.8% 83.9%);
+
+	--hr: 0, 0%, 60%;
+	--heading-text: var(--secondary);
+	--selection: hsla(40, 100%, 79%, 0.6);
+	--code-selection: hsl(216 15% 36%);
+
+	--scrollbar: hsla(0, 0%, 100%, 0.3);
+}
+
+@theme inline {
+	/* i am following the convention outlined in the shadcn ui docs:
+	https://www.shadcn-vue.com/docs/theming.html#list-of-variable */
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-vmuted: var(--vmuted);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-primary-on-vmuted: var(--primary-on-vmuted);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+	--color-hr: var(--hr);
+	--color-heading-text: var(--heading-text);
+	--color-selection: var(--selection);
+	--color-code-selection: var(--code-selection);
+	--color-scrollbar: var(--scrollbar);
+	--color-backdrop: var(--backdrop);
+	--color-webkit-scrollbar: var(--webkit-scrollbar);
+
+	--font-mono: 'BerkeleyMono', monospace;
+	--font-serif: serif;
+	--font-sans: 'Inter', sans-serif;
+
+	/* text sizes */
+	--text-xs: 0.875rem; /* 15px */
+	--text-sm: 1rem; /* 16px */
+	--text-std: 1.0625rem; /* 17px */
+	--text-md: 1.125rem; /* 18px */
+	--text-lg: 1.25rem; /* 20px */
+	--text-xl: 1.5rem; /* 24px */
+	--text-2xl: 1.75rem; /* 28px */
+	--text-3xl: 2rem; /* 32px */
+	--text-4xl: 2.25rem; /* 36px */
+	--text-5xl: 3rem; /* 48px */
+}

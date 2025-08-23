@@ -1,15 +1,15 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import tailwindcss from '@tailwindcss/vite'
+
 export default defineNuxtConfig({
 	compatibilityDate: '2024-04-03',
 	ssr: false,
 	devtools: { enabled: false },
-	modules: [
-		'@nuxt/eslint',
-		'@nuxtjs/supabase',
-		'@nuxtjs/tailwindcss',
-		'@pinia/nuxt',
-		'shadcn-nuxt'
-	],
+	css: ['~/assets/css/main.css'],
+	vite: {
+		plugins: [tailwindcss()]
+	},
+	modules: ['@nuxt/eslint', '@nuxtjs/supabase', '@pinia/nuxt', 'shadcn-nuxt'],
 	shadcn: {
 		prefix: '',
 		componentDir: './components/ui'
@@ -17,7 +17,6 @@ export default defineNuxtConfig({
 	imports: {
 		dirs: ['types', 'stores']
 	},
-	css: ['~/assets/css/fonts.css'],
 	components: [
 		{ path: '~/components', pathPrefix: false },
 		{ path: '~/components/icons', prefix: 'Icon' },

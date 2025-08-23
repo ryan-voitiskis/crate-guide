@@ -26,7 +26,6 @@ const coverImg = `url("${props.release.basic_information.cover_image}")`
 					.join(', ')
 			}}
 		</span>
-		<!-- Checkbox -->
 	</div>
 </template>
 
