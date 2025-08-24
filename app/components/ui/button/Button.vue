@@ -64,7 +64,7 @@ const props = withDefaults(defineProps<Props>(), {
 		>
 			<LoadingSpinner class="opacity-80" />
 		</span>
-		<div :class="{ 'opacity-0': loading }">
+		<div :class="['flex items-center', { 'opacity-0': loading }]">
 			<slot />
 		</div>
 	</component>
