@@ -9,6 +9,7 @@ export const useUserStore = defineStore('user', () => {
 
 	const profile = ref<Profile | null>(null)
 	const userAlreadyRegistered = ref(false)
+	const isUpdatingSettings = ref(false)
 
 	const currentTheme = computed((): ThemeOptions => {
 		return profile.value?.ui_theme ?? 'light'
@@ -67,6 +68,7 @@ export const useUserStore = defineStore('user', () => {
 		try {
 			const { error } = await supabase.auth.signOut()
 			if (error) throw error
+			profile.value = null
 			toast.success('You are now signed out.')
 		} catch (e) {
 			toast.error(`Error signing out.`, { duration: 30000 })
@@ -76,7 +78,7 @@ export const useUserStore = defineStore('user', () => {
 	async function sendPasswordResetEmail(email: string): Promise<boolean> {
 		try {
 			const { error } = await supabase.auth.resetPasswordForEmail(email, {
-				redirectTo: `${url}/update-password'`
+				redirectTo: `${url}/update-password`
 			})
 			if (error) throw error
 			toast.success('Password reset email sent!')
@@ -105,7 +107,7 @@ export const useUserStore = defineStore('user', () => {
 			router.push('/')
 			toast.success('Sign in successful!')
 		} catch (e) {
-			toast.error(isError(e) ? e.message : 'Error resetting password.')
+			toast.error(isError(e) ? e.message : 'Error verifying OTP.')
 		}
 	}
 
@@ -117,7 +119,7 @@ export const useUserStore = defineStore('user', () => {
 				.eq('id', id)
 				.single()
 			if (error) throw error
-			profile.value = data
+			profile.value = data as Profile
 			setTheme(profile.value.ui_theme ?? 'light')
 		} catch (e) {
 			toast.error(`Error getting your profile.`, { duration: 30000 })
@@ -125,6 +127,9 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	async function updateSettings(settingsPartial: Partial<Profile>) {
+		if (isUpdatingSettings.value) return
+		isUpdatingSettings.value = true
+
 		// optimistically update the local state
 		if (profile.value) profile.value = { ...profile.value, ...settingsPartial }
 		try {
@@ -137,11 +142,13 @@ export const useUserStore = defineStore('user', () => {
 				.single()
 			if (error) throw error
 			// update with the server response to ensure consistency
-			profile.value = data
+			profile.value = data as Profile
 		} catch (e) {
 			// revert the optimistic update
 			if (supaUser.value?.id) fetchProfile(supaUser.value.id)
 			toast.error(`Error updating your settings.`, { duration: 30000 })
+		} finally {
+			isUpdatingSettings.value = false
 		}
 	}
 
@@ -167,6 +174,7 @@ export const useUserStore = defineStore('user', () => {
 		supaUser,
 		profile,
 		userAlreadyRegistered,
+		isUpdatingSettings,
 		currentTheme,
 		signUpWithEmail,
 		signInWithEmail,
