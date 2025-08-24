@@ -59,7 +59,7 @@ $$ LANGUAGE plpgsql;
 CREATE TABLE public.profiles (
     id uuid NOT NULL REFERENCES auth.users ON DELETE CASCADE,
     name varchar,
-    ui_theme varchar DEFAULT 'auto' NOT NULL,
+    ui_theme varchar DEFAULT 'light' NOT NULL,
     turntable_theme varchar DEFAULT 'black' NOT NULL,
     turntable_pitch_range int2 DEFAULT 8 NOT NULL,
     selected_crate varchar DEFAULT 'all' NOT NULL,

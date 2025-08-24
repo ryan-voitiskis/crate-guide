@@ -5,7 +5,10 @@ const theme = ref<ThemeOptions>(
 	isThemeOption(user.profile?.ui_theme) ? user.profile?.ui_theme : 'light'
 )
 
-watch(theme, (theme) => setTheme(theme))
+watch(theme, (theme) => {
+	setTheme(theme)
+	user.updateSettings({ ui_theme: theme })
+})
 </script>
 
 <template>
@@ -14,7 +17,7 @@ watch(theme, (theme) => setTheme(theme))
 		<Label class="[&:has([data-state=checked])>div]:border-primary">
 			<RadioGroupItem value="light" class="sr-only" />
 			<div
-				class="items-center rounded-xl border-2 border-muted p-1 hover:border-accent"
+				class="border-muted hover:border-accent items-center rounded-xl border-2 p-1"
 			>
 				<div class="space-y-2 rounded-md bg-[#ecedef] p-2">
 					<div
@@ -34,7 +37,7 @@ watch(theme, (theme) => setTheme(theme))
 		<Label class="[&:has([data-state=checked])>div]:border-primary">
 			<RadioGroupItem value="dark" class="sr-only" />
 			<div
-				class="items-center rounded-xl border-2 border-muted bg-popover p-1 hover:bg-accent hover:text-accent-foreground"
+				class="border-muted bg-popover hover:bg-accent hover:text-accent-foreground items-center rounded-xl border-2 p-1"
 			>
 				<div class="space-y-2 rounded-md bg-slate-950 p-2">
 					<div

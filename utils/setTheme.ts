@@ -1,11 +1,10 @@
+export type ThemeOptions = 'light' | 'dark'
+
 export function isThemeOption(value: unknown): value is ThemeOptions {
-	return value === 'light' || value === 'dark' || value === 'contrast'
+	return value === 'light' || value === 'dark'
 }
 
 export function setTheme(theme: ThemeOptions) {
-	const root = document.querySelector(':root')
-	if (!root) return
-
-	root.classList.remove('light', 'dark', 'contrast')
-	root.classList.add(theme)
+	document.documentElement?.classList.remove('light', 'dark')
+	document.documentElement?.classList.add(theme)
 }

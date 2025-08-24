@@ -114,6 +114,9 @@ export const useUserStore = defineStore('user', () => {
 				.single()
 			if (error) throw error
 			profile.value = data
+			setTheme(
+				isThemeOption(profile.value.ui_theme) ? profile.value.ui_theme : 'light'
+			)
 		} catch (e) {
 			toast.error(`Error getting your profile.`, { duration: 30000 })
 		}
@@ -123,6 +126,7 @@ export const useUserStore = defineStore('user', () => {
 		// optimistically update the local state
 		if (profile.value) profile.value = { ...profile.value, ...settingsPartial }
 		try {
+			if (!supaUser.value) throw new Error('User not logged in.')
 			const { data, error } = await supabase
 				.from('profiles')
 				.update(settingsPartial)
@@ -134,7 +138,7 @@ export const useUserStore = defineStore('user', () => {
 			profile.value = data
 		} catch (e) {
 			// revert the optimistic update
-			fetchProfile(supaUser.value?.id)
+			if (supaUser.value?.id) fetchProfile(supaUser.value.id)
 			toast.error(`Error updating your settings.`, { duration: 30000 })
 		}
 	}
