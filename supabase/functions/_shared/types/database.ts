@@ -68,8 +68,10 @@ export type Database = {
           discogs_avatar_url: string | null
           discogs_request_secret: string | null
           discogs_request_token: string | null
+          discogs_uid: string | null
           discogs_username: string | null
           id: string
+          just_completed_discogs_oauth: boolean | null
           key_format: string
           list_layout: string
           name: string | null
@@ -84,8 +86,10 @@ export type Database = {
           discogs_avatar_url?: string | null
           discogs_request_secret?: string | null
           discogs_request_token?: string | null
+          discogs_uid?: string | null
           discogs_username?: string | null
           id: string
+          just_completed_discogs_oauth?: boolean | null
           key_format?: string
           list_layout?: string
           name?: string | null
@@ -100,8 +104,10 @@ export type Database = {
           discogs_avatar_url?: string | null
           discogs_request_secret?: string | null
           discogs_request_token?: string | null
+          discogs_uid?: string | null
           discogs_username?: string | null
           id?: string
+          just_completed_discogs_oauth?: boolean | null
           key_format?: string
           list_layout?: string
           name?: string | null
@@ -121,7 +127,6 @@ export type Database = {
           discogs_id: number | null
           id: string
           label: string | null
-          spotify_id: string | null
           title: string
           updated_at: string | null
           user_id: string
@@ -135,7 +140,6 @@ export type Database = {
           discogs_id?: number | null
           id?: string
           label?: string | null
-          spotify_id?: string | null
           title: string
           updated_at?: string | null
           user_id: string
@@ -149,11 +153,37 @@ export type Database = {
           discogs_id?: number | null
           id?: string
           label?: string | null
-          spotify_id?: string | null
           title?: string
           updated_at?: string | null
           user_id?: string
           year?: number | null
+        }
+        Relationships: []
+      }
+      sets: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string | null
+          played_tracks: Json
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name?: string | null
+          played_tracks?: Json
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string | null
+          played_tracks?: Json
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -165,25 +195,12 @@ export type Database = {
           duration: number | null
           genre: string | null
           id: string
-          key_value: number | null
+          key: number | null
           mode: number | null
           playable: boolean | null
           position: string | null
           record_id: string
           rpm: number | null
-          sp_af_acousticness: number | null
-          sp_af_danceability: number | null
-          sp_af_duration_ms: number | null
-          sp_af_energy: number | null
-          sp_af_instrumentalness: number | null
-          sp_af_key: number | null
-          sp_af_liveness: number | null
-          sp_af_loudness: number | null
-          sp_af_mode: number | null
-          sp_af_speechiness: number | null
-          sp_af_tempo: number | null
-          sp_af_time_signature: number | null
-          sp_af_valence: number | null
           spotify_id: string | null
           time_signature_lower: number | null
           time_signature_upper: number | null
@@ -197,25 +214,12 @@ export type Database = {
           duration?: number | null
           genre?: string | null
           id?: string
-          key_value?: number | null
+          key?: number | null
           mode?: number | null
           playable?: boolean | null
           position?: string | null
           record_id: string
           rpm?: number | null
-          sp_af_acousticness?: number | null
-          sp_af_danceability?: number | null
-          sp_af_duration_ms?: number | null
-          sp_af_energy?: number | null
-          sp_af_instrumentalness?: number | null
-          sp_af_key?: number | null
-          sp_af_liveness?: number | null
-          sp_af_loudness?: number | null
-          sp_af_mode?: number | null
-          sp_af_speechiness?: number | null
-          sp_af_tempo?: number | null
-          sp_af_time_signature?: number | null
-          sp_af_valence?: number | null
           spotify_id?: string | null
           time_signature_lower?: number | null
           time_signature_upper?: number | null
@@ -229,25 +233,12 @@ export type Database = {
           duration?: number | null
           genre?: string | null
           id?: string
-          key_value?: number | null
+          key?: number | null
           mode?: number | null
           playable?: boolean | null
           position?: string | null
           record_id?: string
           rpm?: number | null
-          sp_af_acousticness?: number | null
-          sp_af_danceability?: number | null
-          sp_af_duration_ms?: number | null
-          sp_af_energy?: number | null
-          sp_af_instrumentalness?: number | null
-          sp_af_key?: number | null
-          sp_af_liveness?: number | null
-          sp_af_loudness?: number | null
-          sp_af_mode?: number | null
-          sp_af_speechiness?: number | null
-          sp_af_tempo?: number | null
-          sp_af_time_signature?: number | null
-          sp_af_valence?: number | null
           spotify_id?: string | null
           time_signature_lower?: number | null
           time_signature_upper?: number | null

@@ -1,19 +1,14 @@
 <script setup lang="ts">
 const user = useUserStore()
-
-const theme = ref<ThemeOptions>(
-	isThemeOption(user.profile?.ui_theme) ? user.profile?.ui_theme : 'light'
-)
-
-watch(theme, (theme) => {
-	setTheme(theme)
-	user.updateSettings({ ui_theme: theme })
-})
 </script>
 
 <template>
 	<Label>Theme</Label>
-	<RadioGroup v-model="theme" class="grid max-w-md grid-cols-2 gap-8 pt-2">
+	<RadioGroup
+		:model-value="user.currentTheme"
+		@update:model-value="user.updateTheme"
+		class="grid max-w-md grid-cols-2 gap-8 pt-2"
+	>
 		<Label class="[&:has([data-state=checked])>div]:border-primary">
 			<RadioGroupItem value="light" class="sr-only" />
 			<div

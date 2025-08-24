@@ -10,6 +10,10 @@ export const useUserStore = defineStore('user', () => {
 	const profile = ref<Profile | null>(null)
 	const userAlreadyRegistered = ref(false)
 
+	const currentTheme = computed((): ThemeOptions => {
+		return profile.value?.ui_theme ?? 'light'
+	})
+
 	// TODO: add SITE_URL to env and replace this
 	const url =
 		process.env.NODE_ENV === 'development'
@@ -114,9 +118,7 @@ export const useUserStore = defineStore('user', () => {
 				.single()
 			if (error) throw error
 			profile.value = data
-			setTheme(
-				isThemeOption(profile.value.ui_theme) ? profile.value.ui_theme : 'light'
-			)
+			setTheme(profile.value.ui_theme ?? 'light')
 		} catch (e) {
 			toast.error(`Error getting your profile.`, { duration: 30000 })
 		}
@@ -143,6 +145,16 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
+	async function updateTheme(newTheme: ThemeOptions) {
+		setTheme(newTheme)
+		try {
+			await updateSettings({ ui_theme: newTheme })
+		} catch (e) {
+			setTheme(currentTheme.value)
+			throw e
+		}
+	}
+
 	watch(
 		supaUser,
 		() => {
@@ -155,6 +167,7 @@ export const useUserStore = defineStore('user', () => {
 		supaUser,
 		profile,
 		userAlreadyRegistered,
+		currentTheme,
 		signUpWithEmail,
 		signInWithEmail,
 		signInWithProvider,
@@ -162,6 +175,7 @@ export const useUserStore = defineStore('user', () => {
 		sendPasswordResetEmail,
 		resetPassword,
 		verifyOtp,
-		updateSettings
+		updateSettings,
+		updateTheme
 	}
 })
