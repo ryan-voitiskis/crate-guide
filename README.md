@@ -15,11 +15,13 @@ I am also investigating options for getting basic audio features like BPM and Ke
 ### Quick Start
 
 1. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 2. **Set up environment variables:**
+
    ```bash
    cp .env.example .env
    # Edit .env with your Discogs API keys

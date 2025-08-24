@@ -27,13 +27,13 @@ async function initDiscogsOAuthFlow() {
 
 <template>
 	<div class="space-y-2">
-		<h2 class="font-medium leading-none">Discogs Integration</h2>
+		<h2 class="leading-none font-medium">Discogs Integration</h2>
 		<div v-if="user.profile?.discogs_username" class="space-y-2">
-			<span class="text-sm text-muted-foreground">
+			<span class="text-muted-foreground text-sm">
 				Crate Guide is connected to your Discogs account
 			</span>
 			<div class="flex items-center gap-2">
-				<Avatar class="cursor-pointer bg-primary text-primary-foreground">
+				<Avatar class="bg-primary text-primary-foreground cursor-pointer">
 					<AvatarImage
 						v-if="user.profile.discogs_avatar_url"
 						:src="user.profile.discogs_avatar_url"
@@ -48,7 +48,7 @@ async function initDiscogsOAuthFlow() {
 			</div>
 		</div>
 		<div v-else>
-			<p class="text-sm text-muted-foreground">
+			<p class="text-muted-foreground text-sm">
 				Connect Crate Guide to your Discogs account so you can import your
 				collection.
 			</p>

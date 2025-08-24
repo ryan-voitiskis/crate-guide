@@ -5,6 +5,7 @@ This guide explains how to set up and work with the Crate Guide development envi
 ## Overview
 
 Crate Guide uses:
+
 - **Nuxt 4** - Frontend framework
 - **Supabase** - Backend as a Service (database, auth, storage, functions)
 - **TypeScript** - Type safety
@@ -14,6 +15,7 @@ Crate Guide uses:
 ## Quick Start
 
 1. **Clone and install dependencies:**
+
    ```bash
    git clone <repository-url>
    cd crate-guide
@@ -21,6 +23,7 @@ Crate Guide uses:
    ```
 
 2. **Set up environment variables:**
+
    ```bash
    cp .env.example .env
    # Edit .env with your actual API keys
@@ -32,6 +35,7 @@ Crate Guide uses:
    ```
 
 This will start:
+
 - Supabase local services (database, auth, storage, etc.)
 - Edge Functions runtime
 - Nuxt development server
@@ -39,12 +43,14 @@ This will start:
 ## Environment Management
 
 ### Local Development
+
 - Uses Supabase local development stack
 - All data stays on your machine
 - No external API calls to Supabase cloud
 - Perfect for offline development
 
 ### Staging
+
 - Uses live Supabase project: `luhufzpayswbgewenudn`
 - Copy `.env.staging` to `.env` when testing staging
 - Useful for testing integrations and deployments
@@ -106,6 +112,7 @@ supabase db push --project-ref luhufzpayswbgewenudn
 ## Troubleshooting
 
 ### Supabase Won't Start
+
 ```bash
 # Check Docker status
 docker ps | grep supabase
@@ -116,6 +123,7 @@ supabase start
 ```
 
 ### Functions Not Working
+
 ```bash
 # Make sure functions runtime is running
 supabase functions serve
@@ -125,6 +133,7 @@ supabase functions logs
 ```
 
 ### Database Issues
+
 ```bash
 # Reset local database
 supabase db reset
@@ -134,7 +143,9 @@ supabase db diff
 ```
 
 ### Port Conflicts
+
 If you get port conflicts, check what's running:
+
 ```bash
 # Check common ports
 lsof -i :3000  # Nuxt

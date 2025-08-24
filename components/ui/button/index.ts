@@ -4,16 +4,16 @@ export { default as Button } from './Button.vue'
 
 // TODO: remove unused variants and sizes on final cleanup
 export const buttonVariants = cva(
-	'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+	'focus-visible:ring-ring inline-flex items-center justify-center rounded-md text-sm font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50',
 	{
 		variants: {
 			variant: {
 				default:
-					'bg-primary text-primary-foreground shadow-sm hover:bg-primary/80',
+					'bg-primary text-primary-foreground hover:bg-primary/80 shadow-sm',
 				destructive:
-					'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90',
+					'bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-xs',
 				outline:
-					'border text-foreground shadow-xs hover:border-primary/70 hover:no-underline',
+					'text-foreground hover:border-primary/70 border shadow-xs hover:no-underline',
 				secondary:
 					'bg-secondary text-secondary-foreground hover:bg-secondary/60',
 				ghost: 'hover:underline',

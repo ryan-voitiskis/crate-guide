@@ -12,16 +12,16 @@ const discogs = useDiscogsStore()
 		<DialogContent class="sm:max-w-[425px]">
 			<DialogHeader>
 				<DialogTitle>Import Discogs Collection</DialogTitle>
-				<div class="mb-4 text-sm text-muted-foreground">
+				<div class="text-muted-foreground mb-4 text-sm">
 					Select the folder you want to import from. You'll be able to deselect
 					releases from it.
 				</div>
 				<LoadingSpinner
 					v-if="discogs.isLoadingFolders"
-					class="mx-auto h-16 w-16 text-primary/30"
+					class="text-primary/30 mx-auto h-16 w-16"
 				/>
 				<div v-else-if="discogs.folders.length === 0">
-					<div class="mx-auto h-16 w-16 text-primary/30">No folders found</div>
+					<div class="text-primary/30 mx-auto h-16 w-16">No folders found</div>
 				</div>
 				<div v-else>
 					<RadioGroup v-model="discogs.selectedFolder" class="space-y-0.5">
@@ -32,10 +32,10 @@ const discogs = useDiscogsStore()
 						>
 							<RadioGroupItem :value="folder.name" class="sr-only" />
 							<div
-								class="flex w-full cursor-pointer items-center justify-between rounded-lg border-2 border-muted p-3 hover:border-accent"
+								class="border-muted hover:border-accent flex w-full cursor-pointer items-center justify-between rounded-lg border-2 p-3"
 							>
 								<span class="font-medium">{{ folder.name }}</span>
-								<span class="text-sm text-muted-foreground">
+								<span class="text-muted-foreground text-sm">
 									({{ folder.count }} releases)
 								</span>
 							</div>

@@ -22,8 +22,8 @@ onMounted(async () => {
 <template>
 	<div class="flex h-screen w-full items-center justify-center">
 		<div v-if="!failed" class="flex flex-col items-center justify-center gap-4">
-			<LoadingSpinner class="h-24 w-24 text-primary/30" />
-			<div class="text-lg text-muted-foreground">
+			<LoadingSpinner class="text-primary/30 h-24 w-24" />
+			<div class="text-muted-foreground text-lg">
 				Authenticating with Discogs...
 			</div>
 		</div>

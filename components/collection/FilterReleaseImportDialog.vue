@@ -7,7 +7,7 @@ const discogs = useDiscogsStore()
 		<DialogContent class="sm:max-w-[425px]">
 			<DialogHeader>
 				<DialogTitle>Filter Releases</DialogTitle>
-				<div class="mb-4 text-sm text-muted-foreground">
+				<div class="text-muted-foreground mb-4 text-sm">
 					Select the releases you want to import into your collection.
 				</div>
 			</DialogHeader>

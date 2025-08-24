@@ -28,5 +28,4 @@ types/database.ts
 supabase/functions/_shared/types/database.ts
 
 # old TODO: remove
-client_old
-server_old
+OLD

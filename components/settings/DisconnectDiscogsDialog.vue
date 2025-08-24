@@ -36,7 +36,7 @@ async function disconnectDiscogs() {
 		<DialogContent class="sm:max-w-[425px]">
 			<DialogHeader>
 				<DialogTitle>Disconnect Discogs</DialogTitle>
-				<div class="text-sm text-muted-foreground">
+				<div class="text-muted-foreground text-sm">
 					<p>
 						Are you sure you want to disconnect Crate Guide from your Discogs
 						account?

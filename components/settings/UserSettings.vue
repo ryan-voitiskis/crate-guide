@@ -13,7 +13,7 @@ const avatarImg = computed(() => {
 <template>
 	<Popover>
 		<PopoverTrigger as-child>
-			<Avatar class="cursor-pointer bg-primary text-primary-foreground">
+			<Avatar class="bg-primary text-primary-foreground cursor-pointer">
 				<AvatarImage v-if="avatarImg" :src="avatarImg" alt="Your avatar" />
 				<AvatarFallback><IconUser class="h-7 w-7" /></AvatarFallback>
 			</Avatar>
@@ -25,11 +25,11 @@ const avatarImg = computed(() => {
 			class="flex w-full max-w-[96vw] flex-col gap-4 sm:max-w-96"
 		>
 			<div class="space-y-2">
-				<h2 class="font-medium leading-none">
+				<h2 class="leading-none font-medium">
 					Welcome back
 					{{ user.supaUser.user_metadata.full_name || user.supaUser.email }}
 				</h2>
-				<p class="text-sm text-muted-foreground">
+				<p class="text-muted-foreground text-sm">
 					This text hasn't been decided upon yet.
 				</p>
 			</div>

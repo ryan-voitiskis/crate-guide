@@ -62,7 +62,7 @@ watch(turntableTheme, (theme) => {
 		<Label class="[&:has([data-state=checked])>div]:border-primary">
 			<RadioGroupItem value="silver" class="sr-only" />
 			<div
-				class="items-center rounded-xl border-2 border-muted p-1 hover:border-accent"
+				class="border-muted hover:border-accent items-center rounded-xl border-2 p-1"
 			>
 				<div
 					class="h-24 w-full rounded-md"
@@ -74,7 +74,7 @@ watch(turntableTheme, (theme) => {
 		<Label class="[&:has([data-state=checked])>div]:border-primary">
 			<RadioGroupItem value="dark" class="sr-only" />
 			<div
-				class="items-center rounded-xl border-2 border-muted bg-popover p-1 hover:bg-accent hover:text-accent-foreground"
+				class="border-muted bg-popover hover:bg-accent hover:text-accent-foreground items-center rounded-xl border-2 p-1"
 			>
 				<div
 					class="h-24 w-full rounded-md"
