@@ -7,8 +7,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	const user = useUserStore()
 	const supabase = useSupabaseClient<Database>()
 	const folders = ref<DiscogsFolder[]>([])
-	const releasesToFilter = ref<DiscogsRelease[]>([])
-	const releasesToImport = ref<DiscogsRelease[]>([])
+	const releasesToFilter = ref<DiscogsReleaseToFilter[]>([])
 	const isLoadingFolders = ref(false)
 	const isLoadingSelectedFolder = ref(false)
 	const selectedFolder = ref<string | undefined>(undefined)
@@ -61,7 +60,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 				allReleasesFetched = page >= data.pagination.pages
 				page++
 			}
-			releasesToFilter.value = releases
+			releasesToFilter.value = releases.map((r) => ({ ...r, selected: true }))
 			showFilterDialog.value = true
 		} catch (e) {
 			toast.error(isError(e) ? e.message : 'Error fetching folder.')

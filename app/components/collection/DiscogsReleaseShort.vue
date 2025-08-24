@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const props = defineProps<{
-	release: DiscogsRelease
+	release: DiscogsReleaseToFilter
 }>()
 
 const coverImg = `url("${props.release.basic_information.cover_image}")`
@@ -24,6 +24,7 @@ const coverImg = `url("${props.release.basic_information.cover_image}")`
 					.join(', ')
 			}}
 		</span>
+		<Checkbox v-model="release.selected" />
 	</div>
 </template>
 

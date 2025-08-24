@@ -70,6 +70,10 @@ interface DiscogsRelease {
 	}
 }
 
+interface DiscogsReleaseToFilter extends DiscogsRelease {
+	selected: boolean
+}
+
 interface DiscogsFolderResponse {
 	pagination: {
 		page: number
@@ -102,6 +106,7 @@ export type {
 	DiscogsImage,
 	DiscogsTrack,
 	DiscogsRelease,
+	DiscogsReleaseToFilter,
 	DiscogsFolderResponse,
 	DiscogsReleaseFull,
 	DiscogsExtraArtist
