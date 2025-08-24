@@ -50,7 +50,7 @@
 		"vee-validate": "^4.15.1",
 		"vue": "latest",
 		"vue-sonner": "^2.0.8",
-		"zod": "^3.24.0"
+		"zod": "^3.25.76"
 	},
 	"devDependencies": {
 		"@trivago/prettier-plugin-sort-imports": "^5.2.2",
