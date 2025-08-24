@@ -15,12 +15,6 @@ export const useUserStore = defineStore('user', () => {
 		return profile.value?.ui_theme ?? 'light'
 	})
 
-	// TODO: add SITE_URL to env and replace this
-	const url =
-		process.env.NODE_ENV === 'development'
-			? 'http://localhost:3000'
-			: 'https://crate.guide'
-
 	async function signUpWithEmail(email: string, password: string) {
 		try {
 			const { error } = await supabase.auth.signUp({ email, password })
@@ -56,7 +50,7 @@ export const useUserStore = defineStore('user', () => {
 		try {
 			const { error } = await supabase.auth.signInWithOAuth({
 				provider,
-				options: { redirectTo: `${url}/auth/finalising` }
+				options: { redirectTo: `${process.env.SITE_URL}/auth/finalising` }
 			})
 			if (error) throw error
 		} catch (e) {
@@ -78,7 +72,7 @@ export const useUserStore = defineStore('user', () => {
 	async function sendPasswordResetEmail(email: string): Promise<boolean> {
 		try {
 			const { error } = await supabase.auth.resetPasswordForEmail(email, {
-				redirectTo: `${url}/update-password`
+				redirectTo: `${process.env.SITE_URL}/update-password`
 			})
 			if (error) throw error
 			toast.success('Password reset email sent!')
@@ -129,7 +123,6 @@ export const useUserStore = defineStore('user', () => {
 	async function updateSettings(settingsPartial: Partial<Profile>) {
 		if (isUpdatingSettings.value) return
 		isUpdatingSettings.value = true
-
 		// optimistically update the local state
 		if (profile.value) profile.value = { ...profile.value, ...settingsPartial }
 		try {
@@ -162,13 +155,9 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
-	watch(
-		supaUser,
-		() => {
-			if (supaUser.value?.id) fetchProfile(supaUser.value.id)
-		},
-		{ immediate: true }
-	)
+	watchEffect(() => {
+		if (supaUser.value?.id) fetchProfile(supaUser.value.id)
+	})
 
 	return {
 		supaUser,
