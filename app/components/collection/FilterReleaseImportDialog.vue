@@ -14,7 +14,7 @@ const discogs = useDiscogsStore()
 
 			<div class="grid gap-4 py-4">
 				<DiscogsReleaseShort
-					v-for="(release, i) in discogs.releasesToFilter"
+					v-for="(release, i) in discogs.releasesToImport"
 					:key="i"
 					:release="release"
 				/>
@@ -24,7 +24,7 @@ const discogs = useDiscogsStore()
 				<Button @click="discogs.showFilterDialog = false" variant="secondary">
 					Cancel
 				</Button>
-				<Button @click="discogs.getSelectedFolder()" variant="default">
+				<Button @click="discogs.importSelectedReleases()" variant="default">
 					Import
 				</Button>
 			</DialogFooter>
