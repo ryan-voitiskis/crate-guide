@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
-import { AvatarRoot } from 'radix-vue'
-import { type AvatarVariants, avatarVariant } from '.'
+import { AvatarRoot } from 'reka-ui'
+import type { AvatarVariants } from '.'
+import { avatarVariant } from '.'
 
 const props = withDefaults(
 	defineProps<{
