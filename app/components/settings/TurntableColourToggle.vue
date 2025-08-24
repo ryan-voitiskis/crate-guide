@@ -57,10 +57,10 @@ watch(turntableTheme, (theme) => {
 		v-model="turntableTheme"
 		class="grid max-w-md grid-cols-2 gap-4 pt-2"
 	>
-		<Label class="[&:has([data-state=checked])>div]:border-primary">
+		<Label class="[&:has([data-state=checked])>div]:border-primary flex-col">
 			<RadioGroupItem value="silver" class="sr-only" />
 			<div
-				class="border-muted hover:border-accent items-center rounded-xl border-2 p-1"
+				class="border-muted hover:border-accent w-full items-center rounded-xl border-2 p-1"
 			>
 				<div
 					class="h-24 w-full rounded-md"
@@ -69,10 +69,10 @@ watch(turntableTheme, (theme) => {
 			</div>
 			<span class="block w-full p-2 text-center font-normal">Silver</span>
 		</Label>
-		<Label class="[&:has([data-state=checked])>div]:border-primary">
+		<Label class="[&:has([data-state=checked])>div]:border-primary flex-col">
 			<RadioGroupItem value="dark" class="sr-only" />
 			<div
-				class="border-muted bg-popover hover:bg-accent hover:text-accent-foreground items-center rounded-xl border-2 p-1"
+				class="border-muted hover:border-accent w-full items-center rounded-xl border-2 p-1"
 			>
 				<div
 					class="h-24 w-full rounded-md"
