@@ -1,11 +1,16 @@
 <script setup lang="ts">
 const discogs = useDiscogsStore()
+const user = useUserStore()
 </script>
 
 <template>
 	<Dialog @update:open="discogs.getFolders()">
 		<DialogTrigger as-child>
-			<Button variant="secondary" class="ml-auto">
+			<Button
+				variant="secondary"
+				class="ml-auto"
+				:disabled="!user.isDiscogsAuthenticated"
+			>
 				Import Discogs Collection
 			</Button>
 		</DialogTrigger>

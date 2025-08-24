@@ -15,6 +15,13 @@ export const useUserStore = defineStore('user', () => {
 		return profile.value?.ui_theme ?? 'light'
 	})
 
+	const isDiscogsAuthenticated = computed(() => {
+		return (
+			profile.value?.discogs_access_secret &&
+			profile.value?.discogs_access_token
+		)
+	})
+
 	async function signUpWithEmail(email: string, password: string) {
 		try {
 			const { error } = await supabase.auth.signUp({ email, password })
@@ -165,6 +172,7 @@ export const useUserStore = defineStore('user', () => {
 		userAlreadyRegistered,
 		isUpdatingSettings,
 		currentTheme,
+		isDiscogsAuthenticated,
 		signUpWithEmail,
 		signInWithEmail,
 		signInWithProvider,
