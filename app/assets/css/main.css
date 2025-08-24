@@ -48,6 +48,9 @@
 	--sidebar-accent-foreground: oklch(0.205 0 0);
 	--sidebar-border: oklch(0.922 0 0);
 	--sidebar-ring: oklch(0.708 0 0);
+
+	--logo-medium: hsl(312, 38%, 58%);
+	--logo-light: hsl(313, 20%, 77%);
 }
 
 .dark {
