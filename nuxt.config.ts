@@ -3,6 +3,9 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineNuxtConfig({
 	compatibilityDate: '2024-04-03',
+	future: {
+		compatibilityVersion: 4
+	},
 	ssr: false,
 	devtools: { enabled: false },
 	css: ['~/assets/css/main.css'],
@@ -12,10 +15,10 @@ export default defineNuxtConfig({
 	modules: ['@nuxt/eslint', '@nuxtjs/supabase', '@pinia/nuxt', 'shadcn-nuxt'],
 	shadcn: {
 		prefix: '',
-		componentDir: './components/ui'
+		componentDir: './app/components/ui'
 	},
 	imports: {
-		dirs: ['types', 'stores', 'utils']
+		dirs: ['shared/types', 'stores', 'utils']
 	},
 	components: [
 		{ path: '~/components', pathPrefix: false },
@@ -40,6 +43,6 @@ export default defineNuxtConfig({
 		url: process.env.SUPABASE_URL,
 		key: process.env.SUPABASE_ANON_KEY,
 		redirect: false,
-		types: 'types/database.ts'
+		types: 'shared/types/database.ts'
 	}
 })

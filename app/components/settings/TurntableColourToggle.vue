@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { TurntableThemeOptions } from '~/types/options'
-
 const user = useUserStore()
 
 const silverDeckBackground = `linear-gradient(

@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { DiscogsRelease } from '~/types/discogs'
-
 const props = defineProps<{
 	release: DiscogsRelease
 }>()

@@ -1,6 +1,5 @@
 import { toast } from 'vue-sonner'
 import { defineStore } from 'pinia'
-import type { DiscogsFolder, DiscogsRelease } from '~/types/discogs'
 
 const API_URL = 'https://api.discogs.com/'
 
