@@ -1,9 +1,18 @@
 <script setup lang="ts">
 const props = defineProps<{
-	release: DiscogsReleaseToFilter
+	release: DiscogsReleaseToFilter | DiscogsRelease
+	showCheckbox?: boolean
 }>()
 
-const coverImg = `url("${props.release.basic_information.cover_image}")`
+const coverImg = computed(
+	() => `url("${props.release.basic_information.cover_image}")`
+)
+
+const isFilterableRelease = (
+	release: DiscogsReleaseToFilter | DiscogsRelease
+): release is DiscogsReleaseToFilter => {
+	return 'selected' in release
+}
 </script>
 
 <template>
@@ -24,7 +33,7 @@ const coverImg = `url("${props.release.basic_information.cover_image}")`
 					.join(', ')
 			}}
 		</span>
-		<div class="checkbox">
+		<div v-if="showCheckbox && isFilterableRelease(release)" class="checkbox">
 			<Checkbox v-model="release.selected" />
 		</div>
 	</div>

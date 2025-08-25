@@ -43,6 +43,7 @@ const allSelected = computed({
 						v-for="(release, i) in discogs.releasesToImport"
 						:key="i"
 						:release="release"
+						showCheckbox
 					/>
 				</div>
 			</ScrollArea>

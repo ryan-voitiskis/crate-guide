@@ -9,6 +9,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	const folders = ref<DiscogsFolder[]>([])
 	const selectedFolder = ref<string | undefined>(undefined)
 	const releasesToImport = ref<DiscogsReleaseToFilter[]>([])
+	const releaseBeingImported = ref<DiscogsReleaseToFilter | null>(null)
 
 	const isLoadingFolders = ref(false)
 	const isLoadingSelectedFolder = ref(false)
@@ -102,11 +103,11 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			const fullReleases: DiscogsReleaseFull[] = []
 
 			for (let i = 0; i < selectedReleases.length; i++) {
-				const release = selectedReleases[i]
-				importProgress.value = Math.round((i / selectedReleases.length) * 50) // First 50% for fetching
-
+				releaseBeingImported.value = selectedReleases[i] || null
+				if (!releaseBeingImported.value) break
+				importProgress.value = Math.round((i / selectedReleases.length) * 100)
 				try {
-					const url = `${API_URL}releases/${release.id}`
+					const url = `${API_URL}releases/${releaseBeingImported.value.id}`
 					const { data, error } = await supabase.functions.invoke(
 						'authenticated-discogs-request',
 						{ body: JSON.stringify({ httpMethod: 'GET', url }) }
@@ -116,8 +117,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 						// TODO: Handle individual fetch errors - add to failed list
 						// For now, we'll continue with other releases
 						importResults.value.failed.push({
-							title: release.basic_information.title,
-							artists: release.basic_information.artists
+							title: releaseBeingImported.value.basic_information.title,
+							artists: releaseBeingImported.value.basic_information.artists
 								?.map((a: any) => a.name)
 								.join(', '),
 							error: 'Failed to fetch release details'
@@ -129,8 +130,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 				} catch (e) {
 					// TODO: More granular error handling for rate limits, 404s, etc.
 					importResults.value.failed.push({
-						title: release.basic_information.title,
-						artists: release.basic_information.artists
+						title: releaseBeingImported.value.basic_information.title,
+						artists: releaseBeingImported.value.basic_information.artists
 							.map((a: any) => a.name)
 							.join(', '),
 						error: isError(e) ? e.message : 'Unknown error'
@@ -236,9 +237,6 @@ export const useDiscogsStore = defineStore('discogs', () => {
 				importProgress.value =
 					50 + Math.round((processedCount / releasesToProcess.length) * 50) // Second 50% for importing
 			}
-
-			// Show results to user
-			showImportResults()
 		} finally {
 			isImporting.value = false
 			importProgress.value = 0
@@ -345,29 +343,6 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		return null
 	}
 
-	// Helper function to show import results
-	function showImportResults() {
-		const { successful, skipped, failed } = importResults.value
-
-		if (successful > 0) {
-			toast.success(
-				`Successfully imported ${successful} record${successful > 1 ? 's' : ''}`
-			)
-		}
-
-		if (skipped.length > 0) {
-			toast.info(
-				`Skipped ${skipped.length} record${skipped.length > 1 ? 's' : ''} (already in collection)`
-			)
-		}
-
-		if (failed.length > 0) {
-			toast.error(
-				`Failed to import ${failed.length} record${failed.length > 1 ? 's' : ''}`
-			)
-		}
-	}
-
 	return {
 		folders,
 		releasesToImport,
@@ -382,6 +357,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		getSelectedFolder,
 		importSelectedReleases,
 		showImportProgressDialog,
-		showGetFoldersDialog
+		showGetFoldersDialog,
+		releaseBeingImported
 	}
 })
