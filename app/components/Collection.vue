@@ -5,5 +5,6 @@
 		<h1>Collection</h1>
 		<ImportCollectionDialog />
 		<FilterReleaseImportDialog />
+		<DiscogsImportProgress />
 	</div>
 </template>

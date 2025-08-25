@@ -7,7 +7,7 @@ const coverImg = `url("${props.release.basic_information.cover_image}")`
 </script>
 
 <template>
-	<div class="record">
+	<div class="record overflow-hidden rounded-lg !bg-white">
 		<div class="cover"></div>
 		<h3 class="title">{{ release.basic_information.title }}</h3>
 		<div class="label">
@@ -24,7 +24,9 @@ const coverImg = `url("${props.release.basic_information.cover_image}")`
 					.join(', ')
 			}}
 		</span>
-		<Checkbox v-model="release.selected" />
+		<div class="checkbox">
+			<Checkbox v-model="release.selected" />
+		</div>
 	</div>
 </template>
 
@@ -85,6 +87,12 @@ const coverImg = `url("${props.release.basic_information.cover_image}")`
 			display: flex;
 			font-size: 12px;
 		}
+	}
+	.checkbox {
+		grid-area: 1 / 3 / 4 / 4;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 }
 </style>

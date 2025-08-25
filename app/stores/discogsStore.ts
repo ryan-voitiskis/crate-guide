@@ -7,11 +7,15 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	const user = useUserStore()
 	const supabase = useSupabaseClient<Database>()
 	const folders = ref<DiscogsFolder[]>([])
+	const selectedFolder = ref<string | undefined>(undefined)
 	const releasesToImport = ref<DiscogsReleaseToFilter[]>([])
+
 	const isLoadingFolders = ref(false)
 	const isLoadingSelectedFolder = ref(false)
-	const selectedFolder = ref<string | undefined>(undefined)
+
 	const showFilterDialog = ref(false)
+	const showImportProgressDialog = ref(false)
+	const showGetFoldersDialog = ref(false)
 
 	// Import progress and results
 	const importProgress = ref(0)
@@ -24,6 +28,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 
 	async function getFolders() {
 		isLoadingFolders.value = true
+		folders.value = []
 		try {
 			const url = `${API_URL}users/${user.profile?.discogs_username}/collection/folders`
 			const { data, error } = await supabase.functions.invoke(
@@ -70,6 +75,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 				page++
 			}
 			releasesToImport.value = releases.map((r) => ({ ...r, selected: true }))
+			showGetFoldersDialog.value = false
 			showFilterDialog.value = true
 		} catch (e) {
 			toast.error(isError(e) ? e.message : 'Error fetching folder.')
@@ -84,6 +90,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			toast.error('No releases selected for import')
 			return
 		}
+		showFilterDialog.value = false
+		showImportProgressDialog.value = true
 
 		isImporting.value = true
 		importProgress.value = 0
@@ -357,7 +365,6 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			toast.error(
 				`Failed to import ${failed.length} record${failed.length > 1 ? 's' : ''}`
 			)
-			// TODO: Could show detailed error list in a modal or expandable notification
 		}
 	}
 
@@ -373,6 +380,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		importResults,
 		getFolders,
 		getSelectedFolder,
-		importSelectedReleases
+		importSelectedReleases,
+		showImportProgressDialog,
+		showGetFoldersDialog
 	}
 })

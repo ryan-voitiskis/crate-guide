@@ -1,10 +1,16 @@
 <script setup lang="ts">
+import { RefreshCw } from 'lucide-vue-next'
+
 const discogs = useDiscogsStore()
 const user = useUserStore()
+
+onMounted(() => {
+	if (!discogs.folders.length) discogs.getFolders()
+})
 </script>
 
 <template>
-	<Dialog @update:open="discogs.getFolders()">
+	<Dialog v-model:open="discogs.showGetFoldersDialog">
 		<DialogTrigger as-child>
 			<Button
 				variant="secondary"
@@ -25,8 +31,13 @@ const user = useUserStore()
 					v-if="discogs.isLoadingFolders"
 					class="text-primary/30 mx-auto h-16 w-16"
 				/>
-				<div v-else-if="discogs.folders.length === 0">
-					<div class="text-primary/30 mx-auto h-16 w-16">No folders found</div>
+				<div v-else class="flex justify-end">
+					<Button @click="discogs.getFolders()" variant="secondary">
+						<RefreshCw />
+					</Button>
+				</div>
+				<div v-if="!discogs.isLoadingFolders && discogs.folders.length === 0">
+					<div class="text-muted-foreground text-center">No folders found</div>
 				</div>
 				<div v-else>
 					<RadioGroup v-model="discogs.selectedFolder" class="space-y-0.5">
