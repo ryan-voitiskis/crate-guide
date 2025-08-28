@@ -4,13 +4,16 @@ import { RefreshCw } from 'lucide-vue-next'
 const discogs = useDiscogsStore()
 const user = useUserStore()
 
-onMounted(() => {
+function onDialogOpen() {
 	if (!discogs.folders.length) discogs.getFolders()
-})
+}
 </script>
 
 <template>
-	<Dialog v-model:open="discogs.showGetFoldersDialog">
+	<Dialog
+		v-model:open="discogs.showGetFoldersDialog"
+		@update:open="onDialogOpen"
+	>
 		<DialogTrigger as-child>
 			<Button
 				variant="secondary"

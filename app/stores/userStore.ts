@@ -11,15 +11,15 @@ export const useUserStore = defineStore('user', () => {
 	const userAlreadyRegistered = ref(false)
 	const isUpdatingSettings = ref(false)
 
-	const currentTheme = computed((): ThemeOptions => {
-		return profile.value?.ui_theme ?? 'light'
-	})
-
 	const isDiscogsAuthenticated = computed(() => {
 		return (
 			profile.value?.discogs_access_secret &&
 			profile.value?.discogs_access_token
 		)
+	})
+
+	const currentTheme = computed((): ThemeOptions => {
+		return profile.value?.ui_theme ?? 'light'
 	})
 
 	async function signUpWithEmail(email: string, password: string) {
@@ -169,10 +169,10 @@ export const useUserStore = defineStore('user', () => {
 	return {
 		supaUser,
 		profile,
+		isDiscogsAuthenticated,
+		currentTheme,
 		userAlreadyRegistered,
 		isUpdatingSettings,
-		currentTheme,
-		isDiscogsAuthenticated,
 		signUpWithEmail,
 		signInWithEmail,
 		signInWithProvider,

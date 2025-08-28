@@ -23,8 +23,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	const isImporting = ref(false)
 	const importResults = ref<{
 		successful: number
-		skipped: { title: string; artists: string }[]
-		failed: { title: string; artists: string; error: string }[]
+		skipped: { label: string }[]
+		failed: { label: string; error: string }[]
 	}>({ successful: 0, skipped: [], failed: [] })
 
 	async function getFolders() {
@@ -114,26 +114,17 @@ export const useDiscogsStore = defineStore('discogs', () => {
 					)
 
 					if (error) {
-						// TODO: Handle individual fetch errors - add to failed list
-						// For now, we'll continue with other releases
 						importResults.value.failed.push({
-							title: releaseBeingImported.value.basic_information.title,
-							artists: releaseBeingImported.value.basic_information.artists
-								?.map((a: any) => a.name)
-								.join(', '),
-							error: 'Failed to fetch release details'
+							label: getResultLabel(releaseBeingImported.value),
+							error: error.message
 						})
 						continue
 					}
 
 					fullReleases.push(data)
 				} catch (e) {
-					// TODO: More granular error handling for rate limits, 404s, etc.
 					importResults.value.failed.push({
-						title: releaseBeingImported.value.basic_information.title,
-						artists: releaseBeingImported.value.basic_information.artists
-							.map((a: any) => a.name)
-							.join(', '),
+						label: getResultLabel(releaseBeingImported.value),
 						error: isError(e) ? e.message : 'Unknown error'
 					})
 				}
@@ -141,9 +132,10 @@ export const useDiscogsStore = defineStore('discogs', () => {
 
 			// Step 2: Check for existing records and filter out duplicates
 			const discogsIds = fullReleases.map((r) => r.id)
+
 			const { data: existingRecords } = await supabase
 				.from('records')
-				.select('discogs_id, title, artists')
+				.select('discogs_id')
 				.in('discogs_id', discogsIds)
 
 			const existingDiscogsIds = new Set(
@@ -151,91 +143,71 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			)
 
 			// Add skipped records to results
-			fullReleases.forEach((release) => {
-				if (existingDiscogsIds.has(release.id)) {
-					importResults.value.skipped.push({
-						title: release.title,
-						artists: release.artists
-							.map((a: any) => normalizeArtist(a.name))
-							.join(', ')
-					})
-				}
-			})
+			if (existingDiscogsIds)
+				fullReleases.forEach((release) => {
+					if (existingDiscogsIds.has(release.id))
+						importResults.value.skipped.push({
+							label: getResultLabelFromFullRelease(release)
+						})
+				})
 
 			// Filter out existing releases
 			const releasesToProcess = fullReleases.filter(
 				(r) => !existingDiscogsIds.has(r.id)
 			)
 
-			// Step 3: Transform and batch insert records with tracks
-			const batchSize = 10 // Process 10 records at a time
-			let processedCount = 0
+			// Step 3: Transform and insert records with tracks
+			for (const release of releasesToProcess) {
+				try {
+					// Transform the release data
+					const transformedRecord = transformRelease(release, user.profile!.id)
 
-			for (let i = 0; i < releasesToProcess.length; i += batchSize) {
-				const batch = releasesToProcess.slice(i, i + batchSize)
-
-				for (const release of batch) {
-					try {
-						// Transform the release data
-						const transformedRecord = transformRelease(
-							release,
-							user.profile!.id
-						)
-
-						// Insert record and tracks in a transaction
-						const { data: insertedRecord, error: recordError } = await supabase
-							.from('records')
-							.insert({
-								user_id: transformedRecord.user_id,
-								discogs_id: transformedRecord.discogs_id,
-								catno: transformedRecord.catno,
-								title: transformedRecord.title,
-								artists: transformedRecord.artists,
-								label: transformedRecord.label,
-								year: transformedRecord.year,
-								cover: transformedRecord.cover
-							})
-							.select()
-							.single()
-
-						if (recordError) throw recordError
-
-						// Insert tracks for this record
-						if (transformedRecord.tracks.length > 0) {
-							const tracksToInsert = transformedRecord.tracks.map((track) => ({
-								...track,
-								record_id: insertedRecord.id
-							}))
-
-							const { error: tracksError } = await supabase
-								.from('tracks')
-								.insert(tracksToInsert)
-
-							if (tracksError) {
-								// Rollback: delete the record if tracks fail
-								await supabase
-									.from('records')
-									.delete()
-									.eq('id', insertedRecord.id)
-								throw tracksError
-							}
-						}
-
-						importResults.value.successful++
-					} catch (e) {
-						importResults.value.failed.push({
-							title: release.title,
-							artists: release.artists
-								.map((a: any) => normalizeArtist(a.name))
-								.join(', '),
-							error: isError(e) ? e.message : 'Failed to import'
+					// Insert record and tracks in a transaction
+					const { data: insertedRecord, error: recordError } = await supabase
+						.from('records')
+						.insert({
+							user_id: transformedRecord.user_id,
+							discogs_id: transformedRecord.discogs_id,
+							catno: transformedRecord.catno,
+							title: transformedRecord.title,
+							artists: transformedRecord.artists,
+							label: transformedRecord.label,
+							year: transformedRecord.year,
+							cover: transformedRecord.cover
 						})
-					}
-				}
+						.select()
+						.single()
 
-				processedCount += batch.length
-				importProgress.value =
-					50 + Math.round((processedCount / releasesToProcess.length) * 50) // Second 50% for importing
+					if (recordError) throw recordError
+
+					// Insert tracks for this record
+					if (transformedRecord.tracks.length > 0) {
+						const tracksToInsert = transformedRecord.tracks.map((track) => ({
+							...track,
+							record_id: insertedRecord.id
+						}))
+
+						const { error: tracksError } = await supabase
+							.from('tracks')
+							.insert(tracksToInsert)
+
+						if (tracksError) {
+							// Rollback: delete the record if tracks fail
+							await supabase
+								.from('records')
+								.delete()
+								.eq('id', insertedRecord.id)
+							throw tracksError
+						}
+					}
+
+					importResults.value.successful++
+				} catch (e) {
+					importResults.value.failed.push({
+						label: getResultLabelFromFullRelease(release),
+						error: isError(e) ? e.message : 'Failed to import'
+					})
+				}
 			}
 		} finally {
 			isImporting.value = false
@@ -297,11 +269,9 @@ export const useDiscogsStore = defineStore('discogs', () => {
 					// Process position
 					let position = null
 					if (track.position) {
-						if (positionRx.test(track.position)) {
-							position = track.position
-						} else if (positionRx2.test(track.position)) {
+						if (positionRx.test(track.position)) position = track.position
+						else if (positionRx2.test(track.position))
 							position = track.position[0] + track.position.length.toString()
-						}
 					}
 
 					return {
@@ -323,6 +293,18 @@ export const useDiscogsStore = defineStore('discogs', () => {
 					}
 				}) || []
 		}
+	}
+
+	function getResultLabel(release: DiscogsReleaseToFilter): string {
+		return release.basic_information.labels[0]?.catno
+			? `${release.basic_information.labels[0].catno} - ${release.basic_information.title}`
+			: `${release.basic_information.title}`
+	}
+
+	function getResultLabelFromFullRelease(release: DiscogsReleaseFull): string {
+		return release.labels[0]?.catno
+			? `${release.labels[0].catno} - ${release.title}`
+			: `${release.title}`
 	}
 
 	// Helper function to normalize artist names

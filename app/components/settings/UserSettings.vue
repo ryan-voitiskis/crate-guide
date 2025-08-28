@@ -3,7 +3,7 @@ const user = useUserStore()
 
 const avatarImg = computed(() => {
 	return (
-		user.supaUser.user_metadata.avatar_url ??
+		user.supaUser?.user_metadata.avatar_url ??
 		user.profile?.discogs_avatar_url ??
 		null
 	)
@@ -25,7 +25,7 @@ const avatarImg = computed(() => {
 			class="flex w-full max-w-[96vw] flex-col gap-4 sm:max-w-96"
 		>
 			<div class="space-y-2">
-				<h2 class="leading-none font-medium">
+				<h2 v-if="user.supaUser" class="leading-none font-medium">
 					Welcome back
 					{{ user.supaUser.user_metadata.full_name || user.supaUser.email }}
 				</h2>
