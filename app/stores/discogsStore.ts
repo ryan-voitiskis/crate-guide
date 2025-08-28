@@ -3,6 +3,49 @@ import { defineStore } from 'pinia'
 
 const API_URL = 'https://api.discogs.com/'
 
+// Type for RPC function result
+interface ImportRecordResult {
+	success?: boolean
+	record_id?: string
+	tracks_inserted?: number
+	error?: string
+}
+
+// Type guard to validate RPC result
+function isValidImportResult(result: unknown): result is ImportRecordResult {
+	return (
+		typeof result === 'object' &&
+		result !== null &&
+		'success' in result &&
+		typeof (result as any).success === 'boolean'
+	)
+}
+
+// Helper to handle import result validation
+function validateImportResult(result: unknown): ImportRecordResult {
+	if (!isValidImportResult(result))
+		throw new Error('Invalid response from import function')
+	if (result.success !== true) throw new Error(result.error || 'Import failed')
+	return result
+}
+
+// Helper to check for existing records by Discogs IDs
+async function getExistingDiscogsIds(
+	fullReleases: DiscogsReleaseFull[],
+	supabase: any
+): Promise<Set<number>> {
+	const discogsIds = fullReleases.map((r) => r.id)
+
+	const { data: existingRecords } = await supabase
+		.from('records')
+		.select('discogs_id')
+		.in('discogs_id', discogsIds)
+
+	return new Set(
+		existingRecords?.map((r: { discogs_id: number }) => r.discogs_id) || []
+	)
+}
+
 export const useDiscogsStore = defineStore('discogs', () => {
 	const user = useUserStore()
 	const supabase = useSupabaseClient<Database>()
@@ -131,15 +174,9 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			}
 
 			// Step 2: Check for existing records and filter out duplicates
-			const discogsIds = fullReleases.map((r) => r.id)
-
-			const { data: existingRecords } = await supabase
-				.from('records')
-				.select('discogs_id')
-				.in('discogs_id', discogsIds)
-
-			const existingDiscogsIds = new Set(
-				existingRecords?.map((r) => r.discogs_id) || []
+			const existingDiscogsIds = await getExistingDiscogsIds(
+				fullReleases,
+				supabase
 			)
 
 			// Add skipped records to results
@@ -156,50 +193,25 @@ export const useDiscogsStore = defineStore('discogs', () => {
 				(r) => !existingDiscogsIds.has(r.id)
 			)
 
-			// Step 3: Transform and insert records with tracks
+			// Step 3: Transform and insert records with tracks using RPC
 			for (const release of releasesToProcess) {
 				try {
 					// Transform the release data
 					const transformedRecord = transformRelease(release, user.profile!.id)
 
-					// Insert record and tracks in a transaction
-					const { data: insertedRecord, error: recordError } = await supabase
-						.from('records')
-						.insert({
-							user_id: transformedRecord.user_id,
-							discogs_id: transformedRecord.discogs_id,
-							catno: transformedRecord.catno,
-							title: transformedRecord.title,
-							artists: transformedRecord.artists,
-							label: transformedRecord.label,
-							year: transformedRecord.year,
-							cover: transformedRecord.cover
-						})
-						.select()
-						.single()
+					// Separate tracks from record data
+					const { tracks, ...record } = transformedRecord
 
-					if (recordError) throw recordError
+					// Insert record and tracks in a single transaction using RPC
+					const { data: result, error: rpcError } = await supabase.rpc(
+						'import_record_with_tracks',
+						{ record, tracks }
+					)
 
-					// Insert tracks for this record
-					if (transformedRecord.tracks.length > 0) {
-						const tracksToInsert = transformedRecord.tracks.map((track) => ({
-							...track,
-							record_id: insertedRecord.id
-						}))
+					if (rpcError) throw rpcError
 
-						const { error: tracksError } = await supabase
-							.from('tracks')
-							.insert(tracksToInsert)
-
-						if (tracksError) {
-							// Rollback: delete the record if tracks fail
-							await supabase
-								.from('records')
-								.delete()
-								.eq('id', insertedRecord.id)
-							throw tracksError
-						}
-					}
+					// Validate the import result
+					validateImportResult(result)
 
 					importResults.value.successful++
 				} catch (e) {
@@ -288,8 +300,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 						genre: release.styles?.join(', ') || null,
 						time_signature_upper: null,
 						time_signature_lower: null,
-						playable: true,
-						spotify_id: null
+						playable: true
 					}
 				}) || []
 		}
@@ -318,8 +329,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 
 		const match = duration.match(/(\d+):(\d+)/)
 		if (match) {
-			const minutes = parseInt(match[1])
-			const seconds = parseInt(match[2])
+			const minutes = parseInt(match[1]!)
+			const seconds = parseInt(match[2]!)
 			return (minutes * 60 + seconds) * 1000
 		}
 		return null

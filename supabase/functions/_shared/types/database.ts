@@ -78,7 +78,7 @@ export type Database = {
           selected_crate: string
           turntable_pitch_range: number
           turntable_theme: string
-          ui_theme: string
+          ui_theme: Database["public"]["Enums"]["ui_theme_enum"]
         }
         Insert: {
           discogs_access_secret?: string | null
@@ -96,7 +96,7 @@ export type Database = {
           selected_crate?: string
           turntable_pitch_range?: number
           turntable_theme?: string
-          ui_theme?: string
+          ui_theme?: Database["public"]["Enums"]["ui_theme_enum"]
         }
         Update: {
           discogs_access_secret?: string | null
@@ -114,7 +114,7 @@ export type Database = {
           selected_crate?: string
           turntable_pitch_range?: number
           turntable_theme?: string
-          ui_theme?: string
+          ui_theme?: Database["public"]["Enums"]["ui_theme_enum"]
         }
         Relationships: []
       }
@@ -260,10 +260,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      import_record_with_tracks: {
+        Args: { record: Json; tracks?: Json }
+        Returns: Json
+      }
     }
     Enums: {
-      [_ in never]: never
+      ui_theme_enum: "light" | "dark"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -393,7 +396,9 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      ui_theme_enum: ["light", "dark"],
+    },
   },
 } as const
 
