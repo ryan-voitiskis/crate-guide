@@ -6,8 +6,11 @@
 -- ============================================================================
 
 -- ============================================================================
--- SHARED FUNCTIONS
+-- LAYER 1: FOUNDATION (Types, Extensions, Utility Functions)
 -- ============================================================================
+
+-- Theme options enum
+CREATE TYPE ui_theme_enum AS ENUM ('light', 'dark');
 
 -- Function to automatically update the updated_at timestamp column
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
@@ -52,14 +55,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================================
--- ENUMS
--- ============================================================================
-
--- Theme options enum
-CREATE TYPE ui_theme_enum AS ENUM ('light', 'dark');
-
--- ============================================================================
--- PROFILES TABLE
+-- LAYER 2: CORE SCHEMA (Tables Only)
 -- ============================================================================
 
 -- User profiles linked to auth.users
@@ -83,33 +79,6 @@ CREATE TABLE public.profiles (
     PRIMARY KEY (id)
 );
 
--- Enable RLS for profiles
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
--- Function to handle new user registration
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-    INSERT INTO public.profiles (id, name)
-    VALUES (NEW.id, NEW.raw_user_meta_data->>'name');
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Trigger to auto-create profile on user creation
-CREATE OR REPLACE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
--- RLS policy: Users can only access their own profile
-CREATE POLICY "Users can only access their own profile"
-    ON public.profiles FOR ALL
-    USING (auth.uid() = id);
-
--- ============================================================================
--- RECORDS TABLE
--- ============================================================================
-
 -- Vinyl records/albums collection
 CREATE TABLE public.records (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -124,27 +93,6 @@ CREATE TABLE public.records (
     created_at timestamp with time zone DEFAULT NOW(),
     updated_at timestamp with time zone DEFAULT NOW()
 );
-
--- Enable RLS for records
-ALTER TABLE public.records ENABLE ROW LEVEL SECURITY;
-
--- RLS policy: Users can only access their own records
-CREATE POLICY "Users can only access their own records"
-    ON public.records FOR ALL
-    USING (auth.uid() = user_id);
-
--- Index for user_id lookups
-CREATE INDEX idx_records_user_id ON public.records (user_id);
-
--- Trigger to update the updated_at timestamp
-CREATE TRIGGER update_records_updated_at
-    BEFORE UPDATE ON public.records
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
--- ============================================================================
--- TRACKS TABLE
--- ============================================================================
 
 -- Individual tracks on records
 CREATE TABLE public.tracks (
@@ -166,37 +114,7 @@ CREATE TABLE public.tracks (
     updated_at timestamp with time zone DEFAULT NOW()
 );
 
--- Enable RLS for tracks
-ALTER TABLE public.tracks ENABLE ROW LEVEL SECURITY;
-
--- RLS policy: Users can CRUD tracks of their own records
-CREATE POLICY "Users can perform CRUD on tracks of their own records"
-    ON public.tracks FOR ALL
-    USING (EXISTS (
-        SELECT 1 FROM public.records
-        WHERE public.records.id = public.tracks.record_id
-        AND public.records.user_id = auth.uid()
-    ))
-    WITH CHECK (EXISTS (
-        SELECT 1 FROM public.records
-        WHERE public.records.id = public.tracks.record_id
-        AND public.records.user_id = auth.uid()
-    ));
-
--- Index for record_id lookups
-CREATE INDEX idx_tracks_record_id ON public.tracks(record_id);
-
--- Trigger to update the updated_at timestamp
-CREATE TRIGGER update_tracks_updated_at
-    BEFORE UPDATE ON public.tracks
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
--- ============================================================================
--- CRATES TABLE
--- ============================================================================
-
--- Collections of records (playlists/crates)
+-- Collections of records
 CREATE TABLE public.crates (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -205,28 +123,6 @@ CREATE TABLE public.crates (
     created_at timestamp with time zone DEFAULT NOW(),
     updated_at timestamp with time zone DEFAULT NOW()
 );
-
--- Enable RLS for crates
-ALTER TABLE public.crates ENABLE ROW LEVEL SECURITY;
-
--- RLS policy: Users can CRUD their own crates
-CREATE POLICY "Users can perform CRUD on their own crates"
-    ON public.crates FOR ALL
-    USING (auth.uid() = user_id)
-    WITH CHECK (auth.uid() = user_id);
-
--- Index for user_id lookups
-CREATE INDEX idx_crates_user_id ON public.crates(user_id);
-
--- Trigger to update the updated_at timestamp
-CREATE TRIGGER update_crates_updated_at
-    BEFORE UPDATE ON public.crates
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
--- ============================================================================
--- SETS TABLE
--- ============================================================================
 
 -- DJ sets/performance history with played tracks stored as JSONB array
 CREATE TABLE public.sets (
@@ -240,29 +136,118 @@ CREATE TABLE public.sets (
     CONSTRAINT valid_played_tracks_type CHECK (jsonb_typeof(played_tracks) = 'array')
 );
 
--- Enable RLS for sets
+-- ============================================================================
+-- LAYER 3: SECURITY (RLS and Policies)
+-- ============================================================================
+
+-- Enable RLS for all tables
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tracks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sets ENABLE ROW LEVEL SECURITY;
 
--- RLS policy: Users can CRUD their own sets
-CREATE POLICY "Users can perform CRUD on their own sets"
+-- Profiles policies
+CREATE POLICY "users_own_profile_policy"
+    ON public.profiles FOR ALL
+    USING (auth.uid() = id);
+
+-- Records policies
+CREATE POLICY "users_own_records_policy"
+    ON public.records FOR ALL
+    USING (auth.uid() = user_id);
+
+-- Tracks policies
+CREATE POLICY "users_crud_own_record_tracks_policy"
+    ON public.tracks FOR ALL
+    USING (EXISTS (
+        SELECT 1 FROM public.records
+        WHERE public.records.id = public.tracks.record_id
+        AND public.records.user_id = auth.uid()
+    ))
+    WITH CHECK (EXISTS (
+        SELECT 1 FROM public.records
+        WHERE public.records.id = public.tracks.record_id
+        AND public.records.user_id = auth.uid()
+    ));
+
+-- Crates policies
+CREATE POLICY "users_crud_own_crates_policy"
+    ON public.crates FOR ALL
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+-- Sets policies
+CREATE POLICY "users_crud_own_sets_policy"
     ON public.sets FOR ALL
     USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 
--- Index for user_id lookups
+-- ============================================================================
+-- LAYER 4: PERFORMANCE (Indexes)
+-- ============================================================================
+
+-- Records indexes
+CREATE INDEX idx_records_user_id ON public.records (user_id);
+
+-- Tracks indexes
+CREATE INDEX idx_tracks_record_id ON public.tracks(record_id);
+
+-- Crates indexes
+CREATE INDEX idx_crates_user_id ON public.crates(user_id);
+
+-- Sets indexes
 CREATE INDEX idx_sets_user_id ON public.sets(user_id);
 
--- Trigger to update the updated_at timestamp
-CREATE TRIGGER update_sets_updated_at
+-- ============================================================================
+-- LAYER 5: AUTOMATION (Triggers and Functions)
+-- ============================================================================
+
+-- Function to handle new user registration
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.profiles (id, name)
+    VALUES (NEW.id, NEW.raw_user_meta_data->>'name');
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger to auto-create profile on user creation
+CREATE OR REPLACE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Update timestamp triggers
+CREATE TRIGGER records_update_updated_at_trigger
+    BEFORE UPDATE ON public.records
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER tracks_update_updated_at_trigger
+    BEFORE UPDATE ON public.tracks
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER crates_update_updated_at_trigger
+    BEFORE UPDATE ON public.crates
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER sets_update_updated_at_trigger
     BEFORE UPDATE ON public.sets
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Trigger for complex validation of played_tracks
-CREATE TRIGGER validate_sets_played_tracks
+-- Validation triggers
+CREATE TRIGGER sets_validate_played_tracks_trigger
     BEFORE INSERT OR UPDATE ON public.sets
     FOR EACH ROW
     EXECUTE FUNCTION validate_played_tracks();
+
+-- ============================================================================
+-- LAYER 6: BUSINESS LOGIC (Complex Functions)
+-- ============================================================================
 
 -- Function to import a record with its tracks atomically
 CREATE OR REPLACE FUNCTION public.import_record_with_tracks(
@@ -395,7 +380,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.import_record_with_tracks(JSONB, JSONB) TO authenticated;
 
 -- ============================================================================
--- COMMENTS ON JSONB STRUCTURE
+-- DOCUMENTATION: JSONB STRUCTURE
 -- ============================================================================
 -- The played_tracks JSONB array in sets table follows this structure:
 -- [
