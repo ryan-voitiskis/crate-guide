@@ -96,66 +96,28 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		importResults.value = { successful: 0, skipped: [], failed: [] }
 
 		try {
-			// Step 1: Check for existing records and filter them out early
-			const existingDiscogsIds = await getExistingDiscogsIds(selectedReleases)
+			// Step 1: Handle existing releases
+			const { releasesToFetch, skipped } =
+				await processExistingReleases(selectedReleases)
+			importResults.value.skipped = skipped
 
-			// Add skipped records to results
-			selectedReleases.forEach((release) => {
-				if (existingDiscogsIds.has(release.id)) {
-					importResults.value.skipped.push({
-						label: getResultLabel(release)
-					})
+			// Step 2: Fetch details with progress tracking
+			const { releases, failed: fetchFailed } = await fetchReleaseDetails(
+				releasesToFetch,
+				(progress, current) => {
+					importProgress.value = progress
+					releaseBeingImported.value = current
 				}
-			})
-
-			// Filter out existing releases before fetching details
-			const releasesToFetch = selectedReleases.filter(
-				(r) => !existingDiscogsIds.has(r.id)
 			)
+			importResults.value.failed.push(...fetchFailed)
 
-			// Step 2: Fetch full release details only for non-existing releases
-			const fullReleases: DiscogsReleaseFull[] = []
-
-			for (let i = 0; i < releasesToFetch.length; i++) {
-				releaseBeingImported.value = releasesToFetch[i] || null
-				if (!releaseBeingImported.value) break
-				importProgress.value = Math.round((i / releasesToFetch.length) * 100)
-				try {
-					const url = `${DISCOGS_API_URL}releases/${releaseBeingImported.value.id}`
-					const { data, error } = await supabase.functions.invoke(
-						'authenticated-discogs-request',
-						{ body: JSON.stringify({ httpMethod: 'GET', url }) }
-					)
-
-					if (error) {
-						importResults.value.failed.push({
-							label: getResultLabel(releaseBeingImported.value),
-							error: error.message
-						})
-						continue
-					}
-
-					fullReleases.push(data)
-				} catch (e) {
-					importResults.value.failed.push({
-						label: getResultLabel(releaseBeingImported.value),
-						error: isError(e) ? e.message : 'Unknown error'
-					})
-				}
-			}
-
-			// Step 3: Transform and insert all fetched records (already filtered)
-			for (const release of fullReleases) {
-				try {
-					await importRecordWithTracks(release, user.profile!.id)
-					importResults.value.successful++
-				} catch (e) {
-					importResults.value.failed.push({
-						label: getResultLabelFromFullRelease(release),
-						error: isError(e) ? e.message : 'Failed to import'
-					})
-				}
-			}
+			// Step 3: Import to database
+			const { successful, failed: importFailed } = await importFetchedReleases(
+				releases,
+				user.profile!.id
+			)
+			importResults.value.successful = successful
+			importResults.value.failed.push(...importFailed)
 		} finally {
 			isImporting.value = false
 			importProgress.value = 0
