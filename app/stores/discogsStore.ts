@@ -244,14 +244,18 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		return {
 			user_id: userId,
 			discogs_id: release.id,
-			catno: release.labels?.[0]?.catno?.trim() || null,
 			title: release.title.trim(),
 			artists: release.artists.map((a: any) => ({
 				discogs_id: a.id,
 				name: normalizeArtist(a.name)
 			})),
-			label:
-				release.labels?.[0]?.name?.trim().replace(/ \(\d{1,3}\)$/, '') || null,
+			labels:
+				release.labels?.map((label: any) => ({
+					discogs_id: label.id,
+					name: label.name?.trim().replace(/ \(\d{1,3}\)$/, '') || '',
+					catno: label.catno?.trim() || '',
+					entity_type: label.entity_type || ''
+				})) || [],
 			year: release.year || null,
 			cover:
 				release.images?.find((img: any) => img.type === 'primary')

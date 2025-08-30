@@ -82,6 +82,34 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Function to validate labels JSONB array structure
+CREATE OR REPLACE FUNCTION public.validate_labels()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Check if it's an array
+    IF jsonb_typeof(NEW.labels) != 'array' THEN
+        RAISE EXCEPTION 'labels must be a JSON array';
+    END IF;
+
+    -- Validate each label in the array
+    FOR i IN 0..jsonb_array_length(NEW.labels) - 1 LOOP
+        -- Check required fields
+        IF NEW.labels->i->>'name' IS NULL OR NEW.labels->i->>'name' = '' THEN
+            RAISE EXCEPTION 'name is required for all labels';
+        END IF;
+
+        -- Validate discogs_id if present (must be a positive integer)
+        IF NEW.labels->i->>'discogs_id' IS NOT NULL THEN
+            IF (NEW.labels->i->>'discogs_id')::integer <= 0 THEN
+                RAISE EXCEPTION 'discogs_id must be a positive integer';
+            END IF;
+        END IF;
+    END LOOP;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- ============================================================================
 -- LAYER 2: CORE SCHEMA (Tables Only)
 -- ============================================================================
@@ -112,10 +140,9 @@ CREATE TABLE public.records (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     discogs_id integer,
-    catno varchar,
     title varchar NOT NULL,
     artists jsonb NOT NULL DEFAULT '[]'::jsonb,
-    label varchar,
+    labels jsonb NOT NULL DEFAULT '[]'::jsonb,
     year integer,
     cover varchar,
     created_at timestamp with time zone DEFAULT NOW(),
@@ -230,6 +257,9 @@ CREATE INDEX idx_sets_user_id ON public.sets(user_id);
 -- Artists GIN index for JSONB queries
 CREATE INDEX idx_records_artists_gin ON public.records USING GIN (artists);
 
+-- Labels GIN index for JSONB queries
+CREATE INDEX idx_records_labels_gin ON public.records USING GIN (labels);
+
 -- ============================================================================
 -- LAYER 5: AUTOMATION (Triggers and Functions)
 -- ============================================================================
@@ -282,6 +312,12 @@ CREATE TRIGGER records_validate_artists_trigger
     FOR EACH ROW
     EXECUTE FUNCTION validate_artists();
 
+-- Labels validation trigger
+CREATE TRIGGER records_validate_labels_trigger
+    BEFORE INSERT OR UPDATE ON public.records
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_labels();
+
 -- ============================================================================
 -- LAYER 6: BUSINESS LOGIC (Complex Functions)
 -- ============================================================================
@@ -301,13 +337,18 @@ DECLARE
     result JSONB;
 BEGIN
     -- Validate that record contains required fields
-    IF record->>'user_id' IS NULL OR record->>'title' IS NULL OR record->'artists' IS NULL THEN
-        RAISE EXCEPTION 'Missing required fields: user_id, title, and artists are required';
+    IF record->>'user_id' IS NULL OR record->>'title' IS NULL OR record->'artists' IS NULL OR record->'labels' IS NULL THEN
+        RAISE EXCEPTION 'Missing required fields: user_id, title, artists, and labels are required';
     END IF;
 
     -- Validate that artists is an array
     IF jsonb_typeof(record->'artists') != 'array' THEN
         RAISE EXCEPTION 'artists must be a JSON array';
+    END IF;
+
+    -- Validate that labels is an array
+    IF jsonb_typeof(record->'labels') != 'array' THEN
+        RAISE EXCEPTION 'labels must be a JSON array';
     END IF;
 
     -- Validate that tracks is an array
@@ -319,10 +360,9 @@ BEGIN
     INSERT INTO public.records (
         user_id,
         discogs_id,
-        catno,
         title,
         artists,
-        label,
+        labels,
         year,
         cover
     )
@@ -331,10 +371,9 @@ BEGIN
         CASE WHEN record->>'discogs_id' IS NOT NULL
               THEN (record->>'discogs_id')::INTEGER
               ELSE NULL END,
-        record->>'catno',
         record->>'title',
         record->'artists',
-        record->>'label',
+        record->'labels',
         CASE WHEN record->>'year' IS NOT NULL
               THEN (record->>'year')::INTEGER
               ELSE NULL END,
