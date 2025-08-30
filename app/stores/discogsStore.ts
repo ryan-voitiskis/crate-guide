@@ -247,7 +247,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			title: release.title.trim(),
 			artists: release.artists.map((a: any) => ({
 				discogs_id: a.id,
-				name: normalizeArtist(a.name)
+				name: normalizeArtist(a.name),
+				role: a.roll || null
 			})),
 			labels:
 				release.labels?.map((label: any) => ({
@@ -276,13 +277,30 @@ export const useDiscogsStore = defineStore('discogs', () => {
 						title = `${title} (${normalizeArtist(extraArtistsSuffixable.name)} ${extraArtistsSuffixable.role})`
 					}
 
-					// Build artists string
-					const artists =
-						track.artists?.map((a: any) => normalizeArtist(a.name)) || []
-					const allArtists = [
-						...artists,
-						...extraArtists.map((ea: any) => normalizeArtist(ea.name))
-					]
+					// Build track artists array
+					const trackArtists =
+						track.artists?.map((a: any) => ({
+							discogs_id: a.id,
+							name: normalizeArtist(a.name),
+							role: a.role || null
+						})) || []
+
+					// If track has no artists, inherit from record artists
+					const finalTrackArtists =
+						trackArtists.length > 0
+							? trackArtists
+							: release.artists.map((a: any) => ({
+									discogs_id: a.id,
+									name: normalizeArtist(a.name),
+									role: a.role || null
+								}))
+
+					// Build extraartists array
+					const trackExtraArtists = extraArtists.map((ea: any) => ({
+						discogs_id: ea.id || null,
+						name: normalizeArtist(ea.name),
+						role: ea.role || null
+					}))
 
 					// Process position
 					let position = null
@@ -294,7 +312,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 
 					return {
 						title,
-						artists: allArtists.join(', ') || null,
+						artists: finalTrackArtists,
+						extraartists: trackExtraArtists,
 						position,
 						duration: parseDuration(track.duration) || null,
 						bpm: null, // To be fetched from Spotify later
