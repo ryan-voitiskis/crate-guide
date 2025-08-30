@@ -474,3 +474,24 @@ GRANT EXECUTE ON FUNCTION public.import_record_with_tracks(JSONB, JSONB) TO auth
 --   ...
 -- ]
 -- Array order determines track position in the set
+
+-- The artists JSONB array in records table follows this structure:
+-- [
+--   {
+--     "discogs_id": 12345,           -- Optional: Discogs artist ID
+--     "name": "Artist Name"          -- Required: Artist name
+--   },
+--   ...
+-- ]
+
+-- The labels JSONB array in records table follows this structure:
+-- [
+--   {
+--     "discogs_id": 12345,           -- Optional: Discogs label ID
+--     "name": "Label Name",          -- Required: Label name
+--     "catno": "ABC123",             -- Optional: Catalog number
+--     "entity_type": "1",            -- Optional: Discogs entity type
+--     "thumbnail_url": "https://..." -- Optional: Label thumbnail image URL
+--   },
+--   ...
+-- ]

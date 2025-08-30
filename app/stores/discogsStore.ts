@@ -254,7 +254,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 					discogs_id: label.id,
 					name: label.name?.trim().replace(/ \(\d{1,3}\)$/, '') || '',
 					catno: label.catno?.trim() || '',
-					entity_type: label.entity_type || ''
+					entity_type: label.entity_type || '',
+					thumbnail_url: label.thumbnail_url || ''
 				})) || [],
 			year: release.year || null,
 			cover:

@@ -20,7 +20,9 @@ interface DiscogsLabel {
 	name: string
 	catno: string
 	entity_type: string
+	entity_type_name: string
 	resource_url: string
+	thumbnail_url?: string
 }
 
 interface DiscogsArtist {
