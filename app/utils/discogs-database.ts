@@ -3,10 +3,10 @@ import { validateImportResult } from '~/utils/discogs-validation'
 
 // Helper to check for existing records by Discogs IDs
 export async function getExistingDiscogsIds(
-	fullReleases: DiscogsReleaseFull[]
+	selectedReleases: DiscogsReleaseToFilter[]
 ): Promise<Set<number>> {
 	const supabase = getSupabase()
-	const discogsIds = fullReleases.map((r) => r.id)
+	const discogsIds = selectedReleases.map((r) => r.id)
 
 	const { data: existingRecords } = await supabase
 		.from('records')
