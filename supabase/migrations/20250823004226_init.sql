@@ -54,6 +54,34 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Function to validate artists JSONB array structure
+CREATE OR REPLACE FUNCTION public.validate_artists()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Check if it's an array
+    IF jsonb_typeof(NEW.artists) != 'array' THEN
+        RAISE EXCEPTION 'artists must be a JSON array';
+    END IF;
+
+    -- Validate each artist in the array
+    FOR i IN 0..jsonb_array_length(NEW.artists) - 1 LOOP
+        -- Check required fields
+        IF NEW.artists->i->>'name' IS NULL OR NEW.artists->i->>'name' = '' THEN
+            RAISE EXCEPTION 'name is required for all artists';
+        END IF;
+
+        -- Validate discogs_id if present (must be a positive integer)
+        IF NEW.artists->i->>'discogs_id' IS NOT NULL THEN
+            IF (NEW.artists->i->>'discogs_id')::integer <= 0 THEN
+                RAISE EXCEPTION 'discogs_id must be a positive integer';
+            END IF;
+        END IF;
+    END LOOP;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- ============================================================================
 -- LAYER 2: CORE SCHEMA (Tables Only)
 -- ============================================================================
@@ -86,7 +114,7 @@ CREATE TABLE public.records (
     discogs_id integer,
     catno varchar,
     title varchar NOT NULL,
-    artists varchar NOT NULL,
+    artists jsonb NOT NULL DEFAULT '[]'::jsonb,
     label varchar,
     year integer,
     cover varchar,
@@ -199,6 +227,9 @@ CREATE INDEX idx_crates_user_id ON public.crates(user_id);
 -- Sets indexes
 CREATE INDEX idx_sets_user_id ON public.sets(user_id);
 
+-- Artists GIN index for JSONB queries
+CREATE INDEX idx_records_artists_gin ON public.records USING GIN (artists);
+
 -- ============================================================================
 -- LAYER 5: AUTOMATION (Triggers and Functions)
 -- ============================================================================
@@ -245,6 +276,12 @@ CREATE TRIGGER sets_validate_played_tracks_trigger
     FOR EACH ROW
     EXECUTE FUNCTION validate_played_tracks();
 
+-- Artists validation trigger
+CREATE TRIGGER records_validate_artists_trigger
+    BEFORE INSERT OR UPDATE ON public.records
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_artists();
+
 -- ============================================================================
 -- LAYER 6: BUSINESS LOGIC (Complex Functions)
 -- ============================================================================
@@ -264,8 +301,13 @@ DECLARE
     result JSONB;
 BEGIN
     -- Validate that record contains required fields
-    IF record->>'user_id' IS NULL OR record->>'title' IS NULL OR record->>'artists' IS NULL THEN
+    IF record->>'user_id' IS NULL OR record->>'title' IS NULL OR record->'artists' IS NULL THEN
         RAISE EXCEPTION 'Missing required fields: user_id, title, and artists are required';
+    END IF;
+
+    -- Validate that artists is an array
+    IF jsonb_typeof(record->'artists') != 'array' THEN
+        RAISE EXCEPTION 'artists must be a JSON array';
     END IF;
 
     -- Validate that tracks is an array
@@ -291,7 +333,7 @@ BEGIN
               ELSE NULL END,
         record->>'catno',
         record->>'title',
-        record->>'artists',
+        record->'artists',
         record->>'label',
         CASE WHEN record->>'year' IS NOT NULL
               THEN (record->>'year')::INTEGER

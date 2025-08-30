@@ -246,9 +246,10 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			discogs_id: release.id,
 			catno: release.labels?.[0]?.catno?.trim() || null,
 			title: release.title.trim(),
-			artists: release.artists
-				.map((a: any) => normalizeArtist(a.name))
-				.join(', '),
+			artists: release.artists.map((a: any) => ({
+				discogs_id: a.id,
+				name: normalizeArtist(a.name)
+			})),
 			label:
 				release.labels?.[0]?.name?.trim().replace(/ \(\d{1,3}\)$/, '') || null,
 			year: release.year || null,

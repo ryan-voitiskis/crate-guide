@@ -33,7 +33,7 @@ const hasResults = computed(() => {
 			</DialogHeader>
 			<DiscogsImportProgress />
 
-			<ScrollArea class="h-80">
+			<ScrollArea class="max-h-80">
 				<div v-if="!discogs.isImporting && hasResults" class="space-y-4">
 					<!-- Success Count -->
 					<div
