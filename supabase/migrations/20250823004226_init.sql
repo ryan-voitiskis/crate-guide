@@ -76,6 +76,8 @@ BEGIN
                 RAISE EXCEPTION 'discogs_id must be a positive integer';
             END IF;
         END IF;
+
+        -- role can be null or any string, no validation needed
     END LOOP;
 
     RETURN NEW;
@@ -104,6 +106,66 @@ BEGIN
                 RAISE EXCEPTION 'discogs_id must be a positive integer';
             END IF;
         END IF;
+    END LOOP;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to validate track artists JSONB array structure
+CREATE OR REPLACE FUNCTION public.validate_track_artists()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Check if artists is an array
+    IF jsonb_typeof(NEW.artists) != 'array' THEN
+        RAISE EXCEPTION 'track artists must be a JSON array';
+    END IF;
+
+    -- Validate each artist in the array
+    FOR i IN 0..jsonb_array_length(NEW.artists) - 1 LOOP
+        -- Check required fields
+        IF NEW.artists->i->>'name' IS NULL OR NEW.artists->i->>'name' = '' THEN
+            RAISE EXCEPTION 'name is required for all track artists';
+        END IF;
+
+        -- Validate discogs_id if present (must be a positive integer)
+        IF NEW.artists->i->>'discogs_id' IS NOT NULL THEN
+            IF (NEW.artists->i->>'discogs_id')::integer <= 0 THEN
+                RAISE EXCEPTION 'discogs_id must be a positive integer';
+            END IF;
+        END IF;
+
+        -- role can be null or any string, no validation needed
+    END LOOP;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to validate track extraartists JSONB array structure
+CREATE OR REPLACE FUNCTION public.validate_track_extraartists()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Check if extraartists is an array
+    IF jsonb_typeof(NEW.extraartists) != 'array' THEN
+        RAISE EXCEPTION 'track extraartists must be a JSON array';
+    END IF;
+
+    -- Validate each extraartist in the array
+    FOR i IN 0..jsonb_array_length(NEW.extraartists) - 1 LOOP
+        -- Check required fields
+        IF NEW.extraartists->i->>'name' IS NULL OR NEW.extraartists->i->>'name' = '' THEN
+            RAISE EXCEPTION 'name is required for all track extraartists';
+        END IF;
+
+        -- Validate discogs_id if present (must be a positive integer)
+        IF NEW.extraartists->i->>'discogs_id' IS NOT NULL THEN
+            IF (NEW.extraartists->i->>'discogs_id')::integer <= 0 THEN
+                RAISE EXCEPTION 'discogs_id must be a positive integer';
+            END IF;
+        END IF;
+
+        -- role can be null or any string, no validation needed
     END LOOP;
 
     RETURN NEW;
@@ -154,7 +216,8 @@ CREATE TABLE public.tracks (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     record_id uuid NOT NULL REFERENCES public.records(id) ON DELETE CASCADE,
     title varchar NOT NULL,
-    artists varchar,
+    artists jsonb NOT NULL DEFAULT '[]'::jsonb,
+    extraartists jsonb NOT NULL DEFAULT '[]'::jsonb,
     position varchar,
     duration integer,
     bpm numeric,
@@ -318,6 +381,18 @@ CREATE TRIGGER records_validate_labels_trigger
     FOR EACH ROW
     EXECUTE FUNCTION validate_labels();
 
+-- Track artists validation trigger
+CREATE TRIGGER tracks_validate_artists_trigger
+    BEFORE INSERT OR UPDATE ON public.tracks
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_track_artists();
+
+-- Track extraartists validation trigger
+CREATE TRIGGER tracks_validate_extraartists_trigger
+    BEFORE INSERT OR UPDATE ON public.tracks
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_track_extraartists();
+
 -- ============================================================================
 -- LAYER 6: BUSINESS LOGIC (Complex Functions)
 -- ============================================================================
@@ -394,6 +469,7 @@ BEGIN
                 record_id,
                 title,
                 artists,
+                extraartists,
                 position,
                 duration,
                 bpm,
@@ -408,7 +484,8 @@ BEGIN
             VALUES (
                 inserted_record_id,
                 track_record->>'title',
-                track_record->>'artists',
+                COALESCE(track_record->'artists', '[]'::jsonb),
+                COALESCE(track_record->'extraartists', '[]'::jsonb),
                 track_record->>'position',
                 CASE WHEN track_record->>'duration' IS NOT NULL
                       THEN (track_record->>'duration')::INTEGER
@@ -473,13 +550,24 @@ GRANT EXECUTE ON FUNCTION public.import_record_with_tracks(JSONB, JSONB) TO auth
 --   },
 --   ...
 -- ]
+
+-- The artists and extraartists JSONB arrays in tracks table follow this structure:
+-- [
+--   {
+--     "discogs_id": 12345,           -- Optional: Discogs artist ID
+--     "name": "Artist Name",         -- Required: Artist name
+--     "role": "remix"                -- Optional: Artist role (null for main artists, specific role for extraartists)
+--   },
+--   ...
+-- ]
 -- Array order determines track position in the set
 
 -- The artists JSONB array in records table follows this structure:
 -- [
 --   {
 --     "discogs_id": 12345,           -- Optional: Discogs artist ID
---     "name": "Artist Name"          -- Required: Artist name
+--     "name": "Artist Name",         -- Required: Artist name
+--     "role": null                   -- Optional: Artist role (usually null for main artists)
 --   },
 --   ...
 -- ]
