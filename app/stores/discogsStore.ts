@@ -316,13 +316,13 @@ export const useDiscogsStore = defineStore('discogs', () => {
 						extraartists: trackExtraArtists,
 						position,
 						duration: parseDuration(track.duration) || null,
-						bpm: null, // To be fetched from Spotify later
+						bpm: null, // To be fetched from elsewhere later
 						rpm: release.formats?.[0]?.descriptions?.toString().includes('45')
 							? 45
 							: 33,
 						key: null,
 						mode: null,
-						genre: release.styles?.join(', ') || null,
+						genres: release.styles || [],
 						time_signature_upper: null,
 						time_signature_lower: null,
 						playable: true

@@ -172,6 +172,26 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Function to validate genres JSONB array structure
+CREATE OR REPLACE FUNCTION public.validate_genres()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Check if genres is an array
+    IF jsonb_typeof(NEW.genres) != 'array' THEN
+        RAISE EXCEPTION 'genres must be a JSON array';
+    END IF;
+
+    -- Validate each genre in the array (must be non-empty strings)
+    FOR i IN 0..jsonb_array_length(NEW.genres) - 1 LOOP
+        IF NEW.genres->i IS NULL OR jsonb_typeof(NEW.genres->i) != 'string' OR NEW.genres->>i = '' THEN
+            RAISE EXCEPTION 'each genre must be a non-empty string';
+        END IF;
+    END LOOP;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- ============================================================================
 -- LAYER 2: CORE SCHEMA (Tables Only)
 -- ============================================================================
@@ -224,7 +244,7 @@ CREATE TABLE public.tracks (
     rpm integer,
     key smallint,
     mode smallint,
-    genre varchar,
+    genres jsonb NOT NULL DEFAULT '[]'::jsonb,
     time_signature_upper smallint,
     time_signature_lower smallint,
     playable boolean DEFAULT true,
@@ -393,6 +413,12 @@ CREATE TRIGGER tracks_validate_extraartists_trigger
     FOR EACH ROW
     EXECUTE FUNCTION validate_track_extraartists();
 
+-- Genres validation trigger
+CREATE TRIGGER tracks_validate_genres_trigger
+    BEFORE INSERT OR UPDATE ON public.tracks
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_genres();
+
 -- ============================================================================
 -- LAYER 6: BUSINESS LOGIC (Complex Functions)
 -- ============================================================================
@@ -476,7 +502,7 @@ BEGIN
                 rpm,
                 key,
                 mode,
-                genre,
+                genres,
                 time_signature_upper,
                 time_signature_lower,
                 playable
@@ -502,7 +528,7 @@ BEGIN
                 CASE WHEN track_record->>'mode' IS NOT NULL
                       THEN (track_record->>'mode')::SMALLINT
                       ELSE NULL END,
-                track_record->>'genre',
+                COALESCE(track_record->'genres', '[]'::jsonb),
                 CASE WHEN track_record->>'time_signature_upper' IS NOT NULL
                       THEN (track_record->>'time_signature_upper')::SMALLINT
                       ELSE NULL END,
@@ -561,6 +587,14 @@ GRANT EXECUTE ON FUNCTION public.import_record_with_tracks(JSONB, JSONB) TO auth
 --   ...
 -- ]
 -- Array order determines track position in the set
+
+-- The genres JSONB array in tracks table follows this structure:
+-- [
+--   "Electronic",
+--   "House",
+--   "Tech House"
+-- ]
+-- Simple array of genre strings
 
 -- The artists JSONB array in records table follows this structure:
 -- [
