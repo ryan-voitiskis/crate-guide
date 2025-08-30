@@ -1,4 +1,3 @@
-import { DISCOGS_API_URL } from '~/utils/discogs-api'
 import {
 	getExistingDiscogsIds,
 	importRecordWithTracks
@@ -51,7 +50,7 @@ export async function fetchReleaseDetails(
 	releasesToFetch: DiscogsReleaseToFilter[],
 	onProgress: (progress: number, current: DiscogsReleaseToFilter) => void
 ): Promise<FetchDetailsResult> {
-	const supabase = getSupabase()
+	const discogsApi = useDiscogsApi()
 	const releases: DiscogsReleaseFull[] = []
 	const failed: Array<{ label: string; error: string }> = []
 
@@ -60,20 +59,7 @@ export async function fetchReleaseDetails(
 		onProgress(Math.round((i / releasesToFetch.length) * 100), release)
 
 		try {
-			const url = `${DISCOGS_API_URL}releases/${release.id}`
-			const { data, error } = await supabase.functions.invoke(
-				'authenticated-discogs-request',
-				{ body: JSON.stringify({ httpMethod: 'GET', url }) }
-			)
-
-			if (error) {
-				failed.push({
-					label: getResultLabel(release),
-					error: error.message
-				})
-				continue
-			}
-
+			const data = await discogsApi.getRelease(release.id)
 			releases.push(data)
 		} catch (e) {
 			failed.push({

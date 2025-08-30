@@ -2,7 +2,7 @@ import { toast } from 'vue-sonner'
 
 export const useDiscogsStore = defineStore('discogs', () => {
 	const user = useUserStore()
-	const supabase = useSupabaseClient<Database>()
+	const discogsApi = useDiscogsApi()
 	const folders = ref<DiscogsFolder[]>([])
 	const selectedFolder = ref<string | undefined>(undefined)
 	const releasesToImport = ref<DiscogsReleaseToFilter[]>([])
@@ -15,7 +15,6 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	const showImportProgressDialog = ref(false)
 	const showGetFoldersDialog = ref(false)
 
-	// Import progress and results
 	const importProgress = ref(0)
 	const isImporting = ref(false)
 	const importResults = ref<{
@@ -28,12 +27,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		isLoadingFolders.value = true
 		folders.value = []
 		try {
-			const url = `${DISCOGS_API_URL}users/${user.profile?.discogs_username}/collection/folders`
-			const { data, error } = await supabase.functions.invoke(
-				'authenticated-discogs-request',
-				{ body: JSON.stringify({ httpMethod: 'GET', url }) }
-			)
-			if (error) throw error
+			const data = await discogsApi.getFolders()
 			if (!data.folders) toast.error('No folders found.')
 			else folders.value = data.folders
 		} catch (error) {
@@ -49,23 +43,11 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		if (!folder) return
 		isLoadingSelectedFolder.value = true
 		try {
-			const url = `${DISCOGS_API_URL}users/${user.profile?.discogs_username}/collection/folders/${folder.id}/releases`
 			const releases: DiscogsRelease[] = []
 			let allReleasesFetched = false
 			let page = 1
 			while (!allReleasesFetched) {
-				const { data, error } = await supabase.functions.invoke(
-					'authenticated-discogs-request',
-					{
-						body: JSON.stringify({
-							httpMethod: 'GET',
-							url,
-							page,
-							per_page: 100
-						})
-					}
-				)
-				if (error) throw error
+				const data = await discogsApi.getFolderReleases(folder.id, page, 100)
 				if (!data.releases) throw new Error('No releases found.')
 				if (!data.pagination) throw new Error('No pagination on response.')
 				releases.push(...data.releases)
