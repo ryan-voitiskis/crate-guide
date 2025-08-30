@@ -42,18 +42,13 @@ interface DiscogsImage {
 	type: string
 }
 
-interface DiscogsExtraArtist {
-	name: string
-	role: string
-}
-
 interface DiscogsTrack {
 	duration: string
 	position: string
 	artists?: DiscogsArtist[]
 	title: string
 	type_: string
-	extraartists: DiscogsExtraArtist[]
+	extraartists: DiscogsArtist[]
 }
 
 interface DiscogsRelease {
@@ -110,6 +105,5 @@ export type {
 	DiscogsRelease,
 	DiscogsReleaseToFilter,
 	DiscogsFolderResponse,
-	DiscogsReleaseFull,
-	DiscogsExtraArtist
+	DiscogsReleaseFull
 }

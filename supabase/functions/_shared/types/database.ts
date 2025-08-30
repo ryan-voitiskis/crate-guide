@@ -120,39 +120,36 @@ export type Database = {
       }
       records: {
         Row: {
-          artists: string
-          catno: string | null
+          artists: Json
           cover: string | null
           created_at: string | null
           discogs_id: number | null
           id: string
-          label: string | null
+          labels: Json
           title: string
           updated_at: string | null
           user_id: string
           year: number | null
         }
         Insert: {
-          artists: string
-          catno?: string | null
+          artists?: Json
           cover?: string | null
           created_at?: string | null
           discogs_id?: number | null
           id?: string
-          label?: string | null
+          labels?: Json
           title: string
           updated_at?: string | null
           user_id: string
           year?: number | null
         }
         Update: {
-          artists?: string
-          catno?: string | null
+          artists?: Json
           cover?: string | null
           created_at?: string | null
           discogs_id?: number | null
           id?: string
-          label?: string | null
+          labels?: Json
           title?: string
           updated_at?: string | null
           user_id?: string
@@ -189,11 +186,12 @@ export type Database = {
       }
       tracks: {
         Row: {
-          artists: string | null
+          artists: Json
           bpm: number | null
           created_at: string | null
           duration: number | null
-          genre: string | null
+          extraartists: Json
+          genres: Json
           id: string
           key: number | null
           mode: number | null
@@ -201,18 +199,18 @@ export type Database = {
           position: string | null
           record_id: string
           rpm: number | null
-          spotify_id: string | null
           time_signature_lower: number | null
           time_signature_upper: number | null
           title: string
           updated_at: string | null
         }
         Insert: {
-          artists?: string | null
+          artists?: Json
           bpm?: number | null
           created_at?: string | null
           duration?: number | null
-          genre?: string | null
+          extraartists?: Json
+          genres?: Json
           id?: string
           key?: number | null
           mode?: number | null
@@ -220,18 +218,18 @@ export type Database = {
           position?: string | null
           record_id: string
           rpm?: number | null
-          spotify_id?: string | null
           time_signature_lower?: number | null
           time_signature_upper?: number | null
           title: string
           updated_at?: string | null
         }
         Update: {
-          artists?: string | null
+          artists?: Json
           bpm?: number | null
           created_at?: string | null
           duration?: number | null
-          genre?: string | null
+          extraartists?: Json
+          genres?: Json
           id?: string
           key?: number | null
           mode?: number | null
@@ -239,7 +237,6 @@ export type Database = {
           position?: string | null
           record_id?: string
           rpm?: number | null
-          spotify_id?: string | null
           time_signature_lower?: number | null
           time_signature_upper?: number | null
           title?: string
