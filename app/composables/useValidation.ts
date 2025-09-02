@@ -1,7 +1,6 @@
 import { useField } from 'vee-validate'
 
-// validate on blur until invalid, then validate on input
-// https://vee-validate.logaretm.com/v4/guide/composition-api/custom-inputs#handling-events
+// Validation strategy: wait for user to finish typing (blur), then provide real-time feedback on errors
 export function useValidation(fieldName: () => string) {
 	const { errorMessage, handleChange, handleBlur } = useField(
 		fieldName,

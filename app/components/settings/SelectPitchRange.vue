@@ -1,7 +1,6 @@
 <script setup lang="ts">
 const user = useUserStore()
 
-// v-model needs to be a string, hence the conversion
 const turntablePitchRange = ref(
 	user.profile?.turntable_pitch_range.toString() ?? '8'
 )

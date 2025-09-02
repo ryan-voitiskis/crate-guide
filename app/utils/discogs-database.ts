@@ -1,7 +1,6 @@
 import { transformRelease } from '~/utils/discogs-data'
 import { validateImportResult } from '~/utils/discogs-validation'
 
-// Helper to check for existing records by Discogs IDs
 export async function getExistingDiscogsIds(
 	selectedReleases: DiscogsReleaseToFilter[]
 ): Promise<Set<number>> {
@@ -20,13 +19,12 @@ export async function getExistingDiscogsIds(
 	)
 }
 
-// Import a single record with tracks using RPC
 export async function importRecordWithTracks(
 	release: DiscogsReleaseFull,
 	userId: string
 ): Promise<ImportRecordResult> {
 	const supabase = getSupabase()
-	// Transform the release data
+
 	const { tracks, ...record } = transformRelease(release, userId)
 
 	// Insert record and tracks in a single transaction using RPC

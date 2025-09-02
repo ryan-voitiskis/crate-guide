@@ -1,4 +1,3 @@
-// Constants
 const TITLE_SUFFIXABLE_ROLES = [
 	'mix',
 	'remix',
@@ -12,12 +11,10 @@ const TITLE_SUFFIXABLE_ROLES = [
 const POSITION_RX = /^[A-Z]\d{1,2}$/
 const POSITION_RX_ALPHA = /^[A-Z]{1,20}$/ // some discogs position in format "AA", "AAA" etc.
 
-// Helper function to normalize artist names
 export function normalizeArtist(artist: string): string {
 	return artist?.trim().replace(/ \(\d{1,3}\)$/, '') || ''
 }
 
-// Helper function to parse duration string to milliseconds
 export function parseDuration(duration: string): number | null {
 	if (!duration) return null
 
@@ -30,7 +27,6 @@ export function parseDuration(duration: string): number | null {
 	return null
 }
 
-// Transform release artists
 export function transformReleaseArtists(artists: any[]) {
 	return artists.map((a: any) => ({
 		discogs_id: a.id,
@@ -39,7 +35,6 @@ export function transformReleaseArtists(artists: any[]) {
 	}))
 }
 
-// Transform release labels
 export function transformReleaseLabels(labels: any[]) {
 	return (
 		labels?.map((label: any) => ({
@@ -52,7 +47,6 @@ export function transformReleaseLabels(labels: any[]) {
 	)
 }
 
-// Transform release tracks
 export function transformReleaseTracks(release: DiscogsReleaseFull) {
 	return (
 		release.tracklist?.map((track: any) => {
@@ -121,7 +115,6 @@ export function transformReleaseTracks(release: DiscogsReleaseFull) {
 	)
 }
 
-// Main transformation function
 export function transformRelease(release: DiscogsReleaseFull, userId: string) {
 	return {
 		user_id: userId,

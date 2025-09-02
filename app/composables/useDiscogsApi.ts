@@ -15,7 +15,6 @@ export function useDiscogsApi() {
 		)
 
 		if (error) {
-			// Normalize all supabase error types to standard Error
 			const message = error.message || error.toString() || 'API request failed'
 			throw new Error(message)
 		}

@@ -6,13 +6,8 @@ const supabase = useSupabaseClient<Database>()
 
 const isDiscogsConnecting = ref(false)
 
-/*
- * This function is used to initialise the Discogs OAuth flow.
- * After request token is retrieved, the user is redirected to Discogs for authentication.
- * After authentication, the user is redirected back to the app, where the verifier is captured.
- * Finally, the access token is retrieved and saved to the user's profile.
- * See: capture-verifier.vue
- */
+// OAuth flow: request token → redirect to Discogs → capture verifier → access token
+// Completion handled in capture-verifier.vue
 async function initDiscogsOAuthFlow() {
 	isDiscogsConnecting.value = true
 	const { data, error } = await supabase.functions.invoke(

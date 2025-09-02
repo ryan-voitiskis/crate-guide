@@ -14,8 +14,6 @@ const oauth_consumer_secret = Deno.env.get('DISCOGS_CONSUMER_SECRET') || ''
 const userAgent = Deno.env.get('DISCOGS_USER_AGENT') || ''
 const accessTokenURL = 'https://api.discogs.com/oauth/access_token'
 
-// make post request to discogs access token endpoint as per step 4 of
-// https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
 Deno.serve(async (req) => {
 	if (req.method === 'OPTIONS') return new Response('ok', { headers })
 

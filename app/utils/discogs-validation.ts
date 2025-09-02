@@ -5,7 +5,6 @@ export interface ImportRecordResult {
 	error?: string
 }
 
-// Type guard to validate RPC result
 export function isValidImportResult(
 	result: unknown
 ): result is ImportRecordResult {
@@ -17,7 +16,6 @@ export function isValidImportResult(
 	)
 }
 
-// Helper to handle import result validation
 export function validateImportResult(result: unknown): ImportRecordResult {
 	if (!isValidImportResult(result))
 		throw new Error('Invalid response from import function')
