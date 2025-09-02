@@ -55,7 +55,7 @@ async function signInWithGoogle() {
 						:disabled="signingInWithGoogle || form.isSubmitting.value"
 						@click="signInWithGithub"
 					>
-						<IconGithub class="mr-2 w-4" />
+						<IconGithub class="mr-2 size-5" />
 						GitHub
 					</Button>
 					<Button
@@ -64,7 +64,7 @@ async function signInWithGoogle() {
 						:disabled="signingInWithGithub || form.isSubmitting.value"
 						@click="signInWithGoogle"
 					>
-						<IconGoogle class="mr-2 w-4" />
+						<IconGoogle class="mr-2 size-5" />
 						Google
 					</Button>
 				</div>

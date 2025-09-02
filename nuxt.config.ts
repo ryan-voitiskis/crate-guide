@@ -12,7 +12,13 @@ export default defineNuxtConfig({
 	vite: {
 		plugins: [tailwindcss()]
 	},
-	modules: ['@nuxt/eslint', '@nuxtjs/supabase', '@pinia/nuxt', 'shadcn-nuxt'],
+	modules: [
+		'@nuxt/eslint',
+		'@nuxtjs/supabase',
+		'@pinia/nuxt',
+		'shadcn-nuxt',
+		'nuxt-lucide-icons'
+	],
 	shadcn: {
 		prefix: '',
 		componentDir: './app/components/ui'

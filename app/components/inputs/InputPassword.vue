@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
+import { LucideEye, LucideEyeOff } from 'lucide-vue-next'
 
 const props = defineProps<{
 	defaultValue?: string | number
@@ -19,8 +20,8 @@ const showPassword = ref(false)
 			:aria-label="showPassword ? 'Hide password' : 'Show password'"
 			@click.prevent="showPassword = !showPassword"
 		>
-			<IconEyeOff v-if="showPassword" class="w-5" />
-			<IconEye v-else class="w-5" />
+			<LucideEyeOff v-if="showPassword" class="size-5" />
+			<LucideEye v-else class="size-5" />
 		</button>
 	</div>
 </template>
