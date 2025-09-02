@@ -10,19 +10,19 @@ function onDialogOpen() {
 </script>
 
 <template>
+	<Button
+		@click="discogs.showGetFoldersDialog = true"
+		variant="secondary"
+		class="ml-auto"
+		:disabled="!user.isDiscogsAuthenticated"
+	>
+		Import Discogs Collection
+	</Button>
+
 	<Dialog
 		v-model:open="discogs.showGetFoldersDialog"
 		@update:open="onDialogOpen"
 	>
-		<DialogTrigger as-child>
-			<Button
-				variant="secondary"
-				class="ml-auto"
-				:disabled="!user.isDiscogsAuthenticated"
-			>
-				Import Discogs Collection
-			</Button>
-		</DialogTrigger>
 		<DialogContent class="sm:max-w-[425px]">
 			<DialogHeader>
 				<DialogTitle>Import Discogs Collection</DialogTitle>

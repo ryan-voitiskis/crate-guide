@@ -10,6 +10,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 
 	const isLoadingFolders = ref(false)
 	const isLoadingSelectedFolder = ref(false)
+	const isDisconnecting = ref(false)
 
 	const showFilterDialog = ref(false)
 	const showImportProgressDialog = ref(false)
@@ -64,6 +65,35 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		}
 	}
 
+	async function disconnectDiscogs() {
+		isDisconnecting.value = true
+		try {
+			const supabase = useSupabaseClient<Database>()
+			const { data, error } = await supabase
+				.from('profiles')
+				.update({
+					discogs_username: null,
+					discogs_request_token: null,
+					discogs_request_secret: null,
+					discogs_access_token: null,
+					discogs_access_secret: null,
+					discogs_avatar_url: null
+				})
+				.eq('id', user.profile!.id)
+				.select()
+			if (error) {
+				toast.error('Error disconnecting Discogs.')
+			} else if (data && data.length > 0) {
+				toast.success('Discogs disconnected.')
+				user.profile = data[0] as Profile
+			}
+		} catch (error) {
+			toast.error('Error disconnecting Discogs.')
+		} finally {
+			isDisconnecting.value = false
+		}
+	}
+
 	async function importSelectedReleases() {
 		const selectedReleases = releasesToImport.value.filter((r) => r.selected)
 		if (selectedReleases.length === 0) {
@@ -111,6 +141,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		releasesToImport,
 		isLoadingFolders,
 		isLoadingSelectedFolder,
+		isDisconnecting,
 		selectedFolder,
 		showFilterDialog,
 		importProgress,
@@ -119,6 +150,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		getFolders,
 		getSelectedFolder,
 		importSelectedReleases,
+		disconnectDiscogs,
 		showImportProgressDialog,
 		showGetFoldersDialog,
 		releaseBeingImported

@@ -1,38 +1,19 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
+const discogs = useDiscogsStore()
+const showDialog = ref(false)
 
-const user = useUserStore()
-const supabase = useSupabaseClient<Database>()
-
-const isDiscogsDisconnecting = ref(false)
-
-async function disconnectDiscogs() {
-	isDiscogsDisconnecting.value = true
-	const { data, error } = await supabase
-		.from('profiles')
-		.update({
-			discogs_username: null,
-			discogs_request_token: null,
-			discogs_request_secret: null,
-			discogs_access_token: null,
-			discogs_access_secret: null,
-			discogs_avatar_url: null
-		})
-		.eq('id', user.profile!.id)
-		.select()
-	if (error) toast.error('Error disconnecting Discogs.')
-	else {
-		toast.success('Discogs disconnected.')
-		user.profile = data[0]
-	}
+async function handleDisconnect() {
+	await discogs.disconnectDiscogs()
+	showDialog.value = false
 }
 </script>
 
 <template>
-	<Dialog>
-		<DialogTrigger as-child>
-			<Button variant="secondary" class="ml-auto">Disconnect</Button>
-		</DialogTrigger>
+	<Button @click="showDialog = true" variant="secondary" class="ml-auto">
+		Disconnect
+	</Button>
+
+	<Dialog v-model:open="showDialog">
 		<DialogContent class="sm:max-w-[425px]">
 			<DialogHeader>
 				<DialogTitle>Disconnect Discogs</DialogTitle>
@@ -50,9 +31,9 @@ async function disconnectDiscogs() {
 			</DialogHeader>
 			<DialogFooter>
 				<Button
-					@click="disconnectDiscogs"
+					@click="handleDisconnect"
 					variant="destructive"
-					:loading="isDiscogsDisconnecting"
+					:loading="discogs.isDisconnecting"
 				>
 					Disconnect
 				</Button>
