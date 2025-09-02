@@ -28,7 +28,7 @@ const onSubmit = form.handleSubmit(async (values: ResetPasswordFormValues) => {
 			<CardHeader class="space-y-1">
 				<Button variant="blank" size="xl-icon" class="mx-auto mb-2" as-child>
 					<NuxtLink to="/">
-						<CrateGuideLogo class="w-24" />
+						<LogoCrateGuide class="w-24" />
 					</NuxtLink>
 				</Button>
 				<CardTitle class="text-2xl">
@@ -64,7 +64,7 @@ const onSubmit = form.handleSubmit(async (values: ResetPasswordFormValues) => {
 				</form>
 				<div v-else>
 					<p class="text-center"></p>
-					<AnimatedTick class="mx-auto mt-4" />
+					<AnimationTick class="mx-auto mt-4" />
 				</div>
 				<Button variant="link" as-child>
 					<NuxtLink to="/login">Back to login</NuxtLink>

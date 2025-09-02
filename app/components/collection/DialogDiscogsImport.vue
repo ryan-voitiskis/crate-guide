@@ -31,7 +31,7 @@ const hasResults = computed(() => {
 					Hold tight while we import your records.
 				</p>
 			</DialogHeader>
-			<DiscogsImportProgress />
+			<ProgressDiscogsImport />
 
 			<ScrollArea class="max-h-80">
 				<div v-if="!discogs.isImporting && hasResults" class="space-y-4">

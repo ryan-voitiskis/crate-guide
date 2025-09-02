@@ -9,7 +9,7 @@ const discogs = useDiscogsStore()
 			{{ discogs.importProgress }}% complete
 		</p>
 		<div v-if="discogs.releaseBeingImported">
-			<DiscogsReleaseShort :release="discogs.releaseBeingImported" />
+			<CardDiscogsRelease :release="discogs.releaseBeingImported" />
 		</div>
 	</div>
 </template>

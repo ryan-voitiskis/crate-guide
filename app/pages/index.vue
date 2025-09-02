@@ -15,7 +15,7 @@ const activeTab = ref('session')
 				<TabsTrigger value="session" class="w-32">Session</TabsTrigger>
 				<TabsTrigger value="collection" class="w-32">Collection</TabsTrigger>
 			</TabsList>
-			<UserSettings v-if="user.supaUser" />
+			<PopoverUserSettings v-if="user.supaUser" />
 			<div v-else class="flex gap-4">
 				<Button as-child variant="ghost">
 					<NuxtLink to="/signup">Sign up</NuxtLink>
@@ -27,10 +27,10 @@ const activeTab = ref('session')
 		</div>
 
 		<TabsContent value="session">
-			<Session />
+			<TabSession />
 		</TabsContent>
 		<TabsContent value="collection">
-			<Collection />
+			<TabCollection />
 		</TabsContent>
 	</Tabs>
 </template>

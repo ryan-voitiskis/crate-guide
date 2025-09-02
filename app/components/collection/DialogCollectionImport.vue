@@ -30,7 +30,7 @@ function onDialogOpen() {
 					Select the folder you want to import from. You'll be able to deselect
 					releases from it.
 				</div>
-				<LoadingSpinner
+				<SpinnerLoading
 					v-if="discogs.isLoadingFolders"
 					class="text-primary/30 mx-auto h-16 w-16"
 				/>

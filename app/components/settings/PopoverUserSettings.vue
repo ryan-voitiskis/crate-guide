@@ -33,10 +33,10 @@ const avatarImg = computed(() => {
 					This text hasn't been decided upon yet.
 				</p>
 			</div>
-			<ManageDiscogsOAuth />
-			<TurntableColourToggle />
-			<ThemeToggle />
-			<PitchRangeSelect />
+			<DetailsDiscogsAuth />
+			<SelectorTurntableColor />
+			<SelectorTheme />
+			<SelectPitchRange />
 			<div class="flex">
 				<Button v-if="user.supaUser" @click="user.signOut">Logout</Button>
 			</div>

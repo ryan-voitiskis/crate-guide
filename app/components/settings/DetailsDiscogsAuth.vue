@@ -44,7 +44,7 @@ async function initDiscogsOAuthFlow() {
 				<span class="text-sm font-medium">
 					{{ user.profile.discogs_username }}
 				</span>
-				<DisconnectDiscogsDialog />
+				<DialogDiscogsDisconnect />
 			</div>
 		</div>
 		<div v-else>

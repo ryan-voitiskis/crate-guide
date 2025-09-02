@@ -41,7 +41,7 @@ async function signInWithGoogle() {
 			<CardHeader class="space-y-1">
 				<Button variant="blank" size="xl-icon" class="mx-auto mb-2" as-child>
 					<NuxtLink to="/">
-						<CrateGuideLogo class="w-24" />
+						<LogoCrateGuide class="w-24" />
 					</NuxtLink>
 				</Button>
 				<CardTitle class="text-2xl">Create account</CardTitle>
@@ -86,7 +86,7 @@ async function signInWithGoogle() {
 						<FormItem>
 							<FormLabel>Password</FormLabel>
 							<FormControl>
-								<PasswordInput v-bind="componentField" />
+								<InputPassword v-bind="componentField" />
 							</FormControl>
 							<FormMessage />
 						</FormItem>

@@ -3,8 +3,8 @@
 <template>
 	<div class="p-2">
 		<h1>Collection</h1>
-		<ImportCollectionDialog />
-		<FilterReleaseImportDialog />
-		<DiscogsImportDialog />
+		<DialogCollectionImport />
+		<DialogReleaseImportFilter />
+		<DialogDiscogsImport />
 	</div>
 </template>

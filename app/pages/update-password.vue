@@ -26,7 +26,7 @@ const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
 	<div class="flex h-screen items-center justify-center">
 		<Card class="w-full max-w-md rounded-lg bg-white p-6 shadow-md">
 			<CardHeader class="space-y-1">
-				<CrateGuideLogo class="mx-auto mb-2 w-24" />
+				<LogoCrateGuide class="mx-auto mb-2 w-24" />
 				<CardTitle class="text-2xl">Update your password</CardTitle>
 				<CardDescription>Enter your new password</CardDescription>
 			</CardHeader>
@@ -36,7 +36,7 @@ const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
 						<FormItem>
 							<FormLabel>Password</FormLabel>
 							<FormControl>
-								<PasswordInput v-bind="componentField" />
+								<InputPassword v-bind="componentField" />
 							</FormControl>
 							<FormMessage />
 						</FormItem>

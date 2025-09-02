@@ -39,7 +39,7 @@ const allSelected = computed({
 
 			<ScrollArea class="max-h-80">
 				<div class="flex flex-col gap-2">
-					<DiscogsReleaseShort
+					<CardDiscogsRelease
 						v-for="(release, i) in discogs.releasesToImport"
 						:key="i"
 						:release="release"

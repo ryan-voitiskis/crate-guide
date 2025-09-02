@@ -38,7 +38,7 @@ const onSubmit = form.handleSubmit((values: LoginFormValues) =>
 			<CardHeader class="space-y-1">
 				<Button variant="blank" size="xl-icon" class="mx-auto mb-2" as-child>
 					<NuxtLink to="/">
-						<CrateGuideLogo class="w-24" />
+						<LogoCrateGuide class="w-24" />
 					</NuxtLink>
 				</Button>
 				<CardTitle class="text-2xl">Log in</CardTitle>
@@ -91,7 +91,7 @@ const onSubmit = form.handleSubmit((values: LoginFormValues) =>
 						<FormItem>
 							<FormLabel>Password</FormLabel>
 							<FormControl>
-								<PasswordInput v-bind="componentField" />
+								<InputPassword v-bind="componentField" />
 							</FormControl>
 							<FormMessage />
 						</FormItem>

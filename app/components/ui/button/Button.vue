@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import LoadingSpinner from '@/components/utils/LoadingSpinner.vue'
+import SpinnerLoading from '@/components/utils/SpinnerLoading.vue'
 import { cva } from 'class-variance-authority'
 
 const buttonVariants = cva(
@@ -62,7 +62,7 @@ const props = withDefaults(defineProps<Props>(), {
 			v-if="loading"
 			class="absolute inset-0 flex items-center justify-center"
 		>
-			<LoadingSpinner class="opacity-80" />
+			<SpinnerLoading class="opacity-80" />
 		</span>
 		<div :class="['flex items-center', { 'opacity-0': loading }]">
 			<slot />
