@@ -64,7 +64,7 @@ function onDialogOpen() {
 			</DialogHeader>
 			<DialogFooter>
 				<Button
-					@click="discogs.getSelectedFolder()"
+					@click="discogs.fetchFolderReleases()"
 					variant="default"
 					:loading="discogs.isLoadingSelectedFolder"
 				>

@@ -5,12 +5,14 @@
 Crate Guide is a DJ-focused vinyl record management system with these core concepts:
 
 ### Key Entities
+
 - **Records**: Physical vinyl with metadata (artist, title, genre, BPM, key, etc.)
 - **Crates**: Organized collections of records for specific purposes/gigs
 - **Sessions**: DJ sets with tracklists and performance notes
 - **Collection**: User's complete record library with import from Discogs
 
 ### User Workflows
+
 - **Collection Management**: Import from Discogs, catalog personal records
 - **Crate Preparation**: Create themed collections for gigs
 - **Session Tracking**: Log DJ sets, track what works well together
@@ -35,12 +37,14 @@ Built with Nuxt 4, Pinia, Supabase, shadcn-vue (reka-ui), and Tailwind v4.
 **CRITICAL**: Use type-first PascalCase: `[ComponentType][Context][Specifics]`
 
 ✅ **Correct:**
+
 - `DialogUserSettings` - Dialog for user settings
 - `CardProductSummary` - Card showing product summary
 - `ButtonPrimaryAction` - Primary action button
 - `InputPassword` - Password input field
 
 ❌ **Incorrect:**
+
 - `UserSettingsDialog`
 - `ProductSummaryCard`
 - `PrimaryActionButton`
@@ -57,18 +61,18 @@ const props = defineProps<{ items: Item[] }>()
 const emit = defineEmits<{ update: [value: string] }>()
 
 const selectedItem = ref<Item | null>(null)
-const filteredItems = computed(() => props.items.filter(item => item.visible))
+const filteredItems = computed(() => props.items.filter((item) => item.visible))
 
 async function handleSubmit() {
-  try {
-    // logic here
-  } catch (error) {
-    toast.error('Operation failed')
-  }
+	try {
+		// logic here
+	} catch (error) {
+		toast.error('Operation failed')
+	}
 }
 
 onMounted(() => {
-  // initialization
+	// initialization
 })
 </script>
 ```
@@ -85,27 +89,27 @@ onMounted(() => {
 
 ```typescript
 export const useMyStore = defineStore('storeName', () => {
-  // 1. Dependencies → 2. State → 3. Computed → 4. Actions → 5. Return
-  const api = useMyApi()
-  
-  const items = ref<Item[]>([])
-  const isLoading = ref(false)
-  
-  const hasItems = computed(() => items.value.length > 0)
-  
-  async function fetchItems() {
-    isLoading.value = true
-    try {
-      const data = await api.getItems()
-      items.value = data.items || []
-    } catch (error) {
-      toast.error('Error fetching items.')
-    } finally {
-      isLoading.value = false
-    }
-  }
-  
-  return { items, isLoading, hasItems, fetchItems }
+	// 1. Dependencies → 2. State → 3. Computed → 4. Actions → 5. Return
+	const api = useMyApi()
+
+	const items = ref<Item[]>([])
+	const isLoading = ref(false)
+
+	const hasItems = computed(() => items.value.length > 0)
+
+	async function fetchItems() {
+		isLoading.value = true
+		try {
+			const data = await api.getItems()
+			items.value = data.items || []
+		} catch (error) {
+			toast.error('Error fetching items.')
+		} finally {
+			isLoading.value = false
+		}
+	}
+
+	return { items, isLoading, hasItems, fetchItems }
 })
 ```
 
@@ -121,37 +125,30 @@ export const useMyStore = defineStore('storeName', () => {
 
 ```vue
 <template>
-  <!-- Trigger can be anywhere in your UI -->
-  <Button @click="showDialog = true" variant="secondary">
-    Open Dialog
-  </Button>
+	<!-- Trigger can be anywhere in your UI -->
+	<Button @click="showDialog = true" variant="secondary">Open Dialog</Button>
 
-  <!-- Dialog content separate -->
-  <Dialog v-model:open="showDialog">
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Dialog Title</DialogTitle>
-        <DialogDescription>
-          Description text here
-        </DialogDescription>
-      </DialogHeader>
+	<!-- Dialog content separate -->
+	<Dialog v-model:open="showDialog">
+		<DialogContent>
+			<DialogHeader>
+				<DialogTitle>Dialog Title</DialogTitle>
+				<DialogDescription>Description text here</DialogDescription>
+			</DialogHeader>
 
-      <!-- Content -->
+			<!-- Content -->
 
-      <DialogFooter>
-        <Button @click="showDialog = false" variant="secondary">
-          Cancel
-        </Button>
-        <Button @click="handleConfirm" :loading="isProcessing">
-          Confirm
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+			<DialogFooter>
+				<Button @click="showDialog = false" variant="secondary">Cancel</Button>
+				<Button @click="handleConfirm" :loading="isProcessing">Confirm</Button>
+			</DialogFooter>
+		</DialogContent>
+	</Dialog>
 </template>
 ```
 
 **Guidelines:**
+
 - **Simple Dialogs**: Separate trigger from content, use direct `v-model:open` binding
 - **Complex Dialogs**: Create dedicated composables for dialog logic and state
 - **Reusable Dialogs**: Build dedicated dialog components with props/emits
@@ -160,20 +157,16 @@ export const useMyStore = defineStore('storeName', () => {
 
 ```vue
 <template>
-  <!-- Loading states -->
-  <Button :loading="isSubmitting" @click="handleSubmit">
-    Submit
-  </Button>
+	<!-- Loading states -->
+	<Button :loading="isSubmitting" @click="handleSubmit">Submit</Button>
 
-  <!-- Disabled states with proper conditions -->
-  <Button :disabled="!canSubmit || isProcessing">
-    Process
-  </Button>
+	<!-- Disabled states with proper conditions -->
+	<Button :disabled="!canSubmit || isProcessing">Process</Button>
 
-  <!-- Variants -->
-  <Button variant="secondary">Secondary</Button>
-  <Button variant="destructive">Delete</Button>
-  <Button variant="outline">Outline</Button>
+	<!-- Variants -->
+	<Button variant="secondary">Secondary</Button>
+	<Button variant="destructive">Delete</Button>
+	<Button variant="outline">Outline</Button>
 </template>
 ```
 
@@ -191,20 +184,16 @@ const dynamicColor = computed(() => `hsl(${hue.value}, 70%, 50%)`)
 </script>
 
 <template>
-  <!-- ✅ Good: Dynamic value as inline style -->
-  <div :style="{ backgroundColor: dynamicColor }" class="p-4 rounded-lg">
-    Content
-  </div>
+	<!-- ✅ Good: Dynamic value as inline style -->
+	<div :style="{ backgroundColor: dynamicColor }" class="rounded-lg p-4">
+		Content
+	</div>
 
-  <!-- ❌ Bad: Static styles inline -->
-  <div style="padding: 1rem; background-color: red;">
-    Content
-  </div>
+	<!-- ❌ Bad: Static styles inline -->
+	<div style="padding: 1rem; background-color: red;">Content</div>
 
-  <!-- ✅ Good: Static styles with Tailwind -->
-  <div class="p-4 bg-red-500 rounded-lg">
-    Content
-  </div>
+	<!-- ✅ Good: Static styles with Tailwind -->
+	<div class="rounded-lg bg-red-500 p-4">Content</div>
 </template>
 ```
 
@@ -220,7 +209,7 @@ const dynamicColor = computed(() => `hsl(${hue.value}, 70%, 50%)`)
 ## Development Tools Usage
 
 - **`grep`**: Search for symbols, functions, patterns in code content
-- **`find_path`**: Locate files by name/path patterns  
+- **`find_path`**: Locate files by name/path patterns
 - **`read_file`**: Examine existing code before modifications
 - **`diagnostics`**: Check for errors after making changes
 - **`terminal`**: Run build commands, package installs, tests
@@ -228,20 +217,23 @@ const dynamicColor = computed(() => `hsl(${hue.value}, 70%, 50%)`)
 ## Development Workflow & Architectural Decisions
 
 **Ask First About:**
+
 - Component structure decisions
 - State organization (component vs. composable vs. store)
 - Data relationships and API design
 - New interaction patterns
 
 **Implement Directly:**
+
 - Bug fixes following established patterns
 - New components using existing conventions
 - Styling adjustments
 - Form validation
 
 **Process:**
+
 1. Read existing code to understand current patterns
-2. Use established conventions from similar components  
+2. Use established conventions from similar components
 3. Ask about architecture rather than assume
 
 This is an active project with established patterns. When in doubt, follow existing code examples and ask for clarification.

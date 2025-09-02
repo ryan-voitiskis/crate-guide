@@ -4,7 +4,7 @@ export function useDiscogsApi() {
 	const supabase = getSupabase()
 	const user = useUserStore()
 
-	const makeRequest = async <T>(
+	const makeDiscogsApiRequest = async <T>(
 		method: string,
 		url: string,
 		params?: Record<string, any>
@@ -27,7 +27,7 @@ export function useDiscogsApi() {
 		}
 
 		const url = `${DISCOGS_API_URL}users/${user.profile.discogs_username}/collection/folders`
-		return makeRequest<DiscogsFoldersResponse>('GET', url)
+		return makeDiscogsApiRequest<DiscogsFoldersResponse>('GET', url)
 	}
 
 	const getFolderReleases = async (
@@ -40,16 +40,16 @@ export function useDiscogsApi() {
 		}
 
 		const url = `${DISCOGS_API_URL}users/${user.profile.discogs_username}/collection/folders/${folderId}/releases`
-		return makeRequest('GET', url, { page, per_page: perPage })
+		return makeDiscogsApiRequest('GET', url, { page, per_page: perPage })
 	}
 
 	const getRelease = async (releaseId: number): Promise<DiscogsReleaseFull> => {
 		const url = `${DISCOGS_API_URL}releases/${releaseId}`
-		return makeRequest<DiscogsReleaseFull>('GET', url)
+		return makeDiscogsApiRequest<DiscogsReleaseFull>('GET', url)
 	}
 
 	return {
-		makeRequest,
+		makeDiscogsApiRequest,
 		getFolders,
 		getFolderReleases,
 		getRelease

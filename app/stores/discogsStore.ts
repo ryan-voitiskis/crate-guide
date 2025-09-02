@@ -38,7 +38,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		}
 	}
 
-	async function getSelectedFolder() {
+	async function fetchFolderReleases() {
 		if (!selectedFolder.value) return
 		const folder = folders.value.find((f) => f.name === selectedFolder.value)
 		if (!folder) return
@@ -110,7 +110,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		try {
 			// Step 1: Handle existing releases
 			const { releasesToFetch, skipped } =
-				await processExistingReleases(selectedReleases)
+				await filterOutExistingReleases(selectedReleases)
 			importResults.value.skipped = skipped
 
 			// Step 2: Fetch details with progress tracking
@@ -148,7 +148,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		isImporting,
 		importResults,
 		getFolders,
-		getSelectedFolder,
+		fetchFolderReleases,
 		importSelectedReleases,
 		disconnectDiscogs,
 		showImportProgressDialog,

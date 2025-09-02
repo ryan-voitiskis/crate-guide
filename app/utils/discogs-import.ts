@@ -3,8 +3,8 @@ import {
 	importRecordWithTracks
 } from '~/utils/discogs-database'
 import {
-	getResultLabel,
-	getResultLabelFromFullRelease
+	formatFullReleaseDisplayTitle,
+	formatReleaseDisplayTitle
 } from '~/utils/discogs-formatting'
 
 // Types for return values
@@ -24,7 +24,7 @@ interface ImportResult {
 }
 
 // Step 1: Process existing releases and filter out duplicates
-export async function processExistingReleases(
+export async function filterOutExistingReleases(
 	selectedReleases: DiscogsReleaseToFilter[]
 ): Promise<ProcessExistingResult> {
 	const existingDiscogsIds = await getExistingDiscogsIds(selectedReleases)
@@ -33,7 +33,7 @@ export async function processExistingReleases(
 	selectedReleases.forEach((release) => {
 		if (existingDiscogsIds.has(release.id)) {
 			skipped.push({
-				label: getResultLabel(release)
+				label: formatReleaseDisplayTitle(release)
 			})
 		}
 	})
@@ -63,7 +63,7 @@ export async function fetchReleaseDetails(
 			releases.push(data)
 		} catch (e) {
 			failed.push({
-				label: getResultLabel(release),
+				label: formatReleaseDisplayTitle(release),
 				error: isError(e) ? e.message : 'Unknown error'
 			})
 		}
@@ -86,7 +86,7 @@ export async function importFetchedReleases(
 			successful++
 		} catch (e) {
 			failed.push({
-				label: getResultLabelFromFullRelease(release),
+				label: formatFullReleaseDisplayTitle(release),
 				error: isError(e) ? e.message : 'Failed to import'
 			})
 		}

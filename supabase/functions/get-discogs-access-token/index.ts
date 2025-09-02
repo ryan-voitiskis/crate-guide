@@ -27,7 +27,10 @@ Deno.serve(async (req) => {
 
 		const supabase = getAuthedSupabaseClient(authHeader)
 		const profile = await getUserProfile(authHeader)
-		const oauthSignature = genOAuthSignature(oauth_consumer_secret, profile)
+		const oauthSignature = generateOAuthSignature(
+			oauth_consumer_secret,
+			profile
+		)
 
 		const params = new URLSearchParams()
 		params.append('oauth_consumer_key', oauth_consumer_key)
@@ -71,7 +74,7 @@ Deno.serve(async (req) => {
 	}
 })
 
-function genOAuthSignature(consumerSecret: string, profile: Profile) {
+function generateOAuthSignature(consumerSecret: string, profile: Profile) {
 	if (!profile.discogs_request_secret) {
 		throw new Error('Missing Discogs request secret.')
 	}
