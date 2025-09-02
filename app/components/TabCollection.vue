@@ -6,5 +6,6 @@
 		<DialogCollectionImport />
 		<DialogReleaseImportFilter />
 		<DialogDiscogsImport />
+		<DataStoresExample />
 	</div>
 </template>

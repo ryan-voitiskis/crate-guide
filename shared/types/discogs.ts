@@ -1,21 +1,21 @@
-interface DiscogsFolder {
+export type DiscogsFolder = {
 	id: number
 	name: string
 	count: number
 	resource_url: string
 }
 
-interface DiscogsFoldersResponse {
+export type DiscogsFoldersResponse = {
 	folders: DiscogsFolder[]
 }
 
-interface DiscogsFormat {
+export type DiscogsFormat = {
 	name: string
 	qty: number
 	descriptions: string[]
 }
 
-interface DiscogsLabel {
+export type DiscogsLabel = {
 	id: number
 	name: string
 	catno: string
@@ -25,7 +25,16 @@ interface DiscogsLabel {
 	thumbnail_url?: string
 }
 
-interface DiscogsArtist {
+// Simplified version for database storage
+export type DiscogsLabelDb = {
+	discogs_id?: number
+	name: string
+	catno?: string
+	entity_type?: string
+	thumbnail_url?: string
+}
+
+export type DiscogsArtist = {
 	id: number
 	name: string
 	join: string
@@ -35,14 +44,21 @@ interface DiscogsArtist {
 	role: string
 }
 
-interface DiscogsImage {
+// Simplified version for database storage
+export type DiscogsArtistDb = {
+	discogs_id?: number
+	name: string
+	role?: string | null
+}
+
+export type DiscogsImage = {
 	height: number
 	width: number
 	resource_url: string
 	type: string
 }
 
-interface DiscogsTrack {
+export type DiscogsTrack = {
 	duration: string
 	position: string
 	artists?: DiscogsArtist[]
@@ -51,7 +67,7 @@ interface DiscogsTrack {
 	extraartists: DiscogsArtist[]
 }
 
-interface DiscogsRelease {
+export type DiscogsRelease = {
 	id: number
 	basic_information: {
 		id: number
@@ -67,11 +83,11 @@ interface DiscogsRelease {
 	}
 }
 
-interface DiscogsReleaseToFilter extends DiscogsRelease {
+export type DiscogsReleaseToFilter = DiscogsRelease & {
 	selected: boolean
 }
 
-interface DiscogsFolderResponse {
+export type DiscogsFolderResponse = {
 	pagination: {
 		page: number
 		pages: number
@@ -81,7 +97,7 @@ interface DiscogsFolderResponse {
 	releases: DiscogsRelease[]
 }
 
-interface DiscogsReleaseFull {
+export type DiscogsReleaseFull = {
 	id: number
 	title: string
 	formats: DiscogsFormat[]
@@ -92,18 +108,4 @@ interface DiscogsReleaseFull {
 	genre?: string[]
 	styles?: string[]
 	year: number
-}
-
-export type {
-	DiscogsFolder,
-	DiscogsFoldersResponse,
-	DiscogsFormat,
-	DiscogsLabel,
-	DiscogsArtist,
-	DiscogsImage,
-	DiscogsTrack,
-	DiscogsRelease,
-	DiscogsReleaseToFilter,
-	DiscogsFolderResponse,
-	DiscogsReleaseFull
 }
