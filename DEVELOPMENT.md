@@ -167,5 +167,5 @@ lsof -i :54323 # Supabase Studio
 
 - [Supabase Local Development](https://supabase.com/docs/guides/cli/local-development)
 - [Edge Functions Documentation](https://supabase.com/docs/guides/functions)
-- [Nuxt 3 Documentation](https://nuxt.com/)
+- [Nuxt Documentation](https://nuxt.com/)
 - [Discogs API Documentation](https://www.discogs.com/developers/)

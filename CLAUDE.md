@@ -172,20 +172,33 @@ export const useMyStore = defineStore('storeName', () => {
 
 ## Styling with Tailwind v4
 
-- Use Tailwind classes over custom CSS
-- Inline styles only for dynamic JavaScript values
+### Core Principles
+
+- **Always use Tailwind utility classes directly in HTML** - Never use `@apply` directives
 - Use design system colors: `bg-background`, `text-foreground`, `border-border`
+- Inline styles only for dynamic JavaScript values
+- Leverage Tailwind v4's improved CSS variables and container queries
+- Prefer utility-first approach over custom CSS classes
 
 ### Dynamic Styling Example
 
 ```vue
 <script setup lang="ts">
 const dynamicColor = computed(() => `hsl(${hue.value}, 70%, 50%)`)
+const isActive = ref(false)
 </script>
 
 <template>
 	<!-- ✅ Good: Dynamic value as inline style -->
 	<div :style="{ backgroundColor: dynamicColor }" class="rounded-lg p-4">
+		Content
+	</div>
+
+	<!-- ✅ Good: Conditional classes -->
+	<div :class="[
+		'rounded-lg p-4 transition-colors',
+		isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+	]">
 		Content
 	</div>
 
@@ -197,6 +210,26 @@ const dynamicColor = computed(() => `hsl(${hue.value}, 70%, 50%)`)
 </template>
 ```
 
+### Tailwind v4 Specific Features
+
+- **CSS Variables**: Use semantic color tokens (`bg-primary`, `text-foreground`)
+- **Container Queries**: Use `@container` and `@md:`, `@lg:` prefixes
+- **Improved Dark Mode**: Automatic CSS variable switching
+- **Custom Properties**: Leverage CSS custom properties for dynamic values
+
+```vue
+<template>
+	<!-- ✅ Good: Using v4 features -->
+	<div class="
+		@container rounded-lg bg-card
+		supports-[container-type:inline-size]:@md:flex
+		dark:bg-card
+	">
+		<div class="@md:flex-1 p-4">Content</div>
+	</div>
+</template>
+```
+
 ## Code Quality Standards
 
 - **TypeScript**: Explicit types for all props, refs, function parameters, and return values
@@ -205,14 +238,6 @@ const dynamicColor = computed(() => `hsl(${hue.value}, 70%, 50%)`)
 - **Function Length**: Max 30-40 lines, extract when complex
 - **Performance**: Focus on code clarity over micro-optimizations
 - **Accessibility**: Semantic HTML, alt tags, basic keyboard support
-
-## Development Tools Usage
-
-- **`grep`**: Search for symbols, functions, patterns in code content
-- **`find_path`**: Locate files by name/path patterns
-- **`read_file`**: Examine existing code before modifications
-- **`diagnostics`**: Check for errors after making changes
-- **`terminal`**: Run build commands, package installs, tests
 
 ## Development Workflow & Architectural Decisions
 
