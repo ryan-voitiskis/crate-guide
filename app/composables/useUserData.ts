@@ -22,21 +22,15 @@ export function useUserData() {
 	)
 
 	async function loadAllUserData() {
-		if (!user.supaUser?.id) {
-			console.warn('No user found, skipping data load')
-			return
-		}
-
+		if (!user.supaUser?.id) return
 		if (hasLoadedData.value) {
-			console.log('User data already loaded')
+			toast.error('User data already loaded')
 			return
 		}
 
 		isLoadingUserData.value = true
 
 		try {
-			// Load all data in parallel since tracks depend on records existing,
-			// but we don't need to wait for records to be in state first
 			const [recordsResult, tracksResult, cratesResult] =
 				await Promise.allSettled([
 					records.fetchAllRecords(),
@@ -44,21 +38,16 @@ export function useUserData() {
 					crates.fetchAllCrates()
 				])
 
-			// Check for any failures
 			const failures = []
 			if (recordsResult.status === 'rejected') failures.push('records')
 			if (tracksResult.status === 'rejected') failures.push('tracks')
 			if (cratesResult.status === 'rejected') failures.push('crates')
 
-			if (failures.length > 0) {
+			if (failures.length > 0)
 				toast.error(`Failed to load: ${failures.join(', ')}`)
-			} else {
-				hasLoadedData.value = true
-				console.log('All user data loaded successfully')
-			}
+			else hasLoadedData.value = true
 		} catch (error) {
 			toast.error('Error loading user data.')
-			console.error('Error loading user data:', error)
 		} finally {
 			isLoadingUserData.value = false
 		}
@@ -74,7 +63,6 @@ export function useUserData() {
 		tracks.clearTracks()
 		crates.clearCrates()
 		hasLoadedData.value = false
-		console.log('All user data cleared')
 	}
 
 	// Auto-load data when user signs in

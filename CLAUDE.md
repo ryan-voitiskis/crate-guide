@@ -238,6 +238,7 @@ const isActive = ref(false)
 - **Function Length**: Max 30-40 lines, extract when complex
 - **Performance**: Focus on code clarity over micro-optimizations
 - **Accessibility**: Semantic HTML, alt tags, basic keyboard support
+- **Console Logging**: Avoid unnecessary logging. Only log for debugging
 
 ## Development Workflow & Architectural Decisions
 
@@ -259,6 +260,6 @@ const isActive = ref(false)
 
 1. Read existing code to understand current patterns
 2. Use established conventions from similar components
-3. Ask about architecture rather than assume
+3. You must ask about architecture rather than assume
 
 This is an active project with established patterns. When in doubt, follow existing code examples and ask for clarification.

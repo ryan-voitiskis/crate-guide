@@ -10,8 +10,23 @@ export const useRecordsStore = defineStore('records', () => {
 	const isUpdatingRecord = ref(false)
 	const isDeletingRecord = ref(false)
 
+	// Search state
+	const searchQuery = ref('')
+	const searchResults = ref<DatabaseRecord[]>([])
+	const isSearching = ref(false)
+
 	const recordsCount = computed(() => records.value.length)
 	const hasRecords = computed(() => records.value.length > 0)
+
+	// Search computed properties
+	const hasSearchQuery = computed(() => searchQuery.value.trim().length > 0)
+	const hasSearchResults = computed(() => searchResults.value.length > 0)
+	const resultsCount = computed(() => searchResults.value.length)
+
+	// Display the right data based on search state
+	const displayedRecords = computed(() =>
+		hasSearchQuery.value ? searchResults.value : records.value
+	)
 
 	async function fetchAllRecords() {
 		if (!user.supaUser?.id) return
@@ -131,9 +146,7 @@ export const useRecordsStore = defineStore('records', () => {
 
 		try {
 			const { error } = await supabase.from('records').delete().eq('id', id)
-
 			if (error) throw error
-
 			toast.success('Record deleted successfully.')
 			return true
 		} catch (error) {
@@ -154,36 +167,45 @@ export const useRecordsStore = defineStore('records', () => {
 		return records.value.filter((r: DatabaseRecord) => ids.includes(r.id))
 	}
 
-	function searchRecords(query: string): DatabaseRecord[] {
-		if (!query.trim()) return records.value
+	async function performSearch(query: string) {
+		searchQuery.value = query
 
-		const lowercaseQuery = query.toLowerCase()
-		return records.value.filter((record: DatabaseRecord) => {
-			// Search in title
-			if (record.title.toLowerCase().includes(lowercaseQuery)) return true
+		if (!query.trim()) {
+			searchResults.value = []
+			return
+		}
 
-			// Search in artists
-			const artistMatch = record.artists.some((artist: any) =>
-				artist.name.toLowerCase().includes(lowercaseQuery)
+		isSearching.value = true
+		try {
+			searchResults.value = records.value.filter(
+				(record: DatabaseRecord) =>
+					record.title.toLowerCase().includes(query.toLowerCase()) ||
+					record.artists.some((artist: any) =>
+						artist.name.toLowerCase().includes(query.toLowerCase())
+					) ||
+					record.labels.some((label: any) =>
+						label.name.toLowerCase().includes(query.toLowerCase())
+					) ||
+					(record.year && record.year.toString().includes(query))
 			)
-			if (artistMatch) return true
+		} catch (error) {
+			toast.error('Error searching your collection')
+			searchResults.value = []
+		} finally {
+			isSearching.value = false
+		}
+	}
 
-			// Search in labels
-			const labelMatch = record.labels.some((label: any) =>
-				label.name.toLowerCase().includes(lowercaseQuery)
-			)
-			if (labelMatch) return true
-
-			// Search in year
-			if (record.year && record.year.toString().includes(query)) return true
-
-			return false
-		})
+	function clearSearch() {
+		searchQuery.value = ''
+		searchResults.value = []
 	}
 
 	// Clear records when user signs out
 	function clearRecords() {
 		records.value = []
+		searchResults.value = []
+		searchQuery.value = ''
 	}
 
 	return {
@@ -194,13 +216,24 @@ export const useRecordsStore = defineStore('records', () => {
 		isDeletingRecord,
 		recordsCount,
 		hasRecords,
+
+		// Search
+		searchQuery: readonly(searchQuery),
+		searchResults: readonly(searchResults),
+		isSearching: readonly(isSearching),
+		hasSearchQuery,
+		hasSearchResults,
+		resultsCount,
+		displayedRecords,
+
 		fetchAllRecords,
 		createRecord,
 		updateRecord,
 		deleteRecord,
 		getRecordById,
 		getRecordsByIds,
-		searchRecords,
+		performSearch,
+		clearSearch,
 		clearRecords
 	}
 })
