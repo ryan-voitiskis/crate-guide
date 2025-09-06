@@ -4,7 +4,6 @@ import { CheckCircle, ChevronDown, Info, XCircle } from 'lucide-vue-next'
 const discogs = useDiscogsStore()
 
 const showSkipped = ref(false)
-const showFailed = ref(false)
 
 const hasResults = computed(() => {
 	const results = discogs.importResults

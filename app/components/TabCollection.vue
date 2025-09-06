@@ -1,40 +1,16 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
-
-const userData = useUserData()
 const user = useUserStore()
 const discogs = useDiscogsStore()
 const records = useRecordsStore()
 const tracks = useTracksStore()
 const crates = useCratesStore()
-
-const selectedRecord = ref<DatabaseRecord | null>(null)
-
-const hasRecords = computed(() => records.hasRecords)
-const recordsCount = computed(() => records.recordsCount)
-
-function handleRecordSelect(record: DatabaseRecord) {
-	selectedRecord.value = record
-	// TODO: Open record details dialog or navigate to detail view
-	toast.success(`Selected: ${record.title}`)
-}
-
-function handleRecordEdit(record: DatabaseRecord) {
-	// TODO: Open record edit dialog
-	toast.info(`Edit: ${record.title}`)
-}
-
-async function handleRecordDelete(record: DatabaseRecord) {
-	if (confirm(`Are you sure you want to delete "${record.title}"?`)) {
-		await records.deleteRecord(record.id)
-	}
-}
 </script>
 
 <template>
 	<DialogCollectionImport />
 	<DialogReleaseImportFilter />
 	<DialogDiscogsImport />
+	<DialogRecordDetails />
 	<div class="flex h-full flex-col space-y-6 p-6">
 		<div
 			v-if="
@@ -64,7 +40,7 @@ async function handleRecordDelete(record: DatabaseRecord) {
 			</Button>
 
 			<div
-				v-if="!hasRecords"
+				v-if="!records.hasRecords"
 				class="flex flex-col items-center justify-center py-16 text-center"
 			>
 				<div class="bg-muted mb-4 rounded-full p-6">
@@ -93,10 +69,6 @@ async function handleRecordDelete(record: DatabaseRecord) {
 					v-for="record in records.displayedRecords"
 					:key="record.id"
 					:record="record"
-					:show-controls="true"
-					@select="handleRecordSelect"
-					@edit="handleRecordEdit"
-					@delete="handleRecordDelete"
 				/>
 			</div>
 		</div>
