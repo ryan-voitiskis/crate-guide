@@ -24,8 +24,6 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 	})
 
 	// Computed
-	const isOpen = computed(() => selectedRecordId.value !== null)
-
 	const selectedRecord = computed(() =>
 		selectedRecordId.value
 			? records.getRecordById(selectedRecordId.value)
@@ -177,7 +175,6 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 	return {
 		// State
 		selectedRecordId,
-		isOpen,
 		selectedRecord,
 		recordTracks,
 		isEditMode,

@@ -5,14 +5,17 @@ const records = useRecordsStore()
 const recordDetails = useRecordDetailsStore()
 const trackEdit = useTrackEditStore()
 
-function handleCloseDialog(open: boolean) {
-	if (!open) recordDetails.closeRecord()
-}
+const dialogOpen = computed({
+	get: () => !!recordDetails.selectedRecordId,
+	set: (value: boolean) => {
+		if (!value) recordDetails.closeRecord()
+	}
+})
 </script>
 
 <template>
 	<!-- Main Dialog -->
-	<Dialog :open="recordDetails.isOpen" @update:open="handleCloseDialog">
+	<Dialog v-model:open="dialogOpen">
 		<DialogContent class="flex max-h-[90vh] max-w-6xl flex-col overflow-hidden">
 			<DialogHeader>
 				<div class="flex items-center justify-between">
