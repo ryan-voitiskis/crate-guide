@@ -16,7 +16,6 @@ const canSave = computed(() => trackEdit.canSave)
 
 async function handleSubmit() {
 	if (!canSave.value) return
-
 	isSubmitting.value = true
 
 	try {
@@ -46,7 +45,7 @@ async function handleSubmit() {
 				trackEdit.editingTrack.id,
 				updates
 			)
-			if (result) trackEdit.closeTrackDialog()
+			if (result) trackEdit.closeWithoutSaving()
 		} else {
 			// Create new track
 			const recordId = trackEdit.selectedRecordId

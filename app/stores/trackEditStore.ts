@@ -166,6 +166,7 @@ export const useTrackEditStore = defineStore('trackEdit', () => {
 		openAddTrackDialog,
 		openEditTrackDialog,
 		closeTrackDialog,
+		closeWithoutSaving,
 		confirmDiscardAndClose
 	}
 })

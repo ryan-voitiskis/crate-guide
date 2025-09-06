@@ -1,5 +1,4 @@
 <script setup lang="ts">
-const records = useRecordsStore()
 const recordDetails = useRecordDetailsStore()
 const props = defineProps<{ record: DatabaseRecord }>()
 
@@ -58,7 +57,7 @@ const artistNames = computed(() =>
 				<div class="flex justify-end">
 					<Button
 						v-if="record.discogs_release_url"
-						@click="openInNewTab(record.discogs_release_url)"
+						@click.stop="openInNewTab(record.discogs_release_url)"
 						variant="ghost"
 						size="icon"
 					>
