@@ -1,67 +1,55 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 
-// No props needed - using store state
-
-// Dependencies
 const tracks = useTracksStore()
-const recordDetails = useRecordDetailsStore()
+const trackEdit = useTrackEditStore()
 
-// State
 const isSubmitting = ref(false)
-
-// Computed
-const isDialogOpen = computed(
-	() => recordDetails.editingTrackId !== null || recordDetails.isAddingTrack
-)
-
-const isEditing = computed(() => recordDetails.editingTrackId !== null)
+const isDialogOpen = computed(() => trackEdit.isDialogOpen)
+const isEditing = computed(() => trackEdit.isEditing)
 
 const dialogTitle = computed(() =>
 	isEditing.value ? 'Edit Track' : 'Add Track'
 )
 
-const canSave = computed(() => recordDetails.canSaveTrack)
+const canSave = computed(() => trackEdit.canSaveTrack)
 
-// Functions
 async function handleSubmit() {
 	if (!canSave.value) return
 
 	isSubmitting.value = true
 
 	try {
-		if (isEditing.value && recordDetails.editingTrack) {
+		if (isEditing.value && trackEdit.editingTrack) {
 			// Update existing track
 			const updates = {
-				title: recordDetails.trackForm.title.trim(),
-				artists: recordDetails.trackForm.artists.filter(
+				title: trackEdit.trackForm.title.trim(),
+				artists: trackEdit.trackForm.artists.filter(
 					(a) => a.name.trim() !== ''
 				),
-				extraartists: recordDetails.trackForm.extraartists.filter(
+				extraartists: trackEdit.trackForm.extraartists.filter(
 					(a) => a.name.trim() !== ''
 				),
-				position: recordDetails.trackForm.position?.trim() || null,
-				duration: recordDetails.trackForm.duration,
-				bpm: recordDetails.trackForm.bpm,
-				rpm: recordDetails.trackForm.rpm,
-				key: recordDetails.trackForm.key,
-				mode: recordDetails.trackForm.mode,
-				genres: recordDetails.trackForm.genres,
-				time_signature_upper: recordDetails.trackForm.time_signature_upper,
-				time_signature_lower: recordDetails.trackForm.time_signature_lower,
-				playable: recordDetails.trackForm.playable
+				position: trackEdit.trackForm.position?.trim() || null,
+				duration: trackEdit.trackForm.duration,
+				bpm: trackEdit.trackForm.bpm,
+				rpm: trackEdit.trackForm.rpm,
+				key: trackEdit.trackForm.key,
+				mode: trackEdit.trackForm.mode,
+				genres: trackEdit.trackForm.genres,
+				time_signature_upper: trackEdit.trackForm.time_signature_upper,
+				time_signature_lower: trackEdit.trackForm.time_signature_lower,
+				playable: trackEdit.trackForm.playable
 			}
 
 			const result = await tracks.updateTrack(
-				recordDetails.editingTrack.id,
+				trackEdit.editingTrack.id,
 				updates
 			)
-			if (result) {
-				recordDetails.closeTrackDialog()
-			}
+			if (result) trackEdit.closeTrackDialog()
 		} else {
 			// Create new track
-			const recordId = recordDetails.selectedRecordId
+			const recordId = trackEdit.selectedRecordId
 			if (!recordId) {
 				toast.error('Record ID is required to create a track')
 				return
@@ -69,29 +57,29 @@ async function handleSubmit() {
 
 			const newTrack = {
 				record_id: recordId,
-				title: recordDetails.trackForm.title.trim(),
-				artists: recordDetails.trackForm.artists.filter(
+				title: trackEdit.trackForm.title.trim(),
+				artists: trackEdit.trackForm.artists.filter(
 					(a) => a.name.trim() !== ''
 				),
-				extraartists: recordDetails.trackForm.extraartists.filter(
+				extraartists: trackEdit.trackForm.extraartists.filter(
 					(a) => a.name.trim() !== ''
 				),
-				position: recordDetails.trackForm.position?.trim() || null,
-				duration: recordDetails.trackForm.duration,
-				bpm: recordDetails.trackForm.bpm,
-				rpm: recordDetails.trackForm.rpm,
-				key: recordDetails.trackForm.key,
-				mode: recordDetails.trackForm.mode,
-				genres: recordDetails.trackForm.genres,
-				time_signature_upper: recordDetails.trackForm.time_signature_upper,
-				time_signature_lower: recordDetails.trackForm.time_signature_lower,
-				playable: recordDetails.trackForm.playable
+				position: trackEdit.trackForm.position?.trim() || null,
+				duration: trackEdit.trackForm.duration,
+				bpm: trackEdit.trackForm.bpm,
+				rpm: trackEdit.trackForm.rpm,
+				key: trackEdit.trackForm.key,
+				mode: trackEdit.trackForm.mode,
+				genres: trackEdit.trackForm.genres,
+				time_signature_upper: trackEdit.trackForm.time_signature_upper,
+				time_signature_lower: trackEdit.trackForm.time_signature_lower,
+				playable: trackEdit.trackForm.playable
 			}
 
 			const result = await tracks.createTrack(newTrack)
 			if (result) {
 				toast.success('Track created successfully')
-				recordDetails.closeTrackDialog()
+				trackEdit.closeTrackDialog()
 			}
 		}
 	} catch (error) {
@@ -102,13 +90,11 @@ async function handleSubmit() {
 }
 
 function handleCancel() {
-	recordDetails.closeTrackDialog()
+	trackEdit.closeTrackDialog()
 }
 
 function handleDialogOpenChange(open: boolean) {
-	if (!open) {
-		recordDetails.closeTrackDialog()
-	}
+	if (!open) trackEdit.closeTrackDialog()
 }
 </script>
 
@@ -133,7 +119,7 @@ function handleDialogOpenChange(open: boolean) {
 						<Label for="title">Title *</Label>
 						<Input
 							id="title"
-							v-model="recordDetails.trackForm.title"
+							v-model="trackEdit.trackForm.title"
 							name="title"
 							placeholder="Track title"
 							required
@@ -144,11 +130,9 @@ function handleDialogOpenChange(open: boolean) {
 						<Label for="position">Position</Label>
 						<Input
 							id="position"
-							:model-value="recordDetails.trackForm.position ?? undefined"
+							:model-value="trackEdit.trackForm.position ?? undefined"
 							@update:model-value="
-								recordDetails.trackForm.position = $event
-									? String($event)
-									: null
+								trackEdit.trackForm.position = $event ? String($event) : null
 							"
 							name="position"
 							placeholder="A1, B2, etc."
@@ -158,7 +142,7 @@ function handleDialogOpenChange(open: boolean) {
 
 				<!-- Artists Section -->
 				<ArtistManager
-					v-model="recordDetails.trackForm.artists"
+					v-model="trackEdit.trackForm.artists"
 					title="Artists"
 					role-placeholder="Role"
 					:required="true"
@@ -166,7 +150,7 @@ function handleDialogOpenChange(open: boolean) {
 
 				<!-- Extra Artists Section -->
 				<ArtistManager
-					v-model="recordDetails.trackForm.extraartists"
+					v-model="trackEdit.trackForm.extraartists"
 					title="Extra Artists (Remixers, Features, etc.)"
 					role-placeholder="Role (remix, feat, etc.)"
 				/>
@@ -175,7 +159,7 @@ function handleDialogOpenChange(open: boolean) {
 				<div class="space-y-2">
 					<Label>Genres</Label>
 					<TagsInput
-						v-model="recordDetails.trackForm.genres"
+						v-model="trackEdit.trackForm.genres"
 						placeholder="Add genres..."
 					/>
 				</div>
@@ -187,9 +171,9 @@ function handleDialogOpenChange(open: boolean) {
 						<Input
 							id="duration"
 							name="duration"
-							:value="formatDuration(recordDetails.trackForm.duration)"
+							:value="formatDuration(trackEdit.trackForm.duration)"
 							@input="
-								recordDetails.trackForm.duration = parseUserDuration(
+								trackEdit.trackForm.duration = parseUserDuration(
 									($event.target as HTMLInputElement).value
 								)
 							"
@@ -201,9 +185,9 @@ function handleDialogOpenChange(open: boolean) {
 						<Label for="bpm">BPM</Label>
 						<Input
 							id="bpm"
-							:model-value="recordDetails.trackForm.bpm ?? undefined"
+							:model-value="trackEdit.trackForm.bpm ?? undefined"
 							@update:model-value="
-								recordDetails.trackForm.bpm = $event ? Number($event) : null
+								trackEdit.trackForm.bpm = $event ? Number($event) : null
 							"
 							name="bpm"
 							type="number"
@@ -214,7 +198,7 @@ function handleDialogOpenChange(open: boolean) {
 
 					<div class="space-y-2">
 						<Label for="rpm">RPM</Label>
-						<Select v-model="recordDetails.trackForm.rpm">
+						<Select v-model="trackEdit.trackForm.rpm">
 							<SelectTrigger>
 								<SelectValue placeholder="Select RPM" />
 							</SelectTrigger>
@@ -232,9 +216,9 @@ function handleDialogOpenChange(open: boolean) {
 						<Label for="key">Key</Label>
 						<Input
 							id="key"
-							:model-value="recordDetails.trackForm.key ?? undefined"
+							:model-value="trackEdit.trackForm.key ?? undefined"
 							@update:model-value="
-								recordDetails.trackForm.key = $event ? Number($event) : null
+								trackEdit.trackForm.key = $event ? Number($event) : null
 							"
 							name="key"
 							type="number"
@@ -246,7 +230,7 @@ function handleDialogOpenChange(open: boolean) {
 
 					<div class="space-y-2">
 						<Label for="mode">Mode</Label>
-						<Select v-model="recordDetails.trackForm.mode">
+						<Select v-model="trackEdit.trackForm.mode">
 							<SelectTrigger>
 								<SelectValue placeholder="Select mode" />
 							</SelectTrigger>
@@ -262,10 +246,10 @@ function handleDialogOpenChange(open: boolean) {
 						<div class="flex gap-2">
 							<Input
 								:model-value="
-									recordDetails.trackForm.time_signature_upper ?? undefined
+									trackEdit.trackForm.time_signature_upper ?? undefined
 								"
 								@update:model-value="
-									recordDetails.trackForm.time_signature_upper = $event
+									trackEdit.trackForm.time_signature_upper = $event
 										? Number($event)
 										: null
 								"
@@ -279,10 +263,10 @@ function handleDialogOpenChange(open: boolean) {
 							<span class="flex items-center">/</span>
 							<Input
 								:model-value="
-									recordDetails.trackForm.time_signature_lower ?? undefined
+									trackEdit.trackForm.time_signature_lower ?? undefined
 								"
 								@update:model-value="
-									recordDetails.trackForm.time_signature_lower = $event
+									trackEdit.trackForm.time_signature_lower = $event
 										? Number($event)
 										: null
 								"
@@ -301,7 +285,7 @@ function handleDialogOpenChange(open: boolean) {
 				<div class="flex items-center space-x-2">
 					<Switch
 						id="playable"
-						v-model:checked="recordDetails.trackForm.playable"
+						v-model:checked="trackEdit.trackForm.playable"
 					/>
 					<Label for="playable">Playable (track is in good condition)</Label>
 				</div>
@@ -321,7 +305,7 @@ function handleDialogOpenChange(open: boolean) {
 	</Dialog>
 
 	<!-- Unsaved Changes Alert -->
-	<AlertDialog v-model:open="recordDetails.showTrackUnsavedChangesAlert">
+	<AlertDialog v-model:open="trackEdit.showTrackUnsavedChangesAlert">
 		<AlertDialogContent>
 			<AlertDialogHeader>
 				<AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
@@ -332,12 +316,12 @@ function handleDialogOpenChange(open: boolean) {
 			</AlertDialogHeader>
 			<AlertDialogFooter>
 				<AlertDialogCancel
-					@click="recordDetails.showTrackUnsavedChangesAlert = false"
+					@click="trackEdit.showTrackUnsavedChangesAlert = false"
 				>
 					Continue Editing
 				</AlertDialogCancel>
 				<AlertDialogAction
-					@click="recordDetails.handleDiscardTrackChanges()"
+					@click="trackEdit.handleDiscardTrackChanges()"
 					class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 				>
 					Discard Changes

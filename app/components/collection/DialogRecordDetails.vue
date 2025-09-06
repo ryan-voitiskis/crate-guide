@@ -3,6 +3,7 @@ import { Pencil, Plus, Trash } from 'lucide-vue-next'
 
 const records = useRecordsStore()
 const recordDetails = useRecordDetailsStore()
+const trackEdit = useTrackEditStore()
 
 function handleCloseDialog(open: boolean) {
 	if (!open) recordDetails.closeRecord()
@@ -141,7 +142,7 @@ function handleCloseDialog(open: boolean) {
 							Tracks ({{ recordDetails.recordTracks.length }})
 						</h3>
 						<Button
-							@click="recordDetails.openAddTrackDialog()"
+							@click="trackEdit.openAddTrackDialog()"
 							size="sm"
 							variant="outline"
 						>
@@ -198,14 +199,14 @@ function handleCloseDialog(open: boolean) {
 							<!-- Actions -->
 							<div class="flex gap-1">
 								<Button
-									@click="recordDetails.openEditTrackDialog(track.id)"
+									@click="trackEdit.openEditTrackDialog(track.id)"
 									size="sm"
 									variant="ghost"
 								>
 									<Pencil class="size-4" />
 								</Button>
 								<Button
-									@click="recordDetails.deleteTrack(track.id)"
+									@click="trackEdit.deleteTrack(track.id)"
 									size="sm"
 									variant="ghost"
 									class="text-destructive-foreground"

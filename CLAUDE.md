@@ -152,3 +152,5 @@ export const useRecordsStore = defineStore('records', () => {
 - Missing TypeScript types
 - Unhandled async errors
 - Console.log in production code
+
+Don't begin to implement changes or generate extensive examples until we agree on a strategy.
