@@ -1,23 +1,7 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
-import { Plus, Trash } from 'lucide-vue-next'
 
-// Props & Emits
-interface Props {
-	open: boolean
-	track?: Track | null
-	recordId?: string
-}
-
-interface Emits {
-	(e: 'update:open', value: boolean): void
-	(e: 'saved'): void
-}
-
-const props = withDefaults(defineProps<Props>(), {
-	track: null
-})
-const emit = defineEmits<Emits>()
+// No props needed - using store state
 
 // Dependencies
 const tracks = useTracksStore()
@@ -25,204 +9,59 @@ const recordDetails = useRecordDetailsStore()
 
 // State
 const isSubmitting = ref(false)
-const hasUnsavedChanges = ref(false)
-const showUnsavedChangesAlert = ref(false)
-
-// Store original form data for change detection
-const originalFormData = ref<typeof trackForm.value | null>(null)
-
-// Form data
-const trackForm = ref<{
-	title: string
-	artists: DiscogsArtistDb[]
-	extraartists: DiscogsArtistDb[]
-	position: string | null
-	duration: number | null
-	bpm: number | null
-	rpm: number | null
-	key: number | null
-	mode: number | null
-	genres: string[]
-	time_signature_upper: number | null
-	time_signature_lower: number | null
-	playable: boolean
-}>({
-	title: '',
-	artists: [],
-	extraartists: [],
-	position: null,
-	duration: null,
-	bpm: null,
-	rpm: null,
-	key: null,
-	mode: null,
-	genres: [],
-	time_signature_upper: null,
-	time_signature_lower: null,
-	playable: true
-})
 
 // Computed
-const isDialogOpen = computed(() => props.open)
+const isDialogOpen = computed(
+	() => recordDetails.editingTrackId !== null || recordDetails.isAddingTrack
+)
 
-const isEditing = computed(() => props.track !== null)
+const isEditing = computed(() => recordDetails.editingTrackId !== null)
 
 const dialogTitle = computed(() =>
 	isEditing.value ? 'Edit Track' : 'Add Track'
 )
 
-const canSave = computed(() => {
-	return (
-		trackForm.value.title.trim().length > 0 &&
-		trackForm.value.artists.some((artist) => artist.name.trim().length > 0)
-	)
-})
+const canSave = computed(() => recordDetails.canSaveTrack)
 
 // Functions
-function initializeForm() {
-	if (isEditing.value && props.track) {
-		// Editing existing track
-		trackForm.value = {
-			title: props.track.title,
-			artists: [...props.track.artists],
-			extraartists: [...props.track.extraartists],
-			position: props.track.position,
-			duration: props.track.duration,
-			bpm: props.track.bpm,
-			rpm: props.track.rpm,
-			key: props.track.key,
-			mode: props.track.mode,
-			genres: [...props.track.genres],
-			time_signature_upper: props.track.time_signature_upper,
-			time_signature_lower: props.track.time_signature_lower,
-			playable: props.track.playable ?? true
-		}
-	} else {
-		// Adding new track
-		trackForm.value = {
-			title: '',
-			artists: [{ name: '', discogs_id: undefined, role: null }],
-			extraartists: [],
-			position: null,
-			duration: null,
-			bpm: null,
-			rpm: null,
-			key: null,
-			mode: null,
-			genres: [],
-			time_signature_upper: null,
-			time_signature_lower: null,
-			playable: true
-		}
-	}
-	// Store a deep copy of the initial form data
-	originalFormData.value = JSON.parse(JSON.stringify(trackForm.value))
-	hasUnsavedChanges.value = false
-}
-
-function checkForChanges(): boolean {
-	if (!originalFormData.value) return false
-
-	const current = trackForm.value
-	const original = originalFormData.value
-
-	// Check basic fields
-	if (
-		current.title !== original.title ||
-		current.position !== original.position ||
-		current.duration !== original.duration ||
-		current.bpm !== original.bpm ||
-		current.rpm !== original.rpm ||
-		current.key !== original.key ||
-		current.mode !== original.mode ||
-		current.time_signature_upper !== original.time_signature_upper ||
-		current.time_signature_lower !== original.time_signature_lower ||
-		current.playable !== original.playable
-	) {
-		return true
-	}
-
-	// Check arrays
-	if (JSON.stringify(current.genres) !== JSON.stringify(original.genres)) {
-		return true
-	}
-
-	if (JSON.stringify(current.artists) !== JSON.stringify(original.artists)) {
-		return true
-	}
-
-	if (
-		JSON.stringify(current.extraartists) !==
-		JSON.stringify(original.extraartists)
-	) {
-		return true
-	}
-
-	return false
-}
-
-function addArtist() {
-	trackForm.value.artists.push({
-		name: '',
-		discogs_id: undefined,
-		role: null
-	})
-	hasUnsavedChanges.value = checkForChanges()
-}
-
-function removeArtist(index: number) {
-	trackForm.value.artists.splice(index, 1)
-	hasUnsavedChanges.value = checkForChanges()
-}
-
-function addExtraArtist() {
-	trackForm.value.extraartists.push({
-		name: '',
-		discogs_id: undefined,
-		role: null
-	})
-	hasUnsavedChanges.value = checkForChanges()
-}
-
-function removeExtraArtist(index: number) {
-	trackForm.value.extraartists.splice(index, 1)
-	hasUnsavedChanges.value = checkForChanges()
-}
-
 async function handleSubmit() {
 	if (!canSave.value) return
 
 	isSubmitting.value = true
 
 	try {
-		if (isEditing.value && props.track) {
+		if (isEditing.value && recordDetails.editingTrack) {
 			// Update existing track
 			const updates = {
-				title: trackForm.value.title.trim(),
-				artists: trackForm.value.artists.filter((a) => a.name.trim() !== ''),
-				extraartists: trackForm.value.extraartists.filter(
+				title: recordDetails.trackForm.title.trim(),
+				artists: recordDetails.trackForm.artists.filter(
 					(a) => a.name.trim() !== ''
 				),
-				position: trackForm.value.position?.trim() || null,
-				duration: trackForm.value.duration,
-				bpm: trackForm.value.bpm,
-				rpm: trackForm.value.rpm,
-				key: trackForm.value.key,
-				mode: trackForm.value.mode,
-				genres: trackForm.value.genres,
-				time_signature_upper: trackForm.value.time_signature_upper,
-				time_signature_lower: trackForm.value.time_signature_lower,
-				playable: trackForm.value.playable
+				extraartists: recordDetails.trackForm.extraartists.filter(
+					(a) => a.name.trim() !== ''
+				),
+				position: recordDetails.trackForm.position?.trim() || null,
+				duration: recordDetails.trackForm.duration,
+				bpm: recordDetails.trackForm.bpm,
+				rpm: recordDetails.trackForm.rpm,
+				key: recordDetails.trackForm.key,
+				mode: recordDetails.trackForm.mode,
+				genres: recordDetails.trackForm.genres,
+				time_signature_upper: recordDetails.trackForm.time_signature_upper,
+				time_signature_lower: recordDetails.trackForm.time_signature_lower,
+				playable: recordDetails.trackForm.playable
 			}
 
-			const result = await tracks.updateTrack(props.track.id, updates)
+			const result = await tracks.updateTrack(
+				recordDetails.editingTrack.id,
+				updates
+			)
 			if (result) {
-				emit('saved')
-				hasUnsavedChanges.value = false
+				recordDetails.closeTrackDialog()
 			}
 		} else {
 			// Create new track
-			const recordId = props.recordId || recordDetails.selectedRecordId
+			const recordId = recordDetails.selectedRecordId
 			if (!recordId) {
 				toast.error('Record ID is required to create a track')
 				return
@@ -230,32 +69,29 @@ async function handleSubmit() {
 
 			const newTrack = {
 				record_id: recordId,
-				title: trackForm.value.title.trim(),
-				artists: trackForm.value.artists.filter((a) => a.name.trim() !== ''),
-				extraartists: trackForm.value.extraartists.filter(
+				title: recordDetails.trackForm.title.trim(),
+				artists: recordDetails.trackForm.artists.filter(
 					(a) => a.name.trim() !== ''
 				),
-				position: trackForm.value.position?.trim() || null,
-				duration: trackForm.value.duration,
-				bpm: trackForm.value.bpm,
-				rpm: trackForm.value.rpm,
-				key: trackForm.value.key,
-				mode: trackForm.value.mode,
-				genres: trackForm.value.genres,
-				time_signature_upper: trackForm.value.time_signature_upper,
-				time_signature_lower: trackForm.value.time_signature_lower,
-				playable: trackForm.value.playable
+				extraartists: recordDetails.trackForm.extraartists.filter(
+					(a) => a.name.trim() !== ''
+				),
+				position: recordDetails.trackForm.position?.trim() || null,
+				duration: recordDetails.trackForm.duration,
+				bpm: recordDetails.trackForm.bpm,
+				rpm: recordDetails.trackForm.rpm,
+				key: recordDetails.trackForm.key,
+				mode: recordDetails.trackForm.mode,
+				genres: recordDetails.trackForm.genres,
+				time_signature_upper: recordDetails.trackForm.time_signature_upper,
+				time_signature_lower: recordDetails.trackForm.time_signature_lower,
+				playable: recordDetails.trackForm.playable
 			}
 
 			const result = await tracks.createTrack(newTrack)
 			if (result) {
-				emit('saved')
 				toast.success('Track created successfully')
-				// Close dialog if it's managed by the store
-				if (!props.recordId && recordDetails.isAddingTrack) {
-					recordDetails.closeTrackDialog()
-				}
-				hasUnsavedChanges.value = false
+				recordDetails.closeTrackDialog()
 			}
 		}
 	} catch (error) {
@@ -266,46 +102,14 @@ async function handleSubmit() {
 }
 
 function handleCancel() {
-	const hasChanges = checkForChanges()
-	if (hasChanges) {
-		showUnsavedChangesAlert.value = true
-		return
-	}
-	closeDialog()
+	recordDetails.closeTrackDialog()
 }
 
 function handleDialogOpenChange(open: boolean) {
 	if (!open) {
-		const hasChanges = checkForChanges()
-		if (hasChanges) {
-			showUnsavedChangesAlert.value = true
-			return
-		}
-		closeDialog()
+		recordDetails.closeTrackDialog()
 	}
 }
-
-function closeDialog() {
-	emit('update:open', false)
-	hasUnsavedChanges.value = false
-	showUnsavedChangesAlert.value = false
-}
-
-watch(
-	trackForm,
-	() => {
-		if (props.open) hasUnsavedChanges.value = checkForChanges()
-	},
-	{ deep: true }
-)
-
-watch(
-	() => props.open,
-	(isOpen) => {
-		if (isOpen) initializeForm()
-	},
-	{ immediate: true }
-)
 </script>
 
 <template>
@@ -329,7 +133,7 @@ watch(
 						<Label for="title">Title *</Label>
 						<Input
 							id="title"
-							v-model="trackForm.title"
+							v-model="recordDetails.trackForm.title"
 							name="title"
 							placeholder="Track title"
 							required
@@ -340,9 +144,11 @@ watch(
 						<Label for="position">Position</Label>
 						<Input
 							id="position"
-							:model-value="trackForm.position ?? undefined"
+							:model-value="recordDetails.trackForm.position ?? undefined"
 							@update:model-value="
-								trackForm.position = $event ? String($event) : null
+								recordDetails.trackForm.position = $event
+									? String($event)
+									: null
 							"
 							name="position"
 							placeholder="A1, B2, etc."
@@ -351,115 +157,27 @@ watch(
 				</div>
 
 				<!-- Artists Section -->
-				<div class="space-y-4">
-					<div class="flex items-center justify-between">
-						<Label>Artists *</Label>
-						<Button @click="addArtist" size="sm" variant="outline">
-							<Plus class="mr-2 size-4" />
-							Add Artist
-						</Button>
-					</div>
-
-					<div class="space-y-2">
-						<div
-							v-for="(artist, index) in trackForm.artists"
-							:key="index"
-							class="flex items-center gap-2"
-						>
-							<Input
-								v-model="artist.name"
-								name="artist-name"
-								placeholder="Artist name"
-								class="flex-1"
-							/>
-							<Input
-								:model-value="artist.discogs_id ?? undefined"
-								@update:model-value="
-									artist.discogs_id = $event ? Number($event) : undefined
-								"
-								name="artist-discogs-id"
-								type="number"
-								placeholder="Discogs ID"
-								class="w-32"
-							/>
-							<Input
-								:model-value="artist.role ?? undefined"
-								@update:model-value="
-									artist.role = $event ? String($event) : null
-								"
-								name="artist-role"
-								placeholder="Role"
-								class="w-32"
-							/>
-							<Button
-								@click="removeArtist(index)"
-								size="sm"
-								variant="outline"
-								class="text-destructive-foreground"
-							>
-								<Trash class="size-4" />
-							</Button>
-						</div>
-					</div>
-				</div>
+				<ArtistManager
+					v-model="recordDetails.trackForm.artists"
+					title="Artists"
+					role-placeholder="Role"
+					:required="true"
+				/>
 
 				<!-- Extra Artists Section -->
-				<div class="space-y-4">
-					<div class="flex items-center justify-between">
-						<Label>Extra Artists (Remixers, Features, etc.)</Label>
-						<Button @click="addExtraArtist" size="sm" variant="outline">
-							<Plus class="mr-2 size-4" />
-							Add Extra Artist
-						</Button>
-					</div>
-
-					<div class="space-y-2" v-if="trackForm.extraartists.length">
-						<div
-							v-for="(artist, index) in trackForm.extraartists"
-							:key="index"
-							class="flex items-center gap-2"
-						>
-							<Input
-								v-model="artist.name"
-								name="extra-artist-name"
-								placeholder="Artist name"
-								class="flex-1"
-							/>
-							<Input
-								:model-value="artist.discogs_id ?? undefined"
-								@update:model-value="
-									artist.discogs_id = $event ? Number($event) : undefined
-								"
-								name="extra-artist-discogs-id"
-								type="number"
-								placeholder="Discogs ID"
-								class="w-32"
-							/>
-							<Input
-								:model-value="artist.role ?? undefined"
-								@update:model-value="
-									artist.role = $event ? String($event) : null
-								"
-								name="extra-artist-role"
-								placeholder="Role (remix, feat, etc.)"
-								class="w-40"
-							/>
-							<Button
-								@click="removeExtraArtist(index)"
-								size="sm"
-								variant="ghost"
-								class="text-destructive"
-							>
-								<Trash class="size-4" />
-							</Button>
-						</div>
-					</div>
-				</div>
+				<ArtistManager
+					v-model="recordDetails.trackForm.extraartists"
+					title="Extra Artists (Remixers, Features, etc.)"
+					role-placeholder="Role (remix, feat, etc.)"
+				/>
 
 				<!-- Genres -->
 				<div class="space-y-2">
 					<Label>Genres</Label>
-					<TagsInput v-model="trackForm.genres" placeholder="Add genres..." />
+					<TagsInput
+						v-model="recordDetails.trackForm.genres"
+						placeholder="Add genres..."
+					/>
 				</div>
 
 				<!-- Technical Details -->
@@ -469,9 +187,9 @@ watch(
 						<Input
 							id="duration"
 							name="duration"
-							:value="formatDuration(trackForm.duration)"
+							:value="formatDuration(recordDetails.trackForm.duration)"
 							@input="
-								trackForm.duration = parseUserDuration(
+								recordDetails.trackForm.duration = parseUserDuration(
 									($event.target as HTMLInputElement).value
 								)
 							"
@@ -483,9 +201,9 @@ watch(
 						<Label for="bpm">BPM</Label>
 						<Input
 							id="bpm"
-							:model-value="trackForm.bpm ?? undefined"
+							:model-value="recordDetails.trackForm.bpm ?? undefined"
 							@update:model-value="
-								trackForm.bpm = $event ? Number($event) : null
+								recordDetails.trackForm.bpm = $event ? Number($event) : null
 							"
 							name="bpm"
 							type="number"
@@ -496,7 +214,7 @@ watch(
 
 					<div class="space-y-2">
 						<Label for="rpm">RPM</Label>
-						<Select v-model="trackForm.rpm">
+						<Select v-model="recordDetails.trackForm.rpm">
 							<SelectTrigger>
 								<SelectValue placeholder="Select RPM" />
 							</SelectTrigger>
@@ -514,9 +232,9 @@ watch(
 						<Label for="key">Key</Label>
 						<Input
 							id="key"
-							:model-value="trackForm.key ?? undefined"
+							:model-value="recordDetails.trackForm.key ?? undefined"
 							@update:model-value="
-								trackForm.key = $event ? Number($event) : null
+								recordDetails.trackForm.key = $event ? Number($event) : null
 							"
 							name="key"
 							type="number"
@@ -528,7 +246,7 @@ watch(
 
 					<div class="space-y-2">
 						<Label for="mode">Mode</Label>
-						<Select v-model="trackForm.mode">
+						<Select v-model="recordDetails.trackForm.mode">
 							<SelectTrigger>
 								<SelectValue placeholder="Select mode" />
 							</SelectTrigger>
@@ -543,9 +261,11 @@ watch(
 						<Label>Time Signature</Label>
 						<div class="flex gap-2">
 							<Input
-								:model-value="trackForm.time_signature_upper ?? undefined"
+								:model-value="
+									recordDetails.trackForm.time_signature_upper ?? undefined
+								"
 								@update:model-value="
-									trackForm.time_signature_upper = $event
+									recordDetails.trackForm.time_signature_upper = $event
 										? Number($event)
 										: null
 								"
@@ -558,9 +278,11 @@ watch(
 							/>
 							<span class="flex items-center">/</span>
 							<Input
-								:model-value="trackForm.time_signature_lower ?? undefined"
+								:model-value="
+									recordDetails.trackForm.time_signature_lower ?? undefined
+								"
 								@update:model-value="
-									trackForm.time_signature_lower = $event
+									recordDetails.trackForm.time_signature_lower = $event
 										? Number($event)
 										: null
 								"
@@ -577,7 +299,10 @@ watch(
 
 				<!-- Playable Toggle -->
 				<div class="flex items-center space-x-2">
-					<Switch id="playable" v-model:checked="trackForm.playable" />
+					<Switch
+						id="playable"
+						v-model:checked="recordDetails.trackForm.playable"
+					/>
 					<Label for="playable">Playable (track is in good condition)</Label>
 				</div>
 			</div>
@@ -596,7 +321,7 @@ watch(
 	</Dialog>
 
 	<!-- Unsaved Changes Alert -->
-	<AlertDialog v-model:open="showUnsavedChangesAlert">
+	<AlertDialog v-model:open="recordDetails.showTrackUnsavedChangesAlert">
 		<AlertDialogContent>
 			<AlertDialogHeader>
 				<AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
@@ -606,11 +331,13 @@ watch(
 				</AlertDialogDescription>
 			</AlertDialogHeader>
 			<AlertDialogFooter>
-				<AlertDialogCancel @click="showUnsavedChangesAlert.value = false">
+				<AlertDialogCancel
+					@click="recordDetails.showTrackUnsavedChangesAlert = false"
+				>
 					Continue Editing
 				</AlertDialogCancel>
 				<AlertDialogAction
-					@click="closeDialog()"
+					@click="recordDetails.handleDiscardTrackChanges()"
 					class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 				>
 					Discard Changes

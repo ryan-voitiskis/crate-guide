@@ -4,27 +4,6 @@ import { Pencil, Plus, Trash } from 'lucide-vue-next'
 const records = useRecordsStore()
 const recordDetails = useRecordDetailsStore()
 
-const isDialogOpen = computed(() => recordDetails.isOpen)
-const currentRecord = computed(() => recordDetails.selectedRecord)
-const recordTracks = computed(() => recordDetails.recordTracks)
-const isEditMode = computed(() => recordDetails.isEditMode)
-const canSave = computed(() => recordDetails.canSave)
-const editingTrack = computed(() => recordDetails.editingTrack)
-
-const showAddTrackDialog = computed({
-	get: () => recordDetails.isAddingTrack,
-	set: (value: boolean) => {
-		if (!value) recordDetails.closeTrackDialog()
-	}
-})
-
-const showEditTrackDialog = computed({
-	get: () => recordDetails.editingTrackId !== null,
-	set: (value: boolean) => {
-		if (!value) recordDetails.closeTrackDialog()
-	}
-})
-
 function handleCloseDialog(open: boolean) {
 	if (!open) recordDetails.closeRecord()
 }
@@ -32,22 +11,22 @@ function handleCloseDialog(open: boolean) {
 
 <template>
 	<!-- Main Dialog -->
-	<Dialog :open="isDialogOpen" @update:open="handleCloseDialog">
+	<Dialog :open="recordDetails.isOpen" @update:open="handleCloseDialog">
 		<DialogContent class="flex max-h-[90vh] max-w-6xl flex-col overflow-hidden">
 			<DialogHeader>
 				<div class="flex items-center justify-between">
 					<div>
 						<DialogTitle>Record Details</DialogTitle>
-						<DialogDescription v-if="currentRecord">
-							{{ currentRecord.title }}
+						<DialogDescription v-if="recordDetails.selectedRecord">
+							{{ recordDetails.selectedRecord.title }}
 						</DialogDescription>
 					</div>
 					<Button
 						@click="recordDetails.toggleEditMode()"
-						:variant="isEditMode ? 'secondary' : 'outline'"
+						:variant="recordDetails.isEditMode ? 'secondary' : 'outline'"
 						size="sm"
 					>
-						{{ isEditMode ? 'Cancel Edit' : 'Edit Record' }}
+						{{ recordDetails.isEditMode ? 'Cancel Edit' : 'Edit Record' }}
 					</Button>
 				</div>
 			</DialogHeader>
@@ -62,15 +41,15 @@ function handleCloseDialog(open: boolean) {
 							class="bg-muted flex aspect-square items-center justify-center overflow-hidden rounded-lg"
 						>
 							<img
-								v-if="currentRecord?.cover"
-								:src="currentRecord.cover"
-								:alt="currentRecord?.title"
+								v-if="recordDetails.selectedRecord?.cover"
+								:src="recordDetails.selectedRecord.cover"
+								:alt="recordDetails.selectedRecord?.title"
 								class="h-full w-full object-cover"
 							/>
 							<span v-else class="text-muted-foreground text-sm">No cover</span>
 						</div>
 						<Input
-							v-if="isEditMode"
+							v-if="recordDetails.isEditMode"
 							:model-value="recordDetails.recordForm.cover ?? undefined"
 							@update:model-value="
 								recordDetails.recordForm.cover = $event ? String($event) : null
@@ -87,14 +66,14 @@ function handleCloseDialog(open: boolean) {
 						<div class="space-y-2">
 							<label class="text-sm font-medium">Title</label>
 							<Input
-								v-if="isEditMode"
+								v-if="recordDetails.isEditMode"
 								v-model="recordDetails.recordForm.title"
 								name="title"
 								placeholder="Record title"
 								class="text-lg font-semibold"
 							/>
 							<h2 v-else class="text-lg font-semibold">
-								{{ currentRecord?.title }}
+								{{ recordDetails.selectedRecord?.title }}
 							</h2>
 						</div>
 
@@ -102,7 +81,7 @@ function handleCloseDialog(open: boolean) {
 						<div class="space-y-2">
 							<label class="text-sm font-medium">Year</label>
 							<Input
-								v-if="isEditMode"
+								v-if="recordDetails.isEditMode"
 								:model-value="recordDetails.recordForm.year ?? undefined"
 								@update:model-value="
 									recordDetails.recordForm.year = $event ? Number($event) : null
@@ -113,7 +92,7 @@ function handleCloseDialog(open: boolean) {
 								class="w-32"
 							/>
 							<p v-else class="text-muted-foreground">
-								{{ currentRecord?.year || 'Unknown' }}
+								{{ recordDetails.selectedRecord?.year || 'Unknown' }}
 							</p>
 						</div>
 
@@ -124,7 +103,7 @@ function handleCloseDialog(open: boolean) {
 							<!-- For now, showing as read-only -->
 							<div class="space-y-1">
 								<div
-									v-for="artist in currentRecord?.artists"
+									v-for="artist in recordDetails.selectedRecord?.artists"
 									:key="artist.name"
 									class="bg-muted rounded p-2 text-sm"
 								>
@@ -141,7 +120,7 @@ function handleCloseDialog(open: boolean) {
 							<label class="text-sm font-medium">Labels</label>
 							<div class="space-y-1">
 								<div
-									v-for="label in currentRecord?.labels"
+									v-for="label in recordDetails.selectedRecord?.labels"
 									:key="label.name"
 									class="bg-muted rounded p-2 text-sm"
 								>
@@ -159,7 +138,7 @@ function handleCloseDialog(open: boolean) {
 				<div class="space-y-4">
 					<div class="flex items-center justify-between">
 						<h3 class="text-lg font-semibold">
-							Tracks ({{ recordTracks.length }})
+							Tracks ({{ recordDetails.recordTracks.length }})
 						</h3>
 						<Button
 							@click="recordDetails.openAddTrackDialog()"
@@ -174,7 +153,7 @@ function handleCloseDialog(open: boolean) {
 					<!-- Tracks List -->
 					<div class="space-y-2">
 						<div
-							v-for="track in recordTracks"
+							v-for="track in recordDetails.recordTracks"
 							:key="track.id"
 							class="hover:bg-muted/50 flex items-center gap-4 rounded-lg border px-2 py-1"
 						>
@@ -237,7 +216,7 @@ function handleCloseDialog(open: boolean) {
 						</div>
 
 						<div
-							v-if="!recordTracks.length"
+							v-if="!recordDetails.recordTracks.length"
 							class="text-muted-foreground py-8 text-center"
 						>
 							No tracks found. Add some tracks to get started.
@@ -247,13 +226,13 @@ function handleCloseDialog(open: boolean) {
 			</div>
 
 			<!-- Dialog Footer (only shown in edit mode) -->
-			<DialogFooter v-if="isEditMode" class="border-t pt-4">
+			<DialogFooter v-if="recordDetails.isEditMode" class="border-t pt-4">
 				<Button @click="recordDetails.cancelEdit()" variant="secondary">
 					Cancel
 				</Button>
 				<Button
 					@click="recordDetails.saveRecord()"
-					:disabled="!canSave"
+					:disabled="!recordDetails.canSave"
 					:loading="records.isUpdatingRecord"
 				>
 					Save Changes
@@ -288,18 +267,5 @@ function handleCloseDialog(open: boolean) {
 		</AlertDialogContent>
 	</AlertDialog>
 
-	<!-- Add Track Dialog -->
-	<DialogTrackEdit
-		v-model:open="showAddTrackDialog"
-		:record-id="currentRecord?.id"
-		@saved="showAddTrackDialog = false"
-	/>
-
-	<!-- Edit Track Dialog -->
-	<DialogTrackEdit
-		v-model:open="showEditTrackDialog"
-		:track="editingTrack"
-		:record-id="currentRecord?.id"
-		@saved="showEditTrackDialog = false"
-	/>
+	<DialogTrackEdit />
 </template>
