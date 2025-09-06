@@ -65,7 +65,7 @@ const dialogOpen = computed({
 					</div>
 
 					<!-- Record Info -->
-					<div class="space-y-4 md:col-span-2">
+					<div class="space-y-4 md:col-span-3">
 						<!-- Title -->
 						<div class="space-y-2">
 							<label class="text-sm font-medium">Title</label>
@@ -101,23 +101,7 @@ const dialogOpen = computed({
 						</div>
 
 						<!-- Artists -->
-						<div class="space-y-2">
-							<label class="text-sm font-medium">Artists</label>
-							<!-- TODO: Implement artists editing table with add/remove functionality -->
-							<!-- For now, showing as read-only -->
-							<div class="space-y-1">
-								<div
-									v-for="artist in recordDetails.selectedRecord?.artists"
-									:key="artist.name"
-									class="bg-muted rounded p-2 text-sm"
-								>
-									{{ artist.name }}
-									<span v-if="artist.role" class="text-muted-foreground">
-										({{ artist.role }})
-									</span>
-								</div>
-							</div>
-						</div>
+						<TableRecordArtists />
 
 						<!-- Labels -->
 						<div class="space-y-2">

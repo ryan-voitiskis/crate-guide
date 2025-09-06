@@ -103,8 +103,8 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 		const updates = {
 			title: recordForm.value.title.trim(),
 			year: recordForm.value.year,
-			cover: recordForm.value.cover
-			// TODO: Implement artists editing
+			cover: recordForm.value.cover,
+			artists: recordForm.value.artists
 		}
 
 		const result = await records.updateRecord(selectedRecord.value.id, updates)
