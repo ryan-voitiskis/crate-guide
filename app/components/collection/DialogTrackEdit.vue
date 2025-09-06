@@ -142,7 +142,7 @@ function handleDialogOpenChange(open: boolean) {
 				<!-- Artists Section -->
 				<ArtistManager
 					v-model="trackEdit.trackForm.artists"
-					title="Artists"
+					title="Artists (defaults to record artist)"
 					role-placeholder="Role"
 					:required="true"
 				/>
@@ -157,10 +157,17 @@ function handleDialogOpenChange(open: boolean) {
 				<!-- Genres -->
 				<div class="space-y-2">
 					<Label>Genres</Label>
-					<TagsInput
-						v-model="trackEdit.trackForm.genres"
-						placeholder="Add genres..."
-					/>
+					<TagsInput v-model="trackEdit.trackForm.genres">
+						<TagsInputItem
+							v-for="(genre, index) in trackEdit.trackForm.genres"
+							:key="`genre-${index}`"
+							:value="genre"
+						>
+							<TagsInputItemText>{{ genre }}</TagsInputItemText>
+							<TagsInputItemDelete />
+						</TagsInputItem>
+						<TagsInputInput placeholder="Add genres..." />
+					</TagsInput>
 				</div>
 
 				<!-- Technical Details -->

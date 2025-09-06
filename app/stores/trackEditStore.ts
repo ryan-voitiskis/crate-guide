@@ -69,10 +69,7 @@ export const useTrackEditStore = defineStore('trackEdit', () => {
 	const selectedRecordId = computed(() => recordDetails.selectedRecordId)
 
 	const canSave = computed(() => {
-		return (
-			trackForm.value.title.trim().length > 0 &&
-			trackForm.value.artists.some((artist) => artist.name.trim().length > 0)
-		)
+		return trackForm.value.title.trim().length > 0
 	})
 
 	function hasFormChanges(): boolean {

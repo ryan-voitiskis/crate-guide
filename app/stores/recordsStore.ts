@@ -201,7 +201,6 @@ export const useRecordsStore = defineStore('records', () => {
 		searchResults.value = []
 	}
 
-	// Clear records when user signs out
 	function clearRecords() {
 		records.value = []
 		searchResults.value = []
@@ -216,8 +215,6 @@ export const useRecordsStore = defineStore('records', () => {
 		isDeletingRecord,
 		recordsCount,
 		hasRecords,
-
-		// Search
 		searchQuery: readonly(searchQuery),
 		searchResults: readonly(searchResults),
 		isSearching: readonly(isSearching),
@@ -225,7 +222,6 @@ export const useRecordsStore = defineStore('records', () => {
 		hasSearchResults,
 		resultsCount,
 		displayedRecords,
-
 		fetchAllRecords,
 		createRecord,
 		updateRecord,
