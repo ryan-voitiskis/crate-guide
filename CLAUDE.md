@@ -195,10 +195,14 @@ const isActive = ref(false)
 	</div>
 
 	<!-- ✅ Good: Conditional classes -->
-	<div :class="[
-		'rounded-lg p-4 transition-colors',
-		isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-	]">
+	<div
+		:class="[
+			'rounded-lg p-4 transition-colors',
+			isActive
+				? 'bg-primary text-primary-foreground'
+				: 'bg-muted text-muted-foreground'
+		]"
+	>
 		Content
 	</div>
 
@@ -220,12 +224,10 @@ const isActive = ref(false)
 ```vue
 <template>
 	<!-- ✅ Good: Using v4 features -->
-	<div class="
-		@container rounded-lg bg-card
-		supports-[container-type:inline-size]:@md:flex
-		dark:bg-card
-	">
-		<div class="@md:flex-1 p-4">Content</div>
+	<div
+		class="bg-card dark:bg-card @container rounded-lg supports-[container-type:inline-size]:@md:flex"
+	>
+		<div class="p-4 @md:flex-1">Content</div>
 	</div>
 </template>
 ```
