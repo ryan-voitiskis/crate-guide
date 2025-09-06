@@ -119,6 +119,7 @@ export function transformRelease(release: DiscogsReleaseFull, userId: string) {
 	return {
 		user_id: userId,
 		discogs_id: release.id,
+		discogs_release_url: release.uri,
 		title: release.title.trim(),
 		artists: transformReleaseArtists(release.artists),
 		labels: transformReleaseLabels(release.labels),

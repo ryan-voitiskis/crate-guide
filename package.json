@@ -21,12 +21,11 @@
 		"format": "prettier --write '**/*.{ts,js,vue,scss,css,md,json}'",
 		"supa:start": "supabase start && supabase functions serve --no-verify-jwt &",
 		"supa:stop": "supabase stop",
-		"supa:restart": "npm run supabase:stop && npm run supabase:start",
+		"supa:restart": "supabase stop && supabase start",
 		"supa:functions": "supabase functions serve --no-verify-jwt",
 		"supa:reset": "supabase db reset",
 		"setStagingSecrets": "npx supabase secrets set --project-ref=luhufzpayswbgewenudn --env-file ./supabase/.env",
-		"genTypes": "supabase gen types --lang=typescript --local > shared/types/database.ts && supabase gen types --lang=typescript --local > supabase/functions/_shared/types/database.ts",
-		"genStagingTypes": "supabase gen types --lang=typescript --project-id luhufzpayswbgewenudn > shared/types/database.ts && supabase gen types --lang=typescript --project-id luhufzpayswbgewenudn > supabase/functions/_shared/types/database.ts"
+		"genTypes": "supabase gen types --lang=typescript --local > shared/types/database.ts && supabase gen types --lang=typescript --local > supabase/functions/_shared/types/database.ts"
 	},
 	"dependencies": {
 		"@nuxt/eslint": "^1.9.0",

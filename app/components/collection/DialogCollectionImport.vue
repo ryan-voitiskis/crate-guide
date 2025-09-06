@@ -2,18 +2,10 @@
 import { RefreshCw } from 'lucide-vue-next'
 
 const discogs = useDiscogsStore()
-const user = useUserStore()
-
-function onDialogOpen() {
-	if (!discogs.folders.length) discogs.getFolders()
-}
 </script>
 
 <template>
-	<Dialog
-		v-model:open="discogs.showGetFoldersDialog"
-		@update:open="onDialogOpen"
-	>
+	<Dialog v-model:open="discogs.showGetFoldersDialog">
 		<DialogContent class="sm:max-w-[425px]">
 			<DialogHeader>
 				<DialogTitle>Import Discogs Collection</DialogTitle>

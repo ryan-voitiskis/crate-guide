@@ -222,6 +222,7 @@ CREATE TABLE public.records (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     discogs_id integer,
+    discogs_release_url text,
     title varchar NOT NULL,
     artists jsonb NOT NULL DEFAULT '[]'::jsonb,
     labels jsonb NOT NULL DEFAULT '[]'::jsonb,
@@ -461,6 +462,7 @@ BEGIN
     INSERT INTO public.records (
         user_id,
         discogs_id,
+        discogs_release_url,
         title,
         artists,
         labels,
@@ -472,6 +474,7 @@ BEGIN
         CASE WHEN record->>'discogs_id' IS NOT NULL
               THEN (record->>'discogs_id')::INTEGER
               ELSE NULL END,
+        record->>'discogs_release_url',
         record->>'title',
         record->'artists',
         record->'labels',

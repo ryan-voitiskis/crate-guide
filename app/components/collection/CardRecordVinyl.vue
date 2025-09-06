@@ -22,8 +22,9 @@ const primaryLabel = computed(() => props.record.labels[0])
 
 const hasMultipleArtists = computed(() => props.record.artists.length > 1)
 
-function handleSelect() {
-	emit('select', props.record)
+function handleDiscogsClick() {
+	if (typeof window !== 'undefined' && props.record.discogs_release_url)
+		window.open(props.record.discogs_release_url, '_blank')
 }
 </script>
 
@@ -32,7 +33,7 @@ function handleSelect() {
 		class="group relative overflow-hidden p-0 transition-all hover:shadow-md"
 	>
 		<CardContent class="p-0">
-			<div class="grid w-full grid-cols-[90px_1fr] gap-4">
+			<div class="grid w-full grid-cols-[90px_1fr_90px] gap-4">
 				<div
 					class="bg-muted aspect-square h-[90px] w-[90px] overflow-hidden rounded-md bg-cover bg-center bg-no-repeat"
 					:style="{ backgroundImage: coverImg }"
@@ -74,14 +75,15 @@ function handleSelect() {
 						</span>
 					</div>
 				</div>
-			</div>
 
-			<!-- Discogs Badge -->
-			<div v-if="record.discogs_id" class="absolute top-2 right-2">
-				<div
-					class="bg-background/80 border-border text-muted-foreground rounded border px-2 py-1 text-xs"
-				>
-					<span class="text-xs">Discogs</span>
+				<div class="flex justify-end py-1">
+					<Button
+						v-if="record.discogs_release_url"
+						@click="handleDiscogsClick"
+						variant="link"
+					>
+						View on Discogs
+					</Button>
 				</div>
 			</div>
 		</CardContent>

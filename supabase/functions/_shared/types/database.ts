@@ -124,6 +124,7 @@ export type Database = {
           cover: string | null
           created_at: string | null
           discogs_id: number | null
+          discogs_release_url: string | null
           id: string
           labels: Json
           title: string
@@ -136,6 +137,7 @@ export type Database = {
           cover?: string | null
           created_at?: string | null
           discogs_id?: number | null
+          discogs_release_url?: string | null
           id?: string
           labels?: Json
           title: string
@@ -148,6 +150,7 @@ export type Database = {
           cover?: string | null
           created_at?: string | null
           discogs_id?: number | null
+          discogs_release_url?: string | null
           id?: string
           labels?: Json
           title?: string

@@ -7,7 +7,6 @@ import {
 	formatReleaseDisplayTitle
 } from '~/utils/discogs-formatting'
 
-// Types for return values
 interface ProcessExistingResult {
 	releasesToFetch: DiscogsReleaseToFilter[]
 	skipped: Array<{ label: string }>
@@ -82,6 +81,9 @@ export async function importFetchedReleases(
 
 	for (const release of releases) {
 		try {
+			if (!isDiscogsReleaseFull(release))
+				throw new Error('Invalid release data structure from Discogs API')
+
 			await importRecordWithTracks(release, userId)
 			successful++
 		} catch (e) {

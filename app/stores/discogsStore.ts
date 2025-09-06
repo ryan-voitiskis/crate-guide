@@ -136,6 +136,10 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		}
 	}
 
+	watch(showGetFoldersDialog, (newValue) => {
+		if (newValue && folders.value.length === 0) getFolders()
+	})
+
 	return {
 		folders,
 		releasesToImport,
