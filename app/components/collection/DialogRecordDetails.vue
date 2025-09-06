@@ -209,7 +209,7 @@ const dialogOpen = computed({
 									<Pencil class="size-4" />
 								</Button>
 								<Button
-									@click="trackEdit.deleteTrack(track.id)"
+									@click="recordDetails.trackToConfirmDelete = track"
 									size="sm"
 									variant="ghost"
 									class="text-destructive-foreground"
@@ -245,31 +245,7 @@ const dialogOpen = computed({
 		</DialogContent>
 	</Dialog>
 
-	<!-- Unsaved Changes Alert -->
-	<AlertDialog v-model:open="recordDetails.showUnsavedChangesAlert">
-		<AlertDialogContent>
-			<AlertDialogHeader>
-				<AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-				<AlertDialogDescription>
-					You have unsaved changes. Are you sure you want to continue without
-					saving?
-				</AlertDialogDescription>
-			</AlertDialogHeader>
-			<AlertDialogFooter>
-				<AlertDialogCancel
-					@click="recordDetails.showUnsavedChangesAlert = false"
-				>
-					Continue Editing
-				</AlertDialogCancel>
-				<AlertDialogAction
-					@click="recordDetails.handleDiscardChanges()"
-					class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-				>
-					Discard Changes
-				</AlertDialogAction>
-			</AlertDialogFooter>
-		</AlertDialogContent>
-	</AlertDialog>
-
+	<AlertUnsavedRecordChanges />
+	<AlertConfirmDeleteTrack />
 	<DialogTrackEdit />
 </template>

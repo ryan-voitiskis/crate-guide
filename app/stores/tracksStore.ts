@@ -8,7 +8,6 @@ export const useTracksStore = defineStore('tracks', () => {
 	const isLoadingTracks = ref(false)
 	const isCreatingTrack = ref(false)
 	const isUpdatingTrack = ref(false)
-	const isDeletingTrack = ref(false)
 
 	const tracksCount = computed(() => tracks.value.length)
 	const hasTracks = computed(() => tracks.value.length > 0)
@@ -21,12 +20,7 @@ export const useTracksStore = defineStore('tracks', () => {
 		try {
 			const { data, error } = await supabase
 				.from('tracks')
-				.select(
-					`
-					*,
-					records!inner(user_id)
-				`
-				)
+				.select(`*, records!inner(user_id)`)
 				.eq('records.user_id', user.supaUser.id)
 				.order('created_at', { ascending: false })
 
@@ -132,23 +126,16 @@ export const useTracksStore = defineStore('tracks', () => {
 	}
 
 	async function deleteTrack(id: string): Promise<boolean> {
-		isDeletingTrack.value = true
-
 		// Optimistic update
 		const trackIndex = tracks.value.findIndex((t: Track) => t.id === id)
 		if (trackIndex === -1) {
 			toast.error('Track not found.')
-			isDeletingTrack.value = false
 			return false
 		}
-
 		const removedTrack = tracks.value.splice(trackIndex, 1)[0]
-
 		try {
 			const { error } = await supabase.from('tracks').delete().eq('id', id)
-
 			if (error) throw error
-
 			toast.success('Track deleted successfully.')
 			return true
 		} catch (error) {
@@ -156,8 +143,6 @@ export const useTracksStore = defineStore('tracks', () => {
 			tracks.value.splice(trackIndex, 0, removedTrack as Track)
 			toast.error('Error deleting track.')
 			return false
-		} finally {
-			isDeletingTrack.value = false
 		}
 	}
 
@@ -276,7 +261,6 @@ export const useTracksStore = defineStore('tracks', () => {
 		isLoadingTracks,
 		isCreatingTrack,
 		isUpdatingTrack,
-		isDeletingTrack,
 		tracksCount,
 		hasTracks,
 		playableTracks,

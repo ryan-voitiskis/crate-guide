@@ -12,7 +12,7 @@ const dialogTitle = computed(() =>
 	isEditing.value ? 'Edit Track' : 'Add Track'
 )
 
-const canSave = computed(() => trackEdit.canSaveTrack)
+const canSave = computed(() => trackEdit.canSave)
 
 async function handleSubmit() {
 	if (!canSave.value) return
@@ -304,29 +304,5 @@ function handleDialogOpenChange(open: boolean) {
 		</DialogContent>
 	</Dialog>
 
-	<!-- Unsaved Changes Alert -->
-	<AlertDialog v-model:open="trackEdit.showTrackUnsavedChangesAlert">
-		<AlertDialogContent>
-			<AlertDialogHeader>
-				<AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-				<AlertDialogDescription>
-					You have unsaved changes to this track. Are you sure you want to
-					discard them?
-				</AlertDialogDescription>
-			</AlertDialogHeader>
-			<AlertDialogFooter>
-				<AlertDialogCancel
-					@click="trackEdit.showTrackUnsavedChangesAlert = false"
-				>
-					Continue Editing
-				</AlertDialogCancel>
-				<AlertDialogAction
-					@click="trackEdit.handleDiscardTrackChanges()"
-					class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-				>
-					Discard Changes
-				</AlertDialogAction>
-			</AlertDialogFooter>
-		</AlertDialogContent>
-	</AlertDialog>
+	<AlertUnsavedTrackChanges />
 </template>

@@ -1,29 +1,26 @@
+interface RecordEditForm {
+	title: string
+	year: number | null
+	cover: string | null
+	artists: DiscogsArtistDb[]
+}
+
 export const useRecordDetailsStore = defineStore('recordDetails', () => {
 	const records = useRecordsStore()
 	const tracks = useTracksStore()
 
-	// UI State
 	const selectedRecordId = ref<string | null>(null)
 	const isEditMode = ref(false)
-
-	// Alert dialog state
 	const showUnsavedChangesAlert = ref(false)
-	const pendingAction = ref<'close' | 'toggleEdit' | null>(null)
+	const trackToConfirmDelete = ref<Track | null>(null)
 
-	// Form state for record editing
-	const recordForm = ref<{
-		title: string
-		year: number | null
-		cover: string | null
-		artists: DiscogsArtistDb[]
-	}>({
+	const recordForm = ref<RecordEditForm>({
 		title: '',
 		year: null,
 		cover: null,
 		artists: []
 	})
 
-	// Computed
 	const selectedRecord = computed(() =>
 		selectedRecordId.value
 			? records.getRecordById(selectedRecordId.value)
@@ -32,73 +29,27 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 
 	const recordTracks = computed(() => {
 		if (!selectedRecordId.value) return []
-		const recordTracksList = tracks.getTracksByRecordId(selectedRecordId.value)
-
-		// Sort by position, handling various position formats (A1, B2, etc.)
-		return recordTracksList.sort((a, b) => {
-			if (!a.position && !b.position) return 0
-			if (!a.position) return 1
-			if (!b.position) return -1
-
-			// Simple alphanumeric sort for positions like A1, A2, B1, B2
-			return a.position.localeCompare(b.position, undefined, {
-				numeric: true,
-				sensitivity: 'base'
-			})
-		})
+		const tracksList = tracks.getTracksByRecordId(selectedRecordId.value)
+		return sortTracksByPosition(tracksList)
 	})
 
 	const canSave = computed(() => recordForm.value.title.trim().length > 0)
 
-	const hasUnsavedChanges = computed(() => {
-		if (!isEditMode.value) return false
-		return checkForChanges()
-	})
+	function hasFormChanges(): boolean {
+		if (!selectedRecord.value || !isEditMode.value) return false
 
-	// Actions
-	function openRecord(recordId: string) {
-		selectedRecordId.value = recordId
-		isEditMode.value = false
-		initializeForm()
+		const current = selectedRecord.value
+		const form = recordForm.value
+
+		return (
+			current.title !== form.title ||
+			current.year !== form.year ||
+			current.cover !== form.cover ||
+			JSON.stringify(current.artists) !== JSON.stringify(form.artists)
+		)
 	}
 
-	function closeRecord() {
-		// Check for unsaved changes
-		if (isEditMode.value && checkForChanges()) {
-			pendingAction.value = 'close'
-			showUnsavedChangesAlert.value = true
-			return
-		}
-
-		// Proceed with closing
-		forceCloseRecord()
-	}
-
-	function forceCloseRecord() {
-		selectedRecordId.value = null
-		isEditMode.value = false
-		showUnsavedChangesAlert.value = false
-		pendingAction.value = null
-		resetForm()
-	}
-
-	function toggleEditMode() {
-		if (!isEditMode.value) {
-			initializeForm()
-			isEditMode.value = true
-		} else {
-			// Check for unsaved changes when trying to exit edit mode
-			if (checkForChanges()) {
-				pendingAction.value = 'toggleEdit'
-				showUnsavedChangesAlert.value = true
-				return
-			}
-			isEditMode.value = false
-			initializeForm() // Reset to original values
-		}
-	}
-
-	function initializeForm() {
+	function syncFormWithRecord() {
 		if (!selectedRecord.value) return
 
 		recordForm.value = {
@@ -118,80 +69,73 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 		}
 	}
 
-	function checkForChanges(): boolean {
-		if (!selectedRecord.value) return false
+	function openRecord(recordId: string) {
+		selectedRecordId.value = recordId
+		isEditMode.value = false
+		syncFormWithRecord()
+	}
 
-		const current = selectedRecord.value
-		const form = recordForm.value
+	function closeRecord() {
+		if (hasFormChanges()) showUnsavedChangesAlert.value = true
+		else closeWithoutSaving()
+	}
 
-		return (
-			current.title !== form.title ||
-			current.year !== form.year ||
-			current.cover !== form.cover ||
-			JSON.stringify(current.artists) !== JSON.stringify(form.artists)
-		)
+	function closeWithoutSaving() {
+		selectedRecordId.value = null
+		isEditMode.value = false
+		showUnsavedChangesAlert.value = false
+		resetForm()
+	}
+
+	function toggleEditMode() {
+		if (!isEditMode.value) {
+			syncFormWithRecord()
+			isEditMode.value = true
+		} else {
+			if (hasFormChanges()) showUnsavedChangesAlert.value = true
+			else cancelEdit()
+		}
 	}
 
 	async function saveRecord() {
-		if (!selectedRecord.value || !canSave.value) return false
+		if (!selectedRecord.value || !canSave.value) return
 
 		const updates = {
 			title: recordForm.value.title.trim(),
 			year: recordForm.value.year,
 			cover: recordForm.value.cover
-			// TODO: Implement artists editing - currently read-only due to complexity
-			// artists: recordForm.value.artists
+			// TODO: Implement artists editing
 		}
 
 		const result = await records.updateRecord(selectedRecord.value.id, updates)
-
-		if (result) {
-			isEditMode.value = false
-			return true
-		}
-
-		return false
+		if (result) isEditMode.value = false
 	}
 
 	function cancelEdit() {
 		isEditMode.value = false
-		initializeForm()
+		syncFormWithRecord()
 	}
 
-	function handleDiscardChanges() {
+	function confirmDiscardAndProceed() {
 		showUnsavedChangesAlert.value = false
-
-		// Execute the pending action
-		if (pendingAction.value === 'close') {
-			forceCloseRecord()
-		} else if (pendingAction.value === 'toggleEdit') {
-			isEditMode.value = false
-			initializeForm()
-		}
-
-		pendingAction.value = null
+		if (isEditMode.value) cancelEdit()
+		else closeWithoutSaving()
 	}
 
 	return {
-		// State
 		selectedRecordId,
 		selectedRecord,
 		recordTracks,
 		isEditMode,
-		hasUnsavedChanges,
 		recordForm,
 		canSave,
-
-		// Alert dialog state
 		showUnsavedChangesAlert,
-
-		// Actions
+		trackToConfirmDelete,
 		openRecord,
 		closeRecord,
-		forceCloseRecord,
 		toggleEditMode,
 		saveRecord,
 		cancelEdit,
-		handleDiscardChanges
+		confirmDiscardAndProceed
 	}
 })
