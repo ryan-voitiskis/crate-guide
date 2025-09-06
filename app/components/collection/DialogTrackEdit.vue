@@ -218,7 +218,6 @@ async function handleSubmit() {
 			const result = await tracks.updateTrack(props.track.id, updates)
 			if (result) {
 				emit('saved')
-				toast.success('Track updated successfully')
 				hasUnsavedChanges.value = false
 			}
 		} else {
@@ -292,32 +291,18 @@ function closeDialog() {
 	showUnsavedChangesAlert.value = false
 }
 
-function handleDiscardChanges() {
-	closeDialog()
-}
-
-function handleContinueEditing() {
-	showUnsavedChangesAlert.value = false
-}
-
-// Watch for form changes
 watch(
 	trackForm,
 	() => {
-		if (props.open) {
-			hasUnsavedChanges.value = checkForChanges()
-		}
+		if (props.open) hasUnsavedChanges.value = checkForChanges()
 	},
 	{ deep: true }
 )
 
-// Initialize form when dialog opens
 watch(
 	() => props.open,
 	(isOpen) => {
-		if (isOpen) {
-			initializeForm()
-		}
+		if (isOpen) initializeForm()
 	},
 	{ immediate: true }
 )
@@ -370,7 +355,7 @@ watch(
 					<div class="flex items-center justify-between">
 						<Label>Artists *</Label>
 						<Button @click="addArtist" size="sm" variant="outline">
-							<Plus class="mr-2 h-4 w-4" />
+							<Plus class="mr-2 size-4" />
 							Add Artist
 						</Button>
 					</div>
@@ -423,7 +408,7 @@ watch(
 					<div class="flex items-center justify-between">
 						<Label>Extra Artists (Remixers, Features, etc.)</Label>
 						<Button @click="addExtraArtist" size="sm" variant="outline">
-							<Plus class="mr-2 h-4 w-4" />
+							<Plus class="mr-2 size-4" />
 							Add Extra Artist
 						</Button>
 					</div>
@@ -592,7 +577,7 @@ watch(
 
 				<!-- Playable Toggle -->
 				<div class="flex items-center space-x-2">
-					<!-- <Switch id="playable" v-model:checked="trackForm.playable" /> -->
+					<Switch id="playable" v-model:checked="trackForm.playable" />
 					<Label for="playable">Playable (track is in good condition)</Label>
 				</div>
 			</div>
@@ -621,11 +606,11 @@ watch(
 				</AlertDialogDescription>
 			</AlertDialogHeader>
 			<AlertDialogFooter>
-				<AlertDialogCancel @click="handleContinueEditing">
+				<AlertDialogCancel @click="showUnsavedChangesAlert.value = false">
 					Continue Editing
 				</AlertDialogCancel>
 				<AlertDialogAction
-					@click="handleDiscardChanges"
+					@click="closeDialog()"
 					class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 				>
 					Discard Changes

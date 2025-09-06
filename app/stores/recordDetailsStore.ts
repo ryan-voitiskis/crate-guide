@@ -1,5 +1,3 @@
-import { toast } from 'vue-sonner'
-
 export const useRecordDetailsStore = defineStore('recordDetails', () => {
 	const records = useRecordsStore()
 	const tracks = useTracksStore()
@@ -218,19 +216,19 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 
 	return {
 		// State
-		selectedRecordId: readonly(selectedRecordId),
-		isOpen: readonly(isOpen),
-		selectedRecord: readonly(selectedRecord),
-		recordTracks: readonly(recordTracks),
-		isEditMode: readonly(isEditMode),
+		selectedRecordId,
+		isOpen,
+		selectedRecord,
+		recordTracks,
+		isEditMode,
 		hasUnsavedChanges,
 		recordForm,
 		canSave,
 
 		// Track dialog state
-		isAddingTrack: readonly(isAddingTrack),
-		editingTrackId: readonly(editingTrackId),
-		editingTrack: readonly(editingTrack),
+		isAddingTrack,
+		editingTrackId,
+		editingTrack,
 
 		// Alert dialog state
 		showUnsavedChangesAlert,

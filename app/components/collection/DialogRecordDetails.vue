@@ -4,9 +4,7 @@ import { Pencil, Plus, Trash } from 'lucide-vue-next'
 const records = useRecordsStore()
 const recordDetails = useRecordDetailsStore()
 
-// Computed
 const isDialogOpen = computed(() => recordDetails.isOpen)
-
 const currentRecord = computed(() => recordDetails.selectedRecord)
 const recordTracks = computed(() => recordDetails.recordTracks)
 const isEditMode = computed(() => recordDetails.isEditMode)
@@ -16,68 +14,20 @@ const editingTrack = computed(() => recordDetails.editingTrack)
 const showAddTrackDialog = computed({
 	get: () => recordDetails.isAddingTrack,
 	set: (value: boolean) => {
-		if (!value) {
-			recordDetails.closeTrackDialog()
-		}
+		if (!value) recordDetails.closeTrackDialog()
 	}
 })
 
 const showEditTrackDialog = computed({
 	get: () => recordDetails.editingTrackId !== null,
 	set: (value: boolean) => {
-		if (!value) {
-			recordDetails.closeTrackDialog()
-		}
+		if (!value) recordDetails.closeTrackDialog()
 	}
 })
 
-// Functions
 function handleCloseDialog(open: boolean) {
-	// Only handle close attempts (when open becomes false)
-	if (!open) {
-		recordDetails.closeRecord()
-	}
+	if (!open) recordDetails.closeRecord()
 }
-
-function handleContinueEditing() {
-	// Just close the alert, keep everything as is
-	recordDetails.showUnsavedChangesAlert = false
-}
-
-function handleDiscardChanges() {
-	// Determine what action triggered the unsaved changes alert
-	// and handle accordingly
-	recordDetails.handleDiscardChanges()
-}
-
-function toggleEditMode() {
-	recordDetails.toggleEditMode()
-}
-
-async function saveRecord() {
-	const result = await recordDetails.saveRecord()
-	if (!result) {
-		// Handle save failure if needed
-	}
-}
-
-function cancelEdit() {
-	recordDetails.cancelEdit()
-}
-
-function handleAddTrack() {
-	recordDetails.openAddTrackDialog()
-}
-
-function handleEditTrack(track: Track) {
-	recordDetails.openEditTrackDialog(track.id)
-}
-
-async function handleDeleteTrack(track: Track) {
-	await recordDetails.deleteTrack(track.id)
-}
-
-// No watchers needed - all handled in store
 </script>
 
 <template>
@@ -93,7 +43,7 @@ async function handleDeleteTrack(track: Track) {
 						</DialogDescription>
 					</div>
 					<Button
-						@click="toggleEditMode"
+						@click="recordDetails.toggleEditMode()"
 						:variant="isEditMode ? 'secondary' : 'outline'"
 						size="sm"
 					>
@@ -211,8 +161,12 @@ async function handleDeleteTrack(track: Track) {
 						<h3 class="text-lg font-semibold">
 							Tracks ({{ recordTracks.length }})
 						</h3>
-						<Button @click="handleAddTrack" size="sm" variant="outline">
-							<Plus class="mr-2 h-4 w-4" />
+						<Button
+							@click="recordDetails.openAddTrackDialog()"
+							size="sm"
+							variant="outline"
+						>
+							<Plus class="mr-2 size-4" />
 							Add Track
 						</Button>
 					</div>
@@ -265,14 +219,14 @@ async function handleDeleteTrack(track: Track) {
 							<!-- Actions -->
 							<div class="flex gap-1">
 								<Button
-									@click="handleEditTrack(track)"
+									@click="recordDetails.openEditTrackDialog(track.id)"
 									size="sm"
 									variant="ghost"
 								>
-									<Pencil class="h-4 w-4" />
+									<Pencil class="size-4" />
 								</Button>
 								<Button
-									@click="handleDeleteTrack(track)"
+									@click="recordDetails.deleteTrack(track.id)"
 									size="sm"
 									variant="ghost"
 									class="text-destructive-foreground"
@@ -294,9 +248,11 @@ async function handleDeleteTrack(track: Track) {
 
 			<!-- Dialog Footer (only shown in edit mode) -->
 			<DialogFooter v-if="isEditMode" class="border-t pt-4">
-				<Button @click="cancelEdit" variant="secondary">Cancel</Button>
+				<Button @click="recordDetails.cancelEdit()" variant="secondary">
+					Cancel
+				</Button>
 				<Button
-					@click="saveRecord"
+					@click="recordDetails.saveRecord()"
 					:disabled="!canSave"
 					:loading="records.isUpdatingRecord"
 				>
@@ -317,11 +273,13 @@ async function handleDeleteTrack(track: Track) {
 				</AlertDialogDescription>
 			</AlertDialogHeader>
 			<AlertDialogFooter>
-				<AlertDialogCancel @click="handleContinueEditing">
+				<AlertDialogCancel
+					@click="recordDetails.showUnsavedChangesAlert = false"
+				>
 					Continue Editing
 				</AlertDialogCancel>
 				<AlertDialogAction
-					@click="handleDiscardChanges"
+					@click="recordDetails.handleDiscardChanges()"
 					class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 				>
 					Discard Changes
