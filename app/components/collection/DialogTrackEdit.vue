@@ -21,10 +21,15 @@ const emit = defineEmits<Emits>()
 
 // Dependencies
 const tracks = useTracksStore()
+const recordDetails = useRecordDetailsStore()
 
 // State
 const isSubmitting = ref(false)
 const hasUnsavedChanges = ref(false)
+const showUnsavedChangesAlert = ref(false)
+
+// Store original form data for change detection
+const originalFormData = ref<typeof trackForm.value | null>(null)
 
 // Form data
 const trackForm = ref<{
@@ -58,10 +63,7 @@ const trackForm = ref<{
 })
 
 // Computed
-const isDialogOpen = computed({
-	get: () => props.open,
-	set: (value: boolean) => emit('update:open', value)
-})
+const isDialogOpen = computed(() => props.open)
 
 const isEditing = computed(() => props.track !== null)
 
@@ -113,7 +115,50 @@ function initializeForm() {
 			playable: true
 		}
 	}
+	// Store a deep copy of the initial form data
+	originalFormData.value = JSON.parse(JSON.stringify(trackForm.value))
 	hasUnsavedChanges.value = false
+}
+
+function checkForChanges(): boolean {
+	if (!originalFormData.value) return false
+
+	const current = trackForm.value
+	const original = originalFormData.value
+
+	// Check basic fields
+	if (
+		current.title !== original.title ||
+		current.position !== original.position ||
+		current.duration !== original.duration ||
+		current.bpm !== original.bpm ||
+		current.rpm !== original.rpm ||
+		current.key !== original.key ||
+		current.mode !== original.mode ||
+		current.time_signature_upper !== original.time_signature_upper ||
+		current.time_signature_lower !== original.time_signature_lower ||
+		current.playable !== original.playable
+	) {
+		return true
+	}
+
+	// Check arrays
+	if (JSON.stringify(current.genres) !== JSON.stringify(original.genres)) {
+		return true
+	}
+
+	if (JSON.stringify(current.artists) !== JSON.stringify(original.artists)) {
+		return true
+	}
+
+	if (
+		JSON.stringify(current.extraartists) !==
+		JSON.stringify(original.extraartists)
+	) {
+		return true
+	}
+
+	return false
 }
 
 function addArtist() {
@@ -122,12 +167,12 @@ function addArtist() {
 		discogs_id: undefined,
 		role: null
 	})
-	hasUnsavedChanges.value = true
+	hasUnsavedChanges.value = checkForChanges()
 }
 
 function removeArtist(index: number) {
 	trackForm.value.artists.splice(index, 1)
-	hasUnsavedChanges.value = true
+	hasUnsavedChanges.value = checkForChanges()
 }
 
 function addExtraArtist() {
@@ -136,12 +181,12 @@ function addExtraArtist() {
 		discogs_id: undefined,
 		role: null
 	})
-	hasUnsavedChanges.value = true
+	hasUnsavedChanges.value = checkForChanges()
 }
 
 function removeExtraArtist(index: number) {
 	trackForm.value.extraartists.splice(index, 1)
-	hasUnsavedChanges.value = true
+	hasUnsavedChanges.value = checkForChanges()
 }
 
 async function handleSubmit() {
@@ -174,16 +219,18 @@ async function handleSubmit() {
 			if (result) {
 				emit('saved')
 				toast.success('Track updated successfully')
+				hasUnsavedChanges.value = false
 			}
 		} else {
 			// Create new track
-			if (!props.recordId) {
+			const recordId = props.recordId || recordDetails.selectedRecordId
+			if (!recordId) {
 				toast.error('Record ID is required to create a track')
 				return
 			}
 
 			const newTrack = {
-				record_id: props.recordId,
+				record_id: recordId,
 				title: trackForm.value.title.trim(),
 				artists: trackForm.value.artists.filter((a) => a.name.trim() !== ''),
 				extraartists: trackForm.value.extraartists.filter(
@@ -205,6 +252,11 @@ async function handleSubmit() {
 			if (result) {
 				emit('saved')
 				toast.success('Track created successfully')
+				// Close dialog if it's managed by the store
+				if (!props.recordId && recordDetails.isAddingTrack) {
+					recordDetails.closeTrackDialog()
+				}
+				hasUnsavedChanges.value = false
 			}
 		}
 	} catch (error) {
@@ -215,14 +267,46 @@ async function handleSubmit() {
 }
 
 function handleCancel() {
-	isDialogOpen.value = false
+	const hasChanges = checkForChanges()
+	if (hasChanges) {
+		showUnsavedChangesAlert.value = true
+		return
+	}
+	closeDialog()
+}
+
+function handleDialogOpenChange(open: boolean) {
+	if (!open) {
+		const hasChanges = checkForChanges()
+		if (hasChanges) {
+			showUnsavedChangesAlert.value = true
+			return
+		}
+		closeDialog()
+	}
+}
+
+function closeDialog() {
+	emit('update:open', false)
+	hasUnsavedChanges.value = false
+	showUnsavedChangesAlert.value = false
+}
+
+function handleDiscardChanges() {
+	closeDialog()
+}
+
+function handleContinueEditing() {
+	showUnsavedChangesAlert.value = false
 }
 
 // Watch for form changes
 watch(
 	trackForm,
 	() => {
-		hasUnsavedChanges.value = true
+		if (props.open) {
+			hasUnsavedChanges.value = checkForChanges()
+		}
 	},
 	{ deep: true }
 )
@@ -240,7 +324,7 @@ watch(
 </script>
 
 <template>
-	<Dialog v-model:open="isDialogOpen">
+	<Dialog :open="isDialogOpen" @update:open="handleDialogOpenChange">
 		<DialogContent class="max-h-[90vh] max-w-4xl overflow-auto">
 			<DialogHeader>
 				<DialogTitle>{{ dialogTitle }}</DialogTitle>
@@ -328,7 +412,7 @@ watch(
 								variant="outline"
 								class="text-destructive-foreground"
 							>
-								<Trash class="h-4 w-4" />
+								<Trash class="size-4" />
 							</Button>
 						</div>
 					</div>
@@ -381,7 +465,7 @@ watch(
 								variant="ghost"
 								class="text-destructive"
 							>
-								<Trash2 class="h-4 w-4" />
+								<Trash class="size-4" />
 							</Button>
 						</div>
 					</div>
@@ -508,7 +592,7 @@ watch(
 
 				<!-- Playable Toggle -->
 				<div class="flex items-center space-x-2">
-					<Switch id="playable" v-model:checked="trackForm.playable" />
+					<!-- <Switch id="playable" v-model:checked="trackForm.playable" /> -->
 					<Label for="playable">Playable (track is in good condition)</Label>
 				</div>
 			</div>
@@ -525,4 +609,28 @@ watch(
 			</DialogFooter>
 		</DialogContent>
 	</Dialog>
+
+	<!-- Unsaved Changes Alert -->
+	<AlertDialog v-model:open="showUnsavedChangesAlert">
+		<AlertDialogContent>
+			<AlertDialogHeader>
+				<AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+				<AlertDialogDescription>
+					You have unsaved changes to this track. Are you sure you want to
+					discard them?
+				</AlertDialogDescription>
+			</AlertDialogHeader>
+			<AlertDialogFooter>
+				<AlertDialogCancel @click="handleContinueEditing">
+					Continue Editing
+				</AlertDialogCancel>
+				<AlertDialogAction
+					@click="handleDiscardChanges"
+					class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+				>
+					Discard Changes
+				</AlertDialogAction>
+			</AlertDialogFooter>
+		</AlertDialogContent>
+	</AlertDialog>
 </template>

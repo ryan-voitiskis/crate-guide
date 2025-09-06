@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
+import { User } from 'lucide-vue-next'
 
 const user = useUserStore()
 const supabase = useSupabaseClient<Database>()
@@ -34,7 +35,7 @@ async function initDiscogsOAuthFlow() {
 						:src="user.profile.discogs_avatar_url"
 						alt="Your Discogs avatar"
 					/>
-					<AvatarFallback><IconUser class="h-7 w-7" /></AvatarFallback>
+					<AvatarFallback><User class="size-7" /></AvatarFallback>
 				</Avatar>
 				<span class="text-sm font-medium">
 					{{ user.profile.discogs_username }}

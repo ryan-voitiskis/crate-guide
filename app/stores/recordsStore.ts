@@ -15,8 +15,6 @@ export const useRecordsStore = defineStore('records', () => {
 	const searchResults = ref<DatabaseRecord[]>([])
 	const isSearching = ref(false)
 
-	const selectedRecord = ref<DatabaseRecord | null>(null)
-
 	const recordsCount = computed(() => records.value.length)
 	const hasRecords = computed(() => records.value.length > 0)
 
@@ -218,7 +216,6 @@ export const useRecordsStore = defineStore('records', () => {
 		isDeletingRecord,
 		recordsCount,
 		hasRecords,
-		selectedRecord,
 
 		// Search
 		searchQuery: readonly(searchQuery),

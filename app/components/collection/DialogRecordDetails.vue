@@ -2,185 +2,87 @@
 import { Pencil, Plus, Trash } from 'lucide-vue-next'
 
 const records = useRecordsStore()
-const tracks = useTracksStore()
-
-const isEditMode = ref(false)
-const hasUnsavedChanges = ref(false)
-const showUnsavedChangesAlert = ref(false)
-const showAddTrackDialog = ref(false)
-const showEditTrackDialog = ref(false)
-const editingTrack = ref<Track | null>(null)
-
-// Form data for record editing
-const recordForm = ref<{
-	title: string
-	year: number | null
-	cover: string | null
-	artists: DiscogsArtistDb[]
-}>({
-	title: '',
-	year: null,
-	cover: null,
-	artists: []
-})
+const recordDetails = useRecordDetailsStore()
 
 // Computed
-const isDialogOpen = computed({
-	get: () => records.selectedRecord !== null,
+const isDialogOpen = computed(() => recordDetails.isOpen)
+
+const currentRecord = computed(() => recordDetails.selectedRecord)
+const recordTracks = computed(() => recordDetails.recordTracks)
+const isEditMode = computed(() => recordDetails.isEditMode)
+const canSave = computed(() => recordDetails.canSave)
+const editingTrack = computed(() => recordDetails.editingTrack)
+
+const showAddTrackDialog = computed({
+	get: () => recordDetails.isAddingTrack,
 	set: (value: boolean) => {
 		if (!value) {
-			handleCloseDialog()
+			recordDetails.closeTrackDialog()
 		}
 	}
 })
 
-const currentRecord = computed(() => records.selectedRecord)
-
-const recordTracks = computed(() => {
-	if (!currentRecord.value) return []
-	const recordTracksList = tracks.getTracksByRecordId(currentRecord.value.id)
-
-	// Sort by position, handling various position formats (A1, B2, etc.)
-	return recordTracksList.sort((a, b) => {
-		if (!a.position && !b.position) return 0
-		if (!a.position) return 1
-		if (!b.position) return -1
-
-		// Simple alphanumeric sort for positions like A1, A2, B1, B2
-		return a.position.localeCompare(b.position, undefined, {
-			numeric: true,
-			sensitivity: 'base'
-		})
-	})
-})
-
-const canSave = computed(() => {
-	return recordForm.value.title.trim().length > 0
+const showEditTrackDialog = computed({
+	get: () => recordDetails.editingTrackId !== null,
+	set: (value: boolean) => {
+		if (!value) {
+			recordDetails.closeTrackDialog()
+		}
+	}
 })
 
 // Functions
-function initializeForm() {
-	if (!currentRecord.value) return
-
-	recordForm.value = {
-		title: currentRecord.value.title,
-		year: currentRecord.value.year,
-		cover: currentRecord.value.cover,
-		artists: [...currentRecord.value.artists]
+function handleCloseDialog(open: boolean) {
+	// Only handle close attempts (when open becomes false)
+	if (!open) {
+		recordDetails.closeRecord()
 	}
-	hasUnsavedChanges.value = false
 }
 
-function checkForChanges() {
-	if (!currentRecord.value) return false
-
-	const current = currentRecord.value
-	const form = recordForm.value
-
-	return (
-		current.title !== form.title ||
-		current.year !== form.year ||
-		current.cover !== form.cover ||
-		JSON.stringify(current.artists) !== JSON.stringify(form.artists)
-	)
+function handleContinueEditing() {
+	// Just close the alert, keep everything as is
+	recordDetails.showUnsavedChangesAlert = false
 }
 
-function handleCloseDialog() {
-	if (isEditMode.value && hasUnsavedChanges.value) {
-		showUnsavedChangesAlert.value = true
-		return
-	}
-
-	closeDialog()
-}
-
-function closeDialog() {
-	records.selectedRecord = null
-	isEditMode.value = false
-	hasUnsavedChanges.value = false
-	showUnsavedChangesAlert.value = false
+function handleDiscardChanges() {
+	// Determine what action triggered the unsaved changes alert
+	// and handle accordingly
+	recordDetails.handleDiscardChanges()
 }
 
 function toggleEditMode() {
-	if (!isEditMode.value) {
-		initializeForm()
-		isEditMode.value = true
-	} else {
-		if (hasUnsavedChanges.value) {
-			showUnsavedChangesAlert.value = true
-			return
-		}
-		isEditMode.value = false
-	}
+	recordDetails.toggleEditMode()
 }
 
 async function saveRecord() {
-	if (!currentRecord.value || !canSave.value) return
-
-	const updates = {
-		title: recordForm.value.title.trim(),
-		year: recordForm.value.year,
-		cover: recordForm.value.cover
-		// TODO: Implement artists editing - currently read-only due to complexity
-		// artists: recordForm.value.artists
-	}
-
-	const result = await records.updateRecord(currentRecord.value.id, updates)
-
-	if (result) {
-		isEditMode.value = false
-		hasUnsavedChanges.value = false
+	const result = await recordDetails.saveRecord()
+	if (!result) {
+		// Handle save failure if needed
 	}
 }
 
 function cancelEdit() {
-	isEditMode.value = false
-	hasUnsavedChanges.value = false
-	initializeForm()
+	recordDetails.cancelEdit()
 }
 
 function handleAddTrack() {
-	showAddTrackDialog.value = true
+	recordDetails.openAddTrackDialog()
 }
 
 function handleEditTrack(track: Track) {
-	editingTrack.value = track
-	showEditTrackDialog.value = true
+	recordDetails.openEditTrackDialog(track.id)
 }
 
 async function handleDeleteTrack(track: Track) {
-	const confirmed = confirm(`Are you sure you want to delete "${track.title}"?`)
-	if (!confirmed) return
-
-	await tracks.deleteTrack(track.id)
+	await recordDetails.deleteTrack(track.id)
 }
 
-// Watch for form changes
-watch(
-	recordForm,
-	() => {
-		if (isEditMode.value) {
-			hasUnsavedChanges.value = checkForChanges()
-		}
-	},
-	{ deep: true }
-)
-
-// Initialize form when dialog opens
-watch(
-	currentRecord,
-	(newRecord) => {
-		if (newRecord) {
-			initializeForm()
-		}
-	},
-	{ immediate: true }
-)
+// No watchers needed - all handled in store
 </script>
 
 <template>
 	<!-- Main Dialog -->
-	<Dialog v-model:open="isDialogOpen">
+	<Dialog :open="isDialogOpen" @update:open="handleCloseDialog">
 		<DialogContent class="flex max-h-[90vh] max-w-6xl flex-col overflow-hidden">
 			<DialogHeader>
 				<div class="flex items-center justify-between">
@@ -219,9 +121,9 @@ watch(
 						</div>
 						<Input
 							v-if="isEditMode"
-							:model-value="recordForm.cover ?? undefined"
+							:model-value="recordDetails.recordForm.cover ?? undefined"
 							@update:model-value="
-								recordForm.cover = $event ? String($event) : null
+								recordDetails.recordForm.cover = $event ? String($event) : null
 							"
 							name="cover"
 							placeholder="Cover URL"
@@ -236,7 +138,7 @@ watch(
 							<label class="text-sm font-medium">Title</label>
 							<Input
 								v-if="isEditMode"
-								v-model="recordForm.title"
+								v-model="recordDetails.recordForm.title"
 								name="title"
 								placeholder="Record title"
 								class="text-lg font-semibold"
@@ -251,9 +153,9 @@ watch(
 							<label class="text-sm font-medium">Year</label>
 							<Input
 								v-if="isEditMode"
-								:model-value="recordForm.year ?? undefined"
+								:model-value="recordDetails.recordForm.year ?? undefined"
 								@update:model-value="
-									recordForm.year = $event ? Number($event) : null
+									recordDetails.recordForm.year = $event ? Number($event) : null
 								"
 								name="year"
 								type="number"
@@ -375,7 +277,7 @@ watch(
 									variant="ghost"
 									class="text-destructive-foreground"
 								>
-									<Trash class="h-4 w-4" />
+									<Trash class="size-4" />
 								</Button>
 							</div>
 						</div>
@@ -405,7 +307,7 @@ watch(
 	</Dialog>
 
 	<!-- Unsaved Changes Alert -->
-	<AlertDialog v-model:open="showUnsavedChangesAlert">
+	<AlertDialog v-model:open="recordDetails.showUnsavedChangesAlert">
 		<AlertDialogContent>
 			<AlertDialogHeader>
 				<AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
@@ -415,9 +317,11 @@ watch(
 				</AlertDialogDescription>
 			</AlertDialogHeader>
 			<AlertDialogFooter>
-				<AlertDialogCancel>Continue Editing</AlertDialogCancel>
+				<AlertDialogCancel @click="handleContinueEditing">
+					Continue Editing
+				</AlertDialogCancel>
 				<AlertDialogAction
-					@click="closeDialog"
+					@click="handleDiscardChanges"
 					class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 				>
 					Discard Changes

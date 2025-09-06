@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const records = useRecordsStore()
+const recordDetails = useRecordDetailsStore()
 const props = defineProps<{ record: DatabaseRecord }>()
 
 const coverImg = computed(() =>
@@ -14,7 +15,7 @@ const artistNames = computed(() =>
 <template>
 	<Card
 		class="group relative overflow-hidden p-0 transition-all hover:shadow-md"
-		@click="records.selectedRecord = record"
+		@click="recordDetails.openRecord(record.id)"
 	>
 		<CardContent class="p-0">
 			<div class="grid w-full grid-cols-[90px_1fr_90px] gap-4">

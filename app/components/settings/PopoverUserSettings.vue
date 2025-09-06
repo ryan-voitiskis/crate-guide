@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { User } from 'lucide-vue-next'
+
 const user = useUserStore()
 
 const avatarImg = computed(() => {
@@ -15,7 +17,7 @@ const avatarImg = computed(() => {
 		<PopoverTrigger as-child>
 			<Avatar class="bg-primary text-primary-foreground cursor-pointer">
 				<AvatarImage v-if="avatarImg" :src="avatarImg" alt="Your avatar" />
-				<AvatarFallback><IconUser class="h-7 w-7" /></AvatarFallback>
+				<AvatarFallback><User class="size-7" /></AvatarFallback>
 			</Avatar>
 		</PopoverTrigger>
 		<PopoverContent
