@@ -1,8 +1,15 @@
 interface RecordEditForm {
 	title: string
-	year: number | null
-	cover: string | null
+	year: string
+	cover: string
 	artists: DiscogsArtistDb[]
+}
+
+const emptyRecordForm: RecordEditForm = {
+	title: '',
+	year: '',
+	cover: '',
+	artists: []
 }
 
 export const useRecordDetailsStore = defineStore('recordDetails', () => {
@@ -13,13 +20,7 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 	const isEditMode = ref(false)
 	const showUnsavedChangesAlert = ref(false)
 	const trackToConfirmDelete = ref<Track | null>(null)
-
-	const recordForm = ref<RecordEditForm>({
-		title: '',
-		year: null,
-		cover: null,
-		artists: []
-	})
+	const recordForm = ref<RecordEditForm>(emptyRecordForm)
 
 	const selectedRecord = computed(() =>
 		selectedRecordId.value
@@ -43,8 +44,8 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 
 		return (
 			current.title !== form.title ||
-			current.year !== form.year ||
-			current.cover !== form.cover ||
+			(current.year?.toString() || '') !== form.year ||
+			(current.cover || '') !== form.cover ||
 			JSON.stringify(current.artists) !== JSON.stringify(form.artists)
 		)
 	}
@@ -54,19 +55,14 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 
 		recordForm.value = {
 			title: selectedRecord.value.title,
-			year: selectedRecord.value.year,
-			cover: selectedRecord.value.cover,
+			year: selectedRecord.value.year?.toString() || '',
+			cover: selectedRecord.value.cover || '',
 			artists: [...selectedRecord.value.artists]
 		}
 	}
 
 	function resetForm() {
-		recordForm.value = {
-			title: '',
-			year: null,
-			cover: null,
-			artists: []
-		}
+		recordForm.value = emptyRecordForm
 	}
 
 	function openRecord(recordId: string) {
@@ -102,8 +98,8 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 
 		const updates = {
 			title: recordForm.value.title.trim(),
-			year: recordForm.value.year,
-			cover: recordForm.value.cover,
+			year: recordForm.value.year ? Number(recordForm.value.year) : null,
+			cover: recordForm.value.cover || null,
 			artists: recordForm.value.artists
 		}
 

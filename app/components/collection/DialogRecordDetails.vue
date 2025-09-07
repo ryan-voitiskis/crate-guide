@@ -12,22 +12,25 @@ const dialogOpen = computed({
 	}
 })
 
-// Validation schema
 const recordSchema = z.object({
 	title: z.string().min(1, 'Title is required').trim(),
-	year: z.union([
-		z.literal(''),
-		z.string().pipe(
-			z.coerce
-				.number()
-				.int('Year must be a whole number')
-				.min(1877, 'Year must be 1877 or later')
-				.max(
-					new Date().getFullYear() + 5,
-					`Year cannot be more than ${new Date().getFullYear() + 5}`
-				)
-		)
-	]),
+	year: z.string().refine(
+		(val) => {
+			if (val === '') return true
+			const num = Number(val)
+			return (
+				Number.isInteger(num) &&
+				num >= 1877 &&
+				num <= new Date().getFullYear() + 5
+			)
+		},
+		(val) => ({
+			message:
+				val === ''
+					? ''
+					: `Year must be between 1877 and ${new Date().getFullYear() + 5}`
+		})
+	),
 	cover: z.union([
 		z.literal(''),
 		z
@@ -42,46 +45,37 @@ const recordSchema = z.object({
 
 type RecordFormData = z.infer<typeof recordSchema>
 
-// Validation state
 const formErrors = ref<z.ZodFormattedError<RecordFormData> | null>(null)
+
+// Form data computed
+const formData = computed(() => ({
+	title: recordDetails.recordForm.title,
+	year: recordDetails.recordForm.year,
+	cover: recordDetails.recordForm.cover
+}))
+
+// Validation result computed
+const validationResult = computed(() => recordSchema.safeParse(formData.value))
 
 // Validation logic
 watchEffect(() => {
-	const formData = {
-		title: recordDetails.recordForm.title || '',
-		year: recordDetails.recordForm.year?.toString() || '',
-		cover: recordDetails.recordForm.cover || ''
-	}
-
-	const result = recordSchema.safeParse(formData)
-	formErrors.value = result.success ? null : result.error.format()
+	formErrors.value = validationResult.value.success
+		? null
+		: validationResult.value.error.format()
 })
 
 const hasFieldError = (field: keyof RecordFormData) =>
 	formErrors.value?.[field]?._errors?.length
 
-function validateField(field: keyof RecordFormData) {
-	const formData = {
-		title: recordDetails.recordForm.title || '',
-		year: recordDetails.recordForm.year?.toString() || '',
-		cover: recordDetails.recordForm.cover || ''
-	}
-
-	const result = recordSchema.safeParse(formData)
-	formErrors.value = result.success ? null : result.error.format()
+function validateField() {
+	formErrors.value = validationResult.value.success
+		? null
+		: validationResult.value.error.format()
 }
 
 function handleSave() {
-	const formData = {
-		title: recordDetails.recordForm.title || '',
-		year: recordDetails.recordForm.year?.toString() || '',
-		cover: recordDetails.recordForm.cover || ''
-	}
-
-	const result = recordSchema.safeParse(formData)
-
-	if (!result.success) {
-		formErrors.value = result.error.format()
+	if (!validationResult.value.success) {
+		formErrors.value = validationResult.value.error.format()
 		return
 	}
 
@@ -135,13 +129,8 @@ function handleSave() {
 						</div>
 						<FormItem v-if="recordDetails.isEditMode">
 							<Input
-								:model-value="recordDetails.recordForm.cover ?? undefined"
-								@update:model-value="
-									recordDetails.recordForm.cover = $event
-										? String($event)
-										: null
-								"
-								@blur="validateField('cover')"
+								v-model="recordDetails.recordForm.cover"
+								@blur="validateField()"
 								name="cover"
 								placeholder="Cover URL"
 								:class="[
@@ -166,7 +155,7 @@ function handleSave() {
 							<FormItem v-if="recordDetails.isEditMode">
 								<Input
 									v-model="recordDetails.recordForm.title"
-									@blur="validateField('title')"
+									@blur="validateField()"
 									name="title"
 									placeholder="Record title"
 									:class="{ 'border-destructive': hasFieldError('title') }"
@@ -188,15 +177,10 @@ function handleSave() {
 							<Label class="font-medium">Year</Label>
 							<FormItem v-if="recordDetails.isEditMode">
 								<Input
-									:model-value="recordDetails.recordForm.year ?? undefined"
-									@update:model-value="
-										recordDetails.recordForm.year = $event
-											? Number($event)
-											: null
-									"
-									@blur="validateField('year')"
+									v-model="recordDetails.recordForm.year"
+									@blur="validateField()"
 									name="year"
-									type="number"
+									type="text"
 									placeholder="Release year"
 									:class="[
 										'w-32',
