@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Pencil, PencilOff } from 'lucide-vue-next'
+import { z } from 'zod'
 
 const records = useRecordsStore()
 const recordDetails = useRecordDetailsStore()
@@ -10,6 +11,82 @@ const dialogOpen = computed({
 		if (!value) recordDetails.closeRecord()
 	}
 })
+
+// Validation schema
+const recordSchema = z.object({
+	title: z.string().min(1, 'Title is required').trim(),
+	year: z.union([
+		z.literal(''),
+		z.string().pipe(
+			z.coerce
+				.number()
+				.int('Year must be a whole number')
+				.min(1877, 'Year must be 1877 or later')
+				.max(
+					new Date().getFullYear() + 5,
+					`Year cannot be more than ${new Date().getFullYear() + 5}`
+				)
+		)
+	]),
+	cover: z.union([
+		z.literal(''),
+		z
+			.string()
+			.url('Must be a valid URL')
+			.regex(
+				/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i,
+				'Must be an image URL (jpg, png, gif, webp)'
+			)
+	])
+})
+
+type RecordFormData = z.infer<typeof recordSchema>
+
+// Validation state
+const formErrors = ref<z.ZodFormattedError<RecordFormData> | null>(null)
+
+// Validation logic
+watchEffect(() => {
+	const formData = {
+		title: recordDetails.recordForm.title || '',
+		year: recordDetails.recordForm.year?.toString() || '',
+		cover: recordDetails.recordForm.cover || ''
+	}
+
+	const result = recordSchema.safeParse(formData)
+	formErrors.value = result.success ? null : result.error.format()
+})
+
+const hasFieldError = (field: keyof RecordFormData) =>
+	formErrors.value?.[field]?._errors?.length
+
+function validateField(field: keyof RecordFormData) {
+	const formData = {
+		title: recordDetails.recordForm.title || '',
+		year: recordDetails.recordForm.year?.toString() || '',
+		cover: recordDetails.recordForm.cover || ''
+	}
+
+	const result = recordSchema.safeParse(formData)
+	formErrors.value = result.success ? null : result.error.format()
+}
+
+function handleSave() {
+	const formData = {
+		title: recordDetails.recordForm.title || '',
+		year: recordDetails.recordForm.year?.toString() || '',
+		cover: recordDetails.recordForm.cover || ''
+	}
+
+	const result = recordSchema.safeParse(formData)
+
+	if (!result.success) {
+		formErrors.value = result.error.format()
+		return
+	}
+
+	recordDetails.saveRecord()
+}
 </script>
 
 <template>
@@ -56,16 +133,29 @@ const dialogOpen = computed({
 							/>
 							<span v-else class="text-muted-foreground text-sm">No cover</span>
 						</div>
-						<Input
-							v-if="recordDetails.isEditMode"
-							:model-value="recordDetails.recordForm.cover ?? undefined"
-							@update:model-value="
-								recordDetails.recordForm.cover = $event ? String($event) : null
-							"
-							name="cover"
-							placeholder="Cover URL"
-							class="text-xs"
-						/>
+						<FormItem v-if="recordDetails.isEditMode">
+							<Input
+								:model-value="recordDetails.recordForm.cover ?? undefined"
+								@update:model-value="
+									recordDetails.recordForm.cover = $event
+										? String($event)
+										: null
+								"
+								@blur="validateField('cover')"
+								name="cover"
+								placeholder="Cover URL"
+								:class="[
+									'text-xs',
+									{ 'border-destructive': hasFieldError('cover') }
+								]"
+							/>
+							<p
+								v-if="formErrors?.cover?._errors?.length"
+								class="text-destructive text-sm"
+							>
+								{{ formErrors.cover._errors[0] }}
+							</p>
+						</FormItem>
 					</div>
 
 					<!-- Record Info -->
@@ -73,12 +163,21 @@ const dialogOpen = computed({
 						<!-- Title -->
 						<div class="space-y-2">
 							<Label>Title</Label>
-							<Input
-								v-if="recordDetails.isEditMode"
-								v-model="recordDetails.recordForm.title"
-								name="title"
-								placeholder="Record title"
-							/>
+							<FormItem v-if="recordDetails.isEditMode">
+								<Input
+									v-model="recordDetails.recordForm.title"
+									@blur="validateField('title')"
+									name="title"
+									placeholder="Record title"
+									:class="{ 'border-destructive': hasFieldError('title') }"
+								/>
+								<p
+									v-if="formErrors?.title?._errors?.length"
+									class="text-destructive text-sm"
+								>
+									{{ formErrors.title._errors[0] }}
+								</p>
+							</FormItem>
 							<div v-else>
 								{{ recordDetails.selectedRecord?.title }}
 							</div>
@@ -87,17 +186,30 @@ const dialogOpen = computed({
 						<!-- Year -->
 						<div class="space-y-2">
 							<Label class="font-medium">Year</Label>
-							<Input
-								v-if="recordDetails.isEditMode"
-								:model-value="recordDetails.recordForm.year ?? undefined"
-								@update:model-value="
-									recordDetails.recordForm.year = $event ? Number($event) : null
-								"
-								name="year"
-								type="number"
-								placeholder="Release year"
-								class="w-32"
-							/>
+							<FormItem v-if="recordDetails.isEditMode">
+								<Input
+									:model-value="recordDetails.recordForm.year ?? undefined"
+									@update:model-value="
+										recordDetails.recordForm.year = $event
+											? Number($event)
+											: null
+									"
+									@blur="validateField('year')"
+									name="year"
+									type="number"
+									placeholder="Release year"
+									:class="[
+										'w-32',
+										{ 'border-destructive': hasFieldError('year') }
+									]"
+								/>
+								<p
+									v-if="formErrors?.year?._errors?.length"
+									class="text-destructive text-sm"
+								>
+									{{ formErrors.year._errors[0] }}
+								</p>
+							</FormItem>
 							<p v-else class="text-muted-foreground">
 								{{ recordDetails.selectedRecord?.year || 'Unknown' }}
 							</p>
@@ -136,7 +248,7 @@ const dialogOpen = computed({
 					Cancel
 				</Button>
 				<Button
-					@click="recordDetails.saveRecord()"
+					@click="handleSave()"
 					:disabled="!recordDetails.canSave"
 					:loading="records.isUpdatingRecord"
 				>
