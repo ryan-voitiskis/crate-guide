@@ -110,7 +110,7 @@ function handleSave() {
 				</div>
 			</DialogHeader>
 
-			<div class="space-y-6 overflow-y-auto px-6 py-4">
+			<div class="space-y-6 overflow-y-auto px-6 py-4" tabindex="-1">
 				<!-- Record Details Section -->
 				<div class="grid gap-6 md:grid-cols-3">
 					<!-- Cover Image -->

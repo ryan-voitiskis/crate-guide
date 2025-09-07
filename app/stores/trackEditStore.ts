@@ -1,13 +1,13 @@
 interface TrackEditForm {
 	title: string
-	position: string | null
+	position: string
 	artists: DiscogsArtistDb[]
 	extraartists: DiscogsArtistDb[]
-	duration: number | null
-	bpm: number | null
+	duration: string
+	bpm: string
 	rpm: number | null
 	playable: boolean
-	key: number | null
+	key: string
 	mode: number | null
 	time_signature_upper: number | null
 	time_signature_lower: number | null
@@ -16,14 +16,14 @@ interface TrackEditForm {
 
 const defaultFormData: TrackEditForm = {
 	title: '',
-	position: null,
+	position: '',
 	artists: [],
 	extraartists: [],
-	duration: null,
-	bpm: null,
+	duration: '',
+	bpm: '',
 	rpm: null,
 	playable: true,
-	key: null,
+	key: '',
 	mode: null,
 	time_signature_upper: null,
 	time_signature_lower: null,
@@ -40,14 +40,14 @@ export const useTrackEditStore = defineStore('trackEdit', () => {
 
 	const trackForm = ref<TrackEditForm>({
 		title: '',
-		position: null,
+		position: '',
 		artists: [],
 		extraartists: [],
-		duration: null,
-		bpm: null,
+		duration: '',
+		bpm: '',
 		rpm: null,
 		playable: true,
-		key: null,
+		key: '',
 		mode: null,
 		time_signature_upper: null,
 		time_signature_lower: null,
@@ -101,25 +101,25 @@ export const useTrackEditStore = defineStore('trackEdit', () => {
 			const track = editingTrack.value
 			trackForm.value = {
 				title: track.title,
-				position: track.position,
+				position: track.position || '',
 				artists: [...track.artists],
 				extraartists: [...track.extraartists],
-				duration: track.duration,
-				bpm: track.bpm,
+				duration: track.duration?.toString() || '',
+				bpm: track.bpm?.toString() || '',
 				rpm: track.rpm,
 				playable: track.playable ?? true,
-				key: track.key,
+				key: track.key?.toString() || '',
 				mode: track.mode,
 				time_signature_upper: track.time_signature_upper,
 				time_signature_lower: track.time_signature_lower,
 				genres: [...track.genres]
 			}
-		} else trackForm.value = defaultFormData
+		} else trackForm.value = { ...defaultFormData }
 		originalFormData.value = JSON.parse(JSON.stringify(trackForm.value))
 	}
 
 	function resetForm() {
-		trackForm.value = defaultFormData
+		trackForm.value = { ...defaultFormData }
 		originalFormData.value = null
 	}
 
