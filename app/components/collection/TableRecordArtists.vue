@@ -317,7 +317,7 @@ function moveArtistDown(index: number) {
 							<div v-if="editingArtistIndex === index" class="flex gap-1">
 								<Button
 									@click="saveEditArtist"
-									size="sm"
+									size="icon"
 									variant="ghost"
 									:disabled="!canSaveEdit"
 									:class="[
@@ -325,34 +325,34 @@ function moveArtistDown(index: number) {
 										'disabled:cursor-not-allowed'
 									]"
 								>
-									<Check class="size-4" />
+									<Check />
 								</Button>
 								<Button
 									@click="cancelEditArtist"
-									size="sm"
+									size="icon"
 									variant="ghost"
 									class="text-muted-foreground"
 								>
-									<X class="size-3" />
+									<X />
 								</Button>
 							</div>
 							<div v-else class="flex gap-1">
 								<Button
 									@click="startEditArtist(index)"
-									size="sm"
+									size="icon"
 									variant="ghost"
 									:disabled="editingArtistIndex !== null || isAddingNew"
 								>
-									<Pencil class="size-3" />
+									<Pencil />
 								</Button>
 								<Button
 									@click="removeArtist(index)"
-									size="sm"
+									size="icon"
 									variant="ghost"
 									class="text-destructive-foreground"
 									:disabled="editingArtistIndex !== null || isAddingNew"
 								>
-									<Trash class="size-3" />
+									<Trash />
 								</Button>
 							</div>
 						</TableCell>
@@ -409,7 +409,7 @@ function moveArtistDown(index: number) {
 							<div class="flex gap-1">
 								<Button
 									@click="saveNewArtist"
-									size="sm"
+									size="icon"
 									variant="ghost"
 									:disabled="!canSaveNew"
 									:class="[
@@ -417,15 +417,15 @@ function moveArtistDown(index: number) {
 										'disabled:cursor-not-allowed'
 									]"
 								>
-									<Check class="size-4" />
+									<Check />
 								</Button>
 								<Button
 									@click="cancelAddNew"
-									size="sm"
+									size="icon"
 									variant="ghost"
 									class="text-muted-foreground"
 								>
-									<X class="size-3" />
+									<X />
 								</Button>
 							</div>
 						</TableCell>

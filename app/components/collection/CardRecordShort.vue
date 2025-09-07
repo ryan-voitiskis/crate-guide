@@ -61,7 +61,7 @@ const artistNames = computed(() =>
 						variant="ghost"
 						size="icon"
 					>
-						<IconDiscogs class="size-4" />
+						<IconDiscogs />
 					</Button>
 				</div>
 			</div>

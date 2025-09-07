@@ -36,7 +36,7 @@ const dialogOpen = computed({
 				</div>
 			</DialogHeader>
 
-			<div class="flex-1 space-y-6 overflow-auto pr-2">
+			<div class="-mr-2 flex-1 space-y-6 overflow-auto pr-2 pb-1">
 				<!-- Record Details Section -->
 				<div class="grid gap-6 md:grid-cols-3">
 					<!-- Cover Image -->

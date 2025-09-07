@@ -21,13 +21,13 @@ const trackEdit = useTrackEditStore()
 
 		<!-- Tracks List -->
 		<div class="space-y-2">
-			<div
+			<Card
 				v-for="track in recordDetails.recordTracks"
 				:key="track.id"
-				class="hover:bg-muted/50 flex items-center gap-4 rounded-lg border px-2 py-1"
+				class="hover:bg-muted/50 flex flex-row items-center gap-1 px-3 py-1"
 			>
 				<!-- Position -->
-				<div class="text-muted-foreground w-12 font-mono text-sm">
+				<div class="text-muted-foreground w-8 font-mono text-sm">
 					{{ track.position || '–' }}
 				</div>
 
@@ -41,8 +41,7 @@ const trackEdit = useTrackEditStore()
 						<span v-if="track.extraartists.length">
 							{{
 								track.extraartists.length
-									? ' feat. ' +
-										track.extraartists.map((a) => a.name).join(', ')
+									? ' feat. ' + track.extraartists.map((a) => a.name).join(', ')
 									: ''
 							}}
 						</span>
@@ -50,39 +49,37 @@ const trackEdit = useTrackEditStore()
 				</div>
 
 				<!-- Duration -->
-				<div class="text-muted-foreground w-16 text-right text-sm">
+				<div class="text-muted-foreground w-8 text-right text-sm">
 					{{ formatDuration(track.duration) }}
 				</div>
 
 				<!-- BPM -->
-				<div class="text-muted-foreground w-16 text-right text-sm">
+				<div class="text-muted-foreground w-8 text-right text-sm">
 					{{ track.bpm ? Math.round(track.bpm) : '–' }}
 				</div>
 
 				<!-- Key -->
-				<div class="text-muted-foreground w-12 text-center text-sm">
+				<div class="text-muted-foreground w-8 text-center text-sm">
 					{{ formatKey(track.key) }}
 				</div>
 
 				<!-- Actions -->
-				<div class="flex gap-1">
-					<Button
-						@click="trackEdit.openEditTrackDialog(track.id)"
-						size="sm"
-						variant="ghost"
-					>
-						<Pencil class="size-4" />
-					</Button>
-					<Button
-						@click="recordDetails.trackToConfirmDelete = track"
-						size="sm"
-						variant="ghost"
-						class="text-destructive-foreground"
-					>
-						<Trash class="size-4" />
-					</Button>
-				</div>
-			</div>
+				<Button
+					@click="trackEdit.openEditTrackDialog(track.id)"
+					size="icon"
+					variant="ghost"
+				>
+					<Pencil />
+				</Button>
+				<Button
+					@click="recordDetails.trackToConfirmDelete = track"
+					size="icon"
+					variant="ghost"
+					class="text-destructive-foreground hover:text-destructive-foreground"
+				>
+					<Trash />
+				</Button>
+			</Card>
 
 			<div
 				v-if="!recordDetails.recordTracks.length"

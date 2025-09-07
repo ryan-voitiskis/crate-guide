@@ -41,7 +41,7 @@ async function signInWithGoogle() {
 			<CardHeader class="space-y-1">
 				<Button variant="blank" size="xl-icon" class="mx-auto mb-2" as-child>
 					<NuxtLink to="/">
-						<LogoCrateGuide class="w-24" />
+						<LogoCrateGuide />
 					</NuxtLink>
 				</Button>
 				<CardTitle class="text-2xl">Create account</CardTitle>

@@ -100,11 +100,11 @@ function updateArtist(index: number, field: keyof DiscogsArtistDb, value: any) {
 				/>
 				<Button
 					@click="removeArtist(index)"
-					size="sm"
+					size="icon"
 					variant="ghost"
 					class="text-destructive"
 				>
-					<Trash class="size-4" />
+					<Trash />
 				</Button>
 			</div>
 		</div>

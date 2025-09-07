@@ -25,9 +25,9 @@ export const buttonVariants = cva(
 				default: 'h-9 px-4 py-2',
 				sm: 'h-8 rounded-md px-3 text-xs',
 				lg: 'h-10 rounded-md px-8',
-				icon: 'h-9 w-9',
-				'lg-icon': 'h-12 w-12 p-2',
-				'xl-icon': 'h-24 w-24 focus-visible:ring-4',
+				icon: 'h-9 w-9 [&_svg]:size-4',
+				'lg-icon': 'h-12 w-12 p-2 [&_svg]:size-6',
+				'xl-icon': 'h-24 w-24 focus-visible:ring-4 [&_svg]:size-24',
 				image: 'h-full w-full object-cover'
 			}
 		},
