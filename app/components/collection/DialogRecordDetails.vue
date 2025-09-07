@@ -18,7 +18,7 @@ const dialogOpen = computed({
 	<Dialog v-model:open="dialogOpen">
 		<DialogContent class="flex max-h-[90vh] max-w-6xl flex-col overflow-hidden">
 			<DialogHeader>
-				<div class="flex items-center justify-between">
+				<div>
 					<div>
 						<DialogTitle>Record Details</DialogTitle>
 						<DialogDescription v-if="recordDetails.selectedRecord">
@@ -29,7 +29,9 @@ const dialogOpen = computed({
 						@click="recordDetails.toggleEditMode()"
 						:variant="recordDetails.isEditMode ? 'secondary' : 'outline'"
 						size="sm"
+						class="mt-2"
 					>
+						<Pencil class="mr-2 size-4" />
 						{{ recordDetails.isEditMode ? 'Cancel Edit' : 'Edit Record' }}
 					</Button>
 				</div>
@@ -40,7 +42,7 @@ const dialogOpen = computed({
 				<div class="grid gap-6 md:grid-cols-3">
 					<!-- Cover Image -->
 					<div class="space-y-2">
-						<label class="text-sm font-medium">Cover</label>
+						<Label class="text-sm font-medium">Cover</Label>
 						<div
 							class="bg-muted flex aspect-square items-center justify-center overflow-hidden rounded-lg"
 						>
@@ -68,22 +70,21 @@ const dialogOpen = computed({
 					<div class="space-y-4 md:col-span-3">
 						<!-- Title -->
 						<div class="space-y-2">
-							<label class="text-sm font-medium">Title</label>
+							<Label class="font-medium">Title</Label>
 							<Input
 								v-if="recordDetails.isEditMode"
 								v-model="recordDetails.recordForm.title"
 								name="title"
 								placeholder="Record title"
-								class="text-lg font-semibold"
 							/>
-							<h2 v-else class="text-lg font-semibold">
+							<div v-else>
 								{{ recordDetails.selectedRecord?.title }}
-							</h2>
+							</div>
 						</div>
 
 						<!-- Year -->
 						<div class="space-y-2">
-							<label class="text-sm font-medium">Year</label>
+							<Label class="text-sm font-medium">Year</Label>
 							<Input
 								v-if="recordDetails.isEditMode"
 								:model-value="recordDetails.recordForm.year ?? undefined"
@@ -105,7 +106,9 @@ const dialogOpen = computed({
 
 						<!-- Labels -->
 						<div class="space-y-2">
-							<label class="text-sm font-medium">Labels</label>
+							<Label>
+								Labels ({{ recordDetails.selectedRecord?.labels.length || 0 }})
+							</Label>
 							<div class="space-y-1">
 								<div
 									v-for="label in recordDetails.selectedRecord?.labels"
@@ -125,9 +128,7 @@ const dialogOpen = computed({
 				<!-- Tracks Section -->
 				<div class="space-y-4">
 					<div class="flex items-center justify-between">
-						<h3 class="text-lg font-semibold">
-							Tracks ({{ recordDetails.recordTracks.length }})
-						</h3>
+						<Label>Tracks ({{ recordDetails.recordTracks.length }})</Label>
 						<Button
 							@click="trackEdit.openAddTrackDialog()"
 							size="sm"

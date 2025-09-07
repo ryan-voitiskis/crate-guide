@@ -188,9 +188,7 @@ function moveArtistDown(index: number) {
 <template>
 	<div class="space-y-2">
 		<div class="flex items-center justify-between">
-			<label class="text-sm font-medium">
-				Artists ({{ recordDetails.recordForm.artists.length }})
-			</label>
+			<Label>Artists ({{ recordDetails.recordForm.artists.length }})</Label>
 			<Button
 				v-if="recordDetails.isEditMode"
 				@click="startAddNew"
