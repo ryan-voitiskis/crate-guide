@@ -205,7 +205,7 @@ function handleDialogOpenChange(open: boolean) {
 					<div class="space-y-2">
 						<Label for="rpm">RPM</Label>
 						<Select v-model="trackEdit.trackForm.rpm">
-							<SelectTrigger>
+							<SelectTrigger class="w-full">
 								<SelectValue placeholder="Select RPM" />
 							</SelectTrigger>
 							<SelectContent>
@@ -237,7 +237,7 @@ function handleDialogOpenChange(open: boolean) {
 					<div class="space-y-2">
 						<Label for="mode">Mode</Label>
 						<Select v-model="trackEdit.trackForm.mode">
-							<SelectTrigger>
+							<SelectTrigger class="w-full">
 								<SelectValue placeholder="Select mode" />
 							</SelectTrigger>
 							<SelectContent>

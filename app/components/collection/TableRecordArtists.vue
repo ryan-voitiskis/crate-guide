@@ -186,7 +186,7 @@ function moveArtistDown(index: number) {
 </script>
 
 <template>
-	<div class="space-y-2">
+	<div class="col-span-3 space-y-2">
 		<div class="flex items-center justify-between">
 			<Label>Artists ({{ recordDetails.recordForm.artists.length }})</Label>
 			<Button
@@ -196,7 +196,7 @@ function moveArtistDown(index: number) {
 				variant="outline"
 				:disabled="isAddingNew || editingArtistIndex !== null"
 			>
-				<Plus class="mr-1 size-3" />
+				<Plus class="mr-1 size-4" />
 				Add Artist
 			</Button>
 		</div>
@@ -231,17 +231,17 @@ function moveArtistDown(index: number) {
 							<div class="flex gap-1">
 								<Button
 									@click="moveArtistUp(index)"
-									size="sm"
+									size="icon"
 									variant="ghost"
 									:disabled="
 										index === 0 || editingArtistIndex !== null || isAddingNew
 									"
 								>
-									<ChevronUp class="size-3" />
+									<ChevronUp />
 								</Button>
 								<Button
 									@click="moveArtistDown(index)"
-									size="sm"
+									size="icon"
 									variant="ghost"
 									:disabled="
 										index === recordDetails.recordForm.artists.length - 1 ||
@@ -249,7 +249,7 @@ function moveArtistDown(index: number) {
 										isAddingNew
 									"
 								>
-									<ChevronDown class="size-3" />
+									<ChevronDown />
 								</Button>
 							</div>
 						</TableCell>
@@ -336,7 +336,7 @@ function moveArtistDown(index: number) {
 									<X />
 								</Button>
 							</div>
-							<div v-else class="flex gap-1">
+							<div v-else class="flex justify-end gap-1">
 								<Button
 									@click="startEditArtist(index)"
 									size="icon"
@@ -348,8 +348,7 @@ function moveArtistDown(index: number) {
 								<Button
 									@click="removeArtist(index)"
 									size="icon"
-									variant="ghost"
-									class="text-destructive-foreground"
+									variant="destructive-ghost"
 									:disabled="editingArtistIndex !== null || isAddingNew"
 								>
 									<Trash />

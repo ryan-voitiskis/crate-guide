@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Pencil } from 'lucide-vue-next'
+import { Pencil, PencilOff } from 'lucide-vue-next'
 
 const records = useRecordsStore()
 const recordDetails = useRecordDetailsStore()
@@ -15,8 +15,10 @@ const dialogOpen = computed({
 <template>
 	<!-- Main Dialog -->
 	<Dialog v-model:open="dialogOpen">
-		<DialogContent class="flex max-h-[90vh] max-w-6xl flex-col overflow-hidden">
-			<DialogHeader>
+		<DialogContent
+			class="max-h-[90dvh] max-w-6xl grid-rows-[auto_minmax(0,1fr)_auto] p-0"
+		>
+			<DialogHeader class="p-6 pb-0">
 				<div>
 					<div>
 						<DialogTitle>Record Details</DialogTitle>
@@ -30,18 +32,19 @@ const dialogOpen = computed({
 						size="sm"
 						class="mt-2"
 					>
-						<Pencil class="mr-2 size-4" />
+						<PencilOff v-if="recordDetails.isEditMode" class="mr-2 size-4" />
+						<Pencil v-else class="mr-2 size-4" />
 						{{ recordDetails.isEditMode ? 'Cancel Edit' : 'Edit Record' }}
 					</Button>
 				</div>
 			</DialogHeader>
 
-			<div class="-mr-2 flex-1 space-y-6 overflow-auto pr-2 pb-1">
+			<div class="space-y-6 overflow-y-auto px-6 py-4">
 				<!-- Record Details Section -->
 				<div class="grid gap-6 md:grid-cols-3">
 					<!-- Cover Image -->
 					<div class="space-y-2">
-						<Label class="text-sm font-medium">Cover</Label>
+						<Label>Cover</Label>
 						<div
 							class="bg-muted flex aspect-square items-center justify-center overflow-hidden rounded-lg"
 						>
@@ -66,10 +69,10 @@ const dialogOpen = computed({
 					</div>
 
 					<!-- Record Info -->
-					<div class="space-y-4 md:col-span-3">
+					<div class="space-y-4 text-sm md:col-span-2">
 						<!-- Title -->
 						<div class="space-y-2">
-							<Label class="font-medium">Title</Label>
+							<Label>Title</Label>
 							<Input
 								v-if="recordDetails.isEditMode"
 								v-model="recordDetails.recordForm.title"
@@ -83,7 +86,7 @@ const dialogOpen = computed({
 
 						<!-- Year -->
 						<div class="space-y-2">
-							<Label class="text-sm font-medium">Year</Label>
+							<Label class="font-medium">Year</Label>
 							<Input
 								v-if="recordDetails.isEditMode"
 								:model-value="recordDetails.recordForm.year ?? undefined"
@@ -99,26 +102,26 @@ const dialogOpen = computed({
 								{{ recordDetails.selectedRecord?.year || 'Unknown' }}
 							</p>
 						</div>
+					</div>
 
-						<!-- Artists -->
-						<TableRecordArtists />
+					<!-- Artists -->
+					<TableRecordArtists />
 
-						<!-- Labels -->
-						<div class="space-y-2">
-							<Label>
-								Labels ({{ recordDetails.selectedRecord?.labels.length || 0 }})
-							</Label>
-							<div class="space-y-1">
-								<div
-									v-for="label in recordDetails.selectedRecord?.labels"
-									:key="label.name"
-									class="bg-muted rounded p-2 text-sm"
-								>
-									{{ label.name }}
-									<span v-if="label.catno" class="text-muted-foreground">
-										- {{ label.catno }}
-									</span>
-								</div>
+					<!-- Labels -->
+					<div class="col-span-3 space-y-2">
+						<Label>
+							Labels ({{ recordDetails.selectedRecord?.labels.length || 0 }})
+						</Label>
+						<div class="space-y-1">
+							<div
+								v-for="label in recordDetails.selectedRecord?.labels"
+								:key="label.name"
+								class="bg-muted rounded p-2 text-sm"
+							>
+								{{ label.name }}
+								<span v-if="label.catno" class="text-muted-foreground">
+									- {{ label.catno }}
+								</span>
 							</div>
 						</div>
 					</div>
@@ -128,7 +131,7 @@ const dialogOpen = computed({
 			</div>
 
 			<!-- Dialog Footer (only shown in edit mode) -->
-			<DialogFooter v-if="recordDetails.isEditMode" class="border-t pt-4">
+			<DialogFooter v-if="recordDetails.isEditMode" class="p-6 pt-0">
 				<Button @click="recordDetails.cancelEdit()" variant="secondary">
 					Cancel
 				</Button>

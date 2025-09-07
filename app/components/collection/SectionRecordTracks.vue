@@ -14,7 +14,7 @@ const trackEdit = useTrackEditStore()
 				size="sm"
 				variant="outline"
 			>
-				<Plus class="mr-2 size-4" />
+				<Plus class="mr-1 size-4" />
 				Add Track
 			</Button>
 		</div>
@@ -24,17 +24,19 @@ const trackEdit = useTrackEditStore()
 			<Card
 				v-for="track in recordDetails.recordTracks"
 				:key="track.id"
-				class="hover:bg-muted/50 flex flex-row items-center gap-1 px-3 py-1"
+				class="hover:bg-muted/50 flex flex-row items-center gap-1 p-1.5"
 			>
 				<!-- Position -->
-				<div class="text-muted-foreground w-8 font-mono text-sm">
+				<div class="text-muted-foreground w-9 text-center font-mono text-sm">
 					{{ track.position || '–' }}
 				</div>
 
 				<!-- Title & Artists -->
 				<div class="min-w-0 flex-1">
-					<div class="truncate font-medium">{{ track.title }}</div>
-					<div class="text-muted-foreground truncate text-sm">
+					<div class="h-5 truncate text-sm leading-5 font-medium">
+						{{ track.title }}
+					</div>
+					<div class="text-muted-foreground h-4 truncate text-xs leading-4">
 						<span v-if="track.artists.length">
 							{{ track.artists.map((a) => a.name).join(', ') }}
 						</span>
@@ -74,8 +76,7 @@ const trackEdit = useTrackEditStore()
 				<Button
 					@click="recordDetails.trackToConfirmDelete = track"
 					size="icon"
-					variant="ghost"
-					class="text-destructive-foreground hover:text-destructive-foreground"
+					variant="destructive-ghost"
 				>
 					<Trash />
 				</Button>

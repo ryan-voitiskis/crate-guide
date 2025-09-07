@@ -13,7 +13,9 @@ interface ValidationResult {
  * @param artistId - The artist ID to validate
  * @returns Validation result with isValid boolean and message
  */
-export function validateDiscogsArtistId(artistId: string | number | null | undefined): ValidationResult {
+export function validateDiscogsArtistId(
+	artistId: string | number | null | undefined
+): ValidationResult {
 	const result: ValidationResult = {
 		isValid: false,
 		message: '',
@@ -74,7 +76,9 @@ export const DISCOGS_ARTIST_ID_REGEX = /^[1-9]\d{0,8}$/
  * @param artistId - The artist ID to validate
  * @returns True if valid, false otherwise
  */
-export function isValidDiscogsArtistId(artistId: string | number | null | undefined): boolean {
+export function isValidDiscogsArtistId(
+	artistId: string | number | null | undefined
+): boolean {
 	if (artistId === null || artistId === undefined) return false
 	const idStr = String(artistId).trim()
 	return DISCOGS_ARTIST_ID_REGEX.test(idStr)
@@ -85,7 +89,9 @@ export function isValidDiscogsArtistId(artistId: string | number | null | undefi
  * @param artistId - The artist ID to validate and normalize
  * @returns Normalized ID number or null if invalid
  */
-export function normalizeDiscogsArtistId(artistId: string | number | null | undefined): number | null {
+export function normalizeDiscogsArtistId(
+	artistId: string | number | null | undefined
+): number | null {
 	const validation = validateDiscogsArtistId(artistId)
 	return validation.normalizedId
 }
