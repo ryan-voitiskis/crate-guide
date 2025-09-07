@@ -339,7 +339,7 @@ function handleDialogOpenChange(open: boolean) {
 				</div>
 
 				<!-- Musical Details -->
-				<div class="grid gap-4 md:grid-cols-3">
+				<div class="grid gap-4 md:grid-cols-2">
 					<div class="space-y-2">
 						<Label for="key">Key</Label>
 						<FormItem>

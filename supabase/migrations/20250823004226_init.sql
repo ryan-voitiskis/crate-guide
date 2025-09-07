@@ -241,7 +241,7 @@ CREATE TABLE public.tracks (
     extraartists jsonb NOT NULL DEFAULT '[]'::jsonb,
     position varchar,
     duration integer,
-    bpm numeric,
+    bpm numeric(4,1),
     rpm integer,
     key smallint,
     mode smallint,

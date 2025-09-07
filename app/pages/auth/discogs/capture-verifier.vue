@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { FunctionsError } from '@supabase/supabase-js'
+import { TriangleAlert } from 'lucide-vue-next'
 
 const route = useRoute()
 const supabase = useSupabaseClient<Database>()
@@ -10,6 +11,7 @@ onMounted(async () => {
 	const oauth_token = route.query.oauth_token as string
 	const oauth_verifier = route.query.oauth_verifier as string
 
+	// TODO: should this be moved to store?
 	const { error } = await supabase.functions.invoke(
 		'get-discogs-access-token',
 		{ body: JSON.stringify({ oauth_token, oauth_verifier }) }
@@ -31,7 +33,7 @@ onMounted(async () => {
 		<div v-if="failed" class="flex max-w-md flex-col gap-6">
 			<NoticeWarning>
 				<template #title>
-					<IconTriangleAlert class="mr-1 inline h-5 w-5" />
+					<TriangleAlert class="mr-1 inline h-5 w-5" />
 					Failed to authenticate with Discogs.
 				</template>
 				An error occurred while authenticating with Discogs. Please go back and
