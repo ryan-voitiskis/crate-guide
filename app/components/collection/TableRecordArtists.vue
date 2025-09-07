@@ -8,180 +8,153 @@ import {
 	Trash,
 	X
 } from 'lucide-vue-next'
+import { z } from 'zod'
 
 const recordDetails = useRecordDetailsStore()
 
-const editingArtistIndex = ref<number | null>(null)
+const artistSchema = z.object({
+	discogs_id: z.union([
+		z.literal(''),
+		z
+			.string()
+			.pipe(z.coerce.number().int().min(1).max(999999999))
+			.transform(String)
+	]),
+	name: z.string().min(1, 'Artist name is required').trim(),
+	role: z.string().trim().optional()
+})
 
-const editForm = ref({
+type ArtistFormData = z.infer<typeof artistSchema>
+
+const inputFields = [
+	{
+		key: 'discogs_id' as const,
+		placeholder: '1453529',
+		class: 'w-20 text-xs',
+		displayValue: (artist: any) => artist.discogs_id || '–',
+		displayClass: 'text-muted-foreground text-xs'
+	},
+	{
+		key: 'name' as const,
+		placeholder: 'Artist name',
+		class: 'text-sm',
+		displayValue: (artist: any) => artist.name,
+		displayClass: 'text-sm font-medium'
+	},
+	{
+		key: 'role' as const,
+		placeholder: 'e.g., Producer, Remix',
+		class: 'text-sm',
+		displayValue: (artist: any) => artist.role || '–',
+		displayClass: 'text-muted-foreground text-sm'
+	}
+]
+
+const formMode = ref<'edit' | 'new' | null>(null)
+const editingIndex = ref<number | null>(null)
+const formData = ref<ArtistFormData>({
 	discogs_id: '',
 	name: '',
 	role: ''
 })
+const formErrors = ref<z.ZodFormattedError<ArtistFormData> | null>(null)
 
-const isAddingNew = ref(false)
-const newArtistForm = ref({
-	discogs_id: '',
-	name: '',
-	role: ''
+const isFormActive = computed(() => formMode.value !== null)
+const canSave = computed(() => {
+	const result = artistSchema.safeParse(formData.value)
+	return result.success
 })
 
-// Validation state
-const editFormValidation = ref({
-	discogs_id: { isValid: true, message: '' }
+const isEditingRow = (index: number) =>
+	formMode.value === 'edit' && editingIndex.value === index
+
+const hasFieldError = (field: keyof ArtistFormData) =>
+	formErrors.value?.[field]?._errors?.length
+
+watchEffect(() => {
+	if (!formMode.value) return
+	const result = artistSchema.safeParse(formData.value)
+	formErrors.value = result.success ? null : result.error.format()
 })
 
-const newArtistFormValidation = ref({
-	discogs_id: { isValid: true, message: '' }
-})
-
-const canSaveEdit = computed(
-	() =>
-		editForm.value.name.trim().length > 0 &&
-		editFormValidation.value.discogs_id.isValid
-)
-const canSaveNew = computed(
-	() =>
-		newArtistForm.value.name.trim().length > 0 &&
-		newArtistFormValidation.value.discogs_id.isValid
-)
-
-// Watchers for immediate validation
-watch(
-	() => editForm.value.discogs_id,
-	(newValue) => {
-		if (editingArtistIndex.value !== null) {
-			validateEditFormDiscogsId()
-		}
-	},
-	{ immediate: true }
-)
-
-watch(
-	() => newArtistForm.value.discogs_id,
-	(newValue) => {
-		if (isAddingNew.value) {
-			validateNewArtistFormDiscogsId()
-		}
-	},
-	{ immediate: true }
-)
-
-function startEditArtist(index: number) {
+function startEdit(index: number) {
 	const artist = recordDetails.recordForm.artists[index]
 	if (!artist) return
 
-	editForm.value = {
+	formData.value = {
 		discogs_id: artist.discogs_id?.toString() || '',
 		name: artist.name,
 		role: artist.role || ''
 	}
-	editingArtistIndex.value = index
-	// Reset validation state
-	editFormValidation.value.discogs_id = { isValid: true, message: '' }
-}
-
-function cancelEditArtist() {
-	editingArtistIndex.value = null
-	editForm.value = { discogs_id: '', name: '', role: '' }
-	editFormValidation.value.discogs_id = { isValid: true, message: '' }
-}
-
-function saveEditArtist() {
-	if (!canSaveEdit.value || editingArtistIndex.value === null) return
-
-	const normalizedId = normalizeDiscogsArtistId(editForm.value.discogs_id)
-	const updatedArtist = {
-		discogs_id: normalizedId ?? undefined,
-		name: editForm.value.name.trim(),
-		role: editForm.value.role.trim() || null
-	}
-
-	recordDetails.recordForm.artists[editingArtistIndex.value] = updatedArtist
-	editingArtistIndex.value = null
-	editForm.value = { discogs_id: '', name: '', role: '' }
-	editFormValidation.value.discogs_id = { isValid: true, message: '' }
+	formMode.value = 'edit'
+	editingIndex.value = index
+	formErrors.value = null
 }
 
 function startAddNew() {
-	isAddingNew.value = true
-	newArtistForm.value = { discogs_id: '', name: '', role: '' }
-	newArtistFormValidation.value.discogs_id = { isValid: true, message: '' }
+	formMode.value = 'new'
+	formData.value = { discogs_id: '', name: '', role: '' }
+	formErrors.value = null
 }
 
-function cancelAddNew() {
-	isAddingNew.value = false
-	newArtistForm.value = { discogs_id: '', name: '', role: '' }
-	newArtistFormValidation.value.discogs_id = { isValid: true, message: '' }
+function cancelForm() {
+	formMode.value = null
+	editingIndex.value = null
+	formData.value = { discogs_id: '', name: '', role: '' }
+	formErrors.value = null
 }
 
-function saveNewArtist() {
-	if (!canSaveNew.value) return
+function saveArtist() {
+	if (!canSave.value || !formMode.value) return
 
-	const normalizedId = normalizeDiscogsArtistId(newArtistForm.value.discogs_id)
-	const newArtist = {
-		discogs_id: normalizedId ?? undefined,
-		name: newArtistForm.value.name.trim(),
-		role: newArtistForm.value.role.trim() || null
+	const parsedData = artistSchema.parse(formData.value)
+	const artistData = {
+		discogs_id: parsedData.discogs_id
+			? parseInt(parsedData.discogs_id, 10)
+			: undefined,
+		name: parsedData.name,
+		role: parsedData.role || null
 	}
 
-	recordDetails.recordForm.artists.push(newArtist)
-	isAddingNew.value = false
-	newArtistForm.value = { discogs_id: '', name: '', role: '' }
-	newArtistFormValidation.value.discogs_id = { isValid: true, message: '' }
-}
+	if (formMode.value === 'edit' && editingIndex.value !== null)
+		recordDetails.recordForm.artists[editingIndex.value] = artistData
+	else if (formMode.value === 'new')
+		recordDetails.recordForm.artists.push(artistData)
 
-function validateEditFormDiscogsId() {
-	// Allow empty value (optional field)
-	if (!editForm.value.discogs_id.trim()) {
-		editFormValidation.value.discogs_id = { isValid: true, message: '' }
-		return
-	}
-
-	const validation = validateDiscogsArtistId(editForm.value.discogs_id)
-	editFormValidation.value.discogs_id = {
-		isValid: validation.isValid,
-		message: validation.message
-	}
-}
-
-function validateNewArtistFormDiscogsId() {
-	// Allow empty value (optional field)
-	if (!newArtistForm.value.discogs_id.trim()) {
-		newArtistFormValidation.value.discogs_id = { isValid: true, message: '' }
-		return
-	}
-
-	const validation = validateDiscogsArtistId(newArtistForm.value.discogs_id)
-	newArtistFormValidation.value.discogs_id = {
-		isValid: validation.isValid,
-		message: validation.message
-	}
+	cancelForm()
 }
 
 function removeArtist(index: number) {
 	recordDetails.recordForm.artists.splice(index, 1)
-	if (editingArtistIndex.value === index) cancelEditArtist()
+	if (editingIndex.value === index) cancelForm()
 }
 
-function moveArtistUp(index: number) {
-	if (index <= 0) return
+function moveArtist(index: number, direction: 'up' | 'down') {
 	const artists = recordDetails.recordForm.artists
-	if (!artists[index] || !artists[index - 1]) return
+	const targetIndex = direction === 'up' ? index - 1 : index + 1
 
-	const temp = artists[index]
-	artists[index] = artists[index - 1]!
-	artists[index - 1] = temp
+	if (targetIndex < 0 || targetIndex >= artists.length) return
+	if (!artists[index] || !artists[targetIndex])
+		return // Swap using destructuring
+	;[artists[index], artists[targetIndex]] = [
+		artists[targetIndex]!,
+		artists[index]!
+	]
 }
 
-function moveArtistDown(index: number) {
-	const artists = recordDetails.recordForm.artists
-	if (index >= artists.length - 1) return
-	if (!artists[index] || !artists[index + 1]) return
+const canMoveUp = (index: number) => index > 0 && !isFormActive.value
+const canMoveDown = (index: number) =>
+	index < recordDetails.recordForm.artists.length - 1 && !isFormActive.value
 
-	const temp = artists[index]
-	artists[index] = artists[index + 1]!
-	artists[index + 1] = temp
+function getFirstError(
+	errors: z.ZodFormattedError<ArtistFormData> | null
+): string | null {
+	if (!errors) return null
+	if (errors.name?._errors?.length) return errors.name._errors[0]!
+	if (errors.discogs_id?._errors?.length) return errors.discogs_id._errors[0]!
+	if (errors.role?._errors?.length) return errors.role._errors[0]!
+
+	return null
 }
 </script>
 
@@ -194,7 +167,7 @@ function moveArtistDown(index: number) {
 				@click="startAddNew"
 				size="sm"
 				variant="outline"
-				:disabled="isAddingNew || editingArtistIndex !== null"
+				:disabled="isFormActive"
 			>
 				<Plus class="mr-1 size-4" />
 				Add Artist
@@ -203,7 +176,7 @@ function moveArtistDown(index: number) {
 
 		<!-- Artists Table -->
 		<div
-			v-if="recordDetails.recordForm.artists.length || isAddingNew"
+			v-if="recordDetails.recordForm.artists.length || formMode === 'new'"
 			class="overflow-hidden rounded-md border"
 		>
 			<Table>
@@ -222,213 +195,176 @@ function moveArtistDown(index: number) {
 				</TableHeader>
 				<TableBody>
 					<!-- Existing Artists -->
-					<TableRow
+					<template
 						v-for="(artist, index) in recordDetails.recordForm.artists"
 						:key="`artist-${index}`"
 					>
-						<!-- Reorder Controls -->
-						<TableCell v-if="recordDetails.isEditMode">
-							<div class="flex gap-1">
-								<Button
-									@click="moveArtistUp(index)"
-									size="icon"
-									variant="ghost"
-									:disabled="
-										index === 0 || editingArtistIndex !== null || isAddingNew
-									"
-								>
-									<ChevronUp />
-								</Button>
-								<Button
-									@click="moveArtistDown(index)"
-									size="icon"
-									variant="ghost"
-									:disabled="
-										index === recordDetails.recordForm.artists.length - 1 ||
-										editingArtistIndex !== null ||
-										isAddingNew
-									"
-								>
-									<ChevronDown />
-								</Button>
-							</div>
-						</TableCell>
+						<TableRow>
+							<!-- Reorder Controls -->
+							<TableCell v-if="recordDetails.isEditMode">
+								<div class="flex gap-1">
+									<Button
+										@click="moveArtist(index, 'up')"
+										size="icon"
+										variant="ghost"
+										:disabled="!canMoveUp(index)"
+									>
+										<ChevronUp />
+									</Button>
+									<Button
+										@click="moveArtist(index, 'down')"
+										size="icon"
+										variant="ghost"
+										:disabled="!canMoveDown(index)"
+									>
+										<ChevronDown />
+									</Button>
+								</div>
+							</TableCell>
 
-						<!-- Discogs ID -->
-						<TableCell>
-							<div v-if="editingArtistIndex === index" class="space-y-1">
+							<!-- Loop through input fields -->
+							<TableCell v-for="field in inputFields" :key="field.key">
 								<Input
-									v-model="editForm.discogs_id"
-									name="discogs_id"
-									placeholder="1453529"
-									class="w-20 text-xs"
-									:class="{
-										'border-red-500': !editFormValidation.discogs_id.isValid
-									}"
-									@keydown.enter="saveEditArtist"
-									@keydown.escape="cancelEditArtist"
-								/>
-								<p
-									v-if="!editFormValidation.discogs_id.isValid"
-									class="text-xs text-red-600"
-								>
-									{{ editFormValidation.discogs_id.message }}
-								</p>
-							</div>
-							<span v-else class="text-muted-foreground text-xs">
-								{{ artist.discogs_id || '–' }}
-							</span>
-						</TableCell>
-
-						<!-- Name -->
-						<TableCell>
-							<Input
-								v-if="editingArtistIndex === index"
-								v-model="editForm.name"
-								name="name"
-								placeholder="Artist name"
-								class="text-sm"
-								@keydown.enter="saveEditArtist"
-								@keydown.escape="cancelEditArtist"
-							/>
-							<span v-else class="text-sm font-medium">
-								{{ artist.name }}
-							</span>
-						</TableCell>
-
-						<!-- Role -->
-						<TableCell>
-							<Input
-								v-if="editingArtistIndex === index"
-								v-model="editForm.role"
-								name="role"
-								placeholder="e.g., Producer, Remix"
-								class="text-sm"
-								@keydown.enter="saveEditArtist"
-								@keydown.escape="cancelEditArtist"
-							/>
-							<span v-else class="text-muted-foreground text-sm">
-								{{ artist.role || '–' }}
-							</span>
-						</TableCell>
-
-						<!-- Actions -->
-						<TableCell v-if="recordDetails.isEditMode">
-							<div v-if="editingArtistIndex === index" class="flex gap-1">
-								<Button
-									@click="saveEditArtist"
-									size="icon"
-									variant="ghost"
-									:disabled="!canSaveEdit"
+									v-if="isEditingRow(index)"
+									v-model="formData[field.key]"
+									:name="field.key"
+									:placeholder="field.placeholder"
 									:class="[
-										canSaveEdit ? 'text-green-600' : 'text-gray-400',
-										'disabled:cursor-not-allowed'
+										field.class,
+										{ 'border-destructive': hasFieldError(field.key) }
 									]"
-								>
-									<Check />
-								</Button>
-								<Button
-									@click="cancelEditArtist"
-									size="icon"
-									variant="ghost"
-									class="text-muted-foreground"
-								>
-									<X />
-								</Button>
-							</div>
-							<div v-else class="flex justify-end gap-1">
-								<Button
-									@click="startEditArtist(index)"
-									size="icon"
-									variant="ghost"
-									:disabled="editingArtistIndex !== null || isAddingNew"
-								>
-									<Pencil />
-								</Button>
-								<Button
-									@click="removeArtist(index)"
-									size="icon"
-									variant="destructive-ghost"
-									:disabled="editingArtistIndex !== null || isAddingNew"
-								>
-									<Trash />
-								</Button>
-							</div>
-						</TableCell>
-					</TableRow>
+									@keydown.enter="saveArtist"
+									@keydown.escape="cancelForm"
+								/>
+								<span v-else :class="field.displayClass">
+									{{ field.displayValue(artist) }}
+								</span>
+							</TableCell>
+
+							<!-- Actions -->
+							<TableCell v-if="recordDetails.isEditMode">
+								<div v-if="isEditingRow(index)" class="flex gap-1">
+									<Button
+										@click="saveArtist"
+										size="icon"
+										variant="ghost"
+										:disabled="!canSave"
+										:class="[
+											canSave ? 'text-green-600' : 'text-gray-400',
+											'disabled:cursor-not-allowed'
+										]"
+									>
+										<Check />
+									</Button>
+									<Button
+										@click="cancelForm"
+										size="icon"
+										variant="ghost"
+										class="text-muted-foreground"
+									>
+										<X />
+									</Button>
+								</div>
+								<div v-else class="flex justify-end gap-1">
+									<Button
+										@click="startEdit(index)"
+										size="icon"
+										variant="ghost"
+										:disabled="isFormActive"
+									>
+										<Pencil />
+									</Button>
+									<Button
+										@click="removeArtist(index)"
+										size="icon"
+										variant="destructive-ghost"
+										:disabled="isFormActive"
+									>
+										<Trash />
+									</Button>
+								</div>
+							</TableCell>
+						</TableRow>
+
+						<!-- Error message row for editing -->
+						<TableRow
+							v-if="isEditingRow(index) && getFirstError(formErrors)"
+							class="hover:bg-transparent"
+						>
+							<TableCell
+								:colspan="recordDetails.isEditMode ? 5 : 4"
+								class="pt-1 pb-0"
+							>
+								<p class="text-destructive text-sm">
+									{{ getFirstError(formErrors) }}
+								</p>
+							</TableCell>
+						</TableRow>
+					</template>
 
 					<!-- Add New Artist Row -->
-					<TableRow v-if="isAddingNew">
-						<TableCell v-if="recordDetails.isEditMode">
-							<!-- Empty cell for order controls -->
-						</TableCell>
-						<TableCell>
-							<div class="space-y-1">
+					<template v-if="formMode === 'new'">
+						<TableRow>
+							<TableCell v-if="recordDetails.isEditMode">
+								<!-- Empty cell for order controls -->
+							</TableCell>
+
+							<!-- Loop through input fields for new row -->
+							<TableCell v-for="field in inputFields" :key="field.key">
 								<Input
-									v-model="newArtistForm.discogs_id"
-									name="new_discogs_id"
-									placeholder="1453529"
-									class="w-20 text-xs"
-									:class="{
-										'border-red-500':
-											!newArtistFormValidation.discogs_id.isValid
-									}"
-									@keydown.enter="saveNewArtist"
-									@keydown.escape="cancelAddNew"
-								/>
-								<p
-									v-if="!newArtistFormValidation.discogs_id.isValid"
-									class="text-xs text-red-600"
-								>
-									{{ newArtistFormValidation.discogs_id.message }}
-								</p>
-							</div>
-						</TableCell>
-						<TableCell>
-							<Input
-								v-model="newArtistForm.name"
-								name="new_name"
-								placeholder="Artist name"
-								class="text-sm"
-								@keydown.enter="saveNewArtist"
-								@keydown.escape="cancelAddNew"
-							/>
-						</TableCell>
-						<TableCell>
-							<Input
-								v-model="newArtistForm.role"
-								name="new_role"
-								placeholder="e.g., Producer, Remix"
-								class="text-sm"
-								@keydown.enter="saveNewArtist"
-								@keydown.escape="cancelAddNew"
-							/>
-						</TableCell>
-						<TableCell>
-							<div class="flex gap-1">
-								<Button
-									@click="saveNewArtist"
-									size="icon"
-									variant="ghost"
-									:disabled="!canSaveNew"
+									v-model="formData[field.key]"
+									:name="`new_${field.key}`"
+									:placeholder="field.placeholder"
 									:class="[
-										canSaveNew ? 'text-green-600' : 'text-gray-400',
-										'disabled:cursor-not-allowed'
+										field.class,
+										{ 'border-destructive': hasFieldError(field.key) }
 									]"
-								>
-									<Check />
-								</Button>
-								<Button
-									@click="cancelAddNew"
-									size="icon"
-									variant="ghost"
-									class="text-muted-foreground"
-								>
-									<X />
-								</Button>
-							</div>
-						</TableCell>
-					</TableRow>
+									@keydown.enter="saveArtist"
+									@keydown.escape="cancelForm"
+								/>
+							</TableCell>
+
+							<TableCell>
+								<div class="flex gap-1">
+									<Button
+										@click="saveArtist"
+										size="icon"
+										variant="ghost"
+										:disabled="!canSave"
+										:class="[
+											canSave ? 'text-green-600' : 'text-gray-400',
+											'disabled:cursor-not-allowed'
+										]"
+									>
+										<Check />
+									</Button>
+									<Button
+										@click="cancelForm"
+										size="icon"
+										variant="ghost"
+										class="text-muted-foreground"
+									>
+										<X />
+									</Button>
+								</div>
+							</TableCell>
+						</TableRow>
+
+						<!-- Error message row for new artist -->
+						<TableRow
+							v-if="getFirstError(formErrors)"
+							class="hover:bg-transparent"
+						>
+							<TableCell
+								:colspan="recordDetails.isEditMode ? 5 : 4"
+								class="pt-1 pb-0"
+							>
+								<p class="text-destructive text-sm">
+									{{ getFirstError(formErrors) }}
+								</p>
+							</TableCell>
+						</TableRow>
+					</template>
 				</TableBody>
 			</Table>
 		</div>
