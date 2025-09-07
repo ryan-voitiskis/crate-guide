@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
+import { z } from 'zod'
+import { getKeyOptionsAlt, parseKeyComposite } from '~/utils/keyFunctions'
 
 const tracks = useTracksStore()
 const trackEdit = useTrackEditStore()
@@ -29,10 +31,61 @@ function parseNumber(numStr: string): number | null {
 	return isNaN(num) ? null : num
 }
 
-function parseInteger(numStr: string): number | null {
-	if (!numStr.trim()) return null
-	const num = parseInt(numStr, 10)
-	return isNaN(num) ? null : num
+// Validation schema
+const trackSchema = z.object({
+	title: z.string().min(1, 'Title is required').trim(),
+	position: z.string().refine((val) => {
+		if (val === '') return true
+		return /^[A-Z]\d+$|^[A-Z]\d+-[A-Z]\d+$/i.test(val.trim())
+	}, 'Position must be empty or like A1, B2, or A1-A2'),
+	duration: z.string().refine((val) => {
+		if (val === '') return true
+		return /^[0-9]{1,2}:[0-5][0-9]$/.test(val)
+	}, 'Duration must be empty or MM:SS format (e.g., 3:45)'),
+	bpm: z.string().refine((val) => {
+		if (val === '') return true
+		const num = parseFloat(val)
+		return !isNaN(num) && num >= 60 && num <= 300
+	}, 'BPM must be empty or a number between 60-300'),
+	keyComposite: z.string().refine((val) => {
+		if (val === 'none') return true
+		// Validate that it's a valid key option ID
+		const parsed = parseKeyComposite(val)
+		return parsed.key !== null && parsed.mode !== null
+	}, 'Please select a valid key or leave unspecified')
+})
+
+type TrackFormData = z.infer<typeof trackSchema>
+
+// Validation state
+const formErrors = ref<z.ZodFormattedError<TrackFormData> | null>(null)
+
+// Form data computed
+const formData = computed(() => ({
+	title: trackEdit.trackForm.title,
+	position: trackEdit.trackForm.position,
+	duration: trackEdit.trackForm.duration,
+	bpm: trackEdit.trackForm.bpm,
+	keyComposite: trackEdit.trackForm.keyComposite
+}))
+
+// Validation result computed
+const validationResult = computed(() => trackSchema.safeParse(formData.value))
+
+// Validation logic
+watchEffect(() => {
+	formErrors.value = validationResult.value.success
+		? null
+		: validationResult.value.error.format()
+})
+
+const hasFieldError = (field: keyof TrackFormData) =>
+	formErrors.value?.[field]?._errors?.length
+
+function validateField() {
+	formErrors.value = validationResult.value.success
+		? null
+		: validationResult.value.error.format()
 }
 
 const isDialogOpen = computed(() => trackEdit.isDialogOpen)
@@ -44,13 +97,23 @@ const dialogTitle = computed(() =>
 
 const canSave = computed(() => trackEdit.canSave)
 
+// Get key options for Select
+const keyOptions = getKeyOptionsAlt()
+
 async function handleSubmit() {
 	if (!canSave.value) return
+
+	if (!validationResult.value.success) {
+		formErrors.value = validationResult.value.error.format()
+		return
+	}
+
 	isSubmitting.value = true
 
 	try {
 		if (isEditing.value && trackEdit.editingTrack) {
 			// Update existing track
+			const keyData = parseKeyComposite(trackEdit.trackForm.keyComposite)
 			const updates = {
 				title: trackEdit.trackForm.title.trim(),
 				artists: trackEdit.trackForm.artists.filter(
@@ -63,8 +126,8 @@ async function handleSubmit() {
 				duration: parseDuration(trackEdit.trackForm.duration),
 				bpm: parseNumber(trackEdit.trackForm.bpm),
 				rpm: trackEdit.trackForm.rpm,
-				key: parseInteger(trackEdit.trackForm.key),
-				mode: trackEdit.trackForm.mode,
+				key: keyData.key,
+				mode: keyData.mode,
 				genres: trackEdit.trackForm.genres,
 				time_signature_upper: trackEdit.trackForm.time_signature_upper,
 				time_signature_lower: trackEdit.trackForm.time_signature_lower,
@@ -84,6 +147,7 @@ async function handleSubmit() {
 				return
 			}
 
+			const keyData = parseKeyComposite(trackEdit.trackForm.keyComposite)
 			const newTrack = {
 				record_id: recordId,
 				title: trackEdit.trackForm.title.trim(),
@@ -97,8 +161,8 @@ async function handleSubmit() {
 				duration: parseDuration(trackEdit.trackForm.duration),
 				bpm: parseNumber(trackEdit.trackForm.bpm),
 				rpm: trackEdit.trackForm.rpm,
-				key: parseInteger(trackEdit.trackForm.key),
-				mode: trackEdit.trackForm.mode,
+				key: keyData.key,
+				mode: keyData.mode,
 				genres: trackEdit.trackForm.genres,
 				time_signature_upper: trackEdit.trackForm.time_signature_upper,
 				time_signature_lower: trackEdit.trackForm.time_signature_lower,
@@ -146,23 +210,43 @@ function handleDialogOpenChange(open: boolean) {
 				<div class="grid gap-4 md:grid-cols-2">
 					<div class="space-y-2">
 						<Label for="title">Title *</Label>
-						<Input
-							id="title"
-							v-model="trackEdit.trackForm.title"
-							name="title"
-							placeholder="Track title"
-							required
-						/>
+						<FormItem>
+							<Input
+								id="title"
+								v-model="trackEdit.trackForm.title"
+								@blur="validateField"
+								name="title"
+								placeholder="Track title"
+								:class="{ 'border-destructive': hasFieldError('title') }"
+								required
+							/>
+							<p
+								v-if="formErrors?.title?._errors?.length"
+								class="text-destructive text-sm"
+							>
+								{{ formErrors.title._errors[0] }}
+							</p>
+						</FormItem>
 					</div>
 
 					<div class="space-y-2">
 						<Label for="position">Position</Label>
-						<Input
-							id="position"
-							v-model="trackEdit.trackForm.position"
-							name="position"
-							placeholder="A1, B2, etc."
-						/>
+						<FormItem>
+							<Input
+								id="position"
+								v-model="trackEdit.trackForm.position"
+								@blur="validateField"
+								name="position"
+								placeholder="A1, B2, etc."
+								:class="{ 'border-destructive': hasFieldError('position') }"
+							/>
+							<p
+								v-if="formErrors?.position?._errors?.length"
+								class="text-destructive text-sm"
+							>
+								{{ formErrors.position._errors[0] }}
+							</p>
+						</FormItem>
 					</div>
 				</div>
 
@@ -201,24 +285,42 @@ function handleDialogOpenChange(open: boolean) {
 				<div class="grid gap-4 md:grid-cols-3">
 					<div class="space-y-2">
 						<Label for="duration">Duration</Label>
-						<Input
-							id="duration"
-							name="duration"
-							v-model="trackEdit.trackForm.duration"
-							placeholder="3:45"
-						/>
+						<FormItem>
+							<Input
+								id="duration"
+								name="duration"
+								v-model="trackEdit.trackForm.duration"
+								@blur="validateField"
+								placeholder="3:45"
+								:class="{ 'border-destructive': hasFieldError('duration') }"
+							/>
+							<p
+								v-if="formErrors?.duration?._errors?.length"
+								class="text-destructive text-sm"
+							>
+								{{ formErrors.duration._errors[0] }}
+							</p>
+						</FormItem>
 					</div>
 
 					<div class="space-y-2">
 						<Label for="bpm">BPM</Label>
-						<Input
-							id="bpm"
-							v-model="trackEdit.trackForm.bpm"
-							name="bpm"
-							type="number"
-							step="0.1"
-							placeholder="128.5"
-						/>
+						<FormItem>
+							<Input
+								id="bpm"
+								v-model="trackEdit.trackForm.bpm"
+								@blur="validateField"
+								name="bpm"
+								placeholder="128.5"
+								:class="{ 'border-destructive': hasFieldError('bpm') }"
+							/>
+							<p
+								v-if="formErrors?.bpm?._errors?.length"
+								class="text-destructive text-sm"
+							>
+								{{ formErrors.bpm._errors[0] }}
+							</p>
+						</FormItem>
 					</div>
 
 					<div class="space-y-2">
@@ -240,29 +342,28 @@ function handleDialogOpenChange(open: boolean) {
 				<div class="grid gap-4 md:grid-cols-3">
 					<div class="space-y-2">
 						<Label for="key">Key</Label>
-						<Input
-							id="key"
-							v-model="trackEdit.trackForm.key"
-							name="key"
-							type="number"
-							min="0"
-							max="23"
-							placeholder="0-23 (Camelot)"
-						/>
-					</div>
-
-					<div class="space-y-2">
-						<Label for="mode">Mode</Label>
-						<Select v-model="trackEdit.trackForm.mode">
-							<SelectTrigger class="w-full">
-								<SelectValue placeholder="Select mode" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem :value="null">Not specified</SelectItem>
-								<SelectItem :value="0">Minor</SelectItem>
-								<SelectItem :value="1">Major</SelectItem>
-							</SelectContent>
-						</Select>
+						<FormItem>
+							<Select v-model="trackEdit.trackForm.keyComposite">
+								<SelectTrigger class="w-full">
+									<SelectValue placeholder="Select key" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem
+										v-for="option in keyOptions"
+										:key="option.id"
+										:value="option.id"
+									>
+										{{ option.name }}
+									</SelectItem>
+								</SelectContent>
+							</Select>
+							<p
+								v-if="formErrors?.keyComposite?._errors?.length"
+								class="text-destructive text-sm"
+							>
+								{{ formErrors.keyComposite._errors[0] }}
+							</p>
+						</FormItem>
 					</div>
 
 					<div class="space-y-2">

@@ -1,3 +1,5 @@
+import { createKeyComposite, parseKeyComposite } from '~/utils/keyFunctions'
+
 interface TrackEditForm {
 	title: string
 	position: string
@@ -7,8 +9,7 @@ interface TrackEditForm {
 	bpm: string
 	rpm: number | null
 	playable: boolean
-	key: string
-	mode: number | null
+	keyComposite: string
 	time_signature_upper: number | null
 	time_signature_lower: number | null
 	genres: string[]
@@ -23,8 +24,7 @@ const defaultFormData: TrackEditForm = {
 	bpm: '',
 	rpm: null,
 	playable: true,
-	key: '',
-	mode: null,
+	keyComposite: 'none',
 	time_signature_upper: null,
 	time_signature_lower: null,
 	genres: []
@@ -47,8 +47,7 @@ export const useTrackEditStore = defineStore('trackEdit', () => {
 		bpm: '',
 		rpm: null,
 		playable: true,
-		key: '',
-		mode: null,
+		keyComposite: 'none',
 		time_signature_upper: null,
 		time_signature_lower: null,
 		genres: []
@@ -84,8 +83,7 @@ export const useTrackEditStore = defineStore('trackEdit', () => {
 			current.duration !== original.duration ||
 			current.bpm !== original.bpm ||
 			current.rpm !== original.rpm ||
-			current.key !== original.key ||
-			current.mode !== original.mode ||
+			current.keyComposite !== original.keyComposite ||
 			current.time_signature_upper !== original.time_signature_upper ||
 			current.time_signature_lower !== original.time_signature_lower ||
 			current.playable !== original.playable ||
@@ -108,8 +106,7 @@ export const useTrackEditStore = defineStore('trackEdit', () => {
 				bpm: track.bpm?.toString() || '',
 				rpm: track.rpm,
 				playable: track.playable ?? true,
-				key: track.key?.toString() || '',
-				mode: track.mode,
+				keyComposite: createKeyComposite(track.key, track.mode),
 				time_signature_upper: track.time_signature_upper,
 				time_signature_lower: track.time_signature_lower,
 				genres: [...track.genres]
