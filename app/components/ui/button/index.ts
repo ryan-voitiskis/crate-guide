@@ -23,9 +23,9 @@ export const buttonVariants = cva(
 				image: 'focus-visible:ring-8'
 			},
 			size: {
-				default: 'h-9 px-4 py-2',
-				sm: 'h-8 rounded-md px-3 text-xs',
-				lg: 'h-10 rounded-md px-8',
+				default: 'h-9 px-4 py-2 [&_svg]:size-4',
+				sm: 'h-8 rounded-md px-3 text-xs [&_svg]:size-4',
+				lg: 'h-10 rounded-md px-8 [&_svg]:size-6',
 				icon: 'h-9 w-9 [&_svg]:size-4',
 				'lg-icon': 'h-12 w-12 p-2 [&_svg]:size-6',
 				'xl-icon': 'h-24 w-24 focus-visible:ring-4 [&_svg]:size-24',

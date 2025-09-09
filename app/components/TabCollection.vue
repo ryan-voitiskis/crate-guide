@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Disc3 } from 'lucide-vue-next'
+
 const user = useUserStore()
 const discogs = useDiscogsStore()
 const records = useRecordsStore()
@@ -29,32 +31,36 @@ const crates = useCratesStore()
 		</div>
 
 		<div v-else class="flex-1 space-y-6">
-			<InputRecordsSearch />
-			<Button
-				@click="discogs.showGetFoldersDialog = true"
-				variant="secondary"
-				class="ml-auto"
-				:disabled="!user.isDiscogsAuthenticated"
-			>
-				Import Discogs Collection
-			</Button>
+			<div class="flex">
+				<InputRecordsSearch />
+				<Button
+					@click="discogs.showGetFoldersDialog = true"
+					variant="secondary"
+					class="ml-auto w-32"
+					:disabled="!user.isDiscogsAuthenticated"
+				>
+					Import
+					<IconDiscogs class="ml-2" />
+				</Button>
+			</div>
 
 			<div
 				v-if="!records.hasRecords"
-				class="flex flex-col items-center justify-center py-16 text-center"
+				class="flex flex-col items-center justify-center gap-4 py-16 text-center"
 			>
-				<div class="bg-muted mb-4 rounded-full p-6">
-					<div class="text-muted-foreground text-4xl">♫</div>
-				</div>
+				<Disc3 class="text-secondary !size-12" />
 				<h3 class="text-lg font-semibold">No records yet</h3>
-				<p class="text-muted-foreground mb-6 max-w-md">
-					Start building your collection by importing records from Discogs or
+				<p class="text-muted-foreground max-w-sm">
+					2 Start building your collection by importing records from Discogs or
 					adding them manually.
 				</p>
-				<div class="flex gap-2">
-					<DialogCollectionImport />
-					<DialogDiscogsImport />
-				</div>
+				<Button
+					@click="discogs.showGetFoldersDialog = true"
+					variant="secondary"
+					:disabled="!user.isDiscogsAuthenticated"
+				>
+					Import from Discogs
+				</Button>
 			</div>
 
 			<StateNoSearchResults
@@ -73,4 +79,7 @@ const crates = useCratesStore()
 			</div>
 		</div>
 	</div>
+
+	<DialogCollectionImport />
+	<DialogDiscogsImport />
 </template>
