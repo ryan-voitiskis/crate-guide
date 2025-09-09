@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
+import { KeyRound } from 'lucide-vue-next'
 import { User } from 'lucide-vue-next'
 
 const user = useUserStore()
@@ -34,11 +35,13 @@ const discogsAuth = useDiscogsAuthStore()
 				collection.
 			</p>
 			<Button
-				@click="discogsAuth.initDiscogsOAuthFlow"
+				class="my-2 w-full"
 				variant="secondary"
+				@click="discogsAuth.initDiscogsOAuthFlow"
 				:loading="discogsAuth.isDiscogsConnecting"
 			>
-				Authenticate with Discogs
+				<KeyRound class="mr-2" />
+				Connect to Discogs
 			</Button>
 		</div>
 	</div>

@@ -31,8 +31,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			const data = await discogsApi.getFolders()
 			if (!data.folders) toast.error('No folders found.')
 			else folders.value = data.folders
-		} catch (error) {
-			toast.error('Error fetching folders.')
+		} catch (e) {
+			toast.error(isError(e) ? e.message : 'Error fetching folders.')
 		} finally {
 			isLoadingFolders.value = false
 		}

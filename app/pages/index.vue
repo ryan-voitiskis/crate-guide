@@ -14,7 +14,7 @@ const ui = useUiStore()
 				<TabsTrigger value="session" class="w-24">Session</TabsTrigger>
 				<TabsTrigger value="collection" class="w-24">Collection</TabsTrigger>
 			</TabsList>
-			<PopoverUserSettings v-if="user.supaUser" />
+			<DialogUserSettings v-if="user.supaUser" />
 			<div v-else class="flex gap-4">
 				<Button as-child variant="ghost">
 					<NuxtLink to="/signup">Sign up</NuxtLink>

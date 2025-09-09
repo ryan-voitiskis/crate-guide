@@ -23,7 +23,7 @@ export function useDiscogsApi() {
 
 	const getFolders = async (): Promise<DiscogsFoldersResponse> => {
 		if (!user.profile?.discogs_username) {
-			throw new Error('Discogs username required')
+			throw new Error('Discogs username required.')
 		}
 
 		const url = `${DISCOGS_API_URL}users/${user.profile.discogs_username}/collection/folders`
@@ -35,9 +35,8 @@ export function useDiscogsApi() {
 		page = 1,
 		perPage = 100
 	): Promise<DiscogsFolderResponse> => {
-		if (!user.profile?.discogs_username) {
-			throw new Error('Discogs username required')
-		}
+		if (!user.profile?.discogs_username)
+			throw new Error('Discogs username required.')
 
 		const url = `${DISCOGS_API_URL}users/${user.profile.discogs_username}/collection/folders/${folderId}/releases`
 		return makeDiscogsApiRequest('GET', url, { page, per_page: perPage })

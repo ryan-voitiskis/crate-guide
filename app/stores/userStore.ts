@@ -105,7 +105,7 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
-	async function fetchProfile() {
+	async function fetchProfile(): Promise<boolean> {
 		try {
 			if (!supaUser.value) throw new Error('User not logged in.')
 			const { data, error } = await supabase
@@ -116,8 +116,10 @@ export const useUserStore = defineStore('user', () => {
 			if (error) throw error
 			profile.value = data as Profile
 			setTheme(profile.value.ui_theme ?? 'light')
+			return true
 		} catch (e) {
 			toast.error(`Error getting your profile.`, { duration: 30000 })
+			return false
 		}
 	}
 
