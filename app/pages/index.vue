@@ -1,12 +1,11 @@
 <script setup lang="ts">
 const user = useUserStore()
-
-const activeTab = ref('session')
+const ui = useUiStore()
 </script>
 
 <template>
 	<Tabs
-		v-model="activeTab"
+		v-model="ui.tab"
 		default-value="session"
 		class="mx-auto flex w-full max-w-[1600px] flex-col"
 	>

@@ -11,13 +11,6 @@ export const useUserStore = defineStore('user', () => {
 	const userAlreadyRegistered = ref(false)
 	const isUpdatingSettings = ref(false)
 
-	const isDiscogsAuthenticated = computed(() => {
-		return (
-			profile.value?.discogs_access_secret &&
-			profile.value?.discogs_access_token
-		)
-	})
-
 	const currentTheme = computed((): ThemeOptions => {
 		return profile.value?.ui_theme ?? 'light'
 	})
@@ -112,12 +105,13 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
-	async function fetchProfile(id: string) {
+	async function fetchProfile() {
 		try {
+			if (!supaUser.value) throw new Error('User not logged in.')
 			const { data, error } = await supabase
 				.from('profiles')
 				.select()
-				.eq('id', id)
+				.eq('id', supaUser.value.id)
 				.single()
 			if (error) throw error
 			profile.value = data as Profile
@@ -144,8 +138,7 @@ export const useUserStore = defineStore('user', () => {
 			// update with the server response to ensure consistency
 			profile.value = data as Profile
 		} catch (e) {
-			// revert the optimistic update
-			if (supaUser.value?.id) fetchProfile(supaUser.value.id)
+			fetchProfile()
 			toast.error(`Error updating your settings.`, { duration: 30000 })
 		} finally {
 			isUpdatingSettings.value = false
@@ -163,13 +156,12 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	watchEffect(() => {
-		if (supaUser.value?.id) fetchProfile(supaUser.value.id)
+		if (supaUser.value?.id) fetchProfile()
 	})
 
 	return {
 		supaUser,
 		profile,
-		isDiscogsAuthenticated,
 		currentTheme,
 		userAlreadyRegistered,
 		isUpdatingSettings,
@@ -180,6 +172,7 @@ export const useUserStore = defineStore('user', () => {
 		sendPasswordResetEmail,
 		resetPassword,
 		verifyOtp,
+		fetchProfile,
 		updateSettings,
 		updateTheme
 	}

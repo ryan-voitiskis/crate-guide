@@ -2,8 +2,10 @@
 import { User } from 'lucide-vue-next'
 
 const user = useUserStore()
+const discogsAuth = useDiscogsAuthStore()
 
 const avatarImg = computed(() => {
+	if (!discogsAuth.isOAuthed) return null
 	return (
 		user.supaUser?.user_metadata.avatar_url ??
 		user.profile?.discogs_avatar_url ??

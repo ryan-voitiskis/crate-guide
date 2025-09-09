@@ -3,22 +3,7 @@ import { toast } from 'vue-sonner'
 import { User } from 'lucide-vue-next'
 
 const user = useUserStore()
-const supabase = useSupabaseClient<Database>()
-
-const isDiscogsConnecting = ref(false)
-
-// OAuth flow: request token → redirect to Discogs → capture verifier → access token
-// Completion handled in capture-verifier.vue
-async function initDiscogsOAuthFlow() {
-	isDiscogsConnecting.value = true
-	const { data, error } = await supabase.functions.invoke(
-		'get-discogs-request-token'
-	)
-	if (error) toast.error('Error authenticating with Discogs.')
-	else if (data)
-		window.location.href = `https://discogs.com/oauth/authorize?oauth_token=${data}`
-	isDiscogsConnecting.value = false
-}
+const discogsAuth = useDiscogsAuthStore()
 </script>
 
 <template>
@@ -49,9 +34,9 @@ async function initDiscogsOAuthFlow() {
 				collection.
 			</p>
 			<Button
-				@click="initDiscogsOAuthFlow"
+				@click="discogsAuth.initDiscogsOAuthFlow"
 				variant="secondary"
-				:loading="isDiscogsConnecting"
+				:loading="discogsAuth.isDiscogsConnecting"
 			>
 				Authenticate with Discogs
 			</Button>

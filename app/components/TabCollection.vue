@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { Disc3 } from 'lucide-vue-next'
+import { Download, KeyRound, Plus } from 'lucide-vue-next'
 
 const user = useUserStore()
 const discogs = useDiscogsStore()
+const discogsAuth = useDiscogsAuthStore()
 const records = useRecordsStore()
 const tracks = useTracksStore()
 const crates = useCratesStore()
@@ -13,6 +14,7 @@ const crates = useCratesStore()
 	<DialogReleaseImportFilter />
 	<DialogDiscogsImport />
 	<DialogRecordDetails />
+
 	<div class="flex h-full flex-col space-y-6 p-6">
 		<div
 			v-if="
@@ -26,60 +28,74 @@ const crates = useCratesStore()
 				<div
 					class="border-primary h-6 w-6 animate-spin rounded-full border-2 border-t-transparent"
 				/>
-				<span>Loading your collection...</span>
+				<span>Loading collection...</span>
 			</div>
 		</div>
 
-		<div v-else class="flex-1 space-y-6">
-			<div class="flex">
-				<InputRecordsSearch />
-				<Button
-					@click="discogs.showGetFoldersDialog = true"
-					variant="secondary"
-					class="ml-auto w-32"
-					:disabled="!user.isDiscogsAuthenticated"
-				>
-					Import
-					<IconDiscogs class="ml-2" />
-				</Button>
-			</div>
-
-			<div
-				v-if="!records.hasRecords"
-				class="flex flex-col items-center justify-center gap-4 py-16 text-center"
-			>
-				<Disc3 class="text-secondary !size-12" />
-				<h3 class="text-lg font-semibold">No records yet</h3>
-				<p class="text-muted-foreground max-w-sm">
-					2 Start building your collection by importing records from Discogs or
-					adding them manually.
-				</p>
-				<Button
-					@click="discogs.showGetFoldersDialog = true"
-					variant="secondary"
-					:disabled="!user.isDiscogsAuthenticated"
-				>
-					Import from Discogs
-				</Button>
-			</div>
-
-			<StateNoSearchResults
-				v-else-if="records.hasSearchQuery && !records.hasSearchResults"
+		<div
+			v-else-if="records.hasRecords"
+			class="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+		>
+			<InputRecordsSearch class="col-span-3" />
+			<CardRecordShort
+				v-for="record in records.displayedRecords"
+				:key="record.id"
+				:record="record"
 			/>
+			<StateNoSearchResults
+				v-if="records.hasSearchQuery && !records.hasSearchResults"
+			/>
+		</div>
 
+		<div v-else-if="discogsAuth.isOAuthed">
 			<div
-				v-else
-				class="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+				class="mx-auto flex max-w-sm flex-col items-center justify-center py-16 text-center"
 			>
-				<CardRecordShort
-					v-for="record in records.displayedRecords"
-					:key="record.id"
-					:record="record"
-				/>
+				<h3 class="mb-2 text-lg font-semibold">Import from Discogs</h3>
+				<p class="text-muted-foreground mb-6 max-w-sm">
+					Import your record collection from Discogs.
+				</p>
+
+				<Button
+					@click="discogs.showGetFoldersDialog = true"
+					class="mb-2 w-full"
+				>
+					<Download class="mr-2" />
+					Import
+				</Button>
+				or
+				<!-- TODO: Add manual record creation -->
+				<Button variant="secondary" class="mt-2 w-full">
+					<Plus class="mr-2" />
+					Add manually
+				</Button>
 			</div>
+		</div>
+
+		<div
+			v-else
+			class="mx-auto flex max-w-sm flex-col items-center justify-center py-16 text-center"
+		>
+			<h3 class="mb-2 text-lg font-semibold">Connect to Discogs</h3>
+			<p class="text-muted-foreground mb-6 max-w-sm">
+				Import your record collection from Discogs.
+			</p>
+
+			<Button
+				class="mb-2 w-full"
+				@click="discogsAuth.initDiscogsOAuthFlow"
+				:loading="discogsAuth.isDiscogsConnecting"
+			>
+				<KeyRound class="mr-2" />
+				Connect to Discogs
+			</Button>
+
+			<span>or</span>
+			<!-- TODO: Add manual record creation -->
+			<Button variant="secondary" class="mt-2 w-full">
+				<Plus class="mr-2" />
+				Add manually
+			</Button>
 		</div>
 	</div>
-
-	<DialogCollectionImport />
-	<DialogDiscogsImport />
 </template>

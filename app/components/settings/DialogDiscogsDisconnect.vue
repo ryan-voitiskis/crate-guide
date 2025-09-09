@@ -19,13 +19,9 @@ async function handleDisconnect() {
 				<DialogTitle>Disconnect Discogs</DialogTitle>
 				<div class="text-muted-foreground text-sm">
 					<p>
-						Are you sure you want to disconnect Crate Guide from your Discogs
-						account?
-					</p>
-					<p>
-						You will no longer be able to import your collection or complete any
-						actions requiring this connection. Although your collection will
-						remain in your Crate Guide library. You can always reconnect later.
+						This will disable Discogs imports and features. Your existing
+						collection will remain in Crate Guide, and you can reconnect
+						anytime.
 					</p>
 				</div>
 			</DialogHeader>
