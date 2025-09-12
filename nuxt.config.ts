@@ -16,6 +16,7 @@ export default defineNuxtConfig({
 		'@nuxt/eslint',
 		'@nuxtjs/supabase',
 		'@pinia/nuxt',
+		'@vueuse/nuxt',
 		'shadcn-nuxt',
 		'nuxt-lucide-icons'
 	],
@@ -24,7 +25,13 @@ export default defineNuxtConfig({
 		componentDir: './app/components/ui'
 	},
 	imports: {
-		dirs: ['shared/types', 'stores', 'utils']
+		dirs: ['shared/types', 'stores', 'utils'],
+		presets: [
+			{
+				from: '@vueuse/integrations/useSortable',
+				imports: ['useSortable']
+			}
+		]
 	},
 	components: [
 		{ path: '~/components', pathPrefix: false },

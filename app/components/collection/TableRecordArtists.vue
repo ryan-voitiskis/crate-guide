@@ -1,13 +1,6 @@
 <script setup lang="ts">
-import {
-	Check,
-	ChevronDown,
-	ChevronUp,
-	Pencil,
-	Plus,
-	Trash,
-	X
-} from 'lucide-vue-next'
+import { useSortable } from '@vueuse/integrations/useSortable'
+import { Check, GripVertical, Pencil, Plus, Trash, X } from 'lucide-vue-next'
 import { z } from 'zod'
 
 const recordDetails = useRecordDetailsStore()
@@ -129,22 +122,19 @@ function removeArtist(index: number) {
 	if (editingIndex.value === index) cancelForm()
 }
 
-function moveArtist(index: number, direction: 'up' | 'down') {
-	const artists = recordDetails.recordForm.artists
-	const targetIndex = direction === 'up' ? index - 1 : index + 1
+const sortableRef = ref<HTMLElement>()
+const sortableOptions = reactive({
+	handle: '.drag-handle',
+	disabled: false,
+	animation: 150,
+	ghostClass: 'opacity-50'
+})
 
-	if (targetIndex < 0 || targetIndex >= artists.length) return
-	if (!artists[index] || !artists[targetIndex])
-		return // Swap using destructuring
-	;[artists[index], artists[targetIndex]] = [
-		artists[targetIndex]!,
-		artists[index]!
-	]
-}
+watchEffect(() => {
+	sortableOptions.disabled = isFormActive.value
+})
 
-const canMoveUp = (index: number) => index > 0 && !isFormActive.value
-const canMoveDown = (index: number) =>
-	index < recordDetails.recordForm.artists.length - 1 && !isFormActive.value
+useSortable(sortableRef, recordDetails.recordForm.artists, sortableOptions)
 
 function getFirstError(
 	errors: z.ZodFormattedError<ArtistFormData> | null
@@ -182,8 +172,8 @@ function getFirstError(
 			<Table>
 				<TableHeader>
 					<TableRow>
-						<TableHead v-if="recordDetails.isEditMode" class="w-16">
-							Order
+						<TableHead v-if="recordDetails.isEditMode" class="w-12">
+							<span class="sr-only">Drag</span>
 						</TableHead>
 						<TableHead class="w-24">Discogs ID</TableHead>
 						<TableHead>Name</TableHead>
@@ -193,194 +183,164 @@ function getFirstError(
 						</TableHead>
 					</TableRow>
 				</TableHeader>
-				<TableBody>
-					<!-- Existing Artists -->
-					<template
+				<tbody ref="sortableRef">
+					<TableRow
 						v-for="(artist, index) in recordDetails.recordForm.artists"
-						:key="`artist-${index}`"
+						:key="`artist-${artist.name}-${index}`"
 					>
-						<TableRow>
-							<!-- Reorder Controls -->
-							<TableCell v-if="recordDetails.isEditMode">
-								<div class="flex gap-1">
-									<Button
-										@click="moveArtist(index, 'up')"
-										size="icon"
-										variant="ghost"
-										:disabled="!canMoveUp(index)"
-									>
-										<ChevronUp />
-									</Button>
-									<Button
-										@click="moveArtist(index, 'down')"
-										size="icon"
-										variant="ghost"
-										:disabled="!canMoveDown(index)"
-									>
-										<ChevronDown />
-									</Button>
-								</div>
-							</TableCell>
-
-							<!-- Loop through input fields -->
-							<TableCell v-for="field in inputFields" :key="field.key">
-								<Input
-									v-if="isEditingRow(index)"
-									v-model="formData[field.key]"
-									:name="field.key"
-									:placeholder="field.placeholder"
-									:class="[
-										field.class,
-										{ 'border-destructive': hasFieldError(field.key) }
-									]"
-									@keydown.enter="saveArtist"
-									@keydown.escape="cancelForm"
-								/>
-								<span v-else :class="field.displayClass">
-									{{ field.displayValue(artist) }}
-								</span>
-							</TableCell>
-
-							<!-- Actions -->
-							<TableCell v-if="recordDetails.isEditMode">
-								<div v-if="isEditingRow(index)" class="flex gap-1">
-									<Button
-										@click="saveArtist"
-										size="icon"
-										variant="ghost"
-										:disabled="!canSave"
-										:class="[
-											canSave ? 'text-green-600' : 'text-gray-400',
-											'disabled:cursor-not-allowed'
-										]"
-									>
-										<Check />
-									</Button>
-									<Button
-										@click="cancelForm"
-										size="icon"
-										variant="ghost"
-										class="text-muted-foreground"
-									>
-										<X />
-									</Button>
-								</div>
-								<div v-else class="flex justify-end gap-1">
-									<Button
-										@click="startEdit(index)"
-										size="icon"
-										variant="ghost"
-										:disabled="isFormActive"
-									>
-										<Pencil />
-									</Button>
-									<Button
-										@click="removeArtist(index)"
-										size="icon"
-										variant="destructive-ghost"
-										:disabled="isFormActive"
-									>
-										<Trash />
-									</Button>
-								</div>
-							</TableCell>
-						</TableRow>
-
-						<!-- Error message row for editing -->
-						<TableRow
-							v-if="isEditingRow(index) && getFirstError(formErrors)"
-							class="hover:bg-transparent"
-						>
-							<TableCell
-								:colspan="recordDetails.isEditMode ? 5 : 4"
-								class="pt-1 pb-0"
+						<!-- Drag Handle -->
+						<TableCell v-if="recordDetails.isEditMode">
+							<div
+								class="drag-handle text-muted-foreground hover:text-foreground flex cursor-grab items-center justify-center transition-colors active:cursor-grabbing"
+								:class="{ 'cursor-not-allowed opacity-50': isFormActive }"
 							>
-								<p class="text-destructive text-sm">
-									{{ getFirstError(formErrors) }}
-								</p>
-							</TableCell>
-						</TableRow>
-					</template>
+								<GripVertical class="size-4" />
+							</div>
+						</TableCell>
 
-					<!-- Add New Artist Row -->
-					<template v-if="formMode === 'new'">
-						<TableRow>
-							<TableCell v-if="recordDetails.isEditMode">
-								<!-- Empty cell for order controls -->
-							</TableCell>
+						<!-- Loop through input fields -->
+						<TableCell v-for="field in inputFields" :key="field.key">
+							<Input
+								v-if="isEditingRow(index)"
+								v-model="formData[field.key]"
+								:name="field.key"
+								:placeholder="field.placeholder"
+								:class="[
+									field.class,
+									{ 'border-destructive': hasFieldError(field.key) }
+								]"
+								@keydown.enter="saveArtist"
+								@keydown.escape="cancelForm"
+							/>
+							<span v-else :class="field.displayClass">
+								{{ field.displayValue(artist) }}
+							</span>
+						</TableCell>
 
-							<!-- Loop through input fields for new row -->
-							<TableCell v-for="field in inputFields" :key="field.key">
-								<Input
-									v-model="formData[field.key]"
-									:name="`new_${field.key}`"
-									:placeholder="field.placeholder"
+						<!-- Actions -->
+						<TableCell v-if="recordDetails.isEditMode">
+							<div v-if="isEditingRow(index)" class="flex gap-1">
+								<Button
+									@click="saveArtist"
+									size="icon"
+									variant="ghost"
+									:disabled="!canSave"
 									:class="[
-										field.class,
-										{ 'border-destructive': hasFieldError(field.key) }
+										canSave ? 'text-green-600' : 'text-gray-400',
+										'disabled:cursor-not-allowed'
 									]"
-									@keydown.enter="saveArtist"
-									@keydown.escape="cancelForm"
-								/>
-							</TableCell>
+								>
+									<Check />
+								</Button>
+								<Button
+									@click="cancelForm"
+									size="icon"
+									variant="ghost"
+									class="text-muted-foreground"
+								>
+									<X />
+								</Button>
+							</div>
+							<div v-else class="flex justify-end gap-1">
+								<Button
+									@click="startEdit(index)"
+									size="icon"
+									variant="ghost"
+									:disabled="isFormActive"
+								>
+									<Pencil />
+								</Button>
+								<Button
+									@click="removeArtist(index)"
+									size="icon"
+									variant="destructive-ghost"
+									:disabled="isFormActive"
+								>
+									<Trash />
+								</Button>
+							</div>
+						</TableCell>
+					</TableRow>
+				</tbody>
 
-							<TableCell>
-								<div class="flex gap-1">
-									<Button
-										@click="saveArtist"
-										size="icon"
-										variant="ghost"
-										:disabled="!canSave"
-										:class="[
-											canSave ? 'text-green-600' : 'text-gray-400',
-											'disabled:cursor-not-allowed'
-										]"
-									>
-										<Check />
-									</Button>
-									<Button
-										@click="cancelForm"
-										size="icon"
-										variant="ghost"
-										class="text-muted-foreground"
-									>
-										<X />
-									</Button>
-								</div>
-							</TableCell>
-						</TableRow>
+				<!-- Add New Artist Row (outside draggable) -->
+				<tbody v-if="formMode === 'new'">
+					<TableRow>
+						<TableCell v-if="recordDetails.isEditMode">
+							<!-- Empty cell for drag handle -->
+						</TableCell>
 
-						<!-- Error message row for new artist -->
-						<TableRow
-							v-if="getFirstError(formErrors)"
-							class="hover:bg-transparent"
+						<!-- Loop through input fields for new row -->
+						<TableCell v-for="field in inputFields" :key="field.key">
+							<Input
+								v-model="formData[field.key]"
+								:name="`new_${field.key}`"
+								:placeholder="field.placeholder"
+								:class="[
+									field.class,
+									{ 'border-destructive': hasFieldError(field.key) }
+								]"
+								@keydown.enter="saveArtist"
+								@keydown.escape="cancelForm"
+							/>
+						</TableCell>
+
+						<TableCell>
+							<div class="flex gap-1">
+								<Button
+									@click="saveArtist"
+									size="icon"
+									variant="ghost"
+									:disabled="!canSave"
+									:class="[
+										canSave ? 'text-green-600' : 'text-gray-400',
+										'disabled:cursor-not-allowed'
+									]"
+								>
+									<Check />
+								</Button>
+								<Button
+									@click="cancelForm"
+									size="icon"
+									variant="ghost"
+									class="text-muted-foreground"
+								>
+									<X />
+								</Button>
+							</div>
+						</TableCell>
+					</TableRow>
+
+					<!-- Error message row for new artist -->
+					<TableRow
+						v-if="getFirstError(formErrors)"
+						class="hover:bg-transparent"
+					>
+						<TableCell
+							:colspan="recordDetails.isEditMode ? 5 : 4"
+							class="pt-1 pb-0"
 						>
-							<TableCell
-								:colspan="recordDetails.isEditMode ? 5 : 4"
-								class="pt-1 pb-0"
-							>
-								<p class="text-destructive text-sm">
-									{{ getFirstError(formErrors) }}
-								</p>
-							</TableCell>
-						</TableRow>
-					</template>
-				</TableBody>
+							<p class="text-destructive text-sm">
+								{{ getFirstError(formErrors) }}
+							</p>
+						</TableCell>
+					</TableRow>
+				</tbody>
 			</Table>
+		</div>
+
+		<!-- Form Error Display -->
+		<div
+			v-if="formMode && getFirstError(formErrors)"
+			class="border-destructive bg-destructive/5 mt-2 rounded-md border p-3"
+		>
+			<p class="text-destructive text-sm">
+				{{ getFirstError(formErrors) }}
+			</p>
 		</div>
 
 		<!-- Empty State (read-only) -->
 		<div v-else-if="!recordDetails.isEditMode" class="space-y-1">
-			<div
-				v-for="artist in recordDetails.selectedRecord?.artists || []"
-				:key="artist.name"
-				class="bg-muted rounded p-2 text-sm"
-			>
-				{{ artist.name }}
-				<span v-if="artist.role" class="text-muted-foreground">
-					({{ artist.role }})
-				</span>
-			</div>
 			<div
 				v-if="!recordDetails.selectedRecord?.artists?.length"
 				class="text-muted-foreground text-sm"
