@@ -6,14 +6,17 @@ import { z } from 'zod'
 const recordDetails = useRecordDetailsStore()
 
 const artistSchema = z.object({
-	discogs_id: z.union([
-		z.literal(''),
-		z
-			.string()
-			.pipe(z.coerce.number().int().min(1).max(999999999))
-			.transform(String)
-	]),
-	name: z.string().min(1, 'Artist name is required').trim(),
+	discogs_id: z
+		.string()
+		.refine(
+			(val) => val === '' || /^\d+$/.test(val),
+			'Discogs ID must be a number.'
+		)
+		.refine(
+			(val) => val === '' || (Number(val) >= 1 && Number(val) <= 999999999),
+			'Discogs ID must be between 1 and 999999999'
+		),
+	name: z.string().min(1, 'Artist name is required.').trim(),
 	role: z.string().trim().optional()
 })
 
@@ -310,34 +313,14 @@ function getFirstError(
 							</div>
 						</TableCell>
 					</TableRow>
-
-					<!-- Error message row for new artist -->
-					<TableRow
-						v-if="getFirstError(formErrors)"
-						class="hover:bg-transparent"
-					>
-						<TableCell
-							:colspan="recordDetails.isEditMode ? 5 : 4"
-							class="pt-1 pb-0"
-						>
-							<p class="text-destructive text-sm">
-								{{ getFirstError(formErrors) }}
-							</p>
-						</TableCell>
-					</TableRow>
 				</tbody>
 			</Table>
 		</div>
 
 		<!-- Form Error Display -->
-		<div
-			v-if="formMode && getFirstError(formErrors)"
-			class="border-destructive bg-destructive/5 mt-2 rounded-md border p-3"
-		>
-			<p class="text-destructive text-sm">
-				{{ getFirstError(formErrors) }}
-			</p>
-		</div>
+		<NoticeError v-if="formMode && getFirstError(formErrors)">
+			{{ getFirstError(formErrors) }}
+		</NoticeError>
 
 		<!-- Empty State (read-only) -->
 		<div v-else-if="!recordDetails.isEditMode" class="space-y-1">

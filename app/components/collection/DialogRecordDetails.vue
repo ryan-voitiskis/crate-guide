@@ -87,7 +87,7 @@ function handleSave() {
 	<!-- Main Dialog -->
 	<Dialog v-model:open="dialogOpen">
 		<DialogContent
-			class="max-h-[90dvh] max-w-6xl grid-rows-[auto_minmax(0,1fr)_auto] p-0"
+			class="max-h-[100dvh] max-w-6xl grid-rows-[auto_minmax(0,1fr)_auto] p-0 sm:max-h-[90dvh]"
 		>
 			<DialogHeader class="p-6 pb-0">
 				<div>
@@ -112,9 +112,9 @@ function handleSave() {
 
 			<div class="space-y-6 overflow-y-auto px-2 py-4 sm:px-6" tabindex="-1">
 				<!-- Record Details Section -->
-				<div class="grid gap-6 md:grid-cols-3">
+				<div class="grid gap-4 sm:gap-6 md:grid-cols-3">
 					<!-- Cover Image -->
-					<div class="space-y-2">
+					<div class="max-w-32 space-y-2">
 						<Label>Cover</Label>
 						<div
 							class="bg-muted flex aspect-square items-center justify-center overflow-hidden rounded-lg"
@@ -127,28 +127,10 @@ function handleSave() {
 							/>
 							<span v-else class="text-muted-foreground text-sm">No cover</span>
 						</div>
-						<FormItem v-if="recordDetails.isEditMode">
-							<Input
-								v-model="recordDetails.recordForm.cover"
-								@blur="validateField()"
-								name="cover"
-								placeholder="Cover URL"
-								:class="[
-									'text-xs',
-									{ 'border-destructive': hasFieldError('cover') }
-								]"
-							/>
-							<p
-								v-if="formErrors?.cover?._errors?.length"
-								class="text-destructive text-sm"
-							>
-								{{ formErrors.cover._errors[0] }}
-							</p>
-						</FormItem>
 					</div>
 
 					<!-- Record Info -->
-					<div class="space-y-4 text-sm md:col-span-2">
+					<div class="col-span-3 mb-6 space-y-4 text-sm md:col-span-2">
 						<!-- Title -->
 						<div class="space-y-2">
 							<Label>Title</Label>
@@ -183,7 +165,7 @@ function handleSave() {
 									type="text"
 									placeholder="Release year"
 									:class="[
-										'w-32',
+										'w-full sm:w-32',
 										{ 'border-destructive': hasFieldError('year') }
 									]"
 								/>
@@ -197,6 +179,29 @@ function handleSave() {
 							<p v-else class="text-muted-foreground">
 								{{ recordDetails.selectedRecord?.year || 'Unknown' }}
 							</p>
+						</div>
+
+						<!-- Cover URL -->
+						<div v-if="recordDetails.isEditMode" class="space-y-2">
+							<Label class="font-medium">Cover URL</Label>
+							<FormItem>
+								<Input
+									v-model="recordDetails.recordForm.cover"
+									@blur="validateField()"
+									name="cover"
+									placeholder="Cover URL"
+									:class="[
+										'w-full text-xs',
+										{ 'border-destructive': hasFieldError('cover') }
+									]"
+								/>
+								<p
+									v-if="formErrors?.cover?._errors?.length"
+									class="text-destructive text-sm"
+								>
+									{{ formErrors.cover._errors[0] }}
+								</p>
+							</FormItem>
 						</div>
 					</div>
 

@@ -4,7 +4,7 @@ import { CircleAlert } from 'lucide-vue-next'
 
 <template>
 	<div
-		class="flex rounded-md border border-amber-600/30 bg-amber-600/10 p-2 text-sm text-amber-700"
+		class="border-destructive/30 bg-destructive/10 text-destructive flex rounded-md border p-2 text-sm"
 	>
 		<CircleAlert class="mr-2 size-5" />
 		<slot />
