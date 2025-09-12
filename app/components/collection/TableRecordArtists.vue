@@ -67,11 +67,28 @@ const isEditingRow = (index: number) =>
 const hasFieldError = (field: keyof ArtistFormData) =>
 	formErrors.value?.[field]?._errors?.length
 
-watchEffect(() => {
-	if (!formMode.value) return
+const shouldShowValidation = ref(false)
+
+function validateForm() {
 	const result = artistSchema.safeParse(formData.value)
 	formErrors.value = result.success ? null : result.error.format()
-})
+	return result.success
+}
+
+function handleInputBlur(field: keyof ArtistFormData) {
+	if (!formData.value[field] || formData.value[field].trim() === '') {
+		shouldShowValidation.value = true
+		validateForm()
+	}
+}
+
+watch(
+	formData,
+	() => {
+		if (formMode.value) validateForm()
+	},
+	{ deep: true }
+)
 
 function startEdit(index: number) {
 	const artist = recordDetails.recordForm.artists[index]
@@ -85,12 +102,14 @@ function startEdit(index: number) {
 	formMode.value = 'edit'
 	editingIndex.value = index
 	formErrors.value = null
+	shouldShowValidation.value = false
 }
 
 function startAddNew() {
 	formMode.value = 'new'
 	formData.value = { discogs_id: '', name: '', role: '' }
 	formErrors.value = null
+	shouldShowValidation.value = false
 }
 
 function cancelForm() {
@@ -98,10 +117,16 @@ function cancelForm() {
 	editingIndex.value = null
 	formData.value = { discogs_id: '', name: '', role: '' }
 	formErrors.value = null
+	shouldShowValidation.value = false
 }
 
 function saveArtist() {
-	if (!canSave.value || !formMode.value) return
+	if (!formMode.value) return
+
+	shouldShowValidation.value = true
+	const isValid = validateForm()
+
+	if (!isValid) return
 
 	const parsedData = artistSchema.parse(formData.value)
 	const artistData = {
@@ -210,10 +235,14 @@ function getFirstError(
 								:placeholder="field.placeholder"
 								:class="[
 									field.class,
-									{ 'border-destructive': hasFieldError(field.key) }
+									{
+										'border-destructive':
+											shouldShowValidation && hasFieldError(field.key)
+									}
 								]"
 								@keydown.enter="saveArtist"
 								@keydown.escape="cancelForm"
+								@blur="handleInputBlur(field.key)"
 							/>
 							<span v-else :class="field.displayClass">
 								{{ field.displayValue(artist) }}
@@ -227,11 +256,7 @@ function getFirstError(
 									@click="saveArtist"
 									size="icon"
 									variant="ghost"
-									:disabled="!canSave"
-									:class="[
-										canSave ? 'text-green-600' : 'text-gray-400',
-										'disabled:cursor-not-allowed'
-									]"
+									:class="[canSave ? 'text-green-600' : 'text-gray-400']"
 								>
 									<Check />
 								</Button>
@@ -281,10 +306,14 @@ function getFirstError(
 								:placeholder="field.placeholder"
 								:class="[
 									field.class,
-									{ 'border-destructive': hasFieldError(field.key) }
+									{
+										'border-destructive':
+											shouldShowValidation && hasFieldError(field.key)
+									}
 								]"
 								@keydown.enter="saveArtist"
 								@keydown.escape="cancelForm"
+								@blur="handleInputBlur(field.key)"
 							/>
 						</TableCell>
 
@@ -294,11 +323,7 @@ function getFirstError(
 									@click="saveArtist"
 									size="icon"
 									variant="ghost"
-									:disabled="!canSave"
-									:class="[
-										canSave ? 'text-green-600' : 'text-gray-400',
-										'disabled:cursor-not-allowed'
-									]"
+									:class="[canSave ? 'text-green-600' : 'text-gray-400']"
 								>
 									<Check />
 								</Button>
@@ -318,11 +343,13 @@ function getFirstError(
 		</div>
 
 		<!-- Form Error Display -->
-		<NoticeError v-if="formMode && getFirstError(formErrors)">
+		<NoticeError
+			v-if="formMode && shouldShowValidation && getFirstError(formErrors)"
+		>
 			{{ getFirstError(formErrors) }}
 		</NoticeError>
 
-		<!-- Empty State (read-only) -->
+		<!-- Empty State (read-only mode) -->
 		<div v-else-if="!recordDetails.isEditMode" class="space-y-1">
 			<div
 				v-if="!recordDetails.selectedRecord?.artists?.length"
