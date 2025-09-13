@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { toTypedSchema } from '@vee-validate/zod'
 import { useSortable } from '@vueuse/integrations/useSortable'
 import { Check, GripVertical, Pencil, Plus, Trash, X } from 'lucide-vue-next'
+import { useForm } from 'vee-validate'
 import { z } from 'zod'
 
 const recordDetails = useRecordDetailsStore()
@@ -21,6 +23,8 @@ const artistSchema = z.object({
 })
 
 type ArtistFormData = z.infer<typeof artistSchema>
+
+const validationSchema = toTypedSchema(artistSchema)
 
 const inputFields = [
 	{
@@ -48,99 +52,140 @@ const inputFields = [
 
 const formMode = ref<'edit' | 'new' | null>(null)
 const editingIndex = ref<number | null>(null)
-const formData = ref<ArtistFormData>({
-	discogs_id: '',
-	name: '',
-	role: ''
+const saveAttempted = ref(false)
+
+// Manual dirty field tracking
+const dirtyFields = ref(new Set<keyof ArtistFormData>())
+
+const shouldShowValidation = computed(
+	() => dirtyFields.value.size > 0 || saveAttempted.value
+)
+
+// Edit form for existing artists
+const editForm = useForm({
+	validationSchema,
+	initialValues: {
+		discogs_id: '',
+		name: '',
+		role: ''
+	}
 })
-const formErrors = ref<z.ZodFormattedError<ArtistFormData> | null>(null)
+
+const [editDiscogsId] = editForm.defineField('discogs_id')
+const [editName] = editForm.defineField('name')
+const [editRole] = editForm.defineField('role')
+
+// New form for adding artists
+const newForm = useForm({
+	validationSchema,
+	initialValues: {
+		discogs_id: '',
+		name: '',
+		role: ''
+	}
+})
+
+const [newDiscogsId] = newForm.defineField('discogs_id')
+const [newName] = newForm.defineField('name')
+const [newRole] = newForm.defineField('role')
+
+const currentForm = computed(() =>
+	formMode.value === 'edit' ? editForm : newForm
+)
+
+const currentFields = computed(() => ({
+	discogs_id: formMode.value === 'edit' ? editDiscogsId : newDiscogsId,
+	name: formMode.value === 'edit' ? editName : newName,
+	role: formMode.value === 'edit' ? editRole : newRole
+}))
 
 const isFormActive = computed(() => formMode.value !== null)
-const canSave = computed(() => {
-	const result = artistSchema.safeParse(formData.value)
-	return result.success
-})
 
 const isEditingRow = (index: number) =>
 	formMode.value === 'edit' && editingIndex.value === index
 
 const hasFieldError = (field: keyof ArtistFormData) =>
-	formErrors.value?.[field]?._errors?.length
+	currentForm.value.errors.value[field]
 
-const shouldShowValidation = ref(false)
-
-function validateForm() {
-	const result = artistSchema.safeParse(formData.value)
-	formErrors.value = result.success ? null : result.error.format()
-	return result.success
-}
-
-function handleInputBlur(field: keyof ArtistFormData) {
-	if (!formData.value[field] || formData.value[field].trim() === '') {
-		shouldShowValidation.value = true
-		validateForm()
-	}
-}
-
+// Watch for real-time validation (maintain exact behavior)
 watch(
-	formData,
+	() => currentForm.value.values,
 	() => {
-		if (formMode.value) validateForm()
+		if (formMode.value) {
+			currentForm.value.validate()
+		}
 	},
 	{ deep: true }
 )
+
+function handleInputBlur(field: keyof ArtistFormData) {
+	dirtyFields.value.add(field)
+	currentForm.value.validateField(field)
+}
 
 function startEdit(index: number) {
 	const artist = recordDetails.recordForm.artists[index]
 	if (!artist) return
 
-	formData.value = {
-		discogs_id: artist.discogs_id?.toString() || '',
-		name: artist.name,
-		role: artist.role || ''
-	}
+	editForm.resetForm({
+		values: {
+			discogs_id: artist.discogs_id?.toString() || '',
+			name: artist.name,
+			role: artist.role || ''
+		}
+	})
+
 	formMode.value = 'edit'
 	editingIndex.value = index
-	formErrors.value = null
-	shouldShowValidation.value = false
+	saveAttempted.value = false
+	dirtyFields.value.clear()
 }
 
 function startAddNew() {
+	newForm.resetForm({
+		values: {
+			discogs_id: '',
+			name: '',
+			role: ''
+		}
+	})
+
 	formMode.value = 'new'
-	formData.value = { discogs_id: '', name: '', role: '' }
-	formErrors.value = null
-	shouldShowValidation.value = false
+	saveAttempted.value = false
+	dirtyFields.value.clear()
 }
 
 function cancelForm() {
 	formMode.value = null
 	editingIndex.value = null
-	formData.value = { discogs_id: '', name: '', role: '' }
-	formErrors.value = null
-	shouldShowValidation.value = false
+	saveAttempted.value = false
+	dirtyFields.value.clear()
+	editForm.resetForm()
+	newForm.resetForm()
 }
 
-function saveArtist() {
+async function saveArtist() {
 	if (!formMode.value) return
 
-	shouldShowValidation.value = true
-	const isValid = validateForm()
+	saveAttempted.value = true
 
-	if (!isValid) return
+	const { valid } = await currentForm.value.validate()
+	if (!valid) return
 
-	const parsedData = artistSchema.parse(formData.value)
+	const formValues = currentForm.value.values
 	const artistData = {
-		discogs_id: parsedData.discogs_id
-			? parseInt(parsedData.discogs_id, 10)
+		discogs_id: formValues.discogs_id
+			? parseInt(formValues.discogs_id, 10)
 			: undefined,
-		name: parsedData.name,
-		role: parsedData.role || null
+		name: formValues.name || '',
+		role: formValues.role || null
 	}
 
-	if (formMode.value === 'edit' && editingIndex.value !== null)
+	if (formMode.value === 'edit' && editingIndex.value !== null) {
 		recordDetails.recordForm.artists[editingIndex.value] = artistData
-	else if (formMode.value === 'new')
+	} else if (formMode.value === 'new') {
 		recordDetails.recordForm.artists.push(artistData)
+	}
 
 	cancelForm()
 }
@@ -164,15 +209,23 @@ watchEffect(() => {
 
 useSortable(sortableRef, recordDetails.recordForm.artists, sortableOptions)
 
-function getFirstError(
-	errors: z.ZodFormattedError<ArtistFormData> | null
-): string | null {
+function getFirstError(): string | null {
+	const errors = currentForm.value.errors.value
 	if (!errors) return null
-	if (errors.name?._errors?.length) return errors.name._errors[0]!
-	if (errors.discogs_id?._errors?.length) return errors.discogs_id._errors[0]!
-	if (errors.role?._errors?.length) return errors.role._errors[0]!
+
+	for (const field of inputFields) {
+		const fieldKey = field.key
+		const isDirty = dirtyFields.value.has(fieldKey)
+		if (errors[fieldKey] && (saveAttempted.value || isDirty)) {
+			return errors[fieldKey]
+		}
+	}
 
 	return null
+}
+
+function getFieldModel(field: keyof ArtistFormData) {
+	return currentFields.value[field]
 }
 </script>
 
@@ -230,7 +283,7 @@ function getFirstError(
 						<TableCell v-for="field in inputFields" :key="field.key">
 							<Input
 								v-if="isEditingRow(index)"
-								v-model="formData[field.key]"
+								v-model="getFieldModel(field.key).value"
 								:name="field.key"
 								:placeholder="field.placeholder"
 								:class="[
@@ -256,7 +309,11 @@ function getFirstError(
 									@click="saveArtist"
 									size="icon"
 									variant="ghost"
-									:class="[canSave ? 'text-green-600' : 'text-gray-400']"
+									:class="[
+										editForm.meta.value.valid
+											? 'text-green-600'
+											: 'text-gray-400'
+									]"
 								>
 									<Check />
 								</Button>
@@ -301,7 +358,7 @@ function getFirstError(
 						<!-- Loop through input fields for new row -->
 						<TableCell v-for="field in inputFields" :key="field.key">
 							<Input
-								v-model="formData[field.key]"
+								v-model="getFieldModel(field.key).value"
 								:name="`new_${field.key}`"
 								:placeholder="field.placeholder"
 								:class="[
@@ -323,7 +380,11 @@ function getFirstError(
 									@click="saveArtist"
 									size="icon"
 									variant="ghost"
-									:class="[canSave ? 'text-green-600' : 'text-gray-400']"
+									:class="[
+										newForm.meta.value.valid
+											? 'text-green-600'
+											: 'text-gray-400'
+									]"
 								>
 									<Check />
 								</Button>
@@ -343,10 +404,8 @@ function getFirstError(
 		</div>
 
 		<!-- Form Error Display -->
-		<NoticeError
-			v-if="formMode && shouldShowValidation && getFirstError(formErrors)"
-		>
-			{{ getFirstError(formErrors) }}
+		<NoticeError v-if="formMode && shouldShowValidation && getFirstError()">
+			{{ getFirstError() }}
 		</NoticeError>
 
 		<!-- Empty State (read-only mode) -->
