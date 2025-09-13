@@ -215,27 +215,44 @@ async function focusFirstField() {
 		<!-- Artists Table -->
 		<div v-if="artists.length || formMode === 'new'" class="overflow-hidden">
 			<Table>
-				<TableHeader>
-					<TableRow class="hover:bg-transparent">
-						<TableHead v-if="isEditMode" class="w-11">
+				<TableHeader class="contents">
+					<TableRow
+						:class="[
+							'grid hover:bg-transparent',
+							isEditMode
+								? 'grid-cols-[44px_64px_3fr_2fr_84px] max-sm:grid-cols-[44px_64px_1fr_1fr_84px] sm:grid-cols-[44px_64px_3fr_2fr_84px]'
+								: 'grid-cols-[64px_3fr_2fr] max-sm:grid-cols-[64px_1fr_1fr] sm:grid-cols-[64px_3fr_2fr]'
+						]"
+					>
+						<TableHead v-if="isEditMode" class="flex items-center p-1">
 							<span class="sr-only">Drag</span>
 						</TableHead>
-						<TableHead class="w-20 p-1">Discogs ID</TableHead>
-						<TableHead class="p-1">Name</TableHead>
-						<TableHead class="p-1">Role</TableHead>
-						<TableHead v-if="isEditMode" class="w-21 p-1">Actions</TableHead>
+						<TableHead class="flex items-center p-1">
+							<IconDiscogs class="mr-2 size-4" />
+							ID
+						</TableHead>
+						<TableHead class="flex items-center p-1">Name</TableHead>
+						<TableHead class="flex items-center p-1">Role</TableHead>
+						<TableHead v-if="isEditMode" class="flex items-center p-1">
+							Actions
+						</TableHead>
 					</TableRow>
 				</TableHeader>
 				<tbody ref="sortableRef">
 					<TableRow
 						v-for="(artist, index) in artists"
 						:key="`artist-${artist.name}-${index}`"
-						class="!h-11"
+						:class="[
+							'grid !h-11',
+							isEditMode
+								? 'grid-cols-[44px_64px_3fr_2fr_84px] max-sm:grid-cols-[44px_64px_1fr_1fr_84px] sm:grid-cols-[44px_64px_3fr_2fr_84px]'
+								: 'grid-cols-[64px_3fr_2fr] max-sm:grid-cols-[64px_1fr_1fr] sm:grid-cols-[64px_3fr_2fr]'
+						]"
 					>
 						<!-- Drag Handle -->
 						<TableCell
 							v-if="isEditMode"
-							class="drag-handle text-muted-foreground hover:text-accent-foreground flex !h-11 w-full cursor-grab items-center justify-center p-0 transition-colors active:cursor-grabbing"
+							class="drag-handle text-muted-foreground hover:text-accent-foreground bp-0 flex !h-11 w-full cursor-grab items-center justify-center whitespace-normal transition-colors active:cursor-grabbing"
 							:class="{ 'cursor-not-allowed opacity-50': isFormActive }"
 						>
 							<GripVertical class="size-4" />
@@ -245,7 +262,7 @@ async function focusFirstField() {
 						<TableCell
 							v-for="(field, fieldIndex) in fieldConfig"
 							:key="field.key"
-							class="p-1"
+							class="flex items-center overflow-hidden p-1 whitespace-normal"
 						>
 							<Input
 								v-if="isEditingRow(index)"
@@ -263,13 +280,30 @@ async function focusFirstField() {
 								@keydown.enter="saveArtist"
 								@keydown.escape.stop="cancelForm"
 							/>
-							<span v-else :class="field.displayClass">
-								{{ field.displayValue(artist) }}
-							</span>
+							<TooltipProvider v-else>
+								<Tooltip>
+									<TooltipTrigger as-child>
+										<span :class="[field.displayClass, 'block truncate']">
+											{{ field.displayValue(artist) }}
+										</span>
+									</TooltipTrigger>
+									<TooltipContent
+										v-if="
+											field.displayValue(artist) &&
+											field.displayValue(artist) !== '–'
+										"
+									>
+										<p>{{ field.displayValue(artist) }}</p>
+									</TooltipContent>
+								</Tooltip>
+							</TooltipProvider>
 						</TableCell>
 
 						<!-- Actions -->
-						<TableCell v-if="isEditMode" class="flex justify-end gap-1 p-1">
+						<TableCell
+							v-if="isEditMode"
+							class="flex items-center justify-end gap-1 p-1 whitespace-normal"
+						>
 							<Button
 								v-if="isEditingRow(index)"
 								@click="saveArtist"
@@ -311,9 +345,19 @@ async function focusFirstField() {
 				</tbody>
 
 				<!-- Add New Artist Row (outside draggable) -->
-				<tbody v-if="formMode === 'new'">
-					<TableRow class="!h-11">
-						<TableCell v-if="isEditMode">
+				<tbody v-if="formMode === 'new'" class="contents">
+					<TableRow
+						:class="[
+							'grid !h-11',
+							isEditMode
+								? 'grid-cols-[44px_64px_3fr_2fr_84px] max-sm:grid-cols-[44px_64px_1fr_1fr_84px] sm:grid-cols-[44px_64px_3fr_2fr_84px]'
+								: 'grid-cols-[64px_3fr_2fr] max-sm:grid-cols-[64px_1fr_1fr] sm:grid-cols-[64px_3fr_2fr]'
+						]"
+					>
+						<TableCell
+							v-if="isEditMode"
+							class="flex items-center whitespace-normal"
+						>
 							<!-- Empty cell for drag handle -->
 						</TableCell>
 
@@ -321,7 +365,7 @@ async function focusFirstField() {
 						<TableCell
 							v-for="(field, fieldIndex) in fieldConfig"
 							:key="field.key"
-							class="p-1"
+							class="flex items-center overflow-hidden p-1 whitespace-normal"
 						>
 							<Input
 								v-model="field.field.value.value"
@@ -340,7 +384,9 @@ async function focusFirstField() {
 							/>
 						</TableCell>
 
-						<TableCell class="flex justify-end gap-1 p-1">
+						<TableCell
+							class="flex items-center justify-end gap-1 p-1 whitespace-normal"
+						>
 							<Button
 								@click="saveArtist"
 								size="icon"
