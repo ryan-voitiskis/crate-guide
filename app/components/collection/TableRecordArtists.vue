@@ -22,161 +22,131 @@ const artistSchema = z.object({
 	role: z.string().trim().optional()
 })
 
-type ArtistFormData = z.infer<typeof artistSchema>
-
 const validationSchema = toTypedSchema(artistSchema)
 
-const inputFields = [
+const formMode = ref<'edit' | 'new' | null>(null)
+const editingIndex = ref<number | null>(null)
+const submitAttempted = ref(false)
+
+const form = useForm({
+	validationSchema,
+	initialValues: {
+		discogs_id: '',
+		name: '',
+		role: ''
+	}
+})
+
+const { handleSubmit, resetForm, setValues, meta } = form
+
+const [discogsIdValue, discogsIdMeta] = form.defineField('discogs_id')
+const [nameValue, nameMeta] = form.defineField('name')
+const [roleValue, roleMeta] = form.defineField('role')
+
+const fields = {
+	discogs_id: { value: discogsIdValue, meta: discogsIdMeta },
+	name: { value: nameValue, meta: nameMeta },
+	role: { value: roleValue, meta: roleMeta }
+}
+
+const shouldShowFieldError = (fieldKey: keyof typeof fields) => {
+	return (
+		(fields[fieldKey].meta.value.touched || submitAttempted.value) &&
+		!!form.errors.value[fieldKey]
+	)
+}
+
+const fieldConfig = [
 	{
 		key: 'discogs_id' as const,
 		placeholder: '1453529',
 		class: 'w-20 text-xs',
 		displayValue: (artist: any) => artist.discogs_id || '–',
-		displayClass: 'text-muted-foreground text-xs'
+		displayClass: 'text-muted-foreground text-xs',
+		field: fields.discogs_id
 	},
 	{
 		key: 'name' as const,
 		placeholder: 'Artist name',
 		class: 'text-sm',
 		displayValue: (artist: any) => artist.name,
-		displayClass: 'text-sm font-medium'
+		displayClass: 'text-sm font-medium',
+		field: fields.name
 	},
 	{
 		key: 'role' as const,
 		placeholder: 'e.g., Producer, Remix',
 		class: 'text-sm',
 		displayValue: (artist: any) => artist.role || '–',
-		displayClass: 'text-muted-foreground text-sm'
+		displayClass: 'text-muted-foreground text-sm',
+		field: fields.role
 	}
 ]
-
-const formMode = ref<'edit' | 'new' | null>(null)
-const editingIndex = ref<number | null>(null)
-const saveAttempted = ref(false)
-
-const dirtyFields = ref(new Set<keyof ArtistFormData>())
-
-const shouldShowValidation = computed(
-	() => dirtyFields.value.size > 0 || saveAttempted.value
-)
-
-const editForm = useForm({
-	validationSchema,
-	initialValues: {
-		discogs_id: '',
-		name: '',
-		role: ''
-	}
-})
-
-const newForm = useForm({
-	validationSchema,
-	initialValues: {
-		discogs_id: '',
-		name: '',
-		role: ''
-	}
-})
-
-const [editDiscogsId] = editForm.defineField('discogs_id')
-const [editName] = editForm.defineField('name')
-const [editRole] = editForm.defineField('role')
-
-const [newDiscogsId] = newForm.defineField('discogs_id')
-const [newName] = newForm.defineField('name')
-const [newRole] = newForm.defineField('role')
-
-const currentForm = computed(() =>
-	formMode.value === 'edit' ? editForm : newForm
-)
-
-const currentFields = computed(() => ({
-	discogs_id: formMode.value === 'edit' ? editDiscogsId : newDiscogsId,
-	name: formMode.value === 'edit' ? editName : newName,
-	role: formMode.value === 'edit' ? editRole : newRole
-}))
 
 const isFormActive = computed(() => formMode.value !== null)
 
 const isEditingRow = (index: number) =>
 	formMode.value === 'edit' && editingIndex.value === index
 
-const hasFieldError = (field: keyof ArtistFormData) =>
-	currentForm.value.errors.value[field]
-
-watchEffect(() => {
-	if (formMode.value) currentForm.value.validate()
+const firstError = computed(() => {
+	for (const field of fieldConfig) {
+		if (shouldShowFieldError(field.key) && form.errors.value[field.key])
+			return form.errors.value[field.key]
+	}
+	return null
 })
-
-function handleInputBlur(field: keyof ArtistFormData) {
-	dirtyFields.value.add(field)
-	currentForm.value.validateField(field)
-}
 
 function startEdit(index: number) {
 	const artist = recordDetails.recordForm.artists[index]
 	if (!artist) return
 
-	editForm.resetForm({
-		values: {
-			discogs_id: artist.discogs_id?.toString() || '',
-			name: artist.name,
-			role: artist.role || ''
-		}
+	setValues({
+		discogs_id: artist.discogs_id?.toString() || '',
+		name: artist.name,
+		role: artist.role || ''
 	})
 
 	formMode.value = 'edit'
 	editingIndex.value = index
-	saveAttempted.value = false
-	dirtyFields.value.clear()
+	submitAttempted.value = false
 }
 
 function startAddNew() {
-	newForm.resetForm({
-		values: {
-			discogs_id: '',
-			name: '',
-			role: ''
-		}
-	})
-
+	resetForm()
 	formMode.value = 'new'
-	saveAttempted.value = false
-	dirtyFields.value.clear()
+	submitAttempted.value = false
 }
 
 function cancelForm() {
 	formMode.value = null
 	editingIndex.value = null
-	saveAttempted.value = false
-	dirtyFields.value.clear()
-	editForm.resetForm()
-	newForm.resetForm()
+	submitAttempted.value = false
+	resetForm()
 }
 
-async function saveArtist() {
-	if (!formMode.value) return
-	saveAttempted.value = true
+const saveArtist = handleSubmit(
+	(values) => {
+		if (!formMode.value) return
 
-	const { valid } = await currentForm.value.validate()
-	if (!valid) return
+		const artistData = {
+			discogs_id: values.discogs_id
+				? parseInt(values.discogs_id, 10)
+				: undefined,
+			name: values.name || '',
+			role: values.role || null
+		}
 
-	const formValues = currentForm.value.values
-	const artistData = {
-		discogs_id: formValues.discogs_id
-			? parseInt(formValues.discogs_id, 10)
-			: undefined,
-		name: formValues.name || '',
-		role: formValues.role || null
+		if (formMode.value === 'edit' && editingIndex.value !== null)
+			recordDetails.recordForm.artists[editingIndex.value] = artistData
+		else if (formMode.value === 'new')
+			recordDetails.recordForm.artists.push(artistData)
+
+		cancelForm()
+	},
+	() => {
+		submitAttempted.value = true
 	}
-
-	if (formMode.value === 'edit' && editingIndex.value !== null)
-		recordDetails.recordForm.artists[editingIndex.value] = artistData
-	else if (formMode.value === 'new')
-		recordDetails.recordForm.artists.push(artistData)
-
-	cancelForm()
-}
+)
 
 function removeArtist(index: number) {
 	recordDetails.recordForm.artists.splice(index, 1)
@@ -196,24 +166,6 @@ watchEffect(() => {
 })
 
 useSortable(sortableRef, recordDetails.recordForm.artists, sortableOptions)
-
-function getFirstError(): string | null {
-	const errors = currentForm.value.errors.value
-	if (!errors) return null
-
-	for (const field of inputFields) {
-		const fieldKey = field.key
-		const isDirty = dirtyFields.value.has(fieldKey)
-		if (errors[fieldKey] && (saveAttempted.value || isDirty))
-			return errors[fieldKey]
-	}
-
-	return null
-}
-
-function getFieldModel(field: keyof ArtistFormData) {
-	return currentFields.value[field]
-}
 </script>
 
 <template>
@@ -267,22 +219,20 @@ function getFieldModel(field: keyof ArtistFormData) {
 						</TableCell>
 
 						<!-- Loop through input fields -->
-						<TableCell v-for="field in inputFields" :key="field.key">
+						<TableCell v-for="field in fieldConfig" :key="field.key">
 							<Input
 								v-if="isEditingRow(index)"
-								v-model="getFieldModel(field.key).value"
+								v-model="field.field.value.value"
 								:name="field.key"
 								:placeholder="field.placeholder"
 								:class="[
 									field.class,
 									{
-										'border-destructive':
-											shouldShowValidation && hasFieldError(field.key)
+										'border-destructive': shouldShowFieldError(field.key)
 									}
 								]"
 								@keydown.enter="saveArtist"
 								@keydown.escape="cancelForm"
-								@blur="handleInputBlur(field.key)"
 							/>
 							<span v-else :class="field.displayClass">
 								{{ field.displayValue(artist) }}
@@ -296,11 +246,7 @@ function getFieldModel(field: keyof ArtistFormData) {
 									@click="saveArtist"
 									size="icon"
 									variant="ghost"
-									:class="[
-										editForm.meta.value.valid
-											? 'text-green-600'
-											: 'text-gray-400'
-									]"
+									:class="[meta.valid ? 'text-green-600' : 'text-gray-400']"
 								>
 									<Check />
 								</Button>
@@ -343,21 +289,19 @@ function getFieldModel(field: keyof ArtistFormData) {
 						</TableCell>
 
 						<!-- Loop through input fields for new row -->
-						<TableCell v-for="field in inputFields" :key="field.key">
+						<TableCell v-for="field in fieldConfig" :key="field.key">
 							<Input
-								v-model="getFieldModel(field.key).value"
+								v-model="field.field.value.value"
 								:name="`new_${field.key}`"
 								:placeholder="field.placeholder"
 								:class="[
 									field.class,
 									{
-										'border-destructive':
-											shouldShowValidation && hasFieldError(field.key)
+										'border-destructive': shouldShowFieldError(field.key)
 									}
 								]"
 								@keydown.enter="saveArtist"
 								@keydown.escape="cancelForm"
-								@blur="handleInputBlur(field.key)"
 							/>
 						</TableCell>
 
@@ -367,11 +311,7 @@ function getFieldModel(field: keyof ArtistFormData) {
 									@click="saveArtist"
 									size="icon"
 									variant="ghost"
-									:class="[
-										newForm.meta.value.valid
-											? 'text-green-600'
-											: 'text-gray-400'
-									]"
+									:class="[meta.valid ? 'text-green-600' : 'text-gray-400']"
 								>
 									<Check />
 								</Button>
@@ -391,8 +331,8 @@ function getFieldModel(field: keyof ArtistFormData) {
 		</div>
 
 		<!-- Form Error Display -->
-		<NoticeError v-if="formMode && shouldShowValidation && getFirstError()">
-			{{ getFirstError() }}
+		<NoticeError v-if="formMode && firstError">
+			{{ firstError }}
 		</NoticeError>
 
 		<!-- Empty State (read-only mode) -->
