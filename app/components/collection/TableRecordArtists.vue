@@ -249,7 +249,7 @@ async function focusFirstField() {
 									}
 								]"
 								@keydown.enter="saveArtist"
-								@keydown.escape="cancelForm"
+								@keydown.escape.stop="cancelForm"
 							/>
 							<span v-else :class="field.displayClass">
 								{{ field.displayValue(artist) }}
@@ -322,7 +322,7 @@ async function focusFirstField() {
 									}
 								]"
 								@keydown.enter="saveArtist"
-								@keydown.escape="cancelForm"
+								@keydown.escape.stop="cancelForm"
 							/>
 						</TableCell>
 
