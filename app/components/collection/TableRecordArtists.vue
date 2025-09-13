@@ -60,7 +60,7 @@ const fieldConfig = [
 	{
 		key: 'discogs_id' as const,
 		placeholder: '1453529',
-		class: 'w-20 text-xs',
+		class: 'text-xs',
 		displayValue: (artist: any) => artist.discogs_id || '–',
 		displayClass: 'text-muted-foreground text-xs',
 		field: fields.discogs_id
@@ -126,7 +126,6 @@ function cancelForm() {
 	resetForm()
 }
 
-// Helper function for cleaner data transformation
 const createArtistData = (values: any) => ({
 	discogs_id: values.discogs_id ? parseInt(values.discogs_id, 10) : undefined,
 	name: values.name || '',
@@ -140,11 +139,9 @@ const saveArtist = handleSubmit(
 		const artistData = createArtistData(values)
 		const artists = recordDetails.recordForm.artists
 
-		if (formMode.value === 'edit' && editingIndex.value !== null) {
+		if (formMode.value === 'edit' && editingIndex.value !== null)
 			artists[editingIndex.value] = artistData
-		} else {
-			artists.push(artistData)
-		}
+		else artists.push(artistData)
 
 		cancelForm()
 	},
@@ -201,18 +198,18 @@ async function focusFirstField() {
 		<!-- Artists Table -->
 		<div
 			v-if="recordDetails.recordForm.artists.length || formMode === 'new'"
-			class="overflow-hidden rounded-md border"
+			class="overflow-hidden"
 		>
 			<Table>
 				<TableHeader>
-					<TableRow>
-						<TableHead v-if="recordDetails.isEditMode" class="w-12">
+					<TableRow class="hover:bg-transparent">
+						<TableHead v-if="recordDetails.isEditMode" class="w-11">
 							<span class="sr-only">Drag</span>
 						</TableHead>
-						<TableHead class="w-24">Discogs ID</TableHead>
-						<TableHead>Name</TableHead>
-						<TableHead>Role</TableHead>
-						<TableHead v-if="recordDetails.isEditMode" class="w-24">
+						<TableHead class="w-20 p-1">Discogs ID</TableHead>
+						<TableHead class="p-1">Name</TableHead>
+						<TableHead class="p-1">Role</TableHead>
+						<TableHead v-if="recordDetails.isEditMode" class="w-21 p-1">
 							Actions
 						</TableHead>
 					</TableRow>
@@ -221,21 +218,22 @@ async function focusFirstField() {
 					<TableRow
 						v-for="(artist, index) in recordDetails.recordForm.artists"
 						:key="`artist-${artist.name}-${index}`"
+						class="!h-11"
 					>
 						<!-- Drag Handle -->
-						<TableCell v-if="recordDetails.isEditMode">
-							<div
-								class="drag-handle text-muted-foreground hover:text-foreground flex cursor-grab items-center justify-center transition-colors active:cursor-grabbing"
-								:class="{ 'cursor-not-allowed opacity-50': isFormActive }"
-							>
-								<GripVertical class="size-4" />
-							</div>
+						<TableCell
+							v-if="recordDetails.isEditMode"
+							class="drag-handle text-muted-foreground hover:text-accent-foreground flex !h-11 w-full cursor-grab items-center justify-center p-0 transition-colors active:cursor-grabbing"
+							:class="{ 'cursor-not-allowed opacity-50': isFormActive }"
+						>
+							<GripVertical class="size-4" />
 						</TableCell>
 
 						<!-- Loop through input fields -->
 						<TableCell
 							v-for="(field, fieldIndex) in fieldConfig"
 							:key="field.key"
+							class="p-1"
 						>
 							<Input
 								v-if="isEditingRow(index)"
@@ -243,6 +241,7 @@ async function focusFirstField() {
 								:ref="(el) => setFirstFieldRef(el, fieldIndex)"
 								:name="field.key"
 								:placeholder="field.placeholder"
+								class="px-1"
 								:class="[
 									field.class,
 									{
@@ -258,50 +257,53 @@ async function focusFirstField() {
 						</TableCell>
 
 						<!-- Actions -->
-						<TableCell v-if="recordDetails.isEditMode">
-							<div v-if="isEditingRow(index)" class="flex gap-1">
-								<Button
-									@click="saveArtist"
-									size="icon"
-									variant="ghost"
-									:class="[meta.valid ? 'text-green-600' : 'text-gray-400']"
-								>
-									<Check />
-								</Button>
-								<Button
-									@click="cancelForm"
-									size="icon"
-									variant="ghost"
-									class="text-muted-foreground"
-								>
-									<X />
-								</Button>
-							</div>
-							<div v-else class="flex justify-end gap-1">
-								<Button
-									@click="startEdit(index)"
-									size="icon"
-									variant="ghost"
-									:disabled="isFormActive"
-								>
-									<Pencil />
-								</Button>
-								<Button
-									@click="removeArtist(index)"
-									size="icon"
-									variant="destructive-ghost"
-									:disabled="isFormActive"
-								>
-									<Trash />
-								</Button>
-							</div>
+						<TableCell
+							v-if="recordDetails.isEditMode"
+							class="flex justify-end gap-1 p-1"
+						>
+							<Button
+								v-if="isEditingRow(index)"
+								@click="saveArtist"
+								size="icon"
+								variant="ghost"
+								:class="[meta.valid ? 'text-green-600' : 'text-gray-400']"
+							>
+								<Check />
+							</Button>
+							<Button
+								v-else
+								@click="startEdit(index)"
+								size="icon"
+								variant="ghost"
+								:disabled="isFormActive"
+							>
+								<Pencil />
+							</Button>
+							<Button
+								v-if="isEditingRow(index)"
+								@click="cancelForm"
+								size="icon"
+								variant="ghost"
+								class="text-muted-foreground"
+							>
+								<X />
+							</Button>
+							<Button
+								v-else
+								@click="removeArtist(index)"
+								size="icon"
+								variant="destructive-ghost"
+								:disabled="isFormActive"
+							>
+								<Trash />
+							</Button>
 						</TableCell>
 					</TableRow>
 				</tbody>
 
 				<!-- Add New Artist Row (outside draggable) -->
 				<tbody v-if="formMode === 'new'">
-					<TableRow>
+					<TableRow class="!h-11">
 						<TableCell v-if="recordDetails.isEditMode">
 							<!-- Empty cell for drag handle -->
 						</TableCell>
@@ -310,12 +312,14 @@ async function focusFirstField() {
 						<TableCell
 							v-for="(field, fieldIndex) in fieldConfig"
 							:key="field.key"
+							class="p-1"
 						>
 							<Input
 								v-model="field.field.value.value"
 								:ref="(el) => setFirstFieldRef(el, fieldIndex)"
 								:name="`new_${field.key}`"
 								:placeholder="field.placeholder"
+								class="p-1"
 								:class="[
 									field.class,
 									{
@@ -327,25 +331,23 @@ async function focusFirstField() {
 							/>
 						</TableCell>
 
-						<TableCell>
-							<div class="flex gap-1">
-								<Button
-									@click="saveArtist"
-									size="icon"
-									variant="ghost"
-									:class="[meta.valid ? 'text-green-600' : 'text-gray-400']"
-								>
-									<Check />
-								</Button>
-								<Button
-									@click="cancelForm"
-									size="icon"
-									variant="ghost"
-									class="text-muted-foreground"
-								>
-									<X />
-								</Button>
-							</div>
+						<TableCell class="flex justify-end gap-1 p-1">
+							<Button
+								@click="saveArtist"
+								size="icon"
+								variant="ghost"
+								:class="[meta.valid ? 'text-green-600' : 'text-gray-400']"
+							>
+								<Check />
+							</Button>
+							<Button
+								@click="cancelForm"
+								size="icon"
+								variant="ghost"
+								class="text-muted-foreground"
+							>
+								<X />
+							</Button>
 						</TableCell>
 					</TableRow>
 				</tbody>
