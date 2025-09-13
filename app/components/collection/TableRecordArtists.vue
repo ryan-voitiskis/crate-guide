@@ -126,28 +126,29 @@ function cancelForm() {
 	resetForm()
 }
 
+// Helper function for cleaner data transformation
+const createArtistData = (values: any) => ({
+	discogs_id: values.discogs_id ? parseInt(values.discogs_id, 10) : undefined,
+	name: values.name || '',
+	role: values.role || null
+})
+
 const saveArtist = handleSubmit(
 	(values) => {
 		if (!formMode.value) return
 
-		const artistData = {
-			discogs_id: values.discogs_id
-				? parseInt(values.discogs_id, 10)
-				: undefined,
-			name: values.name || '',
-			role: values.role || null
-		}
+		const artistData = createArtistData(values)
+		const artists = recordDetails.recordForm.artists
 
-		if (formMode.value === 'edit' && editingIndex.value !== null)
-			recordDetails.recordForm.artists[editingIndex.value] = artistData
-		else if (formMode.value === 'new')
-			recordDetails.recordForm.artists.push(artistData)
+		if (formMode.value === 'edit' && editingIndex.value !== null) {
+			artists[editingIndex.value] = artistData
+		} else {
+			artists.push(artistData)
+		}
 
 		cancelForm()
 	},
-	() => {
-		submitAttempted.value = true
-	}
+	() => (submitAttempted.value = true)
 )
 
 function removeArtist(index: number) {
