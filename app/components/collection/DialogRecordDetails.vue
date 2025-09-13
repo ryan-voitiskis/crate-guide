@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { toTypedSchema } from '@vee-validate/zod'
 import { Pencil, PencilOff } from 'lucide-vue-next'
+import { useForm } from 'vee-validate'
 import { z } from 'zod'
 
 const records = useRecordsStore()
@@ -8,7 +10,7 @@ const recordDetails = useRecordDetailsStore()
 const dialogOpen = computed({
 	get: () => !!recordDetails.selectedRecordId,
 	set: (value: boolean) => {
-		if (!value) recordDetails.closeRecord()
+		if (!value) handleCloseDialog()
 	}
 })
 
@@ -18,18 +20,12 @@ const recordSchema = z.object({
 		(val) => {
 			if (val === '') return true
 			const num = Number(val)
-			return (
-				Number.isInteger(num) &&
-				num >= 1877 &&
-				num <= new Date().getFullYear() + 5
-			)
+			const maxYear = new Date().getFullYear() + 5
+			return Number.isInteger(num) && num >= 1877 && num <= maxYear
 		},
-		(val) => ({
-			message:
-				val === ''
-					? ''
-					: `Year must be between 1877 and ${new Date().getFullYear() + 5}`
-		})
+		{
+			message: `Year must be between 1877 and ${new Date().getFullYear() + 5}`
+		}
 	),
 	cover: z.union([
 		z.literal(''),
@@ -40,46 +36,118 @@ const recordSchema = z.object({
 				/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i,
 				'Must be an image URL (jpg, png, gif, webp)'
 			)
-	])
+	]),
+	artists: z.array(z.any()) // TableArtistsEditable handles artist validation
 })
 
-type RecordFormData = z.infer<typeof recordSchema>
+const validationSchema = toTypedSchema(recordSchema)
 
-const formErrors = ref<z.ZodFormattedError<RecordFormData> | null>(null)
-
-// Form data computed
-const formData = computed(() => ({
-	title: recordDetails.recordForm.title,
-	year: recordDetails.recordForm.year,
-	cover: recordDetails.recordForm.cover
-}))
-
-// Validation result computed
-const validationResult = computed(() => recordSchema.safeParse(formData.value))
-
-// Validation logic
-watchEffect(() => {
-	formErrors.value = validationResult.value.success
-		? null
-		: validationResult.value.error.format()
+const form = useForm({
+	validationSchema,
+	initialValues: {
+		title: '',
+		year: '',
+		cover: '',
+		artists: [] as DiscogsArtistDb[]
+	}
 })
 
-const hasFieldError = (field: keyof RecordFormData) =>
-	formErrors.value?.[field]?._errors?.length
+const { handleSubmit, setValues, meta, values, errors } = form
+const [titleValue] = form.defineField('title')
+const [yearValue] = form.defineField('year')
+const [coverValue] = form.defineField('cover')
+const [artistsValue] = form.defineField('artists')
 
-function validateField() {
-	formErrors.value = validationResult.value.success
-		? null
-		: validationResult.value.error.format()
+const safeArtistsValue = computed({
+	get: () =>
+		recordDetails.isEditMode
+			? artistsValue.value || []
+			: recordDetails.selectedRecord?.artists || [],
+	set: (value) => (artistsValue.value = value)
+})
+
+const showUnsavedChangesAlert = ref(false)
+
+const isFormInitialized = ref(false)
+
+watch(
+	[() => recordDetails.selectedRecord, () => recordDetails.isEditMode],
+	([record, isEditMode]) => {
+		if (record && isEditMode && !isFormInitialized.value) {
+			setValues({
+				title: record.title || '',
+				year: record.year?.toString() || '',
+				cover: record.cover || '',
+				artists: record.artists || []
+			})
+			isFormInitialized.value = true
+		} else if (!isEditMode) {
+			isFormInitialized.value = false
+		}
+	},
+	{ immediate: true }
+)
+
+function hasFormChanges(): boolean {
+	if (
+		!recordDetails.selectedRecord ||
+		!recordDetails.isEditMode ||
+		!isFormInitialized.value
+	)
+		return false
+
+	const current = recordDetails.selectedRecord
+	const form = values
+
+	return (
+		(current.title || '') !== (form.title || '') ||
+		(current.year?.toString() || '') !== (form.year || '') ||
+		(current.cover || '') !== (form.cover || '') ||
+		JSON.stringify(current.artists || []) !== JSON.stringify(form.artists || [])
+	)
 }
 
-function handleSave() {
-	if (!validationResult.value.success) {
-		formErrors.value = validationResult.value.error.format()
-		return
+function handleCloseDialog() {
+	if (hasFormChanges()) showUnsavedChangesAlert.value = true
+	else recordDetails.closeRecord()
+}
+
+function handleToggleEditMode() {
+	if (recordDetails.isEditMode && hasFormChanges())
+		showUnsavedChangesAlert.value = true
+	else recordDetails.toggleEditMode()
+}
+
+const saveRecord = handleSubmit(async (values) => {
+	if (!recordDetails.selectedRecord) return
+
+	const updates = {
+		title: values.title.trim(),
+		year: values.year ? Number(values.year) : null,
+		cover: values.cover || null,
+		artists: values.artists
 	}
 
-	recordDetails.saveRecord()
+	const result = await records.updateRecord(
+		recordDetails.selectedRecord.id,
+		updates
+	)
+	if (result) {
+		recordDetails.toggleEditMode()
+		isFormInitialized.value = false
+	}
+})
+
+function handleCancelEdit() {
+	if (hasFormChanges()) showUnsavedChangesAlert.value = true
+	else recordDetails.toggleEditMode()
+}
+
+function confirmDiscardAndProceed() {
+	showUnsavedChangesAlert.value = false
+	isFormInitialized.value = false
+	if (recordDetails.isEditMode) recordDetails.toggleEditMode()
+	else recordDetails.closeRecord()
 }
 </script>
 
@@ -98,7 +166,7 @@ function handleSave() {
 						</DialogDescription>
 					</div>
 					<Button
-						@click="recordDetails.toggleEditMode()"
+						@click="handleToggleEditMode"
 						:variant="recordDetails.isEditMode ? 'secondary' : 'outline'"
 						size="sm"
 						class="mt-2"
@@ -136,17 +204,15 @@ function handleSave() {
 							<Label>Title</Label>
 							<FormItem v-if="recordDetails.isEditMode">
 								<Input
-									v-model="recordDetails.recordForm.title"
-									@blur="validateField()"
+									v-model="titleValue"
 									name="title"
 									placeholder="Record title"
-									:class="{ 'border-destructive': hasFieldError('title') }"
+									:class="{
+										'border-destructive': !!errors.title
+									}"
 								/>
-								<p
-									v-if="formErrors?.title?._errors?.length"
-									class="text-destructive text-sm"
-								>
-									{{ formErrors.title._errors[0] }}
+								<p v-if="errors.title" class="text-destructive text-sm">
+									{{ errors.title }}
 								</p>
 							</FormItem>
 							<div v-else>
@@ -159,21 +225,19 @@ function handleSave() {
 							<Label class="font-medium">Year</Label>
 							<FormItem v-if="recordDetails.isEditMode">
 								<Input
-									v-model="recordDetails.recordForm.year"
-									@blur="validateField()"
+									v-model="yearValue"
 									name="year"
 									type="text"
 									placeholder="Release year"
 									:class="[
 										'w-full sm:w-32',
-										{ 'border-destructive': hasFieldError('year') }
+										{
+											'border-destructive': !!errors.year
+										}
 									]"
 								/>
-								<p
-									v-if="formErrors?.year?._errors?.length"
-									class="text-destructive text-sm"
-								>
-									{{ formErrors.year._errors[0] }}
+								<p v-if="errors.year" class="text-destructive text-sm">
+									{{ errors.year }}
 								</p>
 							</FormItem>
 							<p v-else class="text-muted-foreground">
@@ -186,20 +250,18 @@ function handleSave() {
 							<Label class="font-medium">Cover URL</Label>
 							<FormItem>
 								<Input
-									v-model="recordDetails.recordForm.cover"
-									@blur="validateField()"
+									v-model="coverValue"
 									name="cover"
 									placeholder="Cover URL"
 									:class="[
 										'w-full text-xs',
-										{ 'border-destructive': hasFieldError('cover') }
+										{
+											'border-destructive': !!errors.cover
+										}
 									]"
 								/>
-								<p
-									v-if="formErrors?.cover?._errors?.length"
-									class="text-destructive text-sm"
-								>
-									{{ formErrors.cover._errors[0] }}
+								<p v-if="errors.cover" class="text-destructive text-sm">
+									{{ errors.cover }}
 								</p>
 							</FormItem>
 						</div>
@@ -207,7 +269,7 @@ function handleSave() {
 
 					<!-- Artists -->
 					<TableArtistsEditable
-						v-model="recordDetails.recordForm.artists"
+						v-model="safeArtistsValue"
 						:is-edit-mode="recordDetails.isEditMode"
 						label="Artists"
 					/>
@@ -237,12 +299,10 @@ function handleSave() {
 
 			<!-- Dialog Footer (only shown in edit mode) -->
 			<DialogFooter v-if="recordDetails.isEditMode" class="p-6 pt-0">
-				<Button @click="recordDetails.cancelEdit()" variant="secondary">
-					Cancel
-				</Button>
+				<Button @click="handleCancelEdit" variant="secondary">Cancel</Button>
 				<Button
-					@click="handleSave()"
-					:disabled="!recordDetails.canSave"
+					@click="saveRecord"
+					:disabled="!meta.valid"
 					:loading="records.isUpdatingRecord"
 				>
 					Save Changes
@@ -251,7 +311,26 @@ function handleSave() {
 		</DialogContent>
 	</Dialog>
 
-	<AlertUnsavedRecordChanges />
+	<!-- Unsaved Changes Alert -->
+	<AlertDialog v-model:open="showUnsavedChangesAlert">
+		<AlertDialogContent>
+			<AlertDialogHeader>
+				<AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+				<AlertDialogDescription>
+					You have unsaved changes. Are you sure you want to discard them?
+				</AlertDialogDescription>
+			</AlertDialogHeader>
+			<AlertDialogFooter>
+				<AlertDialogCancel @click="showUnsavedChangesAlert = false">
+					Keep Editing
+				</AlertDialogCancel>
+				<AlertDialogAction @click="confirmDiscardAndProceed">
+					Discard Changes
+				</AlertDialogAction>
+			</AlertDialogFooter>
+		</AlertDialogContent>
+	</AlertDialog>
+
 	<AlertConfirmDeleteTrack />
 	<DialogTrackEdit />
 </template>

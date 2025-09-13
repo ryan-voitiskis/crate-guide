@@ -125,6 +125,39 @@ export const useRecordsStore = defineStore('records', () => {
 </template>
 ```
 
+## Collaboration Guidelines
+
+### Working Style
+
+Ryan prefers **incremental improvements** over large rewrites. Propose changes in logical steps that can be reviewed and refined. He values **pragmatic solutions** over clever abstractions and will often suggest cleaner implementations.
+
+### Decision Making
+
+- **Always ask before architectural decisions** - Ryan has strong technical judgment and will catch issues early
+- **Present options with trade-offs** - He appreciates seeing multiple approaches with pros/cons
+- **Expect feedback and iteration** - Ryan reviews code carefully and will suggest improvements
+- **Be direct and efficient** - No need for excessive explanation; focus on the technical details
+
+### Quality Focus
+
+Ryan is **quality-oriented** and will want to address:
+- Unused variables and imports
+- TODO comments and technical debt
+- Type safety improvements
+- Code cleanup opportunities
+
+Expect questions like "Can we clean this up further?" or "What else needs attention?"
+
+### Error Handling
+
+Ryan **catches mistakes quickly** and will point out:
+- Missing exports or broken functionality
+- Inconsistent patterns
+- Edge cases in logic
+- TypeScript errors
+
+Don't take corrections personally - use them as learning opportunities for better code.
+
 ## ASK BEFORE
 
 - Creating new Pinia stores
@@ -133,6 +166,8 @@ export const useRecordsStore = defineStore('records', () => {
 - Database structure changes
 - Data fetching strategy (SSR/client/store)
 - Any architectural patterns not shown here
+- **Any significant refactoring approach**
+- **Store vs component state decisions**
 
 ## IMPLEMENT DIRECTLY
 
@@ -153,4 +188,4 @@ export const useRecordsStore = defineStore('records', () => {
 - Unhandled async errors
 - Console.log in production code
 
-Don't begin to implement changes or generate extensive examples until we agree on a strategy.
+Don't begin to implement changes or generate extensive examples until we agree on a strategy. **Always consult Ryan on approach before implementing.**
