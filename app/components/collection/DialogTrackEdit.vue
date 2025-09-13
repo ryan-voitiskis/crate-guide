@@ -251,18 +251,17 @@ function handleDialogOpenChange(open: boolean) {
 				</div>
 
 				<!-- Artists Section -->
-				<ArtistManager
+				<TableArtistsEditable
 					v-model="trackEdit.trackForm.artists"
-					title="Artists (defaults to record artist)"
-					role-placeholder="Role"
-					:required="true"
+					:is-edit-mode="true"
+					label="Artists (defaults to record artist)"
 				/>
 
 				<!-- Extra Artists Section -->
-				<ArtistManager
+				<TableArtistsEditable
 					v-model="trackEdit.trackForm.extraartists"
-					title="Extra Artists (Remixers, Features, etc.)"
-					role-placeholder="Role (remix, feat, etc.)"
+					:is-edit-mode="true"
+					label="Extra Artists (Remixers, Features, etc.)"
 				/>
 
 				<!-- Genres -->

@@ -206,7 +206,11 @@ function handleSave() {
 					</div>
 
 					<!-- Artists -->
-					<TableRecordArtists />
+					<TableArtistsEditable
+						v-model="recordDetails.recordForm.artists"
+						:is-edit-mode="recordDetails.isEditMode"
+						label="Artists"
+					/>
 
 					<!-- Labels -->
 					<div class="col-span-3 space-y-2">

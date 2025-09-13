@@ -5,7 +5,18 @@ import { Check, GripVertical, Pencil, Plus, Trash, X } from 'lucide-vue-next'
 import { useForm } from 'vee-validate'
 import { z } from 'zod'
 
-const recordDetails = useRecordDetailsStore()
+const props = defineProps<{
+	modelValue: DiscogsArtistDb[]
+	isEditMode?: boolean
+	label?: string
+}>()
+
+const emit = defineEmits<{ 'update:modelValue': [value: DiscogsArtistDb[]] }>()
+
+const artists = computed({
+	get: () => props.modelValue,
+	set: (value) => emit('update:modelValue', value)
+})
 
 const artistSchema = z.object({
 	discogs_id: z
@@ -97,7 +108,7 @@ const firstError = computed(() => {
 })
 
 function startEdit(index: number) {
-	const artist = recordDetails.recordForm.artists[index]
+	const artist = artists.value[index]
 	if (!artist) return
 
 	setValues({
@@ -126,30 +137,34 @@ function cancelForm() {
 	resetForm()
 }
 
-const createArtistData = (values: any) => ({
-	discogs_id: values.discogs_id ? parseInt(values.discogs_id, 10) : undefined,
-	name: values.name || '',
-	role: values.role || null
-})
+function createArtistData(values: any) {
+	return {
+		discogs_id: values.discogs_id ? parseInt(values.discogs_id, 10) : undefined,
+		name: values.name || '',
+		role: values.role || null
+	}
+}
 
 const saveArtist = handleSubmit(
 	(values) => {
 		if (!formMode.value) return
 
 		const artistData = createArtistData(values)
-		const artists = recordDetails.recordForm.artists
+		const updatedArtists = [...artists.value]
 
 		if (formMode.value === 'edit' && editingIndex.value !== null)
-			artists[editingIndex.value] = artistData
-		else artists.push(artistData)
+			updatedArtists[editingIndex.value] = artistData
+		else updatedArtists.push(artistData)
 
+		emit('update:modelValue', updatedArtists)
 		cancelForm()
 	},
 	() => (submitAttempted.value = true)
 )
 
 function removeArtist(index: number) {
-	recordDetails.recordForm.artists.splice(index, 1)
+	const updatedArtists = artists.value.filter((_, i) => i !== index)
+	emit('update:modelValue', updatedArtists)
 	if (editingIndex.value === index) cancelForm()
 }
 
@@ -171,7 +186,9 @@ watchEffect(() => {
 	sortableOptions.disabled = isFormActive.value
 })
 
-useSortable(sortableRef, recordDetails.recordForm.artists, sortableOptions)
+const { stop } = useSortable(sortableRef, artists, sortableOptions)
+
+onUnmounted(() => stop())
 
 async function focusFirstField() {
 	await nextTick()
@@ -182,9 +199,9 @@ async function focusFirstField() {
 <template>
 	<div class="col-span-3 space-y-2">
 		<div class="flex items-center justify-between">
-			<Label>Artists ({{ recordDetails.recordForm.artists.length }})</Label>
+			<Label>{{ label || 'Artists' }} ({{ artists.length }})</Label>
 			<Button
-				v-if="recordDetails.isEditMode"
+				v-if="isEditMode"
 				@click="startAddNew"
 				size="sm"
 				variant="outline"
@@ -196,33 +213,28 @@ async function focusFirstField() {
 		</div>
 
 		<!-- Artists Table -->
-		<div
-			v-if="recordDetails.recordForm.artists.length || formMode === 'new'"
-			class="overflow-hidden"
-		>
+		<div v-if="artists.length || formMode === 'new'" class="overflow-hidden">
 			<Table>
 				<TableHeader>
 					<TableRow class="hover:bg-transparent">
-						<TableHead v-if="recordDetails.isEditMode" class="w-11">
+						<TableHead v-if="isEditMode" class="w-11">
 							<span class="sr-only">Drag</span>
 						</TableHead>
 						<TableHead class="w-20 p-1">Discogs ID</TableHead>
 						<TableHead class="p-1">Name</TableHead>
 						<TableHead class="p-1">Role</TableHead>
-						<TableHead v-if="recordDetails.isEditMode" class="w-21 p-1">
-							Actions
-						</TableHead>
+						<TableHead v-if="isEditMode" class="w-21 p-1">Actions</TableHead>
 					</TableRow>
 				</TableHeader>
 				<tbody ref="sortableRef">
 					<TableRow
-						v-for="(artist, index) in recordDetails.recordForm.artists"
+						v-for="(artist, index) in artists"
 						:key="`artist-${artist.name}-${index}`"
 						class="!h-11"
 					>
 						<!-- Drag Handle -->
 						<TableCell
-							v-if="recordDetails.isEditMode"
+							v-if="isEditMode"
 							class="drag-handle text-muted-foreground hover:text-accent-foreground flex !h-11 w-full cursor-grab items-center justify-center p-0 transition-colors active:cursor-grabbing"
 							:class="{ 'cursor-not-allowed opacity-50': isFormActive }"
 						>
@@ -257,10 +269,7 @@ async function focusFirstField() {
 						</TableCell>
 
 						<!-- Actions -->
-						<TableCell
-							v-if="recordDetails.isEditMode"
-							class="flex justify-end gap-1 p-1"
-						>
+						<TableCell v-if="isEditMode" class="flex justify-end gap-1 p-1">
 							<Button
 								v-if="isEditingRow(index)"
 								@click="saveArtist"
@@ -304,7 +313,7 @@ async function focusFirstField() {
 				<!-- Add New Artist Row (outside draggable) -->
 				<tbody v-if="formMode === 'new'">
 					<TableRow class="!h-11">
-						<TableCell v-if="recordDetails.isEditMode">
+						<TableCell v-if="isEditMode">
 							<!-- Empty cell for drag handle -->
 						</TableCell>
 
@@ -360,18 +369,15 @@ async function focusFirstField() {
 		</NoticeError>
 
 		<!-- Empty State (read-only mode) -->
-		<div v-else-if="!recordDetails.isEditMode" class="space-y-1">
-			<div
-				v-if="!recordDetails.selectedRecord?.artists?.length"
-				class="text-muted-foreground text-sm"
-			>
+		<div v-else-if="!isEditMode" class="space-y-1">
+			<div v-if="!artists.length" class="text-muted-foreground text-sm">
 				No artists
 			</div>
 		</div>
 
 		<!-- Empty State (edit mode) -->
 		<div
-			v-else-if="!recordDetails.recordForm.artists.length"
+			v-else-if="!artists.length"
 			class="text-muted-foreground py-4 text-center text-sm"
 		>
 			No artists. Click "Add Artist" to get started.
