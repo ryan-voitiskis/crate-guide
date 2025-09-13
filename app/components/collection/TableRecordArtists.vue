@@ -109,12 +109,14 @@ function startEdit(index: number) {
 	formMode.value = 'edit'
 	editingIndex.value = index
 	submitAttempted.value = false
+	focusFirstField()
 }
 
 function startAddNew() {
 	resetForm()
 	formMode.value = 'new'
 	submitAttempted.value = false
+	focusFirstField()
 }
 
 function cancelForm() {
@@ -153,6 +155,12 @@ function removeArtist(index: number) {
 	if (editingIndex.value === index) cancelForm()
 }
 
+const firstFieldRef = ref()
+
+function setFirstFieldRef(el: any, fieldIndex: number) {
+	if (fieldIndex === 0 && el) firstFieldRef.value = el
+}
+
 const sortableRef = ref<HTMLElement>()
 const sortableOptions = reactive({
 	handle: '.drag-handle',
@@ -166,6 +174,11 @@ watchEffect(() => {
 })
 
 useSortable(sortableRef, recordDetails.recordForm.artists, sortableOptions)
+
+async function focusFirstField() {
+	await nextTick()
+	firstFieldRef.value?.$el?.focus()
+}
 </script>
 
 <template>
@@ -219,10 +232,14 @@ useSortable(sortableRef, recordDetails.recordForm.artists, sortableOptions)
 						</TableCell>
 
 						<!-- Loop through input fields -->
-						<TableCell v-for="field in fieldConfig" :key="field.key">
+						<TableCell
+							v-for="(field, fieldIndex) in fieldConfig"
+							:key="field.key"
+						>
 							<Input
 								v-if="isEditingRow(index)"
 								v-model="field.field.value.value"
+								:ref="(el) => setFirstFieldRef(el, fieldIndex)"
 								:name="field.key"
 								:placeholder="field.placeholder"
 								:class="[
@@ -289,9 +306,13 @@ useSortable(sortableRef, recordDetails.recordForm.artists, sortableOptions)
 						</TableCell>
 
 						<!-- Loop through input fields for new row -->
-						<TableCell v-for="field in fieldConfig" :key="field.key">
+						<TableCell
+							v-for="(field, fieldIndex) in fieldConfig"
+							:key="field.key"
+						>
 							<Input
 								v-model="field.field.value.value"
+								:ref="(el) => setFirstFieldRef(el, fieldIndex)"
 								:name="`new_${field.key}`"
 								:placeholder="field.placeholder"
 								:class="[
