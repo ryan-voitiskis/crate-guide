@@ -3,61 +3,18 @@ import { toast } from 'vue-sonner'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import { z } from 'zod'
-import {
-	createKeyComposite,
-	getKeyOptionsAlt,
-	parseKeyComposite
-} from '~/utils/keyFunctions'
 
 const tracks = useTracksStore()
 const trackEdit = useTrackEditStore()
 const recordDetails = useRecordDetailsStore()
 
-// Helper functions for converting form strings to DB types
-function parseDuration(durationStr: string): number | null {
-	if (!durationStr.trim()) return null
-
-	// Handle MM:SS format (e.g., "3:45")
-	const timeMatch = durationStr.match(/^(\d{1,2}):([0-5]\d)$/)
-	if (timeMatch) {
-		const minutes = parseInt(timeMatch[1]!, 10)
-		const seconds = parseInt(timeMatch[2]!, 10)
-		return minutes * 60 + seconds
-	}
-
-	// Handle plain seconds (e.g., "225")
-	const seconds = parseInt(durationStr, 10)
-	return isNaN(seconds) ? null : seconds
-}
-
-function parseNumber(numStr: string): number | null {
-	if (!numStr.trim()) return null
-	const num = parseFloat(numStr)
-	return isNaN(num) ? null : num
-}
-
 // Validation schema
 const trackSchema = z.object({
 	title: z.string().min(1, 'Title is required').trim(),
-	position: z.string().refine((val) => {
-		if (val === '') return true
-		return /^[A-Z]\d+$|^[A-Z]\d+-[A-Z]\d+$/i.test(val.trim())
-	}, 'Position must be empty or like A1, B2, or A1-A2'),
-	duration: z.string().refine((val) => {
-		if (val === '') return true
-		return /^[0-9]{1,2}:[0-5][0-9]$/.test(val)
-	}, 'Duration must be empty or MM:SS format (e.g., 3:45)'),
-	bpm: z.string().refine((val) => {
-		if (val === '') return true
-		const num = parseFloat(val)
-		return !isNaN(num) && num >= 60 && num <= 300
-	}, 'BPM must be empty or a number between 60-300'),
-	keyComposite: z.string().refine((val) => {
-		if (val === 'none') return true
-		// Validate that it's a valid key option ID
-		const parsed = parseKeyComposite(val)
-		return parsed.key !== null && parsed.mode !== null
-	}, 'Please select a valid key or leave unspecified'),
+	position: z.string().refine(isValidTrackPosition, POSITION_ERROR_MESSAGE),
+	duration: z.string().refine(isValidDurationFormat, DURATION_ERROR_MESSAGE),
+	bpm: z.string().refine(isValidBPM, BPM_ERROR_MESSAGE),
+	keyComposite: z.string().refine(isValidKeyComposite, KEY_ERROR_MESSAGE),
 	artists: z.array(z.any()), // TableArtistsEditable handles artist validation
 	extraartists: z.array(z.any()), // TableArtistsEditable handles artist validation
 	genres: z.array(z.string()),
@@ -87,8 +44,7 @@ const form = useForm({
 	}
 })
 
-const { handleSubmit, setValues, meta, values, errors, validate, resetForm } =
-	form
+const { handleSubmit, setValues, values, errors, resetForm } = form
 const [titleValue] = form.defineField('title')
 const [positionValue] = form.defineField('position')
 const [durationValue] = form.defineField('duration')
@@ -242,7 +198,7 @@ const submitTrack = handleSubmit(async (values) => {
 				extraartists,
 				position: (values.position || '').trim() || null,
 				duration: parseDuration(values.duration || ''),
-				bpm: parseNumber(values.bpm || ''),
+				bpm: parseBpm(values.bpm || ''),
 				rpm: values.rpm ?? null,
 				key: keyData.key,
 				mode: keyData.mode,
@@ -270,7 +226,7 @@ const submitTrack = handleSubmit(async (values) => {
 				extraartists,
 				position: (values.position || '').trim() || null,
 				duration: parseDuration(values.duration || ''),
-				bpm: parseNumber(values.bpm || ''),
+				bpm: parseBpm(values.bpm || ''),
 				rpm: values.rpm ?? null,
 				key: keyData.key,
 				mode: keyData.mode,

@@ -15,7 +15,7 @@ export function normalizeArtist(artist: string): string {
 	return artist?.trim().replace(/ \(\d{1,3}\)$/, '') || ''
 }
 
-export function parseDuration(duration: string): number | null {
+function parseDiscogsDuration(duration: string): number | null {
 	if (!duration) return null
 
 	const match = duration.match(/(\d+):(\d+)/)
@@ -99,7 +99,7 @@ export function transformReleaseTracks(release: DiscogsReleaseFull) {
 				artists: finalTrackArtists,
 				extraartists: trackExtraArtists,
 				position,
-				duration: parseDuration(track.duration) || null,
+				duration: parseDiscogsDuration(track.duration) || null,
 				bpm: null, // To be fetched from elsewhere later
 				rpm: release.formats?.[0]?.descriptions?.toString().includes('45')
 					? 45

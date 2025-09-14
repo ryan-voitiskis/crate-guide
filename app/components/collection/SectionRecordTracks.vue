@@ -62,7 +62,7 @@ const trackEdit = useTrackEditStore()
 
 				<!-- Key -->
 				<div class="text-muted-foreground w-8 text-center text-sm">
-					{{ formatKey(track.key) }}
+					{{ track.key }}
 				</div>
 
 				<!-- Actions -->

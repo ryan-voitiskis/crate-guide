@@ -247,7 +247,7 @@ export function parseKeyComposite(composite: string): {
 	if (!composite || composite === 'none') return { key: null, mode: null }
 	if (composite.length !== 3) return { key: null, mode: null }
 
-	const mode = parseInt(composite[0], 10)
+	const mode = parseInt(composite[0]!, 10)
 	const key = parseInt(composite.substring(1), 10)
 
 	if (

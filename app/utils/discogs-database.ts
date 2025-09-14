@@ -1,6 +1,3 @@
-import { transformRelease } from '~/utils/discogs-data'
-import { validateImportResult } from '~/utils/discogs-validation'
-
 export async function getExistingDiscogsIds(
 	selectedReleases: DiscogsReleaseToFilter[]
 ): Promise<Set<number>> {
@@ -34,9 +31,5 @@ export async function importRecordWithTracks(
 	)
 
 	if (rpcError) throw rpcError
-
-	// Validate the import result
-	const validatedResult = validateImportResult(result)
-
-	return validatedResult
+	return validateImportResult(result)
 }

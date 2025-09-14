@@ -15,7 +15,7 @@ export function formatDuration(seconds: number | null): string {
 /**
  * Parse duration from string input (MM:SS or plain seconds) to seconds number
  */
-export function parseUserDuration(input: string): number | null {
+export function parseDuration(input: string): number | null {
 	if (!input.trim()) return null
 
 	// Handle MM:SS format
@@ -31,39 +31,8 @@ export function parseUserDuration(input: string): number | null {
 	return isNaN(seconds) ? null : seconds
 }
 
-/**
- * Format key number to Camelot notation
- */
-export function formatKey(key: number | null): string {
-	if (key === null) return ''
-
-	// Camelot key mapping
-	const keys = [
-		'8B',
-		'3B',
-		'10B',
-		'5B',
-		'12B',
-		'7B',
-		'2B',
-		'9B',
-		'4B',
-		'11B',
-		'6B',
-		'1B',
-		'8A',
-		'3A',
-		'10A',
-		'5A',
-		'12A',
-		'7A',
-		'2A',
-		'9A',
-		'4A',
-		'11A',
-		'6A',
-		'1A'
-	]
-
-	return keys[key] || ''
+export function parseBpm(numStr: string): number | null {
+	if (!numStr.trim()) return null
+	const num = parseFloat(numStr)
+	return isNaN(num) ? null : num
 }
