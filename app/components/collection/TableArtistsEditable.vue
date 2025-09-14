@@ -215,13 +215,13 @@ async function focusFirstField() {
 		<!-- Artists Table -->
 		<div v-if="artists.length || formMode === 'new'" class="overflow-hidden">
 			<Table>
-				<TableHeader class="contents">
+				<TableHeader class="contents max-sm:hidden">
 					<TableRow
 						:class="[
 							'grid hover:bg-transparent',
 							isEditMode
-								? 'grid-cols-[44px_64px_3fr_2fr_84px] max-sm:grid-cols-[44px_64px_1fr_1fr_84px] sm:grid-cols-[44px_64px_3fr_2fr_84px]'
-								: 'grid-cols-[64px_3fr_2fr] max-sm:grid-cols-[64px_1fr_1fr] sm:grid-cols-[64px_3fr_2fr]'
+								? 'grid-cols-[44px_64px_3fr_2fr_84px]'
+								: 'grid-cols-[64px_3fr_2fr]'
 						]"
 					>
 						<TableHead v-if="isEditMode" class="flex items-center p-1">
@@ -243,26 +243,26 @@ async function focusFirstField() {
 						v-for="(artist, index) in artists"
 						:key="`artist-${artist.name}-${index}`"
 						:class="[
-							'grid !h-11',
+							'grid !h-11 max-sm:!h-auto',
 							isEditMode
-								? 'grid-cols-[44px_64px_3fr_2fr_84px] max-sm:grid-cols-[44px_64px_1fr_1fr_84px] sm:grid-cols-[44px_64px_3fr_2fr_84px]'
-								: 'grid-cols-[64px_3fr_2fr] max-sm:grid-cols-[64px_1fr_1fr] sm:grid-cols-[64px_3fr_2fr]'
+								? 'grid-cols-[44px_64px_3fr_2fr_84px] max-sm:grid-cols-[44px_1fr_84px]'
+								: 'grid-cols-[64px_3fr_2fr] max-sm:grid-cols-[1fr]'
 						]"
 					>
 						<!-- Drag Handle -->
 						<TableCell
 							v-if="isEditMode"
-							class="drag-handle text-muted-foreground hover:text-accent-foreground bp-0 flex !h-11 w-full cursor-grab items-center justify-center whitespace-normal transition-colors active:cursor-grabbing"
+							class="drag-handle text-muted-foreground hover:text-accent-foreground bp-0 flex !h-11 w-full cursor-grab items-center justify-center whitespace-normal transition-colors active:cursor-grabbing max-sm:!h-auto"
 							:class="{ 'cursor-not-allowed opacity-50': isFormActive }"
 						>
 							<GripVertical class="size-4" />
 						</TableCell>
 
-						<!-- Loop through input fields -->
+						<!-- Desktop: Loop through input fields -->
 						<TableCell
 							v-for="(field, fieldIndex) in fieldConfig"
 							:key="field.key"
-							class="flex items-center overflow-hidden p-1 whitespace-normal"
+							class="hidden items-center overflow-hidden p-1 whitespace-normal sm:flex"
 						>
 							<Input
 								v-if="isEditingRow(index)"
@@ -299,10 +299,62 @@ async function focusFirstField() {
 							</TooltipProvider>
 						</TableCell>
 
+						<!-- Mobile: Combined content -->
+						<TableCell class="flex flex-col gap-2 p-2 sm:hidden">
+							<!-- Edit mode: vertical form -->
+							<div v-if="isEditingRow(index)" class="space-y-3">
+								<div
+									v-for="(field, fieldIndex) in fieldConfig"
+									:key="field.key"
+								>
+									<Label
+										:for="`${field.key}-${index}`"
+										class="text-muted-foreground mb-1 block text-xs"
+									>
+										{{
+											field.key === 'discogs_id'
+												? 'Discogs ID'
+												: field.key === 'name'
+													? 'Name'
+													: 'Role'
+										}}
+									</Label>
+									<Input
+										:id="`${field.key}-${index}`"
+										v-model="field.field.value.value"
+										:ref="(el) => setFirstFieldRef(el, fieldIndex)"
+										:name="field.key"
+										:placeholder="field.placeholder"
+										:class="[
+											field.class,
+											{
+												'border-destructive': shouldShowFieldError(field.key)
+											}
+										]"
+										@keydown.enter="saveArtist"
+										@keydown.escape.stop="cancelForm"
+									/>
+								</div>
+							</div>
+							<!-- Display mode: stacked values -->
+							<div v-else>
+								<div class="text-sm font-medium">{{ artist.name }}</div>
+								<div v-if="artist.role" class="text-muted-foreground text-sm">
+									{{ artist.role }}
+								</div>
+								<div
+									v-if="artist.discogs_id"
+									class="text-muted-foreground text-xs"
+								>
+									{{ artist.discogs_id }}
+								</div>
+							</div>
+						</TableCell>
+
 						<!-- Actions -->
 						<TableCell
 							v-if="isEditMode"
-							class="flex items-center justify-end gap-1 p-1 whitespace-normal"
+							class="flex !h-11 items-center justify-end gap-1 p-1 whitespace-normal max-sm:!h-auto"
 						>
 							<Button
 								v-if="isEditingRow(index)"
@@ -348,24 +400,24 @@ async function focusFirstField() {
 				<tbody v-if="formMode === 'new'" class="contents">
 					<TableRow
 						:class="[
-							'grid !h-11',
+							'grid !h-11 max-sm:!h-auto',
 							isEditMode
-								? 'grid-cols-[44px_64px_3fr_2fr_84px] max-sm:grid-cols-[44px_64px_1fr_1fr_84px] sm:grid-cols-[44px_64px_3fr_2fr_84px]'
-								: 'grid-cols-[64px_3fr_2fr] max-sm:grid-cols-[64px_1fr_1fr] sm:grid-cols-[64px_3fr_2fr]'
+								? 'grid-cols-[44px_64px_3fr_2fr_84px] max-sm:grid-cols-[44px_1fr_84px]'
+								: 'grid-cols-[64px_3fr_2fr] max-sm:grid-cols-[1fr]'
 						]"
 					>
 						<TableCell
 							v-if="isEditMode"
-							class="flex items-center whitespace-normal"
+							class="flex !h-11 items-center whitespace-normal max-sm:!h-auto"
 						>
 							<!-- Empty cell for drag handle -->
 						</TableCell>
 
-						<!-- Loop through input fields for new row -->
+						<!-- Desktop: Loop through input fields for new row -->
 						<TableCell
 							v-for="(field, fieldIndex) in fieldConfig"
 							:key="field.key"
-							class="flex items-center overflow-hidden p-1 whitespace-normal"
+							class="hidden items-center overflow-hidden p-1 whitespace-normal sm:flex"
 						>
 							<Input
 								v-model="field.field.value.value"
@@ -384,8 +436,46 @@ async function focusFirstField() {
 							/>
 						</TableCell>
 
+						<!-- Mobile: Combined form -->
+						<TableCell class="flex flex-col gap-2 p-2 sm:hidden">
+							<div class="space-y-3">
+								<div
+									v-for="(field, fieldIndex) in fieldConfig"
+									:key="field.key"
+								>
+									<Label
+										:for="`new_${field.key}`"
+										class="text-muted-foreground mb-1 block text-xs"
+									>
+										{{
+											field.key === 'discogs_id'
+												? 'Discogs ID'
+												: field.key === 'name'
+													? 'Name'
+													: 'Role'
+										}}
+									</Label>
+									<Input
+										:id="`new_${field.key}`"
+										v-model="field.field.value.value"
+										:ref="(el) => setFirstFieldRef(el, fieldIndex)"
+										:name="`new_${field.key}`"
+										:placeholder="field.placeholder"
+										:class="[
+											field.class,
+											{
+												'border-destructive': shouldShowFieldError(field.key)
+											}
+										]"
+										@keydown.enter="saveArtist"
+										@keydown.escape.stop="cancelForm"
+									/>
+								</div>
+							</div>
+						</TableCell>
+
 						<TableCell
-							class="flex items-center justify-end gap-1 p-1 whitespace-normal"
+							class="flex !h-11 items-center justify-end gap-1 p-1 whitespace-normal max-sm:!h-auto"
 						>
 							<Button
 								@click="saveArtist"

@@ -152,7 +152,7 @@ function confirmDiscardAndProceed() {
 	<!-- Main Dialog -->
 	<Dialog v-model:open="dialogOpen">
 		<DialogContent
-			class="max-h-[100dvh] max-w-6xl grid-rows-[auto_minmax(0,1fr)_auto] p-0 sm:max-h-[90dvh]"
+			class="max-h-[100dvh] max-w-6xl grid-rows-[auto_minmax(0,1fr)_auto] p-0 max-sm:rounded-none max-sm:border-none sm:max-h-[90dvh]"
 		>
 			<DialogHeader class="p-6 pb-0">
 				<div>

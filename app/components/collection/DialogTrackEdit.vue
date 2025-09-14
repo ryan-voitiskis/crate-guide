@@ -262,7 +262,9 @@ function confirmDiscardAndProceed() {
 
 <template>
 	<Dialog v-model:open="dialogOpen">
-		<DialogContent class="max-h-[90vh] max-w-4xl overflow-auto">
+		<DialogContent
+			class="max-h-[100dvh] max-w-4xl overflow-auto max-sm:rounded-none max-sm:border-none sm:max-h-[90dvh]"
+		>
 			<DialogHeader>
 				<DialogTitle>{{ dialogTitle }}</DialogTitle>
 				<DialogDescription>
@@ -326,14 +328,14 @@ function confirmDiscardAndProceed() {
 				<TableArtistsEditable
 					v-model="artists"
 					:is-edit-mode="true"
-					label="Artists (defaults to record artist)"
+					label="Artists"
 				/>
 
 				<!-- Extra Artists Section -->
 				<TableArtistsEditable
 					v-model="extraartists"
 					:is-edit-mode="true"
-					label="Extra Artists (Remixers, Features, etc.)"
+					label="Extra Artists"
 				/>
 
 				<!-- Genres -->
