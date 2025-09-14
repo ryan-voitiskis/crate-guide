@@ -1,38 +1,29 @@
-/**
- * Formatting utilities for track and record data
- */
+export function msToMMSS(milliseconds: number | null): string {
+	if (!milliseconds) return ''
 
-/**
- * Format duration from seconds to MM:SS format
- */
-export function formatDuration(seconds: number | null): string {
-	if (!seconds) return ''
-	const minutes = Math.floor(seconds / 60)
-	const remainingSeconds = seconds % 60
-	return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+	const totalSeconds = Math.floor(milliseconds / 1000)
+	const minutes = Math.floor(totalSeconds / 60)
+	const seconds = totalSeconds % 60
+
+	return seconds < 10 ? `${minutes}:0${seconds}` : `${minutes}:${seconds}`
 }
 
-/**
- * Parse duration from string input (MM:SS or plain seconds) to seconds number
- */
-export function parseDuration(input: string): number | null {
-	if (!input.trim()) return null
-
-	// Handle MM:SS format
-	const colonMatch = input.match(/^(\d+):(\d+)$/)
-	if (colonMatch) {
-		const minutes = parseInt(colonMatch[1] || '0', 10)
-		const seconds = parseInt(colonMatch[2] || '0', 10)
-		return minutes * 60 + seconds
+export function mmssToMs(input: string): number | null {
+	if (!input) return null
+	const colonIndex = input.indexOf(':')
+	if (colonIndex > 0) {
+		const minutes = +input.slice(0, colonIndex)
+		const seconds = +input.slice(colonIndex + 1)
+		if (minutes === minutes && seconds === seconds)
+			return (minutes * 60 + seconds) * 1000
+		return null
 	}
-
-	// Handle plain seconds
-	const seconds = parseInt(input, 10)
-	return isNaN(seconds) ? null : seconds
+	const seconds = +input
+	return seconds === seconds ? seconds * 1000 : null
 }
 
-export function parseBpm(numStr: string): number | null {
-	if (!numStr.trim()) return null
-	const num = parseFloat(numStr)
-	return isNaN(num) ? null : num
+export function parseBPM(input: string): number | null {
+	if (!input || !input.trim()) return null
+	const bpm = parseFloat(input)
+	return isNaN(bpm) ? null : bpm
 }

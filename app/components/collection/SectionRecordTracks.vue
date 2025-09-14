@@ -52,7 +52,7 @@ const trackEdit = useTrackEditStore()
 
 				<!-- Duration -->
 				<div class="text-muted-foreground w-8 text-right text-sm">
-					{{ formatDuration(track.duration) }}
+					{{ msToMMSS(track.duration) }}
 				</div>
 
 				<!-- BPM -->

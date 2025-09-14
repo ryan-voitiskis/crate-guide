@@ -14,9 +14,9 @@ const trackSchema = z.object({
 	position: z.string().refine(isValidTrackPosition, POSITION_ERROR_MESSAGE),
 	duration: z.string().refine(isValidDurationFormat, DURATION_ERROR_MESSAGE),
 	bpm: z.string().refine(isValidBPM, BPM_ERROR_MESSAGE),
-	keyComposite: z.string().refine(isValidKeyComposite, KEY_ERROR_MESSAGE),
-	artists: z.array(z.any()), // TableArtistsEditable handles artist validation
-	extraartists: z.array(z.any()), // TableArtistsEditable handles artist validation
+	keyComposite: z.string().refine(isValidKeyComposite, KEY_ERROR_MESSAGE), // TODO: check this is right!
+	artists: z.array(z.any()), // TableArtistsEditable handles validation // TODO: can we remove this?
+	extraartists: z.array(z.any()), // TableArtistsEditable handles validation // TODO: can we remove this?
 	genres: z.array(z.string()),
 	rpm: z.union([z.number(), z.null()]),
 	playable: z.boolean(),
@@ -105,13 +105,11 @@ watch(
 			setValues({
 				title: track.title || '',
 				position: track.position || '',
-				duration: track.duration
-					? `${Math.floor(track.duration / 60)}:${(track.duration % 60).toString().padStart(2, '0')}`
-					: '',
+				duration: msToMMSS(track.duration),
 				bpm: track.bpm?.toString() || '',
 				keyComposite: createKeyComposite(track.key, track.mode),
-				artists: [...track.artists],
-				extraartists: [...track.extraartists],
+				artists: [...track.artists], // TODO: can we remove this?
+				extraartists: [...track.extraartists], // TODO: can we remove this?
 				genres: [...track.genres],
 				rpm: track.rpm,
 				playable: track.playable ?? true,
@@ -197,8 +195,8 @@ const submitTrack = handleSubmit(async (values) => {
 				artists,
 				extraartists,
 				position: (values.position || '').trim() || null,
-				duration: parseDuration(values.duration || ''),
-				bpm: parseBpm(values.bpm || ''),
+				duration: mmssToMs(values.duration || ''),
+				bpm: parseBPM(values.bpm || ''),
 				rpm: values.rpm ?? null,
 				key: keyData.key,
 				mode: keyData.mode,
@@ -225,8 +223,8 @@ const submitTrack = handleSubmit(async (values) => {
 				artists,
 				extraartists,
 				position: (values.position || '').trim() || null,
-				duration: parseDuration(values.duration || ''),
-				bpm: parseBpm(values.bpm || ''),
+				duration: mmssToMs(values.duration || ''),
+				bpm: parseBPM(values.bpm || ''),
 				rpm: values.rpm ?? null,
 				key: keyData.key,
 				mode: keyData.mode,
