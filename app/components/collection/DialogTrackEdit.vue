@@ -15,8 +15,6 @@ const trackSchema = z.object({
 	duration: z.string().refine(isValidDurationFormat, DURATION_ERROR_MESSAGE),
 	bpm: z.string().refine(isValidBPM, BPM_ERROR_MESSAGE),
 	keyComposite: z.string().refine(isValidKeyComposite, KEY_ERROR_MESSAGE), // TODO: check this is right!
-	artists: z.array(z.any()), // TableArtistsEditable handles validation // TODO: can we remove this?
-	extraartists: z.array(z.any()), // TableArtistsEditable handles validation // TODO: can we remove this?
 	genres: z.array(z.string()),
 	rpm: z.union([z.number(), z.null()]),
 	playable: z.boolean(),
@@ -34,8 +32,6 @@ const form = useForm({
 		duration: '',
 		bpm: '',
 		keyComposite: 'none',
-		artists: [] as DiscogsArtistDb[],
-		extraartists: [] as DiscogsArtistDb[],
 		genres: [] as string[],
 		rpm: null as number | null,
 		playable: true,
@@ -50,23 +46,15 @@ const [positionValue] = form.defineField('position')
 const [durationValue] = form.defineField('duration')
 const [bpmValue] = form.defineField('bpm')
 const [keyCompositeValue] = form.defineField('keyComposite')
-const [artistsValue] = form.defineField('artists')
-const [extraartistsValue] = form.defineField('extraartists')
 const [genresValue] = form.defineField('genres')
 const [rpmValue] = form.defineField('rpm')
 const [playableValue] = form.defineField('playable')
 const [timeSignatureUpperValue] = form.defineField('time_signature_upper')
 const [timeSignatureLowerValue] = form.defineField('time_signature_lower')
 
-const safeArtistsValue = computed({
-	get: () => artistsValue.value || [],
-	set: (value) => (artistsValue.value = value)
-})
-
-const safeExtraartistsValue = computed({
-	get: () => extraartistsValue.value || [],
-	set: (value) => (extraartistsValue.value = value)
-})
+// Independent state for artists (not managed by form)
+const artists = ref<DiscogsArtistDb[]>([])
+const extraartists = ref<DiscogsArtistDb[]>([])
 
 const showUnsavedChangesAlert = ref(false)
 const isSubmitting = ref(false)
@@ -108,24 +96,29 @@ watch(
 				duration: msToMMSS(track.duration),
 				bpm: track.bpm?.toString() || '',
 				keyComposite: createKeyComposite(track.key, track.mode),
-				artists: [...track.artists], // TODO: can we remove this?
-				extraartists: [...track.extraartists], // TODO: can we remove this?
 				genres: [...track.genres],
 				rpm: track.rpm,
 				playable: track.playable ?? true,
 				time_signature_upper: track.time_signature_upper,
 				time_signature_lower: track.time_signature_lower
 			})
+			// Set artists independently
+			artists.value = [...track.artists]
+			extraartists.value = [...track.extraartists]
 			isFormInitialized.value = true
 		} else if (isOpen && !isEditing.value && !isFormInitialized.value) {
 			// Opening for new track - reset form
 			resetForm()
+			artists.value = []
+			extraartists.value = []
 			isFormInitialized.value = true
 		} else if (!isOpen) {
 			// Dialog closing - reset everything
 			isFormInitialized.value = false
 			showValidationErrors.value = false
 			resetForm()
+			artists.value = []
+			extraartists.value = []
 		}
 	},
 	{ immediate: true }
@@ -162,9 +155,9 @@ function hasFormChanges(): boolean {
 		JSON.stringify(current.genres || []) !==
 			JSON.stringify(form.genres || []) ||
 		JSON.stringify(current.artists || []) !==
-			JSON.stringify(form.artists || []) ||
+			JSON.stringify(artists.value || []) ||
 		JSON.stringify(current.extraartists || []) !==
-			JSON.stringify(form.extraartists || [])
+			JSON.stringify(extraartists.value || [])
 	)
 }
 
@@ -188,12 +181,12 @@ const submitTrack = handleSubmit(async (values) => {
 		if (isEditing.value && editingTrack.value) {
 			// Update existing track
 			const keyData = parseKeyComposite(values.keyComposite || 'none')
-			const artists = values.artists.filter(isDiscogsArtistDb)
-			const extraartists = values.extraartists.filter(isDiscogsArtistDb)
+			const filteredArtists = artists.value.filter(isDiscogsArtistDb)
+			const filteredExtraartists = extraartists.value.filter(isDiscogsArtistDb)
 			const updates = {
 				title: (values.title || '').trim(),
-				artists,
-				extraartists,
+				artists: filteredArtists,
+				extraartists: filteredExtraartists,
 				position: (values.position || '').trim() || null,
 				duration: mmssToMs(values.duration || ''),
 				bpm: parseBPM(values.bpm || ''),
@@ -215,13 +208,11 @@ const submitTrack = handleSubmit(async (values) => {
 		} else {
 			// Create new track
 			const keyData = parseKeyComposite(values.keyComposite || 'none')
-			const artists = values.artists || []
-			const extraartists = values.extraartists || []
 			const newTrack = {
 				record_id: selectedRecordId.value,
 				title: (values.title || '').trim(),
-				artists,
-				extraartists,
+				artists: artists.value,
+				extraartists: extraartists.value,
 				position: (values.position || '').trim() || null,
 				duration: mmssToMs(values.duration || ''),
 				bpm: parseBPM(values.bpm || ''),
@@ -333,14 +324,14 @@ function confirmDiscardAndProceed() {
 
 				<!-- Artists Section -->
 				<TableArtistsEditable
-					v-model="safeArtistsValue"
+					v-model="artists"
 					:is-edit-mode="true"
 					label="Artists (defaults to record artist)"
 				/>
 
 				<!-- Extra Artists Section -->
 				<TableArtistsEditable
-					v-model="safeExtraartistsValue"
+					v-model="extraartists"
 					:is-edit-mode="true"
 					label="Extra Artists (Remixers, Features, etc.)"
 				/>

@@ -36,8 +36,7 @@ const recordSchema = z.object({
 				/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i,
 				'Must be an image URL (jpg, png, gif, webp)'
 			)
-	]),
-	artists: z.array(z.any()) // TableArtistsEditable handles artist validation
+	])
 })
 
 const validationSchema = toTypedSchema(recordSchema)
@@ -47,8 +46,7 @@ const form = useForm({
 	initialValues: {
 		title: '',
 		year: '',
-		cover: '',
-		artists: [] as DiscogsArtistDb[]
+		cover: ''
 	}
 })
 
@@ -56,14 +54,15 @@ const { handleSubmit, setValues, meta, values, errors } = form
 const [titleValue] = form.defineField('title')
 const [yearValue] = form.defineField('year')
 const [coverValue] = form.defineField('cover')
-const [artistsValue] = form.defineField('artists')
+// Independent state for artists (not managed by form)
+const artists = ref<DiscogsArtistDb[]>([])
 
 const safeArtistsValue = computed({
 	get: () =>
 		recordDetails.isEditMode
-			? artistsValue.value || []
+			? artists.value
 			: recordDetails.selectedRecord?.artists || [],
-	set: (value) => (artistsValue.value = value)
+	set: (value) => (artists.value = value)
 })
 
 const showUnsavedChangesAlert = ref(false)
@@ -77,9 +76,10 @@ watch(
 			setValues({
 				title: record.title || '',
 				year: record.year?.toString() || '',
-				cover: record.cover || '',
-				artists: record.artists || []
+				cover: record.cover || ''
 			})
+			// Set artists independently
+			artists.value = record.artists || []
 			isFormInitialized.value = true
 		} else if (!isEditMode) isFormInitialized.value = false
 	},
@@ -101,7 +101,8 @@ function hasFormChanges(): boolean {
 		(current.title || '') !== (form.title || '') ||
 		(current.year?.toString() || '') !== (form.year || '') ||
 		(current.cover || '') !== (form.cover || '') ||
-		JSON.stringify(current.artists || []) !== JSON.stringify(form.artists || [])
+		JSON.stringify(current.artists || []) !==
+			JSON.stringify(artists.value || [])
 	)
 }
 
@@ -123,7 +124,7 @@ const saveRecord = handleSubmit(async (values) => {
 		title: values.title.trim(),
 		year: values.year ? Number(values.year) : null,
 		cover: values.cover || null,
-		artists: values.artists
+		artists: artists.value
 	}
 
 	const result = await records.updateRecord(
@@ -143,8 +144,7 @@ function handleCancelEdit() {
 function confirmDiscardAndProceed() {
 	showUnsavedChangesAlert.value = false
 	isFormInitialized.value = false
-	if (recordDetails.isEditMode) recordDetails.toggleEditMode()
-	else recordDetails.closeRecord()
+	recordDetails.closeRecord()
 }
 </script>
 
@@ -212,9 +212,7 @@ function confirmDiscardAndProceed() {
 									{{ errors.title }}
 								</p>
 							</FormItem>
-							<div v-else>
-								{{ recordDetails.selectedRecord?.title }}
-							</div>
+							<div v-else>{{ recordDetails.selectedRecord?.title }}</div>
 						</div>
 
 						<!-- Year -->
@@ -321,6 +319,7 @@ function confirmDiscardAndProceed() {
 				<AlertDialogCancel @click="showUnsavedChangesAlert = false">
 					Keep Editing
 				</AlertDialogCancel>
+				<!-- TODO: the colour of AlertDialogAction should be red or amber -->
 				<AlertDialogAction @click="confirmDiscardAndProceed">
 					Discard Changes
 				</AlertDialogAction>
