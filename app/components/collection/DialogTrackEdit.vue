@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
+import { toTypedSchema } from '@vee-validate/zod'
+import { useForm } from 'vee-validate'
 import { z } from 'zod'
-import { getKeyOptionsAlt, parseKeyComposite } from '~/utils/keyFunctions'
+import {
+	createKeyComposite,
+	getKeyOptionsAlt,
+	parseKeyComposite
+} from '~/utils/keyFunctions'
 
 const tracks = useTracksStore()
 const trackEdit = useTrackEditStore()
-
-const isSubmitting = ref(false)
+const recordDetails = useRecordDetailsStore()
 
 // Helper functions for converting form strings to DB types
 function parseDuration(durationStr: string): number | null {
@@ -52,121 +57,227 @@ const trackSchema = z.object({
 		// Validate that it's a valid key option ID
 		const parsed = parseKeyComposite(val)
 		return parsed.key !== null && parsed.mode !== null
-	}, 'Please select a valid key or leave unspecified')
+	}, 'Please select a valid key or leave unspecified'),
+	artists: z.array(z.any()), // TableArtistsEditable handles artist validation
+	extraartists: z.array(z.any()), // TableArtistsEditable handles artist validation
+	genres: z.array(z.string()),
+	rpm: z.union([z.number(), z.null()]),
+	playable: z.boolean(),
+	time_signature_upper: z.union([z.number(), z.null()]),
+	time_signature_lower: z.union([z.number(), z.null()])
 })
 
-type TrackFormData = z.infer<typeof trackSchema>
+const validationSchema = toTypedSchema(trackSchema)
 
-// Validation state
-const formErrors = ref<z.ZodFormattedError<TrackFormData> | null>(null)
-
-// Form data computed
-const formData = computed(() => ({
-	title: trackEdit.trackForm.title,
-	position: trackEdit.trackForm.position,
-	duration: trackEdit.trackForm.duration,
-	bpm: trackEdit.trackForm.bpm,
-	keyComposite: trackEdit.trackForm.keyComposite
-}))
-
-// Validation result computed
-const validationResult = computed(() => trackSchema.safeParse(formData.value))
-
-// Validation logic
-watchEffect(() => {
-	formErrors.value = validationResult.value.success
-		? null
-		: validationResult.value.error.format()
+const form = useForm({
+	validationSchema,
+	initialValues: {
+		title: '',
+		position: '',
+		duration: '',
+		bpm: '',
+		keyComposite: 'none',
+		artists: [] as DiscogsArtistDb[],
+		extraartists: [] as DiscogsArtistDb[],
+		genres: [] as string[],
+		rpm: null as number | null,
+		playable: true,
+		time_signature_upper: null as number | null,
+		time_signature_lower: null as number | null
+	}
 })
 
-const hasFieldError = (field: keyof TrackFormData) =>
-	formErrors.value?.[field]?._errors?.length
+const { handleSubmit, setValues, meta, values, errors, validate, resetForm } =
+	form
+const [titleValue] = form.defineField('title')
+const [positionValue] = form.defineField('position')
+const [durationValue] = form.defineField('duration')
+const [bpmValue] = form.defineField('bpm')
+const [keyCompositeValue] = form.defineField('keyComposite')
+const [artistsValue] = form.defineField('artists')
+const [extraartistsValue] = form.defineField('extraartists')
+const [genresValue] = form.defineField('genres')
+const [rpmValue] = form.defineField('rpm')
+const [playableValue] = form.defineField('playable')
+const [timeSignatureUpperValue] = form.defineField('time_signature_upper')
+const [timeSignatureLowerValue] = form.defineField('time_signature_lower')
 
-function validateField() {
-	formErrors.value = validationResult.value.success
-		? null
-		: validationResult.value.error.format()
-}
+const safeArtistsValue = computed({
+	get: () => artistsValue.value || [],
+	set: (value) => (artistsValue.value = value)
+})
 
-const isDialogOpen = computed(() => trackEdit.isDialogOpen)
+const safeExtraartistsValue = computed({
+	get: () => extraartistsValue.value || [],
+	set: (value) => (extraartistsValue.value = value)
+})
+
+const showUnsavedChangesAlert = ref(false)
+const isSubmitting = ref(false)
+const showValidationErrors = ref(false)
+
+const dialogOpen = computed({
+	get: () => trackEdit.isDialogOpen,
+	set: (value: boolean) => {
+		if (!value) handleCloseDialog()
+	}
+})
+
 const isEditing = computed(() => trackEdit.isEditing)
+
+const editingTrack = computed(() =>
+	trackEdit.editingTrackId
+		? tracks.getTrackById(trackEdit.editingTrackId)
+		: null
+)
+
+const selectedRecordId = computed(() => recordDetails.selectedRecordId)
 
 const dialogTitle = computed(() =>
 	isEditing.value ? 'Edit Track' : 'Add Track'
 )
 
-const canSave = computed(() => trackEdit.canSave)
-
-// Get key options for Select
 const keyOptions = getKeyOptionsAlt()
 
-async function handleSubmit() {
-	if (!canSave.value) return
+const isFormInitialized = ref(false)
 
-	if (!validationResult.value.success) {
-		formErrors.value = validationResult.value.error.format()
+watch(
+	[() => editingTrack.value, () => trackEdit.isDialogOpen],
+	([track, isOpen]) => {
+		if (track && isOpen && isEditing.value && !isFormInitialized.value) {
+			// Editing existing track
+			setValues({
+				title: track.title || '',
+				position: track.position || '',
+				duration: track.duration
+					? `${Math.floor(track.duration / 60)}:${(track.duration % 60).toString().padStart(2, '0')}`
+					: '',
+				bpm: track.bpm?.toString() || '',
+				keyComposite: createKeyComposite(track.key, track.mode),
+				artists: [...track.artists],
+				extraartists: [...track.extraartists],
+				genres: [...track.genres],
+				rpm: track.rpm,
+				playable: track.playable ?? true,
+				time_signature_upper: track.time_signature_upper,
+				time_signature_lower: track.time_signature_lower
+			})
+			isFormInitialized.value = true
+		} else if (isOpen && !isEditing.value && !isFormInitialized.value) {
+			// Opening for new track - reset form
+			resetForm()
+			isFormInitialized.value = true
+		} else if (!isOpen) {
+			// Dialog closing - reset everything
+			isFormInitialized.value = false
+			showValidationErrors.value = false
+			resetForm()
+		}
+	},
+	{ immediate: true }
+)
+
+function hasFormChanges(): boolean {
+	if (!editingTrack.value || !isEditing.value || !isFormInitialized.value)
+		return false
+
+	const current = editingTrack.value
+	const form = values
+
+	// Convert duration back to seconds for comparison
+	let formDurationSeconds: number | null = null
+	if (form.duration) {
+		const timeMatch = form.duration.match(/^(\d{1,2}):([0-5]\d)$/)
+		if (timeMatch) {
+			const minutes = parseInt(timeMatch[1]!, 10)
+			const seconds = parseInt(timeMatch[2]!, 10)
+			formDurationSeconds = minutes * 60 + seconds
+		}
+	}
+
+	return (
+		(current.title || '') !== (form.title || '') ||
+		(current.position || '') !== (form.position || '') ||
+		(current.duration || null) !== formDurationSeconds ||
+		(current.bpm?.toString() || '') !== (form.bpm || '') ||
+		current.rpm !== form.rpm ||
+		createKeyComposite(current.key, current.mode) !== form.keyComposite ||
+		current.time_signature_upper !== form.time_signature_upper ||
+		current.time_signature_lower !== form.time_signature_lower ||
+		(current.playable ?? true) !== form.playable ||
+		JSON.stringify(current.genres || []) !==
+			JSON.stringify(form.genres || []) ||
+		JSON.stringify(current.artists || []) !==
+			JSON.stringify(form.artists || []) ||
+		JSON.stringify(current.extraartists || []) !==
+			JSON.stringify(form.extraartists || [])
+	)
+}
+
+function handleCloseDialog() {
+	if (hasFormChanges()) showUnsavedChangesAlert.value = true
+	else {
+		showValidationErrors.value = false
+		trackEdit.closeTrackDialog()
+	}
+}
+
+const submitTrack = handleSubmit(async (values) => {
+	if (!selectedRecordId.value) {
+		toast.error('Record ID is required to save track')
 		return
 	}
 
 	isSubmitting.value = true
 
 	try {
-		if (isEditing.value && trackEdit.editingTrack) {
+		if (isEditing.value && editingTrack.value) {
 			// Update existing track
-			const keyData = parseKeyComposite(trackEdit.trackForm.keyComposite)
+			const keyData = parseKeyComposite(values.keyComposite || 'none')
+			const artists = values.artists.filter(isDiscogsArtistDb)
+			const extraartists = values.extraartists.filter(isDiscogsArtistDb)
 			const updates = {
-				title: trackEdit.trackForm.title.trim(),
-				artists: trackEdit.trackForm.artists.filter(
-					(a) => a.name.trim() !== ''
-				),
-				extraartists: trackEdit.trackForm.extraartists.filter(
-					(a) => a.name.trim() !== ''
-				),
-				position: trackEdit.trackForm.position.trim() || null,
-				duration: parseDuration(trackEdit.trackForm.duration),
-				bpm: parseNumber(trackEdit.trackForm.bpm),
-				rpm: trackEdit.trackForm.rpm,
+				title: (values.title || '').trim(),
+				artists,
+				extraartists,
+				position: (values.position || '').trim() || null,
+				duration: parseDuration(values.duration || ''),
+				bpm: parseNumber(values.bpm || ''),
+				rpm: values.rpm ?? null,
 				key: keyData.key,
 				mode: keyData.mode,
-				genres: trackEdit.trackForm.genres,
-				time_signature_upper: trackEdit.trackForm.time_signature_upper,
-				time_signature_lower: trackEdit.trackForm.time_signature_lower,
-				playable: trackEdit.trackForm.playable
+				genres: values.genres,
+				time_signature_upper: values.time_signature_upper,
+				time_signature_lower: values.time_signature_lower,
+				playable: values.playable
 			}
 
-			const result = await tracks.updateTrack(
-				trackEdit.editingTrack.id,
-				updates
-			)
-			if (result) trackEdit.closeWithoutSaving()
+			const result = await tracks.updateTrack(editingTrack.value.id, updates)
+			if (result) {
+				toast.success('Track updated successfully')
+				trackEdit.closeTrackDialog()
+				isFormInitialized.value = false
+			}
 		} else {
 			// Create new track
-			const recordId = trackEdit.selectedRecordId
-			if (!recordId) {
-				toast.error('Record ID is required to create a track')
-				return
-			}
-
-			const keyData = parseKeyComposite(trackEdit.trackForm.keyComposite)
+			const keyData = parseKeyComposite(values.keyComposite || 'none')
+			const artists = values.artists || []
+			const extraartists = values.extraartists || []
 			const newTrack = {
-				record_id: recordId,
-				title: trackEdit.trackForm.title.trim(),
-				artists: trackEdit.trackForm.artists.filter(
-					(a) => a.name.trim() !== ''
-				),
-				extraartists: trackEdit.trackForm.extraartists.filter(
-					(a) => a.name.trim() !== ''
-				),
-				position: trackEdit.trackForm.position.trim() || null,
-				duration: parseDuration(trackEdit.trackForm.duration),
-				bpm: parseNumber(trackEdit.trackForm.bpm),
-				rpm: trackEdit.trackForm.rpm,
+				record_id: selectedRecordId.value,
+				title: (values.title || '').trim(),
+				artists,
+				extraartists,
+				position: (values.position || '').trim() || null,
+				duration: parseDuration(values.duration || ''),
+				bpm: parseNumber(values.bpm || ''),
+				rpm: values.rpm ?? null,
 				key: keyData.key,
 				mode: keyData.mode,
-				genres: trackEdit.trackForm.genres,
-				time_signature_upper: trackEdit.trackForm.time_signature_upper,
-				time_signature_lower: trackEdit.trackForm.time_signature_lower,
-				playable: trackEdit.trackForm.playable
+				genres: values.genres || [],
+				time_signature_upper: values.time_signature_upper || null,
+				time_signature_lower: values.time_signature_lower || null,
+				playable: values.playable ?? true
 			}
 
 			const result = await tracks.createTrack(newTrack)
@@ -180,19 +291,32 @@ async function handleSubmit() {
 	} finally {
 		isSubmitting.value = false
 	}
+})
+
+function saveTrack() {
+	showValidationErrors.value = true
+	submitTrack()
 }
 
 function handleCancel() {
-	trackEdit.closeTrackDialog()
+	if (hasFormChanges()) showUnsavedChangesAlert.value = true
+	else {
+		showValidationErrors.value = false
+		trackEdit.closeTrackDialog()
+	}
 }
 
-function handleDialogOpenChange(open: boolean) {
-	if (!open) trackEdit.closeTrackDialog()
+function confirmDiscardAndProceed() {
+	showUnsavedChangesAlert.value = false
+	isFormInitialized.value = false
+	showValidationErrors.value = false
+	resetForm()
+	trackEdit.closeTrackDialog()
 }
 </script>
 
 <template>
-	<Dialog :open="isDialogOpen" @update:open="handleDialogOpenChange">
+	<Dialog v-model:open="dialogOpen">
 		<DialogContent class="max-h-[90vh] max-w-4xl overflow-auto">
 			<DialogHeader>
 				<DialogTitle>{{ dialogTitle }}</DialogTitle>
@@ -213,18 +337,19 @@ function handleDialogOpenChange(open: boolean) {
 						<FormItem>
 							<Input
 								id="title"
-								v-model="trackEdit.trackForm.title"
-								@blur="validateField"
+								v-model="titleValue"
 								name="title"
 								placeholder="Track title"
-								:class="{ 'border-destructive': hasFieldError('title') }"
+								:class="{
+									'border-destructive': !!errors.title && showValidationErrors
+								}"
 								required
 							/>
 							<p
-								v-if="formErrors?.title?._errors?.length"
+								v-if="errors.title && showValidationErrors"
 								class="text-destructive text-sm"
 							>
-								{{ formErrors.title._errors[0] }}
+								{{ errors.title }}
 							</p>
 						</FormItem>
 					</div>
@@ -234,17 +359,19 @@ function handleDialogOpenChange(open: boolean) {
 						<FormItem>
 							<Input
 								id="position"
-								v-model="trackEdit.trackForm.position"
-								@blur="validateField"
+								v-model="positionValue"
 								name="position"
 								placeholder="A1, B2, etc."
-								:class="{ 'border-destructive': hasFieldError('position') }"
+								:class="{
+									'border-destructive':
+										!!errors.position && showValidationErrors
+								}"
 							/>
 							<p
-								v-if="formErrors?.position?._errors?.length"
+								v-if="errors.position && showValidationErrors"
 								class="text-destructive text-sm"
 							>
-								{{ formErrors.position._errors[0] }}
+								{{ errors.position }}
 							</p>
 						</FormItem>
 					</div>
@@ -252,14 +379,14 @@ function handleDialogOpenChange(open: boolean) {
 
 				<!-- Artists Section -->
 				<TableArtistsEditable
-					v-model="trackEdit.trackForm.artists"
+					v-model="safeArtistsValue"
 					:is-edit-mode="true"
 					label="Artists (defaults to record artist)"
 				/>
 
 				<!-- Extra Artists Section -->
 				<TableArtistsEditable
-					v-model="trackEdit.trackForm.extraartists"
+					v-model="safeExtraartistsValue"
 					:is-edit-mode="true"
 					label="Extra Artists (Remixers, Features, etc.)"
 				/>
@@ -267,9 +394,9 @@ function handleDialogOpenChange(open: boolean) {
 				<!-- Genres -->
 				<div class="space-y-2">
 					<Label>Genres</Label>
-					<TagsInput v-model="trackEdit.trackForm.genres">
+					<TagsInput v-model="genresValue">
 						<TagsInputItem
-							v-for="(genre, index) in trackEdit.trackForm.genres"
+							v-for="(genre, index) in genresValue"
 							:key="`genre-${index}`"
 							:value="genre"
 						>
@@ -288,16 +415,18 @@ function handleDialogOpenChange(open: boolean) {
 							<Input
 								id="duration"
 								name="duration"
-								v-model="trackEdit.trackForm.duration"
-								@blur="validateField"
+								v-model="durationValue"
 								placeholder="3:45"
-								:class="{ 'border-destructive': hasFieldError('duration') }"
+								:class="{
+									'border-destructive':
+										!!errors.duration && showValidationErrors
+								}"
 							/>
 							<p
-								v-if="formErrors?.duration?._errors?.length"
+								v-if="errors.duration && showValidationErrors"
 								class="text-destructive text-sm"
 							>
-								{{ formErrors.duration._errors[0] }}
+								{{ errors.duration }}
 							</p>
 						</FormItem>
 					</div>
@@ -307,24 +436,25 @@ function handleDialogOpenChange(open: boolean) {
 						<FormItem>
 							<Input
 								id="bpm"
-								v-model="trackEdit.trackForm.bpm"
-								@blur="validateField"
+								v-model="bpmValue"
 								name="bpm"
 								placeholder="128.5"
-								:class="{ 'border-destructive': hasFieldError('bpm') }"
+								:class="{
+									'border-destructive': !!errors.bpm && showValidationErrors
+								}"
 							/>
 							<p
-								v-if="formErrors?.bpm?._errors?.length"
+								v-if="errors.bpm && showValidationErrors"
 								class="text-destructive text-sm"
 							>
-								{{ formErrors.bpm._errors[0] }}
+								{{ errors.bpm }}
 							</p>
 						</FormItem>
 					</div>
 
 					<div class="space-y-2">
 						<Label for="rpm">RPM</Label>
-						<Select v-model="trackEdit.trackForm.rpm">
+						<Select v-model="rpmValue">
 							<SelectTrigger class="w-full">
 								<SelectValue placeholder="Select RPM" />
 							</SelectTrigger>
@@ -342,7 +472,7 @@ function handleDialogOpenChange(open: boolean) {
 					<div class="space-y-2">
 						<Label for="key">Key</Label>
 						<FormItem>
-							<Select v-model="trackEdit.trackForm.keyComposite">
+							<Select v-model="keyCompositeValue">
 								<SelectTrigger class="w-full">
 									<SelectValue placeholder="Select key" />
 								</SelectTrigger>
@@ -357,10 +487,10 @@ function handleDialogOpenChange(open: boolean) {
 								</SelectContent>
 							</Select>
 							<p
-								v-if="formErrors?.keyComposite?._errors?.length"
+								v-if="errors.keyComposite && showValidationErrors"
 								class="text-destructive text-sm"
 							>
-								{{ formErrors.keyComposite._errors[0] }}
+								{{ errors.keyComposite }}
 							</p>
 						</FormItem>
 					</div>
@@ -369,7 +499,7 @@ function handleDialogOpenChange(open: boolean) {
 						<Label>Time Signature</Label>
 						<div class="flex gap-2">
 							<NumberField
-								v-model="trackEdit.trackForm.time_signature_upper"
+								v-model="timeSignatureUpperValue"
 								:min="1"
 								:max="16"
 								:default-value="4"
@@ -379,7 +509,7 @@ function handleDialogOpenChange(open: boolean) {
 							</NumberField>
 							<span class="flex items-center">/</span>
 							<NumberField
-								v-model="trackEdit.trackForm.time_signature_lower"
+								v-model="timeSignatureLowerValue"
 								:min="1"
 								:max="16"
 								:default-value="4"
@@ -393,26 +523,37 @@ function handleDialogOpenChange(open: boolean) {
 
 				<!-- Playable Toggle -->
 				<div class="flex items-center space-x-2">
-					<Switch
-						id="playable"
-						v-model:checked="trackEdit.trackForm.playable"
-					/>
+					<Switch id="playable" v-model:checked="playableValue" />
 					<Label for="playable">Playable (track is in good condition)</Label>
 				</div>
 			</div>
 
 			<DialogFooter>
 				<Button @click="handleCancel" variant="secondary">Cancel</Button>
-				<Button
-					@click="handleSubmit"
-					:disabled="!canSave"
-					:loading="isSubmitting"
-				>
+				<Button @click="saveTrack" :loading="isSubmitting">
 					{{ isEditing ? 'Update Track' : 'Add Track' }}
 				</Button>
 			</DialogFooter>
 		</DialogContent>
 	</Dialog>
 
-	<AlertUnsavedTrackChanges />
+	<!-- Unsaved Changes Alert -->
+	<AlertDialog v-model:open="showUnsavedChangesAlert">
+		<AlertDialogContent>
+			<AlertDialogHeader>
+				<AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+				<AlertDialogDescription>
+					You have unsaved changes. Are you sure you want to discard them?
+				</AlertDialogDescription>
+			</AlertDialogHeader>
+			<AlertDialogFooter>
+				<AlertDialogCancel @click="showUnsavedChangesAlert = false">
+					Keep Editing
+				</AlertDialogCancel>
+				<AlertDialogAction @click="confirmDiscardAndProceed">
+					Discard Changes
+				</AlertDialogAction>
+			</AlertDialogFooter>
+		</AlertDialogContent>
+	</AlertDialog>
 </template>

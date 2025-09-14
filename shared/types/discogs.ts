@@ -248,6 +248,7 @@ export function isDiscogsArtistDb(obj: unknown): obj is DiscogsArtistDb {
 	const artist = obj as Record<string, unknown>
 	return (
 		typeof artist.name === 'string' &&
+		artist.name.trim() !== '' &&
 		(artist.discogs_id === undefined ||
 			typeof artist.discogs_id === 'number') &&
 		(artist.role === undefined ||

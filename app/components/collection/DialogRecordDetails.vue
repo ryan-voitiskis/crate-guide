@@ -81,9 +81,7 @@ watch(
 				artists: record.artists || []
 			})
 			isFormInitialized.value = true
-		} else if (!isEditMode) {
-			isFormInitialized.value = false
-		}
+		} else if (!isEditMode) isFormInitialized.value = false
 	},
 	{ immediate: true }
 )
@@ -132,10 +130,9 @@ const saveRecord = handleSubmit(async (values) => {
 		recordDetails.selectedRecord.id,
 		updates
 	)
-	if (result) {
-		recordDetails.toggleEditMode()
-		isFormInitialized.value = false
-	}
+	if (!result) return
+	recordDetails.toggleEditMode()
+	isFormInitialized.value = false
 })
 
 function handleCancelEdit() {
