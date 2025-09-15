@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { toTypedSchema } from '@vee-validate/zod'
-import { Pencil, PencilOff } from 'lucide-vue-next'
+import { ImageOff, Pencil, PencilOff } from 'lucide-vue-next'
 import { useForm } from 'vee-validate'
 import { z } from 'zod'
+import { Separator } from '../ui/separator'
 
 const records = useRecordsStore()
 const recordDetails = useRecordDetailsStore()
@@ -54,8 +55,16 @@ const { handleSubmit, setValues, meta, values, errors } = form
 const [titleValue] = form.defineField('title')
 const [yearValue] = form.defineField('year')
 const [coverValue] = form.defineField('cover')
-// Independent state for artists (not managed by form)
+
 const artists = ref<DiscogsArtistDb[]>([])
+
+const imageLoaded = ref(false)
+
+const coverSrc = computed((): string | null =>
+	recordDetails.isEditMode
+		? coverValue.value || null
+		: recordDetails.selectedRecord?.cover || null
+)
 
 const safeArtistsValue = computed({
 	get: () =>
@@ -78,7 +87,6 @@ watch(
 				year: record.year?.toString() || '',
 				cover: record.cover || ''
 			})
-			// Set artists independently
 			artists.value = record.artists || []
 			isFormInitialized.value = true
 		} else if (!isEditMode) isFormInitialized.value = false
@@ -152,50 +160,53 @@ function confirmDiscardAndProceed() {
 	<!-- Main Dialog -->
 	<Dialog v-model:open="dialogOpen">
 		<DialogContent
-			class="max-h-[100dvh] max-w-6xl grid-rows-[auto_minmax(0,1fr)_auto] p-0 max-sm:rounded-none max-sm:border-none sm:max-h-[90dvh]"
+			class="max-h-[100dvh] max-w-6xl grid-rows-[auto_minmax(0,1fr)_auto] p-2 max-sm:rounded-none max-sm:border-none sm:max-h-[90dvh] sm:p-6"
 		>
-			<DialogHeader class="p-6 pb-0">
-				<div>
-					<div>
-						<DialogTitle>Record Details</DialogTitle>
-						<DialogDescription v-if="recordDetails.selectedRecord">
-							{{ recordDetails.selectedRecord.title }}
-						</DialogDescription>
-					</div>
-					<Button
-						@click="handleToggleEditMode"
-						:variant="recordDetails.isEditMode ? 'secondary' : 'outline'"
-						size="sm"
-						class="mt-2"
-					>
-						<PencilOff v-if="recordDetails.isEditMode" class="mr-2 size-4" />
-						<Pencil v-else class="mr-2 size-4" />
-						{{ recordDetails.isEditMode ? 'Cancel Edit' : 'Edit Record' }}
-					</Button>
-				</div>
+			<DialogHeader>
+				<DialogTitle>Record Details</DialogTitle>
+				<DialogDescription v-if="recordDetails.selectedRecord">
+					{{
+						recordDetails.selectedRecord.labels[0]?.catno ??
+						recordDetails.selectedRecord.title
+					}}
+				</DialogDescription>
 			</DialogHeader>
 
-			<div class="space-y-6 overflow-y-auto px-2 py-4 sm:px-6" tabindex="-1">
+			<div class="-mr-6 space-y-6 overflow-y-auto pr-6" tabindex="-1">
 				<!-- Record Details Section -->
-				<div class="grid gap-4 sm:gap-6 md:grid-cols-3">
+				<div class="grid gap-4 sm:gap-6 md:grid-cols-2">
 					<!-- Cover Image -->
-					<div class="max-w-32 space-y-2">
-						<Label>Cover</Label>
+					<div class="space-y-2">
 						<div
-							class="bg-muted flex aspect-square items-center justify-center overflow-hidden rounded-lg"
+							class="bg-muted relative flex aspect-square items-center justify-center overflow-hidden rounded-lg"
 						>
 							<img
-								v-if="recordDetails.selectedRecord?.cover"
-								:src="recordDetails.selectedRecord.cover"
+								v-if="coverSrc"
+								:src="coverSrc"
 								:alt="recordDetails.selectedRecord?.title"
-								class="h-full w-full object-cover"
+								class="absolute h-full w-full object-cover"
+								:class="[{ 'opacity-0': !imageLoaded }]"
+								@load="imageLoaded = true"
+								@error="imageLoaded = false"
 							/>
-							<span v-else class="text-muted-foreground text-sm">No cover</span>
+							<ImageOff
+								v-if="!coverSrc || !imageLoaded"
+								class="text-muted-foreground size-8"
+							/>
 						</div>
 					</div>
 
 					<!-- Record Info -->
 					<div class="col-span-3 mb-6 space-y-4 text-sm md:col-span-2">
+						<Button
+							@click="handleToggleEditMode"
+							:variant="recordDetails.isEditMode ? 'secondary' : 'outline'"
+							size="sm"
+						>
+							<PencilOff v-if="recordDetails.isEditMode" class="mr-2 size-4" />
+							<Pencil v-else class="mr-2 size-4" />
+							{{ recordDetails.isEditMode ? 'Cancel Edit' : 'Edit Record' }}
+						</Button>
 						<!-- Title -->
 						<div class="space-y-2">
 							<Label>Title</Label>
@@ -287,22 +298,28 @@ function confirmDiscardAndProceed() {
 							</div>
 						</div>
 					</div>
+
+					<div
+						v-if="recordDetails.isEditMode"
+						class="col-span-3 flex flex-col justify-end gap-2 pt-0 max-sm:px-2 sm:flex-row"
+					>
+						<Button @click="handleCancelEdit" variant="secondary">
+							Cancel
+						</Button>
+						<Button
+							@click="saveRecord"
+							:disabled="!meta.valid"
+							:loading="records.isUpdatingRecord"
+						>
+							Save Changes
+						</Button>
+					</div>
 				</div>
+
+				<Separator class="my-8" span-class="bg-card" />
 
 				<SectionRecordTracks />
 			</div>
-
-			<!-- Dialog Footer (only shown in edit mode) -->
-			<DialogFooter v-if="recordDetails.isEditMode" class="p-6 pt-0">
-				<Button @click="handleCancelEdit" variant="secondary">Cancel</Button>
-				<Button
-					@click="saveRecord"
-					:disabled="!meta.valid"
-					:loading="records.isUpdatingRecord"
-				>
-					Save Changes
-				</Button>
-			</DialogFooter>
 		</DialogContent>
 	</Dialog>
 

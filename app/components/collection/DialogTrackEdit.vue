@@ -263,7 +263,7 @@ function confirmDiscardAndProceed() {
 <template>
 	<Dialog v-model:open="dialogOpen">
 		<DialogContent
-			class="max-h-[100dvh] max-w-4xl overflow-auto max-sm:rounded-none max-sm:border-none sm:max-h-[90dvh]"
+			class="max-h-[100dvh] max-w-6xl grid-rows-[auto_minmax(0,1fr)_auto] p-2 max-sm:rounded-none max-sm:border-none sm:max-h-[90dvh] sm:p-6"
 		>
 			<DialogHeader>
 				<DialogTitle>{{ dialogTitle }}</DialogTitle>
@@ -276,11 +276,14 @@ function confirmDiscardAndProceed() {
 				</DialogDescription>
 			</DialogHeader>
 
-			<div class="space-y-6">
+			<div class="-mx-6 space-y-6 overflow-y-auto px-6" tabindex="-1">
 				<!-- Basic Track Info -->
 				<div class="grid gap-4 md:grid-cols-2">
 					<div class="space-y-2">
-						<Label for="title">Title *</Label>
+						<Label for="title">
+							Title
+							<span class="text-primary -ml-0.5">*</span>
+						</Label>
 						<FormItem>
 							<Input
 								id="title"
@@ -473,14 +476,16 @@ function confirmDiscardAndProceed() {
 					<Switch id="playable" v-model:checked="playableValue" />
 					<Label for="playable">Playable (track is in good condition)</Label>
 				</div>
-			</div>
 
-			<DialogFooter>
-				<Button @click="handleCancel" variant="secondary">Cancel</Button>
-				<Button @click="saveTrack" :loading="isSubmitting">
-					{{ isEditing ? 'Update Track' : 'Add Track' }}
-				</Button>
-			</DialogFooter>
+				<div
+					class="flex flex-col justify-end gap-2 pt-0 max-sm:px-2 sm:flex-row"
+				>
+					<Button @click="handleCancel" variant="secondary">Cancel</Button>
+					<Button @click="saveTrack" :loading="isSubmitting">
+						{{ isEditing ? 'Update Track' : 'Add Track' }}
+					</Button>
+				</div>
+			</div>
 		</DialogContent>
 	</Dialog>
 

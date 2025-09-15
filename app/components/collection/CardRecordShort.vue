@@ -18,6 +18,7 @@ const artistNames = computed(() =>
 	>
 		<CardContent class="p-0">
 			<div class="grid w-full grid-cols-[90px_1fr_90px] gap-4">
+				<!-- TODO: fallback -->
 				<div
 					class="bg-muted aspect-square h-[90px] w-[90px] overflow-hidden bg-cover bg-center bg-no-repeat"
 					:style="{ backgroundImage: coverImg }"
