@@ -172,7 +172,10 @@ function confirmDiscardAndProceed() {
 				</DialogDescription>
 			</DialogHeader>
 
-			<div class="-mr-6 space-y-6 overflow-y-auto pr-6" tabindex="-1">
+			<div
+				class="-mx-6 -mb-4 space-y-6 overflow-y-auto px-6 pb-2"
+				tabindex="-1"
+			>
 				<!-- Record Details Section -->
 				<div class="grid gap-4 sm:gap-6 md:grid-cols-2">
 					<!-- Cover Image -->

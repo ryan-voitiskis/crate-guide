@@ -32,7 +32,7 @@ onKeyStroke('/', (event) => {
 
 <template>
 	<div class="space-y-4">
-		<div class="flex w-full items-center gap-4">
+		<div class="flex w-full items-center">
 			<div class="relative max-w-md flex-1">
 				<Search
 					class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
@@ -61,13 +61,9 @@ onKeyStroke('/', (event) => {
 			class="flex items-center justify-between"
 		>
 			<div class="text-muted-foreground text-sm">
-				<span v-if="recordsStore.hasSearchQuery">
-					{{ recordsStore.resultsCount }} of
-					{{ recordsStore.recordsCount }} records
-				</span>
-				<span v-else>
-					{{ recordsStore.recordsCount }} records in your collection
-				</span>
+				{{ recordsStore.resultsCount }} of
+				{{ recordsStore.recordsCount }} records
+				<span v-if="recordsStore.hasSearchQuery">(filtered)</span>
 			</div>
 		</div>
 	</div>

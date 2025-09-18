@@ -15,7 +15,7 @@ const crates = useCratesStore()
 	<DialogDiscogsImport />
 	<DialogRecordDetails />
 
-	<div class="flex h-full flex-col space-y-6 p-6">
+	<div class="flex h-full flex-col space-y-6 p-2">
 		<div
 			v-if="
 				records.isLoadingRecords ||
@@ -24,7 +24,7 @@ const crates = useCratesStore()
 			"
 			class="flex items-center justify-center py-8"
 		>
-			<div class="flex items-center gap-2">
+			<div class="flex items-center gap-4">
 				<div
 					class="border-primary h-6 w-6 animate-spin rounded-full border-2 border-t-transparent"
 				/>
@@ -32,16 +32,15 @@ const crates = useCratesStore()
 			</div>
 		</div>
 
-		<div
-			v-else-if="records.hasRecords"
-			class="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-		>
-			<InputRecordsSearch class="col-span-3" />
-			<CardRecordShort
-				v-for="record in records.displayedRecords"
-				:key="record.id"
-				:record="record"
-			/>
+		<div v-else-if="records.hasRecords" class="space-y-4">
+			<InputRecordsSearch />
+			<div class="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+				<CardRecordShort
+					v-for="record in records.displayedRecords"
+					:key="record.id"
+					:record="record"
+				/>
+			</div>
 			<StateNoSearchResults
 				v-if="records.hasSearchQuery && !records.hasSearchResults"
 			/>

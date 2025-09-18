@@ -42,7 +42,7 @@ export const useDiscogsAuthStore = defineStore('discogsAuth', () => {
 			oAuthCompletionFailed.value = true
 			return false
 		} else {
-			ui.setTab('collection')
+			ui.setTab('records')
 			navigateTo('/')
 			if (await user.fetchProfile()) discogs.showGetFoldersDialog = true
 			return true
