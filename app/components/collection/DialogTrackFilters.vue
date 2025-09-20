@@ -1,76 +1,35 @@
 <script setup lang="ts">
-import { Filter, X } from 'lucide-vue-next'
+import { Filter } from 'lucide-vue-next'
 
-const tracks = useTracksStore()
 const trackFilters = useTrackFiltersStore()
 
 const isOpen = ref(false)
 
-const localBpmMin = ref('')
-const localBpmMax = ref('')
-
-const availableGenres = computed(() => {
-	const genreSet = new Set<string>()
-	tracks.tracks.forEach((track) => {
-		track.genres.forEach((genre) => genreSet.add(genre.toLowerCase()))
-	})
-	return Array.from(genreSet).sort()
-})
-
-const keyOptions = computed(() => {
-	const options = []
-	for (let mode = 0; mode <= 1; mode++) {
-		for (let key = 0; key < 12; key++) {
-			options.push({
-				value: key,
-				label: getKeyString(key, mode),
-				color: getKeyColour(key, mode)
-			})
-		}
-	}
-	return options
-})
-
-const activeFiltersCount = computed(() => {
-	let count = 0
-	if (trackFilters.showOnlyPlayable) count++
-	if (trackFilters.bpmMin !== null || trackFilters.bpmMax !== null) count++
-	if (trackFilters.selectedKey !== null) count++
-	if (trackFilters.selectedGenres.length > 0) count++
-	return count
-})
-
-watch(
-	() => isOpen.value,
-	(open) => {
-		if (open) {
-			localBpmMin.value = trackFilters.bpmMin?.toString() || ''
-			localBpmMax.value = trackFilters.bpmMax?.toString() || ''
-		}
-	}
-)
-
-function applyBpmFilter() {
-	const min = localBpmMin.value ? parseFloat(localBpmMin.value) : null
-	const max = localBpmMax.value ? parseFloat(localBpmMax.value) : null
-	trackFilters.setBpmRange(
-		min !== null && !isNaN(min) ? min : null,
-		max !== null && !isNaN(max) ? max : null
-	)
-}
-
+// TODO: refactor, will use more appropriate UI
 function clearBpmFilter() {
-	localBpmMin.value = ''
-	localBpmMax.value = ''
 	trackFilters.setBpmRange(null, null)
 }
 
-function toggleGenre(genre: string) {
-	trackFilters.toggleGenre(genre)
+// TODO: refactor, will use more appropriate UI
+function handleBpmMinInput(event: Event) {
+	const value = (event.target as HTMLInputElement).value
+	const min = value ? parseFloat(value) : null
+	if (min !== null && !isNaN(min)) {
+		trackFilters.setBpmRange(min, trackFilters.bpmMax)
+	} else if (value === '') {
+		trackFilters.setBpmRange(null, trackFilters.bpmMax)
+	}
 }
 
-function isGenreSelected(genre: string) {
-	return trackFilters.selectedGenres.includes(genre)
+// TODO: refactor, will use more appropriate UI
+function handleBpmMaxInput(event: Event) {
+	const value = (event.target as HTMLInputElement).value
+	const max = value ? parseFloat(value) : null
+	if (max !== null && !isNaN(max)) {
+		trackFilters.setBpmRange(trackFilters.bpmMin, max)
+	} else if (value === '') {
+		trackFilters.setBpmRange(trackFilters.bpmMin, null)
+	}
 }
 </script>
 
@@ -81,15 +40,15 @@ function isGenreSelected(genre: string) {
 				<Filter class="mr-2 size-4" />
 				Filters
 				<span
-					v-if="activeFiltersCount > 0"
+					v-if="trackFilters.activeFiltersCount > 0"
 					class="bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-xs"
 				>
-					{{ activeFiltersCount }}
+					{{ trackFilters.activeFiltersCount }}
 				</span>
 			</Button>
 		</PopoverTrigger>
 		<PopoverContent class="w-80">
-			<div class="flex items-center justify-between mb-4">
+			<div class="mb-4 flex items-center justify-between">
 				<h4 class="font-medium">Track Filters</h4>
 				<Button
 					v-if="trackFilters.hasActiveFilters"
@@ -104,10 +63,7 @@ function isGenreSelected(genre: string) {
 			<div class="space-y-4">
 				<!-- Playable filter -->
 				<div class="flex items-center space-x-2">
-					<Switch
-						id="playable"
-						v-model:checked="trackFilters.showOnlyPlayable"
-					/>
+					<Switch id="playable" v-model="trackFilters.showOnlyPlayable" />
 					<Label for="playable" class="text-sm font-normal">
 						Show only playable tracks
 					</Label>
@@ -118,7 +74,9 @@ function isGenreSelected(genre: string) {
 					<div class="flex items-center justify-between">
 						<Label class="text-sm">BPM Range</Label>
 						<Button
-							v-if="trackFilters.bpmMin !== null || trackFilters.bpmMax !== null"
+							v-if="
+								trackFilters.bpmMin !== null || trackFilters.bpmMax !== null
+							"
 							@click="clearBpmFilter"
 							variant="ghost"
 							size="sm"
@@ -129,25 +87,23 @@ function isGenreSelected(genre: string) {
 					</div>
 					<div class="flex items-center gap-2">
 						<Input
-							v-model="localBpmMin"
+							:model-value="trackFilters.bpmMin?.toString() || ''"
 							type="number"
 							placeholder="Min"
 							class="w-20"
 							min="30"
 							max="300"
-							@blur="applyBpmFilter"
-							@keydown.enter="applyBpmFilter"
+							@input="handleBpmMinInput"
 						/>
 						<span class="text-muted-foreground">to</span>
 						<Input
-							v-model="localBpmMax"
+							:model-value="trackFilters.bpmMax?.toString() || ''"
 							type="number"
 							placeholder="Max"
 							class="w-20"
 							min="30"
 							max="300"
-							@blur="applyBpmFilter"
-							@keydown.enter="applyBpmFilter"
+							@input="handleBpmMaxInput"
 						/>
 					</div>
 				</div>
@@ -161,7 +117,7 @@ function isGenreSelected(genre: string) {
 							@click="trackFilters.setSelectedKey(null)"
 							variant="ghost"
 							size="sm"
-							class="h-auto p-0 text-xs"
+							class="h-auto text-xs"
 						>
 							Clear
 						</Button>
@@ -177,7 +133,7 @@ function isGenreSelected(genre: string) {
 								<template v-if="trackFilters.selectedKey !== null">
 									<span
 										class="inline-flex items-center gap-2"
-										v-for="option in keyOptions"
+										v-for="option in trackFilters.keyOptions"
 										:key="`display-${option.value}`"
 										v-show="option.value === trackFilters.selectedKey"
 									>
@@ -191,9 +147,8 @@ function isGenreSelected(genre: string) {
 							</SelectValue>
 						</SelectTrigger>
 						<SelectContent>
-							<SelectItem value="">All keys</SelectItem>
 							<SelectItem
-								v-for="option in keyOptions"
+								v-for="option in trackFilters.keyOptions"
 								:key="option.value"
 								:value="option.value.toString()"
 							>
@@ -232,21 +187,21 @@ function isGenreSelected(genre: string) {
 						</Button>
 					</div>
 					<ScrollArea class="h-40 rounded-md border">
-						<div class="p-2 space-y-1">
+						<div class="space-y-1 p-2">
 							<label
-								v-for="genre in availableGenres"
+								v-for="genre in trackFilters.availableGenres"
 								:key="genre"
-								class="flex items-center space-x-2 rounded px-2 py-1 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer"
+								class="hover:bg-accent hover:text-accent-foreground flex cursor-pointer items-center space-x-2 rounded px-2 py-1 text-sm"
 							>
 								<Checkbox
-									:checked="isGenreSelected(genre)"
-									@update:checked="toggleGenre(genre)"
+									:checked="trackFilters.selectedGenres.includes(genre)"
+									@click="trackFilters.toggleGenre(genre)"
 								/>
 								<span class="flex-1 capitalize">{{ genre }}</span>
 							</label>
 							<div
-								v-if="!availableGenres.length"
-								class="text-muted-foreground text-center py-4 text-sm"
+								v-if="!trackFilters.availableGenres.length"
+								class="text-muted-foreground py-4 text-center text-sm"
 							>
 								No genres found
 							</div>
