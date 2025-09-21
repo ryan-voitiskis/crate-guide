@@ -65,5 +65,28 @@
 	},
 	"overrides": {
 		"vue": "latest"
+	},
+	"prettier": {
+		"useTabs": true,
+		"singleQuote": true,
+		"trailingComma": "none",
+		"tabWidth": 2,
+		"semi": false,
+		"plugins": [
+			"@trivago/prettier-plugin-sort-imports",
+			"prettier-plugin-tailwindcss"
+		],
+		"htmlWhitespaceSensitivity": "ignore",
+		"importOrder": [
+			"^vue",
+			"<THIRD_PARTY_MODULES>",
+			"^[./]"
+		],
+		"importOrderSortSpecifiers": true,
+		"tailwindFunctions": [
+			"clsx",
+			"cva",
+			"cn"
+		]
 	}
 }

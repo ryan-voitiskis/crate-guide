@@ -29,21 +29,17 @@ DJ vinyl record management system. Users catalog records, organize crates for gi
 
 ```vue
 <script setup lang="ts">
-// Props/emits first
 const props = defineProps<{ items: Item[] }>()
+
 const emit = defineEmits<{ update: [value: string] }>()
 
-// State
 const isLoading = ref(false)
 
-// Computed
 const hasItems = computed(() => props.items.length > 0)
 
-// Functions
 async function handleSubmit() {
 	isLoading.value = true
 	try {
-		// logic
 	} catch (error) {
 		toast.error('Failed')
 	} finally {
@@ -51,7 +47,6 @@ async function handleSubmit() {
 	}
 }
 
-// Lifecycle last
 onMounted(() => {})
 </script>
 
@@ -80,14 +75,11 @@ onMounted(() => {})
 
 ```typescript
 export const useRecordsStore = defineStore('records', () => {
-	// State
 	const records = ref<Record[]>([])
 	const isLoading = ref(false)
 
-	// Computed
 	const recordCount = computed(() => records.value.length)
 
-	// Actions
 	async function fetchRecords() {
 		isLoading.value = true
 		try {
