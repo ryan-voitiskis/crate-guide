@@ -42,7 +42,7 @@ onKeyStroke('/', (event) => {
 			@input="handleInput"
 			name="search"
 			placeholder="Search"
-			class="pr-12 pl-10"
+			class="bg-background pr-12 pl-10"
 		/>
 		<div class="absolute top-1/2 right-3 hidden -translate-y-1/2 md:block">
 			<div

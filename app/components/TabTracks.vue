@@ -77,7 +77,7 @@ function formatKey(track: Track): string {
 						v-model="trackFilters.searchQuery"
 						name="search"
 						placeholder="Search"
-						class="pr-3 pl-10"
+						class="bg-background pr-3 pl-10"
 					/>
 				</div>
 				<DialogTrackFilters />
@@ -103,7 +103,7 @@ function formatKey(track: Track): string {
 				<Card
 					v-for="track in trackFilters.filteredTracks"
 					:key="track.id"
-					class="hover:bg-muted/50 cursor-pointer overflow-hidden p-0 transition-all"
+					class="hover:bg-popover cursor-pointer overflow-hidden p-0 transition-all"
 					@click="openTrackDetails(track.id)"
 				>
 					<CardContent class="p-0">

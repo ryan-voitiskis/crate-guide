@@ -42,6 +42,7 @@ export default defineNuxtConfig({
 		keepalive: true,
 		head: {
 			htmlAttrs: { lang: 'en' },
+			bodyAttrs: { class: 'noise-bg' },
 			charset: 'utf-8',
 			viewport: 'width=device-width, initial-scale=1',
 			meta: [

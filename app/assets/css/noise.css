@@ -1,0 +1,86 @@
+/*
+ * Noise Texture Utilities
+ *
+ * Subtle noise overlays for backgrounds. Apply to sections/pages, not UI components.
+ * Usage: .noise-bg, .noise-bg-strong, .noise-bg-light + optional size variants
+ */
+
+/* Standard noise */
+.noise-bg {
+	position: relative;
+}
+
+.noise-bg::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background-image: url('/noise.png');
+	background-size: 180px 180px;
+	background-repeat: repeat;
+	opacity: 0.035; /* Light mode: subtle */
+	pointer-events: none;
+	z-index: -1;
+}
+
+.dark .noise-bg::before {
+	opacity: 0.012; /* Dark mode: even more subtle */
+}
+
+/* Strong noise - more visible */
+.noise-bg-strong {
+	position: relative;
+}
+
+.noise-bg-strong::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background-image: url('/noise.png');
+	background-size: 180px 180px;
+	background-repeat: repeat;
+	opacity: 0.06; /* Light mode: more visible */
+	pointer-events: none;
+	z-index: -1;
+}
+
+.dark .noise-bg-strong::before {
+	opacity: 0.02; /* Dark mode: moderately visible */
+}
+
+/* Light noise - very subtle */
+.noise-bg-light {
+	position: relative;
+}
+
+.noise-bg-light::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background-image: url('/noise.png');
+	background-size: 180px 180px;
+	background-repeat: repeat;
+	opacity: 0.02; /* Light mode: very subtle */
+	pointer-events: none;
+	z-index: -1;
+}
+
+.dark .noise-bg-light::before {
+	opacity: 0.008; /* Dark mode: barely visible */
+}
+
+/* Size variants - combine with intensity classes */
+.noise-bg-large::before {
+	background-size: 240px 240px;
+}
+
+.noise-bg-small::before {
+	background-size: 120px 120px;
+}
+
+.noise-bg-xl::before {
+	background-size: 320px 320px;
+}
+
+.noise-bg-xs::before {
+	background-size: 80px 80px;
+}
