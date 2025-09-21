@@ -1,18 +1,11 @@
 <script setup lang="ts">
 import { Disc, Search, Wand } from 'lucide-vue-next'
 
-const user = useUserStore()
 const records = useRecordsStore()
 const tracks = useTracksStore()
 const trackFilters = useTrackFiltersStore()
 
-const trackDetails = ref<{
-	selectedTrackId: string | null
-}>({
-	selectedTrackId: null
-})
-
-const searchQuery = ref('')
+const selectedTrackId = ref<string | null>(null)
 
 const beatportImportDialog = ref()
 
@@ -20,72 +13,8 @@ function showBeatportImportDialog() {
 	beatportImportDialog.value.showDialog = true
 }
 
-// TODO: Move all of this to a store
-const filteredTracks = computed(() => {
-	let result = tracks.tracks
-
-	// Search filter
-	if (searchQuery.value.trim()) {
-		const query = searchQuery.value.toLowerCase()
-		result = result.filter(
-			(track) =>
-				track.title.toLowerCase().includes(query) ||
-				track.artists.some((artist) =>
-					artist.name.toLowerCase().includes(query)
-				) ||
-				track.extraartists.some((artist) =>
-					artist.name.toLowerCase().includes(query)
-				) ||
-				track.genres.some((genre) => genre.toLowerCase().includes(query)) ||
-				(track.position && track.position.toLowerCase().includes(query))
-		)
-	}
-
-	// Playable filter
-	if (trackFilters.showOnlyPlayable) {
-		result = result.filter((track) => track.playable)
-	}
-
-	// BPM range filter
-	if (trackFilters.bpmMin !== null || trackFilters.bpmMax !== null) {
-		result = result.filter((track) => {
-			if (!track.bpm) return false
-			if (trackFilters.bpmMin !== null && track.bpm < trackFilters.bpmMin)
-				return false
-			if (trackFilters.bpmMax !== null && track.bpm > trackFilters.bpmMax)
-				return false
-			return true
-		})
-	}
-
-	// Key filter
-	if (trackFilters.selectedKey !== null) {
-		result = result.filter((track) => track.key === trackFilters.selectedKey)
-	}
-
-	// Genre filter
-	if (trackFilters.selectedGenres.length > 0) {
-		result = result.filter((track) =>
-			track.genres.some((genre) =>
-				trackFilters.selectedGenres.includes(genre.toLowerCase())
-			)
-		)
-	}
-
-	return result
-})
-
-const hasFilters = computed(
-	() =>
-		trackFilters.showOnlyPlayable ||
-		trackFilters.bpmMin !== null ||
-		trackFilters.bpmMax !== null ||
-		trackFilters.selectedKey !== null ||
-		trackFilters.selectedGenres.length > 0
-)
-
 function openTrackDetails(trackId: string) {
-	trackDetails.value.selectedTrackId = trackId
+	selectedTrackId.value = trackId
 }
 
 function getRecordForTrack(trackId: string) {
@@ -119,8 +48,8 @@ function formatKey(track: Track): string {
 
 <template>
 	<DialogTrackDetails
-		:track-id="trackDetails.selectedTrackId"
-		@close="trackDetails.selectedTrackId = null"
+		:track-id="selectedTrackId"
+		@close="selectedTrackId = null"
 	/>
 
 	<DialogBeatportImport ref="beatportImportDialog" />
@@ -145,7 +74,7 @@ function formatKey(track: Track): string {
 						class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
 					/>
 					<Input
-						v-model="searchQuery"
+						v-model="trackFilters.searchQuery"
 						name="search"
 						placeholder="Search"
 						class="pr-3 pl-10"
@@ -164,14 +93,15 @@ function formatKey(track: Track): string {
 
 			<div class="flex items-center justify-between">
 				<div class="text-muted-foreground text-sm">
-					{{ filteredTracks.length }} of {{ tracks.tracksCount }} tracks
-					<span v-if="searchQuery || hasFilters">(filtered)</span>
+					{{ trackFilters.filteredTracks.length }} of
+					{{ tracks.tracksCount }} tracks
+					<span v-if="trackFilters.hasActiveFilters">(filtered)</span>
 				</div>
 			</div>
 
 			<div class="flex flex-col gap-2">
 				<Card
-					v-for="track in filteredTracks"
+					v-for="track in trackFilters.filteredTracks"
 					:key="track.id"
 					class="hover:bg-muted/50 cursor-pointer overflow-hidden p-0 transition-all"
 					@click="openTrackDetails(track.id)"
@@ -258,7 +188,7 @@ function formatKey(track: Track): string {
 			</div>
 
 			<div
-				v-if="!filteredTracks.length"
+				v-if="!trackFilters.filteredTracks.length"
 				class="flex flex-col items-center justify-center py-16 text-center"
 			>
 				<div class="bg-muted mb-4 rounded-full p-6">
@@ -269,7 +199,11 @@ function formatKey(track: Track): string {
 					No tracks match your current filters. Try adjusting your search or
 					filters.
 				</p>
-				<Button v-if="searchQuery" @click="searchQuery = ''" variant="outline">
+				<Button
+					v-if="trackFilters.searchQuery"
+					@click="trackFilters.clearSearchQuery()"
+					variant="outline"
+				>
 					Clear Search
 				</Button>
 			</div>
