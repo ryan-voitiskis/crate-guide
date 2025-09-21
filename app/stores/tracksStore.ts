@@ -42,6 +42,7 @@ export const useTracksStore = defineStore('tracks', () => {
 					time_signature_upper: track.time_signature_upper,
 					time_signature_lower: track.time_signature_lower,
 					playable: track.playable,
+					beatport_data: track.beatport_data,
 					created_at: track.created_at,
 					updated_at: track.updated_at
 				})) as Track[]) || []

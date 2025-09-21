@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Disc, Search } from 'lucide-vue-next'
+import { Disc, Search, Wand } from 'lucide-vue-next'
 
 const user = useUserStore()
 const records = useRecordsStore()
@@ -14,6 +14,13 @@ const trackDetails = ref<{
 
 const searchQuery = ref('')
 
+const beatportImportDialog = ref()
+
+function showBeatportImportDialog() {
+	beatportImportDialog.value.showDialog = true
+}
+
+// TODO: Move all of this to a store
 const filteredTracks = computed(() => {
 	let result = tracks.tracks
 
@@ -116,6 +123,8 @@ function formatKey(track: Track): string {
 		@close="trackDetails.selectedTrackId = null"
 	/>
 
+	<DialogBeatportImport ref="beatportImportDialog" />
+
 	<div class="flex h-full flex-col space-y-4 p-2">
 		<div
 			v-if="records.isLoadingRecords || tracks.isLoadingTracks"
@@ -143,6 +152,14 @@ function formatKey(track: Track): string {
 					/>
 				</div>
 				<DialogTrackFilters />
+				<Button
+					@click="showBeatportImportDialog"
+					variant="outline"
+					size="default"
+				>
+					<Wand class="mr-2 size-4" />
+					Get Beatport data
+				</Button>
 			</div>
 
 			<div class="flex items-center justify-between">

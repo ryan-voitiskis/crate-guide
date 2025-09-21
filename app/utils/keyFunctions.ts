@@ -275,6 +275,17 @@ export function createKeyComposite(
 	return `${mode}${key.toString().padStart(2, '0')}`
 }
 
+// Helper to parse Beatport key format like "A Minor" into key and mode values
+// e.g., "A Minor" -> { key: 9, mode: 0 }, "C Major" -> { key: 0, mode: 1 }
+export function parseBeatportKey(keyString: string): {
+	key: number | null
+	mode: number | null
+} {
+	// TODO: Implement proper parsing logic to convert "A Minor" format to key/mode
+	// For now, return placeholder values
+	return { key: 9, mode: 0 }
+}
+
 // % operator returns wrong results for negative nominator in JS, hence workaround fn
 // * https://stackoverflow.com/a/17323608/7259172
 export function mod(n: number, m: number): number {

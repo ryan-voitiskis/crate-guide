@@ -249,6 +249,7 @@ CREATE TABLE public.tracks (
     time_signature_upper smallint,
     time_signature_lower smallint,
     playable boolean DEFAULT true,
+    beatport_data jsonb,
     created_at timestamp with time zone DEFAULT NOW(),
     updated_at timestamp with time zone DEFAULT NOW()
 );

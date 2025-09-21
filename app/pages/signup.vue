@@ -37,7 +37,7 @@ async function signInWithGoogle() {
 
 <template>
 	<div class="flex h-screen items-center justify-center">
-		<Card class="w-full max-w-md rounded-lg bg-white p-6 shadow-md">
+		<Card class="w-full max-w-md rounded-lg p-6 shadow-md">
 			<CardHeader class="space-y-1">
 				<Button variant="blank" size="xl-icon" class="mx-auto mb-2" as-child>
 					<NuxtLink to="/">

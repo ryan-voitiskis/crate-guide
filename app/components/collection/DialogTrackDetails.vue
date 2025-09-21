@@ -1,6 +1,13 @@
 <script setup lang="ts">
+import { toast } from 'vue-sonner'
 import { toTypedSchema } from '@vee-validate/zod'
-import { ImageOff, Pencil, PencilOff } from 'lucide-vue-next'
+import {
+	CloudDownload,
+	ImageOff,
+	Pencil,
+	PencilOff,
+	Wand
+} from 'lucide-vue-next'
 import { useForm } from 'vee-validate'
 import { z } from 'zod'
 
@@ -14,6 +21,7 @@ const emit = defineEmits<{
 
 const tracks = useTracksStore()
 const records = useRecordsStore()
+const beatport = useBeatportStore()
 
 const isEditMode = ref(false)
 const showUnsavedChangesAlert = ref(false)
@@ -207,6 +215,11 @@ function formatKey(track: Track): string {
 	if (track.key === null || track.mode === null) return 'Not specified'
 	return getKeyString(track.key, track.mode)
 }
+
+async function handleGetBeatportData() {
+	if (!selectedTrack.value) return
+	await beatport.getBeatportData(selectedTrack.value.id)
+}
 </script>
 
 <template>
@@ -256,15 +269,27 @@ function formatKey(track: Track): string {
 				</div>
 
 				<div class="space-y-4">
-					<Button
-						@click="handleToggleEditMode"
-						:variant="isEditMode ? 'secondary' : 'outline'"
-						size="sm"
-					>
-						<PencilOff v-if="isEditMode" class="mr-2 size-4" />
-						<Pencil v-else class="mr-2 size-4" />
-						{{ isEditMode ? 'Cancel Edit' : 'Edit Track' }}
-					</Button>
+					<div class="flex gap-2">
+						<Button
+							@click="handleToggleEditMode"
+							:variant="isEditMode ? 'secondary' : 'outline'"
+							size="sm"
+						>
+							<PencilOff v-if="isEditMode" class="mr-2 size-4" />
+							<Pencil v-else class="mr-2 size-4" />
+							{{ isEditMode ? 'Cancel Edit' : 'Edit Track' }}
+						</Button>
+						<Button
+							@click="handleGetBeatportData"
+							variant="outline"
+							size="sm"
+							:loading="beatport.isLoadingBeatportData"
+							:disabled="beatport.isLoadingBeatportData"
+						>
+							<Wand class="mr-2 size-4" />
+							Get Beatport data
+						</Button>
+					</div>
 
 					<div class="grid gap-4 md:grid-cols-2">
 						<div class="space-y-2">
@@ -496,6 +521,13 @@ function formatKey(track: Track): string {
 								{{ selectedTrack?.playable ? 'Yes' : 'No' }}
 							</span>
 						</div>
+					</div>
+
+					<div v-if="selectedTrack?.beatport_data" class="space-y-2">
+						<Label>Beatport Data</Label>
+						<pre class="bg-muted overflow-x-auto rounded-lg p-3 text-sm">{{
+							JSON.stringify(selectedTrack.beatport_data, null, 2)
+						}}</pre>
 					</div>
 
 					<div

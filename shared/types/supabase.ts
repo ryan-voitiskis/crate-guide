@@ -24,6 +24,7 @@ export type Track = Omit<
 	artists: DiscogsArtistDb[]
 	extraartists: DiscogsArtistDb[]
 	genres: string[]
+	beatport_data: any | null
 }
 
 export type Crate = Database['public']['Tables']['crates']['Row']
