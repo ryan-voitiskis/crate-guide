@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Download, KeyRound, Plus } from 'lucide-vue-next'
+import { CloudDownload, KeyRound, Plus } from 'lucide-vue-next'
 
 const user = useUserStore()
 const discogs = useDiscogsStore()
@@ -33,7 +33,17 @@ const crates = useCratesStore()
 		</div>
 
 		<div v-else-if="records.hasRecords" class="space-y-4">
-			<InputRecordsSearch />
+			<div class="flex gap-2">
+				<InputRecordsSearch />
+				<Button
+					@click="discogs.showGetFoldersDialog = true"
+					variant="secondary"
+				>
+					<CloudDownload class="mr-2" />
+					Import
+				</Button>
+			</div>
+			<DetailResultsCount class="flex items-center justify-between" />
 			<div class="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
 				<CardRecordShort
 					v-for="record in records.displayedRecords"
@@ -59,7 +69,7 @@ const crates = useCratesStore()
 					@click="discogs.showGetFoldersDialog = true"
 					class="mb-2 w-full"
 				>
-					<Download class="mr-2" />
+					<CloudDownload class="mr-2" />
 					Import
 				</Button>
 				or
