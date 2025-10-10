@@ -1,27 +1,36 @@
 ## Code Cleanup Pass
+Review all modified files and apply these improvements in order:
 
-Please clean up all modified files according to these criteria:
+### 1. Remove (Do First)
+- **Dead code**: Commented-out blocks, unreachable code, unused functions/variables/imports
+- **Debug artifacts**: console.logs, print statements, debug breakpoints, temporary test data
+- **Redundant comments**: Anything describing what self-documenting code shows
 
-### Remove
-- **Comments that describe what self-documenting code already shows** (keep only the "why" comments)
-- **Dead code** - commented out code blocks, unused functions/variables
-- **Debug statements** - console.logs, print statements, debug breakpoints
-- **Redundant code** - repeated logic that could be extracted or simplified
-- **Unused imports/dependencies**
+### 2. Simplify Structure
+- **Extract complexity**: Functions over 20 lines → smaller functions with single responsibilities
+- **Flatten nesting**: Apply early returns, guard clauses, extract nested conditionals to named predicates
+- **Consolidate duplication**: Extract repeated patterns into reusable functions
+- **Replace magic values**: Numbers/strings → named constants with business meaning
 
-### Simplify
-- **Unnecessarily verbose syntax** to more concise idiomatic forms
-- **Complex conditionals** - extract to well-named functions or simplify boolean logic
-- **Redundant type annotations** (in TypeScript/Python) where they can be inferred
-- **Excessive nesting** - use early returns, guard clauses, or extraction
+### 3. Improve Names (Present as Suggestions)
+**Format**: `oldName → newName // reason`
+- Generic → Specific: `data → userProfile`, `process() → validateAndSaveOrder()`
+- Abbreviations → Full words: `calc → calculate`, `ctx → context`
+- Add units/types to ambiguous names: `timeout → timeoutMs`, `size → maxSizeBytes`
 
-### Improve Naming
-- If renaming variables/functions would eliminate the need for comments, **suggest the renames** (I'll confirm)
-- Replace generic names (data, info, temp, obj) with specific ones
-- Use consistent naming conventions throughout
+### 4. Final Polish
+- **Consistent patterns**: Ensure similar operations use similar code structure
+- **Sort/organize imports**: Group by standard lib → third party → local
+- **Remove over-typing**: Keep only type annotations that prevent errors or clarify intent
 
-### Keep
-- Comments explaining **why** something is done a certain way
-- Comments for **non-obvious business logic**
-- TODO comments that are still relevant
-- Type annotations that improve clarity or catch errors
+### Preserve These
+✓ "Why" comments explaining business decisions, tradeoffs, or counterintuitive approaches
+✓ TODO/FIXME comments with dates and owner names
+✓ External references (ticket numbers, documentation links)
+✓ Warranty-voiding warnings ("Don't change this unless...")
+
+### Output Format
+1. **List proposed renames first** (I'll approve before you apply them)
+2. **Apply all approved changes directly to the files**
+
+**Note**: If cleanup would change public APIs or require changes in other files, flag it instead of doing it.

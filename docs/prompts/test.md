@@ -6,6 +6,7 @@ Before implementing tests, please:
    - What the code claims to do (based on function/variable names and documentation)
    - The expected inputs, outputs, and key behaviors
    - Critical edge cases and error conditions that could realistically occur
+   - If your understanding of the feature is incomplete or unclear ask me some questions to clarify.
 
 2. **Propose a minimal effective testing strategy** that:
    - Verifies the code does what its names/docs promise

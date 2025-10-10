@@ -1,5 +1,9 @@
 ## Generate Commit Message
-Please write a **conventional commit** message for the work we've done in this session following this format:
+Please:
+1. Run `git diff --staged` to see staged changes
+2. If nothing is staged, run `git add .` then `git diff --staged` to see all unstaged changes
+3. Analyze the changes to understand what was accomplished
+4. Write a **conventional commit** message following this format:
 
 ### Format
 ```

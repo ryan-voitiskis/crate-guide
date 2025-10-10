@@ -1,12 +1,15 @@
 ## Before We Begin
+Please review the requirements and identify **critical uncertainties** that would change the implementation approach.
 
-Please review the requirements and identify any **important ambiguities or missing context** that could meaningfully impact the solution.
+Ask about:
+- **Architecture decisions**: Would different answers lead to fundamentally different solutions?
+- **Business logic**: Are there domain rules or edge cases that aren't obvious?
+- **Integration points**: External systems, APIs, or data sources I'll interact with?
 
-Ask questions about:
-- Critical unknowns that would lead to different implementation approaches
-- Important constraints or requirements that seem underspecified
-- Key assumptions you're making that might be incorrect
+**Default assumptions** (proceed unless these seem wrong):
+- Standard tech stack conventions apply
+- Optimize for maintainability over performance unless specified
+- Target modern environments (recent language versions, evergreen browsers)
+- Basic error handling and validation included
 
-Feel free to proceed with reasonable assumptions for minor details, but do ask about anything that seems important for getting this right.
-
-*Goal: A few thoughtful questions > many trivial clarifications*
+*Goal: 2-3 crucial questions > 10 minor clarifications*
