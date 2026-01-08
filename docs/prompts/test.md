@@ -21,8 +21,9 @@ Before implementing tests, please:
    - Any specific scenarios I'm particularly concerned about
 
 Keep tests focused and fast. Skip tests that:
+
 - Check implementation details that could change
 - Test framework/library code
 - Add no real confidence in the feature's correctness
 
-*Goal: Confidence that the code works as advertised > achieving coverage metrics*
+_Goal: Confidence that the code works as advertised > achieving coverage metrics_

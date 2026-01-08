@@ -112,39 +112,39 @@ const timeSignature = computed(() =>
   track.value?.timeSignatureUpper && track.value?.timeSignatureLower
     ? [track.value?.timeSignatureUpper, track.value?.timeSignatureLower]
     : track.value?.audioFeatures
-    ? [track.value?.audioFeatures.time_signature, 4]
-    : null
+      ? [track.value?.audioFeatures.time_signature, 4]
+      : null,
 )
 
 const keyAndMode = computed(() =>
   typeof track.value?.key === "number" && typeof track.value?.mode === "number"
     ? { key: track.value?.key, mode: track.value?.mode }
     : track.value?.audioFeatures && track.value?.audioFeatures.key !== -1
-    ? {
-        key: track.value?.audioFeatures.key,
-        mode: track.value?.audioFeatures.mode,
-      }
-    : null
+      ? {
+          key: track.value?.audioFeatures.key,
+          mode: track.value?.audioFeatures.mode,
+        }
+      : null,
 )
 
 const keyString = computed(() =>
   !keyAndMode.value
     ? ""
     : user.authd.settings.keyFormat === "key"
-    ? getKeyStringShort(keyAndMode.value.key, keyAndMode.value.mode)
-    : getCamelotString(keyAndMode.value.key, keyAndMode.value.mode)
+      ? getKeyStringShort(keyAndMode.value.key, keyAndMode.value.mode)
+      : getCamelotString(keyAndMode.value.key, keyAndMode.value.mode),
 )
 
 const keyColour = computed(() =>
   keyAndMode.value
     ? getKeyColour(keyAndMode.value.key, keyAndMode.value.mode)
-    : ""
+    : "",
 )
 
 const positionColour = computed(() =>
   session.decks[props.deckID].loadedTrack?.position
     ? getPositionColour(session.decks[props.deckID].loadedTrack!.position!)
-    : "hsl(0, 0%, 68%)"
+    : "hsl(0, 0%, 68%)",
 )
 </script>
 

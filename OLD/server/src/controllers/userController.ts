@@ -128,7 +128,7 @@ const updateUser = asyncHandler(async (req, res) => {
     },
     {
       new: true,
-    }
+    },
   )
   res.status(200).json()
 })
@@ -176,7 +176,7 @@ const sendResetPasswordEmail = asyncHandler(async (req, res) => {
 
   const response = await fetch(
     elasticmail_send_endpoint + "?" + URLParams,
-    options
+    options,
   )
 
   if (response.status === 200) {
@@ -194,7 +194,7 @@ const sendResetPasswordEmail = asyncHandler(async (req, res) => {
   }
   res.status(404)
   throw new Error(
-    "Recovery email couldn't be sent. Please email ryanvoitiskis@pm.me"
+    "Recovery email couldn't be sent. Please email ryanvoitiskis@pm.me",
   )
 })
 

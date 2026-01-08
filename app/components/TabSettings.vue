@@ -45,9 +45,7 @@ const discogsAuth = useDiscogsAuthStore()
 
 			<Card v-if="user.supaUser">
 				<CardContent class="pt-6">
-					<Button @click="user.signOut" variant="destructive">
-						Log out
-					</Button>
+					<Button @click="user.signOut" variant="destructive">Log out</Button>
 				</CardContent>
 			</Card>
 		</div>

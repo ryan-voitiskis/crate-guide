@@ -85,7 +85,7 @@ watch(
   () => {
     if (user.errorMsg === "An account with that email already exists.")
       user.errorMsg = ""
-  }
+  },
 )
 
 onUnmounted(() => {

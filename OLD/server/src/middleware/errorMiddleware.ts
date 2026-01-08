@@ -3,7 +3,7 @@ const errorHandler = (
   err: Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   res.status(res.statusCode ? res.statusCode : 500)
   if (process.env.NODE_ENV === "production")

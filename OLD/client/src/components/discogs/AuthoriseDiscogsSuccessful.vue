@@ -29,8 +29,8 @@
     </button>
     <button
       @click="
-        ;(discogs.selectDiscogsFolderModal = true),
-          (user.authd.justCompleteDiscogsOAuth = false)
+        ;((discogs.selectDiscogsFolderModal = true),
+          (user.authd.justCompleteDiscogsOAuth = false))
       "
       class="primary"
       type="submit"

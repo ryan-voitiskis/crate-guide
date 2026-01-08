@@ -26,7 +26,7 @@ export const trackStore = defineStore("track", {
   actions: {
     async addTrack(
       track: UnsavedTrack,
-      record: string
+      record: string,
     ): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
@@ -35,7 +35,7 @@ export const trackStore = defineStore("track", {
         const response = await trackService.addTrack(
           track,
           record,
-          user.authd.token
+          user.authd.token,
         )
         if (response.status === 201) {
           const updatedRecord = (await response.json()) as Record
@@ -65,7 +65,7 @@ export const trackStore = defineStore("track", {
         if (response.status === 200) {
           const updatedRecord = (await response.json()) as Record
           const existingRecord = recordStore().getById(
-            updatedRecord._id
+            updatedRecord._id,
           ) as Record
           Object.assign(existingRecord, updatedRecord)
           this.generateTrackLists()
@@ -90,12 +90,12 @@ export const trackStore = defineStore("track", {
         try {
           const response = await trackService.deleteTrack(
             this.toDelete,
-            user.authd.token
+            user.authd.token,
           )
           if (response.status === 200) {
             const updatedRecord = (await response.json()) as Record
             const existingRecord = recordStore().getById(
-              updatedRecord._id
+              updatedRecord._id,
             ) as Record
             Object.assign(existingRecord, updatedRecord)
             this.generateTrackLists()
@@ -123,8 +123,8 @@ export const trackStore = defineStore("track", {
             typeof j.key === "number" && typeof j.mode === "number"
               ? { key: j.key, mode: j.mode }
               : j.audioFeatures && j.audioFeatures.key !== -1
-              ? { key: j.audioFeatures.key, mode: j.audioFeatures.mode }
-              : null
+                ? { key: j.audioFeatures.key, mode: j.audioFeatures.mode }
+                : null
           return {
             ...j,
             recordID: i._id,
@@ -135,14 +135,14 @@ export const trackStore = defineStore("track", {
             bpmFinal: j.bpm
               ? j.bpm
               : j.audioFeatures?.tempo
-              ? Math.round(j.audioFeatures.tempo)
-              : undefined,
+                ? Math.round(j.audioFeatures.tempo)
+                : undefined,
             artistsFinal: j.artists ? j.artists : i.artists ? i.artists : "",
             durationFinal: j.duration
               ? j.duration
               : j.audioFeatures
-              ? j.audioFeatures.duration_ms
-              : undefined,
+                ? j.audioFeatures.duration_ms
+                : undefined,
             keyFinal: keyMode
               ? {
                   key: keyMode.key,
@@ -156,10 +156,10 @@ export const trackStore = defineStore("track", {
               j.timeSignatureUpper && j.timeSignatureLower
                 ? [j.timeSignatureUpper, j.timeSignatureLower]
                 : j.audioFeatures
-                ? [j.audioFeatures.time_signature, 4]
-                : null,
+                  ? [j.audioFeatures.time_signature, 4]
+                  : null,
           }
-        })
+        }),
       )
       this.generateCrateTrackList()
     },
@@ -168,10 +168,10 @@ export const trackStore = defineStore("track", {
       const selectedCrate = userStore().authd.settings.selectedCrate
       if (selectedCrate !== "all") {
         const crate = crateStore().crateList.find(
-          (i) => i._id === selectedCrate
+          (i) => i._id === selectedCrate,
         )
         this.crateTrackList = this.trackList.filter((i) =>
-          crate!.records.includes(i.recordID)
+          crate!.records.includes(i.recordID),
         )
       } else this.crateTrackList = this.trackList
     },

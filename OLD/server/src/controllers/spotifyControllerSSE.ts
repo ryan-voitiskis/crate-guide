@@ -55,7 +55,7 @@ const importRecordFeatures = asyncHandler(async (req, res) => {
         `json:${JSON.stringify({
           inexactAlbumMatches: state.inexactAlbumMatches,
           inexactTrackMatches: state.inexactTrackMatches,
-        })}\n\n`
+        })}\n\n`,
     )
   else res.write("data: " + `1\n\n`)
   res.end()
@@ -92,7 +92,7 @@ const importMatchedFeatures = asyncHandler(async (req, res) => {
       "data: " +
         `json:${JSON.stringify({
           inexactTrackMatches: state.inexactTrackMatches,
-        })}\n\n`
+        })}\n\n`,
     )
   else res.write("data: " + `1\n\n`)
   res.end()
@@ -101,7 +101,7 @@ const importMatchedFeatures = asyncHandler(async (req, res) => {
 async function processRecords(
   user: IUser,
   state: ImportRecordState,
-  res: ExpressResponse
+  res: ExpressResponse,
 ): Promise<void> {
   for (const record of state.records) {
     const query = {
@@ -129,7 +129,7 @@ async function processRecords(
     state.requestsMade++
     res.write(
       "data: " +
-        `${(state.requestsMade / state.requestsRequired).toFixed(2)}\n\n`
+        `${(state.requestsMade / state.requestsRequired).toFixed(2)}\n\n`,
     )
   }
 }
@@ -137,7 +137,7 @@ async function processRecords(
 async function processUnmatchedAlbums(
   user: IUser,
   state: ImportMatchedState | ImportRecordState,
-  res: ExpressResponse
+  res: ExpressResponse,
 ): Promise<void> {
   for (const unmatchedAlbum of state.unmatchedAlbums) {
     const record = await Record.findOne({
@@ -174,18 +174,18 @@ async function processUnmatchedAlbums(
     state.requestsMade++
     res.write(
       "data: " +
-        `${(state.requestsMade / state.requestsRequired).toFixed(2)}\n\n`
+        `${(state.requestsMade / state.requestsRequired).toFixed(2)}\n\n`,
     )
   }
 }
 
 async function processMatchedTracks(
   user: IUser,
-  state: ImportRecordState | ImportMatchedState
+  state: ImportRecordState | ImportMatchedState,
 ): Promise<void> {
   const retrievedFeatures: AudioFeatures[] = await getAudioFeatures(
     state.matchedTracks.map((i) => i.spotifyTrackID),
-    user
+    user,
   )
   if (!(await saveAudioFeatures(retrievedFeatures, state.matchedTracks, user)))
     throw new Error("One or more tracks not updated with Audio Features.")
@@ -195,7 +195,7 @@ async function getAlbumTracks(
   record: IRecord,
   user: IUser,
   album: SpotifyAlbumEdit,
-  state: ImportMatchedState | ImportRecordState
+  state: ImportMatchedState | ImportRecordState,
 ): Promise<void> {
   const params = new URLSearchParams()
   params.append("limit", "50")
@@ -207,7 +207,7 @@ async function getAlbumTracks(
   if (albumTracks.length) {
     for (const track of record.tracks) {
       const matchedTrack = albumTracks.find(
-        (i) => normaliseTitle(i.name) === normaliseTitle(track.title)
+        (i) => normaliseTitle(i.name) === normaliseTitle(track.title),
       )
       if (matchedTrack)
         state.matchedTracks.push({
@@ -241,7 +241,7 @@ async function getAlbumTracks(
 async function getTracksFromMatchedAlbums(
   user: IUser,
   state: ImportMatchedState,
-  res: ExpressResponse
+  res: ExpressResponse,
 ): Promise<void> {
   for (const matchedAlbum of state.matchedAlbums) {
     const record = await Record.findById(matchedAlbum.recordID)
@@ -250,7 +250,7 @@ async function getTracksFromMatchedAlbums(
     state.requestsMade++
     res.write(
       "data: " +
-        `${(state.requestsMade / state.requestsRequired).toFixed(2)}\n\n`
+        `${(state.requestsMade / state.requestsRequired).toFixed(2)}\n\n`,
     )
   }
 }

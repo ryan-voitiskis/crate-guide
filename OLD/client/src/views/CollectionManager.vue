@@ -245,7 +245,7 @@ watch(
   () => user.authd.settings.selectedCrate,
   (crate: string) => {
     if (crate !== "all") clearFilters()
-  }
+  },
 )
 </script>
 

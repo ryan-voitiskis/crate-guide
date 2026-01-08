@@ -48,7 +48,7 @@ const alreadyPlayedFilteredTracks = computed((): TrackPlus[] | null => {
     if (session.set.length) {
       const playedTracks = session.set.map((i) => i._id)
       return bpmRangeFilteredTracks.value.filter(
-        (i) => !playedTracks.includes(i._id)
+        (i) => !playedTracks.includes(i._id),
       )
     } else return bpmRangeFilteredTracks.value
   } else return null
@@ -57,8 +57,8 @@ const alreadyPlayedFilteredTracks = computed((): TrackPlus[] | null => {
 const sameRecordFilteredTracks = computed(
   (): TrackPlus[] | null =>
     alreadyPlayedFilteredTracks.value?.filter(
-      (i) => i.recordID !== session.decks[props.deckID].loadedTrack?.recordID
-    ) || null
+      (i) => i.recordID !== session.decks[props.deckID].loadedTrack?.recordID,
+    ) || null,
 )
 
 // todo: tempoCloseness combined with harmonyScore to generate score with which suggestions are sorted by
@@ -72,13 +72,13 @@ const tempoScoredTracks = computed((): TrackScored[] | null =>
           tempoCloseness:
             1 -
             (Math.abs(
-              1 - session.decks[props.deckID].adjustedBpm! / i.bpmFinal!
+              1 - session.decks[props.deckID].adjustedBpm! / i.bpmFinal!,
             ) *
               100) /
               user.authd.settings.turntablePitchRange,
         },
       }))
-    : null
+    : null,
 )
 
 const keyScoredTracks = computed((): TrackScored[] | null =>
@@ -88,7 +88,7 @@ const keyScoredTracks = computed((): TrackScored[] | null =>
           i.bpmFinal && i.keyFinal && session.decks[props.deckID].adjustedBpm
             ? adjustKey(
                 i.keyFinal.key,
-                session.decks[props.deckID].adjustedBpm! / i.bpmFinal
+                session.decks[props.deckID].adjustedBpm! / i.bpmFinal,
               )
             : null
         return typeof keyAdjusted === "number" &&
@@ -102,7 +102,7 @@ const keyScoredTracks = computed((): TrackScored[] | null =>
                   mode: session.decks[props.deckID].loadedTrack!.keyFinal!
                     .mode!,
                 },
-                { key: keyAdjusted, mode: i.keyFinal.mode }
+                { key: keyAdjusted, mode: i.keyFinal.mode },
               ),
             }
           : {
@@ -113,7 +113,7 @@ const keyScoredTracks = computed((): TrackScored[] | null =>
               },
             }
       })
-    : null
+    : null,
 )
 
 const suggestions = computed((): TrackScored[] | null =>
@@ -121,7 +121,7 @@ const suggestions = computed((): TrackScored[] | null =>
     ? [...keyScoredTracks.value]
         .sort(sortNumWithNull2Deep("harmonyScore", "harmonicAffinity", true))
         .slice(0, 50)
-    : null
+    : null,
 )
 </script>
 

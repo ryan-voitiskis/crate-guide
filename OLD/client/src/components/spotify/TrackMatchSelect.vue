@@ -57,7 +57,7 @@ const record = records.getById(props.recordID)
 const track = record.tracks.find((i) => i._id === props.trackID)
 
 const slicedMatches = computed((): SpotifyTrackEdit[] =>
-  [...props.options].slice(0, state.numberShown)
+  [...props.options].slice(0, state.numberShown),
 )
 
 const coverImg = `url("${record.cover}")`

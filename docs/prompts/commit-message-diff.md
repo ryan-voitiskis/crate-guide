@@ -1,11 +1,14 @@
 ## Generate Commit Message
+
 Please:
+
 1. Run `git diff --staged` to see staged changes
 2. If nothing is staged, run `git add .` then `git diff --staged` to see all unstaged changes
 3. Analyze the changes to understand what was accomplished
 4. Write a **conventional commit** message following this format:
 
 ### Format
+
 ```
 type(scope): description
 
@@ -15,6 +18,7 @@ type(scope): description
 ```
 
 ### Rules
+
 - **Type**: feat|fix|docs|style|refactor|test|chore|perf
 - **Scope**: optional, the affected component/area in parentheses
 - **Description**: imperative mood, lowercase, no period, under 72 chars
@@ -22,18 +26,23 @@ type(scope): description
 - **Do NOT use**: `!` suffix or `BREAKING CHANGE:` (we track these separately)
 
 ### When to Add Bullet Points
+
 Add bullet points for:
+
 - Features with multiple components or changes
 - Refactors affecting several areas
 - Fixes that required multiple adjustments
 - Any commit where the description alone doesn't capture the scope
 
 Skip bullet points for:
+
 - Simple, single-purpose changes
 - Obvious or trivial updates
 
 ### Examples
+
 **With bullet points:**
+
 ```
 refactor(ui): implement unified theme system with CSS custom properties
 
@@ -44,6 +53,7 @@ refactor(ui): implement unified theme system with CSS custom properties
 ```
 
 **Without bullet points:**
+
 ```
 fix(api): handle null response from payment service
 ```

@@ -21,7 +21,7 @@ const spotifyAPIURL = "https://api.spotify.com/v1/"
 
 async function searchAlbum(
   query: AlbumQuery,
-  user: IUser
+  user: IUser,
 ): Promise<SpotifyAlbumEdit[]> {
   const inexactAlbumMatches: SpotifyAlbumEdit[] = []
   const params = new URLSearchParams()
@@ -60,7 +60,7 @@ async function searchAlbum(
 
 async function searchTrack(
   query: TrackQuery,
-  user: IUser
+  user: IUser,
 ): Promise<SpotifyTrackEdit[]> {
   const queryArtist = query.artists.map((i) => normalise(i)).join(" ")
   const queryTrack = normaliseTitle(query.track)
@@ -90,7 +90,7 @@ async function searchTrack(
 async function getTrackOptions(
   options: string[],
   query: TrackQuery,
-  user: IUser
+  user: IUser,
 ): Promise<SpotifyTrackEdit[]> {
   const queryArtist = query.artists.map((i) => normalise(i)).join(" ")
   const queryTrack = normaliseTitle(query.track)
@@ -131,7 +131,7 @@ async function getTrackOptions(
 
 async function getAudioFeatures(
   trackIDs: string[],
-  user: IUser
+  user: IUser,
 ): Promise<AudioFeatures[]> {
   const batchSize = 100
   const batches = []
@@ -145,7 +145,7 @@ async function getAudioFeatures(
     const audioFeaturesResponse = await spotifyRequest(url, user)
     if (isAudioFeaturesResponse(audioFeaturesResponse)) {
       retrievedFeatures = retrievedFeatures.concat(
-        audioFeaturesResponse.audio_features
+        audioFeaturesResponse.audio_features,
       )
     }
   }
@@ -154,7 +154,7 @@ async function getAudioFeatures(
 
 async function getAudioFeaturesSingle(
   trackID: string,
-  user: IUser
+  user: IUser,
 ): Promise<AudioFeatures | null> {
   const url = `${spotifyAPIURL}audio-features/${trackID}`
   const audioFeaturesResponse = await spotifyRequest(url, user)
@@ -165,7 +165,7 @@ async function getAudioFeaturesSingle(
 async function saveAudioFeatures(
   audioFeatures: AudioFeatures[],
   tracks: MatchedTrack[],
-  user: IUser
+  user: IUser,
 ): Promise<boolean> {
   let error = false
   for (const features of audioFeatures) {
@@ -179,7 +179,7 @@ async function saveAudioFeatures(
             "tracks.$.spotifyID": track.spotifyTrackID,
           },
         },
-        { new: true }
+        { new: true },
       )
       if (updatedRecord === null) error = true
     }
@@ -189,7 +189,7 @@ async function saveAudioFeatures(
 
 function editSpotifyAlbum(
   item: SearchAlbumItem,
-  distance: number
+  distance: number,
 ): SpotifyAlbumEdit {
   return {
     id: item.id,
@@ -268,7 +268,7 @@ function normalise(artist: string) {
 
 function sortLevenshtein(
   a: SpotifyAlbumEdit | SpotifyTrackEdit,
-  b: SpotifyAlbumEdit | SpotifyTrackEdit
+  b: SpotifyAlbumEdit | SpotifyTrackEdit,
 ): number {
   return a.levenshtein - b.levenshtein
 }

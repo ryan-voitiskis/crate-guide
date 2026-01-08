@@ -1,34 +1,34 @@
-import mongoose, { Types } from "mongoose";
+import mongoose, { Types } from "mongoose"
 
 interface IUser {
-  _id: Types.ObjectId;
-  name: string;
-  email: string;
-  password: string;
-  createdAt?: string;
-  updatedAt?: string;
-  discogsUID?: string;
-  discogsToken: string;
-  discogsTokenSecret: string;
-  discogsRequestToken: string;
-  discogsRequestTokenSecret: string;
-  justCompleteDiscogsOAuth: boolean;
-  discogsUsername: string;
-  spotifyToken: string;
-  spotifyRefreshToken: string;
-  spotifyNonce: string;
-  spotifyTokenTimestamp: number;
-  spotifyTokenExpiresIn: number;
-  passwordResetToken: string;
-  passwordResetTokenCreatedAt: string;
+  _id: Types.ObjectId
+  name: string
+  email: string
+  password: string
+  createdAt?: string
+  updatedAt?: string
+  discogsUID?: string
+  discogsToken: string
+  discogsTokenSecret: string
+  discogsRequestToken: string
+  discogsRequestTokenSecret: string
+  justCompleteDiscogsOAuth: boolean
+  discogsUsername: string
+  spotifyToken: string
+  spotifyRefreshToken: string
+  spotifyNonce: string
+  spotifyTokenTimestamp: number
+  spotifyTokenExpiresIn: number
+  passwordResetToken: string
+  passwordResetTokenCreatedAt: string
   settings: {
-    theme: string;
-    turntableTheme: string;
-    turntablePitchRange: number;
-    selectedCrate: string;
-    keyFormat: string;
-    listLayout: number;
-  };
+    theme: string
+    turntableTheme: string
+    turntablePitchRange: number
+    selectedCrate: string
+    keyFormat: string
+    listLayout: number
+  }
 }
 const userSchema = new mongoose.Schema<IUser>(
   {
@@ -125,7 +125,7 @@ const userSchema = new mongoose.Schema<IUser>(
   {
     timestamps: true,
   },
-);
+)
 
-const User = mongoose.model("User", userSchema);
-export { IUser, User };
+const User = mongoose.model("User", userSchema)
+export { IUser, User }

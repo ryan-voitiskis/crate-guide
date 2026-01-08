@@ -80,21 +80,21 @@ const props = defineProps<{
 const coverImg = `url("${props.track.cover}")`
 
 const keyColour = computed(() =>
-  props.track.keyFinal ? props.track.keyFinal.colour : null
+  props.track.keyFinal ? props.track.keyFinal.colour : null,
 )
 
 const bpmColour = computed(() =>
   props.track.bpm
     ? getBPMColour(props.track.bpm, user.authd.settings.theme)
     : props.track.audioFeatures?.tempo
-    ? getBPMColour(props.track.audioFeatures.tempo, user.authd.settings.theme)
-    : ""
+      ? getBPMColour(props.track.audioFeatures.tempo, user.authd.settings.theme)
+      : "",
 )
 
 const positionColour = computed(() =>
   props.track.position
     ? getPositionColour(props.track.position)
-    : "hsl(0, 0%, 68%)"
+    : "hsl(0, 0%, 68%)",
 )
 </script>
 

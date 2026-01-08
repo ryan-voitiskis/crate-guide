@@ -9,8 +9,8 @@
     <button
       class="delete-set"
       @click="
-        ;(session.setToDelete = props.set._id),
-          (session.confirmDeleteSet = true)
+        ;((session.setToDelete = props.set._id),
+          (session.confirmDeleteSet = true))
       "
     >
       <TrashIcon />

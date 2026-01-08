@@ -18,7 +18,9 @@ header {
   }
   .welcome {
     color: var(--welcome-text);
-    font: italic 600 16px/38px Manrope, sans-serif;
+    font:
+      italic 600 16px/38px Manrope,
+      sans-serif;
     padding: 0 24px;
   }
 }

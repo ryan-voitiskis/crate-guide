@@ -11,6 +11,7 @@
 ## Technical Stack
 
 ### Frontend
+
 - **Framework:** Nuxt 4 (SSR disabled) with Vue 3 Composition API
 - **Language:** TypeScript (strict mode)
 - **Styling:** Tailwind CSS v4 + shadcn-vue (reka-ui components)
@@ -19,11 +20,13 @@
 - **Icons:** Lucide Vue
 
 ### Backend
+
 - **Platform:** Supabase (PostgreSQL, Auth, Storage, Edge Functions)
 - **APIs:** Discogs API for music metadata
 - **Local Dev:** Supabase local stack
 
 ### Build Tools
+
 - **Node:** v22.18.0
 - **NPM:** 11.5.2
 - **Formatting:** Prettier with import sorting
@@ -66,108 +69,116 @@ The following are auto-imported—never manually import these:
 ## Conventions
 
 ### Component Naming
+
 Type-first PascalCase: `DialogUserSettings.vue`, `CardRecord.vue`, `ButtonPrimary.vue`
 
 ### Styling
+
 Tailwind utility classes only—no `@apply`, no `<style>` blocks. Use design tokens: `bg-background`, `text-foreground`, `border-border`.
 
 ### Component Structure
+
 ```vue
 <script setup lang="ts">
 const props = defineProps<{
-  records: Record[]
-  isLoading?: boolean
+	records: Record[]
+	isLoading?: boolean
 }>()
 
 const emit = defineEmits<{
-  update: [record: Record]
+	update: [record: Record]
 }>()
 
 const searchQuery = ref('')
 
-const filteredRecords = computed(() => 
-  props.records.filter(r => 
-    r.title.toLowerCase().includes(searchQuery.value.toLowerCase())
-  )
+const filteredRecords = computed(() =>
+	props.records.filter((r) =>
+		r.title.toLowerCase().includes(searchQuery.value.toLowerCase())
+	)
 )
 
 async function handleSave() {
-  const { toast } = useToast()
-  try {
-    // Implementation
-    toast.success('Record saved')
-  } catch (error) {
-    console.error('Save failed:', error)
-    toast.error('Failed to save record')
-  }
+	const { toast } = useToast()
+	try {
+		// Implementation
+		toast.success('Record saved')
+	} catch (error) {
+		console.error('Save failed:', error)
+		toast.error('Failed to save record')
+	}
 }
 
 onMounted(() => {
-  // Setup
+	// Setup
 })
 </script>
 
 <template>
-  <div class="space-y-4">
-    <!-- Content -->
-  </div>
+	<div class="space-y-4">
+		<!-- Content -->
+	</div>
 </template>
 ```
 
 ### Pinia Stores
+
 ```typescript
 export const useRecordsStore = defineStore('records', () => {
-  const records = ref<Record[]>([])
-  const isLoading = ref(false)
-  const error = ref<string | null>(null)
-  
-  const recordCount = computed(() => records.value.length)
-  
-  async function fetchRecords() {
-    const supabase = useSupabaseClient()
-    isLoading.value = true
-    error.value = null
-    
-    try {
-      const { data, error: fetchError } = await supabase
-        .from('records')
-        .select('*')
-        .order('created_at', { ascending: false })
-      
-      if (fetchError) throw fetchError
-      records.value = data || []
-    } catch (err) {
-      error.value = err.message
-      useToast().toast.error('Failed to load records')
-    } finally {
-      isLoading.value = false
-    }
-  }
-  
-  return { records, isLoading, error, recordCount, fetchRecords }
+	const records = ref<Record[]>([])
+	const isLoading = ref(false)
+	const error = ref<string | null>(null)
+
+	const recordCount = computed(() => records.value.length)
+
+	async function fetchRecords() {
+		const supabase = useSupabaseClient()
+		isLoading.value = true
+		error.value = null
+
+		try {
+			const { data, error: fetchError } = await supabase
+				.from('records')
+				.select('*')
+				.order('created_at', { ascending: false })
+
+			if (fetchError) throw fetchError
+			records.value = data || []
+		} catch (err) {
+			error.value = err.message
+			useToast().toast.error('Failed to load records')
+		} finally {
+			isLoading.value = false
+		}
+	}
+
+	return { records, isLoading, error, recordCount, fetchRecords }
 })
 ```
 
 ### Form Validation
-```typescript
-import { z } from 'zod'
-import { useForm } from 'vee-validate'
-import { toTypedSchema } from '@vee-validate/zod'
 
-const formSchema = toTypedSchema(z.object({
-  title: z.string().min(1, 'Title is required'),
-  artist: z.string().min(1, 'Artist is required'),
-  bpm: z.number().min(60).max(200).optional()
-}))
+```typescript
+import { toTypedSchema } from '@vee-validate/zod'
+import { useForm } from 'vee-validate'
+import { z } from 'zod'
+
+const formSchema = toTypedSchema(
+	z.object({
+		title: z.string().min(1, 'Title is required'),
+		artist: z.string().min(1, 'Artist is required'),
+		bpm: z.number().min(60).max(200).optional()
+	})
+)
 
 const { handleSubmit, errors, defineField } = useForm({
-  validationSchema: formSchema
+	validationSchema: formSchema
 })
 ```
 
 ## Domain Context
 
 ### Key Entities
+
 - **Records:** Vinyl records with Discogs metadata
 - **Crates:** Collections for specific gigs/sets
 - **Sessions:** DJ performance tracking
@@ -187,6 +198,7 @@ npm run build        # Production build
 ```
 
 ### Environment Variables
+
 ```
 SUPABASE_URL
 SUPABASE_ANON_KEY

@@ -42,7 +42,7 @@ const authorisationCallback = asyncHandler(async (req, res) => {
     const user = await User.findOne({ spotifyNonce: state })
     if (user) {
       const basic = Buffer.from(`${clientID}:${clientSecret}`).toString(
-        "base64"
+        "base64",
       )
       res.clearCookie("spotify_auth_state")
       const body = new URLSearchParams()

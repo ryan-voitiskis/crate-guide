@@ -7,7 +7,10 @@
 *:before,
 *:after {
   box-sizing: border-box;
-  transition: background-color 80ms, background 80ms, color 160ms;
+  transition:
+    background-color 80ms,
+    background 80ms,
+    color 160ms;
 }
 
 html {

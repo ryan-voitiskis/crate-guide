@@ -1,7 +1,9 @@
 ## Generate Commit Message
+
 Please write a **conventional commit** message for the work we've done in this session following this format:
 
 ### Format
+
 ```
 type(scope): description
 
@@ -11,6 +13,7 @@ type(scope): description
 ```
 
 ### Rules
+
 - **Type**: feat|fix|docs|style|refactor|test|chore|perf
 - **Scope**: optional, the affected component/area in parentheses
 - **Description**: imperative mood, lowercase, no period, under 72 chars
@@ -18,18 +21,23 @@ type(scope): description
 - **Do NOT use**: `!` suffix or `BREAKING CHANGE:` (we track these separately)
 
 ### When to Add Bullet Points
+
 Add bullet points for:
+
 - Features with multiple components or changes
 - Refactors affecting several areas
 - Fixes that required multiple adjustments
 - Any commit where the description alone doesn't capture the scope
 
 Skip bullet points for:
+
 - Simple, single-purpose changes
 - Obvious or trivial updates
 
 ### Examples
+
 **With bullet points:**
+
 ```
 refactor(ui): implement unified theme system with CSS custom properties
 
@@ -40,6 +48,7 @@ refactor(ui): implement unified theme system with CSS custom properties
 ```
 
 **Without bullet points:**
+
 ```
 fix(api): handle null response from payment service
 ```

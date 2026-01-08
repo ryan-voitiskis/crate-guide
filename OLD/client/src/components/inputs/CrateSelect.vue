@@ -31,8 +31,8 @@ defineProps<{
 
 const cratesList = computed((): Option[] =>
   [{ id: "all", name: "Collection (all)" }].concat(
-    crates.crateList.map((i) => ({ id: i._id, name: i.name }))
-  )
+    crates.crateList.map((i) => ({ id: i._id, name: i.name })),
+  ),
 )
 
 watch(
@@ -42,7 +42,7 @@ watch(
     records.checkboxed = [] // clear checkboxed
     records.checkAll = false // set select all checkbox to false
     tracks.generateCrateTrackList()
-  }
+  },
 )
 </script>
 

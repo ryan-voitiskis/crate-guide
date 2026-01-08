@@ -149,25 +149,25 @@ const titleSearchedTracks = computed((): TrackPlus[] =>
     ? tracks.crateTrackList.filter(
         (i) =>
           localeContains(i.title, props.searchTitle) ||
-          localeContains(i.catno, props.searchTitle)
+          localeContains(i.catno, props.searchTitle),
       )
-    : tracks.crateTrackList
+    : tracks.crateTrackList,
 )
 
 const artistsSearchedTracks = computed((): TrackPlus[] =>
   props.searchArtists !== ""
     ? titleSearchedTracks.value.filter((i) =>
-        localeContains(i.artistsFinal, props.searchArtists)
+        localeContains(i.artistsFinal, props.searchArtists),
       )
-    : titleSearchedTracks.value
+    : titleSearchedTracks.value,
 )
 
 const genreFilteredTracks = computed((): TrackPlus[] =>
   props.filterGenre !== ""
     ? artistsSearchedTracks.value.filter(
-        (i) => i.genre && localeContains(i.genre, props.filterGenre)
+        (i) => i.genre && localeContains(i.genre, props.filterGenre),
       )
-    : artistsSearchedTracks.value
+    : artistsSearchedTracks.value,
 )
 
 const yearFilteredTracks = computed((): TrackPlus[] => {
@@ -177,11 +177,11 @@ const yearFilteredTracks = computed((): TrackPlus[] => {
     const year2 = parseInt(years.next().value[0])
     if (year1 && year2)
       return genreFilteredTracks.value.filter(
-        (i) => year1 <= i.year && i.year <= year2
+        (i) => year1 <= i.year && i.year <= year2,
       )
   } else if (yearFilterRx.test(props.filterYear.trim()))
     return genreFilteredTracks.value.filter(
-      (i) => parseInt(props.filterYear.trim()) === i.year
+      (i) => parseInt(props.filterYear.trim()) === i.year,
     )
   return genreFilteredTracks.value
 })
@@ -191,49 +191,53 @@ const sortedTracks = computed((): TrackPlus[] => {
   switch (state.sortBy) {
     case "bpm":
       return [...yearFilteredTracks.value].sort(
-        sortNumWithUndefined("bpmFinal", state.bpmRvrs)
+        sortNumWithUndefined("bpmFinal", state.bpmRvrs),
       )
     case "danceability":
       return [...yearFilteredTracks.value].sort(
         sortNumWithUndefined2Deep(
           "audioFeatures",
           "danceability",
-          state.danceabilityRvrs
-        )
+          state.danceabilityRvrs,
+        ),
       )
     case "energy":
       return [...yearFilteredTracks.value].sort(
-        sortNumWithUndefined2Deep("audioFeatures", "energy", state.energyRvrs)
+        sortNumWithUndefined2Deep("audioFeatures", "energy", state.energyRvrs),
       )
     case "valence":
       return [...yearFilteredTracks.value].sort(
-        sortNumWithUndefined2Deep("audioFeatures", "valence", state.valenceRvrs)
+        sortNumWithUndefined2Deep(
+          "audioFeatures",
+          "valence",
+          state.valenceRvrs,
+        ),
       )
     case "duration":
       return [...yearFilteredTracks.value].sort(
-        sortNumWithUndefined("durationFinal", state.durationRvrs)
+        sortNumWithUndefined("durationFinal", state.durationRvrs),
       )
     case "key":
       return [...yearFilteredTracks.value].sort(sortKey(state.keyRvrs))
     case "artists":
       return [...yearFilteredTracks.value].sort(
-        sortStr("artistsFinal", state.artistsRvrs)
+        sortStr("artistsFinal", state.artistsRvrs),
       )
     case "label":
       return [...yearFilteredTracks.value].sort(
-        sortStr("label", state.labelRvrs)
+        sortStr("label", state.labelRvrs),
       )
     case "catno":
       return [...yearFilteredTracks.value].sort(
-        sortStr("catno", state.catnoRvrs)
+        sortStr("catno", state.catnoRvrs),
       )
     case "year":
       return [...yearFilteredTracks.value].sort(
-        sortNumWithNull("year", state.yearRvrs)
+        sortNumWithNull("year", state.yearRvrs),
       )
     default: // default is title
       return [...yearFilteredTracks.value].sort(
-        sortStr("title", state.titleRvrs)
+        sortStr("title", state.titleRvrs),
       )
   }
 })

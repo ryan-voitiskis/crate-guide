@@ -1,33 +1,56 @@
 <script setup lang="ts">
-import { CheckCircle, Info, XCircle } from 'lucide-vue-next'
+import { CheckCircle, Info, Loader2, XCircle } from 'lucide-vue-next'
 
 const tracks = useTracksStore()
 const beatport = useBeatportStore()
 
 const showDialog = ref(false)
-const skipExistingData = ref(true)
+const includeSearched = ref(false)
 
 const hasResults = computed(() => {
 	const { successful, skipped, failed } = beatport.bulkBeatportResults
 	return successful > 0 || skipped > 0 || failed.length > 0
 })
 
+const unsearchedCount = computed(
+	() =>
+		tracks.tracks.filter(
+			(track) => !beatport.hasBeenSearched(track.beatport_data)
+		).length
+)
+
+const previouslySearchedCount = computed(
+	() => tracks.tracks.length - unsearchedCount.value
+)
+
 const tracksToProcess = computed(() =>
-	skipExistingData.value
-		? tracks.tracks.filter((track) => !track.beatport_data).length
-		: tracks.tracks.length
+	includeSearched.value ? tracks.tracks.length : unsearchedCount.value
+)
+
+const processedCount = computed(
+	() =>
+		beatport.bulkBeatportResults.successful +
+		beatport.bulkBeatportResults.failed.length
 )
 
 async function startBulkFetch() {
-	await beatport.bulkFetchBeatportData(skipExistingData.value)
+	await beatport.bulkFetchBeatportData(includeSearched.value)
 }
 
 function closeDialog() {
-	beatport.resetBulkState()
+	if (beatport.isBulkFetchingBeatportData) {
+		beatport.cancelBulkBeatportFetch()
+	}
 	showDialog.value = false
 }
 
-watch(showDialog, (isOpen) => isOpen && beatport.resetBulkState())
+watch(showDialog, (isOpen) => {
+	if (isOpen) {
+		beatport.resetBulkState()
+	} else if (beatport.isBulkFetchingBeatportData) {
+		beatport.cancelBulkBeatportFetch()
+	}
+})
 
 defineExpose({
 	showDialog
@@ -36,174 +59,204 @@ defineExpose({
 
 <template>
 	<Dialog v-model:open="showDialog">
-		<DialogContent class="sm:max-w-[500px]">
+		<DialogContent class="sm:max-w-[480px]">
 			<DialogHeader>
 				<DialogTitle>
 					{{
 						!beatport.isBulkFetchingBeatportData && hasResults
-							? 'Beatport Import Results'
+							? 'Import Complete'
 							: beatport.isBulkFetchingBeatportData
-								? 'Fetching Beatport Data...'
-								: 'Get Beatport Data'
+								? 'Importing from Beatport'
+								: 'Get Beatport Data for All Tracks'
 					}}
 				</DialogTitle>
-				<p
-					v-if="!beatport.isBulkFetchingBeatportData && !hasResults"
-					class="text-muted-foreground text-sm"
-				>
-					This will search Beatport for BPM, key, and genre data for your
-					tracks.
-				</p>
-				<p
-					v-else-if="beatport.isBulkFetchingBeatportData"
-					class="text-muted-foreground text-sm"
-				>
-					Please wait while we search Beatport for your tracks...
-				</p>
 			</DialogHeader>
 
+			<!-- Initial State: Before starting -->
 			<div
 				v-if="!beatport.isBulkFetchingBeatportData && !hasResults"
 				class="space-y-4"
 			>
-				<div class="space-y-3 rounded-lg border p-4">
-					<div class="flex items-start space-x-3">
-						<Info class="mt-0.5 h-5 w-5 text-blue-500" />
-						<div class="space-y-2">
-							<p class="text-sm">
-								<strong>What this does:</strong>
-							</p>
-							<ul
-								class="text-muted-foreground ml-4 list-disc space-y-1 text-sm"
-							>
-								<li>Searches Beatport for each track using artist and title</li>
-								<li>Auto-fills BPM if not already set</li>
-								<li>Auto-fills key and mode if not already set</li>
-								<li>Stores full Beatport data for future reference</li>
-							</ul>
-						</div>
-					</div>
-				</div>
+				<p class="text-muted-foreground text-sm">
+					Search Beatport for BPM, key, and genre data for your tracks.
+				</p>
 
-				<div class="flex items-center space-x-2">
-					<Checkbox id="skip-existing" v-model="skipExistingData" />
-					<Label for="skip-existing" class="text-sm">
-						Skip tracks that already have Beatport data
+				<div
+					v-if="previouslySearchedCount > 0"
+					class="flex items-center space-x-2"
+				>
+					<Checkbox id="include-searched" v-model="includeSearched" />
+					<Label for="include-searched" class="text-sm">
+						Re-search {{ previouslySearchedCount }} previously searched
+						{{ previouslySearchedCount === 1 ? 'track' : 'tracks' }}
 					</Label>
 				</div>
 
-				<div class="text-muted-foreground text-sm">
-					{{ tracksToProcess }} tracks will be processed
+				<div
+					class="text-muted-foreground rounded-md border px-3 py-2 text-center text-sm"
+				>
+					{{ tracksToProcess }} tracks to process
 				</div>
 			</div>
 
+			<!-- Processing State: During fetch -->
 			<div v-if="beatport.isBulkFetchingBeatportData" class="space-y-4">
-				<Progress :model-value="beatport.bulkBeatportProgress" />
-				<p class="text-muted-foreground text-center text-sm">
-					{{ beatport.bulkBeatportProgress }}% complete ({{
-						beatport.bulkBeatportResults.successful +
-						beatport.bulkBeatportResults.failed.length
-					}}/{{ beatport.bulkBeatportResults.total }})
-				</p>
-			</div>
-
-			<ScrollArea class="max-h-80">
-				<div
-					v-if="!beatport.isBulkFetchingBeatportData && hasResults"
-					class="space-y-4"
-				>
-					<div
-						v-if="beatport.bulkBeatportResults.successful > 0"
-						class="rounded-lg bg-green-50 p-4 dark:bg-green-900/20"
-					>
-						<div class="flex items-center">
-							<CheckCircle
-								class="mr-2 h-5 w-5 text-green-600 dark:text-green-400"
-							/>
-							<span class="text-green-800 dark:text-green-300">
-								Successfully updated
-								{{ beatport.bulkBeatportResults.successful }}
-								{{
-									beatport.bulkBeatportResults.successful === 1
-										? 'track'
-										: 'tracks'
-								}}
+				<!-- Progress bar and counts -->
+				<div class="space-y-2">
+					<Progress :model-value="beatport.bulkBeatportProgress" />
+					<div class="flex justify-between text-xs">
+						<span class="text-muted-foreground">
+							{{ processedCount }} / {{ beatport.bulkBeatportResults.total }}
+						</span>
+						<div class="flex gap-3">
+							<span class="text-green-600 dark:text-green-400">
+								{{ beatport.bulkBeatportResults.successful }} found
+							</span>
+							<span class="text-red-600 dark:text-red-400">
+								{{ beatport.bulkBeatportResults.failed.length }} failed
 							</span>
 						</div>
 					</div>
+				</div>
 
-					<div
-						v-if="beatport.bulkBeatportResults.skipped > 0"
-						class="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20"
-					>
-						<div class="flex items-center">
-							<Info class="mr-2 h-5 w-5 text-blue-600 dark:text-blue-400" />
-							<span class="text-blue-800 dark:text-blue-300">
-								Skipped {{ beatport.bulkBeatportResults.skipped }}
+				<!-- Current track being processed -->
+				<div
+					v-if="beatport.currentProcessingTrack"
+					class="flex items-center gap-3 rounded-md border p-3"
+				>
+					<Loader2
+						class="text-muted-foreground h-4 w-4 shrink-0 animate-spin"
+					/>
+					<div class="min-w-0 flex-1">
+						<p class="truncate text-sm font-medium">
+							{{ beatport.currentProcessingTrack.title }}
+						</p>
+						<p class="text-muted-foreground truncate text-xs">
+							{{ beatport.currentProcessingTrack.artist }}
+						</p>
+					</div>
+				</div>
+
+				<!-- Last processed result -->
+				<div
+					v-if="beatport.lastProcessedTrack"
+					class="overflow-hidden rounded-md bg-zinc-900"
+				>
+					<div v-if="beatport.lastProcessedTrack.image" class="w-full">
+						<img
+							:src="beatport.lastProcessedTrack.image"
+							:alt="beatport.lastProcessedTrack.title"
+							class="h-auto w-full"
+						/>
+					</div>
+					<div class="flex items-center gap-2 p-3">
+						<component
+							:is="beatport.lastProcessedTrack.success ? CheckCircle : XCircle"
+							class="h-4 w-4 shrink-0"
+							:class="
+								beatport.lastProcessedTrack.success
+									? 'text-green-400'
+									: 'text-red-400'
+							"
+						/>
+						<div class="min-w-0 flex-1">
+							<p class="truncate text-sm font-medium text-zinc-100">
+								{{ beatport.lastProcessedTrack.title }}
+							</p>
+							<p
+								class="truncate text-xs"
+								:class="
+									beatport.lastProcessedTrack.success
+										? 'text-green-300'
+										: 'text-red-300'
+								"
+							>
 								{{
-									beatport.bulkBeatportResults.skipped === 1
-										? 'track'
-										: 'tracks'
+									beatport.lastProcessedTrack.success
+										? beatport.lastProcessedTrack.artist
+										: beatport.lastProcessedTrack.error
 								}}
-								(already have Beatport data)
-							</span>
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Results State: After completion -->
+			<div
+				v-if="!beatport.isBulkFetchingBeatportData && hasResults"
+				class="space-y-3"
+			>
+				<!-- Summary stats -->
+				<div class="grid grid-cols-2 gap-3">
+					<div
+						v-if="beatport.bulkBeatportResults.successful > 0"
+						class="flex items-center gap-2 rounded-md bg-green-50 p-3 dark:bg-green-900/20"
+					>
+						<CheckCircle class="h-5 w-5 text-green-600 dark:text-green-400" />
+						<div>
+							<p class="text-sm font-medium text-green-800 dark:text-green-200">
+								{{ beatport.bulkBeatportResults.successful }}
+							</p>
+							<p class="text-xs text-green-700 dark:text-green-300">found</p>
 						</div>
 					</div>
 
 					<div
 						v-if="beatport.bulkBeatportResults.failed.length > 0"
-						class="rounded-lg bg-red-50 p-4 dark:bg-red-900/20"
+						class="flex items-center gap-2 rounded-md bg-red-50 p-3 dark:bg-red-900/20"
 					>
-						<div class="flex items-start">
-							<XCircle
-								class="mt-0.5 mr-2 h-5 w-5 text-red-600 dark:text-red-400"
-							/>
-							<div class="flex-1">
-								<p class="mb-2 text-red-800 dark:text-red-300">
-									Failed to find data for
-									{{ beatport.bulkBeatportResults.failed.length }}
-									{{
-										beatport.bulkBeatportResults.failed.length === 1
-											? 'track'
-											: 'tracks'
-									}}
-								</p>
-								<details class="text-sm">
-									<summary
-										class="cursor-pointer text-red-700 hover:underline dark:text-red-400"
-									>
-										Show details
-									</summary>
-									<ul class="mt-2 space-y-2">
-										<li
-											v-for="(failedTrack, index) in beatport
-												.bulkBeatportResults.failed"
-											:key="`failed-${index}`"
-											class="text-gray-600 dark:text-gray-400"
-										>
-											<div class="font-medium">
-												{{ failedTrack.title }}
-											</div>
-											<div class="text-xs text-red-600 dark:text-red-400">
-												{{ failedTrack.error }}
-											</div>
-										</li>
-									</ul>
-								</details>
-							</div>
+						<XCircle class="h-5 w-5 text-red-600 dark:text-red-400" />
+						<div>
+							<p class="text-sm font-medium text-red-800 dark:text-red-200">
+								{{ beatport.bulkBeatportResults.failed.length }}
+							</p>
+							<p class="text-xs text-red-700 dark:text-red-300">not found</p>
+						</div>
+					</div>
+
+					<div
+						v-if="beatport.bulkBeatportResults.skipped > 0"
+						class="flex items-center gap-2 rounded-md bg-blue-50 p-3 dark:bg-blue-900/20"
+					>
+						<Info class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+						<div>
+							<p class="text-sm font-medium text-blue-800 dark:text-blue-200">
+								{{ beatport.bulkBeatportResults.skipped }}
+							</p>
+							<p class="text-xs text-blue-700 dark:text-blue-300">skipped</p>
 						</div>
 					</div>
 				</div>
-			</ScrollArea>
 
-			<DialogFooter class="flex gap-2 pt-4">
-				<Button
-					v-if="!beatport.isBulkFetchingBeatportData"
-					@click="closeDialog"
-					variant="outline"
+				<!-- Failed tracks details (collapsed by default) -->
+				<details
+					v-if="beatport.bulkBeatportResults.failed.length > 0"
+					class="rounded-md border"
 				>
-					{{ hasResults ? 'Close' : 'Cancel' }}
-				</Button>
+					<summary
+						class="text-muted-foreground hover:bg-accent cursor-pointer px-3 py-2 text-sm"
+					>
+						Show failed tracks
+					</summary>
+					<ScrollArea class="max-h-48">
+						<ul class="divide-y px-3">
+							<li
+								v-for="failedTrack in beatport.bulkBeatportResults.failed"
+								:key="failedTrack.trackId"
+								class="py-2"
+							>
+								<p class="truncate text-sm">{{ failedTrack.title }}</p>
+								<p class="text-muted-foreground truncate text-xs">
+									{{ failedTrack.error }}
+								</p>
+							</li>
+						</ul>
+					</ScrollArea>
+				</details>
+			</div>
+
+			<DialogFooter class="flex gap-2 pt-2">
 				<Button
 					v-if="beatport.isBulkFetchingBeatportData"
 					@click="beatport.cancelBulkBeatportFetch"
@@ -211,13 +264,13 @@ defineExpose({
 				>
 					Cancel
 				</Button>
-				<Button
-					v-if="!beatport.isBulkFetchingBeatportData && !hasResults"
-					@click="startBulkFetch"
-					:disabled="tracksToProcess === 0"
-				>
-					Continue
-				</Button>
+				<Button v-else-if="hasResults" @click="closeDialog">Done</Button>
+				<template v-else>
+					<Button @click="closeDialog" variant="outline">Cancel</Button>
+					<Button @click="startBulkFetch" :disabled="tracksToProcess === 0">
+						Start
+					</Button>
+				</template>
 			</DialogFooter>
 		</DialogContent>
 	</Dialog>

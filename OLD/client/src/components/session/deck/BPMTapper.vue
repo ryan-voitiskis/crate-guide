@@ -40,7 +40,7 @@ const state = reactive({
 })
 
 const savedTrackBpm = computed(
-  () => session.decks[props.deckID].loadedTrack?.bpmFinal
+  () => session.decks[props.deckID].loadedTrack?.bpmFinal,
 )
 
 function reset() {
@@ -70,22 +70,22 @@ const bpmColour = computed(() =>
   state.bpm
     ? getBPMColour(
         state.bpm,
-        user.authd.settings.turntableTheme === "black" ? "dark" : "light"
+        user.authd.settings.turntableTheme === "black" ? "dark" : "light",
       )
-    : "white"
+    : "white",
 )
 
 const savedBpmColour = computed(() =>
   savedTrackBpm.value
     ? getBPMColour(
         savedTrackBpm.value,
-        user.authd.settings.turntableTheme === "black" ? "dark" : "light"
+        user.authd.settings.turntableTheme === "black" ? "dark" : "light",
       )
-    : null
+    : null,
 )
 
 const lastBpmColour = computed(() =>
-  getBPMColour(state.lastBpm, user.authd.settings.theme)
+  getBPMColour(state.lastBpm, user.authd.settings.theme),
 )
 </script>
 
@@ -134,7 +134,8 @@ const lastBpmColour = computed(() =>
   border-radius: 50%;
   justify-content: center;
   align-items: center;
-  transition: outline-color 450ms cubic-bezier(0.19, 1, 0.22, 1),
+  transition:
+    outline-color 450ms cubic-bezier(0.19, 1, 0.22, 1),
     outline-offset 450ms cubic-bezier(0.19, 1, 0.22, 1);
   outline: 3px dotted;
   outline-color: transparent;

@@ -87,7 +87,8 @@ export const useTracksStore = defineStore('tracks', () => {
 		id: string,
 		updates: Partial<
 			Omit<Track, 'id' | 'record_id' | 'created_at' | 'updated_at'>
-		>
+		>,
+		options?: { silent?: boolean }
 	): Promise<Track | null> {
 		isUpdatingTrack.value = true
 
@@ -114,7 +115,7 @@ export const useTracksStore = defineStore('tracks', () => {
 
 			// Update with server response
 			tracks.value[trackIndex] = data as Track
-			toast.success('Track updated successfully.')
+			if (!options?.silent) toast.success('Track updated successfully.')
 			return data as Track
 		} catch (error) {
 			// Revert optimistic update

@@ -52,7 +52,7 @@ const selectCrates =
   user.authd.settings.selectedCrate === "all"
     ? crates.crateList
     : crates.crateList.filter(
-        (i) => i._id !== user.authd.settings.selectedCrate
+        (i) => i._id !== user.authd.settings.selectedCrate,
       )
 
 const options = selectCrates.map((i) => ({ id: i._id, name: i.name }))
@@ -71,7 +71,7 @@ function submit() {
 // when crate selected, remove "no crate selected" message
 watch(
   () => form.crate !== "",
-  () => (crates.errorMsg = "")
+  () => (crates.errorMsg = ""),
 )
 
 onBeforeUnmount(() => {

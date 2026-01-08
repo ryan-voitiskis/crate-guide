@@ -62,7 +62,9 @@ select {
   padding: 0 10px;
   background-color: var(--input-bg);
   border: 1px solid var(--input-border);
-  font: 400 15px/1.6 Manrope, sans-serif;
+  font:
+    400 15px/1.6 Manrope,
+    sans-serif;
   color: var(--input-text);
   border-radius: 8px;
   box-shadow: none;

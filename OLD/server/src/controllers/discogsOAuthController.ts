@@ -78,7 +78,7 @@ const captureVerifierAndUpdateUser = asyncHandler(async (req, res) => {
     if (user?.discogsRequestTokenSecret) {
       const OAuthCredentials = await getOAuthCredentials(
         query,
-        user.discogsRequestTokenSecret
+        user.discogsRequestTokenSecret,
       )
       if (isAccessTokenResponse(OAuthCredentials)) {
         const discogsUsername = await getDiscogsUsername(OAuthCredentials)
@@ -116,7 +116,7 @@ const revokeAuthorisation = asyncHandler(async (req, res) => {
 // * https://www.discogs.com/developers/#page:authentication,header:authentication-oauth-flow
 async function getOAuthCredentials(
   query: captureVerifierQuery,
-  tokenSecret: string
+  tokenSecret: string,
 ) {
   const params = new URLSearchParams()
   params.append("oauth_consumer_key", oauth_consumer_key)
@@ -162,7 +162,7 @@ async function getDiscogsUsername(oauthCreds: AccessTokenResponse) {
     identityURL,
     signatureParams,
     oauth_consumer_secret,
-    oauthCreds.oauth_token_secret
+    oauthCreds.oauth_token_secret,
   )
 
   const URLParams = new URLSearchParams()

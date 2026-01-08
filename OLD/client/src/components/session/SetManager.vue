@@ -70,7 +70,7 @@ const selectedSet = computed(() =>
         ...i,
         track: tracks.getTrackByIdFromTrackList(i._id),
       }))
-    : null
+    : null,
 )
 
 onMounted(async () => {

@@ -51,11 +51,11 @@ const pitchReadable = computed(
       session.decks[props.deckID].faderPosition *
       0.01 *
       user.authd.settings.turntablePitchRange
-    ).toFixed(1)
+    ).toFixed(1),
 )
 
 const bpmReadable = computed(() =>
-  session.decks[props.deckID].adjustedBpmReadable?.toFixed(1)
+  session.decks[props.deckID].adjustedBpmReadable?.toFixed(1),
 )
 
 // set adjustedBpmReadable when dependencies change
@@ -69,7 +69,7 @@ watch(
         session.decks[props.deckID].loadedTrack!.bpmFinal!
       : null,
   (bpm: number | null) =>
-    (session.decks[props.deckID].adjustedBpmReadable = bpm)
+    (session.decks[props.deckID].adjustedBpmReadable = bpm),
 )
 
 // set adjustedBpm when dependencies change
@@ -82,7 +82,7 @@ watch(
           1) *
         session.decks[props.deckID].loadedTrack!.bpmFinal!
       : null,
-  (bpm: number | null) => (session.decks[props.deckID].adjustedBpm = bpm)
+  (bpm: number | null) => (session.decks[props.deckID].adjustedBpm = bpm),
 )
 
 // set adjustedKey when dependencies change
@@ -95,10 +95,10 @@ watch(
           session.decks[props.deckID].pitch *
             0.0001 *
             user.authd.settings.turntablePitchRange +
-            1
+            1,
         )
       : null,
-  (bpm: number | null) => (session.decks[props.deckID].adjustedKey = bpm)
+  (bpm: number | null) => (session.decks[props.deckID].adjustedKey = bpm),
 )
 </script>
 
@@ -135,7 +135,9 @@ watch(
   position: absolute;
   bottom: 20px;
   color: var(--pitch-readable);
-  font: 600 18px/1.6 Digital7, sans-serif;
+  font:
+    600 18px/1.6 Digital7,
+    sans-serif;
   .pitch-readable-percent {
     margin-left: 3px;
   }

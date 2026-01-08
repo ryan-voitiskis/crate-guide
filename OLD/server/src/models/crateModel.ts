@@ -23,7 +23,7 @@ const crateSchema = new mongoose.Schema<ICrate>(
   },
   {
     timestamps: true,
-  }
+  },
 )
 
 const Crate = mongoose.model("Crate", crateSchema)

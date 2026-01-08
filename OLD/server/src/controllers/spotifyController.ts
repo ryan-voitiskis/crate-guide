@@ -12,7 +12,7 @@ const getTrackFeatures = asyncHandler(async (req, res) => {
   const matchedTrack: MatchedTrack = JSON.parse(req.body.matchedTrack)
   const retrievedFeatures = await getAudioFeaturesSingle(
     matchedTrack.spotifyTrackID,
-    user
+    user,
   )
   if (retrievedFeatures) {
     const updatedRecord = await Record.findOneAndUpdate(
@@ -23,7 +23,7 @@ const getTrackFeatures = asyncHandler(async (req, res) => {
           "tracks.$.spotifyID": matchedTrack.spotifyTrackID,
         },
       },
-      { new: true }
+      { new: true },
     )
     res.status(200).json(updatedRecord)
   } else {

@@ -9,13 +9,13 @@ Crate Guide is a vinyl record collection management application for DJs. It enab
 
 ### Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | Nuxt 4 (SSR disabled), Vue 3 Composition API, TypeScript |
-| Styling | Tailwind CSS v4, shadcn-vue (reka-ui) |
-| State | Pinia |
-| Backend | Supabase (PostgreSQL, Auth, Edge Functions) |
-| External APIs | Discogs |
+| Layer         | Technology                                               |
+| ------------- | -------------------------------------------------------- |
+| Frontend      | Nuxt 4 (SSR disabled), Vue 3 Composition API, TypeScript |
+| Styling       | Tailwind CSS v4, shadcn-vue (reka-ui)                    |
+| State         | Pinia                                                    |
+| Backend       | Supabase (PostgreSQL, Auth, Edge Functions)              |
+| External APIs | Discogs                                                  |
 
 ### Project Structure
 
@@ -36,13 +36,13 @@ Crate Guide is a vinyl record collection management application for DJs. It enab
 
 ### Data Model
 
-| Entity | Description |
-|--------|-------------|
-| `profiles` | User preferences and Discogs OAuth credentials |
-| `records` | Vinyl records with metadata (artists, labels, year, cover) |
-| `tracks` | Individual tracks with BPM, key, duration, genres |
-| `crates` | Named collections of records for organizing gigs |
-| `sets` | DJ session history with played tracks and transitions |
+| Entity     | Description                                                |
+| ---------- | ---------------------------------------------------------- |
+| `profiles` | User preferences and Discogs OAuth credentials             |
+| `records`  | Vinyl records with metadata (artists, labels, year, cover) |
+| `tracks`   | Individual tracks with BPM, key, duration, genres          |
+| `crates`   | Named collections of records for organizing gigs           |
+| `sets`     | DJ session history with played tracks and transitions      |
 
 ## Features
 
@@ -124,11 +124,11 @@ npm run build
 
 Supabase Edge Functions handle Discogs OAuth flow:
 
-| Function | Purpose |
-|----------|---------|
-| `get-discogs-request-token` | Initiate OAuth 1.0 flow |
-| `get-discogs-access-token` | Exchange verifier for access token |
-| `authenticated-discogs-request` | Proxy authenticated API requests |
+| Function                        | Purpose                            |
+| ------------------------------- | ---------------------------------- |
+| `get-discogs-request-token`     | Initiate OAuth 1.0 flow            |
+| `get-discogs-access-token`      | Exchange verifier for access token |
+| `authenticated-discogs-request` | Proxy authenticated API requests   |
 
 ## Documentation
 

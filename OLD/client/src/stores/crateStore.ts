@@ -41,7 +41,7 @@ export const crateStore = defineStore("crate", {
       try {
         const response = await crateService.addCrate(
           crate,
-          userStore().authd.token
+          userStore().authd.token,
         )
         if (response.status === 201) {
           const newCrate = (await response.json()) as Crate
@@ -86,7 +86,7 @@ export const crateStore = defineStore("crate", {
 
     async pushToCrate(
       records: string[],
-      crateID: string
+      crateID: string,
     ): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
@@ -100,7 +100,7 @@ export const crateStore = defineStore("crate", {
           if (difference.length) {
             const response = await crateService.updateCrate(
               clonedCrate,
-              userStore().authd.token
+              userStore().authd.token,
             )
             if (response.status === 200) {
               const records = recordStore()
@@ -137,7 +137,7 @@ export const crateStore = defineStore("crate", {
 
     async removeFromCrate(
       records: string[],
-      crateID: string
+      crateID: string,
     ): Promise<number | null> {
       this.loading = true
       this.errorMsg = ""
@@ -146,12 +146,12 @@ export const crateStore = defineStore("crate", {
         if (crate) {
           const clonedCrate = JSON.parse(JSON.stringify(this.getById(crateID)))
           const remainingRecords = crate.records.filter(
-            (i) => !records.includes(i)
+            (i) => !records.includes(i),
           )
           clonedCrate.records = remainingRecords
           const response = await crateService.updateCrate(
             clonedCrate,
-            userStore().authd.token
+            userStore().authd.token,
           )
           if (response.status === 200) {
             const records = recordStore()

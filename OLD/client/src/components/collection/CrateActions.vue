@@ -28,7 +28,7 @@
       <button
         class="icon-button"
         @click="
-          ;(crates.actionsModal = false), (crates.duplicateCrateModal = true)
+          ;((crates.actionsModal = false), (crates.duplicateCrateModal = true))
         "
         v-if="user.authd.settings.selectedCrate !== 'all'"
       >
@@ -37,7 +37,7 @@
       <button
         class="icon-button"
         @click="
-          ;(crates.actionsModal = false), (crates.deleteCrateModal = true)
+          ;((crates.actionsModal = false), (crates.deleteCrateModal = true))
         "
         v-if="user.authd.settings.selectedCrate !== 'all'"
       >
@@ -45,7 +45,7 @@
       </button>
       <button
         class="icon-button"
-        @click=";(crates.actionsModal = false), (crates.addCrateModal = true)"
+        @click=";((crates.actionsModal = false), (crates.addCrateModal = true))"
       >
         <FolderPlusIcon /> Add new
       </button>
@@ -78,7 +78,7 @@ const trackCount = computed(() => {
   let count = 0
   crate.value
     ? crate.value?.records.forEach(
-        (i) => (count += records.getById(i).tracks.length)
+        (i) => (count += records.getById(i).tracks.length),
       )
     : records.recordList.forEach((i) => (count += i.tracks.length))
   return count

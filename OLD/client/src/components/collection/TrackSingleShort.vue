@@ -91,66 +91,66 @@ const props = defineProps<{
 const spotifyLink = computed(() =>
   props.track.spotifyID
     ? `https://open.spotify.com/track/${props.track.spotifyID}`
-    : ``
+    : ``,
 )
 
 const timeSignature = computed(() =>
   props.track.timeSignatureUpper && props.track.timeSignatureLower
     ? [props.track.timeSignatureUpper, props.track.timeSignatureLower]
     : props.track.audioFeatures
-    ? [props.track.audioFeatures.time_signature, 4]
-    : null
+      ? [props.track.audioFeatures.time_signature, 4]
+      : null,
 )
 
 const positionColour = computed(() =>
   props.track.position
     ? getPositionColour(props.track.position)
-    : "hsl(0, 0%, 68%)"
+    : "hsl(0, 0%, 68%)",
 )
 
 const bpm = computed(() =>
   props.track.bpm
     ? props.track.bpm
     : props.track.audioFeatures
-    ? Math.round(props.track.audioFeatures.tempo)
-    : null
+      ? Math.round(props.track.audioFeatures.tempo)
+      : null,
 )
 
 const keyAndMode = computed(() =>
   typeof props.track.key === "number" && typeof props.track.mode === "number"
     ? { key: props.track.key, mode: props.track.mode }
     : props.track.audioFeatures && props.track.audioFeatures.key !== -1
-    ? {
-        key: props.track.audioFeatures.key,
-        mode: props.track.audioFeatures.mode,
-      }
-    : null
+      ? {
+          key: props.track.audioFeatures.key,
+          mode: props.track.audioFeatures.mode,
+        }
+      : null,
 )
 
 const keyString = computed(() =>
   !keyAndMode.value
     ? ""
     : user.authd.settings.keyFormat === "key"
-    ? getKeyStringShort(keyAndMode.value.key, keyAndMode.value.mode)
-    : getCamelotString(keyAndMode.value.key, keyAndMode.value.mode)
+      ? getKeyStringShort(keyAndMode.value.key, keyAndMode.value.mode)
+      : getCamelotString(keyAndMode.value.key, keyAndMode.value.mode),
 )
 
 const keyColour = computed(() =>
   keyAndMode.value
     ? getKeyColour(keyAndMode.value.key, keyAndMode.value.mode)
-    : ""
+    : "",
 )
 
 const bpmColour = computed(() =>
-  bpm.value ? getBPMColour(bpm.value, user.authd.settings.theme) : null
+  bpm.value ? getBPMColour(bpm.value, user.authd.settings.theme) : null,
 )
 
 const duration = computed(() =>
   props.track.duration
     ? getDurationString(props.track.duration)
     : props.track.audioFeatures?.duration_ms
-    ? getDurationString(props.track.audioFeatures?.duration_ms)
-    : null
+      ? getDurationString(props.track.audioFeatures?.duration_ms)
+      : null,
 )
 </script>
 

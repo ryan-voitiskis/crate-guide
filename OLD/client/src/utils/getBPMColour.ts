@@ -6,7 +6,7 @@ function getBPMColour(bpm: number, userTheme: string): string {
   let isLight
   if (userTheme === "auto") {
     const pageBackground = getComputedStyle(
-      document.documentElement
+      document.documentElement,
     ).getPropertyValue("--page-bg")
     //! if light theme --page-bg updated, update condition below: "hsl(0, 0%, 100%)" -> new --page-bg
     isLight = pageBackground === "hsl(40, 20%, 97%)" ? true : false
@@ -16,7 +16,7 @@ function getBPMColour(bpm: number, userTheme: string): string {
   const clampedBpm = Math.min(Math.max(bpm, min), max)
   return d3.interpolateCubehelixLong(
     lowColour,
-    highColour
+    highColour,
   )((clampedBpm - min) / (max - min))
 }
 export default getBPMColour

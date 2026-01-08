@@ -43,7 +43,7 @@ const setSchema = new mongoose.Schema<ISet>(
   },
   {
     timestamps: true,
-  }
+  },
 )
 
 const Set = mongoose.model("Set", setSchema)

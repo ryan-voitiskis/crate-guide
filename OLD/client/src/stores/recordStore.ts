@@ -47,7 +47,7 @@ export const recordStore = defineStore("record", {
       try {
         const response = await recordService.addRecord(
           record,
-          userStore().authd.token
+          userStore().authd.token,
         )
         if (response.status === 201) {
           const newRecord = (await response.json()) as Record
@@ -73,7 +73,7 @@ export const recordStore = defineStore("record", {
       try {
         const response = await recordService.updateRecord(
           record,
-          userStore().authd.token
+          userStore().authd.token,
         )
         if (response.status === 200) {
           const updatedRecord = (await response.json()) as Record
@@ -102,14 +102,14 @@ export const recordStore = defineStore("record", {
         try {
           const response = await recordService.deleteRecords(
             this.toDelete,
-            userStore().authd.token
+            userStore().authd.token,
           )
           if (response.status === 200) {
             const res = await response.json()
             if (res.deletedCount === this.toDelete.length) {
               crates.removeDeletedFromCrates(this.toDelete)
               this.recordList = this.recordList.filter(
-                (i) => !this.toDelete.includes(i._id)
+                (i) => !this.toDelete.includes(i._id),
               )
             } else {
               this.feedbackMsg = "<b>Error</b>: Some records were not deleted."
@@ -159,7 +159,7 @@ export const recordStore = defineStore("record", {
       return (_id: string): string => {
         const record =
           (state.recordList.find((record) =>
-            record.tracks.find((track) => track._id === _id)
+            record.tracks.find((track) => track._id === _id),
           ) as Record) || null
         if (record) return record.catno ? record.catno : record.title
         else return ""
@@ -169,7 +169,7 @@ export const recordStore = defineStore("record", {
     getRecordByTrackId: (state) => {
       return (_id: string): Record =>
         (state.recordList.find((record) =>
-          record.tracks.find((track) => track._id === _id)
+          record.tracks.find((track) => track._id === _id),
         ) as Record) || null
     },
 

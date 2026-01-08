@@ -57,7 +57,7 @@ const foundTrack =
   tracks.getTrackByIdFromTrackList(props.playedTrack._id) || null
 
 const rating = computed(() =>
-  props.playedTrack.transitionRating ? props.playedTrack.transitionRating : 0
+  props.playedTrack.transitionRating ? props.playedTrack.transitionRating : 0,
 )
 
 const coverImg = foundTrack ? `url("${foundTrack.cover}")` : null
@@ -65,14 +65,14 @@ const coverImg = foundTrack ? `url("${foundTrack.cover}")` : null
 const keyColour = !foundTrack
   ? null
   : foundTrack.keyFinal
-  ? foundTrack.keyFinal.colour
-  : null
+    ? foundTrack.keyFinal.colour
+    : null
 
 const bpmColour = !foundTrack
   ? null
   : foundTrack.bpmFinal
-  ? getBPMColour(foundTrack.bpmFinal, user.authd.settings.theme)
-  : null
+    ? getBPMColour(foundTrack.bpmFinal, user.authd.settings.theme)
+    : null
 
 const bpmAdjustedColour = props.playedTrack.adjustedBpm
   ? getBPMColour(props.playedTrack.adjustedBpm, user.authd.settings.theme)
@@ -81,8 +81,8 @@ const bpmAdjustedColour = props.playedTrack.adjustedBpm
 const positionColour = !foundTrack
   ? null
   : foundTrack.position
-  ? getPositionColour(foundTrack.position)
-  : "hsl(0, 0%, 68%)"
+    ? getPositionColour(foundTrack.position)
+    : "hsl(0, 0%, 68%)"
 
 const emit = defineEmits<{
   (e: "newTrackMounted"): void

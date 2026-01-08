@@ -85,7 +85,7 @@ async function forgotPassword(email: string) {
   }
   const response = await fetch(
     globals.API_USERS_URL + "forgot-password",
-    options
+    options,
   )
   return response
 }
@@ -105,7 +105,7 @@ async function resetPassword(password: string, token: string) {
   }
   const response = await fetch(
     globals.API_USERS_URL + "reset-password",
-    options
+    options,
   )
   return response
 }
@@ -113,7 +113,7 @@ async function resetPassword(password: string, token: string) {
 async function changePassword(
   currentPassword: string,
   password: string,
-  user: User
+  user: User,
 ) {
   const body = new URLSearchParams()
   body.append("currentPassword", currentPassword)
@@ -130,7 +130,7 @@ async function changePassword(
   }
   const response = await fetch(
     globals.API_USERS_URL + "change-password",
-    options
+    options,
   )
   return response
 }

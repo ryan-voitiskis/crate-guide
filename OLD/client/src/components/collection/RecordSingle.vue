@@ -105,11 +105,11 @@ const sortedTracks = computed((): Track[] =>
             sensitivity: "base",
           }) // both a + b defined
         : a.position !== "" && b.position === ""
-        ? -1 // a is defined, b is empty: sort a before b
-        : a.position === "" && b.position !== ""
-        ? 1 // a is empty, b is defined: sort b before a
-        : 0 // both a + b empty: keep original order
-  )
+          ? -1 // a is defined, b is empty: sort a before b
+          : a.position === "" && b.position !== ""
+            ? 1 // a is empty, b is defined: sort b before a
+            : 0, // both a + b empty: keep original order
+  ),
 )
 
 // when checkbox changed, either add or remove record from checkboxed array
@@ -117,7 +117,7 @@ watch(
   () => records.checkboxed,
   () => {
     if (records.checkboxed.length === 0) state.checked = false
-  }
+  },
 )
 
 // when select/deselect all checkbox is checked, check this records checkbox
@@ -125,7 +125,7 @@ watch(
   () => records.checkAll,
   () => {
     if (records.checkAll === true) state.checked = true
-  }
+  },
 )
 
 const coverImg = computed(() => `url("${props.cover}")`)

@@ -91,7 +91,7 @@ const fullRotationDuration = computed(
       1) *
       60) /
       session.decks[props.deckID].rpm) *
-    1000
+    1000,
 )
 
 let lastTime = 0 // timestamp of the last frame
@@ -153,13 +153,13 @@ watch(
       lastTime = performance.now()
       requestAnimationFrame(speedUpAnimation)
     }
-  }
+  },
 )
 
 const coverImg = computed(() =>
   session.decks[props.deckID].loadedTrack?.cover
     ? session.decks[props.deckID].loadedTrack?.cover
-    : ""
+    : "",
 )
 </script>
 

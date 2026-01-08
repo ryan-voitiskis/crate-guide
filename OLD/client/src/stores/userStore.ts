@@ -174,7 +174,7 @@ export const userStore = defineStore("user", {
       try {
         const response = await userService.resetPassword(
           password,
-          this.resetToken
+          this.resetToken,
         )
         if (response.status === 200) {
           this.success = true
@@ -195,7 +195,7 @@ export const userStore = defineStore("user", {
     // password changed from logged in ChangePasswordForm.vue
     async changePassword(
       currentPassword: string,
-      password: string
+      password: string,
     ): Promise<number | null> {
       this.success = false
       this.loading = true
@@ -204,7 +204,7 @@ export const userStore = defineStore("user", {
         const response = await userService.changePassword(
           currentPassword,
           password,
-          this.authd
+          this.authd,
         )
         if (response.status === 200) {
           this.success = true

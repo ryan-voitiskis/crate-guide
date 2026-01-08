@@ -71,7 +71,7 @@ const timeSignatures: TimeSignature[] = [
 
 function getTimeSignatureOptions(): Option[] {
   return [{ id: "", name: "--- optional ---" }].concat(
-    timeSignatures.map((i) => ({ id: i.string, name: i.string }))
+    timeSignatures.map((i) => ({ id: i.string, name: i.string })),
   )
 }
 
@@ -83,7 +83,7 @@ function getTimeSignatureString(upper: number, lower: number): string {
 }
 
 function getTimeSignatureNumbers(
-  string: string
+  string: string,
 ): [number | null, number | null] {
   const signature = timeSignatures.find((i) => i.string === string)
   return signature ? [signature.upper, signature.lower] : [null, null]

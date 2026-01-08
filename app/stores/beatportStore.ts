@@ -1,11 +1,51 @@
+import { Wand } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
+
+interface BulkTrackResult {
+	trackId: string
+	title: string
+	artist: string
+	image: string | null
+	success: boolean
+	error?: string
+}
+
+interface BeatportNotFoundMarker {
+	searched: true
+	notFound: true
+	searchedAt: number
+}
+
+// Helper to check if track has been searched (found or not found)
+function hasBeenSearched(beatportData: any): boolean {
+	if (!beatportData) return false
+	// If it has the notFound marker, it was searched
+	if (beatportData.notFound === true) return true
+	// If it has actual data (url, bpm, etc.), it was found
+	if (beatportData.url || beatportData.bpm !== undefined) return true
+	return false
+}
+
+// Helper to check if track was found (has actual data, not just "not found" marker)
+function hasFoundData(beatportData: any): boolean {
+	if (!beatportData) return false
+	if (beatportData.notFound === true) return false
+	return beatportData.url || beatportData.bpm !== undefined
+}
 
 export const useBeatportStore = defineStore('beatport', () => {
 	const isLoadingBeatportData = ref(false)
+	const loadingTrackId = ref<string | null>(null)
 
 	const isBulkFetchingBeatportData = ref(false)
 	const bulkBeatportProgress = ref(0)
 	const bulkBeatportCancelled = ref(false)
+	const currentProcessingTrack = ref<{
+		title: string
+		artist: string
+		image: string | null
+	} | null>(null)
+	const lastProcessedTrack = ref<BulkTrackResult | null>(null)
 	const bulkBeatportResults = ref<{
 		successful: number
 		failed: Array<{ trackId: string; title: string; error: string }>
@@ -34,6 +74,7 @@ export const useBeatportStore = defineStore('beatport', () => {
 		}
 
 		isLoadingBeatportData.value = true
+		loadingTrackId.value = trackId
 
 		try {
 			const beatportScraper = useBeatportScraper()
@@ -43,7 +84,16 @@ export const useBeatportStore = defineStore('beatport', () => {
 			})
 
 			if (!beatportData) {
-				toast.error('No matching track found on Beatport')
+				// Save "not found" marker so we don't search again
+				const notFoundMarker: BeatportNotFoundMarker = {
+					searched: true,
+					notFound: true,
+					searchedAt: Date.now()
+				}
+				await tracks.updateTrack(track.id, { beatport_data: notFoundMarker }, { silent: true })
+				toast('No matching track found on Beatport', {
+					icon: h(Wand, { class: 'size-5 text-amber-500' })
+				})
 				return false
 			}
 
@@ -58,9 +108,11 @@ export const useBeatportStore = defineStore('beatport', () => {
 				updates.mode = keyData.mode
 			}
 
-			const result = await tracks.updateTrack(track.id, updates)
+			const result = await tracks.updateTrack(track.id, updates, { silent: true })
 			if (result) {
-				toast.success('Beatport data retrieved successfully!')
+				toast('Beatport data found', {
+					icon: h(Wand, { class: 'size-5 text-green-500' })
+				})
 				return true
 			}
 
@@ -71,25 +123,27 @@ export const useBeatportStore = defineStore('beatport', () => {
 			return false
 		} finally {
 			isLoadingBeatportData.value = false
+			loadingTrackId.value = null
 		}
 	}
 
 	async function bulkFetchBeatportData(
-		skipExistingData: boolean = true
+		includeSearched: boolean = false
 	): Promise<void> {
-		const tracks = useTracksStore()
-		const tracksToProcess = skipExistingData
-			? tracks.tracks.filter((track) => !track.beatport_data)
-			: tracks.tracks
+		const tracksStore = useTracksStore()
+		const tracksToProcess = includeSearched
+			? tracksStore.tracks
+			: tracksStore.tracks.filter((track) => !hasBeenSearched(track.beatport_data))
 
 		if (tracksToProcess.length === 0) {
-			toast.info('No tracks to process')
 			return
 		}
 
 		isBulkFetchingBeatportData.value = true
 		bulkBeatportCancelled.value = false
 		bulkBeatportProgress.value = 0
+		currentProcessingTrack.value = null
+		lastProcessedTrack.value = null
 		bulkBeatportResults.value = {
 			successful: 0,
 			failed: [],
@@ -103,16 +157,45 @@ export const useBeatportStore = defineStore('beatport', () => {
 			const track = tracksToProcess[i]
 			if (!track) continue
 
+			const firstArtist = track.artists?.[0]?.name || 'Unknown Artist'
+
+			// Set current processing track
+			currentProcessingTrack.value = {
+				title: track.title,
+				artist: firstArtist,
+				image: track.beatport_data?.img || null
+			}
+
 			try {
-				const success = await getBeatportData(track.id)
+				const success = await getBeatportDataSilent(track.id)
+
+				// Get updated track to access beatport image
+				const updatedTrack = tracksStore.getTrackById(track.id)
+				const beatportImage = updatedTrack?.beatport_data?.img || null
+
 				if (success) {
 					bulkBeatportResults.value.successful++
+					lastProcessedTrack.value = {
+						trackId: track.id,
+						title: track.title,
+						artist: firstArtist,
+						image: beatportImage,
+						success: true
+					}
 				} else {
 					bulkBeatportResults.value.failed.push({
 						trackId: track.id,
 						title: track.title,
 						error: 'No matching track found'
 					})
+					lastProcessedTrack.value = {
+						trackId: track.id,
+						title: track.title,
+						artist: firstArtist,
+						image: null,
+						success: false,
+						error: 'No matching track found'
+					}
 				}
 			} catch (error) {
 				const errorMessage =
@@ -123,8 +206,15 @@ export const useBeatportStore = defineStore('beatport', () => {
 					title: track.title,
 					error: errorMessage
 				})
+				lastProcessedTrack.value = {
+					trackId: track.id,
+					title: track.title,
+					artist: firstArtist,
+					image: null,
+					success: false,
+					error: errorMessage
+				}
 
-				// Log rate limiting for debugging
 				if (
 					errorMessage.includes('429') ||
 					errorMessage.includes('rate limit')
@@ -139,12 +229,51 @@ export const useBeatportStore = defineStore('beatport', () => {
 		}
 
 		isBulkFetchingBeatportData.value = false
+		currentProcessingTrack.value = null
+	}
 
-		const { successful, failed } = bulkBeatportResults.value
-		if (!bulkBeatportCancelled.value) {
-			toast.success(
-				`Beatport data fetch complete: ${successful} successful, ${failed.length} failed`
-			)
+	// Silent version for bulk operations (no toasts)
+	async function getBeatportDataSilent(trackId: string): Promise<boolean> {
+		const tracks = useTracksStore()
+		const track = tracks.getTrackById(trackId)
+
+		if (!track) return false
+
+		const firstArtist = track.artists?.[0]?.name
+		if (!firstArtist || !track.title) return false
+
+		try {
+			const beatportScraper = useBeatportScraper()
+			const beatportData = await beatportScraper.searchTracks({
+				artist: firstArtist,
+				title: track.title
+			})
+
+			if (!beatportData) {
+				// Save "not found" marker
+				const notFoundMarker: BeatportNotFoundMarker = {
+					searched: true,
+					notFound: true,
+					searchedAt: Date.now()
+				}
+				await tracks.updateTrack(track.id, { beatport_data: notFoundMarker }, { silent: true })
+				return false
+			}
+
+			const keyData = parseBeatportKey(beatportData.key)
+			const updates: any = { beatport_data: beatportData }
+
+			if (!track.bpm && beatportData.bpm) updates.bpm = beatportData.bpm
+
+			if (track.key === null && keyData.key !== null) {
+				updates.key = keyData.key
+				updates.mode = keyData.mode
+			}
+
+			return await tracks.updateTrack(track.id, updates, { silent: true })
+		} catch (error) {
+			console.error('Error fetching Beatport data:', error)
+			return false
 		}
 	}
 
@@ -156,6 +285,8 @@ export const useBeatportStore = defineStore('beatport', () => {
 		isBulkFetchingBeatportData.value = false
 		bulkBeatportProgress.value = 0
 		bulkBeatportCancelled.value = false
+		currentProcessingTrack.value = null
+		lastProcessedTrack.value = null
 		bulkBeatportResults.value = {
 			successful: 0,
 			failed: [],
@@ -166,9 +297,14 @@ export const useBeatportStore = defineStore('beatport', () => {
 
 	return {
 		isLoadingBeatportData,
+		loadingTrackId,
 		isBulkFetchingBeatportData,
 		bulkBeatportProgress,
 		bulkBeatportResults,
+		currentProcessingTrack,
+		lastProcessedTrack,
+		hasBeenSearched,
+		hasFoundData,
 		getBeatportData,
 		bulkFetchBeatportData,
 		cancelBulkBeatportFetch,

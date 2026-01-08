@@ -14,7 +14,7 @@ async function authorisationRequest(token: string) {
   }
   const response = await fetch(
     globals.API_SPOTIFY_URL + "authorisation_request",
-    options
+    options,
   )
   return response
 }
@@ -49,7 +49,7 @@ async function getTrackFeatures(matchedTrack: MatchedTrack, token: string) {
   }
   const response = await fetch(
     globals.API_SPOTIFY_URL + "get_track_features",
-    options
+    options,
   )
   return response
 }

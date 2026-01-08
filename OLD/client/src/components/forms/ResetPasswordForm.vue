@@ -86,7 +86,7 @@ watch(
   () => ({ ...form }),
   () => {
     if (form.password === form.passwordConfirm) state.mismatch = false
-  }
+  },
 )
 </script>
 

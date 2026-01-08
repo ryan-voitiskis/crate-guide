@@ -28,7 +28,7 @@ export const spotifyStore = defineStore("spotify", {
       const user = userStore()
       try {
         const response = await spotifyService.authorisationRequest(
-          user.authd.token
+          user.authd.token,
         )
         if (response.status === 200) {
           const res = await response.json()
@@ -52,7 +52,7 @@ export const spotifyStore = defineStore("spotify", {
       const user = userStore()
       try {
         const response = await spotifyService.revokeAuthorisation(
-          user.authd.token
+          user.authd.token,
         )
         if (response.status === 200) {
           user.authd.isSpotifyOAuthd = false
@@ -75,7 +75,7 @@ export const spotifyStore = defineStore("spotify", {
       try {
         const response = await spotifyService.getTrackFeatures(
           track,
-          userStore().authd.token
+          userStore().authd.token,
         )
         if (response.status === 200) return response.status
         else {
@@ -153,7 +153,7 @@ export const spotifyStore = defineStore("spotify", {
                 handleError(err)
               },
               openWhenHidden: true, //! request resent on tab activated if not specified
-            }
+            },
           )
         } catch (error) {
           console.error(error)
@@ -237,11 +237,11 @@ export const spotifyStore = defineStore("spotify", {
     // works like radio buttons but can also deselect, so that none are selected
     toggleInexactAlbumOption(recordID: string, optionID: string) {
       const inexactMatch = this.inexactAlbumMatches.find(
-        (i) => i.recordID === recordID
+        (i) => i.recordID === recordID,
       )
       if (inexactMatch) {
         const inexactMatchOption = inexactMatch.matches.find(
-          (i) => i.id === optionID
+          (i) => i.id === optionID,
         )
         if (inexactMatchOption) {
           if (!inexactMatchOption.selected) {
@@ -260,11 +260,11 @@ export const spotifyStore = defineStore("spotify", {
     // works like toggleInexactAlbumOption for tracks
     toggleInexactTrackOption(trackID: string, optionID: string) {
       const inexactMatch = this.inexactTrackMatches.find(
-        (i) => i.trackID === trackID
+        (i) => i.trackID === trackID,
       )
       if (inexactMatch) {
         const inexactMatchOption = inexactMatch.options.find(
-          (i) => i.id === optionID
+          (i) => i.id === optionID,
         )
         if (inexactMatchOption) {
           if (!inexactMatchOption.selected) {

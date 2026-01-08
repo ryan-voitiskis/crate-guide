@@ -7,7 +7,7 @@
   </div>
   <form @submit.prevent="user.login(form.email, form.password)">
     <div class="modal-body block-labels">
-      <p @click=";(user.loginModal = false), (user.signUpModal = true)">
+      <p @click=";((user.loginModal = false), (user.signUpModal = true))">
         Don't have an account? <span class="link-text">Sign up</span>
       </p>
       <BasicInput
@@ -27,7 +27,9 @@
         required
       >
         <span
-          @click=";(user.loginModal = false), (user.forgotPasswordModal = true)"
+          @click="
+            ;((user.loginModal = false), (user.forgotPasswordModal = true))
+          "
           class="forgot-password"
         >
           Forgot password?

@@ -128,7 +128,7 @@ watch(
   () => ({ ...form }),
   () => {
     if (records.errorMsg === noChangeMsg) records.errorMsg = ""
-  }
+  },
 )
 
 onBeforeUnmount(() => {

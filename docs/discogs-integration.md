@@ -17,6 +17,7 @@ The integration uses a multi-layer architecture:
 ## User Flow
 
 ### Authentication
+
 1. User clicks "Connect Discogs" button
 2. System initiates OAuth flow via `get-discogs-request-token` edge function
 3. User redirects to Discogs authorization page
@@ -25,6 +26,7 @@ The integration uses a multi-layer architecture:
 6. User identity and avatar are fetched and stored in profile
 
 ### Import Process
+
 1. **Folder Selection**: User opens import dialog, system fetches collection folders
 2. **Release Loading**: User selects folder, system fetches all releases (paginated)
 3. **Filter Dialog**: User can select/deselect specific releases to import
@@ -34,6 +36,7 @@ The integration uses a multi-layer architecture:
    - **Database Import**: Transforms and inserts records/tracks atomically
 
 ### Disconnection
+
 Users can disconnect their Discogs account, which clears all stored tokens and username.
 
 ## Technical Components
@@ -41,11 +44,13 @@ Users can disconnect their Discogs account, which clears all stored tokens and u
 ### Stores
 
 #### `useDiscogsAuthStore`
+
 - Manages OAuth state (`isDiscogsConnecting`, `oAuthCompletionFailed`)
 - Provides computed `isOAuthed` status based on stored tokens
 - Handles OAuth initiation and completion
 
 #### `useDiscogsStore`
+
 - Manages import workflow state (folders, selected releases, progress)
 - Controls dialog visibility for different import phases
 - Tracks import results (successful, skipped, failed)
@@ -54,6 +59,7 @@ Users can disconnect their Discogs account, which clears all stored tokens and u
 ### API Layer
 
 #### `useDiscogsApi`
+
 - Wraps edge function calls with type-safe methods
 - Core methods: `getFolders()`, `getFolderReleases()`, `getRelease()`
 - Handles authentication headers and error propagation
@@ -61,16 +67,19 @@ Users can disconnect their Discogs account, which clears all stored tokens and u
 ### Edge Functions
 
 #### `get-discogs-request-token`
+
 - Initiates OAuth 1.0 flow using PLAINTEXT signature
 - Stores request token/secret in user profile
 - Returns authorization URL token
 
 #### `get-discogs-access-token`
+
 - Exchanges verifier for access tokens
 - Updates profile with access credentials
 - Fetches and stores user identity/avatar
 
 #### `authenticated-discogs-request`
+
 - Generic proxy for authenticated Discogs API calls
 - Generates proper OAuth 1.0 HMAC-SHA1 signatures
 - Supports pagination parameters
@@ -78,17 +87,20 @@ Users can disconnect their Discogs account, which clears all stored tokens and u
 ### Data Processing
 
 #### `discogs-data.ts`
+
 - **Artist Normalization**: Removes disambiguation numbers, handles roles
 - **Track Transformation**: Processes tracklist with position normalization, duration parsing
 - **Title Enhancement**: Adds remix/edit info from extraartists to track titles
 - **Label Processing**: Extracts catalog numbers, entity types, thumbnails
 
 #### `discogs-import.ts`
+
 - **3-Phase Import**: Separates duplicate filtering, API fetching, and database insertion
 - **Progress Tracking**: Reports progress during detail fetching phase
 - **Error Handling**: Categorizes failures by phase with detailed error messages
 
 #### `discogs-database.ts`
+
 - **Duplicate Detection**: Queries existing records by Discogs ID
 - **Atomic Import**: Uses `import_record_with_tracks` RPC for transactional inserts
 
@@ -103,6 +115,7 @@ DiscogsRelease (collection) → DiscogsReleaseFull (API) → Record + Tracks (da
 ```
 
 **Key Transformations**:
+
 - **Position Normalization**: `A1`, `AA` formats → standardized vinyl positions
 - **Duration Parsing**: `"4:32"` → milliseconds
 - **Artist Role Processing**: Remix artists become track title suffixes
@@ -120,18 +133,23 @@ Tokens are stored in the user profile and used for subsequent API calls via the 
 ## Key Implementation Details
 
 ### OAuth 1.0 Signature Generation
+
 The integration properly implements OAuth 1.0 with HMAC-SHA1 signatures for API requests. The `makeAuthenticatedRequest` helper handles the complex signature generation using the `oauth-signature` library.
 
 ### Progress Tracking
+
 Import progress is tracked at the release level during the detail fetching phase. The `releaseBeingImported` ref shows which release is currently being processed.
 
 ### Error Resilience
+
 The import process continues even if individual releases fail, categorizing results into successful, skipped (duplicates), and failed (with specific error messages).
 
 ### Type Safety
+
 Comprehensive TypeScript types and runtime validation ensure data integrity throughout the transformation pipeline using type guards like `isDiscogsReleaseFull()`.
 
 ### Database Atomicity
+
 The `import_record_with_tracks` RPC function ensures that records and their tracks are inserted atomically, preventing partial imports on database errors.
 
 ## Usage for Future Development

@@ -120,10 +120,10 @@ const importRecords = asyncHandler(async (req, res) => {
       const retrievedRecord = (await response.json()) as ReleaseFull
       records.push(retrievedRecord)
       res.write(
-        "data: " + `${(successfulRequests / recordIDs.length).toFixed(2)}\n\n`
+        "data: " + `${(successfulRequests / recordIDs.length).toFixed(2)}\n\n`,
       )
       limitRemaining = parseInt(
-        response.headers.get("X-Discogs-Ratelimit-Remaining") || "0"
+        response.headers.get("X-Discogs-Ratelimit-Remaining") || "0",
       )
       wait =
         limitRemaining < throttlePoint
@@ -149,7 +149,7 @@ async function authenticatedDiscogsRequest(
   url: string,
   user: IUser,
   page?: number,
-  per_page?: number
+  per_page?: number,
 ) {
   const httpMethod = "GET" // hardcoded as no plans to provide POST or other functionality
   const nonce = genNonce(12)
@@ -174,7 +174,7 @@ async function authenticatedDiscogsRequest(
     url,
     signatureParams,
     oauth_consumer_secret,
-    user.discogsTokenSecret
+    user.discogsTokenSecret,
   )
 
   const URLParams = new URLSearchParams()
@@ -217,12 +217,12 @@ function editReleases(records: ReleaseFull[], userID: string) {
     tracks: i.tracklist.map((j) => {
       const extraArtists: ExtraArtist[] = j.extraartists ? j.extraartists : []
       const extraArtistsSuffixable = extraArtists.find((k) =>
-        titleSuffixableRoles.includes(k.role.toLowerCase())
+        titleSuffixableRoles.includes(k.role.toLowerCase()),
       )
       const title =
         extraArtistsSuffixable && j.title.trim().slice(-1) !== ")"
           ? `${j.title.trim()} (${normaliseArtist(
-              extraArtistsSuffixable.name
+              extraArtistsSuffixable.name,
             )} ${extraArtistsSuffixable.role})`
           : j.title.trim()
       const artists: string[] = j.artists
@@ -239,8 +239,8 @@ function editReleases(records: ReleaseFull[], userID: string) {
         position: positionRx.test(j.position)
           ? j.position
           : positionRx2.test(j.position)
-          ? j.position[0] + j.position.length.toString()
-          : "",
+            ? j.position[0] + j.position.length.toString()
+            : "",
         duration: getDurationMs(j.duration.trim()),
         genre: i.styles ? i.styles.join(", ") : "",
         rpm: i.formats[0].descriptions?.toString().includes("45") ? "45" : "33",

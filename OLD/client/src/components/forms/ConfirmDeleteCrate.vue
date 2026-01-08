@@ -73,7 +73,7 @@ const matched = computed(
   (): boolean =>
     form.name.localeCompare(crate.name, "en", {
       sensitivity: "accent",
-    }) === 0
+    }) === 0,
 )
 
 function submit() {
@@ -87,7 +87,7 @@ watch(
   () => matched.value,
   () => {
     state.mismatch = false
-  }
+  },
 )
 
 onBeforeUnmount(() => {

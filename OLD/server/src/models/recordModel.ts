@@ -169,7 +169,7 @@ const recordSchema = new mongoose.Schema<IRecord>(
   },
   {
     timestamps: true,
-  }
+  },
 )
 
 const Record = mongoose.model("Record", recordSchema)

@@ -22,7 +22,7 @@ const addTrack = asyncHandler(async (req, res) => {
   const updatedRecord = await Record.findByIdAndUpdate(
     { _id: req.body.recordID },
     { $push: { tracks: track } },
-    { new: true }
+    { new: true },
   )
 
   res.status(201).json(updatedRecord)
@@ -63,7 +63,7 @@ const updateTrack = asyncHandler(async (req, res) => {
         "tracks.$.playable": track.playable,
       },
     },
-    { new: true }
+    { new: true },
   )
   res.status(200).json(updatedRecord)
 })
@@ -85,7 +85,7 @@ const deleteTrack = asyncHandler(async (req, res) => {
   const updatedRecord = await Record.findOneAndUpdate(
     { _id: record.id, "tracks._id": req.params.id },
     { $pull: { tracks: { _id: req.params.id } } },
-    { new: true }
+    { new: true },
   )
   res.status(200).json(updatedRecord)
 })

@@ -3,7 +3,7 @@ const errorHandler = (
   err: Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   if (process.env.NODE_ENV === "production") {
     res.write("data: " + `${err.message}\n\n`)

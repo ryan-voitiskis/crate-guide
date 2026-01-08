@@ -9,13 +9,17 @@ input[type="button"] {
   background-color: var(--secondary);
   cursor: pointer;
   display: inline-flex;
-  font: 400 16px/38px Manrope, sans-serif;
+  font:
+    400 16px/38px Manrope,
+    sans-serif;
   height: 38px;
   justify-content: center;
   padding: 0 24px;
   text-align: center;
   text-decoration: none;
-  transition: background-color 200ms, color 200ms;
+  transition:
+    background-color 200ms,
+    color 200ms;
   white-space: nowrap;
   svg {
     overflow: visible; // because spotify logo was being clipped by a fraction of a px
@@ -39,7 +43,9 @@ input[type="button"] {
   &.primary {
     padding: 0 40px;
     background: var(--primary);
-    font: 600 16px/38px Manrope, sans-serif;
+    font:
+      600 16px/38px Manrope,
+      sans-serif;
     color: var(--white-text);
     border: none;
     &:hover {

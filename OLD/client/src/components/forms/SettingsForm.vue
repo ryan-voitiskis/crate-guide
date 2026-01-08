@@ -138,7 +138,7 @@
         <legend>Account management</legend>
         <button
           @click="
-            ;(user.changePasswordModal = true), (user.settingsModal = false)
+            ;((user.changePasswordModal = true), (user.settingsModal = false))
           "
         >
           Change password
@@ -258,7 +258,7 @@ watch(
         root!.classList.add("contrast")
         break
     }
-  }
+  },
 )
 
 // required for when settings changed elsewhere, such as selected crate

@@ -305,7 +305,7 @@ watch(
   () => ({ ...form }),
   () => {
     if (tracks.errorMsg === noChangeMsg) tracks.errorMsg = ""
-  }
+  },
 )
 
 onBeforeUnmount(() => {

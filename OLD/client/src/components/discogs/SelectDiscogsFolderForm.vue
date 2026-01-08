@@ -64,7 +64,7 @@ const folders = computed((): Option[] =>
   discogs.folderList.map((i) => ({
     id: i.id.toString(),
     name: `${i.name} (${i.count})`,
-  }))
+  })),
 )
 
 function submit() {
@@ -76,7 +76,7 @@ function submit() {
 // when folder selected, remove "No folder selected" message
 watch(
   () => form.folder !== "",
-  () => (discogs.errorMsg = "")
+  () => (discogs.errorMsg = ""),
 )
 
 onMounted(async () => await discogs.getFolders())

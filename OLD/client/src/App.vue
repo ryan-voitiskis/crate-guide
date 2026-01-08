@@ -222,7 +222,7 @@ watch(
   () => route.query.msg,
   () => {
     state.queryMsg = route.query.msg?.toString() || ""
-  }
+  },
 )
 
 watch(
@@ -232,7 +232,7 @@ watch(
       user.resetPasswordModal = true
       user.resetToken = route.query.reset_token.toString()
     }
-  }
+  },
 )
 </script>
 

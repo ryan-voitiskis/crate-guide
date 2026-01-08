@@ -48,7 +48,7 @@ function submit() {
   if (records.fromCrate.length)
     crates.removeFromCrate(
       records.fromCrate as string[],
-      user.authd.settings.selectedCrate
+      user.authd.settings.selectedCrate,
     )
 }
 

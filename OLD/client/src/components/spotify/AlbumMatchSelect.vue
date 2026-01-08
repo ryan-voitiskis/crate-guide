@@ -47,7 +47,7 @@ const state = reactive({
 const record = records.getById(props.recordID)
 
 const slicedMatches = computed((): SpotifyAlbumEdit[] =>
-  [...props.matches].slice(0, state.numberShown)
+  [...props.matches].slice(0, state.numberShown),
 )
 
 const coverImg = `url("${record.cover}")`

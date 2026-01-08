@@ -102,12 +102,12 @@ onUnmounted(() => {
 
 watch(
   () => form.passwordConfirm !== form.password,
-  () => (state.mismatch = false)
+  () => (state.mismatch = false),
 )
 
 watch(
   () => form.currentPassword !== form.password,
-  () => (state.oldIsNew = false)
+  () => (state.oldIsNew = false),
 )
 </script>
 

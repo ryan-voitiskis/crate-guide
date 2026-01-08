@@ -123,7 +123,7 @@ export const sessionStore = defineStore("session", {
       try {
         const response = await sessionService.saveSet(
           history,
-          userStore().authd.token
+          userStore().authd.token,
         )
         if (response.status === 201) {
           const newSet = (await response.json()) as Set
@@ -151,12 +151,12 @@ export const sessionStore = defineStore("session", {
         const user = userStore()
         const response = await sessionService.deleteSet(
           this.setToDelete,
-          user.authd.token
+          user.authd.token,
         )
         if (response.status === 200) {
           this.selectedSetIndex = -1
           this.savedSets = this.savedSets.filter(
-            (i) => i._id !== this.setToDelete
+            (i) => i._id !== this.setToDelete,
           )
           this.setToDelete = ""
           this.confirmDeleteSet = false

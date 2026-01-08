@@ -30,7 +30,7 @@ export const discogsStore = defineStore("discogs", {
       this.errorMsg = ""
       try {
         const response = await discogsService.requestToken(
-          userStore().authd.token
+          userStore().authd.token,
         )
         if (response.status === 200) {
           const token = await response.json()
@@ -54,7 +54,7 @@ export const discogsStore = defineStore("discogs", {
       this.errorMsg = ""
       try {
         const response = await discogsService.revokeAuthorisation(
-          user.authd.token
+          user.authd.token,
         )
         if (response.status === 200) {
           user.authd.isDiscogsOAuthd = false
@@ -80,7 +80,7 @@ export const discogsStore = defineStore("discogs", {
       this.errorMsg = ""
       try {
         const response = await discogsService.getFolders(
-          userStore().authd.token
+          userStore().authd.token,
         )
         if (response.status === 200) {
           const folders = (await response.json()) as DiscogsFolder[]
@@ -103,7 +103,7 @@ export const discogsStore = defineStore("discogs", {
       try {
         const response = await discogsService.getFolder(
           folder,
-          userStore().authd.token
+          userStore().authd.token,
         )
         if (response.status === 200) {
           const folder = (await response.json()) as DiscogsReleaseBasic[]
@@ -128,7 +128,7 @@ export const discogsStore = defineStore("discogs", {
       this.loading = false
       this.errorMsg = ""
       const stagedRecords = this.toImport.filter(
-        (i) => !this.unstagedImports.includes(i.id)
+        (i) => !this.unstagedImports.includes(i.id),
       )
       const formattedRecords = stagedRecords.map((i) => i.id)
       const body = new URLSearchParams()
@@ -166,7 +166,7 @@ export const discogsStore = defineStore("discogs", {
                 handleError(err)
               },
               openWhenHidden: true, //! request resent on tab activated if not specified
-            }
+            },
           )
         } catch (error) {
           console.error(error)

@@ -13,7 +13,7 @@ async function requestToken(token: string) {
   }
   const response = await fetch(
     globals.API_DISCOGS_URL + "request_token",
-    options
+    options,
   )
   return response
 }
@@ -30,7 +30,7 @@ async function revokeAuthorisation(token: string) {
   }
   const response = await fetch(
     globals.API_DISCOGS_URL + "revoke_discogs",
-    options
+    options,
   )
   return response
 }
@@ -59,7 +59,7 @@ async function getFolder(folder: string, token: string) {
   }
   const response = await fetch(
     globals.API_DISCOGS_URL + "folder/" + folder,
-    options
+    options,
   )
   return response
 }

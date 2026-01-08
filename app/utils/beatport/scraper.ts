@@ -18,7 +18,9 @@ export async function searchBeatportTrack({
 }: SearchTrackParams): Promise<BeatportTrackData | null> {
 	try {
 		const query = `${artist} ${title}`
-		const response = await $fetch<string>(`/api/beatport/search?q=${encodeURIComponent(query)}`)
+		const response = await $fetch<string>(
+			`/api/beatport/search?q=${encodeURIComponent(query)}`
+		)
 
 		return parseBeatportHTML(response, { artist, title })
 	} catch (error) {
@@ -27,7 +29,10 @@ export async function searchBeatportTrack({
 	}
 }
 
-function parseBeatportHTML(html: string, { artist, title }: SearchTrackParams): BeatportTrackData | null {
+function parseBeatportHTML(
+	html: string,
+	{ artist, title }: SearchTrackParams
+): BeatportTrackData | null {
 	const parser = new DOMParser()
 	const doc = parser.parseFromString(html, 'text/html')
 
@@ -46,7 +51,9 @@ function parseBeatportHTML(html: string, { artist, title }: SearchTrackParams): 
 	return null
 }
 
-function extractTrackDataFromRow(row: Element): Omit<BeatportTrackData, 'accessed'> | null {
+function extractTrackDataFromRow(
+	row: Element
+): Omit<BeatportTrackData, 'accessed'> | null {
 	try {
 		// Extract track URL and title
 		const trackLink = row.querySelector('a[href^="/track/"]')
@@ -58,11 +65,14 @@ function extractTrackDataFromRow(row: Element): Omit<BeatportTrackData, 'accesse
 		const artistLink = row.querySelector('.ArtistNames-sc-f2e950a1-0 a')
 		if (!artistLink) return null
 
-		const artistName = artistLink.getAttribute('title') || artistLink.textContent?.trim()
+		const artistName =
+			artistLink.getAttribute('title') || artistLink.textContent?.trim()
 		if (!artistName) return null
 
 		// Extract track title (handle remix info in spans)
-		const titleElement = row.querySelector('.Tables-shared-style__ReleaseName-sc-74ae448d-5')
+		const titleElement = row.querySelector(
+			'.Tables-shared-style__ReleaseName-sc-74ae448d-5'
+		)
 		if (!titleElement) return null
 
 		let trackTitle = ''
@@ -95,7 +105,8 @@ function extractTrackDataFromRow(row: Element): Omit<BeatportTrackData, 'accesse
 
 		// Extract genre
 		const genreLink = row.querySelector('.cell.bpm a[href^="/genre/"]')
-		const genre = genreLink?.getAttribute('title') || genreLink?.textContent?.trim() || ''
+		const genre =
+			genreLink?.getAttribute('title') || genreLink?.textContent?.trim() || ''
 
 		// Extract image
 		const img = row.querySelector('img')
@@ -128,7 +139,8 @@ function isTrackMatch(
 	const artistMatch = _artistName.toLowerCase() === artist.toLowerCase()
 
 	// Track title should contain our search title (case-insensitive)
-	const titleMatch = _trackTitle.toLowerCase().includes(title.toLowerCase()) ||
+	const titleMatch =
+		_trackTitle.toLowerCase().includes(title.toLowerCase()) ||
 		title.toLowerCase().includes(_trackTitle.toLowerCase())
 
 	return artistMatch && titleMatch

@@ -151,7 +151,7 @@ const recordsByCrate = computed((): Record[] =>
     ? crates
         .getRecordIDsByCrate(user.authd.settings.selectedCrate)
         .map((i) => records.getById(i))
-    : records.recordList
+    : records.recordList,
 )
 
 const titleSearchedRecords = computed((): Record[] =>
@@ -159,17 +159,17 @@ const titleSearchedRecords = computed((): Record[] =>
     ? recordsByCrate.value.filter(
         (i) =>
           localeContains(i.title, props.searchTitle) ||
-          localeContains(i.catno, props.searchTitle)
+          localeContains(i.catno, props.searchTitle),
       )
-    : recordsByCrate.value
+    : recordsByCrate.value,
 )
 
 const artistsSearchedRecords = computed((): Record[] =>
   props.searchArtists !== ""
     ? titleSearchedRecords.value.filter((i) =>
-        localeContains(i.artists, props.searchArtists)
+        localeContains(i.artists, props.searchArtists),
       )
-    : titleSearchedRecords.value
+    : titleSearchedRecords.value,
 )
 
 const yearFilteredRecords = computed((): Record[] => {
@@ -179,11 +179,11 @@ const yearFilteredRecords = computed((): Record[] => {
     const year2 = parseInt(years.next().value[0])
     if (year1 && year2)
       return artistsSearchedRecords.value.filter(
-        (i) => year1 <= i.year && i.year <= year2
+        (i) => year1 <= i.year && i.year <= year2,
       )
   } else if (yearFilterRx.test(props.filterYear.trim()))
     return artistsSearchedRecords.value.filter(
-      (i) => parseInt(props.filterYear.trim()) === i.year
+      (i) => parseInt(props.filterYear.trim()) === i.year,
     )
   return artistsSearchedRecords.value
 })
@@ -193,23 +193,23 @@ const sortedRecords = computed((): Record[] => {
   switch (state.sortBy) {
     case "catno":
       return [...yearFilteredRecords.value].sort(
-        sortStr("catno", state.catnoRvrs)
+        sortStr("catno", state.catnoRvrs),
       )
     case "artists":
       return [...yearFilteredRecords.value].sort(
-        sortStr("artists", state.artistsRvrs)
+        sortStr("artists", state.artistsRvrs),
       )
     case "label":
       return [...yearFilteredRecords.value].sort(
-        sortStr("label", state.labelRvrs)
+        sortStr("label", state.labelRvrs),
       )
     case "year":
       return [...yearFilteredRecords.value].sort(
-        sortNumWithNull("year", state.yearRvrs)
+        sortNumWithNull("year", state.yearRvrs),
       )
     default: // default is title
       return [...yearFilteredRecords.value].sort(
-        sortStr("title", state.titleRvrs)
+        sortStr("title", state.titleRvrs),
       )
   }
 })
@@ -224,7 +224,7 @@ watch(
         user.authd.settings.selectedCrate === "all"
           ? records.recordList.map((i) => i._id)
           : crates.getRecordIDsByCrate(user.authd.settings.selectedCrate)
-  }
+  },
 )
 </script>
 

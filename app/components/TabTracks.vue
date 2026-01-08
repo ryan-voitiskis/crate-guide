@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Disc, Search, Wand } from 'lucide-vue-next'
+import { Disc, Loader2, Search, Wand } from 'lucide-vue-next'
 
 const records = useRecordsStore()
+const beatport = useBeatportStore()
 const tracks = useTracksStore()
 const trackFilters = useTrackFiltersStore()
 
@@ -43,6 +44,18 @@ function formatArtists(
 function formatKey(track: Track): string {
 	if (track.key === null || track.mode === null) return '–'
 	return getKeyStringShort(track.key, track.mode)
+}
+
+async function fetchBeatportForTrack(track: Track, event: Event) {
+	event.stopPropagation()
+	await beatport.getBeatportData(track.id)
+}
+
+function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
+	if (!track.beatport_data) return 'none'
+	if (beatport.hasFoundData(track.beatport_data)) return 'found'
+	if (beatport.hasBeenSearched(track.beatport_data)) return 'not-found'
+	return 'none'
 }
 </script>
 
@@ -180,6 +193,35 @@ function formatKey(track: Track): string {
 									>
 										Unplayable
 									</span>
+									<button
+										class="hover:bg-accent mr-2 flex size-8 items-center justify-center rounded-md transition-colors"
+										:disabled="beatport.loadingTrackId === track.id"
+										@click="fetchBeatportForTrack(track, $event)"
+										:title="
+											getBeatportStatus(track) === 'found'
+												? 'Beatport data found - click to refresh'
+												: getBeatportStatus(track) === 'not-found'
+													? 'Not found on Beatport - click to retry'
+													: 'Search Beatport for BPM and key'
+										"
+									>
+										<Loader2
+											v-if="beatport.loadingTrackId === track.id"
+											class="text-muted-foreground size-4 animate-spin"
+										/>
+										<Wand
+											v-else
+											class="size-4"
+											:class="{
+												'text-muted-foreground/50':
+													getBeatportStatus(track) === 'none',
+												'text-green-600 dark:text-green-400':
+													getBeatportStatus(track) === 'found',
+												'text-amber-600 dark:text-amber-400':
+													getBeatportStatus(track) === 'not-found'
+											}"
+										/>
+									</button>
 								</div>
 							</div>
 						</div>
