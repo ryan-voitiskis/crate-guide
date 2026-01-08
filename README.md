@@ -1,70 +1,151 @@
 # Crate Guide
 
-Live site: [https://crate.guide](https://crate.guide)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Live Site](https://img.shields.io/badge/Live-crate.guide-green)](https://crate.guide)
 
-Crate Guide is a DJ app for finding compatible tracks within your vinyl record collection.
+Crate Guide is a vinyl record collection management application for DJs. It enables cataloging records, organizing crates for gigs, tracking DJ sessions, and discovering compatible tracks through BPM and musical key analysis for harmonic mixing.
 
-## v2
+## Architecture
 
-I have started working on a version 2. The current MongoDB / Express backend will not support future features I would like to build. I have also changed my opinion on document databases since choosing MongoDB.
+### Tech Stack
 
-I am also investigating options for getting basic audio features like BPM and Key for tracks without using the Spotify API. I was unable to have Crate Guide approved by Spotify because you might play a vinyl record whilst using the app which counts as playback from other sources.
+| Layer | Technology |
+|-------|------------|
+| Frontend | Nuxt 4 (SSR disabled), Vue 3 Composition API, TypeScript |
+| Styling | Tailwind CSS v4, shadcn-vue (reka-ui) |
+| State | Pinia |
+| Backend | Supabase (PostgreSQL, Auth, Edge Functions) |
+| External APIs | Discogs |
 
-## Development Setup
+### Project Structure
 
-### Quick Start
+```
+├── app/
+│   ├── components/     # Vue components (auto-imported)
+│   ├── composables/    # Vue composables
+│   ├── layouts/        # Nuxt layouts
+│   ├── pages/          # Route pages
+│   ├── stores/         # Pinia stores
+│   └── utils/          # Utility functions
+├── server/api/         # Nitro API endpoints
+├── shared/types/       # TypeScript definitions
+└── supabase/
+    ├── functions/      # Deno Edge Functions
+    └── migrations/     # PostgreSQL migrations
+```
 
-1. **Install dependencies:**
+### Data Model
 
-   ```bash
-   npm install
-   ```
+| Entity | Description |
+|--------|-------------|
+| `profiles` | User preferences and Discogs OAuth credentials |
+| `records` | Vinyl records with metadata (artists, labels, year, cover) |
+| `tracks` | Individual tracks with BPM, key, duration, genres |
+| `crates` | Named collections of records for organizing gigs |
+| `sets` | DJ session history with played tracks and transitions |
 
-2. **Set up environment variables:**
+## Features
 
-   ```bash
-   cp .env.example .env
-   # Edit .env with your Discogs API keys
-   ```
+- **Collection Management** — Create, edit, and delete records and tracks
+- **Discogs Integration** — Import records from Discogs collection via OAuth 1.0
+- **Crate Organization** — Group records into crates for specific gigs or sets
+- **Track Discovery** — Filter and search tracks by BPM, key, genre, and artist
+- **Harmonic Mixing** — Find compatible tracks based on BPM range and key relationships
+- **Session Tracking** — Log played tracks and rate transitions
 
-3. **Start the full development environment:**
-   ```bash
-   npm run dev:full
-   ```
+## Development
 
-This will start Supabase local services, Edge Functions, and the Nuxt development server.
+### Prerequisites
 
-### Development Commands
+- Node.js 22.18.0
+- npm 11.5.2
+- Docker (for Supabase local development)
+- [Supabase CLI](https://supabase.com/docs/guides/cli)
 
-- `npm run dev:full` - Start complete development environment
-- `npm run dev` - Start only Nuxt dev server
-- `npm run supabase:start` - Start Supabase services
-- `npm run supabase:stop` - Stop Supabase services
-- `npm run supabase:functions` - Start Edge Functions only
+### Environment Setup
 
-### Architecture
+```bash
+# Clone repository
+git clone <repository-url>
+cd crate-guide
 
-- **Frontend**: Nuxt 4 with TypeScript, Tailwind CSS, Shadcn/ui
-- **Backend**: Supabase (PostgreSQL, Auth, Storage, Edge Functions)
-- **APIs**: Discogs for music data, OpenAI for AI features
+# Install dependencies
+npm install
 
-### Local vs Staging
+# Configure environment
+cp .env.example .env
+# Edit .env with required API keys
+```
 
-- **Local development**: Uses Supabase local stack (all data stays on your machine)
-- **Staging**: Uses live Supabase project for testing deployments
+Required environment variables:
 
-See [DEVELOPMENT.md](./DEVELOPMENT.md) for detailed setup instructions.
+```
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+DISCOGS_CONSUMER_KEY=
+DISCOGS_CONSUMER_SECRET=
+```
+
+### Running Locally
+
+```bash
+# Full environment (Nuxt + Supabase local stack)
+npm run dev:all
+
+# Nuxt only (requires external Supabase)
+npm run dev
+
+# Supabase services only
+npm run supa:start
+npm run supa:stop
+```
+
+### Database
+
+```bash
+# Generate TypeScript types from schema
+npm run genTypes
+
+# Reset local database (applies migrations + seed)
+npm run supa:reset
+```
+
+### Code Quality
+
+```bash
+# Format with Prettier
+npm run format
+
+# Build for production
+npm run build
+```
+
+## Edge Functions
+
+Supabase Edge Functions handle Discogs OAuth flow:
+
+| Function | Purpose |
+|----------|---------|
+| `get-discogs-request-token` | Initiate OAuth 1.0 flow |
+| `get-discogs-access-token` | Exchange verifier for access token |
+| `authenticated-discogs-request` | Proxy authenticated API requests |
+
+## Documentation
+
+Additional documentation is available in the [`docs/`](docs/) directory:
+
+- [Development Setup](docs/DEVELOPMENT.md)
+- [Discogs Integration](docs/discogs-integration.md)
+
+## Contributing
+
+Contributions are welcome. Please open an issue to discuss proposed changes before submitting a pull request.
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/description`)
+3. Commit changes with clear messages
+4. Push to your fork and open a pull request
 
 ## License
 
-This project is licensed under the MIT License.
-
-## Contributions
-
-Crate Guide is an open source project, talk to me, open an issue, submit a PR or fork it.
-
-## Author
-
-Ryan Voitiskis.
-
-[ryanvoitiskis.com](https://ryanvoitiskis.com) | [ryanvoitiskis@protonmail.com](mailto:ryanvoitiskis@protonmail.com) | [GitHub](https://github.com/ryan-voitiskis)
+This project is licensed under the [MIT License](LICENSE).
