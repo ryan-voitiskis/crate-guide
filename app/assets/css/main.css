@@ -143,7 +143,27 @@
 	* {
 		@apply border-border outline-ring/50;
 	}
+	html {
+		height: 100%;
+		overflow: hidden;
+	}
 	body {
 		@apply bg-background text-foreground;
+		height: 100%;
+		overflow: hidden;
 	}
+	#__nuxt {
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+	}
+}
+
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-hidden {
+	-ms-overflow-style: none; /* IE/Edge */
+	scrollbar-width: none; /* Firefox */
+}
+.scrollbar-hidden::-webkit-scrollbar {
+	display: none; /* Chrome/Safari/Opera */
 }
