@@ -1,0 +1,85 @@
+<script setup lang="ts">
+import {
+	Disc3,
+	History,
+	Save,
+	FolderOpen,
+	Trash2
+} from 'lucide-vue-next'
+
+const session = useSessionStore()
+</script>
+
+<template>
+	<div class="flex items-center justify-between gap-4 px-2 py-1">
+		<!-- Left: Deck count selector -->
+		<div class="flex items-center gap-2">
+			<span class="text-muted-foreground text-sm">Decks</span>
+			<div class="flex gap-1">
+				<Button
+					v-for="count in [1, 2, 3, 4]"
+					:key="count"
+					:variant="session.deckCount === count ? 'default' : 'outline'"
+					size="sm"
+					class="h-7 w-7 p-0"
+					@click="session.initializeDecks(count)"
+				>
+					{{ count }}
+				</Button>
+			</div>
+		</div>
+
+		<!-- Center: Toggles -->
+		<div class="flex items-center gap-2">
+			<Toggle
+				:pressed="session.showTurntableSim"
+				aria-label="Toggle turntable"
+				@click="session.showTurntableSim = !session.showTurntableSim"
+			>
+				<Disc3 class="mr-1.5 h-4 w-4" />
+				Turntable
+			</Toggle>
+
+			<Toggle
+				:pressed="session.showHistory"
+				aria-label="Toggle history"
+				@click="session.showHistory = !session.showHistory"
+			>
+				<History class="mr-1.5 h-4 w-4" />
+				History
+			</Toggle>
+		</div>
+
+		<!-- Right: Session actions -->
+		<div class="flex items-center gap-2">
+			<Button
+				variant="outline"
+				size="sm"
+				@click="session.showSetManager = true"
+				:disabled="session.isLoadingSets"
+			>
+				<FolderOpen class="mr-1.5 h-4 w-4" />
+				Sets
+			</Button>
+
+			<Button
+				variant="outline"
+				size="sm"
+				@click="session.showSaveDialog = true"
+				:disabled="session.currentSession.length === 0"
+			>
+				<Save class="mr-1.5 h-4 w-4" />
+				Save
+			</Button>
+
+			<Button
+				variant="ghost"
+				size="sm"
+				@click="session.clearSession()"
+				:disabled="session.currentSession.length === 0"
+			>
+				<Trash2 class="h-4 w-4" />
+			</Button>
+		</div>
+	</div>
+</template>

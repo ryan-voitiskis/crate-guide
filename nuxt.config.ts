@@ -36,7 +36,8 @@ export default defineNuxtConfig({
 	components: [
 		{ path: '~/components', pathPrefix: false },
 		{ path: '~/components/icons', prefix: 'Icon' },
-		{ path: '~/components/notices', prefix: 'Notice' }
+		{ path: '~/components/notices', prefix: 'Notice' },
+		{ path: '~/components/turntable', prefix: 'Turntable' }
 	],
 	app: {
 		keepalive: true,

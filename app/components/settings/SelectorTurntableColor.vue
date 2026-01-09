@@ -70,7 +70,7 @@ watch(turntableTheme, (theme) => {
 			<span class="block w-full p-2 text-center font-normal">Silver</span>
 		</Label>
 		<Label class="[&:has([data-state=checked])>div]:border-primary flex-col">
-			<RadioGroupItem value="dark" class="sr-only" />
+			<RadioGroupItem value="black" class="sr-only" />
 			<div
 				class="border-muted hover:border-accent w-full items-center rounded-xl border-2 p-1"
 			>
