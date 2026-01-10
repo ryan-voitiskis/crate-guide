@@ -2,6 +2,12 @@
 import { Disc3, FolderOpen, History, Save, Trash2 } from 'lucide-vue-next'
 
 const session = useSessionStore()
+
+function handleDeckCountChange(value: string | string[]) {
+	if (typeof value === 'string' && value) {
+		session.initializeDecks(Number(value))
+	}
+}
 </script>
 
 <template>
@@ -9,18 +15,22 @@ const session = useSessionStore()
 		<!-- Left: Deck count selector -->
 		<div class="flex items-center gap-2">
 			<span class="text-muted-foreground text-sm">Decks</span>
-			<div class="flex gap-1">
-				<Button
+			<ToggleGroup
+				type="single"
+				variant="outline"
+				:model-value="String(session.deckCount)"
+				@update:model-value="handleDeckCountChange"
+			>
+				<ToggleGroupItem
 					v-for="count in [1, 2, 3, 4]"
 					:key="count"
-					:variant="session.deckCount === count ? 'default' : 'outline'"
+					:value="String(count)"
+					variant="outline"
 					size="sm"
-					class="h-7 w-7 p-0"
-					@click="session.initializeDecks(count)"
 				>
 					{{ count }}
-				</Button>
-			</div>
+				</ToggleGroupItem>
+			</ToggleGroup>
 		</div>
 
 		<!-- Center: Toggles -->
