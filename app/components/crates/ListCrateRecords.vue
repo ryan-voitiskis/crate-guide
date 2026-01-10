@@ -20,7 +20,9 @@ const emit = defineEmits<{
 			<!-- Cover -->
 			<div
 				class="bg-muted flex size-12 shrink-0 items-center justify-center overflow-hidden rounded bg-cover bg-center"
-				:style="record.cover ? { backgroundImage: `url('${record.cover}')` } : {}"
+				:style="
+					record.cover ? { backgroundImage: `url('${record.cover}')` } : {}
+				"
 			>
 				<ImageOff v-if="!record.cover" class="text-muted-foreground size-4" />
 			</div>
