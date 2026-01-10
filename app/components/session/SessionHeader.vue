@@ -1,11 +1,5 @@
 <script setup lang="ts">
-import {
-	Disc3,
-	History,
-	Save,
-	FolderOpen,
-	Trash2
-} from 'lucide-vue-next'
+import { Disc3, FolderOpen, History, Save, Trash2 } from 'lucide-vue-next'
 
 const session = useSessionStore()
 </script>

@@ -25,7 +25,7 @@ function toggle() {
 				y="55"
 				text-anchor="middle"
 				dominant-baseline="middle"
-				class="select-none fill-zinc-700 text-[18px] font-medium"
+				class="fill-zinc-700 text-[18px] font-medium select-none"
 			>
 				start &bull; stop
 			</text>

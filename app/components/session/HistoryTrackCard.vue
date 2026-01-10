@@ -21,12 +21,14 @@ const artistNames = computed(() => {
 })
 
 const keyDisplay = computed(() => {
-	if (!track.value || track.value.key === null || track.value.mode === null) return null
+	if (!track.value || track.value.key === null || track.value.mode === null)
+		return null
 	return getCamelotString(track.value.key, track.value.mode)
 })
 
 const keyColor = computed(() => {
-	if (!track.value || track.value.key === null || track.value.mode === null) return null
+	if (!track.value || track.value.key === null || track.value.mode === null)
+		return null
 	return getKeyColour(track.value.key, track.value.mode)
 })
 
@@ -50,7 +52,7 @@ function handleRatingUpdate(rating: number | null) {
 		<div v-if="track" class="space-y-0.5">
 			<div class="flex items-start justify-between gap-2">
 				<div class="min-w-0 flex-1">
-					<div class="truncate text-sm font-medium leading-tight">
+					<div class="truncate text-sm leading-tight font-medium">
 						{{ track.title }}
 					</div>
 					<div class="text-muted-foreground truncate text-xs">

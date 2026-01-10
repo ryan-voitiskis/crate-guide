@@ -1,5 +1,5 @@
-import { Wand } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
+import { Wand } from 'lucide-vue-next'
 
 interface BulkTrackResult {
 	trackId: string
@@ -90,7 +90,11 @@ export const useBeatportStore = defineStore('beatport', () => {
 					notFound: true,
 					searchedAt: Date.now()
 				}
-				await tracks.updateTrack(track.id, { beatport_data: notFoundMarker }, { silent: true })
+				await tracks.updateTrack(
+					track.id,
+					{ beatport_data: notFoundMarker },
+					{ silent: true }
+				)
 				toast('No matching track found on Beatport', {
 					icon: h(Wand, { class: 'size-5 text-amber-500' })
 				})
@@ -108,7 +112,9 @@ export const useBeatportStore = defineStore('beatport', () => {
 				updates.mode = keyData.mode
 			}
 
-			const result = await tracks.updateTrack(track.id, updates, { silent: true })
+			const result = await tracks.updateTrack(track.id, updates, {
+				silent: true
+			})
 			if (result) {
 				toast('Beatport data found', {
 					icon: h(Wand, { class: 'size-5 text-green-500' })
@@ -133,7 +139,9 @@ export const useBeatportStore = defineStore('beatport', () => {
 		const tracksStore = useTracksStore()
 		const tracksToProcess = includeSearched
 			? tracksStore.tracks
-			: tracksStore.tracks.filter((track) => !hasBeenSearched(track.beatport_data))
+			: tracksStore.tracks.filter(
+					(track) => !hasBeenSearched(track.beatport_data)
+				)
 
 		if (tracksToProcess.length === 0) {
 			return
@@ -256,7 +264,11 @@ export const useBeatportStore = defineStore('beatport', () => {
 					notFound: true,
 					searchedAt: Date.now()
 				}
-				await tracks.updateTrack(track.id, { beatport_data: notFoundMarker }, { silent: true })
+				await tracks.updateTrack(
+					track.id,
+					{ beatport_data: notFoundMarker },
+					{ silent: true }
+				)
 				return false
 			}
 

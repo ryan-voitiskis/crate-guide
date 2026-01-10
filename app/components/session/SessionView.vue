@@ -41,10 +41,7 @@ onMounted(() => {
 			<!-- Session layout -->
 			<div v-else class="flex h-full">
 				<!-- Decks container with horizontal scroll -->
-				<ScrollArea
-					class="flex-1"
-					orientation="horizontal"
-				>
+				<ScrollArea class="flex-1" orientation="horizontal">
 					<div class="flex h-full gap-4 p-2">
 						<DeckColumn
 							v-for="(deck, index) in session.decks"

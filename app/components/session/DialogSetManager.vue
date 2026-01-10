@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Trash2, ChevronRight, Star } from 'lucide-vue-next'
+import { ChevronRight, Star, Trash2 } from 'lucide-vue-next'
 
 const session = useSessionStore()
 const tracks = useTracksStore()
@@ -173,8 +173,10 @@ onMounted(() => {
 													:key="star"
 													class="h-3 w-3"
 													:class="{
-														'fill-yellow-500 text-yellow-500': star <= (entry.transition_rating ?? 0),
-														'text-muted-foreground/50': star > (entry.transition_rating ?? 0)
+														'fill-yellow-500 text-yellow-500':
+															star <= (entry.transition_rating ?? 0),
+														'text-muted-foreground/50':
+															star > (entry.transition_rating ?? 0)
 													}"
 												/>
 											</div>
@@ -208,13 +210,14 @@ onMounted(() => {
 			<AlertDialogHeader>
 				<AlertDialogTitle>Delete Set</AlertDialogTitle>
 				<AlertDialogDescription>
-					Are you sure you want to delete this set? This action cannot be undone.
+					Are you sure you want to delete this set? This action cannot be
+					undone.
 				</AlertDialogDescription>
 			</AlertDialogHeader>
 			<AlertDialogFooter>
 				<AlertDialogCancel>Cancel</AlertDialogCancel>
 				<AlertDialogAction
-					class="bg-destructive text-white hover:bg-destructive/90"
+					class="bg-destructive hover:bg-destructive/90 text-white"
 					@click="handleDelete"
 				>
 					Delete

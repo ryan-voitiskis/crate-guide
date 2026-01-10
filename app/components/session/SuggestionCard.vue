@@ -48,7 +48,8 @@ function handleClick() {
 				class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium"
 				:class="{
 					'bg-green-500/20 text-green-500': scorePercent >= 70,
-					'bg-yellow-500/20 text-yellow-500': scorePercent >= 40 && scorePercent < 70,
+					'bg-yellow-500/20 text-yellow-500':
+						scorePercent >= 40 && scorePercent < 70,
 					'bg-muted text-muted-foreground': scorePercent < 40
 				}"
 			>
@@ -57,7 +58,7 @@ function handleClick() {
 
 			<!-- Track info -->
 			<div class="min-w-0 flex-1">
-				<div class="truncate text-sm font-medium leading-tight">
+				<div class="truncate text-sm leading-tight font-medium">
 					{{ track.title }}
 				</div>
 				<div class="text-muted-foreground truncate text-xs">
@@ -81,10 +82,7 @@ function handleClick() {
 					</span>
 
 					<!-- Key combination type -->
-					<span
-						v-if="keyCombinationLabel"
-						class="text-muted-foreground"
-					>
+					<span v-if="keyCombinationLabel" class="text-muted-foreground">
 						{{ keyCombinationLabel }}
 					</span>
 

@@ -37,7 +37,7 @@ const onSubmit = form.handleSubmit((values: LoginFormValues) =>
 		<Card class="w-full max-w-md rounded-lg p-6 shadow-md">
 			<CardHeader class="space-y-1">
 				<Button variant="blank" size="xl-icon" class="mx-auto mb-2" as-child>
-					<NuxtLink to="/">
+					<NuxtLink to="/demo">
 						<LogoCrateGuide />
 					</NuxtLink>
 				</Button>
@@ -118,6 +118,15 @@ const onSubmit = form.handleSubmit((values: LoginFormValues) =>
 						<NuxtLink to="/signup">Sign up</NuxtLink>
 					</Button>
 				</span>
+
+				<Separator class="my-2" span-class="bg-card" />
+
+				<div class="text-muted-foreground text-center text-sm">
+					<p>Not ready to create an account?</p>
+					<Button variant="link" as-child>
+						<NuxtLink to="/demo">View the demo</NuxtLink>
+					</Button>
+				</div>
 			</CardContent>
 		</Card>
 	</div>

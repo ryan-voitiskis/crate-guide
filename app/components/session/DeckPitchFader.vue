@@ -26,10 +26,18 @@ function resetPitch() {
 		:class="compact ? 'h-32 gap-1' : 'h-48 gap-0'"
 	>
 		<!-- Full mode: Reset button and pitch display stacked on the LEFT -->
-		<div v-if="!compact" class="flex flex-col items-center justify-between py-1">
+		<div
+			v-if="!compact"
+			class="flex flex-col items-center justify-between py-1"
+		>
 			<!-- Pitch percentage display -->
-			<div class="font-mono text-xs tabular-nums text-amber-200">
-				{{ deck?.pitch !== undefined ? (deck.pitch > 0 ? '+' : '') + ((deck.pitch / 100) * pitchRange).toFixed(1) : '0.0' }}%
+			<div class="font-mono text-xs text-amber-200 tabular-nums">
+				{{
+					deck?.pitch !== undefined
+						? (deck.pitch > 0 ? '+' : '') +
+							((deck.pitch / 100) * pitchRange).toFixed(1)
+						: '0.0'
+				}}%
 			</div>
 
 			<!-- Reset button - v1 style (round with border) -->
@@ -50,7 +58,12 @@ function resetPitch() {
 			@click="resetPitch"
 			:disabled="deck?.pitch === 0"
 		>
-			<span class="text-[8px] font-medium" style="writing-mode: vertical-rl; transform: rotate(180deg)">reset</span>
+			<span
+				class="text-[8px] font-medium"
+				style="writing-mode: vertical-rl; transform: rotate(180deg)"
+			>
+				reset
+			</span>
 		</button>
 
 		<!-- Labels and fader container -->
@@ -80,28 +93,93 @@ function resetPitch() {
 				<!-- Small tick at top -->
 				<line stroke-width="1.3" x1="1.4" y1="18" x2="5.5" y2="18" />
 				<!-- Labels: 8, 6, 4, 2, (center has no label), 2, 4, 6, +8 -->
-				<text x="7" y="18" dominant-baseline="central" class="select-none fill-current text-[1rem] font-light">8</text>
-				<text x="7" y="44.75" dominant-baseline="central" class="select-none fill-current text-[1rem] font-light">6</text>
-				<text x="7" y="71.5" dominant-baseline="central" class="select-none fill-current text-[1rem] font-light">4</text>
-				<text x="7" y="98.25" dominant-baseline="central" class="select-none fill-current text-[1rem] font-light">2</text>
-				<text x="7" y="151.75" dominant-baseline="central" class="select-none fill-current text-[1rem] font-light">2</text>
-				<text x="7" y="178.5" dominant-baseline="central" class="select-none fill-current text-[1rem] font-light">4</text>
-				<text x="7" y="205.25" dominant-baseline="central" class="select-none fill-current text-[1rem] font-light">6</text>
-				<text x="0" y="232" dominant-baseline="central" class="select-none fill-current text-[1rem] font-light">+</text>
-				<text x="7" y="232" dominant-baseline="central" class="select-none fill-current text-[1rem] font-light">8</text>
+				<text
+					x="7"
+					y="18"
+					dominant-baseline="central"
+					class="fill-current text-[1rem] font-light select-none"
+				>
+					8
+				</text>
+				<text
+					x="7"
+					y="44.75"
+					dominant-baseline="central"
+					class="fill-current text-[1rem] font-light select-none"
+				>
+					6
+				</text>
+				<text
+					x="7"
+					y="71.5"
+					dominant-baseline="central"
+					class="fill-current text-[1rem] font-light select-none"
+				>
+					4
+				</text>
+				<text
+					x="7"
+					y="98.25"
+					dominant-baseline="central"
+					class="fill-current text-[1rem] font-light select-none"
+				>
+					2
+				</text>
+				<text
+					x="7"
+					y="151.75"
+					dominant-baseline="central"
+					class="fill-current text-[1rem] font-light select-none"
+				>
+					2
+				</text>
+				<text
+					x="7"
+					y="178.5"
+					dominant-baseline="central"
+					class="fill-current text-[1rem] font-light select-none"
+				>
+					4
+				</text>
+				<text
+					x="7"
+					y="205.25"
+					dominant-baseline="central"
+					class="fill-current text-[1rem] font-light select-none"
+				>
+					6
+				</text>
+				<text
+					x="0"
+					y="232"
+					dominant-baseline="central"
+					class="fill-current text-[1rem] font-light select-none"
+				>
+					+
+				</text>
+				<text
+					x="7"
+					y="232"
+					dominant-baseline="central"
+					class="fill-current text-[1rem] font-light select-none"
+				>
+					8
+				</text>
 			</svg>
 
 			<!-- Fader track -->
 			<div class="relative h-full w-10 overflow-hidden bg-zinc-800">
 				<!-- Center groove -->
-				<div class="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-zinc-950" />
+				<div
+					class="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-zinc-950"
+				/>
 
 				<!-- Slider input -->
 				<input
 					type="range"
 					:min="-100"
 					:max="100"
-					:value="deck?.faderSliding ? deck.faderPosition : deck?.pitch ?? 0"
+					:value="deck?.faderSliding ? deck.faderPosition : (deck?.pitch ?? 0)"
 					@input="handlePitchInput"
 					:disabled="deck?.faderSliding"
 					class="pitch-fader"

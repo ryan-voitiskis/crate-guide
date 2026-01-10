@@ -18,7 +18,10 @@ const searchQuery = ref('')
 const filteredTracks = computed(() => {
 	const playable = tracks.playableTracks
 	if (!searchQuery.value.trim()) return playable.slice(0, 100)
-	return tracks.searchTracks(searchQuery.value).filter(t => t.playable).slice(0, 100)
+	return tracks
+		.searchTracks(searchQuery.value)
+		.filter((t) => t.playable)
+		.slice(0, 100)
 })
 
 function handleTrackClick(trackId: string) {
@@ -52,7 +55,9 @@ function getArtistNames(track: Track): string {
 			<div class="space-y-4 py-4">
 				<!-- Search input -->
 				<div class="relative">
-					<Search class="text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+					<Search
+						class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+					/>
 					<Input
 						v-model="searchQuery"
 						placeholder="Search tracks..."

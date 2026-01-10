@@ -79,9 +79,7 @@ export const useSessionStore = defineStore('session', () => {
 	const selectedSetId = ref<string | null>(null)
 
 	// === Computed: Pitch Range from User Settings ===
-	const pitchRange = computed(
-		() => user.profile?.turntable_pitch_range ?? 8
-	)
+	const pitchRange = computed(() => user.profile?.turntable_pitch_range ?? 8)
 
 	// === Methods: Adjusted BPM/Key ===
 	function getAdjustedBpm(deckIndex: number): number | null {
@@ -248,8 +246,7 @@ export const useSessionStore = defineStore('session', () => {
 		const delay = 10
 
 		while (Math.abs(deck.faderPosition - targetPitch) > step) {
-			deck.faderPosition +=
-				targetPitch > deck.faderPosition ? step : -step
+			deck.faderPosition += targetPitch > deck.faderPosition ? step : -step
 			await new Promise((r) => setTimeout(r, delay))
 		}
 

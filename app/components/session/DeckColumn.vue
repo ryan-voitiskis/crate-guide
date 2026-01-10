@@ -7,7 +7,9 @@ const props = defineProps<{
 const session = useSessionStore()
 const user = useUserStore()
 
-const suggestions = computed(() => session.getSuggestionsForDeck(props.deckIndex))
+const suggestions = computed(() =>
+	session.getSuggestionsForDeck(props.deckIndex)
+)
 
 const showLoadDialog = ref(false)
 
@@ -31,7 +33,7 @@ const deckBackground = computed(() => {
 </script>
 
 <template>
-	<div class="flex h-full min-w-80 max-w-[640px] flex-1 flex-col gap-2">
+	<div class="flex h-full max-w-[640px] min-w-80 flex-1 flex-col gap-2">
 		<!-- Deck header -->
 		<div class="flex items-center justify-between px-1">
 			<span class="text-muted-foreground text-sm font-medium">
@@ -51,10 +53,7 @@ const deckBackground = computed(() => {
 				class="flex gap-3 rounded-lg p-3"
 				:style="{ background: deckBackground }"
 			>
-				<TurntableSimulator
-					:deck-index="deckIndex"
-					:deck="deck"
-				/>
+				<TurntableSimulator :deck-index="deckIndex" :deck="deck" />
 				<DeckPitchFader :deck-index="deckIndex" />
 			</div>
 
@@ -81,16 +80,10 @@ const deckBackground = computed(() => {
 
 		<!-- Suggestions list -->
 		<div class="min-h-0 flex-1">
-			<SuggestionList
-				:suggestions="suggestions"
-				:deck-index="deckIndex"
-			/>
+			<SuggestionList :suggestions="suggestions" :deck-index="deckIndex" />
 		</div>
 
 		<!-- Load track dialog -->
-		<DialogLoadTrack
-			v-model:open="showLoadDialog"
-			:deck-index="deckIndex"
-		/>
+		<DialogLoadTrack v-model:open="showLoadDialog" :deck-index="deckIndex" />
 	</div>
 </template>

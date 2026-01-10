@@ -41,10 +41,7 @@ function handleOpenChange(open: boolean) {
 				<Button variant="ghost" @click="session.showSaveDialog = false">
 					Cancel
 				</Button>
-				<Button
-					@click="handleSave"
-					:loading="session.isSavingSession"
-				>
+				<Button @click="handleSave" :loading="session.isSavingSession">
 					Save
 				</Button>
 			</DialogFooter>

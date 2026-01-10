@@ -106,12 +106,7 @@ const rotationDuration = computed(() => {
 			<!-- Slipmat (when no track loaded) -->
 			<g v-else>
 				<circle r="164" fill="#222" />
-				<circle
-					r="146"
-					stroke-width="10"
-					stroke="#8c4394"
-					fill="transparent"
-				/>
+				<circle r="146" stroke-width="10" stroke="#8c4394" fill="transparent" />
 				<text
 					y="-23"
 					fill="#8c4394"

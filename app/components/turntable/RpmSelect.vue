@@ -29,7 +29,7 @@ function selectSpeed() {
 				y="55"
 				text-anchor="middle"
 				dominant-baseline="middle"
-				class="select-none fill-zinc-700 text-[42px] font-medium"
+				class="fill-zinc-700 text-[42px] font-medium select-none"
 			>
 				{{ speed }}
 			</text>
@@ -37,8 +37,12 @@ function selectSpeed() {
 
 		<!-- Indicator light -->
 		<div
-			class="absolute right-1 top-1/2 h-2 w-2 -translate-y-1/2"
-			:class="isActive ? 'bg-red-600 shadow-[0_0_4px_2px_rgba(220,38,38,0.5)]' : 'bg-zinc-500'"
+			class="absolute top-1/2 right-1 h-2 w-2 -translate-y-1/2"
+			:class="
+				isActive
+					? 'bg-red-600 shadow-[0_0_4px_2px_rgba(220,38,38,0.5)]'
+					: 'bg-zinc-500'
+			"
 		/>
 	</button>
 </template>

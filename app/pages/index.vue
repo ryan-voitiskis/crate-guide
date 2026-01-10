@@ -9,7 +9,7 @@ const ui = useUiStore()
 	<Tabs v-model="ui.tab" default-value="tracks" class="relative h-full">
 		<!-- Tab navigation overlay -->
 		<div
-			class="from-background pointer-events-none absolute inset-x-0 top-0 z-10 mx-auto flex max-w-[1600px] justify-center bg-gradient-to-b to-transparent p-2"
+			class="from-background pointer-events-none absolute inset-x-0 top-0 z-10 mx-auto flex max-w-[1600px] p-2"
 		>
 			<div class="pointer-events-auto flex w-full justify-end">
 				<TabsList class="border-1">
@@ -30,32 +30,21 @@ const ui = useUiStore()
 						Settings
 					</TabsTrigger>
 				</TabsList>
-				<div v-if="!user.supaUser" class="flex gap-4">
-					<Button as-child variant="ghost">
-						<NuxtLink to="/signup">Sign up</NuxtLink>
-					</Button>
-					<Button as-child variant="ghost">
-						<NuxtLink to="/login">Log in</NuxtLink>
-					</Button>
-				</div>
 			</div>
 		</div>
 
 		<!-- Tab content - full height with top padding for tabs -->
-		<TabsContent value="session" class="h-full pt-13">
+		<TabsContent value="session" class="h-full">
 			<TabSession />
 		</TabsContent>
-		<TabsContent
-			value="tracks"
-			class="scrollbar-hidden h-full overflow-y-auto pt-13"
-		>
+		<TabsContent value="tracks" class="scrollbar-hidden h-full overflow-y-auto">
 			<div class="mx-auto max-w-[1600px]">
 				<TabTracks />
 			</div>
 		</TabsContent>
 		<TabsContent
 			value="records"
-			class="scrollbar-hidden h-full overflow-y-auto pt-13"
+			class="scrollbar-hidden h-full overflow-y-auto"
 		>
 			<div class="mx-auto max-w-[1600px]">
 				<TabRecords />
@@ -63,7 +52,7 @@ const ui = useUiStore()
 		</TabsContent>
 		<TabsContent
 			value="settings"
-			class="scrollbar-hidden h-full overflow-y-auto pt-13"
+			class="scrollbar-hidden h-full overflow-y-auto"
 		>
 			<div class="mx-auto max-w-[1600px]">
 				<TabSettings />

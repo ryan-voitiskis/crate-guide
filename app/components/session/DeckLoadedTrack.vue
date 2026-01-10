@@ -21,12 +21,14 @@ const coverUrl = computed(() => record.value?.cover ?? null)
 
 // Original key display
 const keyDisplay = computed(() => {
-	if (!props.track || props.track.key === null || props.track.mode === null) return null
+	if (!props.track || props.track.key === null || props.track.mode === null)
+		return null
 	return getCamelotString(props.track.key, props.track.mode)
 })
 
 const keyColor = computed(() => {
-	if (!props.track || props.track.key === null || props.track.mode === null) return null
+	if (!props.track || props.track.key === null || props.track.mode === null)
+		return null
 	return getKeyColour(props.track.key, props.track.mode)
 })
 
@@ -40,12 +42,14 @@ const adjustedKey = computed(() => {
 })
 
 const adjustedKeyDisplay = computed(() => {
-	if (adjustedKey.value === null || !props.track || props.track.mode === null) return null
+	if (adjustedKey.value === null || !props.track || props.track.mode === null)
+		return null
 	return getCamelotString(Math.round(adjustedKey.value) % 12, props.track.mode)
 })
 
 const adjustedKeyColor = computed(() => {
-	if (adjustedKey.value === null || !props.track || props.track.mode === null) return null
+	if (adjustedKey.value === null || !props.track || props.track.mode === null)
+		return null
 	return getKeyColour(Math.round(adjustedKey.value) % 12, props.track.mode)
 })
 
@@ -61,7 +65,7 @@ const artistNames = computed(() => {
 			<!-- Empty state -->
 			<button
 				v-if="!track"
-				class="flex h-full w-full items-center justify-center gap-2 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+				class="text-muted-foreground hover:bg-muted/50 hover:text-foreground flex h-full w-full items-center justify-center gap-2 transition-colors"
 				@click="emit('load')"
 			>
 				<Upload class="h-5 w-5" />
@@ -71,7 +75,9 @@ const artistNames = computed(() => {
 			<!-- Loaded state -->
 			<div v-else class="flex h-full gap-3 p-3">
 				<!-- Cover image (full height) -->
-				<div class="relative aspect-square h-full shrink-0 overflow-hidden rounded">
+				<div
+					class="relative aspect-square h-full shrink-0 overflow-hidden rounded"
+				>
 					<img
 						v-if="coverUrl"
 						:src="coverUrl"
@@ -89,7 +95,7 @@ const artistNames = computed(() => {
 				<!-- Track info -->
 				<div class="flex min-w-0 flex-1 flex-col justify-center space-y-1">
 					<!-- Title -->
-					<div class="truncate font-medium leading-tight">
+					<div class="truncate leading-tight font-medium">
 						{{ track.title }}
 					</div>
 

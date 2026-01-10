@@ -8,9 +8,7 @@ const props = defineProps<{
 <template>
 	<div class="flex h-full flex-col">
 		<div class="mb-2 flex items-center justify-between px-1">
-			<span class="text-muted-foreground text-sm font-medium">
-				Suggestions
-			</span>
+			<span class="text-muted-foreground text-sm font-medium">Suggestions</span>
 			<span class="text-muted-foreground text-xs">
 				{{ suggestions.length }}
 			</span>
