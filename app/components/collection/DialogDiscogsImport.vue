@@ -17,17 +17,27 @@ const hasResults = computed(() => {
 
 <template>
 	<Dialog v-model:open="discogs.showImportProgressDialog">
-		<DialogContent class="sm:max-w-[425px]">
+		<DialogContent
+			class="sm:max-w-[425px]"
+			:hide-close="discogs.isImporting"
+			@interact-outside="(e) => discogs.isImporting && e.preventDefault()"
+			@escape-key-down="(e) => discogs.isImporting && e.preventDefault()"
+		>
 			<DialogHeader>
 				<DialogTitle>
 					{{
-						!discogs.isImporting && hasResults
-							? 'Import Results'
-							: 'Importing Records...'
+						discogs.importPhase === 'saving'
+							? 'Saving Records...'
+							: !discogs.isImporting && hasResults
+								? 'Import Results'
+								: 'Importing Records...'
 					}}
 				</DialogTitle>
-				<p v-if="discogs.isImporting" class="text-muted-foreground text-sm">
+				<p v-if="discogs.importPhase === 'fetching'" class="text-muted-foreground text-sm">
 					Hold tight while we import your records.
+				</p>
+				<p v-else-if="discogs.importPhase === 'saving'" class="text-muted-foreground text-sm">
+					Saving records to your collection...
 				</p>
 			</DialogHeader>
 			<ProgressDiscogsImport />
@@ -138,8 +148,16 @@ const hasResults = computed(() => {
 			<DialogFooter>
 				<div class="flex gap-2 pt-4">
 					<Button
-						@click="discogs.showImportProgressDialog = false"
+						v-if="discogs.importPhase === 'fetching'"
+						variant="destructive"
+						@click="discogs.cancelImport()"
+					>
+						Cancel Import
+					</Button>
+					<Button
+						v-else-if="!discogs.isImporting"
 						variant="secondary"
+						@click="discogs.showImportProgressDialog = false"
 					>
 						Close
 					</Button>

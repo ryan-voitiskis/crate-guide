@@ -18,6 +18,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 
 	const importProgress = ref(0)
 	const isImporting = ref(false)
+	const importPhase = ref<'fetching' | 'saving' | null>(null)
+	const shouldCancelImport = ref(false)
 	const importResults = ref<{
 		successful: number
 		skipped: { label: string }[]
@@ -94,6 +96,10 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		}
 	}
 
+	function cancelImport() {
+		shouldCancelImport.value = true
+	}
+
 	async function importSelectedReleases() {
 		const selectedReleases = releasesToImport.value.filter((r) => r.selected)
 		if (selectedReleases.length === 0) {
@@ -104,7 +110,9 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		showImportProgressDialog.value = true
 
 		isImporting.value = true
+		shouldCancelImport.value = false
 		importProgress.value = 0
+		importPhase.value = 'fetching'
 		importResults.value = { successful: 0, skipped: [], failed: [] }
 
 		try {
@@ -114,25 +122,46 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			importResults.value.skipped = skipped
 
 			// Step 2: Fetch details with progress tracking
-			const { releases, failed: fetchFailed } = await fetchReleaseDetails(
-				releasesToFetch,
-				(progress, current) => {
-					importProgress.value = progress
-					releaseBeingImported.value = current
-				}
-			)
+			const { releases, failed: fetchFailed, cancelled } =
+				await fetchReleaseDetails(
+					releasesToFetch,
+					(progress, current) => {
+						importProgress.value = progress
+						releaseBeingImported.value = current
+					},
+					() => shouldCancelImport.value
+				)
 			importResults.value.failed.push(...fetchFailed)
 
+			if (cancelled) {
+				toast.info('Import of Discogs records cancelled')
+				showImportProgressDialog.value = false
+				return
+			}
+
 			// Step 3: Import to database
+			importPhase.value = 'saving'
 			const { successful, failed: importFailed } = await importFetchedReleases(
 				releases,
 				user.profile!.id
 			)
 			importResults.value.successful = successful
 			importResults.value.failed.push(...importFailed)
+
+			// Refresh local stores with newly imported data
+			if (successful > 0) {
+				const recordsStore = useRecordsStore()
+				const tracksStore = useTracksStore()
+				await Promise.all([
+					recordsStore.fetchAllRecords(),
+					tracksStore.fetchAllTracks()
+				])
+			}
 		} finally {
 			isImporting.value = false
 			importProgress.value = 0
+			importPhase.value = null
+			releaseBeingImported.value = null
 		}
 	}
 
@@ -150,10 +179,12 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		showFilterDialog,
 		importProgress,
 		isImporting,
+		importPhase,
 		importResults,
 		getFolders,
 		fetchFolderReleases,
 		importSelectedReleases,
+		cancelImport,
 		disconnectDiscogs,
 		showImportProgressDialog,
 		showGetFoldersDialog,

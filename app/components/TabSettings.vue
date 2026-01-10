@@ -48,6 +48,23 @@ const discogsAuth = useDiscogsAuthStore()
 					<Button @click="user.signOut" variant="destructive">Log out</Button>
 				</CardContent>
 			</Card>
+
+			<Card v-if="user.supaUser" class="border-destructive/50">
+				<CardHeader>
+					<CardTitle class="text-destructive">Danger Zone</CardTitle>
+				</CardHeader>
+				<CardContent class="space-y-4">
+					<div class="flex items-center justify-between gap-4">
+						<div class="space-y-1">
+							<p class="text-sm font-medium">Clear all data</p>
+							<p class="text-muted-foreground text-sm">
+								Permanently delete all your records and tracks. This cannot be undone.
+							</p>
+						</div>
+						<DialogClearAllData />
+					</div>
+				</CardContent>
+			</Card>
 		</div>
 	</div>
 </template>

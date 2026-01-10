@@ -6,6 +6,7 @@ interface ProcessExistingResult {
 interface FetchDetailsResult {
 	releases: DiscogsReleaseFull[]
 	failed: Array<{ label: string; error: string }>
+	cancelled: boolean
 }
 
 interface ImportResult {
@@ -38,13 +39,18 @@ export async function filterOutExistingReleases(
 // Step 2: Fetch full release details from Discogs API
 export async function fetchReleaseDetails(
 	releasesToFetch: DiscogsReleaseToFilter[],
-	onProgress: (progress: number, current: DiscogsReleaseToFilter) => void
+	onProgress: (progress: number, current: DiscogsReleaseToFilter) => void,
+	shouldCancel: () => boolean = () => false
 ): Promise<FetchDetailsResult> {
 	const discogsApi = useDiscogsApi()
 	const releases: DiscogsReleaseFull[] = []
 	const failed: Array<{ label: string; error: string }> = []
 
 	for (let i = 0; i < releasesToFetch.length; i++) {
+		if (shouldCancel()) {
+			return { releases, failed, cancelled: true }
+		}
+
 		const release = releasesToFetch[i]!
 		onProgress(Math.round((i / releasesToFetch.length) * 100), release)
 
@@ -59,7 +65,7 @@ export async function fetchReleaseDetails(
 		}
 	}
 
-	return { releases, failed }
+	return { releases, failed, cancelled: false }
 }
 
 // Step 3: Import fetched releases to database

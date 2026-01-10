@@ -157,6 +157,55 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
+	async function deleteAllUserData(): Promise<boolean> {
+		if (!supaUser.value?.id) {
+			toast.error('You must be signed in to delete data.')
+			return false
+		}
+
+		try {
+			// Delete all records (tracks cascade automatically via FK)
+			const { error: recordsError } = await supabase
+				.from('records')
+				.delete()
+				.eq('user_id', supaUser.value.id)
+
+			if (recordsError) throw recordsError
+
+			// Clear all crates' records arrays (keep crate structure)
+			const { error: cratesError } = await supabase
+				.from('crates')
+				.update({ records: [] })
+				.eq('user_id', supaUser.value.id)
+
+			if (cratesError) throw cratesError
+
+			// Clear all sets' played_tracks arrays (keep set structure)
+			const { error: setsError } = await supabase
+				.from('sets')
+				.update({ played_tracks: [] })
+				.eq('user_id', supaUser.value.id)
+
+			if (setsError) throw setsError
+
+			// Clear local state in all stores
+			const records = useRecordsStore()
+			const tracks = useTracksStore()
+			const crates = useCratesStore()
+
+			records.clearRecords()
+			tracks.clearTracks()
+			// Refetch crates to get the updated (empty) records arrays
+			await crates.fetchAllCrates()
+
+			toast.success('All records and tracks have been deleted.')
+			return true
+		} catch (e) {
+			toast.error(isError(e) ? e.message : 'Error deleting data.')
+			return false
+		}
+	}
+
 	watchEffect(() => {
 		if (supaUser.value?.id) fetchProfile()
 	})
@@ -176,6 +225,7 @@ export const useUserStore = defineStore('user', () => {
 		verifyOtp,
 		fetchProfile,
 		updateSettings,
-		updateTheme
+		updateTheme,
+		deleteAllUserData
 	}
 })
