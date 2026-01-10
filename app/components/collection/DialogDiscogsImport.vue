@@ -33,10 +33,16 @@ const hasResults = computed(() => {
 								: 'Importing Records...'
 					}}
 				</DialogTitle>
-				<p v-if="discogs.importPhase === 'fetching'" class="text-muted-foreground text-sm">
+				<p
+					v-if="discogs.importPhase === 'fetching'"
+					class="text-muted-foreground text-sm"
+				>
 					Hold tight while we import your records.
 				</p>
-				<p v-else-if="discogs.importPhase === 'saving'" class="text-muted-foreground text-sm">
+				<p
+					v-else-if="discogs.importPhase === 'saving'"
+					class="text-muted-foreground text-sm"
+				>
 					Saving records to your collection...
 				</p>
 			</DialogHeader>

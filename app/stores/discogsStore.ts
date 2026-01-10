@@ -122,15 +122,18 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			importResults.value.skipped = skipped
 
 			// Step 2: Fetch details with progress tracking
-			const { releases, failed: fetchFailed, cancelled } =
-				await fetchReleaseDetails(
-					releasesToFetch,
-					(progress, current) => {
-						importProgress.value = progress
-						releaseBeingImported.value = current
-					},
-					() => shouldCancelImport.value
-				)
+			const {
+				releases,
+				failed: fetchFailed,
+				cancelled
+			} = await fetchReleaseDetails(
+				releasesToFetch,
+				(progress, current) => {
+					importProgress.value = progress
+					releaseBeingImported.value = current
+				},
+				() => shouldCancelImport.value
+			)
 			importResults.value.failed.push(...fetchFailed)
 
 			if (cancelled) {

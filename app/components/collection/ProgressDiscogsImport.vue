@@ -14,7 +14,10 @@ const discogs = useDiscogsStore()
 			<CardDiscogsRelease :release="discogs.releaseBeingImported" />
 		</div>
 	</div>
-	<div v-else-if="discogs.importPhase === 'saving'" class="flex items-center justify-center py-8">
+	<div
+		v-else-if="discogs.importPhase === 'saving'"
+		class="flex items-center justify-center py-8"
+	>
 		<Loader2 class="text-muted-foreground h-8 w-8 animate-spin" />
 	</div>
 </template>

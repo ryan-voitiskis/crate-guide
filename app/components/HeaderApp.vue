@@ -16,9 +16,14 @@ watch(
 
 <template>
 	<header class="pointer-events-none sticky top-0 z-10 flex w-full p-2">
-		<div class="mx-auto flex w-full max-w-[1600px] items-center justify-between">
+		<div
+			class="mx-auto flex w-full max-w-[1600px] items-center justify-between"
+		>
 			<!-- Left: Page-specific UI (teleport target) -->
-			<div id="header-left" class="pointer-events-auto flex items-center gap-2" />
+			<div
+				id="header-left"
+				class="pointer-events-auto flex items-center gap-2"
+			/>
 
 			<!-- Right: Desktop nav -->
 			<div class="pointer-events-auto hidden items-center gap-2 md:flex">

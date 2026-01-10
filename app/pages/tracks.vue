@@ -82,7 +82,11 @@ function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
 					/>
 				</div>
 				<DialogTrackFilters />
-				<Button @click="showBeatportImportDialog" variant="outline" size="default">
+				<Button
+					@click="showBeatportImportDialog"
+					variant="outline"
+					size="default"
+				>
 					<Wand class="mr-2 size-4" />
 					Get Beatport data
 				</Button>

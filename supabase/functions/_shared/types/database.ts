@@ -36,7 +36,9 @@ export type Database = {
 		Tables: {
 			crates: {
 				Row: {
+					color: string | null
 					created_at: string | null
+					description: string | null
 					id: string
 					name: string
 					records: string[]
@@ -44,7 +46,9 @@ export type Database = {
 					user_id: string
 				}
 				Insert: {
+					color?: string | null
 					created_at?: string | null
+					description?: string | null
 					id?: string
 					name: string
 					records?: string[]
@@ -52,7 +56,9 @@ export type Database = {
 					user_id: string
 				}
 				Update: {
+					color?: string | null
 					created_at?: string | null
+					description?: string | null
 					id?: string
 					name?: string
 					records?: string[]

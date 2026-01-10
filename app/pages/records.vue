@@ -20,7 +20,10 @@ const isActive = usePageActive()
 		<Teleport to="#header-left" defer>
 			<template v-if="isActive && records.hasRecords">
 				<InputRecordsSearch />
-				<Button @click="discogs.showGetFoldersDialog = true" variant="secondary">
+				<Button
+					@click="discogs.showGetFoldersDialog = true"
+					variant="secondary"
+				>
 					<CloudDownload class="mr-2" />
 					Import
 				</Button>

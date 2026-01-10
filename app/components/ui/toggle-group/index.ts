@@ -10,7 +10,7 @@ export const toggleGroupVariants = cva(
 		variants: {
 			variant: {
 				default: 'bg-transparent',
-				outline: 'border border-input bg-transparent shadow-xs'
+				outline: 'border-input border bg-transparent shadow-xs'
 			}
 		},
 		defaultVariants: {
@@ -20,13 +20,13 @@ export const toggleGroupVariants = cva(
 )
 
 export const toggleGroupItemVariants = cva(
-	'inline-flex items-center justify-center text-sm font-medium transition-colors hover:bg-muted hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground',
+	'hover:bg-muted hover:text-muted-foreground focus-visible:ring-ring data-[state=on]:bg-accent data-[state=on]:text-accent-foreground inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
 	{
 		variants: {
 			variant: {
 				default: 'bg-transparent',
 				outline:
-					'border-r border-input last:border-r-0 bg-transparent hover:bg-accent hover:text-accent-foreground'
+					'border-input hover:bg-accent hover:text-accent-foreground border-r bg-transparent last:border-r-0'
 			},
 			size: {
 				default: 'h-9 min-w-9 px-3',
@@ -42,4 +42,6 @@ export const toggleGroupItemVariants = cva(
 )
 
 export type ToggleGroupVariants = VariantProps<typeof toggleGroupVariants>
-export type ToggleGroupItemVariants = VariantProps<typeof toggleGroupItemVariants>
+export type ToggleGroupItemVariants = VariantProps<
+	typeof toggleGroupItemVariants
+>

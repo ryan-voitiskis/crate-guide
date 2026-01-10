@@ -97,7 +97,6 @@ export const useCratesStore = defineStore('crates', () => {
 
 			// Update with server response
 			crates.value[crateIndex] = data as Crate
-			toast.success('Crate updated successfully.')
 			return data as Crate
 		} catch (error) {
 			// Revert optimistic update
@@ -141,7 +140,8 @@ export const useCratesStore = defineStore('crates', () => {
 
 	async function addRecordToCrate(
 		crateId: string,
-		recordId: string
+		recordId: string,
+		options?: { silent?: boolean }
 	): Promise<boolean> {
 		const crate = getCrateById(crateId)
 		if (!crate) {
@@ -150,7 +150,7 @@ export const useCratesStore = defineStore('crates', () => {
 		}
 
 		if (crate.records.includes(recordId)) {
-			toast.info('Record is already in this crate.')
+			if (!options?.silent) toast.info('Record is already in this crate.')
 			return false
 		}
 
@@ -158,7 +158,7 @@ export const useCratesStore = defineStore('crates', () => {
 		const result = await updateCrate(crateId, { records: updatedRecords })
 
 		if (result) {
-			toast.success('Record added to crate.')
+			if (!options?.silent) toast.success('Record added to crate.')
 			return true
 		}
 		return false
@@ -182,11 +182,7 @@ export const useCratesStore = defineStore('crates', () => {
 		const updatedRecords = crate.records.filter((id) => id !== recordId)
 		const result = await updateCrate(crateId, { records: updatedRecords })
 
-		if (result) {
-			toast.success('Record removed from crate.')
-			return true
-		}
-		return false
+		return Boolean(result)
 	}
 
 	function getCrateById(id: string): Crate | undefined {
@@ -242,6 +238,8 @@ export const useCratesStore = defineStore('crates', () => {
 		const crateName = newName || `${originalCrate.name} (Copy)`
 		return createCrate({
 			name: crateName,
+			description: originalCrate.description,
+			color: originalCrate.color,
 			records: [...originalCrate.records]
 		})
 	}

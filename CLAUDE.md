@@ -175,6 +175,17 @@ const { handleSubmit, errors, defineField } = useForm({
 })
 ```
 
+### Form Validation UX
+
+**Edit forms (modifying existing data):** Disable submit when invalid.
+- User is editing known-valid data, immediate feedback is helpful
+- Example: DialogRecordDetails, DialogTrackDetails, DialogCrateDetails (edit mode)
+
+**Create forms (new data entry):** Allow submit, show errors after first attempt.
+- User hasn't had chance to fill form yet
+- Uses `showValidationErrors` ref pattern
+- Example: DialogTrackEdit, DialogCrateForm
+
 ## Domain Context
 
 ### Key Entities
