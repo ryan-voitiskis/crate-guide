@@ -18,11 +18,14 @@
 - **State Management:** Pinia stores
 - **Forms:** VeeValidate with Zod schemas
 - **Icons:** Lucide Vue
+- **Toasts:** vue-sonner
+- **Tables:** @tanstack/vue-table
+- **Drag & Drop:** sortablejs
 
 ### Backend
 
 - **Platform:** Supabase (PostgreSQL, Auth, Storage, Edge Functions)
-- **APIs:** Discogs API for music metadata
+- **APIs:** Discogs API, Beatport (scraped metadata)
 - **Local Dev:** Supabase local stack
 
 ### Build Tools
@@ -37,20 +40,33 @@
 crate-guide/
 ├── app/
 │   ├── components/      # Vue components (auto-imported)
+│   │   ├── crates/      # Crate-related components
+│   │   ├── records/     # Record-related components
+│   │   ├── tracks/      # Track-related components
+│   │   ├── session/     # DJ session components
+│   │   ├── import/      # Import flow components
+│   │   ├── layout/      # Layout components (nav, sidebar)
+│   │   ├── settings/    # Settings page components
+│   │   ├── shared/      # Shared dialogs/components
+│   │   ├── turntable/   # Turntable visualization
 │   │   ├── icons/       # Icon components (IconPrefix)
 │   │   ├── notices/     # Notice components (NoticePrefix)
-│   │   └── ui/          # shadcn-vue components
+│   │   ├── ui/          # shadcn-vue components
+│   │   └── utils/       # Utility components
 │   ├── composables/     # Vue composables (auto-imported)
 │   ├── layouts/         # Nuxt layouts
 │   ├── pages/           # Route pages
 │   ├── stores/          # Pinia stores (auto-imported)
 │   └── utils/           # Utility functions (auto-imported)
+│       ├── schemas/     # Zod validation schemas
+│       └── beatport/    # Beatport scraping utilities
 ├── server/
 │   └── api/             # Nitro API endpoints
 ├── shared/
 │   └── types/           # TypeScript types (auto-imported)
 │       ├── database.ts  # Supabase generated types
 │       ├── discogs.ts   # Discogs API types
+│       ├── options.ts   # App options/enums
 │       └── supabase.ts  # Supabase client types
 ├── supabase/
 │   ├── functions/       # Edge Functions
@@ -80,13 +96,15 @@ Tailwind utility classes only—no `@apply`, no `<style>` blocks. Use design tok
 
 ```vue
 <script setup lang="ts">
+import { toast } from 'vue-sonner'
+
 const props = defineProps<{
-	records: Record[]
+	records: DatabaseRecord[]
 	isLoading?: boolean
 }>()
 
 const emit = defineEmits<{
-	update: [record: Record]
+	update: [record: DatabaseRecord]
 }>()
 
 const searchQuery = ref('')
@@ -98,7 +116,6 @@ const filteredRecords = computed(() =>
 )
 
 async function handleSave() {
-	const { toast } = useToast()
 	try {
 		// Implementation
 		toast.success('Record saved')
@@ -123,15 +140,26 @@ onMounted(() => {
 ### Pinia Stores
 
 ```typescript
+import { toast } from 'vue-sonner'
+
 export const useRecordsStore = defineStore('records', () => {
-	const records = ref<Record[]>([])
+	const records = ref<DatabaseRecord[]>([])
 	const isLoading = ref(false)
 	const error = ref<string | null>(null)
 
+	// Search state
+	const searchQuery = ref('')
+	const searchResults = ref<DatabaseRecord[]>([])
+	const isSearching = ref(false)
+
 	const recordCount = computed(() => records.value.length)
+	const hasSearchQuery = computed(() => searchQuery.value.trim().length > 0)
+	const displayedRecords = computed(() =>
+		hasSearchQuery.value ? searchResults.value : records.value
+	)
 
 	async function fetchRecords() {
-		const supabase = useSupabaseClient()
+		const supabase = useSupabaseClient<Database>()
 		isLoading.value = true
 		error.value = null
 
@@ -145,14 +173,58 @@ export const useRecordsStore = defineStore('records', () => {
 			records.value = data || []
 		} catch (err) {
 			error.value = err.message
-			useToast().toast.error('Failed to load records')
+			toast.error('Failed to load records')
 		} finally {
 			isLoading.value = false
 		}
 	}
 
-	return { records, isLoading, error, recordCount, fetchRecords }
+	return {
+		records,
+		isLoading,
+		error,
+		recordCount,
+		fetchRecords,
+		// Expose search state as readonly to prevent external mutation
+		searchQuery: readonly(searchQuery),
+		searchResults: readonly(searchResults),
+		isSearching: readonly(isSearching),
+		displayedRecords
+	}
 })
+```
+
+### Optimistic Updates
+
+For responsive UX, update local state immediately then sync with server:
+
+```typescript
+async function updateCrate(id: string, updates: Partial<Crate>) {
+	const crateIndex = crates.value.findIndex((c) => c.id === id)
+	if (crateIndex === -1) return
+
+	// Store original for rollback
+	const originalCrate = crates.value[crateIndex]
+
+	// Optimistic update
+	crates.value[crateIndex] = { ...originalCrate, ...updates } as Crate
+
+	try {
+		const { data, error } = await supabase
+			.from('crates')
+			.update(updates)
+			.eq('id', id)
+			.select()
+			.single()
+
+		if (error) throw error
+		crates.value[crateIndex] = data as Crate
+	} catch (error) {
+		// Rollback on failure
+		crates.value[crateIndex] = originalCrate
+		toast.error('Failed to update crate')
+	}
+}
 ```
 
 ### Form Validation
@@ -223,6 +295,29 @@ function handleDelete() {
 ```
 
 **Examples:** AlertConfirmDeleteTrack, AlertConfirmDeleteCrate, AlertConfirmRemoveRecord
+
+### Toast with Undo Action
+
+For destructive but recoverable actions, show a toast with an undo option:
+
+```typescript
+import { toast } from 'vue-sonner'
+
+const success = await cratesStore.removeRecordFromCrate(crateId, recordId)
+
+if (success) {
+	toast(`${recordTitle} removed from crate`, {
+		id: 'crate-record-removed',
+		duration: 5000,
+		action: {
+			label: 'Undo',
+			onClick: () => {
+				cratesStore.addRecordToCrate(crateId, recordId, { silent: true })
+			}
+		}
+	})
+}
+```
 
 ## Domain Context
 
