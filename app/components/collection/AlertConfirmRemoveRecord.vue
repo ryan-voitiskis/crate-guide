@@ -47,20 +47,18 @@ async function handleRemove() {
 		// Delete the record (tracks cascade automatically)
 		// Note: recordsStore.deleteRecord shows its own toast, so we suppress it
 		const recordIndex = recordsStore.records.findIndex((r) => r.id === recordId)
-		if (recordIndex !== -1) {
-			const removedRecord = recordsStore.records.splice(recordIndex, 1)[0]
+		if (recordIndex === -1) return
 
-			const supabase = useSupabaseClient<Database>()
-			const { error } = await supabase
-				.from('records')
-				.delete()
-				.eq('id', recordId)
+		const removedRecord = recordsStore.records.splice(recordIndex, 1)[0]
+		if (!removedRecord) return
 
-			if (error) {
-				// Revert optimistic update
-				recordsStore.records.splice(recordIndex, 0, removedRecord)
-				throw error
-			}
+		const supabase = useSupabaseClient<Database>()
+		const { error } = await supabase.from('records').delete().eq('id', recordId)
+
+		if (error) {
+			// Revert optimistic update
+			recordsStore.records.splice(recordIndex, 0, removedRecord)
+			throw error
 		}
 
 		// Close any open dialogs
