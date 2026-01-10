@@ -188,6 +188,42 @@ const { handleSubmit, errors, defineField } = useForm({
 - Uses `showValidationErrors` ref pattern
 - Example: DialogTrackEdit, DialogCrateForm
 
+### Store-Based Alert Dialog Pattern
+
+Alert/confirmation dialogs that can be triggered from multiple places should use store state rather than props. This pattern:
+
+- Keeps triggering components simple (just set store state)
+- Centralizes dialog logic
+- Makes it easy to close dialogs from anywhere (e.g., after successful operation)
+
+**Implementation:**
+
+```typescript
+// In store
+const itemToDelete = ref<Item | null>(null)
+
+// In alert component
+const item = computed(() => store.itemToDelete)
+const isOpen = computed(() => !!item.value)
+
+function handleDelete() {
+	// perform delete
+	store.itemToDelete = null
+}
+```
+
+**Usage:**
+
+```vue
+<!-- Triggering component - just set store state -->
+<Button @click="store.itemToDelete = item">Delete</Button>
+
+<!-- Alert component uses computed isOpen -->
+<AlertDialog v-model:open="isOpen">...</AlertDialog>
+```
+
+**Examples:** AlertConfirmDeleteTrack, AlertConfirmDeleteCrate, AlertConfirmRemoveRecord
+
 ## Domain Context
 
 ### Key Entities

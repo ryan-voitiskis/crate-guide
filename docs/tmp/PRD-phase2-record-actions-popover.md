@@ -64,11 +64,9 @@ This will create components in `app/components/ui/dropdown-menu/`.
 - Subtitle: Record title (muted, truncated)
 - Content:
   - If no crates exist: Show message "No crates yet" with "Create Crate" button
-  - If crates exist: List of crates with checkboxes
-    - Each row: Color indicator, crate name, checkbox
-    - Crates already containing this record should be pre-checked
-    - Scroll area if many crates
-  - "Create new crate" button at bottom (opens inline form or DialogCrateCreate)
+  - If crates exist: List of crates with checkboxes - Each row: Color indicator, crate name, checkbox
+    G - Crates already containing this record should be pre-checked - Scroll area if many crates
+  - "Create new crate" button at bottom (opens `DialogCrateForm`)
 - Actions:
   - Cancel button
   - Save button (primary) - applies changes
@@ -77,14 +75,14 @@ This will create components in `app/components/ui/dropdown-menu/`.
 
 - Track initial state of which crates contain the record
 - On save, add record to newly checked crates, remove from unchecked crates
-- Use `cratesStore.addRecordToCrate()` and `cratesStore.removeRecordFromCrate()`
-- Show toast on success
+- Use `cratesStore.addRecordToCrate(crateId, recordId, { silent: true })` for additions
+- Use `cratesStore.removeRecordFromCrate(crateId, recordId)` for removals (already silent)
+- Show single toast on success summarizing changes
 
 **Create New Crate Inline:**
 
-- Option A: Button opens `DialogCrateCreate` (from Phase 1)
-- Option B: Inline form appears within the dialog (simpler, just name field)
-- Recommend Option A for consistency
+- Button opens `DialogCrateForm` (from Phase 1)
+- After crate creation, auto-check the new crate in the list
 
 ### 4. Alert: Confirm Remove Record
 
@@ -105,12 +103,14 @@ This will create components in `app/components/ui/dropdown-menu/`.
 **Behavior on Confirm:**
 
 1. Get list of crates containing this record: `cratesStore.getCratesContainingRecord(recordId)`
-2. Remove record from all crates: loop through and call `cratesStore.removeRecordFromCrate()`
+2. Remove record from all crates: loop through and call `cratesStore.removeRecordFromCrate()` (already silent)
 3. Delete the record: `recordsStore.deleteRecord(recordId)`
 4. Close any open dialogs (record details if open)
-5. Show success toast
+5. Show single success toast: "Record removed from collection"
 
 **Note:** Tracks are deleted automatically via database CASCADE on `record_id` foreign key.
+
+**State Management Pattern:** Use store-based dialog state (like `AlertConfirmDeleteTrack.vue`), not props-based. Add `recordToRemove: DatabaseRecord | null` to `recordDetailsStore`. The alert reads this state and controls its own visibility via computed property.
 
 ### 5. Update DialogRecordDetails for Edit Mode Opening
 
@@ -120,24 +120,43 @@ This will create components in `app/components/ui/dropdown-menu/`.
 
 **Implementation:**
 
-- Add prop or store state to control initial mode
-- `recordDetailsStore` should have a method like `openRecordInEditMode(recordId)`
-- Or pass a parameter: `recordDetails.openRecord(recordId, { editMode: true })`
+Update `recordDetailsStore.openRecord()` to accept optional second parameter:
+
+```typescript
+function openRecord(recordId: string, editMode = false) {
+	selectedRecordId.value = recordId
+	isEditMode.value = editMode
+}
+```
+
+Usage:
+
+- View mode: `recordDetails.openRecord(recordId)`
+- Edit mode: `recordDetails.openRecord(recordId, true)`
 
 ### 6. State Management
 
-**New store or extend existing:**
-
-Option A: Extend `recordDetailsStore`
+**Extend `recordDetailsStore`:**
 
 - Add `recordToRemove: DatabaseRecord | null` for delete confirmation
-- Add method `openRecordInEditMode(recordId: string)`
+- Add `recordToAddToCrate: DatabaseRecord | null` for add-to-crate dialog
 
-Option B: Create `recordActionsStore` (if getting complex)
+**Store-based Alert Dialog Pattern (Convention):**
 
-- Manage dialog states for add-to-crate, remove confirmation
+Alert/confirmation dialogs should use store state rather than props when the dialog can be triggered from multiple places. This pattern:
 
-Recommend Option A for simplicity.
+- Keeps triggering components simple (just set store state)
+- Centralizes dialog logic
+- Makes it easy to close dialogs from anywhere (e.g., after successful operation)
+
+Example from `AlertConfirmDeleteTrack.vue`:
+
+```typescript
+const track = computed(() => recordDetails.trackToConfirmDelete)
+const isOpen = computed(() => !!track.value)
+```
+
+**Documentation Task:** Add this pattern to `CLAUDE.md` conventions section. Also audit and refactor `AlertConfirmDeleteCrate.vue` to use store-based pattern for consistency (add `crateToDelete` to `cratesStore` or a dedicated UI store).
 
 ## Component Structure
 
@@ -220,23 +239,35 @@ The removal flow must clean up crate references:
 
 ```typescript
 async function removeRecord(recordId: string) {
-	const crates = useCratesStore()
-	const records = useRecordsStore()
+	const cratesStore = useCratesStore()
+	const recordsStore = useRecordsStore()
+	const { toast } = useToast()
 
 	// Get all crates containing this record
-	const affectedCrates = crates.getCratesContainingRecord(recordId)
+	const affectedCrates = cratesStore.getCratesContainingRecord(recordId)
 
-	// Remove from all crates first
+	// Remove from all crates first (already silent, no toasts)
 	for (const crate of affectedCrates) {
-		await crates.removeRecordFromCrate(crate.id, recordId)
+		await cratesStore.removeRecordFromCrate(crate.id, recordId)
 	}
 
 	// Then delete the record (tracks cascade automatically)
-	await records.deleteRecord(recordId)
+	await recordsStore.deleteRecord(recordId)
+
+	// Single consolidated toast
+	toast.success('Record removed from collection')
 }
 ```
 
 ## Testing Checklist
+
+**Convention & Refactoring:**
+
+- [ ] Store-based dialog pattern documented in CLAUDE.md
+- [ ] AlertConfirmDeleteCrate refactored to store-based pattern
+- [ ] Crate deletion still works after refactor
+
+**Record Actions Dropdown:**
 
 - [ ] Dropdown menu opens on click
 - [ ] "View record" opens dialog in view mode
@@ -251,7 +282,7 @@ async function removeRecord(recordId: string) {
 - [ ] Confirmation shows affected crate names
 - [ ] Removal cleans up crate references
 - [ ] Removal deletes record and tracks
-- [ ] Toast notifications show appropriately
+- [ ] Single toast shown for multi-step operations
 
 ---
 
@@ -269,22 +300,29 @@ Before starting:
 2. Read the current state of:
    - /app/components/collection/CardRecordShort.vue
    - /app/components/collection/DialogRecordDetails.vue
+   - /app/components/collection/AlertConfirmDeleteTrack.vue (reference pattern)
+   - /app/components/crates/AlertConfirmDeleteCrate.vue (needs refactoring)
    - /app/stores/recordDetailsStore.ts
    - /app/stores/cratesStore.ts
    - /app/stores/recordsStore.ts
 
 Implementation order:
-1. Update recordDetailsStore to support opening in edit mode
-2. Update DialogRecordDetails to accept edit mode on open
-3. Create DialogAddToCrate.vue component
-4. Create AlertConfirmRemoveRecord.vue component
-5. Update CardRecordShort.vue with dropdown menu
-6. Test the full flow for each action
+1. Document store-based alert dialog pattern in CLAUDE.md conventions section
+2. Refactor AlertConfirmDeleteCrate.vue to use store-based pattern (add crateToDelete to cratesStore)
+3. Update recordDetailsStore:
+   - Add optional editMode param to openRecord(recordId, editMode = false)
+   - Add recordToRemove: DatabaseRecord | null
+   - Add recordToAddToCrate: DatabaseRecord | null
+4. Create DialogAddToCrate.vue component (store-based)
+5. Create AlertConfirmRemoveRecord.vue component (store-based)
+6. Update CardRecordShort.vue with dropdown menu
+7. Test the full flow for each action
 
 Follow the existing codebase patterns:
 - Use Tailwind utility classes only (no @apply, no <style> blocks)
 - Auto-imports for Vue, Nuxt, stores, composables
 - Component naming: Type-first PascalCase
 - Use design tokens: bg-background, text-foreground, border-border, etc.
-- Follow AlertConfirmDeleteTrack.vue pattern for confirmation dialogs
+- Store-based dialog state pattern (see AlertConfirmDeleteTrack.vue)
+- Single consolidated toast for multi-step operations
 ```

@@ -1,36 +1,29 @@
 <script setup lang="ts">
-const props = defineProps<{
-	open: boolean
-	crate: Crate
-}>()
-
-const emit = defineEmits<{
-	'update:open': [value: boolean]
-	confirm: []
-}>()
-
 const cratesStore = useCratesStore()
 
+const crate = computed(() => cratesStore.crateToDelete)
+const isOpen = computed(() => !!crate.value)
+
 async function handleDelete() {
-	const success = await cratesStore.deleteCrate(props.crate.id)
+	if (!crate.value) return
+	const success = await cratesStore.deleteCrate(crate.value.id)
 	if (success) {
-		emit('confirm')
-		emit('update:open', false)
+		cratesStore.crateToDelete = null
 	}
 }
 
 function handleCancel() {
-	emit('update:open', false)
+	cratesStore.crateToDelete = null
 }
 </script>
 
 <template>
-	<AlertDialog :open="open" @update:open="emit('update:open', $event)">
+	<AlertDialog :open="isOpen">
 		<AlertDialogContent>
 			<AlertDialogHeader>
 				<AlertDialogTitle>Delete Crate</AlertDialogTitle>
 				<AlertDialogDescription>
-					Are you sure you want to delete "{{ crate.name }}"? This will not
+					Are you sure you want to delete "{{ crate?.name }}"? This will not
 					delete the records in this crate, only the crate itself.
 				</AlertDialogDescription>
 			</AlertDialogHeader>

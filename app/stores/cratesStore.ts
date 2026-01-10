@@ -10,6 +10,9 @@ export const useCratesStore = defineStore('crates', () => {
 	const isUpdatingCrate = ref(false)
 	const isDeletingCrate = ref(false)
 
+	// Dialog state (store-based pattern)
+	const crateToDelete = ref<Crate | null>(null)
+
 	const cratesCount = computed(() => crates.value.length)
 	const hasCrates = computed(() => crates.value.length > 0)
 
@@ -255,6 +258,7 @@ export const useCratesStore = defineStore('crates', () => {
 		isCreatingCrate,
 		isUpdatingCrate,
 		isDeletingCrate,
+		crateToDelete,
 		cratesCount,
 		hasCrates,
 		fetchAllCrates,

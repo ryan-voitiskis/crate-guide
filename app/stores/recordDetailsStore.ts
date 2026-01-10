@@ -6,6 +6,10 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 	const isEditMode = ref(false)
 	const trackToConfirmDelete = ref<Track | null>(null)
 
+	// Dialog state (store-based pattern)
+	const recordToRemove = ref<DatabaseRecord | null>(null)
+	const recordToAddToCrate = ref<DatabaseRecord | null>(null)
+
 	const selectedRecord = computed(() =>
 		selectedRecordId.value
 			? records.getRecordById(selectedRecordId.value)
@@ -18,15 +22,17 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 		return sortTracksByPosition(tracksList)
 	})
 
-	function openRecord(recordId: string) {
+	function openRecord(recordId: string, editMode = false) {
 		selectedRecordId.value = recordId
-		isEditMode.value = false
+		isEditMode.value = editMode
 	}
 
 	function closeRecord() {
 		selectedRecordId.value = null
 		isEditMode.value = false
 		trackToConfirmDelete.value = null
+		recordToRemove.value = null
+		recordToAddToCrate.value = null
 	}
 
 	function toggleEditMode() {
@@ -39,6 +45,8 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 		recordTracks,
 		isEditMode,
 		trackToConfirmDelete,
+		recordToRemove,
+		recordToAddToCrate,
 		openRecord,
 		closeRecord,
 		toggleEditMode

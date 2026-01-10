@@ -16,6 +16,8 @@ const isActive = usePageActive()
 		<DialogReleaseImportFilter />
 		<DialogDiscogsImport />
 		<DialogRecordDetails />
+		<DialogAddToCrate />
+		<AlertConfirmRemoveRecord />
 
 		<Teleport to="#header-left" defer>
 			<template v-if="isActive && records.hasRecords">

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Eye, FolderPlus, MoreVertical, Pencil, Trash2 } from 'lucide-vue-next'
+
 const recordDetails = useRecordDetailsStore()
 const props = defineProps<{ record: DatabaseRecord }>()
 
@@ -9,12 +11,34 @@ const coverImg = computed(() =>
 const artistNames = computed(() =>
 	props.record.artists.map((artist) => artist.name).join(', ')
 )
+
+function viewRecord() {
+	recordDetails.openRecord(props.record.id)
+}
+
+function editRecord() {
+	recordDetails.openRecord(props.record.id, true)
+}
+
+function openAddToCrate() {
+	recordDetails.recordToAddToCrate = props.record
+}
+
+function openInDiscogs() {
+	if (props.record.discogs_release_url) {
+		openInNewTab(props.record.discogs_release_url)
+	}
+}
+
+function confirmRemove() {
+	recordDetails.recordToRemove = props.record
+}
 </script>
 
 <template>
 	<Card
 		class="group relative overflow-hidden p-0 transition-all hover:shadow-md"
-		@click="recordDetails.openRecord(record.id)"
+		@click="viewRecord"
 	>
 		<CardContent class="p-0">
 			<div class="grid w-full grid-cols-[90px_1fr_90px] gap-4">
@@ -55,15 +79,43 @@ const artistNames = computed(() =>
 					</div>
 				</div>
 
-				<div class="flex justify-end">
-					<Button
-						v-if="record.discogs_release_url"
-						@click.stop="openInNewTab(record.discogs_release_url)"
-						variant="ghost"
-						size="icon"
-					>
-						<IconDiscogs />
-					</Button>
+				<div class="flex items-center justify-end">
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="ghost" size="icon" @click.stop>
+								<MoreVertical class="size-4" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem @click="viewRecord">
+								<Eye class="mr-2 size-4" />
+								View record
+							</DropdownMenuItem>
+							<DropdownMenuItem @click="editRecord">
+								<Pencil class="mr-2 size-4" />
+								Edit record
+							</DropdownMenuItem>
+							<DropdownMenuItem @click="openAddToCrate">
+								<FolderPlus class="mr-2 size-4" />
+								Manage crates
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								v-if="record.discogs_release_url"
+								@click="openInDiscogs"
+							>
+								<IconDiscogs class="mr-2 size-4" />
+								Open in Discogs
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								@click="confirmRemove"
+								class="text-destructive focus:text-destructive"
+							>
+								<Trash2 class="mr-2 size-4" />
+								Remove from collection
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
 				</div>
 			</div>
 		</CardContent>

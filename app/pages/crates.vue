@@ -8,11 +8,9 @@ const isActive = usePageActive()
 // Dialog state
 const showCreateDialog = ref(false)
 const showDetailDialog = ref(false)
-const showDeleteAlert = ref(false)
 const showAddRecordsDialog = ref(false)
 
 const selectedCrateId = ref<string | null>(null)
-const crateToDelete = ref<Crate | null>(null)
 
 // Compute selected crate from store so updates are reactive
 const selectedCrate = computed(() =>
@@ -31,19 +29,24 @@ function selectCrate(crate: Crate) {
 }
 
 function handleDeleteFromDetail(crate: Crate) {
-	crateToDelete.value = crate
-	showDeleteAlert.value = true
+	crates.crateToDelete = crate
 }
 
 function handleAddRecord() {
 	showAddRecordsDialog.value = true
 }
 
-function handleCrateDeleted() {
-	showDetailDialog.value = false
-	selectedCrateId.value = null
-	crateToDelete.value = null
-}
+// Close detail dialog when crate is deleted
+watch(
+	() => crates.crateToDelete,
+	(newVal, oldVal) => {
+		// If we had a crate to delete and now it's null (deletion happened)
+		if (oldVal && !newVal) {
+			showDetailDialog.value = false
+			selectedCrateId.value = null
+		}
+	}
+)
 </script>
 
 <template>
@@ -61,12 +64,7 @@ function handleCrateDeleted() {
 			v-model:open="showAddRecordsDialog"
 			:crate="selectedCrate"
 		/>
-		<AlertConfirmDeleteCrate
-			v-if="crateToDelete"
-			v-model:open="showDeleteAlert"
-			:crate="crateToDelete"
-			@confirm="handleCrateDeleted"
-		/>
+		<AlertConfirmDeleteCrate />
 
 		<Teleport to="#header-left" defer>
 			<template v-if="isActive && crates.hasCrates">
