@@ -30,7 +30,7 @@ const form = useForm({
 	}
 })
 
-const { handleSubmit, setValues, errors, resetForm, meta } = form
+const { handleSubmit, setValues, errors, resetForm } = form
 const [nameValue] = form.defineField('name')
 const [descriptionValue] = form.defineField('description')
 
@@ -177,7 +177,7 @@ function handleCancel() {
 
 			<DialogFooter class="gap-2">
 				<Button variant="secondary" @click="handleCancel">Cancel</Button>
-				<Button @click="saveCrate" :loading="isSubmitting">
+				<Button :loading="isSubmitting" @click="saveCrate">
 					{{ isEditing ? 'Save' : 'Create' }}
 				</Button>
 			</DialogFooter>

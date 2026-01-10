@@ -43,19 +43,20 @@ const allSelected = computed({
 						v-for="(release, i) in discogs.releasesToImport"
 						:key="i"
 						:release="release"
-						showCheckbox
+						show-checkbox
+						@update:selected="(val) => (release.selected = val)"
 					/>
 				</div>
 			</ScrollArea>
 
 			<DialogFooter>
-				<Button @click="discogs.showFilterDialog = false" variant="secondary">
+				<Button variant="secondary" @click="discogs.showFilterDialog = false">
 					Cancel
 				</Button>
 				<Button
-					@click="discogs.importSelectedReleases()"
 					variant="default"
 					:disabled="selectedCount === 0"
+					@click="discogs.importSelectedReleases()"
 				>
 					Import
 				</Button>

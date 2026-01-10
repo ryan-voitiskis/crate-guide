@@ -52,9 +52,9 @@ function handleBpmMaxInput(event: Event) {
 				<h4 class="font-medium">Track Filters</h4>
 				<Button
 					v-if="trackFilters.hasActiveFilters"
-					@click="trackFilters.resetAllFilters"
 					variant="ghost"
 					size="sm"
+					@click="trackFilters.resetAllFilters"
 				>
 					Clear all
 				</Button>
@@ -77,10 +77,10 @@ function handleBpmMaxInput(event: Event) {
 							v-if="
 								trackFilters.bpmMin !== null || trackFilters.bpmMax !== null
 							"
-							@click="clearBpmFilter"
 							variant="ghost"
 							size="sm"
 							class="h-auto p-0 text-xs"
+							@click="clearBpmFilter"
 						>
 							Clear
 						</Button>
@@ -114,10 +114,10 @@ function handleBpmMaxInput(event: Event) {
 						<Label class="text-sm">Key</Label>
 						<Button
 							v-if="trackFilters.selectedKey !== null"
-							@click="trackFilters.setSelectedKey(null)"
 							variant="ghost"
 							size="sm"
 							class="h-auto text-xs"
+							@click="trackFilters.setSelectedKey(null)"
 						>
 							Clear
 						</Button>
@@ -132,10 +132,10 @@ function handleBpmMaxInput(event: Event) {
 							<SelectValue placeholder="All keys">
 								<template v-if="trackFilters.selectedKey !== null">
 									<span
-										class="inline-flex items-center gap-2"
 										v-for="option in trackFilters.keyOptions"
-										:key="`display-${option.value}`"
 										v-show="option.value === trackFilters.selectedKey"
+										:key="`display-${option.value}`"
+										class="inline-flex items-center gap-2"
 									>
 										<span
 											class="h-3 w-3 rounded-full"
@@ -178,10 +178,10 @@ function handleBpmMaxInput(event: Event) {
 						</Label>
 						<Button
 							v-if="trackFilters.selectedGenres.length > 0"
-							@click="trackFilters.clearGenres"
 							variant="ghost"
 							size="sm"
 							class="h-auto p-0 text-xs"
+							@click="trackFilters.clearGenres"
 						>
 							Clear
 						</Button>

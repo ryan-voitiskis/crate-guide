@@ -259,15 +259,15 @@ defineExpose({
 			<DialogFooter class="flex gap-2 pt-2">
 				<Button
 					v-if="beatport.isBulkFetchingBeatportData"
-					@click="beatport.cancelBulkBeatportFetch"
 					variant="outline"
+					@click="beatport.cancelBulkBeatportFetch"
 				>
 					Cancel
 				</Button>
 				<Button v-else-if="hasResults" @click="closeDialog">Done</Button>
 				<template v-else>
-					<Button @click="closeDialog" variant="outline">Cancel</Button>
-					<Button @click="startBulkFetch" :disabled="tracksToProcess === 0">
+					<Button variant="outline" @click="closeDialog">Cancel</Button>
+					<Button :disabled="tracksToProcess === 0" @click="startBulkFetch">
 						Start
 					</Button>
 				</template>

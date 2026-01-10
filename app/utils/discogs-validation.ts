@@ -12,7 +12,7 @@ export function isValidImportResult(
 		typeof result === 'object' &&
 		result !== null &&
 		'success' in result &&
-		typeof (result as any).success === 'boolean'
+		typeof (result as ImportRecordResult).success === 'boolean'
 	)
 }
 

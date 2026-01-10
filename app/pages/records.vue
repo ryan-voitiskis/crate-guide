@@ -23,8 +23,8 @@ const isActive = usePageActive()
 			<template v-if="isActive && records.hasRecords">
 				<InputRecordsSearch />
 				<Button
-					@click="discogs.showGetFoldersDialog = true"
 					variant="secondary"
+					@click="discogs.showGetFoldersDialog = true"
 				>
 					<CloudDownload class="mr-2" />
 					Import
@@ -67,8 +67,8 @@ const isActive = usePageActive()
 						</p>
 
 						<Button
-							@click="discogs.showGetFoldersDialog = true"
 							class="mb-2 w-full"
+							@click="discogs.showGetFoldersDialog = true"
 						>
 							<CloudDownload class="mr-2" />
 							Import
@@ -92,8 +92,8 @@ const isActive = usePageActive()
 
 					<Button
 						class="mb-2 w-full"
-						@click="discogsAuth.initDiscogsOAuthFlow"
 						:loading="discogsAuth.isDiscogsConnecting"
+						@click="discogsAuth.initDiscogsOAuthFlow"
 					>
 						<KeyRound class="mr-2" />
 						Connect to Discogs

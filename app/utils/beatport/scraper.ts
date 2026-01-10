@@ -7,6 +7,11 @@ interface BeatportTrackData {
 	img: string
 }
 
+interface ExtractedTrackData extends Omit<BeatportTrackData, 'accessed'> {
+	_artistName: string
+	_trackTitle: string
+}
+
 interface SearchTrackParams {
 	artist: string
 	title: string
@@ -51,9 +56,7 @@ function parseBeatportHTML(
 	return null
 }
 
-function extractTrackDataFromRow(
-	row: Element
-): Omit<BeatportTrackData, 'accessed'> | null {
+function extractTrackDataFromRow(row: Element): ExtractedTrackData | null {
 	try {
 		// Extract track URL and title
 		const trackLink = row.querySelector('a[href^="/track/"]')
@@ -121,7 +124,7 @@ function extractTrackDataFromRow(
 			// Store extracted values for matching
 			_artistName: artistName,
 			_trackTitle: trackTitle
-		} as any
+		}
 	} catch (error) {
 		console.error('Error extracting track data:', error)
 		return null
@@ -129,7 +132,7 @@ function extractTrackDataFromRow(
 }
 
 function isTrackMatch(
-	extractedData: any,
+	extractedData: ExtractedTrackData,
 	searchParams: SearchTrackParams
 ): boolean {
 	const { artist, title } = searchParams

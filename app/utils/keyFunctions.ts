@@ -11,14 +11,12 @@ export type HarmonyScore = {
 }
 
 // * https://stackoverflow.com/questions/74356048/typescript-declare-type-of-a-keyof-a-generic-object-param
-type KeysOfType<O, T> = {
-	[K in keyof O]: O[K] extends T ? K : never
-}[keyof O]
-
 // TODO: move this somewhere more appropriate or consider existing or better
 // custom number sort function. sorts null last, reverse optional
-export function sortNum(field: KeysOfType<any, number>, reverse = false) {
-	return (a: any, b: any) => (a[field] - b[field]) * (reverse ? -1 : 1)
+export function sortNum(field: string, reverse = false) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return (a: Record<string, any>, b: Record<string, any>) =>
+		(a[field] - b[field]) * (reverse ? -1 : 1)
 }
 
 export type KeyAndMode = {
@@ -281,9 +279,38 @@ export function parseBeatportKey(keyString: string): {
 	key: number | null
 	mode: number | null
 } {
-	// TODO: Implement proper parsing logic to convert "A Minor" format to key/mode
-	// For now, return placeholder values
-	return { key: 9, mode: 0 }
+	if (!keyString) return { key: null, mode: null }
+
+	// Parse format like "A Minor", "C Major", "F# Minor"
+	const match = keyString.match(/^([A-G][#b]?)\s*(Major|Minor)$/i)
+	if (!match) return { key: null, mode: null }
+
+	const noteMap: Record<string, number> = {
+		C: 0,
+		'C#': 1,
+		Db: 1,
+		D: 2,
+		'D#': 3,
+		Eb: 3,
+		E: 4,
+		F: 5,
+		'F#': 6,
+		Gb: 6,
+		G: 7,
+		'G#': 8,
+		Ab: 8,
+		A: 9,
+		'A#': 10,
+		Bb: 10,
+		B: 11
+	}
+
+	const note = match[1]
+	const modeStr = match[2]?.toLowerCase()
+	const key = noteMap[note!]
+	const mode = modeStr === 'major' ? 1 : 0
+
+	return { key: key ?? null, mode }
 }
 
 // % operator returns wrong results for negative nominator in JS, hence workaround fn

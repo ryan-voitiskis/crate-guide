@@ -1,5 +1,4 @@
-import { getAuthedSupabaseClient } from '../supabaseHelpers.ts'
-import { getUserProfile } from '../supabaseHelpers.ts'
+import { getAuthedSupabaseClient, getUserProfile } from '../supabaseHelpers.ts'
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest.ts'
 
 export async function fetchAndSetIdentity(authHeader: string) {

@@ -33,7 +33,7 @@ async function handleDelete() {
 </script>
 
 <template>
-	<Button @click="openDialog" variant="destructive">Clear All Data</Button>
+	<Button variant="destructive" @click="openDialog">Clear All Data</Button>
 
 	<Dialog v-model:open="showDialog">
 		<DialogContent class="sm:max-w-[425px]">

@@ -41,7 +41,7 @@ export const useRecordsStore = defineStore('records', () => {
 
 			if (error) throw error
 			records.value = (data as DatabaseRecord[]) || []
-		} catch (error) {
+		} catch {
 			toast.error('Error fetching records.')
 		} finally {
 			isLoadingRecords.value = false
@@ -73,7 +73,7 @@ export const useRecordsStore = defineStore('records', () => {
 			records.value.unshift(data as DatabaseRecord)
 			toast.success('Record created successfully.')
 			return data as DatabaseRecord
-		} catch (error) {
+		} catch {
 			toast.error('Error creating record.')
 			return null
 		} finally {
@@ -119,7 +119,7 @@ export const useRecordsStore = defineStore('records', () => {
 			records.value[recordIndex] = data as DatabaseRecord
 			toast.success('Record updated successfully.')
 			return data as DatabaseRecord
-		} catch (error) {
+		} catch {
 			// Revert optimistic update
 			records.value[recordIndex] = originalRecord as DatabaseRecord
 			toast.error('Error updating record.')
@@ -149,7 +149,7 @@ export const useRecordsStore = defineStore('records', () => {
 			if (error) throw error
 			toast.success('Record deleted successfully.')
 			return true
-		} catch (error) {
+		} catch {
 			// Revert optimistic update
 			records.value.splice(recordIndex, 0, removedRecord as DatabaseRecord)
 			toast.error('Error deleting record.')
@@ -180,15 +180,15 @@ export const useRecordsStore = defineStore('records', () => {
 			searchResults.value = records.value.filter(
 				(record: DatabaseRecord) =>
 					record.title.toLowerCase().includes(query.toLowerCase()) ||
-					record.artists.some((artist: any) =>
+					record.artists.some((artist: DiscogsArtistDb) =>
 						artist.name.toLowerCase().includes(query.toLowerCase())
 					) ||
-					record.labels.some((label: any) =>
+					record.labels.some((label: DiscogsLabelDb) =>
 						label.name.toLowerCase().includes(query.toLowerCase())
 					) ||
 					(record.year && record.year.toString().includes(query))
 			)
-		} catch (error) {
+		} catch {
 			toast.error('Error searching your collection')
 			searchResults.value = []
 		} finally {

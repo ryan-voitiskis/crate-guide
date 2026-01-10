@@ -59,7 +59,7 @@ const deckBackground = computed(() => {
 
 			<!-- Loaded track card below deck -->
 			<DeckLoadedTrack
-				:track="deck.loadedTrack"
+				:track="deck.loadedTrack ?? undefined"
 				:deck-index="deckIndex"
 				@load="showLoadDialog = true"
 			/>
@@ -70,7 +70,7 @@ const deckBackground = computed(() => {
 			<div class="flex gap-2">
 				<DeckLoadedTrack
 					class="flex-1"
-					:track="deck.loadedTrack"
+					:track="deck.loadedTrack ?? undefined"
 					:deck-index="deckIndex"
 					@load="showLoadDialog = true"
 				/>

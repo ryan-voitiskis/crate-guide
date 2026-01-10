@@ -352,8 +352,8 @@ export const useSessionStore = defineStore('session', () => {
 
 			if (error) throw error
 			return data.id
-		} catch (error) {
-			console.error('Failed to create active set:', error)
+		} catch (e) {
+			console.error('Failed to create active set:', e)
 			return null
 		}
 	}
@@ -417,8 +417,8 @@ export const useSessionStore = defineStore('session', () => {
 				.order('created_at', { ascending: false })
 
 			if (error) throw error
-			savedSets.value = (data as SavedSet[]) ?? []
-		} catch (error) {
+			savedSets.value = (data as unknown as SavedSet[]) ?? []
+		} catch {
 			toast.error('Failed to load saved sets')
 		} finally {
 			isLoadingSets.value = false
@@ -445,7 +445,7 @@ export const useSessionStore = defineStore('session', () => {
 					.single()
 
 				if (error) throw error
-				savedSet = data as SavedSet
+				savedSet = data as unknown as SavedSet
 
 				// Update in savedSets if already fetched
 				const existingIndex = savedSets.value.findIndex(
@@ -469,7 +469,7 @@ export const useSessionStore = defineStore('session', () => {
 					.single()
 
 				if (error) throw error
-				savedSet = data as SavedSet
+				savedSet = data as unknown as SavedSet
 				savedSets.value.unshift(savedSet)
 				activeSetId.value = savedSet.id
 			}
@@ -477,8 +477,8 @@ export const useSessionStore = defineStore('session', () => {
 			toast.success('Session saved')
 			showSaveDialog.value = false
 			return savedSet
-		} catch (error) {
-			console.error('Failed to save session:', error)
+		} catch (e) {
+			console.error('Failed to save session:', e)
 			toast.error('Failed to save session')
 			return null
 		} finally {
@@ -498,7 +498,7 @@ export const useSessionStore = defineStore('session', () => {
 				selectedSetId.value = null
 			}
 			toast.success('Set deleted')
-		} catch (error) {
+		} catch {
 			toast.error('Failed to delete set')
 		}
 	}

@@ -10,9 +10,9 @@ const trackEdit = useTrackEditStore()
 		<div class="flex items-center justify-between">
 			<Label>Tracks ({{ recordDetails.recordTracks.length }})</Label>
 			<Button
-				@click="trackEdit.openAddTrackDialog()"
 				size="sm"
 				variant="outline"
+				@click="trackEdit.openAddTrackDialog()"
 			>
 				<Plus class="mr-1 size-4" />
 				Add Track
@@ -67,16 +67,16 @@ const trackEdit = useTrackEditStore()
 
 				<!-- Actions -->
 				<Button
-					@click="trackEdit.openEditTrackDialog(track.id)"
 					size="icon"
 					variant="ghost"
+					@click="trackEdit.openEditTrackDialog(track.id)"
 				>
 					<Pencil />
 				</Button>
 				<Button
-					@click="recordDetails.trackToConfirmDelete = track"
 					size="icon"
 					variant="destructive-ghost"
+					@click="recordDetails.trackToConfirmDelete = track"
 				>
 					<Trash />
 				</Button>

@@ -46,7 +46,7 @@ export function useUserData() {
 			if (failures.length > 0)
 				toast.error(`Failed to load: ${failures.join(', ')}`)
 			else hasLoadedData.value = true
-		} catch (error) {
+		} catch {
 			toast.error('Error loading user data.')
 		} finally {
 			isLoadingUserData.value = false

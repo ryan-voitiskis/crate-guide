@@ -78,7 +78,7 @@ function handleRatingUpdate(rating: number | null) {
 				<span
 					v-if="keyDisplay"
 					class="font-medium"
-					:style="{ color: keyColor }"
+					:style="{ color: keyColor ?? undefined }"
 				>
 					{{ keyDisplay }}
 				</span>

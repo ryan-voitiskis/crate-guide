@@ -7,7 +7,7 @@ export function useDiscogsApi() {
 	const makeDiscogsApiRequest = async <T>(
 		method: string,
 		url: string,
-		params?: Record<string, any>
+		params?: Record<string, string | number>
 	): Promise<T> => {
 		const { data, error } = await supabase.functions.invoke(
 			'authenticated-discogs-request',

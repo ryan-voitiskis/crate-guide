@@ -25,8 +25,8 @@ function deleteTrack() {
 					Cancel
 				</AlertDialogCancel>
 				<AlertDialogAction
-					@click="deleteTrack()"
 					class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+					@click="deleteTrack()"
 				>
 					Delete
 				</AlertDialogAction>

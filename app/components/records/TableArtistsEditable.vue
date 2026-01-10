@@ -72,7 +72,7 @@ const fieldConfig = [
 		key: 'discogs_id' as const,
 		placeholder: '1453529',
 		class: 'text-xs',
-		displayValue: (artist: any) => artist.discogs_id || '–',
+		displayValue: (artist: DiscogsArtistDb) => artist.discogs_id || '–',
 		displayClass: 'text-muted-foreground text-xs',
 		field: fields.discogs_id
 	},
@@ -80,7 +80,7 @@ const fieldConfig = [
 		key: 'name' as const,
 		placeholder: 'Artist name',
 		class: 'text-sm',
-		displayValue: (artist: any) => artist.name,
+		displayValue: (artist: DiscogsArtistDb) => artist.name,
 		displayClass: 'text-sm font-medium',
 		field: fields.name
 	},
@@ -88,7 +88,7 @@ const fieldConfig = [
 		key: 'role' as const,
 		placeholder: 'e.g., Producer, Remix',
 		class: 'text-sm',
-		displayValue: (artist: any) => artist.role || '–',
+		displayValue: (artist: DiscogsArtistDb) => artist.role || '–',
 		displayClass: 'text-muted-foreground text-sm',
 		field: fields.role
 	}
@@ -137,7 +137,11 @@ function cancelForm() {
 	resetForm()
 }
 
-function createArtistData(values: any) {
+function createArtistData(values: {
+	discogs_id?: string
+	name?: string
+	role?: string
+}) {
 	return {
 		discogs_id: values.discogs_id ? parseInt(values.discogs_id, 10) : undefined,
 		name: values.name || '',
@@ -170,7 +174,10 @@ function removeArtist(index: number) {
 
 const firstFieldRef = ref()
 
-function setFirstFieldRef(el: any, fieldIndex: number) {
+function setFirstFieldRef(
+	el: Element | ComponentPublicInstance | null,
+	fieldIndex: number
+) {
 	if (fieldIndex === 0 && el) firstFieldRef.value = el
 }
 
@@ -202,10 +209,10 @@ async function focusFirstField() {
 			<Label>{{ label || 'Artists' }} ({{ artists.length }})</Label>
 			<Button
 				v-if="isEditMode"
-				@click="startAddNew"
 				size="sm"
 				variant="outline"
 				:disabled="isFormActive"
+				@click="startAddNew"
 			>
 				<Plus class="mr-1 size-4" />
 				Add Artist
@@ -266,8 +273,8 @@ async function focusFirstField() {
 						>
 							<Input
 								v-if="isEditingRow(index)"
-								v-model="field.field.value.value"
 								:ref="(el) => setFirstFieldRef(el, fieldIndex)"
+								v-model="field.field.value.value"
 								:name="field.key"
 								:placeholder="field.placeholder"
 								class="px-1"
@@ -321,8 +328,8 @@ async function focusFirstField() {
 									</Label>
 									<Input
 										:id="`${field.key}-${index}`"
-										v-model="field.field.value.value"
 										:ref="(el) => setFirstFieldRef(el, fieldIndex)"
+										v-model="field.field.value.value"
 										:name="field.key"
 										:placeholder="field.placeholder"
 										:class="[
@@ -358,37 +365,37 @@ async function focusFirstField() {
 						>
 							<Button
 								v-if="isEditingRow(index)"
-								@click="saveArtist"
 								size="icon"
 								variant="ghost"
 								:class="[meta.valid ? 'text-green-600' : 'text-gray-400']"
+								@click="saveArtist"
 							>
 								<Check />
 							</Button>
 							<Button
 								v-else
-								@click="startEdit(index)"
 								size="icon"
 								variant="ghost"
 								:disabled="isFormActive"
+								@click="startEdit(index)"
 							>
 								<Pencil />
 							</Button>
 							<Button
 								v-if="isEditingRow(index)"
-								@click="cancelForm"
 								size="icon"
 								variant="ghost"
 								class="text-muted-foreground"
+								@click="cancelForm"
 							>
 								<X />
 							</Button>
 							<Button
 								v-else
-								@click="removeArtist(index)"
 								size="icon"
 								variant="destructive-ghost"
 								:disabled="isFormActive"
+								@click="removeArtist(index)"
 							>
 								<Trash />
 							</Button>
@@ -420,8 +427,8 @@ async function focusFirstField() {
 							class="hidden items-center overflow-hidden p-1 whitespace-normal sm:flex"
 						>
 							<Input
-								v-model="field.field.value.value"
 								:ref="(el) => setFirstFieldRef(el, fieldIndex)"
+								v-model="field.field.value.value"
 								:name="`new_${field.key}`"
 								:placeholder="field.placeholder"
 								class="p-1"
@@ -457,8 +464,8 @@ async function focusFirstField() {
 									</Label>
 									<Input
 										:id="`new_${field.key}`"
-										v-model="field.field.value.value"
 										:ref="(el) => setFirstFieldRef(el, fieldIndex)"
+										v-model="field.field.value.value"
 										:name="`new_${field.key}`"
 										:placeholder="field.placeholder"
 										:class="[
@@ -478,18 +485,18 @@ async function focusFirstField() {
 							class="flex !h-11 items-center justify-end gap-1 p-1 whitespace-normal max-sm:!h-auto"
 						>
 							<Button
-								@click="saveArtist"
 								size="icon"
 								variant="ghost"
 								:class="[meta.valid ? 'text-green-600' : 'text-gray-400']"
+								@click="saveArtist"
 							>
 								<Check />
 							</Button>
 							<Button
-								@click="cancelForm"
 								size="icon"
 								variant="ghost"
 								class="text-muted-foreground"
+								@click="cancelForm"
 							>
 								<X />
 							</Button>

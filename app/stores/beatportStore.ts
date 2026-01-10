@@ -10,27 +10,43 @@ interface BulkTrackResult {
 	error?: string
 }
 
+// Local type for beatport data structure
+interface BeatportTrackData {
+	url?: string
+	bpm?: number
+	key?: string
+	img?: string
+}
+
+// Local type for "not found" marker
 interface BeatportNotFoundMarker {
-	searched: true
-	notFound: true
+	searched: boolean
+	notFound: boolean
 	searchedAt: number
 }
 
 // Helper to check if track has been searched (found or not found)
-function hasBeenSearched(beatportData: any): boolean {
+function hasBeenSearched(
+	beatportData: BeatportTrackData | BeatportNotFoundMarker | null
+): boolean {
 	if (!beatportData) return false
 	// If it has the notFound marker, it was searched
-	if (beatportData.notFound === true) return true
+	if ('notFound' in beatportData && beatportData.notFound === true) return true
 	// If it has actual data (url, bpm, etc.), it was found
-	if (beatportData.url || beatportData.bpm !== undefined) return true
+	if ('url' in beatportData && beatportData.url) return true
 	return false
 }
 
 // Helper to check if track was found (has actual data, not just "not found" marker)
-function hasFoundData(beatportData: any): boolean {
+function hasFoundData(
+	beatportData: BeatportTrackData | BeatportNotFoundMarker | null
+): beatportData is BeatportTrackData {
 	if (!beatportData) return false
-	if (beatportData.notFound === true) return false
-	return beatportData.url || beatportData.bpm !== undefined
+	if ('notFound' in beatportData && beatportData.notFound === true) return false
+	return (
+		'url' in beatportData &&
+		(!!beatportData.url || beatportData.bpm !== undefined)
+	)
 }
 
 export const useBeatportStore = defineStore('beatport', () => {
@@ -102,7 +118,7 @@ export const useBeatportStore = defineStore('beatport', () => {
 			}
 
 			const keyData = parseBeatportKey(beatportData.key)
-			const updates: any = { beatport_data: beatportData }
+			const updates: Partial<Track> = { beatport_data: beatportData }
 
 			// Only auto-populate empty fields to preserve user data
 			if (!track.bpm && beatportData.bpm) updates.bpm = beatportData.bpm
@@ -273,7 +289,7 @@ export const useBeatportStore = defineStore('beatport', () => {
 			}
 
 			const keyData = parseBeatportKey(beatportData.key)
-			const updates: any = { beatport_data: beatportData }
+			const updates: Partial<Track> = { beatport_data: beatportData }
 
 			if (!track.bpm && beatportData.bpm) updates.bpm = beatportData.bpm
 
@@ -282,7 +298,10 @@ export const useBeatportStore = defineStore('beatport', () => {
 				updates.mode = keyData.mode
 			}
 
-			return await tracks.updateTrack(track.id, updates, { silent: true })
+			const result = await tracks.updateTrack(track.id, updates, {
+				silent: true
+			})
+			return result !== null
 		} catch (error) {
 			console.error('Error fetching Beatport data:', error)
 			return false

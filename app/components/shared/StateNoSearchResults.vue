@@ -12,7 +12,7 @@ const recordsStore = useRecordsStore()
 			No records match your search for "{{ recordsStore.searchQuery }}". Try
 			adjusting your search terms.
 		</p>
-		<Button @click="recordsStore.clearSearch()" variant="outline">
+		<Button variant="outline" @click="recordsStore.clearSearch()">
 			Clear Search
 		</Button>
 	</div>

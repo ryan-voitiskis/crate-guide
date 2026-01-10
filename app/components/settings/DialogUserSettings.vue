@@ -2,7 +2,6 @@
 import { Ellipsis } from 'lucide-vue-next'
 
 const user = useUserStore()
-const discogsAuth = useDiscogsAuthStore()
 
 const showDialog = ref(false)
 </script>

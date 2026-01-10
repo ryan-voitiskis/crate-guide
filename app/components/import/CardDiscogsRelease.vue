@@ -4,6 +4,10 @@ const props = defineProps<{
 	showCheckbox?: boolean
 }>()
 
+const emit = defineEmits<{
+	'update:selected': [value: boolean]
+}>()
+
 const coverImg = computed(
 	() => `url("${props.release.basic_information.cover_image}")`
 )
@@ -13,6 +17,11 @@ const isFilterableRelease = (
 ): release is DiscogsReleaseToFilter => {
 	return 'selected' in release
 }
+
+const isSelected = computed({
+	get: () => isFilterableRelease(props.release) && props.release.selected,
+	set: (value: boolean) => emit('update:selected', value)
+})
 </script>
 
 <template>
@@ -34,7 +43,7 @@ const isFilterableRelease = (
 			}}
 		</span>
 		<div v-if="showCheckbox && isFilterableRelease(release)" class="checkbox">
-			<Checkbox v-model="release.selected" />
+			<Checkbox v-model:checked="isSelected" />
 		</div>
 	</div>
 </template>

@@ -6,8 +6,6 @@ const recordsStore = useRecordsStore()
 
 const searchInputRef = ref()
 
-const showClearButton = computed(() => recordsStore.hasSearchQuery)
-
 function focusInput() {
 	nextTick(() => {
 		const inputElement = searchInputRef.value?.$el
@@ -39,10 +37,10 @@ onKeyStroke('/', (event) => {
 			ref="searchInputRef"
 			data-records-search-input
 			:value="recordsStore.searchQuery"
-			@input="handleInput"
 			name="search"
 			placeholder="Search"
 			class="bg-background pr-12 pl-10"
+			@input="handleInput"
 		/>
 		<div class="absolute top-1/2 right-3 hidden -translate-y-1/2 md:block">
 			<div

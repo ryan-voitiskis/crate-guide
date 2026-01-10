@@ -44,8 +44,8 @@ function resetPitch() {
 			<div class="flex flex-col items-center gap-1">
 				<button
 					class="flex h-7 w-7 items-center justify-center rounded-full border-[3px] border-zinc-500 bg-zinc-300 transition-all hover:bg-zinc-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-					@click="resetPitch"
 					:disabled="deck?.pitch === 0"
+					@click="resetPitch"
 				/>
 				<span class="text-[11px] text-amber-200/80">reset</span>
 			</div>
@@ -55,8 +55,8 @@ function resetPitch() {
 		<button
 			v-if="compact"
 			class="flex h-16 w-5 items-center justify-center self-end rounded-sm bg-zinc-300 text-zinc-700 shadow-md transition-all hover:bg-zinc-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-			@click="resetPitch"
 			:disabled="deck?.pitch === 0"
+			@click="resetPitch"
 		>
 			<span
 				class="text-[8px] font-medium"
@@ -180,13 +180,13 @@ function resetPitch() {
 					:min="-100"
 					:max="100"
 					:value="deck?.faderSliding ? deck.faderPosition : (deck?.pitch ?? 0)"
-					@input="handlePitchInput"
 					:disabled="deck?.faderSliding"
 					class="pitch-fader"
 					:class="[
 						{ sliding: deck?.faderSliding },
 						compact ? 'pitch-fader-compact' : 'pitch-fader-full'
 					]"
+					@input="handlePitchInput"
 				/>
 			</div>
 		</div>

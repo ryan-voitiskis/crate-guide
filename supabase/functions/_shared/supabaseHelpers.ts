@@ -3,7 +3,7 @@ import {
 	type User,
 	createClient
 } from '@supabase/supabase-js'
-import { type Profile } from './types/supabase.ts'
+import type { Profile } from './types/supabase.ts'
 
 let cachedSupabaseClient: SupabaseClient | null = null
 let cachedUser: User | null = null

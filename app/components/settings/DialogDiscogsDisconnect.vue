@@ -9,7 +9,7 @@ async function handleDisconnect() {
 </script>
 
 <template>
-	<Button @click="showDialog = true" variant="secondary" class="ml-auto">
+	<Button variant="secondary" class="ml-auto" @click="showDialog = true">
 		Disconnect
 	</Button>
 
@@ -27,9 +27,9 @@ async function handleDisconnect() {
 			</DialogHeader>
 			<DialogFooter>
 				<Button
-					@click="handleDisconnect"
 					variant="destructive"
 					:loading="discogs.isDisconnecting"
+					@click="handleDisconnect"
 				>
 					Disconnect
 				</Button>

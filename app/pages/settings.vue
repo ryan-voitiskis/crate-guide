@@ -1,6 +1,5 @@
 <script setup lang="ts">
 const user = useUserStore()
-const discogsAuth = useDiscogsAuthStore()
 </script>
 
 <template>
@@ -46,7 +45,7 @@ const discogsAuth = useDiscogsAuthStore()
 
 				<Card v-if="user.supaUser">
 					<CardContent class="pt-6">
-						<Button @click="user.signOut" variant="destructive">Log out</Button>
+						<Button variant="destructive" @click="user.signOut">Log out</Button>
 					</CardContent>
 				</Card>
 

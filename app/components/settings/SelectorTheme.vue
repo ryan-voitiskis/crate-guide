@@ -1,13 +1,17 @@
 <script setup lang="ts">
 const user = useUserStore()
+
+function handleThemeChange(value: string) {
+	user.updateTheme(value as ThemeOptions)
+}
 </script>
 
 <template>
 	<Label>Theme</Label>
 	<RadioGroup
 		:model-value="user.currentTheme"
-		@update:model-value="user.updateTheme"
 		class="grid max-w-md grid-cols-2 gap-8 pt-2"
+		@update:model-value="handleThemeChange"
 	>
 		<Label class="flex-col">
 			<RadioGroupItem value="light" class="sr-only" />

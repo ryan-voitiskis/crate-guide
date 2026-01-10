@@ -3,7 +3,7 @@ import { Disc3, FolderOpen, History, Save, Trash2 } from 'lucide-vue-next'
 
 const session = useSessionStore()
 
-function handleDeckCountChange(value: string | string[]) {
+function handleDeckCountChange(value: unknown) {
 	if (typeof value === 'string' && value) {
 		session.initializeDecks(Number(value))
 	}
@@ -58,8 +58,8 @@ function handleDeckCountChange(value: string | string[]) {
 		<Button
 			variant="outline"
 			size="sm"
-			@click="session.showSetManager = true"
 			:disabled="session.isLoadingSets"
+			@click="session.showSetManager = true"
 		>
 			<FolderOpen class="mr-1.5 h-4 w-4" />
 			Sets
@@ -68,8 +68,8 @@ function handleDeckCountChange(value: string | string[]) {
 		<Button
 			variant="outline"
 			size="sm"
-			@click="session.showSaveDialog = true"
 			:disabled="session.currentSession.length === 0"
+			@click="session.showSaveDialog = true"
 		>
 			<Save class="mr-1.5 h-4 w-4" />
 			Save
@@ -78,8 +78,8 @@ function handleDeckCountChange(value: string | string[]) {
 		<Button
 			variant="ghost"
 			size="sm"
-			@click="session.clearSession()"
 			:disabled="session.currentSession.length === 0"
+			@click="session.clearSession()"
 		>
 			<Trash2 class="h-4 w-4" />
 		</Button>

@@ -29,7 +29,7 @@ export const useCratesStore = defineStore('crates', () => {
 
 			if (error) throw error
 			crates.value = (data as Crate[]) || []
-		} catch (error) {
+		} catch {
 			toast.error('Error fetching crates.')
 		} finally {
 			isLoadingCrates.value = false
@@ -61,7 +61,7 @@ export const useCratesStore = defineStore('crates', () => {
 			crates.value.unshift(data as Crate)
 			toast.success('Crate created successfully.')
 			return data as Crate
-		} catch (error) {
+		} catch {
 			toast.error('Error creating crate.')
 			return null
 		} finally {
@@ -101,7 +101,7 @@ export const useCratesStore = defineStore('crates', () => {
 			// Update with server response
 			crates.value[crateIndex] = data as Crate
 			return data as Crate
-		} catch (error) {
+		} catch {
 			// Revert optimistic update
 			crates.value[crateIndex] = originalCrate as Crate
 			toast.error('Error updating crate.')
@@ -131,7 +131,7 @@ export const useCratesStore = defineStore('crates', () => {
 
 			toast.success('Crate deleted successfully.')
 			return true
-		} catch (error) {
+		} catch {
 			// Revert optimistic update
 			crates.value.splice(crateIndex, 0, removedCrate as Crate)
 			toast.error('Error deleting crate.')

@@ -222,7 +222,8 @@ const submitTrack = handleSubmit(async (values) => {
 				genres: values.genres || [],
 				time_signature_upper: values.time_signature_upper || null,
 				time_signature_lower: values.time_signature_lower || null,
-				playable: values.playable ?? true
+				playable: values.playable ?? true,
+				beatport_data: null
 			}
 
 			const result = await tracks.createTrack(newTrack)
@@ -231,7 +232,7 @@ const submitTrack = handleSubmit(async (values) => {
 				trackEdit.closeTrackDialog()
 			}
 		}
-	} catch (error) {
+	} catch {
 		toast.error('Error saving track')
 	} finally {
 		isSubmitting.value = false
@@ -364,8 +365,8 @@ function confirmDiscardAndProceed() {
 						<FormItem>
 							<Input
 								id="duration"
-								name="duration"
 								v-model="durationValue"
+								name="duration"
 								placeholder="3:45"
 								:class="{
 									'border-destructive':
@@ -480,8 +481,8 @@ function confirmDiscardAndProceed() {
 				<div
 					class="flex flex-col justify-end gap-2 pt-0 max-sm:px-2 sm:flex-row"
 				>
-					<Button @click="handleCancel" variant="secondary">Cancel</Button>
-					<Button @click="saveTrack" :loading="isSubmitting">
+					<Button variant="secondary" @click="handleCancel">Cancel</Button>
+					<Button :loading="isSubmitting" @click="saveTrack">
 						{{ isEditing ? 'Update Track' : 'Add Track' }}
 					</Button>
 				</div>

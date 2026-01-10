@@ -89,7 +89,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 				toast.success('Discogs disconnected.')
 				user.profile = data[0] as Profile
 			}
-		} catch (error) {
+		} catch {
 			toast.error('Error disconnecting Discogs.')
 		} finally {
 			isDisconnecting.value = false

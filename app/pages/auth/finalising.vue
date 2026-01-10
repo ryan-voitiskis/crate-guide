@@ -3,9 +3,9 @@ const user = useUserStore()
 const router = useRouter()
 
 watch(
-	user.supaUser,
-	() => {
-		if (user.supaUser) router.push('/')
+	() => user.supaUser,
+	(newUser) => {
+		if (newUser) router.push('/')
 	},
 	{ immediate: true }
 )

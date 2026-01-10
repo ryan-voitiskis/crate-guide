@@ -46,7 +46,7 @@ export const useTracksStore = defineStore('tracks', () => {
 					created_at: track.created_at,
 					updated_at: track.updated_at
 				})) as Track[]) || []
-		} catch (error) {
+		} catch {
 			toast.error('Error fetching tracks.')
 		} finally {
 			isLoadingTracks.value = false
@@ -75,7 +75,7 @@ export const useTracksStore = defineStore('tracks', () => {
 			tracks.value.unshift(data as Track)
 			toast.success('Track created successfully.')
 			return data as Track
-		} catch (error) {
+		} catch {
 			toast.error('Error creating track.')
 			return null
 		} finally {
@@ -117,7 +117,7 @@ export const useTracksStore = defineStore('tracks', () => {
 			tracks.value[trackIndex] = data as Track
 			if (!options?.silent) toast.success('Track updated successfully.')
 			return data as Track
-		} catch (error) {
+		} catch {
 			// Revert optimistic update
 			tracks.value[trackIndex] = originalTrack as Track
 			toast.error('Error updating track.')
@@ -140,7 +140,7 @@ export const useTracksStore = defineStore('tracks', () => {
 			if (error) throw error
 			toast.success('Track deleted successfully.')
 			return true
-		} catch (error) {
+		} catch {
 			// Revert optimistic update
 			tracks.value.splice(trackIndex, 0, removedTrack as Track)
 			toast.error('Error deleting track.')
@@ -169,14 +169,15 @@ export const useTracksStore = defineStore('tracks', () => {
 			if (track.title.toLowerCase().includes(lowercaseQuery)) return true
 
 			// Search in artists
-			const artistMatch = track.artists.some((artist: any) =>
+			const artistMatch = track.artists.some((artist: DiscogsArtistDb) =>
 				artist.name.toLowerCase().includes(lowercaseQuery)
 			)
 			if (artistMatch) return true
 
 			// Search in extraartists
-			const extraArtistMatch = track.extraartists.some((artist: any) =>
-				artist.name.toLowerCase().includes(lowercaseQuery)
+			const extraArtistMatch = track.extraartists.some(
+				(artist: DiscogsArtistDb) =>
+					artist.name.toLowerCase().includes(lowercaseQuery)
 			)
 			if (extraArtistMatch) return true
 

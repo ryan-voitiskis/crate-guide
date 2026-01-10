@@ -81,7 +81,7 @@ function confirmRemove() {
 
 				<div class="flex items-center justify-end">
 					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
+						<DropdownMenuTrigger as-child>
 							<Button variant="ghost" size="icon" @click.stop>
 								<MoreVertical class="size-4" />
 							</Button>
@@ -108,8 +108,8 @@ function confirmRemove() {
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />
 							<DropdownMenuItem
-								@click="confirmRemove"
 								class="text-destructive focus:text-destructive"
+								@click="confirmRemove"
 							>
 								<Trash2 class="mr-2 size-4" />
 								Remove from collection

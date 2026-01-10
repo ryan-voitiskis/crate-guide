@@ -57,7 +57,7 @@ watch(
 			v-model:open="showDetailDialog"
 			:crate="selectedCrate"
 			@delete="handleDeleteFromDetail"
-			@addRecord="handleAddRecord"
+			@add-record="handleAddRecord"
 		/>
 		<DialogAddRecords
 			v-if="selectedCrate"

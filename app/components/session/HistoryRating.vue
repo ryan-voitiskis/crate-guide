@@ -34,10 +34,10 @@ function handleMouseLeave() {
 		<button
 			v-for="value in 5"
 			:key="value"
+			class="p-0.5 transition-colors"
 			@click="handleClick(value)"
 			@mouseenter="handleMouseEnter(value)"
 			@mouseleave="handleMouseLeave"
-			class="p-0.5 transition-colors"
 		>
 			<Star
 				class="h-3.5 w-3.5"

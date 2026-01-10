@@ -83,9 +83,9 @@ function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
 				</div>
 				<DialogTrackFilters />
 				<Button
-					@click="showBeatportImportDialog"
 					variant="outline"
 					size="default"
+					@click="showBeatportImportDialog"
 				>
 					<Wand class="mr-2 size-4" />
 					Get Beatport data
@@ -193,7 +193,6 @@ function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
 											<button
 												class="hover:bg-accent mr-2 flex size-8 items-center justify-center rounded-md transition-colors"
 												:disabled="beatport.loadingTrackId === track.id"
-												@click="fetchBeatportForTrack(track, $event)"
 												:title="
 													getBeatportStatus(track) === 'found'
 														? 'Beatport data found - click to refresh'
@@ -201,6 +200,7 @@ function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
 															? 'Not found on Beatport - click to retry'
 															: 'Search Beatport for BPM and key'
 												"
+												@click="fetchBeatportForTrack(track, $event)"
 											>
 												<Loader2
 													v-if="beatport.loadingTrackId === track.id"
@@ -240,8 +240,8 @@ function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
 						</p>
 						<Button
 							v-if="trackFilters.searchQuery"
-							@click="trackFilters.clearSearchQuery()"
 							variant="outline"
+							@click="trackFilters.clearSearchQuery()"
 						>
 							Clear Search
 						</Button>

@@ -155,10 +155,10 @@ watch(
 							<Button
 								variant="ghost"
 								size="icon"
-								@click="addRecord(record.id)"
 								:loading="addingRecordId === record.id"
 								title="Add to crate"
 								aria-label="Add to crate"
+								@click="addRecord(record.id)"
 							>
 								<Plus class="size-4" />
 							</Button>

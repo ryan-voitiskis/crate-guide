@@ -5,7 +5,7 @@ import {
 	getAuthedSupabaseClient,
 	getUserProfile
 } from '../_shared/supabaseHelpers.ts'
-import { type Profile } from '../_shared/types/supabase.ts'
+import type { Profile } from '../_shared/types/supabase.ts'
 
 const headers = { ...corsHeaders, 'Content-Type': 'application/json' }
 

@@ -94,7 +94,7 @@ export default defineEventHandler(async (event) => {
 			success: true,
 			data: trackData
 		}
-	} catch (error) {
+	} catch {
 		throw createError({
 			statusCode: 500,
 			statusMessage: 'Failed to fetch from Beatport'
@@ -110,7 +110,7 @@ function extractTrackDataFromHTML(
 		const nextDataMatch = html.match(
 			/__NEXT_DATA__" type="application\/json">(.+?)<\/script>/
 		)
-		if (!nextDataMatch) return null
+		if (!nextDataMatch || !nextDataMatch[1]) return null
 
 		const nextData = JSON.parse(nextDataMatch[1])
 		const tracks: BeatportTrackJSON[] =
@@ -125,7 +125,7 @@ function extractTrackDataFromHTML(
 		}
 
 		return null
-	} catch (error) {
+	} catch {
 		return null
 	}
 }

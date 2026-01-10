@@ -1,13 +1,6 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
 import { toTypedSchema } from '@vee-validate/zod'
-import {
-	CloudDownload,
-	ImageOff,
-	Pencil,
-	PencilOff,
-	Wand
-} from 'lucide-vue-next'
+import { ImageOff, Pencil, PencilOff, Wand } from 'lucide-vue-next'
 import { useForm } from 'vee-validate'
 import { z } from 'zod'
 
@@ -271,20 +264,20 @@ async function handleGetBeatportData() {
 				<div class="space-y-4">
 					<div class="flex gap-2">
 						<Button
-							@click="handleToggleEditMode"
 							:variant="isEditMode ? 'secondary' : 'outline'"
 							size="sm"
+							@click="handleToggleEditMode"
 						>
 							<PencilOff v-if="isEditMode" class="mr-2 size-4" />
 							<Pencil v-else class="mr-2 size-4" />
 							{{ isEditMode ? 'Cancel Edit' : 'Edit Track' }}
 						</Button>
 						<Button
-							@click="handleGetBeatportData"
 							variant="outline"
 							size="sm"
 							:loading="beatport.isLoadingBeatportData"
 							:disabled="beatport.isLoadingBeatportData"
+							@click="handleGetBeatportData"
 						>
 							<Wand class="mr-2 size-4" />
 							Get Beatport data
@@ -534,13 +527,13 @@ async function handleGetBeatportData() {
 						v-if="isEditMode"
 						class="flex flex-col justify-end gap-2 pt-0 max-sm:px-2 sm:flex-row"
 					>
-						<Button @click="handleCancelEdit" variant="secondary">
+						<Button variant="secondary" @click="handleCancelEdit">
 							Cancel
 						</Button>
 						<Button
-							@click="saveTrack"
 							:disabled="!meta.valid"
 							:loading="tracks.isUpdatingTrack"
+							@click="saveTrack"
 						>
 							Save Changes
 						</Button>

@@ -205,18 +205,18 @@ function handleInteractOutside(event: Event) {
 							<Button
 								variant="outline"
 								size="icon"
-								@click="handleToggleEditMode"
 								title="Edit crate"
 								aria-label="Edit crate"
+								@click="handleToggleEditMode"
 							>
 								<Pencil class="size-4" />
 							</Button>
 							<Button
 								variant="outline"
 								size="icon"
-								@click="handleDelete"
 								title="Delete crate"
 								aria-label="Delete crate"
+								@click="handleDelete"
 							>
 								<Trash2 class="text-destructive size-4" />
 							</Button>
@@ -231,9 +231,9 @@ function handleInteractOutside(event: Event) {
 						<Button
 							variant="ghost"
 							size="icon"
-							@click="handleToggleEditMode"
 							title="Cancel edit"
 							aria-label="Cancel edit"
+							@click="handleToggleEditMode"
 						>
 							<PencilOff class="size-4" />
 						</Button>
@@ -285,9 +285,9 @@ function handleInteractOutside(event: Event) {
 								<ColorPicker v-model="colorValue" />
 							</div>
 							<Button
-								@click="saveChanges"
 								:loading="cratesStore.isUpdatingCrate"
 								:disabled="!meta.valid"
+								@click="saveChanges"
 							>
 								Save
 							</Button>

@@ -27,17 +27,17 @@ function parseDiscogsDuration(duration: string): number | null {
 	return null
 }
 
-export function transformReleaseArtists(artists: any[]) {
-	return artists.map((a: any) => ({
+export function transformReleaseArtists(artists: DiscogsArtist[]) {
+	return artists.map((a) => ({
 		discogs_id: a.id,
 		name: normalizeArtist(a.name),
-		role: a.roll || null
+		role: a.role || null
 	}))
 }
 
-export function transformReleaseLabels(labels: any[]) {
+export function transformReleaseLabels(labels: DiscogsLabel[]) {
 	return (
-		labels?.map((label: any) => ({
+		labels?.map((label) => ({
 			discogs_id: label.id,
 			name: label.name?.trim().replace(/ \(\d{1,3}\)$/, '') || '',
 			catno: label.catno?.trim() || '',
@@ -49,9 +49,9 @@ export function transformReleaseLabels(labels: any[]) {
 
 export function transformReleaseTracks(release: DiscogsReleaseFull) {
 	return (
-		release.tracklist?.map((track: any) => {
+		release.tracklist?.map((track: DiscogsTrack) => {
 			const extraArtists = track.extraartists || []
-			const extraArtistsSuffixable = extraArtists.find((ea: any) =>
+			const extraArtistsSuffixable = extraArtists.find((ea: DiscogsArtist) =>
 				TITLE_SUFFIXABLE_ROLES.includes(ea.role?.toLowerCase())
 			)
 
@@ -63,7 +63,7 @@ export function transformReleaseTracks(release: DiscogsReleaseFull) {
 
 			// Build track artists array
 			const trackArtists =
-				track.artists?.map((a: any) => ({
+				track.artists?.map((a: DiscogsArtist) => ({
 					discogs_id: a.id,
 					name: normalizeArtist(a.name),
 					role: a.role || null
@@ -73,14 +73,14 @@ export function transformReleaseTracks(release: DiscogsReleaseFull) {
 			const finalTrackArtists =
 				trackArtists.length > 0
 					? trackArtists
-					: release.artists.map((a: any) => ({
+					: release.artists.map((a: DiscogsArtist) => ({
 							discogs_id: a.id,
 							name: normalizeArtist(a.name),
 							role: a.role || null
 						}))
 
 			// Build extraartists array
-			const trackExtraArtists = extraArtists.map((ea: any) => ({
+			const trackExtraArtists = extraArtists.map((ea: DiscogsArtist) => ({
 				discogs_id: ea.id || null,
 				name: normalizeArtist(ea.name),
 				role: ea.role || null
@@ -125,7 +125,7 @@ export function transformRelease(release: DiscogsReleaseFull, userId: string) {
 		labels: transformReleaseLabels(release.labels),
 		year: release.year || null,
 		cover:
-			release.images?.find((img: any) => img.type === 'primary')
+			release.images?.find((img: DiscogsImage) => img.type === 'primary')
 				?.resource_url ||
 			release.images?.[0]?.resource_url ||
 			null,

@@ -48,9 +48,9 @@ const emit = defineEmits<{
 				variant="ghost"
 				size="icon"
 				class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-				@click="emit('remove', record.id)"
 				title="Remove from crate"
 				aria-label="Remove from crate"
+				@click="emit('remove', record.id)"
 			>
 				<X class="size-4" />
 			</Button>

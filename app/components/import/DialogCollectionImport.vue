@@ -18,7 +18,7 @@ const discogs = useDiscogsStore()
 					class="text-primary/30 mx-auto h-16 w-16"
 				/>
 				<div v-else class="flex justify-end">
-					<Button @click="discogs.getFolders()" variant="secondary">
+					<Button variant="secondary" @click="discogs.getFolders()">
 						<RefreshCw />
 					</Button>
 				</div>
@@ -47,9 +47,9 @@ const discogs = useDiscogsStore()
 			</DialogHeader>
 			<DialogFooter>
 				<Button
-					@click="discogs.fetchFolderReleases()"
 					variant="default"
 					:loading="discogs.isLoadingSelectedFolder"
+					@click="discogs.fetchFolderReleases()"
 				>
 					Confirm
 				</Button>

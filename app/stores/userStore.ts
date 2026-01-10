@@ -64,7 +64,7 @@ export const useUserStore = defineStore('user', () => {
 			if (error) throw error
 			profile.value = null
 			toast.success('You are now signed out.')
-		} catch (e) {
+		} catch {
 			toast.error(`Error signing out.`, { duration: 30000 })
 		}
 	}
@@ -117,7 +117,7 @@ export const useUserStore = defineStore('user', () => {
 			profile.value = data as Profile
 			setTheme(profile.value.ui_theme ?? 'light')
 			return true
-		} catch (e) {
+		} catch {
 			toast.error(`Error getting your profile.`, { duration: 30000 })
 			return false
 		}
@@ -139,7 +139,7 @@ export const useUserStore = defineStore('user', () => {
 			if (error) throw error
 			// update with the server response to ensure consistency
 			profile.value = data as Profile
-		} catch (e) {
+		} catch {
 			fetchProfile()
 			toast.error(`Error updating your settings.`, { duration: 30000 })
 		} finally {

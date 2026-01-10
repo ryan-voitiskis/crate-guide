@@ -24,6 +24,7 @@ export type Track = Omit<
 	artists: DiscogsArtistDb[]
 	extraartists: DiscogsArtistDb[]
 	genres: string[]
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	beatport_data: any | null
 }
 

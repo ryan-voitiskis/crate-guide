@@ -69,8 +69,8 @@ const hasResults = computed(() => {
 					</div>
 
 					<div
-						class="flex flex-col items-start text-blue-900"
 						v-if="discogs.importResults.skipped.length > 0"
+						class="flex flex-col items-start text-blue-900"
 					>
 						<div class="flex items-start">
 							<Info class="mt-0.5 mr-2 h-5 w-5" />

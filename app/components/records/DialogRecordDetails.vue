@@ -202,9 +202,9 @@ function confirmDiscardAndProceed() {
 					<!-- Record Info -->
 					<div class="col-span-3 mb-6 space-y-4 text-sm md:col-span-2">
 						<Button
-							@click="handleToggleEditMode"
 							:variant="recordDetails.isEditMode ? 'secondary' : 'outline'"
 							size="sm"
+							@click="handleToggleEditMode"
 						>
 							<PencilOff v-if="recordDetails.isEditMode" class="mr-2 size-4" />
 							<Pencil v-else class="mr-2 size-4" />
@@ -306,13 +306,13 @@ function confirmDiscardAndProceed() {
 						v-if="recordDetails.isEditMode"
 						class="col-span-3 flex flex-col justify-end gap-2 pt-0 max-sm:px-2 sm:flex-row"
 					>
-						<Button @click="handleCancelEdit" variant="secondary">
+						<Button variant="secondary" @click="handleCancelEdit">
 							Cancel
 						</Button>
 						<Button
-							@click="saveRecord"
 							:disabled="!meta.valid"
 							:loading="records.isUpdatingRecord"
+							@click="saveRecord"
 						>
 							Save Changes
 						</Button>
