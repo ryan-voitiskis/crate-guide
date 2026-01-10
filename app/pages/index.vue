@@ -1,62 +1,78 @@
 <script setup lang="ts">
-import { Disc, Music, Radio, Settings } from 'lucide-vue-next'
+const session = useSessionStore()
+const tracks = useTracksStore()
 
-const user = useUserStore()
-const ui = useUiStore()
+const isActive = usePageActive(true)
+
+onMounted(() => {
+	session.fetchSavedSets()
+})
 </script>
 
 <template>
-	<Tabs v-model="ui.tab" default-value="tracks" class="relative h-full">
-		<!-- Tab navigation overlay -->
-		<div
-			class="from-background pointer-events-none absolute inset-x-0 top-0 z-10 mx-auto flex max-w-[1600px] p-2"
-		>
-			<div class="pointer-events-auto flex w-full justify-end">
-				<TabsList class="border-1">
-					<TabsTrigger value="session" class="flex items-center gap-1.5">
-						<Radio class="size-4" />
-						Session
-					</TabsTrigger>
-					<TabsTrigger value="tracks" class="flex items-center gap-1.5">
-						<Music class="size-4" />
-						Tracks
-					</TabsTrigger>
-					<TabsTrigger value="records" class="flex items-center gap-1.5">
-						<Disc class="size-4" />
-						Records
-					</TabsTrigger>
-					<TabsTrigger value="settings" class="flex items-center gap-1.5">
-						<Settings class="size-4" />
-						Settings
-					</TabsTrigger>
-				</TabsList>
+	<div class="flex h-full flex-col">
+		<DialogSelectDeck />
+		<DialogSetManager />
+		<DialogSaveSession />
+
+		<Teleport to="#header-left" defer>
+			<template v-if="isActive">
+				<SessionHeaderControls />
+			</template>
+		</Teleport>
+
+		<Separator />
+
+		<div class="relative min-h-0 flex-1">
+			<StateLoading
+				v-if="tracks.isLoadingTracks"
+				message="Loading tracks..."
+				class="h-full"
+			/>
+
+			<div
+				v-else-if="!tracks.hasTracks"
+				class="flex h-full flex-col items-center justify-center gap-4 p-8"
+			>
+				<p class="text-muted-foreground text-center">
+					Import your record collection first to start a session.
+				</p>
+			</div>
+
+			<div v-else class="flex h-full">
+				<ScrollArea class="flex-1" orientation="horizontal">
+					<div class="flex h-full gap-4 p-2">
+						<DeckColumn
+							v-for="(deck, index) in session.decks"
+							:key="index"
+							:deck-index="index"
+							:deck="deck"
+						/>
+					</div>
+				</ScrollArea>
+
+				<Transition name="slide">
+					<div
+						v-if="session.showHistory"
+						class="border-border w-80 shrink-0 border-l"
+					>
+						<HistoryPanel />
+					</div>
+				</Transition>
 			</div>
 		</div>
-
-		<!-- Tab content - full height with top padding for tabs -->
-		<TabsContent value="session" class="h-full">
-			<TabSession />
-		</TabsContent>
-		<TabsContent value="tracks" class="scrollbar-hidden h-full overflow-y-auto">
-			<div class="mx-auto max-w-[1600px]">
-				<TabTracks />
-			</div>
-		</TabsContent>
-		<TabsContent
-			value="records"
-			class="scrollbar-hidden h-full overflow-y-auto"
-		>
-			<div class="mx-auto max-w-[1600px]">
-				<TabRecords />
-			</div>
-		</TabsContent>
-		<TabsContent
-			value="settings"
-			class="scrollbar-hidden h-full overflow-y-auto"
-		>
-			<div class="mx-auto max-w-[1600px]">
-				<TabSettings />
-			</div>
-		</TabsContent>
-	</Tabs>
+	</div>
 </template>
+
+<style scoped>
+.slide-enter-active,
+.slide-leave-active {
+	transition: all 0.2s ease;
+}
+
+.slide-enter-from,
+.slide-leave-to {
+	transform: translateX(100%);
+	opacity: 0;
+}
+</style>

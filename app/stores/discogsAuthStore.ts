@@ -4,7 +4,6 @@ import { FunctionsError } from '@supabase/supabase-js'
 export const useDiscogsAuthStore = defineStore('discogsAuth', () => {
 	const user = useUserStore()
 	const discogs = useDiscogsStore()
-	const ui = useUiStore()
 
 	const supabase = useSupabaseClient<Database>()
 
@@ -42,8 +41,7 @@ export const useDiscogsAuthStore = defineStore('discogsAuth', () => {
 			oAuthCompletionFailed.value = true
 			return false
 		} else {
-			ui.setTab('records')
-			navigateTo('/')
+			navigateTo('/records')
 			if (await user.fetchProfile()) discogs.showGetFoldersDialog = true
 			return true
 		}
