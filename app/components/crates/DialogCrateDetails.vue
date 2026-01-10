@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { toast } from 'vue-sonner'
 import { toTypedSchema } from '@vee-validate/zod'
 import { Disc3, Pencil, PencilOff, Plus, Trash2 } from 'lucide-vue-next'
 import { useForm } from 'vee-validate'
@@ -125,16 +126,25 @@ const saveChanges = handleSubmit(async (formValues) => {
 	}
 })
 
-function handleCancelEdit() {
-	if (hasFormChanges()) {
-		showUnsavedChangesAlert.value = true
-	} else {
-		isEditMode.value = false
-	}
-}
-
 async function removeRecord(recordId: string) {
-	await cratesStore.removeRecordFromCrate(props.crate.id, recordId)
+	const record = records.getRecordById(recordId)
+	const recordTitle = record?.title || 'Record'
+	const crateId = props.crate.id
+
+	const success = await cratesStore.removeRecordFromCrate(crateId, recordId)
+
+	if (success) {
+		toast(`${recordTitle} removed from crate`, {
+			id: 'crate-record-removed',
+			duration: 5000,
+			action: {
+				label: 'Undo',
+				onClick: () => {
+					cratesStore.addRecordToCrate(crateId, recordId, { silent: true })
+				}
+			}
+		})
+	}
 }
 
 function handleDelete() {
@@ -144,11 +154,21 @@ function handleDelete() {
 function handleAddRecord() {
 	emit('addRecord', props.crate)
 }
+
+function handleInteractOutside(event: Event) {
+	const target = event.target as HTMLElement
+	if (target?.closest('[data-sonner-toast]')) {
+		event.preventDefault()
+	}
+}
 </script>
 
 <template>
 	<Dialog :open="open" @update:open="handleCloseDialog">
-		<DialogContent class="flex h-[90dvh] max-w-2xl flex-col gap-0 p-0">
+		<DialogContent
+			class="flex h-[90dvh] max-w-2xl flex-col gap-0 p-0"
+			@interact-outside="handleInteractOutside"
+		>
 			<!-- Header -->
 			<DialogHeader class="space-y-3 border-b p-6 pb-4">
 				<!-- View mode -->

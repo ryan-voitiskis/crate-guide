@@ -7,7 +7,7 @@ const props = defineProps<ToasterProps>()
 
 <template>
 	<Sonner
-		class="toaster group"
+		class="toaster group pointer-events-auto"
 		v-bind="props"
 		:style="{
 			'--normal-bg': 'var(--popover)',
