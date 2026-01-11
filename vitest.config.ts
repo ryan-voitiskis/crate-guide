@@ -8,17 +8,38 @@ export default defineConfig({
 			{
 				test: {
 					name: 'unit',
-					include: ['app/**/*.test.ts', 'shared/**/*.test.ts'],
+					include: [
+						'app/utils/**/*.test.ts',
+						'shared/**/*.test.ts'
+					],
+					exclude: ['app/stores/**/*.test.ts', 'app/composables/**/*.test.ts'],
 					environment: 'node'
 				},
 				resolve: {
 					alias: {
 						'~': fileURLToPath(new URL('./app', import.meta.url)),
-						'@': fileURLToPath(new URL('./app', import.meta.url))
+						'@': fileURLToPath(new URL('./app', import.meta.url)),
+						test: fileURLToPath(new URL('./test', import.meta.url))
+					}
+				}
+			},
+			// Store tests - need Vue/Pinia globals
+			{
+				test: {
+					name: 'stores',
+					include: ['app/stores/**/*.test.ts', 'app/composables/**/*.test.ts'],
+					environment: 'node',
+					setupFiles: ['./test/setup-stores.ts']
+				},
+				resolve: {
+					alias: {
+						'~': fileURLToPath(new URL('./app', import.meta.url)),
+						'@': fileURLToPath(new URL('./app', import.meta.url)),
+						test: fileURLToPath(new URL('./test', import.meta.url))
 					}
 				}
 			}
-			// Nuxt tests - uncomment when needed for stores/components
+			// Nuxt tests - uncomment when needed for components
 			// await defineVitestProject({
 			//   test: {
 			//     name: 'nuxt',
