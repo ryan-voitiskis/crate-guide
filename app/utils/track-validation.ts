@@ -1,3 +1,5 @@
+import { parseKeyComposite } from './keyFunctions'
+
 export function isValidTrackPosition(position: string): boolean {
 	if (position === '') return true
 	return /^[A-Z]\d+$|^[A-Z]\d+-[A-Z]\d+$/i.test(position.trim())
