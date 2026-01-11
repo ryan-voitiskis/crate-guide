@@ -273,6 +273,7 @@ describe('beatportStore', () => {
 		})
 
 		it('handles API errors gracefully', async () => {
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 			const store = useBeatportStore()
 			const track = createMockTrack({ id: 'track-1' })
 			mockTracksStore.getTrackById.mockReturnValue(track)
@@ -282,6 +283,8 @@ describe('beatportStore', () => {
 
 			expect(result).toBe(false)
 			expect(store.isLoadingBeatportData).toBe(false)
+			expect(consoleSpy).toHaveBeenCalled()
+			consoleSpy.mockRestore()
 		})
 	})
 

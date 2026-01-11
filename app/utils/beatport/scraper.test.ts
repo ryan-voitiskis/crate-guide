@@ -53,6 +53,7 @@ describe('searchBeatportTrack', () => {
 	})
 
 	it('returns null when $fetch throws', async () => {
+		const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 		mockFetch.mockRejectedValueOnce(new Error('Network error'))
 
 		const result = await searchBeatportTrack({
@@ -61,6 +62,11 @@ describe('searchBeatportTrack', () => {
 		})
 
 		expect(result).toBeNull()
+		expect(consoleSpy).toHaveBeenCalledWith(
+			'Failed to search Beatport:',
+			expect.any(Error)
+		)
+		consoleSpy.mockRestore()
 	})
 
 	it('returns null when no matching tracks found', async () => {
