@@ -7,6 +7,8 @@ const props = defineProps<{
 const records = useRecordsStore()
 const session = useSessionStore()
 
+const platter = ref<SVGElement | null>(null)
+
 // Get album cover from record
 const coverUrl = computed(() => {
 	if (!props.deck.loadedTrack) return null
@@ -14,22 +16,89 @@ const coverUrl = computed(() => {
 	return record?.cover ?? null
 })
 
-// Calculate rotation speed based on RPM and pitch
-const rotationDuration = computed(() => {
-	const baseDuration = props.deck.rpm === 33 ? 1.818 : 1.333 // seconds per rotation
+// Target angular velocity in degrees per millisecond
+// RPM to deg/ms: RPM * 360° / 60000ms
+const targetVelocity = computed(() => {
+	if (!props.deck.isPlaying) return 0
+	const baseVelocity = (props.deck.rpm * 360) / 60000
 	const pitchFactor = 1 + (props.deck.pitch / 100) * (session.pitchRange / 100)
-	return baseDuration / pitchFactor
+	return baseVelocity * pitchFactor
+})
+
+// Animation state
+let animationId: number | null = null
+let lastTime = 0
+let angle = 0
+let velocity = 0
+
+// Exponential smoothing factor for ~2s to reach 95% of target
+// Formula: factor = 3 / time_in_ms
+const VELOCITY_FACTOR = 0.0015
+
+function animate(time: number) {
+	if (!platter.value) {
+		animationId = null
+		return
+	}
+
+	// Calculate delta time, capped to avoid large jumps (e.g., after tab backgrounded)
+	const deltaTime = Math.min(lastTime ? time - lastTime : 16, 100)
+	lastTime = time
+
+	// Exponential approach to target velocity
+	const target = targetVelocity.value
+	velocity += (target - velocity) * VELOCITY_FACTOR * deltaTime
+
+	// Update angle
+	angle = (angle + velocity * deltaTime) % 360
+
+	// Apply transform
+	platter.value.style.transform = `rotate(${angle}deg)`
+
+	// Continue animation if still moving or has a target
+	if (target > 0 || velocity > 0.0001) {
+		animationId = requestAnimationFrame(animate)
+	} else {
+		// Fully stopped
+		velocity = 0
+		animationId = null
+	}
+}
+
+function startAnimation() {
+	if (animationId) return // Already running
+	lastTime = 0
+	animationId = requestAnimationFrame(animate)
+}
+
+// Watch for play state changes
+watch(
+	() => props.deck.isPlaying,
+	(isPlaying) => {
+		if (isPlaying) {
+			startAnimation()
+		}
+		// When stopping, animation continues (decelerating) until velocity reaches 0
+	},
+	{ immediate: true }
+)
+
+// Cleanup on unmount
+onUnmounted(() => {
+	if (animationId) {
+		cancelAnimationFrame(animationId)
+		animationId = null
+	}
 })
 </script>
 
 <template>
 	<svg
+		ref="platter"
 		width="192"
 		height="192"
 		viewBox="0 0 366 366"
-		class="shrink-0"
-		:class="{ 'animate-spin-platter': deck.isPlaying }"
-		:style="{ animationDuration: rotationDuration + 's' }"
+		class="shrink-0 will-change-transform"
 	>
 		<!-- Platter ring (metallic rim) -->
 		<g transform="translate(183, 183)">
@@ -139,17 +208,3 @@ const rotationDuration = computed(() => {
 	</svg>
 </template>
 
-<style scoped>
-.animate-spin-platter {
-	animation: spin linear infinite;
-}
-
-@keyframes spin {
-	from {
-		transform: rotate(0deg);
-	}
-	to {
-		transform: rotate(360deg);
-	}
-}
-</style>
