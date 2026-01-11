@@ -8,6 +8,10 @@ interface BulkTrackResult {
 	image: string | null
 	success: boolean
 	error?: string
+	// Beatport metadata (populated on success)
+	bpm?: number | null
+	key?: string
+	genre?: string
 }
 
 // Local type for beatport data structure
@@ -57,9 +61,9 @@ export const useBeatportStore = defineStore('beatport', () => {
 	const bulkBeatportProgress = ref(0)
 	const bulkBeatportCancelled = ref(false)
 	const currentProcessingTrack = ref<{
+		trackId: string
 		title: string
 		artist: string
-		image: string | null
 	} | null>(null)
 	const lastProcessedTrack = ref<BulkTrackResult | null>(null)
 	const bulkBeatportResults = ref<{
@@ -185,9 +189,9 @@ export const useBeatportStore = defineStore('beatport', () => {
 
 			// Set current processing track
 			currentProcessingTrack.value = {
+				trackId: track.id,
 				title: track.title,
-				artist: firstArtist,
-				image: track.beatport_data?.img || null
+				artist: firstArtist
 			}
 
 			try {
@@ -199,12 +203,16 @@ export const useBeatportStore = defineStore('beatport', () => {
 
 				if (success) {
 					bulkBeatportResults.value.successful++
+					const beatportData = updatedTrack?.beatport_data
 					lastProcessedTrack.value = {
 						trackId: track.id,
 						title: track.title,
 						artist: firstArtist,
 						image: beatportImage,
-						success: true
+						success: true,
+						bpm: beatportData?.bpm ?? null,
+						key: beatportData?.key,
+						genre: beatportData?.genre
 					}
 				} else {
 					bulkBeatportResults.value.failed.push({

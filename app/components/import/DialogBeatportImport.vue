@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CheckCircle, Info, Loader2, XCircle } from 'lucide-vue-next'
+import { CheckCircle, Info, XCircle } from 'lucide-vue-next'
 
 const tracks = useTracksStore()
 const beatport = useBeatportStore()
@@ -59,7 +59,7 @@ defineExpose({
 
 <template>
 	<Dialog v-model:open="showDialog">
-		<DialogContent class="sm:max-w-[480px]">
+		<DialogContent class="sm:max-w-120">
 			<DialogHeader>
 				<DialogTitle>
 					{{
@@ -100,7 +100,7 @@ defineExpose({
 			</div>
 
 			<!-- Processing State: During fetch -->
-			<div v-if="beatport.isBulkFetchingBeatportData" class="space-y-4">
+			<div v-if="beatport.isBulkFetchingBeatportData" class="min-w-0 space-y-4">
 				<!-- Progress bar and counts -->
 				<div class="space-y-2">
 					<Progress :model-value="beatport.bulkBeatportProgress" />
@@ -120,66 +120,18 @@ defineExpose({
 				</div>
 
 				<!-- Current track being processed -->
-				<div
+				<ImportTrackCardSearching
 					v-if="beatport.currentProcessingTrack"
-					class="flex items-center gap-3 rounded-md border p-3"
-				>
-					<Loader2
-						class="text-muted-foreground h-4 w-4 shrink-0 animate-spin"
-					/>
-					<div class="min-w-0 flex-1">
-						<p class="truncate text-sm font-medium">
-							{{ beatport.currentProcessingTrack.title }}
-						</p>
-						<p class="text-muted-foreground truncate text-xs">
-							{{ beatport.currentProcessingTrack.artist }}
-						</p>
-					</div>
-				</div>
+					:track-id="beatport.currentProcessingTrack.trackId"
+					:title="beatport.currentProcessingTrack.title"
+					:artist="beatport.currentProcessingTrack.artist"
+				/>
 
 				<!-- Last processed result -->
-				<div
+				<ImportTrackCardResult
 					v-if="beatport.lastProcessedTrack"
-					class="overflow-hidden rounded-md bg-zinc-900"
-				>
-					<div v-if="beatport.lastProcessedTrack.image" class="w-full">
-						<img
-							:src="beatport.lastProcessedTrack.image"
-							:alt="beatport.lastProcessedTrack.title"
-							class="h-auto w-full"
-						/>
-					</div>
-					<div class="flex items-center gap-2 p-3">
-						<component
-							:is="beatport.lastProcessedTrack.success ? CheckCircle : XCircle"
-							class="h-4 w-4 shrink-0"
-							:class="
-								beatport.lastProcessedTrack.success
-									? 'text-green-400'
-									: 'text-red-400'
-							"
-						/>
-						<div class="min-w-0 flex-1">
-							<p class="truncate text-sm font-medium text-zinc-100">
-								{{ beatport.lastProcessedTrack.title }}
-							</p>
-							<p
-								class="truncate text-xs"
-								:class="
-									beatport.lastProcessedTrack.success
-										? 'text-green-300'
-										: 'text-red-300'
-								"
-							>
-								{{
-									beatport.lastProcessedTrack.success
-										? beatport.lastProcessedTrack.artist
-										: beatport.lastProcessedTrack.error
-								}}
-							</p>
-						</div>
-					</div>
-				</div>
+					:result="beatport.lastProcessedTrack"
+				/>
 			</div>
 
 			<!-- Results State: After completion -->
