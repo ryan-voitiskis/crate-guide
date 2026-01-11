@@ -1,4 +1,12 @@
 <script setup lang="ts">
+import {
+	calculateDeltaTime,
+	calculateNextAngle,
+	calculateTargetVelocity,
+	shouldContinueAnimation,
+	smoothVelocity
+} from '~/utils/platter-physics'
+
 const props = defineProps<{
 	deckIndex: number
 	deck: Deck
@@ -17,13 +25,14 @@ const coverUrl = computed(() => {
 })
 
 // Target angular velocity in degrees per millisecond
-// RPM to deg/ms: RPM * 360° / 60000ms
-const targetVelocity = computed(() => {
-	if (!props.deck.isPlaying) return 0
-	const baseVelocity = (props.deck.rpm * 360) / 60000
-	const pitchFactor = 1 + (props.deck.pitch / 100) * (session.pitchRange / 100)
-	return baseVelocity * pitchFactor
-})
+const targetVelocity = computed(() =>
+	calculateTargetVelocity(
+		props.deck.rpm,
+		props.deck.pitch,
+		session.pitchRange,
+		props.deck.isPlaying
+	)
+)
 
 // Animation state
 let animationId: number | null = null
@@ -31,35 +40,24 @@ let lastTime = 0
 let angle = 0
 let velocity = 0
 
-// Exponential smoothing factor for ~2s to reach 95% of target
-// Formula: factor = 3 / time_in_ms
-const VELOCITY_FACTOR = 0.0015
-
 function animate(time: number) {
 	if (!platter.value) {
 		animationId = null
 		return
 	}
 
-	// Calculate delta time, capped to avoid large jumps (e.g., after tab backgrounded)
-	const deltaTime = Math.min(lastTime ? time - lastTime : 16, 100)
+	const deltaTime = calculateDeltaTime(time, lastTime)
 	lastTime = time
 
-	// Exponential approach to target velocity
 	const target = targetVelocity.value
-	velocity += (target - velocity) * VELOCITY_FACTOR * deltaTime
+	velocity = smoothVelocity(velocity, target, deltaTime)
+	angle = calculateNextAngle(angle, velocity, deltaTime)
 
-	// Update angle
-	angle = (angle + velocity * deltaTime) % 360
-
-	// Apply transform
 	platter.value.style.transform = `rotate(${angle}deg)`
 
-	// Continue animation if still moving or has a target
-	if (target > 0 || velocity > 0.0001) {
+	if (shouldContinueAnimation(target, velocity)) {
 		animationId = requestAnimationFrame(animate)
 	} else {
-		// Fully stopped
 		velocity = 0
 		animationId = null
 	}
