@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Menu } from 'lucide-vue-next'
 
+const user = useSupabaseUser()
 const route = useRoute()
 const isDemo = computed(() => route.path.startsWith('/demo'))
 const isSheetOpen = ref(false)
@@ -26,7 +27,10 @@ watch(
 			/>
 
 			<!-- Right: Desktop nav -->
-			<div class="pointer-events-auto hidden items-center gap-2 md:flex">
+			<div
+				v-if="user || isDemo"
+				class="pointer-events-auto hidden items-center gap-2 md:flex"
+			>
 				<span
 					v-if="isDemo"
 					class="rounded-md bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-600 dark:text-amber-400"
@@ -37,7 +41,7 @@ watch(
 			</div>
 
 			<!-- Right: Mobile hamburger -->
-			<div class="pointer-events-auto flex md:hidden">
+			<div v-if="user || isDemo" class="pointer-events-auto flex md:hidden">
 				<Sheet v-model:open="isSheetOpen">
 					<SheetTrigger as-child>
 						<Button variant="ghost" size="icon">
