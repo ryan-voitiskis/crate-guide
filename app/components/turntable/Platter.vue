@@ -207,4 +207,3 @@ onUnmounted(() => {
 		</g>
 	</svg>
 </template>
-
