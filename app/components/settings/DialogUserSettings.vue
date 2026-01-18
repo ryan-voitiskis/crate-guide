@@ -32,7 +32,7 @@ const showDialog = ref(false)
 			<div class="flex">
 				<Button v-if="user.supaUser" @click="user.signOut">Logout</Button>
 			</div>
-			<DialogFooter></DialogFooter>
+			<DialogFooter />
 		</DialogContent>
 	</Dialog>
 </template>

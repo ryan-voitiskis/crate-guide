@@ -12,6 +12,16 @@ const hasResults = computed(() => {
 	return successful > 0 || skipped > 0 || failed.length > 0
 })
 
+const dialogTitle = computed(() => {
+	if (!beatport.isBulkFetchingBeatportData && hasResults.value) {
+		return 'Import Complete'
+	}
+	if (beatport.isBulkFetchingBeatportData) {
+		return 'Importing from Beatport'
+	}
+	return 'Get Beatport Data for All Tracks'
+})
+
 const unsearchedCount = computed(
 	() =>
 		tracks.tracks.filter(
@@ -61,15 +71,7 @@ defineExpose({
 	<Dialog v-model:open="showDialog">
 		<DialogContent class="sm:max-w-120">
 			<DialogHeader>
-				<DialogTitle>
-					{{
-						!beatport.isBulkFetchingBeatportData && hasResults
-							? 'Import Complete'
-							: beatport.isBulkFetchingBeatportData
-								? 'Importing from Beatport'
-								: 'Get Beatport Data for All Tracks'
-					}}
-				</DialogTitle>
+				<DialogTitle>{{ dialogTitle }}</DialogTitle>
 			</DialogHeader>
 
 			<!-- Initial State: Before starting -->

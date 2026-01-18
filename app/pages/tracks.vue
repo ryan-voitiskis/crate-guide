@@ -25,6 +25,24 @@ function getRecordForTrack(trackId: string) {
 	return records.getRecordById(track.record_id)
 }
 
+const tracksWithRecords = computed(() =>
+	trackFilters.filteredTracks.map((track) => ({
+		track,
+		record: getRecordForTrack(track.id)
+	}))
+)
+
+function getCoverStyle(cover: string | null | undefined) {
+	return cover ? { backgroundImage: `url('${cover}')` } : {}
+}
+
+function getKeyStyle(track: Track) {
+	if (track.key !== null && track.mode !== null) {
+		return { color: getKeyColour(track.key, track.mode) }
+	}
+	return {}
+}
+
 function formatArtists(
 	artists: DiscogsArtistDb[],
 	extraartists: DiscogsArtistDb[]
@@ -111,7 +129,7 @@ function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
 
 					<div class="flex flex-col gap-2">
 						<Card
-							v-for="track in trackFilters.filteredTracks"
+							v-for="{ track, record } in tracksWithRecords"
 							:key="track.id"
 							class="hover:bg-popover cursor-pointer overflow-hidden p-0 transition-all"
 							@click="openTrackDetails(track.id)"
@@ -120,14 +138,10 @@ function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
 								<div class="flex items-center gap-3">
 									<div
 										class="bg-muted relative size-14 shrink-0 overflow-hidden rounded bg-cover bg-center bg-no-repeat"
-										:style="{
-											backgroundImage: getRecordForTrack(track.id)?.cover
-												? `url('${getRecordForTrack(track.id)!.cover}')`
-												: 'none'
-										}"
+										:style="getCoverStyle(record?.cover)"
 									>
 										<div
-											v-if="!getRecordForTrack(track.id)?.cover"
+											v-if="!record?.cover"
 											class="flex h-full items-center justify-center"
 										>
 											<Disc class="text-muted-foreground size-6" />
@@ -162,10 +176,10 @@ function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
 											class="text-muted-foreground flex shrink-0 items-center gap-4 text-sm"
 										>
 											<span
-												v-if="getRecordForTrack(track.id)?.labels?.[0]?.catno"
+												v-if="record?.labels?.[0]?.catno"
 												class="hidden text-xs font-medium sm:block"
 											>
-												{{ getRecordForTrack(track.id)!.labels[0]!.catno }}
+												{{ record.labels[0].catno }}
 											</span>
 											<span class="w-10 text-center font-mono text-xs">
 												{{ msToMMSS(track.duration) || '–' }}
@@ -175,12 +189,7 @@ function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
 											</span>
 											<span
 												class="w-10 text-center text-xs font-medium"
-												:style="{
-													color:
-														track.key !== null && track.mode !== null
-															? getKeyColour(track.key, track.mode)
-															: undefined
-												}"
+												:style="getKeyStyle(track)"
 											>
 												{{ formatKey(track) }}
 											</span>
