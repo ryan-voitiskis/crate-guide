@@ -1,5 +1,6 @@
 import { toast } from 'vue-sonner'
-import { adjustKey, scoreHarmony } from '~/utils/keyFunctions'
+import { adjustKey } from '~/utils/keyFunctions'
+import { getTrackSuggestions } from '~/utils/trackSuggestions'
 
 export interface Deck {
 	loadedTrack: Track | null
@@ -105,83 +106,17 @@ export const useSessionStore = defineStore('session', () => {
 		const adjustedBpm = getAdjustedBpm(deckIndex)
 		const adjustedKeyVal = getAdjustedKey(deckIndex)
 		const sourceTrack = deck.loadedTrack
-
-		// Get playable tracks
-		let candidates = tracks.playableTracks
-
-		// Filter: BPM range (candidate must be reachable with pitch adjustment)
-		if (adjustedBpm) {
-			candidates = candidates.filter((t) => {
-				if (!t.bpm) return false
-				const minReachable = t.bpm * (1 - pitchRange.value / 100)
-				const maxReachable = t.bpm * (1 + pitchRange.value / 100)
-				return adjustedBpm >= minReachable && adjustedBpm <= maxReachable
-			})
-		}
-
-		// Filter: Already played in session
 		const playedIds = new Set(currentSession.value.map((p) => p.track_id))
-		candidates = candidates.filter((t) => !playedIds.has(t.id))
 
-		// Filter: Same record as source
-		candidates = candidates.filter((t) => t.record_id !== sourceTrack.record_id)
-
-		// Filter: Not the currently loaded track
-		candidates = candidates.filter((t) => t.id !== sourceTrack.id)
-
-		// Score and sort
-		const scored = candidates.map((track): ScoredTrack => {
-			let tempoScore = 0
-			let harmonyScore = 0
-			let pitchAdjustment = 0
-			let keyCombination = -1
-
-			// Tempo scoring
-			if (adjustedBpm && track.bpm) {
-				// pitchAdjustment: how much to shift candidate to match source BPM.
-				// Inverted to match turntable pitch fader orientation (up = slower, down = faster).
-				pitchAdjustment = (adjustedBpm / track.bpm - 1) * -1
-				const tempoCloseness =
-					1 - (Math.abs(1 - adjustedBpm / track.bpm) * 100) / pitchRange.value
-				tempoScore = Math.max(0, tempoCloseness)
-			}
-
-			// Harmony scoring
-			if (
-				adjustedKeyVal !== null &&
-				track.key !== null &&
-				sourceTrack.mode !== null &&
-				track.mode !== null
-			) {
-				// Adjust candidate key for pitch shift
-				const trackAdjustedKey =
-					adjustedBpm && track.bpm
-						? adjustKey(track.key, adjustedBpm / track.bpm)
-						: track.key
-
-				const harmony = scoreHarmony(
-					{ key: adjustedKeyVal, mode: sourceTrack.mode },
-					{ key: trackAdjustedKey, mode: track.mode }
-				)
-				harmonyScore = harmony.harmonicAffinity ?? 0
-				keyCombination = harmony.keyCombination
-			}
-
-			// Combined score (weighted: harmony more important)
-			const score = harmonyScore * 0.7 + tempoScore * 0.3
-
-			return {
-				...track,
-				score,
-				tempoScore,
-				harmonyScore,
-				pitchAdjustment,
-				keyCombination
-			}
+		return getTrackSuggestions(tracks.playableTracks, {
+			targetBpm: adjustedBpm,
+			targetKey: adjustedKeyVal,
+			sourceMode: sourceTrack.mode,
+			sourceRecordId: sourceTrack.record_id,
+			sourceTrackId: sourceTrack.id,
+			playedIds,
+			pitchRange: pitchRange.value
 		})
-
-		// Sort by score descending, limit to 50
-		return scored.sort((a, b) => b.score - a.score).slice(0, 50)
 	}
 
 	// === Actions: Deck Management ===
