@@ -62,7 +62,7 @@ describe('sessionStore', () => {
 
 		it('returns null when loaded track has no BPM', () => {
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrack({ bpm: null })
+			store.decks[0]!.loadedTrack = createMockTrack({ bpm: null })
 
 			const result = store.getAdjustedBpm(0)
 
@@ -71,8 +71,8 @@ describe('sessionStore', () => {
 
 		it('returns original BPM when pitch is 0', () => {
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrackWithBpm(128)
-			store.decks[0].pitch = 0
+			store.decks[0]!.loadedTrack = createMockTrackWithBpm(128)
+			store.decks[0]!.pitch = 0
 
 			const result = store.getAdjustedBpm(0)
 
@@ -81,8 +81,8 @@ describe('sessionStore', () => {
 
 		it('increases BPM when pitch is positive', () => {
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrackWithBpm(128)
-			store.decks[0].pitch = 100 // Max positive pitch
+			store.decks[0]!.loadedTrack = createMockTrackWithBpm(128)
+			store.decks[0]!.pitch = 100 // Max positive pitch
 
 			// At 8% pitch range and 100% pitch: factor = 1 + (100/100) * (8/100) = 1.08
 			const result = store.getAdjustedBpm(0)
@@ -92,8 +92,8 @@ describe('sessionStore', () => {
 
 		it('decreases BPM when pitch is negative', () => {
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrackWithBpm(128)
-			store.decks[0].pitch = -100 // Max negative pitch
+			store.decks[0]!.loadedTrack = createMockTrackWithBpm(128)
+			store.decks[0]!.pitch = -100 // Max negative pitch
 
 			// At 8% pitch range and -100% pitch: factor = 1 + (-100/100) * (8/100) = 0.92
 			const result = store.getAdjustedBpm(0)
@@ -104,8 +104,8 @@ describe('sessionStore', () => {
 		it('calculates correctly with custom pitch range', () => {
 			mockUserStore.profile = { turntable_pitch_range: 16 }
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrackWithBpm(128)
-			store.decks[0].pitch = 50 // Half positive pitch
+			store.decks[0]!.loadedTrack = createMockTrackWithBpm(128)
+			store.decks[0]!.pitch = 50 // Half positive pitch
 
 			// At 16% pitch range and 50% pitch: factor = 1 + (50/100) * (16/100) = 1.08
 			const result = store.getAdjustedBpm(0)
@@ -125,7 +125,7 @@ describe('sessionStore', () => {
 
 		it('returns null when track has null key', () => {
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrack({
+			store.decks[0]!.loadedTrack = createMockTrack({
 				bpm: 128,
 				key: null
 			})
@@ -137,9 +137,9 @@ describe('sessionStore', () => {
 
 		it('returns original key when pitch is 0', () => {
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrackWithKey(0, 0) // C minor
-			store.decks[0].loadedTrack.bpm = 128
-			store.decks[0].pitch = 0
+			store.decks[0]!.loadedTrack = createMockTrackWithKey(0, 0) // C minor
+			store.decks[0]!.loadedTrack!.bpm = 128
+			store.decks[0]!.pitch = 0
 
 			const result = store.getAdjustedKey(0)
 
@@ -177,7 +177,7 @@ describe('sessionStore', () => {
 			]
 
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrack({
+			store.decks[0]!.loadedTrack = createMockTrack({
 				id: 'source',
 				bpm: 128,
 				record_id: 'source-record'
@@ -211,7 +211,7 @@ describe('sessionStore', () => {
 			]
 
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrack({
+			store.decks[0]!.loadedTrack = createMockTrack({
 				id: 'source',
 				bpm: 128,
 				record_id: 'source-record'
@@ -246,7 +246,7 @@ describe('sessionStore', () => {
 			]
 
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrack({
+			store.decks[0]!.loadedTrack = createMockTrack({
 				id: 'source',
 				bpm: 128,
 				record_id: 'source-record'
@@ -273,7 +273,7 @@ describe('sessionStore', () => {
 			]
 
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = mockTracksStore.playableTracks[0]!
+			store.decks[0]!.loadedTrack = mockTracksStore.playableTracks[0]!
 
 			const result = store.getSuggestionsForDeck(0)
 
@@ -301,7 +301,7 @@ describe('sessionStore', () => {
 			]
 
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrack({
+			store.decks[0]!.loadedTrack = createMockTrack({
 				id: 'source',
 				bpm: 128,
 				key: 0, // C
@@ -331,7 +331,7 @@ describe('sessionStore', () => {
 			)
 
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrack({
+			store.decks[0]!.loadedTrack = createMockTrack({
 				id: 'source',
 				bpm: 128,
 				record_id: 'source-record'
@@ -361,7 +361,7 @@ describe('sessionStore', () => {
 			]
 
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrack({
+			store.decks[0]!.loadedTrack = createMockTrack({
 				id: 'source',
 				bpm: 128,
 				key: 0, // C
@@ -392,7 +392,7 @@ describe('sessionStore', () => {
 			]
 
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrack({
+			store.decks[0]!.loadedTrack = createMockTrack({
 				id: 'source',
 				bpm: 128,
 				record_id: 'source-record'
@@ -436,11 +436,11 @@ describe('sessionStore', () => {
 
 		it('preserves existing decks when increasing count', () => {
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrack({ id: 'loaded' })
+			store.decks[0]!.loadedTrack = createMockTrack({ id: 'loaded' })
 
 			store.initializeDecks(3)
 
-			expect(store.decks[0].loadedTrack?.id).toBe('loaded')
+			expect(store.decks[0]!.loadedTrack?.id).toBe('loaded')
 		})
 	})
 
@@ -450,17 +450,17 @@ describe('sessionStore', () => {
 
 			store.setPitch(0, 50)
 
-			expect(store.decks[0].pitch).toBe(50)
-			expect(store.decks[0].faderPosition).toBe(50)
+			expect(store.decks[0]!.pitch).toBe(50)
+			expect(store.decks[0]!.faderPosition).toBe(50)
 		})
 
 		it('does not set pitch when fader is sliding', () => {
 			const store = useSessionStore()
-			store.decks[0].faderSliding = true
+			store.decks[0]!.faderSliding = true
 
 			store.setPitch(0, 50)
 
-			expect(store.decks[0].pitch).toBe(0)
+			expect(store.decks[0]!.pitch).toBe(0)
 		})
 
 		it('handles invalid deck index gracefully', () => {
@@ -474,13 +474,13 @@ describe('sessionStore', () => {
 	describe('resetPitch', () => {
 		it('resets pitch and fader position to 0', () => {
 			const store = useSessionStore()
-			store.decks[0].pitch = 50
-			store.decks[0].faderPosition = 50
+			store.decks[0]!.pitch = 50
+			store.decks[0]!.faderPosition = 50
 
 			store.resetPitch(0)
 
-			expect(store.decks[0].pitch).toBe(0)
-			expect(store.decks[0].faderPosition).toBe(0)
+			expect(store.decks[0]!.pitch).toBe(0)
+			expect(store.decks[0]!.faderPosition).toBe(0)
 		})
 	})
 
@@ -490,16 +490,16 @@ describe('sessionStore', () => {
 
 			store.setRpm(0, 45)
 
-			expect(store.decks[0].rpm).toBe(45)
+			expect(store.decks[0]!.rpm).toBe(45)
 		})
 
 		it('handles 33 RPM', () => {
 			const store = useSessionStore()
-			store.decks[0].rpm = 45
+			store.decks[0]!.rpm = 45
 
 			store.setRpm(0, 33)
 
-			expect(store.decks[0].rpm).toBe(33)
+			expect(store.decks[0]!.rpm).toBe(33)
 		})
 	})
 
@@ -508,10 +508,10 @@ describe('sessionStore', () => {
 			const store = useSessionStore()
 
 			store.togglePlaying(0)
-			expect(store.decks[0].isPlaying).toBe(true)
+			expect(store.decks[0]!.isPlaying).toBe(true)
 
 			store.togglePlaying(0)
-			expect(store.decks[0].isPlaying).toBe(false)
+			expect(store.decks[0]!.isPlaying).toBe(false)
 		})
 	})
 
@@ -529,7 +529,7 @@ describe('sessionStore', () => {
 
 			store.rateTransition(0, 5)
 
-			expect(store.currentSession[0].transition_rating).toBe(5)
+			expect(store.currentSession[0]!.transition_rating).toBe(5)
 		})
 
 		it('handles null rating (clear rating)', () => {
@@ -545,7 +545,7 @@ describe('sessionStore', () => {
 
 			store.rateTransition(0, null)
 
-			expect(store.currentSession[0].transition_rating).toBeNull()
+			expect(store.currentSession[0]!.transition_rating).toBeNull()
 		})
 
 		it('handles invalid session index gracefully', () => {
@@ -585,15 +585,15 @@ describe('sessionStore', () => {
 
 		it('resets all decks', () => {
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrack({ id: 'loaded' })
-			store.decks[0].pitch = 50
-			store.decks[0].isPlaying = true
+			store.decks[0]!.loadedTrack = createMockTrack({ id: 'loaded' })
+			store.decks[0]!.pitch = 50
+			store.decks[0]!.isPlaying = true
 
 			store.clearSession()
 
-			expect(store.decks[0].loadedTrack).toBeNull()
-			expect(store.decks[0].pitch).toBe(0)
-			expect(store.decks[0].isPlaying).toBe(false)
+			expect(store.decks[0]!.loadedTrack).toBeNull()
+			expect(store.decks[0]!.pitch).toBe(0)
+			expect(store.decks[0]!.isPlaying).toBe(false)
 		})
 	})
 
@@ -620,13 +620,13 @@ describe('sessionStore', () => {
 
 			store.handleSuggestionClick('suggested', 0)
 
-			expect(store.decks[0].loadedTrack?.id).toBe('suggested')
+			expect(store.decks[0]!.loadedTrack?.id).toBe('suggested')
 		})
 
 		it('loads to other deck when deck count is 2', () => {
 			const store = useSessionStore()
 			// Already has 2 decks by default
-			store.decks[0].loadedTrack = createMockTrack({
+			store.decks[0]!.loadedTrack = createMockTrack({
 				id: 'current',
 				bpm: 128
 			})
@@ -634,7 +634,7 @@ describe('sessionStore', () => {
 			store.handleSuggestionClick('suggested', 0)
 
 			// Should load to deck 1 (the other deck)
-			expect(store.decks[1].loadedTrack?.id).toBe('suggested')
+			expect(store.decks[1]!.loadedTrack?.id).toBe('suggested')
 		})
 
 		it('opens deck select dialog when deck count is 3+', () => {
@@ -658,7 +658,7 @@ describe('sessionStore', () => {
 
 		it('returns true when at least one deck has a track', () => {
 			const store = useSessionStore()
-			store.decks[0].loadedTrack = createMockTrack({ id: 'loaded' })
+			store.decks[0]!.loadedTrack = createMockTrack({ id: 'loaded' })
 
 			expect(store.hasLoadedTrack).toBe(true)
 		})

@@ -256,8 +256,8 @@ describe('discogsStore', () => {
 			await store.fetchFolderReleases()
 
 			expect(store.releasesToImport.length).toBe(2)
-			expect(store.releasesToImport[0].selected).toBe(true)
-			expect(store.releasesToImport[1].selected).toBe(true)
+			expect(store.releasesToImport[0]!.selected).toBe(true)
+			expect(store.releasesToImport[1]!.selected).toBe(true)
 		})
 
 		it('handles pagination - fetches all pages', async () => {

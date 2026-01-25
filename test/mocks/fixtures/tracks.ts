@@ -1,7 +1,5 @@
-import type { Database } from '~/../../shared/types/database'
 import type { DiscogsArtistDb } from '~/../../shared/types/discogs'
-
-type Track = Database['public']['Tables']['tracks']['Row']
+import type { Track } from '~/../../shared/types/supabase'
 
 let trackIdCounter = 0
 

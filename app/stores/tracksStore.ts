@@ -234,20 +234,24 @@ export const useTracksStore = defineStore('tracks', () => {
 		// Use == null to check for both null and undefined (key=0 is valid for C Major)
 		if (currentTrack.bpm == null || currentTrack.key == null) return []
 
+		// Capture narrowed values in local const variables for use in filter closure
+		const currentBpm = currentTrack.bpm
+		const currentKey = currentTrack.key
+
 		return tracks.value.filter((track: Track) => {
 			if (track.id === currentTrack.id || !track.playable) return false
 			// Use == null to check for both null and undefined (key=0 is valid for C Major)
 			if (track.bpm == null || track.key == null) return false
 
 			// BPM compatibility
-			const bpmDiff = Math.abs(track.bpm - currentTrack.bpm)
+			const bpmDiff = Math.abs(track.bpm - currentBpm)
 			const bpmCompatible =
 				bpmDiff <= bpmTolerance ||
-				Math.abs(track.bpm - currentTrack.bpm * 2) <= bpmTolerance ||
-				Math.abs(track.bpm * 2 - currentTrack.bpm) <= bpmTolerance
+				Math.abs(track.bpm - currentBpm * 2) <= bpmTolerance ||
+				Math.abs(track.bpm * 2 - currentBpm) <= bpmTolerance
 
 			// Key compatibility (simplified harmonic mixing)
-			const keyDiff = Math.abs(track.key - currentTrack.key)
+			const keyDiff = Math.abs(track.key - currentKey)
 			const keyCompatible =
 				keyDiff === 0 || keyDiff === 1 || keyDiff === 11 || keyDiff === 7
 

@@ -18,7 +18,9 @@ const mockBeatportScraper = {
 const mockH = vi.fn(() => ({}))
 
 // Mock parseBeatportKey
-const mockParseBeatportKey = vi.fn(() => ({ key: null, mode: null }))
+const mockParseBeatportKey = vi.fn(
+	(): { key: number | null; mode: number | null } => ({ key: null, mode: null })
+)
 
 // Stub globals before importing the store
 vi.stubGlobal('useTracksStore', () => mockTracksStore)
@@ -249,7 +251,7 @@ describe('beatportStore', () => {
 			await store.getBeatportData('track-1')
 
 			// Should not include bpm in updates since track already has one
-			const updateCall = mockTracksStore.updateTrack.mock.calls[0]
+			const updateCall = mockTracksStore.updateTrack.mock.calls[0]!
 			expect(updateCall[1].bpm).toBeUndefined()
 		})
 
@@ -267,7 +269,7 @@ describe('beatportStore', () => {
 			await store.getBeatportData('track-1')
 
 			// Should not include key/mode in updates since track already has them
-			const updateCall = mockTracksStore.updateTrack.mock.calls[0]
+			const updateCall = mockTracksStore.updateTrack.mock.calls[0]!
 			expect(updateCall[1].key).toBeUndefined()
 			expect(updateCall[1].mode).toBeUndefined()
 		})
@@ -388,7 +390,7 @@ describe('beatportStore', () => {
 			await store.bulkFetchBeatportData()
 
 			expect(store.bulkBeatportResults.failed.length).toBe(1)
-			expect(store.bulkBeatportResults.failed[0].trackId).toBe('track-1')
+			expect(store.bulkBeatportResults.failed[0]!.trackId).toBe('track-1')
 		})
 
 		it('updates progress during bulk operation', async () => {

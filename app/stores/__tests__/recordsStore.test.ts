@@ -190,7 +190,7 @@ describe('recordsStore', () => {
 			await store.fetchAllRecords()
 
 			expect(store.records.length).toBe(2)
-			expect(store.records[0].id).toBe('record-1')
+			expect(store.records[0]!.id).toBe('record-1')
 		})
 
 		it('handles fetch error gracefully', async () => {
@@ -236,7 +236,7 @@ describe('recordsStore', () => {
 			const result = await store.createRecord(newRecordData)
 
 			expect(result?.id).toBe('new-record-id')
-			expect(store.records[0].id).toBe('new-record-id')
+			expect(store.records[0]!.id).toBe('new-record-id')
 		})
 
 		it('sets isCreatingRecord during creation', async () => {
@@ -283,7 +283,7 @@ describe('recordsStore', () => {
 			const updatePromise = store.updateRecord('record-1', { title: 'Updated' })
 
 			// Record should be optimistically updated
-			expect(store.records[0].title).toBe('Updated')
+			expect(store.records[0]!.title).toBe('Updated')
 
 			mockQueryBuilder.single.mockResolvedValue({
 				data: createMockRecord({ id: 'record-1', title: 'Updated' }),
@@ -303,7 +303,7 @@ describe('recordsStore', () => {
 
 			await store.updateRecord('record-1', { title: 'Updated' })
 
-			expect(store.records[0].title).toBe('Original')
+			expect(store.records[0]!.title).toBe('Original')
 		})
 
 		it('updates with server response on success', async () => {
@@ -318,7 +318,7 @@ describe('recordsStore', () => {
 
 			await store.updateRecord('record-1', { title: 'Updated' })
 
-			expect(store.records[0].updated_at).toBe('2024-01-01T00:00:00Z')
+			expect(store.records[0]!.updated_at).toBe('2024-01-01T00:00:00Z')
 		})
 
 		it('sets isUpdatingRecord during update', async () => {
@@ -357,7 +357,7 @@ describe('recordsStore', () => {
 			const deletePromise = store.deleteRecord('record-1')
 
 			expect(store.records.length).toBe(1)
-			expect(store.records[0].id).toBe('record-2')
+			expect(store.records[0]!.id).toBe('record-2')
 
 			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
 			await deletePromise
@@ -376,7 +376,7 @@ describe('recordsStore', () => {
 			await store.deleteRecord('record-1')
 
 			expect(store.records.length).toBe(2)
-			expect(store.records[0].id).toBe('record-1')
+			expect(store.records[0]!.id).toBe('record-1')
 		})
 
 		it('returns true on successful delete', async () => {
@@ -487,7 +487,7 @@ describe('recordsStore', () => {
 			await store.performSearch('house')
 
 			expect(store.searchResults.length).toBe(1)
-			expect(store.searchResults[0].id).toBe('match')
+			expect(store.searchResults[0]!.id).toBe('match')
 		})
 
 		it('searches in artists', async () => {
@@ -506,7 +506,7 @@ describe('recordsStore', () => {
 			await store.performSearch('daft')
 
 			expect(store.searchResults.length).toBe(1)
-			expect(store.searchResults[0].id).toBe('match')
+			expect(store.searchResults[0]!.id).toBe('match')
 		})
 
 		it('searches in labels', async () => {
@@ -525,7 +525,7 @@ describe('recordsStore', () => {
 			await store.performSearch('defected')
 
 			expect(store.searchResults.length).toBe(1)
-			expect(store.searchResults[0].id).toBe('match')
+			expect(store.searchResults[0]!.id).toBe('match')
 		})
 
 		it('searches in year', async () => {
@@ -538,7 +538,7 @@ describe('recordsStore', () => {
 			await store.performSearch('2024')
 
 			expect(store.searchResults.length).toBe(1)
-			expect(store.searchResults[0].id).toBe('match')
+			expect(store.searchResults[0]!.id).toBe('match')
 		})
 
 		it('handles records with null year', async () => {
@@ -551,7 +551,7 @@ describe('recordsStore', () => {
 			await store.performSearch('2024')
 
 			expect(store.searchResults.length).toBe(1)
-			expect(store.searchResults[0].id).toBe('with-year')
+			expect(store.searchResults[0]!.id).toBe('with-year')
 		})
 
 		it('sets isSearching during search', async () => {

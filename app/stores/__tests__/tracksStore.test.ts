@@ -135,7 +135,7 @@ describe('tracksStore', () => {
 			await store.fetchAllTracks()
 
 			expect(store.tracks.length).toBe(2)
-			expect(store.tracks[0].id).toBe('track-1')
+			expect(store.tracks[0]!.id).toBe('track-1')
 		})
 
 		it('handles fetch error gracefully', async () => {
@@ -203,7 +203,7 @@ describe('tracksStore', () => {
 			const result = await store.createTrack(newTrackData)
 
 			expect(result?.id).toBe('new-track-id')
-			expect(store.tracks[0].id).toBe('new-track-id')
+			expect(store.tracks[0]!.id).toBe('new-track-id')
 		})
 
 		it('sets isCreatingTrack during creation', async () => {
@@ -283,7 +283,7 @@ describe('tracksStore', () => {
 			const updatePromise = store.updateTrack('track-1', { title: 'Updated' })
 
 			// Track should be optimistically updated
-			expect(store.tracks[0].title).toBe('Updated')
+			expect(store.tracks[0]!.title).toBe('Updated')
 
 			mockQueryBuilder.single.mockResolvedValue({
 				data: createMockTrack({ id: 'track-1', title: 'Updated' }),
@@ -304,7 +304,7 @@ describe('tracksStore', () => {
 			await store.updateTrack('track-1', { title: 'Updated' })
 
 			// Should revert to original
-			expect(store.tracks[0].title).toBe('Original')
+			expect(store.tracks[0]!.title).toBe('Original')
 		})
 
 		it('updates with server response on success', async () => {
@@ -319,7 +319,7 @@ describe('tracksStore', () => {
 
 			await store.updateTrack('track-1', { title: 'Updated' })
 
-			expect(store.tracks[0].updated_at).toBe('2024-01-01T00:00:00Z')
+			expect(store.tracks[0]!.updated_at).toBe('2024-01-01T00:00:00Z')
 		})
 
 		it('sets isUpdatingTrack during update', async () => {
@@ -360,7 +360,7 @@ describe('tracksStore', () => {
 
 			// Track should be optimistically removed
 			expect(store.tracks.length).toBe(1)
-			expect(store.tracks[0].id).toBe('track-2')
+			expect(store.tracks[0]!.id).toBe('track-2')
 
 			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
 			await deletePromise
@@ -380,7 +380,7 @@ describe('tracksStore', () => {
 
 			// Should revert deletion
 			expect(store.tracks.length).toBe(2)
-			expect(store.tracks[0].id).toBe('track-1')
+			expect(store.tracks[0]!.id).toBe('track-1')
 		})
 
 		it('returns true on successful delete', async () => {
@@ -495,7 +495,7 @@ describe('tracksStore', () => {
 			const result = store.searchTracks('funky')
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('match')
+			expect(result[0]!.id).toBe('match')
 		})
 
 		it('searches in artists', () => {
@@ -514,7 +514,7 @@ describe('tracksStore', () => {
 			const result = store.searchTracks('daft')
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('match')
+			expect(result[0]!.id).toBe('match')
 		})
 
 		it('searches in extraartists', () => {
@@ -533,7 +533,7 @@ describe('tracksStore', () => {
 			const result = store.searchTracks('premier')
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('match')
+			expect(result[0]!.id).toBe('match')
 		})
 
 		it('searches in genres', () => {
@@ -546,7 +546,7 @@ describe('tracksStore', () => {
 			const result = store.searchTracks('house')
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('match')
+			expect(result[0]!.id).toBe('match')
 		})
 
 		it('searches in position', () => {
@@ -559,7 +559,7 @@ describe('tracksStore', () => {
 			const result = store.searchTracks('B2')
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('match')
+			expect(result[0]!.id).toBe('match')
 		})
 
 		it('searches in BPM', () => {
@@ -572,7 +572,7 @@ describe('tracksStore', () => {
 			const result = store.searchTracks('128')
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('match')
+			expect(result[0]!.id).toBe('match')
 		})
 
 		it('handles tracks with null position', () => {
@@ -585,7 +585,7 @@ describe('tracksStore', () => {
 			const result = store.searchTracks('A1')
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('with-position')
+			expect(result[0]!.id).toBe('with-position')
 		})
 
 		it('handles tracks with null BPM', () => {
@@ -598,7 +598,7 @@ describe('tracksStore', () => {
 			const result = store.searchTracks('128')
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('with-bpm')
+			expect(result[0]!.id).toBe('with-bpm')
 		})
 	})
 
@@ -652,7 +652,7 @@ describe('tracksStore', () => {
 			const result = store.getTracksByBpmRange(120, 130)
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('playable')
+			expect(result[0]!.id).toBe('playable')
 		})
 
 		it('excludes tracks with null BPM', () => {
@@ -665,7 +665,7 @@ describe('tracksStore', () => {
 			const result = store.getTracksByBpmRange(120, 130)
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('with-bpm')
+			expect(result[0]!.id).toBe('with-bpm')
 		})
 	})
 
@@ -695,7 +695,7 @@ describe('tracksStore', () => {
 			const result = store.getTracksByKey(0)
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('playable')
+			expect(result[0]!.id).toBe('playable')
 		})
 	})
 
@@ -725,7 +725,7 @@ describe('tracksStore', () => {
 			const result = store.getTracksByGenre('house')
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('playable')
+			expect(result[0]!.id).toBe('playable')
 		})
 	})
 
@@ -745,7 +745,7 @@ describe('tracksStore', () => {
 
 			// Should find the compatible track (same key)
 			expect(result.length).toBe(1)
-			expect(result[0].key).toBe(0)
+			expect(result[0]!.key).toBe(0)
 		})
 
 		it('returns empty array when current track has no BPM', () => {
@@ -789,7 +789,7 @@ describe('tracksStore', () => {
 			const result = store.getCompatibleTracks(currentTrack)
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('playable')
+			expect(result[0]!.id).toBe('playable')
 		})
 
 		it('excludes tracks without BPM', () => {
@@ -803,7 +803,7 @@ describe('tracksStore', () => {
 			const result = store.getCompatibleTracks(currentTrack)
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('with-bpm')
+			expect(result[0]!.id).toBe('with-bpm')
 		})
 
 		it('excludes tracks without key', () => {
@@ -817,7 +817,7 @@ describe('tracksStore', () => {
 			const result = store.getCompatibleTracks(currentTrack)
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('with-key')
+			expect(result[0]!.id).toBe('with-key')
 		})
 
 		it('includes key 0 (C Major) tracks when harmonically compatible', () => {
@@ -993,7 +993,7 @@ describe('tracksStore', () => {
 			const result = store.getCompatibleTracks(currentTrack)
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('both')
+			expect(result[0]!.id).toBe('both')
 		})
 	})
 

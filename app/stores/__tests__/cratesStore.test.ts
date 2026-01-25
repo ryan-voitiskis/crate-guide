@@ -184,7 +184,7 @@ describe('cratesStore', () => {
 			})
 
 			expect(result?.id).toBe('new-crate')
-			expect(store.crates[0].id).toBe('new-crate')
+			expect(store.crates[0]!.id).toBe('new-crate')
 		})
 
 		it('sets isCreatingCrate during creation', async () => {
@@ -240,7 +240,7 @@ describe('cratesStore', () => {
 
 			const updatePromise = store.updateCrate('crate-1', { name: 'Updated' })
 
-			expect(store.crates[0].name).toBe('Updated')
+			expect(store.crates[0]!.name).toBe('Updated')
 
 			mockQueryBuilder.single.mockResolvedValue({
 				data: createMockCrate({ id: 'crate-1', name: 'Updated' }),
@@ -260,7 +260,7 @@ describe('cratesStore', () => {
 
 			await store.updateCrate('crate-1', { name: 'Updated' })
 
-			expect(store.crates[0].name).toBe('Original')
+			expect(store.crates[0]!.name).toBe('Original')
 		})
 
 		it('sets isUpdatingCrate during update', async () => {
@@ -296,7 +296,7 @@ describe('cratesStore', () => {
 			const deletePromise = store.deleteCrate('crate-1')
 
 			expect(store.crates.length).toBe(1)
-			expect(store.crates[0].id).toBe('crate-2')
+			expect(store.crates[0]!.id).toBe('crate-2')
 
 			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
 			await deletePromise
@@ -315,7 +315,7 @@ describe('cratesStore', () => {
 			await store.deleteCrate('crate-1')
 
 			expect(store.crates.length).toBe(2)
-			expect(store.crates[0].id).toBe('crate-1')
+			expect(store.crates[0]!.id).toBe('crate-1')
 		})
 
 		it('sets isDeletingCrate during delete', async () => {
@@ -528,7 +528,7 @@ describe('cratesStore', () => {
 			const result = store.searchCrates('house')
 
 			expect(result.length).toBe(1)
-			expect(result[0].id).toBe('match')
+			expect(result[0]!.id).toBe('match')
 		})
 	})
 

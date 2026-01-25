@@ -1,7 +1,7 @@
-import type { Database } from '~/../../shared/types/database'
 import type { DiscogsArtistDb, DiscogsLabelDb } from '~/../../shared/types/discogs'
+import type { DatabaseRecord } from '~/../../shared/types/supabase'
 
-type Record = Database['public']['Tables']['records']['Row']
+type Record = DatabaseRecord
 
 let recordIdCounter = 0
 

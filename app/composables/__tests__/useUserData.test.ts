@@ -220,7 +220,7 @@ describe('useUserData', () => {
 
 		it('sets isLoadingUserData during fetch', async () => {
 			mockSupaUser.value = { id: 'user-123' }
-			let resolveRecords: () => void
+			let resolveRecords: (value: unknown) => void
 			mockRecordsStore.fetchAllRecords.mockImplementation(
 				() =>
 					new Promise((resolve) => {
@@ -235,7 +235,7 @@ describe('useUserData', () => {
 			await Promise.resolve()
 			expect(isLoadingUserData.value).toBe(true)
 
-			resolveRecords!()
+			resolveRecords!(undefined)
 			await loadPromise
 			expect(isLoadingUserData.value).toBe(false)
 		})

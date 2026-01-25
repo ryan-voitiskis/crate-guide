@@ -147,37 +147,37 @@ describe('trackFiltersStore', () => {
 			it('filters by title', () => {
 				store.searchQuery = 'Deep House'
 				expect(store.filteredTracks).toHaveLength(1)
-				expect(store.filteredTracks[0].title).toBe('Deep House Groove')
+				expect(store.filteredTracks[0]!.title).toBe('Deep House Groove')
 			})
 
 			it('filters by artist name', () => {
 				store.searchQuery = 'Artist One'
 				expect(store.filteredTracks).toHaveLength(1)
-				expect(store.filteredTracks[0].id).toBe('track-1')
+				expect(store.filteredTracks[0]!.id).toBe('track-1')
 			})
 
 			it('filters by extra artist name', () => {
 				store.searchQuery = 'Remixer'
 				expect(store.filteredTracks).toHaveLength(1)
-				expect(store.filteredTracks[0].id).toBe('track-1')
+				expect(store.filteredTracks[0]!.id).toBe('track-1')
 			})
 
 			it('filters by genre', () => {
 				store.searchQuery = 'Ambient'
 				expect(store.filteredTracks).toHaveLength(1)
-				expect(store.filteredTracks[0].id).toBe('track-3')
+				expect(store.filteredTracks[0]!.id).toBe('track-3')
 			})
 
 			it('filters by position', () => {
 				store.searchQuery = 'A1'
 				expect(store.filteredTracks).toHaveLength(1)
-				expect(store.filteredTracks[0].position).toBe('A1')
+				expect(store.filteredTracks[0]!.position).toBe('A1')
 			})
 
 			it('is case insensitive', () => {
 				store.searchQuery = 'TECHNO'
 				expect(store.filteredTracks).toHaveLength(1)
-				expect(store.filteredTracks[0].id).toBe('track-2')
+				expect(store.filteredTracks[0]!.id).toBe('track-2')
 			})
 
 			it('ignores whitespace-only queries', () => {
@@ -206,7 +206,7 @@ describe('trackFiltersStore', () => {
 			it('filters by maximum BPM', () => {
 				store.bpmMax = 100
 				expect(store.filteredTracks).toHaveLength(1)
-				expect(store.filteredTracks[0].id).toBe('track-3')
+				expect(store.filteredTracks[0]!.id).toBe('track-3')
 			})
 
 			it('filters by BPM range', () => {
@@ -253,7 +253,7 @@ describe('trackFiltersStore', () => {
 
 				store.selectedKey = 0
 				expect(store.filteredTracks).toHaveLength(1)
-				expect(store.filteredTracks[0].key).toBe(0)
+				expect(store.filteredTracks[0]!.key).toBe(0)
 
 				// Restore original
 				mockTracksStore.tracks = originalTracks
@@ -264,7 +264,7 @@ describe('trackFiltersStore', () => {
 			it('filters by single genre', () => {
 				store.selectedGenres = ['techno']
 				expect(store.filteredTracks).toHaveLength(1)
-				expect(store.filteredTracks[0].id).toBe('track-2')
+				expect(store.filteredTracks[0]!.id).toBe('track-2')
 			})
 
 			it('filters by multiple genres (OR logic)', () => {

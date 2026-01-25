@@ -1,7 +1,11 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import tailwindcss from '@tailwindcss/vite'
+import { fileURLToPath } from 'node:url'
 
 export default defineNuxtConfig({
+	alias: {
+		test: fileURLToPath(new URL('./test', import.meta.url))
+	},
 	compatibilityDate: '2024-04-03',
 	future: {
 		compatibilityVersion: 4
