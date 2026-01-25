@@ -730,8 +730,23 @@ describe('tracksStore', () => {
 	})
 
 	describe('getCompatibleTracks', () => {
-		// Note: Key 0 (C) is treated as falsy in the store's null check (!track.key)
-		// Tests use non-zero keys to test the intended functionality
+		it('includes tracks with key 0 (C Major) in compatibility results', () => {
+			const store = useTracksStore()
+			// Key 0 represents C Major in Camelot wheel - should not be filtered out
+			const currentTrack = createMockTrack({ bpm: 128, key: 0, playable: true })
+			const compatibleTrack = createMockTrack({
+				bpm: 128,
+				key: 0,
+				playable: true
+			})
+			store.tracks = [currentTrack, compatibleTrack]
+
+			const result = store.getCompatibleTracks(currentTrack)
+
+			// Should find the compatible track (same key)
+			expect(result.length).toBe(1)
+			expect(result[0].key).toBe(0)
+		})
 
 		it('returns empty array when current track has no BPM', () => {
 			const store = useTracksStore()
@@ -805,10 +820,11 @@ describe('tracksStore', () => {
 			expect(result[0].id).toBe('with-key')
 		})
 
-		it('treats key 0 (C) as falsy and excludes those tracks', () => {
-			// This documents the current behavior - key 0 is treated as null/missing
+		it('includes key 0 (C Major) tracks when harmonically compatible', () => {
+			// Key 0 is a valid key representing C Major and should not be treated as null
 			const store = useTracksStore()
-			const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 5 })
+			// Key 1 is adjacent to key 0, so they are compatible (keyDiff === 1)
+			const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 1 })
 			store.tracks = [
 				createMockTrack({ id: 'key-zero', bpm: 128, key: 0, playable: true }),
 				createMockTrack({ id: 'key-five', bpm: 128, key: 5, playable: true })
@@ -816,9 +832,10 @@ describe('tracksStore', () => {
 
 			const result = store.getCompatibleTracks(currentTrack)
 
-			// Key 0 is excluded due to !track.key check
-			expect(result.map((t) => t.id)).not.toContain('key-zero')
-			expect(result.map((t) => t.id)).toContain('key-five')
+			// Key 0 should be included (adjacent to key 1)
+			expect(result.map((t) => t.id)).toContain('key-zero')
+			// Key 5 is not compatible with key 1 (keyDiff === 4)
+			expect(result.map((t) => t.id)).not.toContain('key-five')
 		})
 
 		describe('BPM compatibility', () => {

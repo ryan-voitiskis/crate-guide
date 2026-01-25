@@ -1,6 +1,10 @@
 import oauthSignature from 'npm:oauth-signature@1.5.0'
 import { generateToken } from '../generateToken.ts'
-import { getUserProfile } from '../supabaseHelpers.ts'
+import {
+	createAuthedSupabaseClient,
+	getUser,
+	getUserProfile
+} from '../supabaseHelpers.ts'
 
 const oauth_consumer_key = Deno.env.get('DISCOGS_CONSUMER_KEY') || ''
 const oauth_consumer_secret = Deno.env.get('DISCOGS_CONSUMER_SECRET') || ''
@@ -13,7 +17,9 @@ export async function makeAuthenticatedRequest(
 	page?: number,
 	per_page?: number
 ): Promise<Response> {
-	const profile = await getUserProfile(authHeader, true)
+	const supabase = createAuthedSupabaseClient(authHeader)
+	const user = await getUser(supabase)
+	const profile = await getUserProfile(supabase, user)
 	if (!profile.discogs_access_token)
 		throw new Error('Missing Discogs access token.')
 	if (!profile.discogs_access_secret)

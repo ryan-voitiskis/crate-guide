@@ -2,7 +2,8 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { fetchAndSetIdentity } from '../_shared/discogs/fetchAndSetIdentity.ts'
 import { generateToken } from '../_shared/generateToken.ts'
 import {
-	getAuthedSupabaseClient,
+	createAuthedSupabaseClient,
+	getUser,
 	getUserProfile
 } from '../_shared/supabaseHelpers.ts'
 import type { Profile } from '../_shared/types/supabase.ts'
@@ -25,8 +26,9 @@ Deno.serve(async (req) => {
 		if (!oauth_token) throw new Error('Missing oauth_token')
 		if (!oauth_verifier) throw new Error('Missing oauth_verifier')
 
-		const supabase = getAuthedSupabaseClient(authHeader)
-		const profile = await getUserProfile(authHeader)
+		const supabase = createAuthedSupabaseClient(authHeader)
+		const user = await getUser(supabase)
+		const profile = await getUserProfile(supabase, user)
 		const oauthSignature = generateOAuthSignature(
 			oauth_consumer_secret,
 			profile
@@ -65,12 +67,12 @@ Deno.serve(async (req) => {
 			.eq('id', profile.id)
 		if (error) throw error
 
-		await fetchAndSetIdentity(authHeader)
+		await fetchAndSetIdentity(supabase, authHeader)
 
 		return new Response(null, { headers, status: 200 })
 	} catch (e) {
-		console.error(e)
-		return new Response(JSON.stringify(e), { headers, status: 500 })
+		console.error('Function error:', e)
+		return new Response(JSON.stringify({ error: 'Internal server error' }), { headers, status: 500 })
 	}
 })
 

@@ -1,7 +1,12 @@
-import { getAuthedSupabaseClient, getUserProfile } from '../supabaseHelpers.ts'
+import { getUser, getUserProfile } from '../supabaseHelpers.ts'
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest.ts'
 
-export async function fetchAndSetIdentity(authHeader: string) {
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+export async function fetchAndSetIdentity(
+	supabase: SupabaseClient,
+	authHeader: string
+) {
 	const identityResponse = await makeAuthenticatedRequest(
 		'GET',
 		'https://api.discogs.com/oauth/identity',
@@ -17,8 +22,8 @@ export async function fetchAndSetIdentity(authHeader: string) {
 		discogs_avatar_url = discogsUser.avatar_url
 	}
 
-	const supabase = getAuthedSupabaseClient(authHeader)
-	const profile = await getUserProfile(authHeader)
+	const user = await getUser(supabase)
+	const profile = await getUserProfile(supabase, user)
 	const { error } = await supabase
 		.from('profiles')
 		.update({

@@ -1,6 +1,6 @@
 import { corsHeaders } from '../_shared/cors.ts'
 import { generateToken } from '../_shared/generateToken.ts'
-import { getAuthedSupabaseClient, getUser } from '../_shared/supabaseHelpers.ts'
+import { createAuthedSupabaseClient, getUser } from '../_shared/supabaseHelpers.ts'
 
 const headers = { ...corsHeaders, 'Content-Type': 'application/json' }
 const oauth_consumer_key = Deno.env.get('DISCOGS_CONSUMER_KEY') || ''
@@ -36,8 +36,8 @@ Deno.serve(async (req) => {
 		if (!discogsResponse.oauth_token)
 			throw new Error('Discogs did not provide OAuth token.')
 
-		const supabase = getAuthedSupabaseClient(authHeader)
-		const user = await getUser(authHeader)
+		const supabase = createAuthedSupabaseClient(authHeader)
+		const user = await getUser(supabase)
 
 		const { error } = await supabase
 			.from('profiles')
@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
 			status: 200
 		})
 	} catch (e) {
-		console.error(e)
-		return new Response(JSON.stringify(e), { headers, status: 500 })
+		console.error('Function error:', e)
+		return new Response(JSON.stringify({ error: 'Internal server error' }), { headers, status: 500 })
 	}
 })

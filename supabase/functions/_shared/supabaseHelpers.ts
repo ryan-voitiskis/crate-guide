@@ -5,40 +5,37 @@ import {
 } from '@supabase/supabase-js'
 import type { Profile } from './types/supabase.ts'
 
-let cachedSupabaseClient: SupabaseClient | null = null
-let cachedUser: User | null = null
-let cachedProfile: Profile | null = null
-
-export function getAuthedSupabaseClient(authHeader: string): SupabaseClient {
-	if (cachedSupabaseClient) return cachedSupabaseClient
-
-	const client = createClient(
+/**
+ * Creates an authenticated Supabase client for a single request.
+ * A fresh client is created per invocation to prevent data leakage
+ * between serverless invocations.
+ */
+export function createAuthedSupabaseClient(authHeader: string): SupabaseClient {
+	return createClient(
 		Deno.env.get('SUPABASE_URL') ?? '',
 		Deno.env.get('SUPABASE_ANON_KEY') ?? '',
 		{ global: { headers: { Authorization: authHeader } } }
 	)
-	cachedSupabaseClient = client
-	return client
 }
 
-export async function getUser(authHeader: string) {
-	if (cachedUser) return cachedUser
-	const supabase = getAuthedSupabaseClient(authHeader)
+/**
+ * Gets the authenticated user from the provided Supabase client.
+ */
+export async function getUser(supabase: SupabaseClient): Promise<User> {
 	const { data, error } = await supabase.auth.getUser()
 	if (error) throw error
 	const user = data.user
 	if (!user) throw Error('Crate Guide user not found')
-	cachedUser = user
 	return user
 }
 
+/**
+ * Gets the user profile for the authenticated user.
+ */
 export async function getUserProfile(
-	authHeader: string,
-	ignoreCache = false
+	supabase: SupabaseClient,
+	user: User
 ): Promise<Profile> {
-	if (cachedProfile && !ignoreCache) return cachedProfile
-	const supabase = getAuthedSupabaseClient(authHeader)
-	const user = await getUser(authHeader)
 	const { data, error } = await supabase
 		.from('profiles')
 		.select()
@@ -46,6 +43,5 @@ export async function getUserProfile(
 	if (error) throw error
 	const profile = data[0]
 	if (!profile) throw Error('Crate Guide user not found')
-	cachedProfile = profile
 	return profile
 }

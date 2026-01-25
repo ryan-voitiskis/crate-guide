@@ -231,12 +231,13 @@ export const useTracksStore = defineStore('tracks', () => {
 		currentTrack: Track,
 		bpmTolerance: number = 5
 	): Track[] {
-		if (!currentTrack.bpm || !currentTrack.key) return []
+		// Use == null to check for both null and undefined (key=0 is valid for C Major)
+		if (currentTrack.bpm == null || currentTrack.key == null) return []
 
 		return tracks.value.filter((track: Track) => {
 			if (track.id === currentTrack.id || !track.playable) return false
-			if (!track.bpm || !track.key || !currentTrack.bpm || !currentTrack.key)
-				return false
+			// Use == null to check for both null and undefined (key=0 is valid for C Major)
+			if (track.bpm == null || track.key == null) return false
 
 			// BPM compatibility
 			const bpmDiff = Math.abs(track.bpm - currentTrack.bpm)
