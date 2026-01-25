@@ -10,7 +10,8 @@ export default defineConfig({
 					name: 'unit',
 					include: [
 						'app/utils/**/*.test.ts',
-						'shared/**/*.test.ts'
+						'shared/**/*.test.ts',
+						'server/**/*.test.ts'
 					],
 					exclude: ['app/stores/**/*.test.ts', 'app/composables/**/*.test.ts'],
 					environment: 'node'
