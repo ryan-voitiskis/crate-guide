@@ -320,9 +320,9 @@ export const useSessionStore = defineStore('session', () => {
 	function clearSession() {
 		currentSession.value = []
 		activeSetId.value = null
-		if (autoSaveTimeout) {
-			clearTimeout(autoSaveTimeout)
-			autoSaveTimeout = null
+		if (autoSaveTimeout.value) {
+			clearTimeout(autoSaveTimeout.value)
+			autoSaveTimeout.value = null
 		}
 		decks.value.forEach((deck) => {
 			deck.loadedTrack = null
@@ -334,7 +334,7 @@ export const useSessionStore = defineStore('session', () => {
 	}
 
 	// === Actions: Auto-Save ===
-	let autoSaveTimeout: ReturnType<typeof setTimeout> | null = null
+	const autoSaveTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
 
 	async function createActiveSet(): Promise<string | null> {
 		if (!user.supaUser?.id || currentSession.value.length === 0) return null
@@ -379,11 +379,11 @@ export const useSessionStore = defineStore('session', () => {
 	function scheduleAutoSave() {
 		if (!user.supaUser?.id) return
 
-		if (autoSaveTimeout) {
-			clearTimeout(autoSaveTimeout)
+		if (autoSaveTimeout.value) {
+			clearTimeout(autoSaveTimeout.value)
 		}
 
-		autoSaveTimeout = setTimeout(async () => {
+		autoSaveTimeout.value = setTimeout(async () => {
 			if (currentSession.value.length === 0) return
 
 			// Create set if none exists

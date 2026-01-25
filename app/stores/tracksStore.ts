@@ -46,7 +46,8 @@ export const useTracksStore = defineStore('tracks', () => {
 					created_at: track.created_at,
 					updated_at: track.updated_at
 				})) as Track[]) || []
-		} catch {
+		} catch (error) {
+			console.error('Failed to fetch tracks:', error)
 			toast.error('Error fetching tracks.')
 		} finally {
 			isLoadingTracks.value = false
@@ -75,7 +76,8 @@ export const useTracksStore = defineStore('tracks', () => {
 			tracks.value.unshift(data as Track)
 			toast.success('Track created successfully.')
 			return data as Track
-		} catch {
+		} catch (error) {
+			console.error('Failed to create track:', error)
 			toast.error('Error creating track.')
 			return null
 		} finally {
@@ -117,7 +119,8 @@ export const useTracksStore = defineStore('tracks', () => {
 			tracks.value[trackIndex] = data as Track
 			if (!options?.silent) toast.success('Track updated successfully.')
 			return data as Track
-		} catch {
+		} catch (error) {
+			console.error('Failed to update track:', error)
 			// Revert optimistic update
 			tracks.value[trackIndex] = originalTrack as Track
 			toast.error('Error updating track.')
@@ -140,7 +143,8 @@ export const useTracksStore = defineStore('tracks', () => {
 			if (error) throw error
 			toast.success('Track deleted successfully.')
 			return true
-		} catch {
+		} catch (error) {
+			console.error('Failed to delete track:', error)
 			// Revert optimistic update
 			tracks.value.splice(trackIndex, 0, removedTrack as Track)
 			toast.error('Error deleting track.')
