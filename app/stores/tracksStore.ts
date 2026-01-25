@@ -24,7 +24,10 @@ export const useTracksStore = defineStore('tracks', () => {
 				.eq('records.user_id', user.supaUser.id)
 				.order('created_at', { ascending: false })
 
-			if (error) throw error
+		if (error) throw error
+			// Map to Track type, stripping the joined records data from the query.
+			// Safe cast: Json fields (artists, extraartists, genres) are stored by this
+			// app in the expected DiscogsArtistDb[] and string[] formats
 			tracks.value =
 				(data?.map((track) => ({
 					id: track.id,
@@ -72,7 +75,7 @@ export const useTracksStore = defineStore('tracks', () => {
 
 			if (error) throw error
 
-			// Add to local state
+			// Add to local state (safe cast - Supabase returns the inserted row with same shape)
 			tracks.value.unshift(data as Track)
 			toast.success('Track created successfully.')
 			return data as Track
@@ -115,14 +118,14 @@ export const useTracksStore = defineStore('tracks', () => {
 
 			if (error) throw error
 
-			// Update with server response
+			// Update with server response (safe cast - Supabase returns the updated row)
 			tracks.value[trackIndex] = data as Track
 			if (!options?.silent) toast.success('Track updated successfully.')
 			return data as Track
 		} catch (error) {
 			console.error('Failed to update track:', error)
-			// Revert optimistic update
-			tracks.value[trackIndex] = originalTrack as Track
+			// Revert optimistic update (index was validated above, originalTrack is defined)
+			tracks.value[trackIndex] = originalTrack!
 			toast.error('Error updating track.')
 			return null
 		} finally {
@@ -145,8 +148,8 @@ export const useTracksStore = defineStore('tracks', () => {
 			return true
 		} catch (error) {
 			console.error('Failed to delete track:', error)
-			// Revert optimistic update
-			tracks.value.splice(trackIndex, 0, removedTrack as Track)
+			// Revert optimistic update (removedTrack is already Track type)
+			tracks.value.splice(trackIndex, 0, removedTrack!)
 			toast.error('Error deleting track.')
 			return false
 		}

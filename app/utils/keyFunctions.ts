@@ -1,18 +1,15 @@
-// TODO: consider putting this somewhere else but ideally refactor to not req'd
 type Option = {
 	id: string
 	name: string
 }
 
-// TODO: consider putting this somewhere else
 export type HarmonyScore = {
 	harmonicAffinity: number | null // 0 - 1 compatibility of keys, 1 is a perfect combination
 	keyCombination: number // the index of keyCombinations array
 }
 
-// * https://stackoverflow.com/questions/74356048/typescript-declare-type-of-a-keyof-a-generic-object-param
-// TODO: move this somewhere more appropriate or consider existing or better
-// custom number sort function. sorts null last, reverse optional
+// Custom number sort function. Sorts null last, reverse optional.
+// https://stackoverflow.com/questions/74356048/typescript-declare-type-of-a-keyof-a-generic-object-param
 export function sortNum(field: string, reverse = false) {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return (a: Record<string, any>, b: Record<string, any>) =>
@@ -141,19 +138,27 @@ export const pitchClassMap: Key[] = [
 ]
 
 export function getCamelotMajor(pitchClass: number): number {
-	return pitchClassMap.find((i) => i.pitchClass === pitchClass)!.camelotMajor
+	const match = pitchClassMap.find((i) => i.pitchClass === pitchClass)
+	if (!match) throw new Error(`Unknown pitch class: ${pitchClass}`)
+	return match.camelotMajor
 }
 
 export function getCamelotMinor(pitchClass: number): number {
-	return pitchClassMap.find((i) => i.pitchClass === pitchClass)!.camelotMinor
+	const match = pitchClassMap.find((i) => i.pitchClass === pitchClass)
+	if (!match) throw new Error(`Unknown pitch class: ${pitchClass}`)
+	return match.camelotMinor
 }
 
 export function getMajorColour(pitchClass: number): string {
-	return pitchClassMap.find((i) => i.pitchClass === pitchClass)!.majorColour
+	const match = pitchClassMap.find((i) => i.pitchClass === pitchClass)
+	if (!match) throw new Error(`Unknown pitch class: ${pitchClass}`)
+	return match.majorColour
 }
 
 export function getMinorColour(pitchClass: number): string {
-	return pitchClassMap.find((i) => i.pitchClass === pitchClass)!.minorColour
+	const match = pitchClassMap.find((i) => i.pitchClass === pitchClass)
+	if (!match) throw new Error(`Unknown pitch class: ${pitchClass}`)
+	return match.minorColour
 }
 
 export function getKeyString(pitchClass: number, mode: number): string {
@@ -245,7 +250,9 @@ export function parseKeyComposite(composite: string): {
 	if (!composite || composite === 'none') return { key: null, mode: null }
 	if (composite.length !== 3) return { key: null, mode: null }
 
-	const mode = parseInt(composite[0]!, 10)
+	const modeChar = composite[0]
+	if (!modeChar) return { key: null, mode: null }
+	const mode = parseInt(modeChar, 10)
 	const key = parseInt(composite.substring(1), 10)
 
 	if (
@@ -307,7 +314,8 @@ export function parseBeatportKey(keyString: string): {
 
 	const note = match[1]
 	const modeStr = match[2]?.toLowerCase()
-	const key = noteMap[note!]
+	if (!note) return { key: null, mode: null }
+	const key = noteMap[note]
 	const mode = modeStr === 'major' ? 1 : 0
 
 	return { key: key ?? null, mode }

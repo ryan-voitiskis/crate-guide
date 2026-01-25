@@ -339,7 +339,6 @@ function confirmDiscardAndProceed() {
 				<AlertDialogCancel @click="showUnsavedChangesAlert = false">
 					Keep Editing
 				</AlertDialogCancel>
-				<!-- TODO: the colour of AlertDialogAction should be red or amber -->
 				<AlertDialogAction @click="confirmDiscardAndProceed">
 					Discard Changes
 				</AlertDialogAction>

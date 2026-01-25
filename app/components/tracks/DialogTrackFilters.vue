@@ -5,12 +5,10 @@ const trackFilters = useTrackFiltersStore()
 
 const isOpen = ref(false)
 
-// TODO: refactor, will use more appropriate UI
 function clearBpmFilter() {
 	trackFilters.setBpmRange(null, null)
 }
 
-// TODO: refactor, will use more appropriate UI
 function handleBpmMinInput(event: Event) {
 	const value = (event.target as HTMLInputElement).value
 	const min = value ? parseFloat(value) : null
@@ -21,7 +19,6 @@ function handleBpmMinInput(event: Event) {
 	}
 }
 
-// TODO: refactor, will use more appropriate UI
 function handleBpmMaxInput(event: Event) {
 	const value = (event.target as HTMLInputElement).value
 	const max = value ? parseFloat(value) : null

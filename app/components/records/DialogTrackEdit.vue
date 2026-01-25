@@ -14,7 +14,7 @@ const trackSchema = z.object({
 	position: z.string().refine(isValidTrackPosition, POSITION_ERROR_MESSAGE),
 	duration: z.string().refine(isValidDurationFormat, DURATION_ERROR_MESSAGE),
 	bpm: z.string().refine(isValidBPM, BPM_ERROR_MESSAGE),
-	keyComposite: z.string().refine(isValidKeyComposite, KEY_ERROR_MESSAGE), // TODO: check this is right!
+	keyComposite: z.string().refine(isValidKeyComposite, KEY_ERROR_MESSAGE),
 	genres: z.array(z.string()),
 	rpm: z.union([z.number(), z.null()]),
 	playable: z.boolean(),

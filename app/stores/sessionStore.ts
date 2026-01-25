@@ -417,6 +417,9 @@ export const useSessionStore = defineStore('session', () => {
 				.order('created_at', { ascending: false })
 
 			if (error) throw error
+			// Safe cast: played_tracks is stored as Json in DB but this app always
+			// writes it as PlayedTrackEntry[]. The double cast is needed because
+			// Supabase types played_tracks as Json, not the specific array type.
 			savedSets.value = (data as unknown as SavedSet[]) ?? []
 		} catch {
 			toast.error('Failed to load saved sets')
@@ -445,6 +448,7 @@ export const useSessionStore = defineStore('session', () => {
 					.single()
 
 				if (error) throw error
+				// Safe cast: played_tracks is Json in DB but we write PlayedTrackEntry[]
 				savedSet = data as unknown as SavedSet
 
 				// Update in savedSets if already fetched
@@ -469,6 +473,7 @@ export const useSessionStore = defineStore('session', () => {
 					.single()
 
 				if (error) throw error
+				// Safe cast: played_tracks is Json in DB but we write PlayedTrackEntry[]
 				savedSet = data as unknown as SavedSet
 				savedSets.value.unshift(savedSet)
 				activeSetId.value = savedSet.id

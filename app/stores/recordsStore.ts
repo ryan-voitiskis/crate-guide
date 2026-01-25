@@ -40,6 +40,8 @@ export const useRecordsStore = defineStore('records', () => {
 				.order('created_at', { ascending: false })
 
 			if (error) throw error
+			// Safe cast: Supabase returns typed rows, and Json fields (artists, labels)
+			// are stored by this app in the expected DiscogsArtistDb/DiscogsLabelDb format
 			records.value = (data as DatabaseRecord[]) || []
 		} catch (error) {
 			console.error('Failed to fetch records:', error)
@@ -70,7 +72,7 @@ export const useRecordsStore = defineStore('records', () => {
 
 			if (error) throw error
 
-			// Add to local state
+			// Add to local state (safe cast - Supabase returns the inserted row with same shape)
 			records.value.unshift(data as DatabaseRecord)
 			toast.success('Record created successfully.')
 			return data as DatabaseRecord
@@ -117,14 +119,14 @@ export const useRecordsStore = defineStore('records', () => {
 
 			if (error) throw error
 
-			// Update with server response
+			// Update with server response (safe cast - Supabase returns the updated row)
 			records.value[recordIndex] = data as DatabaseRecord
 			toast.success('Record updated successfully.')
 			return data as DatabaseRecord
 		} catch (error) {
 			console.error('Failed to update record:', error)
-			// Revert optimistic update
-			records.value[recordIndex] = originalRecord as DatabaseRecord
+			// Revert optimistic update (index was validated above, originalRecord is defined)
+			records.value[recordIndex] = originalRecord!
 			toast.error('Error updating record.')
 			return null
 		} finally {
@@ -154,8 +156,8 @@ export const useRecordsStore = defineStore('records', () => {
 			return true
 		} catch (error) {
 			console.error('Failed to delete record:', error)
-			// Revert optimistic update
-			records.value.splice(recordIndex, 0, removedRecord as DatabaseRecord)
+			// Revert optimistic update (removedRecord is already DatabaseRecord)
+			records.value.splice(recordIndex, 0, removedRecord!)
 			toast.error('Error deleting record.')
 			return false
 		} finally {
