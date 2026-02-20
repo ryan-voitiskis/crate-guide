@@ -11,6 +11,16 @@ export const useUserStore = defineStore('user', () => {
 	const userAlreadyRegistered = ref(false)
 	const isUpdatingSettings = ref(false)
 
+	async function resolveAuthenticatedUserId(): Promise<string> {
+		const reactiveUserId = supaUser.value?.id
+		if (reactiveUserId) return reactiveUserId
+
+		const { data, error } = await supabase.auth.getUser()
+		if (error) throw error
+		if (!data.user?.id) throw new Error('User not logged in.')
+		return data.user.id
+	}
+
 	const currentTheme = computed((): ThemeOptions => {
 		return profile.value?.ui_theme ?? 'light'
 	})
@@ -108,11 +118,11 @@ export const useUserStore = defineStore('user', () => {
 
 	async function fetchProfile(): Promise<boolean> {
 		try {
-			if (!supaUser.value) throw new Error('User not logged in.')
+			const userId = await resolveAuthenticatedUserId()
 			const { data, error } = await supabase
 				.from('profiles')
 				.select()
-				.eq('id', supaUser.value.id)
+				.eq('id', userId)
 				.single()
 			if (error) throw error
 			profile.value = data as Profile
@@ -130,11 +140,11 @@ export const useUserStore = defineStore('user', () => {
 		// optimistically update the local state
 		if (profile.value) profile.value = { ...profile.value, ...settingsPartial }
 		try {
-			if (!supaUser.value) throw new Error('User not logged in.')
+			const userId = await resolveAuthenticatedUserId()
 			const { data, error } = await supabase
 				.from('profiles')
 				.update(settingsPartial)
-				.eq('id', supaUser.value?.id)
+				.eq('id', userId)
 				.select()
 				.single()
 			if (error) throw error

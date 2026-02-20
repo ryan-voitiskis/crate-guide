@@ -68,6 +68,9 @@ let mockQueryBuilder = createMockQueryBuilder()
 const mockSupabaseClient = {
 	from: vi.fn(() => mockQueryBuilder),
 	auth: {
+		getUser: vi
+			.fn()
+			.mockImplementation(async () => ({ data: { user: mockSupaUser.value } })),
 		signUp: vi.fn().mockResolvedValue({ data: null, error: null }),
 		signInWithPassword: vi.fn().mockResolvedValue({ data: null, error: null }),
 		signInWithOAuth: vi.fn().mockResolvedValue({ data: null, error: null }),
@@ -105,6 +108,10 @@ describe('userStore', () => {
 		// Reset mock query builder
 		mockQueryBuilder = createMockQueryBuilder()
 		mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
+		mockSupabaseClient.auth.getUser.mockImplementation(async () => ({
+			data: { user: mockSupaUser.value },
+			error: null
+		}))
 
 		// Reset supaUser
 		mockSupaUser.value = { id: 'test-user-id', email: 'test@example.com' }
@@ -389,6 +396,25 @@ describe('userStore', () => {
 			const result = await store.fetchProfile()
 
 			expect(result).toBe(false)
+		})
+
+		it('falls back to auth.getUser when reactive user is unavailable', async () => {
+			const store = useUserStore()
+			mockSupaUser.value = null
+			mockSupabaseClient.auth.getUser.mockResolvedValue({
+				data: { user: { id: 'fallback-user-id', email: 'fallback@example.com' } },
+				error: null
+			})
+			const mockProfile = { id: 'fallback-user-id', ui_theme: 'dark' }
+			mockQueryBuilder.single.mockResolvedValue({
+				data: mockProfile,
+				error: null
+			})
+
+			const result = await store.fetchProfile()
+
+			expect(result).toBe(true)
+			expect(mockQueryBuilder.eq).toHaveBeenCalledWith('id', 'fallback-user-id')
 		})
 
 		it('returns true and sets profile on success', async () => {
