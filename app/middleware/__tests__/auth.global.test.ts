@@ -3,11 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockSupabaseUser: {
 	value: { id: string } | null
 } = { value: null }
+const mockGetSession = vi.fn()
+const mockSupabaseClient = {
+	auth: {
+		getSession: mockGetSession
+	}
+}
 
 const mockNavigateTo = vi.fn((path: string) => ({ path }))
 
 vi.stubGlobal('defineNuxtRouteMiddleware', (handler: unknown) => handler)
 vi.stubGlobal('useSupabaseUser', () => mockSupabaseUser)
+vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
 vi.stubGlobal('navigateTo', mockNavigateTo)
 
 describe('auth.global middleware', () => {
@@ -15,18 +22,19 @@ describe('auth.global middleware', () => {
 		return (await import('../auth.global')).default as (
 			to: { path: string },
 			from: { path: string }
-		) => unknown
+		) => Promise<unknown>
 	}
 
 	beforeEach(() => {
 		vi.clearAllMocks()
 		mockSupabaseUser.value = null
+		mockGetSession.mockResolvedValue({ data: { session: null } })
 	})
 
 	it('redirects unauthenticated users on protected routes', async () => {
 		const middleware = await loadMiddleware()
 
-		const result = middleware({ path: '/tracks' }, { path: '/login' })
+		const result = await middleware({ path: '/tracks' }, { path: '/login' })
 
 		expect(mockNavigateTo).toHaveBeenCalledWith('/login')
 		expect(result).toEqual({ path: '/login' })
@@ -35,7 +43,7 @@ describe('auth.global middleware', () => {
 	it('allows unauthenticated users on public routes', async () => {
 		const middleware = await loadMiddleware()
 
-		const result = middleware({ path: '/login' }, { path: '/login' })
+		const result = await middleware({ path: '/login' }, { path: '/login' })
 
 		expect(mockNavigateTo).not.toHaveBeenCalled()
 		expect(result).toBeUndefined()
@@ -45,7 +53,7 @@ describe('auth.global middleware', () => {
 		mockSupabaseUser.value = { id: 'user-1' }
 		const middleware = await loadMiddleware()
 
-		const result = middleware({ path: '/login' }, { path: '/tracks' })
+		const result = await middleware({ path: '/login' }, { path: '/tracks' })
 
 		expect(mockNavigateTo).toHaveBeenCalledWith('/')
 		expect(result).toEqual({ path: '/' })
@@ -55,7 +63,19 @@ describe('auth.global middleware', () => {
 		mockSupabaseUser.value = { id: 'user-1' }
 		const middleware = await loadMiddleware()
 
-		const result = middleware({ path: '/tracks' }, { path: '/login' })
+		const result = await middleware({ path: '/tracks' }, { path: '/login' })
+
+		expect(mockNavigateTo).not.toHaveBeenCalled()
+		expect(result).toBeUndefined()
+	})
+
+	it('allows protected routes while user state is hydrating', async () => {
+		mockGetSession.mockResolvedValue({
+			data: { session: { user: { id: 'user-1' } } }
+		})
+		const middleware = await loadMiddleware()
+
+		const result = await middleware({ path: '/tracks' }, { path: '/' })
 
 		expect(mockNavigateTo).not.toHaveBeenCalled()
 		expect(result).toBeUndefined()
