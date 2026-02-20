@@ -9,7 +9,7 @@ const user = useUserStore()
 				<h1 class="text-2xl font-semibold">Settings</h1>
 				<p v-if="user.supaUser" class="text-muted-foreground">
 					Welcome back,
-					{{ user.supaUser.user_metadata.full_name || user.supaUser.email }}
+					{{ user.supaUser.user_metadata?.full_name || user.supaUser.email }}
 				</p>
 			</div>
 

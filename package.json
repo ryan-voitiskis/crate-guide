@@ -35,7 +35,7 @@
 	},
 	"dependencies": {
 		"@nuxt/eslint": "^1.15.1",
-		"@nuxtjs/supabase": "^1.6.2",
+		"@nuxtjs/supabase": "^2.0.4",
 		"@pinia/nuxt": "^0.11.3",
 		"@tailwindcss/vite": "^4.2.0",
 		"@tanstack/vue-table": "^8.21.3",
@@ -45,7 +45,7 @@
 		"@vueuse/nuxt": "^14.2.1",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
-		"lucide-vue-next": "^0.563.0",
+		"lucide-vue-next": "^0.575.0",
 		"nuxt": "^4.3.1",
 		"nuxt-lucide-icons": "^2.0.0",
 		"pinia": "^3.0.4",
@@ -62,18 +62,18 @@
 		"zod": "^3.25.76"
 	},
 	"devDependencies": {
-		"@nuxt/test-utils": "^3.23.0",
+		"@nuxt/test-utils": "^4.0.0",
 		"@pinia/testing": "^1.0.3",
 		"@trivago/prettier-plugin-sort-imports": "^6.0.2",
 		"@types/jsdom": "^27.0.0",
 		"@types/sortablejs": "^1.15.9",
 		"eslint": "^9.39.2",
-		"jsdom": "^27.4.0",
+		"jsdom": "^28.1.0",
 		"prettier": "^3.8.1",
 		"prettier-plugin-tailwindcss": "^0.7.2",
 		"sass": "^1.97.3",
 		"typescript": "^5.9.3",
-		"vitest": "^3.2.4",
+		"vitest": "^4.0.18",
 		"vue-tsc": "^3.2.4"
 	},
 	"overrides": {

@@ -22,7 +22,7 @@ const showDialog = ref(false)
 				<DialogTitle>crate guide config</DialogTitle>
 				<p v-if="user.supaUser" class="text-muted-foreground text-sm">
 					Welcome back
-					{{ user.supaUser.user_metadata.full_name || user.supaUser.email }}
+					{{ user.supaUser.user_metadata?.full_name || user.supaUser.email }}
 				</p>
 			</DialogHeader>
 			<DetailsDiscogsAuth />
