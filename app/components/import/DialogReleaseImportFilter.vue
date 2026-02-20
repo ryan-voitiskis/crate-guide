@@ -18,9 +18,9 @@ const allSelected = computed({
 		<DialogContent class="sm:max-w-[425px]">
 			<DialogHeader>
 				<DialogTitle>Filter Releases</DialogTitle>
-				<div class="text-muted-foreground text-sm">
+				<DialogDescription class="text-muted-foreground text-sm">
 					Select the releases you want to import into your collection.
-				</div>
+				</DialogDescription>
 			</DialogHeader>
 
 			<div class="flex justify-between gap-4">

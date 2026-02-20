@@ -3,6 +3,8 @@ type Option = {
 	name: string
 }
 
+export type KeyFormat = 'key' | 'camelot'
+
 export type HarmonyScore = {
 	harmonicAffinity: number | null // 0 - 1 compatibility of keys, 1 is a perfect combination
 	keyCombination: number // the index of keyCombinations array
@@ -173,6 +175,10 @@ export function getKeyStringShort(pitchClass: number, mode: number): string {
 		?.tone.slice(0, 2)} ${mode === 0 ? `Min` : `Maj`}`
 }
 
+export function isKeyFormat(value: string | null | undefined): value is KeyFormat {
+	return value === 'key' || value === 'camelot'
+}
+
 export function getCamelotString(pitchClass: number, mode: number): string {
 	return mode === 0
 		? `${getCamelotMinor(pitchClass)?.toString()}${mode === 0 ? `A` : `B`}`
@@ -203,6 +209,18 @@ export function camelotOptionsMapFn(mode: number) {
 	})
 }
 
+export function getFormattedKeyString(
+	pitchClass: number,
+	mode: number,
+	keyFormat: KeyFormat,
+	style: 'short' | 'long' = 'long'
+): string {
+	if (keyFormat === 'camelot') return getCamelotString(pitchClass, mode)
+	return style === 'short'
+		? getKeyStringShort(pitchClass, mode)
+		: getKeyString(pitchClass, mode)
+}
+
 // Alternative mapping function that combines key name with camelot notation
 // e.g., "C Major (8B)", "C Minor (5A)"
 export function combinedOptionsMapFnAlt(mode: number) {
@@ -218,12 +236,35 @@ export const getKeyOptions = (keyFormat: 'key' | 'camelot'): Option[] => {
 	const keyOptionsMajor: Option[] =
 		keyFormat === 'key'
 			? pitchClassMap.map(keyOptionsMapFn(1))
-			: pitchClassMap.sort(sortNum('camelotMajor')).map(camelotOptionsMapFn(1))
+			: [...pitchClassMap]
+					.sort(sortNum('camelotMajor'))
+					.map(camelotOptionsMapFn(1))
 	const keyOptionsMinor: Option[] =
 		keyFormat === 'key'
 			? pitchClassMap.map(keyOptionsMapFn(0))
-			: pitchClassMap.sort(sortNum('camelotMinor')).map(camelotOptionsMapFn(0))
+			: [...pitchClassMap]
+					.sort(sortNum('camelotMinor'))
+					.map(camelotOptionsMapFn(0))
 	return [{ id: '', name: '--- optional ---' }]
+		.concat(keyOptionsMinor)
+		.concat(keyOptionsMajor)
+}
+
+export const getKeyOptionsForComposite = (keyFormat: KeyFormat): Option[] => {
+	const keyOptionsMajor: Option[] =
+		keyFormat === 'key'
+			? pitchClassMap.map(keyOptionsMapFn(1))
+			: [...pitchClassMap]
+					.sort(sortNum('camelotMajor'))
+					.map(camelotOptionsMapFn(1))
+	const keyOptionsMinor: Option[] =
+		keyFormat === 'key'
+			? pitchClassMap.map(keyOptionsMapFn(0))
+			: [...pitchClassMap]
+					.sort(sortNum('camelotMinor'))
+					.map(camelotOptionsMapFn(0))
+
+	return [{ id: 'none', name: 'Not specified' }]
 		.concat(keyOptionsMinor)
 		.concat(keyOptionsMajor)
 }

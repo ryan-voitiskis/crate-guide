@@ -17,13 +17,10 @@ async function handleDisconnect() {
 		<DialogContent class="sm:max-w-[425px]">
 			<DialogHeader>
 				<DialogTitle>Disconnect Discogs</DialogTitle>
-				<div class="text-muted-foreground text-sm">
-					<p>
-						This will disable Discogs imports and features. Your existing
-						collection will remain in Crate Guide, and you can reconnect
-						anytime.
-					</p>
-				</div>
+				<DialogDescription class="text-muted-foreground text-sm">
+					This will disable Discogs imports and features. Your existing
+					collection will remain in Crate Guide, and you can reconnect anytime.
+				</DialogDescription>
 			</DialogHeader>
 			<DialogFooter>
 				<Button

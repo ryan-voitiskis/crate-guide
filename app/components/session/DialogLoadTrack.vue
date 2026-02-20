@@ -13,6 +13,7 @@ const emit = defineEmits<{
 const session = useSessionStore()
 const tracks = useTracksStore()
 const records = useRecordsStore()
+const user = useUserStore()
 
 const searchQuery = ref('')
 
@@ -48,7 +49,12 @@ function getTrackCover(track: Track): string | null {
 
 function getTrackKeyDisplay(track: Track): string | null {
 	if (track.key === null || track.mode === null) return null
-	return getCamelotString(track.key, track.mode)
+	return getFormattedKeyString(
+		track.key,
+		track.mode,
+		user.currentKeyFormat,
+		'short'
+	)
 }
 
 function getTrackKeyColor(track: Track): string | null {

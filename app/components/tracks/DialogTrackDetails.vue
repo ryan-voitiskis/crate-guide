@@ -15,6 +15,7 @@ const emit = defineEmits<{
 const tracks = useTracksStore()
 const records = useRecordsStore()
 const beatport = useBeatportStore()
+const user = useUserStore()
 
 const isEditMode = ref(false)
 const showUnsavedChangesAlert = ref(false)
@@ -83,7 +84,9 @@ const [timeSignatureLowerValue] = form.defineField('time_signature_lower')
 const artists = ref<DiscogsArtistDb[]>([])
 const extraartists = ref<DiscogsArtistDb[]>([])
 
-const keyOptions = getKeyOptionsAlt()
+const keyOptions = computed(() =>
+	getKeyOptionsForComposite(user.currentKeyFormat)
+)
 
 watch(
 	[() => selectedTrack.value, () => isEditMode.value],
@@ -206,7 +209,7 @@ function confirmDiscardAndProceed() {
 
 function formatKey(track: Track): string {
 	if (track.key === null || track.mode === null) return 'Not specified'
-	return getKeyString(track.key, track.mode)
+	return getFormattedKeyString(track.key, track.mode, user.currentKeyFormat)
 }
 
 async function handleGetBeatportData() {

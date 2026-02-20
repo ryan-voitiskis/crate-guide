@@ -7,6 +7,7 @@ import { z } from 'zod'
 const tracks = useTracksStore()
 const trackEdit = useTrackEditStore()
 const recordDetails = useRecordDetailsStore()
+const user = useUserStore()
 
 // Validation schema
 const trackSchema = z.object({
@@ -81,7 +82,9 @@ const dialogTitle = computed(() =>
 	isEditing.value ? 'Edit Track' : 'Add Track'
 )
 
-const keyOptions = getKeyOptionsAlt()
+const keyOptions = computed(() =>
+	getKeyOptionsForComposite(user.currentKeyFormat)
+)
 
 const isFormInitialized = ref(false)
 

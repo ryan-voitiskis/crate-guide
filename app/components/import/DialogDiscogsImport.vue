@@ -33,18 +33,15 @@ const hasResults = computed(() => {
 								: 'Importing Records...'
 					}}
 				</DialogTitle>
-				<p
-					v-if="discogs.importPhase === 'fetching'"
-					class="text-muted-foreground text-sm"
-				>
-					Hold tight while we import your records.
-				</p>
-				<p
-					v-else-if="discogs.importPhase === 'saving'"
-					class="text-muted-foreground text-sm"
-				>
-					Saving records to your collection...
-				</p>
+				<DialogDescription class="text-muted-foreground text-sm">
+					{{
+						discogs.importPhase === 'fetching'
+							? 'Hold tight while we import your records.'
+							: discogs.importPhase === 'saving'
+								? 'Saving records to your collection...'
+								: 'Review your Discogs import results.'
+					}}
+				</DialogDescription>
 			</DialogHeader>
 			<ProgressDiscogsImport />
 

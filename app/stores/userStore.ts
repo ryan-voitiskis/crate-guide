@@ -10,6 +10,7 @@ export const useUserStore = defineStore('user', () => {
 	const profile = ref<Profile | null>(null)
 	const userAlreadyRegistered = ref(false)
 	const isUpdatingSettings = ref(false)
+	const localKeyFormatPreference = ref<'key' | 'camelot'>('key')
 	const localThemePreference = ref<ThemeOptions>(
 		getSavedThemePreference() ?? 'light'
 	)
@@ -32,6 +33,10 @@ export const useUserStore = defineStore('user', () => {
 
 	const currentTheme = computed((): ThemeOptions => {
 		return profile.value?.ui_theme ?? localThemePreference.value
+	})
+	const currentKeyFormat = computed((): 'key' | 'camelot' => {
+		const stored = profile.value?.key_format
+		return isKeyFormat(stored) ? stored : localKeyFormatPreference.value
 	})
 	setTheme(currentTheme.value)
 
@@ -140,6 +145,10 @@ export const useUserStore = defineStore('user', () => {
 			localThemePreference.value = theme
 			saveThemePreference(theme)
 			setTheme(theme)
+			const keyFormat = profile.value.key_format
+			localKeyFormatPreference.value = isKeyFormat(keyFormat)
+				? keyFormat
+				: 'key'
 			return true
 		} catch {
 			toast.error(`Error getting your profile.`, { duration: 30000 })
@@ -160,6 +169,23 @@ export const useUserStore = defineStore('user', () => {
 					.eq('id', userId)
 					.select()
 					.single()
+				if (!data) {
+					if (error && error.code !== 'PGRST116') throw error
+					const { data: upsertedData, error: upsertError } = await supabase
+						.from('profiles')
+						.upsert(
+							{
+								id: userId,
+								...settingsPartial
+							},
+							{ onConflict: 'id' }
+						)
+						.select()
+						.single()
+					if (upsertError || !upsertedData) throw upsertError
+					profile.value = upsertedData as Profile
+					return true
+				}
 				if (error) throw error
 				// update with the server response to ensure consistency
 				profile.value = data as Profile
@@ -182,13 +208,34 @@ export const useUserStore = defineStore('user', () => {
 		localThemePreference.value = newTheme
 		saveThemePreference(newTheme)
 		setTheme(newTheme)
-		if (!supaUser.value?.id) return
+		if (!supaUser.value?.id) {
+			try {
+				await resolveAuthenticatedUserId()
+			} catch {
+				return
+			}
+		}
 		const didPersist = await updateSettings({ ui_theme: newTheme })
 		if (!didPersist) {
 			localThemePreference.value = previousTheme
 			saveThemePreference(previousTheme)
 			setTheme(previousTheme)
 		}
+	}
+
+	async function updateKeyFormat(newKeyFormat: 'key' | 'camelot') {
+		if (newKeyFormat === currentKeyFormat.value) return
+		const previousKeyFormat = currentKeyFormat.value
+		localKeyFormatPreference.value = newKeyFormat
+		if (!supaUser.value?.id) {
+			try {
+				await resolveAuthenticatedUserId()
+			} catch {
+				return
+			}
+		}
+		const didPersist = await updateSettings({ key_format: newKeyFormat })
+		if (!didPersist) localKeyFormatPreference.value = previousKeyFormat
 	}
 
 	async function deleteAllUserData(): Promise<boolean> {
@@ -241,13 +288,25 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	watchEffect(() => {
-		if (supaUser.value?.id) fetchProfile()
+		if (profile.value) return
+		if (supaUser.value?.id) {
+			void fetchProfile()
+			return
+		}
+		void (async () => {
+			const { data: sessionData, error: sessionError } =
+				await supabase.auth.getSession()
+			if (sessionError) return
+			if (!sessionData.session?.user?.id) return
+			await fetchProfile()
+		})()
 	})
 
 	return {
 		supaUser,
 		profile,
 		currentTheme,
+		currentKeyFormat,
 		userAlreadyRegistered,
 		isUpdatingSettings,
 		resolveAuthenticatedUserId,
@@ -261,6 +320,7 @@ export const useUserStore = defineStore('user', () => {
 		fetchProfile,
 		updateSettings,
 		updateTheme,
+		updateKeyFormat,
 		deleteAllUserData
 	}
 })

@@ -5,6 +5,7 @@ const records = useRecordsStore()
 const beatport = useBeatportStore()
 const tracks = useTracksStore()
 const trackFilters = useTrackFiltersStore()
+const user = useUserStore()
 
 const isActive = usePageActive()
 
@@ -62,7 +63,12 @@ function formatArtists(
 
 function formatKey(track: Track): string {
 	if (track.key === null || track.mode === null) return '–'
-	return getKeyStringShort(track.key, track.mode)
+	return getFormattedKeyString(
+		track.key,
+		track.mode,
+		user.currentKeyFormat,
+		'short'
+	)
 }
 
 async function fetchBeatportForTrack(track: Track, event: Event) {

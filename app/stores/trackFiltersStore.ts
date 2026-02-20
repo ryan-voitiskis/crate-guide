@@ -1,5 +1,6 @@
 export const useTrackFiltersStore = defineStore('trackFilters', () => {
 	const tracks = useTracksStore()
+	const user = useUserStore()
 
 	const keyOptions = computed(() => {
 		const options = []
@@ -7,7 +8,7 @@ export const useTrackFiltersStore = defineStore('trackFilters', () => {
 			for (let key = 0; key < 12; key++) {
 				options.push({
 					value: key,
-					label: getKeyString(key, mode),
+					label: getFormattedKeyString(key, mode, user.currentKeyFormat),
 					color: getKeyColour(key, mode)
 				})
 			}

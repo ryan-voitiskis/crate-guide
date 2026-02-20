@@ -12,6 +12,7 @@ const emit = defineEmits<{
 
 const records = useRecordsStore()
 const session = useSessionStore()
+const user = useUserStore()
 
 const record = computed(() => {
 	if (!props.track) return null
@@ -23,7 +24,12 @@ const coverUrl = computed(() => record.value?.cover ?? null)
 const keyDisplay = computed(() => {
 	if (!props.track || props.track.key === null || props.track.mode === null)
 		return null
-	return getCamelotString(props.track.key, props.track.mode)
+	return getFormattedKeyString(
+		props.track.key,
+		props.track.mode,
+		user.currentKeyFormat,
+		'short'
+	)
 })
 
 const keyColor = computed(() => {
@@ -44,7 +50,12 @@ const adjustedKey = computed(() => {
 const adjustedKeyDisplay = computed(() => {
 	if (adjustedKey.value === null || !props.track || props.track.mode === null)
 		return null
-	return getCamelotString(Math.round(adjustedKey.value) % 12, props.track.mode)
+	return getFormattedKeyString(
+		Math.round(adjustedKey.value) % 12,
+		props.track.mode,
+		user.currentKeyFormat,
+		'short'
+	)
 })
 
 const adjustedKeyColor = computed(() => {

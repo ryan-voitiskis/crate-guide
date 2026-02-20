@@ -1,4 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
+import { ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock tracks data
@@ -65,17 +66,29 @@ const mockTracksStore = {
 	tracks: mockTracks
 }
 
+const mockCurrentKeyFormat = ref<'key' | 'camelot'>('key')
+const mockUserStore = {
+	get currentKeyFormat() {
+		return mockCurrentKeyFormat.value
+	}
+}
+
 // Mock utility functions
-const mockGetKeyString = vi.fn((key: number, mode: number) => {
+const mockGetFormattedKeyString = vi.fn(
+	(key: number, mode: number, format: 'key' | 'camelot') => {
 	const keys = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
-	return `${keys[key]}${mode === 0 ? 'm' : ''}`
-})
+	return format === 'camelot'
+		? `${key + 1}${mode === 0 ? 'A' : 'B'}`
+		: `${keys[key]}${mode === 0 ? 'm' : ''}`
+	}
+)
 
 const mockGetKeyColour = vi.fn((key: number) => `hsl(${key * 30}, 70%, 50%)`)
 
 // Stub globals before importing store
 vi.stubGlobal('useTracksStore', () => mockTracksStore)
-vi.stubGlobal('getKeyString', mockGetKeyString)
+vi.stubGlobal('useUserStore', () => mockUserStore)
+vi.stubGlobal('getFormattedKeyString', mockGetFormattedKeyString)
 vi.stubGlobal('getKeyColour', mockGetKeyColour)
 
 // Import store after mocks
@@ -88,6 +101,7 @@ describe('trackFiltersStore', () => {
 		setActivePinia(createPinia())
 		store = useTrackFiltersStore()
 		vi.clearAllMocks()
+		mockCurrentKeyFormat.value = 'key'
 	})
 
 	describe('initial state', () => {
@@ -130,11 +144,32 @@ describe('trackFiltersStore', () => {
 			expect(firstOption).toHaveProperty('color')
 		})
 
-		it('calls getKeyString for labels', () => {
+		it('calls getFormattedKeyString for labels', () => {
 			// Access keyOptions to trigger computed
 			const options = store.keyOptions
-			expect(mockGetKeyString).toHaveBeenCalled()
+			expect(mockGetFormattedKeyString).toHaveBeenCalled()
 			expect(options.length).toBe(24)
+		})
+
+		it('uses the active user key format', () => {
+			mockCurrentKeyFormat.value = 'camelot'
+
+			const options = store.keyOptions
+
+			expect(mockGetFormattedKeyString).toHaveBeenCalledWith(0, 0, 'camelot')
+			expect(options[0]?.label).toBe('1A')
+		})
+
+		it('recomputes labels when currentKeyFormat changes', () => {
+			const keyOptions = store.keyOptions
+			expect(keyOptions[0]?.label).toBe('Cm')
+			expect(mockGetFormattedKeyString).toHaveBeenCalledWith(0, 0, 'key')
+
+			mockCurrentKeyFormat.value = 'camelot'
+
+			const camelotOptions = store.keyOptions
+			expect(camelotOptions[0]?.label).toBe('1A')
+			expect(mockGetFormattedKeyString).toHaveBeenCalledWith(0, 0, 'camelot')
 		})
 	})
 

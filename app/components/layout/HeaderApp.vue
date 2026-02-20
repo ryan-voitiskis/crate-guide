@@ -54,6 +54,9 @@ watch(
 								<span v-if="isDemo">Demo Mode</span>
 								<span v-else>Menu</span>
 							</SheetTitle>
+							<SheetDescription class="sr-only">
+								Primary navigation menu
+							</SheetDescription>
 						</SheetHeader>
 						<div class="mt-4">
 							<NavMainMobile @navigate="isSheetOpen = false" />

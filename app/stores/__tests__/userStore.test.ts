@@ -30,6 +30,9 @@ const mockCratesStore = {
 const mockSetTheme = vi.fn()
 const mockGetSavedThemePreference = vi.fn().mockReturnValue('light')
 const mockSaveThemePreference = vi.fn()
+const mockIsKeyFormat = vi.fn(
+	(value: string | null | undefined) => value === 'key' || value === 'camelot'
+)
 
 function createMockProfile(overrides: Partial<Profile> = {}): Profile {
 	return {
@@ -58,6 +61,7 @@ function createMockQueryBuilder() {
 	const builder = {
 		select: vi.fn().mockReturnThis(),
 		update: vi.fn().mockReturnThis(),
+		upsert: vi.fn().mockReturnThis(),
 		delete: vi.fn().mockReturnThis(),
 		eq: vi.fn().mockReturnThis(),
 		single: vi.fn().mockResolvedValue({ data: null, error: null })
@@ -106,6 +110,7 @@ vi.stubGlobal('useCratesStore', () => mockCratesStore)
 vi.stubGlobal('setTheme', mockSetTheme)
 vi.stubGlobal('getSavedThemePreference', mockGetSavedThemePreference)
 vi.stubGlobal('saveThemePreference', mockSaveThemePreference)
+vi.stubGlobal('isKeyFormat', mockIsKeyFormat)
 vi.stubGlobal('isError', isError)
 vi.stubGlobal('watchEffect', vi.fn()) // Disable watchEffect to prevent auto-fetch
 
@@ -191,6 +196,52 @@ describe('userStore', () => {
 			store.profile.ui_theme = null as unknown as Profile['ui_theme']
 
 			expect(store.currentTheme).toBe('light')
+		})
+	})
+
+	describe('currentKeyFormat computed', () => {
+		it('defaults to key when profile is null', () => {
+			const store = useUserStore()
+			store.profile = null
+
+			expect(store.currentKeyFormat).toBe('key')
+		})
+
+		it('returns profile key format when valid', () => {
+			const store = useUserStore()
+			store.profile = createMockProfile({ key_format: 'camelot' })
+
+			expect(store.currentKeyFormat).toBe('camelot')
+		})
+
+		it('falls back to key when profile key format is invalid', () => {
+			const store = useUserStore()
+			store.profile = createMockProfile({
+				key_format: 'invalid' as unknown as Profile['key_format']
+			})
+
+			expect(store.currentKeyFormat).toBe('key')
+		})
+
+		it('falls back to local preference when profile key format is invalid', async () => {
+			const store = useUserStore()
+			store.profile = null
+			mockSupaUser.value = null
+			mockSupabaseClient.auth.getSession.mockResolvedValue({
+				data: { session: null },
+				error: null
+			})
+			mockSupabaseClient.auth.getUser.mockResolvedValue({
+				data: { user: null },
+				error: null
+			})
+
+			await store.updateKeyFormat('camelot')
+			store.profile = createMockProfile({
+				key_format: 'invalid' as unknown as Profile['key_format']
+			})
+
+			expect(store.currentKeyFormat).toBe('camelot')
 		})
 	})
 
@@ -455,7 +506,11 @@ describe('userStore', () => {
 
 		it('returns true and sets profile on success', async () => {
 			const store = useUserStore()
-			const mockProfile = { id: 'test-user-id', ui_theme: 'dark' }
+			const mockProfile = {
+				id: 'test-user-id',
+				ui_theme: 'dark',
+				key_format: 'camelot'
+			}
 			mockQueryBuilder.single.mockResolvedValue({
 				data: mockProfile,
 				error: null
@@ -465,6 +520,7 @@ describe('userStore', () => {
 
 			expect(result).toBe(true)
 			expect(store.profile).toEqual(mockProfile)
+			expect(store.currentKeyFormat).toBe('camelot')
 		})
 
 		it('calls setTheme with profile theme', async () => {
@@ -526,6 +582,46 @@ describe('userStore', () => {
 			await store.updateSettings({ turntable_pitch_range: 16 })
 
 			expect(store.profile).toEqual(serverResponse)
+		})
+
+		it('sends key_format in update payload', async () => {
+			const store = useUserStore()
+			store.profile = createMockProfile({ key_format: 'key' })
+			mockQueryBuilder.single.mockResolvedValue({
+				data: { id: 'test', key_format: 'camelot' },
+				error: null
+			})
+
+			await store.updateSettings({ key_format: 'camelot' })
+
+			expect(mockQueryBuilder.update).toHaveBeenCalledWith({
+				key_format: 'camelot'
+			})
+		})
+
+		it('upserts profile when update finds no row', async () => {
+			const store = useUserStore()
+			store.profile = createMockProfile({ key_format: 'key' })
+			mockQueryBuilder.single
+				.mockResolvedValueOnce({
+					data: null,
+					error: { code: 'PGRST116', message: 'No rows found' }
+				})
+				.mockResolvedValueOnce({
+					data: { id: 'test-user-id', key_format: 'camelot' },
+					error: null
+				})
+
+			const result = await store.updateSettings({ key_format: 'camelot' })
+
+			expect(result).toBe(true)
+			expect(mockQueryBuilder.upsert).toHaveBeenCalledWith(
+				{
+					id: 'test-user-id',
+					key_format: 'camelot'
+				},
+				{ onConflict: 'id' }
+			)
 		})
 
 		it('sets isUpdatingSettings during update', async () => {
@@ -648,6 +744,113 @@ describe('userStore', () => {
 
 			expect(mockSetTheme).toHaveBeenCalledWith('auto')
 			expect(mockQueryBuilder.update).toHaveBeenCalledWith({ ui_theme: 'auto' })
+		})
+
+		it('persists using session fallback when reactive user is unavailable', async () => {
+			const store = useUserStore()
+			store.profile = createMockProfile({ ui_theme: 'light' })
+			mockSupaUser.value = null
+			mockSupabaseClient.auth.getSession.mockResolvedValue({
+				data: { session: { user: { id: 'session-user-id' } } },
+				error: null
+			})
+			mockQueryBuilder.single.mockResolvedValue({
+				data: { id: 'session-user-id', ui_theme: 'dark' },
+				error: null
+			})
+
+			await store.updateTheme('dark')
+
+			expect(mockQueryBuilder.eq).toHaveBeenCalledWith('id', 'session-user-id')
+			expect(mockQueryBuilder.update).toHaveBeenCalledWith({ ui_theme: 'dark' })
+		})
+	})
+
+	describe('updateKeyFormat', () => {
+		it('updates key format when changed', async () => {
+			const store = useUserStore()
+			store.profile = createMockProfile({ key_format: 'key' })
+			mockQueryBuilder.single.mockResolvedValue({
+				data: { id: 'test', key_format: 'camelot' },
+				error: null
+			})
+
+			await store.updateKeyFormat('camelot')
+
+			expect(mockQueryBuilder.update).toHaveBeenCalledWith({
+				key_format: 'camelot'
+			})
+			expect(store.currentKeyFormat).toBe('camelot')
+		})
+
+		it('persists using session fallback when reactive user is unavailable', async () => {
+			const store = useUserStore()
+			store.profile = createMockProfile({ key_format: 'key' })
+			mockSupaUser.value = null
+			mockSupabaseClient.auth.getSession.mockResolvedValue({
+				data: { session: { user: { id: 'session-user-id' } } },
+				error: null
+			})
+			mockQueryBuilder.single.mockResolvedValue({
+				data: { id: 'session-user-id', key_format: 'camelot' },
+				error: null
+			})
+
+			await store.updateKeyFormat('camelot')
+
+			expect(mockQueryBuilder.eq).toHaveBeenCalledWith('id', 'session-user-id')
+			expect(mockQueryBuilder.update).toHaveBeenCalledWith({
+				key_format: 'camelot'
+			})
+		})
+
+		it('keeps local preference and skips db update when unauthenticated', async () => {
+			const store = useUserStore()
+			store.profile = null
+			mockSupaUser.value = null
+			mockSupabaseClient.auth.getSession.mockResolvedValue({
+				data: { session: null },
+				error: null
+			})
+			mockSupabaseClient.auth.getUser.mockResolvedValue({
+				data: { user: null },
+				error: null
+			})
+
+			await store.updateKeyFormat('camelot')
+
+			expect(mockQueryBuilder.update).not.toHaveBeenCalled()
+			expect(store.currentKeyFormat).toBe('camelot')
+		})
+
+		it('does not update when value is unchanged', async () => {
+			const store = useUserStore()
+			store.profile = createMockProfile({ key_format: 'camelot' })
+
+			await store.updateKeyFormat('camelot')
+
+			expect(mockQueryBuilder.update).not.toHaveBeenCalled()
+		})
+
+		it('rolls back local preference when persistence fails', async () => {
+			const store = useUserStore()
+			store.profile = null
+			mockQueryBuilder.single
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Update failed')
+				})
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Fetch failed')
+				})
+
+			await store.updateKeyFormat('camelot')
+
+			expect(mockQueryBuilder.update).toHaveBeenCalledWith({
+				key_format: 'camelot'
+			})
+			expect(store.currentKeyFormat).toBe('key')
 		})
 	})
 

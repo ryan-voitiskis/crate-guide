@@ -17,6 +17,7 @@ const props = defineProps<{
 
 const tracks = useTracksStore()
 const records = useRecordsStore()
+const user = useUserStore()
 
 const imageError = ref(false)
 
@@ -32,6 +33,18 @@ const keyColor = computed(() => {
 	const parsed = parseBeatportKey(props.result.key)
 	if (parsed.key === null || parsed.mode === null) return null
 	return getKeyColour(parsed.key, parsed.mode)
+})
+
+const keyDisplay = computed(() => {
+	if (!props.result.key) return null
+	const parsed = parseBeatportKey(props.result.key)
+	if (parsed.key === null || parsed.mode === null) return props.result.key
+	return getFormattedKeyString(
+		parsed.key,
+		parsed.mode,
+		user.currentKeyFormat,
+		'short'
+	)
 })
 
 function onImageError() {
@@ -108,11 +121,11 @@ watch(
 			>
 				<p v-if="result.bpm" class="text-zinc-400">{{ result.bpm }} BPM</p>
 				<p
-					v-if="result.key"
+					v-if="keyDisplay"
 					class="font-medium"
 					:style="keyColor ? { color: keyColor } : undefined"
 				>
-					{{ result.key }}
+					{{ keyDisplay }}
 				</p>
 				<p v-if="result.genre" class="truncate text-zinc-500">
 					{{ result.genre }}

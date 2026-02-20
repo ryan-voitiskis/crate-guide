@@ -5,10 +5,16 @@ const props = defineProps<{
 }>()
 
 const session = useSessionStore()
+const user = useUserStore()
 
 const keyDisplay = computed(() => {
 	if (props.track.key === null || props.track.mode === null) return null
-	return getCamelotString(props.track.key, props.track.mode)
+	return getFormattedKeyString(
+		props.track.key,
+		props.track.mode,
+		user.currentKeyFormat,
+		'short'
+	)
 })
 
 const keyColor = computed(() => {

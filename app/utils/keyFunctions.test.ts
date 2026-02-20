@@ -3,15 +3,18 @@ import {
 	type KeyAndMode,
 	adjustKey,
 	createKeyComposite,
+	getFormattedKeyString,
 	getCamelotMajor,
 	getCamelotMinor,
 	getCamelotString,
 	getKeyColour,
+	getKeyOptionsForComposite,
 	getKeyString,
 	getKeyStringShort,
 	getMajorColour,
 	getMinorColour,
 	getSortableNotation,
+	isKeyFormat,
 	mod,
 	parseBeatportKey,
 	parseKeyComposite,
@@ -284,6 +287,20 @@ describe('pitchClassMap helpers', () => {
 		expect(getCamelotString(0, 1)).toBe('8B') // C Major
 	})
 
+	it('getFormattedKeyString supports long and short styles for key notation', () => {
+		expect(getFormattedKeyString(0, 0, 'key')).toBe('C Minor')
+		expect(getFormattedKeyString(0, 0, 'key', 'long')).toBe('C Minor')
+		expect(getFormattedKeyString(0, 0, 'key', 'short')).toBe('C Min')
+		expect(getFormattedKeyString(0, 1, 'key')).toBe('C Major')
+		expect(getFormattedKeyString(0, 1, 'key', 'short')).toBe('C Maj')
+	})
+
+	it('getFormattedKeyString returns camelot output regardless of style', () => {
+		expect(getFormattedKeyString(0, 0, 'camelot')).toBe('5A')
+		expect(getFormattedKeyString(0, 0, 'camelot', 'short')).toBe('5A')
+		expect(getFormattedKeyString(0, 1, 'camelot', 'long')).toBe('8B')
+	})
+
 	it('getKeyColour returns minor color for mode 0', () => {
 		expect(getKeyColour(0, 0)).toBe(getMinorColour(0))
 	})
@@ -297,6 +314,62 @@ describe('pitchClassMap helpers', () => {
 		expect(getSortableNotation(0, 1)).toBe(8)
 		// Minor keys return camelotMinor + 100
 		expect(getSortableNotation(0, 0)).toBe(105)
+	})
+
+	it('getKeyOptionsForComposite includes key labels in pitch-class order', () => {
+		const options = getKeyOptionsForComposite('key')
+		expect(options).toHaveLength(25)
+		expect(options[0]).toEqual({
+			id: 'none',
+			name: 'Not specified'
+		})
+		expect(options[1]).toEqual({ id: '000', name: 'C Minor' })
+		expect(options[12]).toEqual({ id: '011', name: 'B Minor' })
+		expect(options[13]).toEqual({ id: '100', name: 'C Major' })
+		expect(options[24]).toEqual({ id: '111', name: 'B Major' })
+	})
+
+	it('getKeyOptionsForComposite includes camelot labels in camelot order', () => {
+		const options = getKeyOptionsForComposite('camelot')
+		expect(options).toHaveLength(25)
+		expect(options[0]).toEqual({
+			id: 'none',
+			name: 'Not specified'
+		})
+		expect(options[1]).toEqual({ id: '008', name: '1A' })
+		expect(options[12]).toEqual({ id: '001', name: '12A' })
+		expect(options[13]).toEqual({ id: '111', name: '1B' })
+		expect(options[24]).toEqual({ id: '104', name: '12B' })
+	})
+
+	it('does not mutate pitchClassMap order when building sorted camelot options', () => {
+		const pitchClassOrderBefore = pitchClassMap.map(({ pitchClass, tone }) => ({
+			pitchClass,
+			tone
+		}))
+
+		getKeyOptionsForComposite('camelot')
+		getKeyOptionsForComposite('camelot')
+
+		const pitchClassOrderAfter = pitchClassMap.map(({ pitchClass, tone }) => ({
+			pitchClass,
+			tone
+		}))
+		expect(pitchClassOrderAfter).toEqual(pitchClassOrderBefore)
+		expect(getKeyOptionsForComposite('key')[1]).toEqual({
+			id: '000',
+			name: 'C Minor'
+		})
+	})
+})
+
+describe('key format guards', () => {
+	it('isKeyFormat validates known values', () => {
+		expect(isKeyFormat('key')).toBe(true)
+		expect(isKeyFormat('camelot')).toBe(true)
+		expect(isKeyFormat('invalid')).toBe(false)
+		expect(isKeyFormat(null)).toBe(false)
+		expect(isKeyFormat(undefined)).toBe(false)
 	})
 })
 

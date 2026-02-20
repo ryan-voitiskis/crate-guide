@@ -7,6 +7,7 @@ const props = defineProps<{
 
 const session = useSessionStore()
 const tracks = useTracksStore()
+const user = useUserStore()
 
 const track = computed(() => tracks.getTrackById(props.entry.track_id))
 
@@ -23,7 +24,12 @@ const artistNames = computed(() => {
 const keyDisplay = computed(() => {
 	if (!track.value || track.value.key === null || track.value.mode === null)
 		return null
-	return getCamelotString(track.value.key, track.value.mode)
+	return getFormattedKeyString(
+		track.value.key,
+		track.value.mode,
+		user.currentKeyFormat,
+		'short'
+	)
 })
 
 const keyColor = computed(() => {

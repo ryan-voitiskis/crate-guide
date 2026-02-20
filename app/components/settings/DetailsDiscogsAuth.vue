@@ -3,11 +3,16 @@ import { KeyRound, User } from 'lucide-vue-next'
 
 const user = useUserStore()
 const discogsAuth = useDiscogsAuthStore()
+const props = withDefaults(defineProps<{ showHeading?: boolean }>(), {
+	showHeading: true
+})
 </script>
 
 <template>
 	<div class="space-y-2">
-		<h2 class="leading-none font-medium">Discogs Integration</h2>
+		<h2 v-if="props.showHeading" class="leading-none font-medium">
+			Discogs Integration
+		</h2>
 		<div v-if="user.profile?.discogs_username" class="space-y-2">
 			<span class="text-muted-foreground text-sm">
 				Crate Guide is connected to your Discogs account

@@ -9,10 +9,10 @@ const discogs = useDiscogsStore()
 		<DialogContent class="sm:max-w-[425px]">
 			<DialogHeader>
 				<DialogTitle>Import Discogs Collection</DialogTitle>
-				<div class="text-muted-foreground mb-4 text-sm">
+				<DialogDescription class="text-muted-foreground mb-4 text-sm">
 					Select the folder you want to import from. You'll be able to deselect
 					releases from it.
-				</div>
+				</DialogDescription>
 				<SpinnerLoading
 					v-if="discogs.isLoadingFolders"
 					class="text-primary/30 mx-auto h-16 w-16"

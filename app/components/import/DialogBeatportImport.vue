@@ -72,6 +72,9 @@ defineExpose({
 		<DialogContent class="sm:max-w-120">
 			<DialogHeader>
 				<DialogTitle>{{ dialogTitle }}</DialogTitle>
+				<DialogDescription class="sr-only">
+					Import Beatport metadata for tracks and review progress and results.
+				</DialogDescription>
 			</DialogHeader>
 
 			<!-- Initial State: Before starting -->
@@ -193,7 +196,7 @@ defineExpose({
 					>
 						Show failed tracks
 					</summary>
-					<ScrollArea class="max-h-48">
+					<div class="max-h-48 overflow-y-auto">
 						<ul class="divide-y px-3">
 							<li
 								v-for="failedTrack in beatport.bulkBeatportResults.failed"
@@ -206,7 +209,7 @@ defineExpose({
 								</p>
 							</li>
 						</ul>
-					</ScrollArea>
+					</div>
 				</details>
 			</div>
 

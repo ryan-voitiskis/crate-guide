@@ -42,6 +42,9 @@ async function handleDelete() {
 					<AlertTriangle class="text-destructive size-5" />
 					Clear All Data
 				</DialogTitle>
+				<DialogDescription class="sr-only">
+					Permanently delete all records and tracks from your account.
+				</DialogDescription>
 			</DialogHeader>
 
 			<div class="space-y-4">

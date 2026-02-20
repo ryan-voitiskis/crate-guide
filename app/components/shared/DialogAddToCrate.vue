@@ -111,6 +111,9 @@ function handleCrateCreated(crate: Crate) {
 		<DialogContent class="sm:max-w-md">
 			<DialogHeader>
 				<DialogTitle>Manage Crates</DialogTitle>
+				<DialogDescription class="sr-only">
+					Add or remove this record from your crates.
+				</DialogDescription>
 			</DialogHeader>
 
 			<!-- Record info -->
