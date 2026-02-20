@@ -73,20 +73,20 @@ watch(
 
 <template>
 	<Dialog :open="open" @update:open="handleClose">
-		<DialogContent class="flex h-[90dvh] max-w-2xl flex-col gap-0 p-0">
-			<DialogHeader class="shrink-0 space-y-3 border-b p-6 pb-4">
+		<DialogContent class="flex h-[90dvh] max-w-2xl flex-col gap-0 overflow-hidden p-0">
+			<DialogHeader class="min-w-0 shrink-0 space-y-3 border-b p-6 pb-4">
 				<DialogTitle>Add Records</DialogTitle>
 				<DialogDescription>Add records to "{{ crate.name }}"</DialogDescription>
 
 				<!-- Search -->
-				<div class="relative">
+				<div class="relative w-full max-w-full">
 					<Search
 						class="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2"
 					/>
 					<Input
 						v-model="searchQuery"
 						placeholder="Search records..."
-						class="pl-10"
+						class="w-full max-w-full pl-10"
 					/>
 				</div>
 

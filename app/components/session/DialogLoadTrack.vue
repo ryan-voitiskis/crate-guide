@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search } from 'lucide-vue-next'
+import { ImageOff, Search } from 'lucide-vue-next'
 
 const props = defineProps<{
 	open: boolean
@@ -12,6 +12,7 @@ const emit = defineEmits<{
 
 const session = useSessionStore()
 const tracks = useTracksStore()
+const records = useRecordsStore()
 
 const searchQuery = ref('')
 
@@ -40,11 +41,25 @@ function handleOpenChange(open: boolean) {
 function getArtistNames(track: Track): string {
 	return track.artists.map((a) => a.name).join(', ')
 }
+
+function getTrackCover(track: Track): string | null {
+	return records.getRecordById(track.record_id)?.cover ?? null
+}
+
+function getTrackKeyDisplay(track: Track): string | null {
+	if (track.key === null || track.mode === null) return null
+	return getCamelotString(track.key, track.mode)
+}
+
+function getTrackKeyColor(track: Track): string | null {
+	if (track.key === null || track.mode === null) return null
+	return getKeyColour(track.key, track.mode)
+}
 </script>
 
 <template>
 	<Dialog :open="open" @update:open="handleOpenChange">
-		<DialogContent class="sm:max-w-xl">
+		<DialogContent class="overflow-hidden sm:max-w-xl">
 			<DialogHeader>
 				<DialogTitle>Load Track to Deck {{ deckIndex + 1 }}</DialogTitle>
 				<DialogDescription>
@@ -52,16 +67,16 @@ function getArtistNames(track: Track): string {
 				</DialogDescription>
 			</DialogHeader>
 
-			<div class="space-y-4 py-4">
+			<div class="min-w-0 space-y-4 py-4">
 				<!-- Search input -->
-				<div class="relative">
+				<div class="relative w-full max-w-full">
 					<Search
 						class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
 					/>
 					<Input
 						v-model="searchQuery"
 						placeholder="Search tracks..."
-						class="pl-9"
+						class="w-full max-w-full pl-9"
 					/>
 				</div>
 
@@ -71,9 +86,23 @@ function getArtistNames(track: Track): string {
 						<button
 							v-for="track in filteredTracks"
 							:key="track.id"
-							class="hover:bg-muted/50 flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors"
+							class="hover:bg-accent flex w-full items-center gap-3 rounded-lg border p-2 text-left transition-colors"
 							@click="handleTrackClick(track.id)"
 						>
+							<div
+								class="bg-muted flex size-12 shrink-0 items-center justify-center overflow-hidden rounded bg-cover bg-center"
+								:style="
+									getTrackCover(track)
+										? { backgroundImage: `url('${getTrackCover(track)}')` }
+										: {}
+								"
+							>
+								<ImageOff
+									v-if="!getTrackCover(track)"
+									class="text-muted-foreground size-4"
+								/>
+							</div>
+
 							<div class="min-w-0 flex-1">
 								<div class="truncate text-sm font-medium">
 									{{ track.title }}
@@ -82,11 +111,18 @@ function getArtistNames(track: Track): string {
 									{{ getArtistNames(track) }}
 								</div>
 							</div>
-							<div class="text-muted-foreground shrink-0 text-right text-xs">
-								<div v-if="track.bpm">{{ track.bpm.toFixed(1) }} BPM</div>
-								<div v-if="track.key !== null && track.mode !== null">
-									{{ getCamelotString(track.key, track.mode) }}
+							<div class="shrink-0 text-right text-xs">
+								<div v-if="track.bpm" class="text-muted-foreground">
+									{{ track.bpm.toFixed(1) }} BPM
 								</div>
+								<Badge
+									v-if="getTrackKeyDisplay(track)"
+									variant="outline"
+									class="mt-1 min-w-9 justify-center px-1.5 font-medium"
+									:style="{ color: getTrackKeyColor(track) ?? undefined }"
+								>
+									{{ getTrackKeyDisplay(track) }}
+								</Badge>
 							</div>
 						</button>
 
