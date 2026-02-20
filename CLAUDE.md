@@ -353,3 +353,9 @@ DISCOGS_SECRET
 ## Communication
 
 Be direct and technical. Skip excessive explanation.
+
+## Commits
+
+- Always use Conventional Commits for every commit message.
+- Format: `type(scope): short summary` (or `type: short summary` when no scope is needed).
+- Valid examples: `feat(crates): add drag-and-drop ordering`, `fix: prevent duplicate record imports`.
