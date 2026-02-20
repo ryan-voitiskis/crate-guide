@@ -1,5 +1,10 @@
 import { corsHeaders } from '../_shared/cors.ts'
 import { fetchAndSetIdentity } from '../_shared/discogs/fetchAndSetIdentity.ts'
+import {
+	buildDiscogsOAuthHttpError,
+	getPublicOAuthErrorMessage,
+	PublicOAuthError
+} from '../_shared/discogs/oauthErrors.ts'
 import { generateToken } from '../_shared/generateToken.ts'
 import {
 	createAuthedSupabaseClient,
@@ -23,8 +28,11 @@ Deno.serve(async (req) => {
 
 	try {
 		const { oauth_token, oauth_verifier } = await req.json()
-		if (!oauth_token) throw new Error('Missing oauth_token')
-		if (!oauth_verifier) throw new Error('Missing oauth_verifier')
+		if (!oauth_token || !oauth_verifier) {
+			throw new PublicOAuthError(
+				'Missing OAuth callback parameters from Discogs.'
+			)
+		}
 
 		const supabase = createAuthedSupabaseClient(authHeader)
 		const user = await getUser(supabase)
@@ -40,7 +48,7 @@ Deno.serve(async (req) => {
 		params.append('oauth_token', oauth_token)
 		params.append('oauth_signature', oauthSignature)
 		params.append('oauth_signature_method', 'PLAINTEXT')
-		params.append('oauth_timestamp', Date.now().toString())
+		params.append('oauth_timestamp', Math.floor(Date.now() / 1000).toString())
 		params.append('oauth_verifier', oauth_verifier)
 
 		const options = {
@@ -48,14 +56,26 @@ Deno.serve(async (req) => {
 			headers: { 'User-Agent': userAgent }
 		}
 		const response = await fetch(accessTokenURL + '?' + params, options)
-		const responseParams = new URLSearchParams(await response.text())
+		const responseText = await response.text()
+		if (!response.ok) {
+			console.error('Discogs access token error response:', {
+				status: response.status,
+				body: responseText
+			})
+			throw buildDiscogsOAuthHttpError('access_token', response.status)
+		}
+		const responseParams = new URLSearchParams(responseText)
 		const discogsResponse = Object.fromEntries([...responseParams])
 
 		if (!discogsResponse.oauth_token) {
-			throw new Error('Discogs did not provide OAuth token.')
+			throw new PublicOAuthError(
+				'Discogs did not return a complete OAuth access token. Please restart the Discogs connection and try again.'
+			)
 		}
 		if (!discogsResponse.oauth_token_secret) {
-			throw new Error('Discogs did not provide OAuth token secret.')
+			throw new PublicOAuthError(
+				'Discogs did not return a complete OAuth access token. Please restart the Discogs connection and try again.'
+			)
 		}
 
 		const { error } = await supabase
@@ -69,10 +89,14 @@ Deno.serve(async (req) => {
 
 		await fetchAndSetIdentity(supabase, authHeader)
 
-		return new Response(null, { headers, status: 200 })
+		return new Response(JSON.stringify({ success: true }), {
+			headers,
+			status: 200
+		})
 	} catch (e) {
 		console.error('Function error:', e)
-		return new Response(JSON.stringify({ error: 'Internal server error' }), {
+		const message = getPublicOAuthErrorMessage(e)
+		return new Response(JSON.stringify({ error: message }), {
 			headers,
 			status: 500
 		})
@@ -81,7 +105,9 @@ Deno.serve(async (req) => {
 
 function generateOAuthSignature(consumerSecret: string, profile: Profile) {
 	if (!profile.discogs_request_secret) {
-		throw new Error('Missing Discogs request secret.')
+		throw new PublicOAuthError(
+			'Discogs request state is missing. Please restart the Discogs connection and try again.'
+		)
 	}
 	return `${consumerSecret}%26${profile.discogs_request_secret}`
 }

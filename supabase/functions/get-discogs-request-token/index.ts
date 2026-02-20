@@ -1,4 +1,9 @@
 import { corsHeaders } from '../_shared/cors.ts'
+import {
+	buildDiscogsOAuthHttpError,
+	getPublicOAuthErrorMessage,
+	PublicOAuthError
+} from '../_shared/discogs/oauthErrors.ts'
 import { generateToken } from '../_shared/generateToken.ts'
 import {
 	createAuthedSupabaseClient,
@@ -24,7 +29,7 @@ Deno.serve(async (req) => {
 		params.append('oauth_nonce', await generateToken())
 		params.append('oauth_version', '1.0')
 		params.append('oauth_signature_method', 'PLAINTEXT')
-		params.append('oauth_timestamp', Date.now().toString())
+		params.append('oauth_timestamp', Math.floor(Date.now() / 1000).toString())
 		params.append('oauth_signature', `${oauth_consumer_secret}%26`)
 		params.append('oauth_callback', oauthCallback)
 
@@ -33,11 +38,25 @@ Deno.serve(async (req) => {
 			headers: { 'User-Agent': userAgent }
 		}
 		const response = await fetch(requestTokenURL + '?' + params, options)
-		const responseParams = new URLSearchParams(await response.text())
+		const responseText = await response.text()
+		if (!response.ok) {
+			console.error('Discogs request token error response:', {
+				status: response.status,
+				body: responseText
+			})
+			throw buildDiscogsOAuthHttpError('request_token', response.status)
+		}
+		const responseParams = new URLSearchParams(responseText)
 		const discogsResponse = Object.fromEntries([...responseParams])
 
 		if (!discogsResponse.oauth_token)
-			throw new Error('Discogs did not provide OAuth token.')
+			throw new PublicOAuthError(
+				'Discogs did not provide an OAuth request token. Please try again.'
+			)
+		if (!discogsResponse.oauth_token_secret)
+			throw new PublicOAuthError(
+				'Discogs did not provide an OAuth request token secret. Please try again.'
+			)
 
 		const supabase = createAuthedSupabaseClient(authHeader)
 		const user = await getUser(supabase)
@@ -57,7 +76,11 @@ Deno.serve(async (req) => {
 		})
 	} catch (e) {
 		console.error('Function error:', e)
-		return new Response(JSON.stringify({ error: 'Internal server error' }), {
+		const message = getPublicOAuthErrorMessage(
+			e,
+			'Could not start Discogs authorization. Please try again.'
+		)
+		return new Response(JSON.stringify({ error: message }), {
 			headers,
 			status: 500
 		})

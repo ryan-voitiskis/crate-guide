@@ -1,5 +1,4 @@
 import { toast } from 'vue-sonner'
-import { FunctionsError } from '@supabase/supabase-js'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Import after mocking
@@ -84,6 +83,11 @@ describe('discogsAuthStore', () => {
 		it('starts with oAuthCompletionFailed as false', () => {
 			const store = useDiscogsAuthStore()
 			expect(store.oAuthCompletionFailed).toBe(false)
+		})
+
+		it('starts with oAuthCompletionError as null', () => {
+			const store = useDiscogsAuthStore()
+			expect(store.oAuthCompletionError).toBe(null)
 		})
 	})
 
@@ -223,11 +227,68 @@ describe('discogsAuthStore', () => {
 			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
 				'get-discogs-access-token',
 				{
-					body: JSON.stringify({
+					body: {
 						oauth_token: 'test-token',
 						oauth_verifier: 'test-verifier'
-					})
+					}
 				}
+			)
+		})
+
+		it('fails when callback params are missing', async () => {
+			const store = useDiscogsAuthStore()
+			mockRoute.query = {
+				oauth_token: undefined as unknown as string,
+				oauth_verifier: undefined as unknown as string
+			}
+
+			const result = await store.completeDiscogsOAuth()
+
+			expect(result).toBe(false)
+			expect(store.oAuthCompletionFailed).toBe(true)
+			expect(store.oAuthCompletionError).toBe(
+				'Missing OAuth callback parameters from Discogs.'
+			)
+			expect(mockSupabaseClient.functions.invoke).not.toHaveBeenCalled()
+		})
+
+		it('sets oAuthCompletionError from invoke context json payload', async () => {
+			const store = useDiscogsAuthStore()
+			mockSupabaseClient.functions.invoke.mockResolvedValue({
+				data: null,
+				error: {
+					context: new Response(
+						JSON.stringify({
+							error:
+								'Discogs rejected the OAuth callback. Please restart the Discogs connection and try again.'
+						}),
+						{ headers: { 'Content-Type': 'application/json' } }
+					)
+				}
+			})
+
+			await store.completeDiscogsOAuth()
+
+			expect(store.oAuthCompletionError).toBe(
+				'Discogs rejected the OAuth callback. Please restart the Discogs connection and try again.'
+			)
+		})
+
+		it('sanitizes sensitive invoke context text', async () => {
+			const store = useDiscogsAuthStore()
+			mockSupabaseClient.functions.invoke.mockResolvedValue({
+				data: null,
+				error: {
+					context: new Response(
+						'Discogs access token failed: oauth_token=abc123&oauth_verifier=xyz'
+					)
+				}
+			})
+
+			await store.completeDiscogsOAuth()
+
+			expect(store.oAuthCompletionError).toBe(
+				'Failed to authenticate with Discogs. Please try again.'
 			)
 		})
 
@@ -293,12 +354,12 @@ describe('discogsAuthStore', () => {
 			expect(mockDiscogsStore.showGetFoldersDialog).toBe(false)
 		})
 
-		it('returns false on FunctionsError', async () => {
+		it('returns false when invoke returns an error', async () => {
 			const store = useDiscogsAuthStore()
-			const functionsError = new FunctionsError('OAuth failed', '400', {})
+			const invokeError = new Error('OAuth failed')
 			mockSupabaseClient.functions.invoke.mockResolvedValue({
 				data: null,
-				error: functionsError
+				error: invokeError
 			})
 
 			const result = await store.completeDiscogsOAuth()
@@ -306,12 +367,12 @@ describe('discogsAuthStore', () => {
 			expect(result).toBe(false)
 		})
 
-		it('sets oAuthCompletionFailed on FunctionsError', async () => {
+		it('sets oAuthCompletionFailed when invoke returns an error', async () => {
 			const store = useDiscogsAuthStore()
-			const functionsError = new FunctionsError('OAuth failed', '400', {})
+			const invokeError = new Error('OAuth failed')
 			mockSupabaseClient.functions.invoke.mockResolvedValue({
 				data: null,
-				error: functionsError
+				error: invokeError
 			})
 
 			await store.completeDiscogsOAuth()
@@ -319,12 +380,25 @@ describe('discogsAuthStore', () => {
 			expect(store.oAuthCompletionFailed).toBe(true)
 		})
 
-		it('does not navigate on FunctionsError', async () => {
+		it('resets stale oAuthCompletionError before each attempt', async () => {
 			const store = useDiscogsAuthStore()
-			const functionsError = new FunctionsError('OAuth failed', '400', {})
+			store.oAuthCompletionError = 'Previous OAuth error'
+			mockSupabaseClient.functions.invoke.mockResolvedValue({
+				data: {},
+				error: null
+			})
+
+			await store.completeDiscogsOAuth()
+
+			expect(store.oAuthCompletionError).toBe(null)
+		})
+
+		it('does not navigate when invoke returns an error', async () => {
+			const store = useDiscogsAuthStore()
+			const invokeError = new Error('OAuth failed')
 			mockSupabaseClient.functions.invoke.mockResolvedValue({
 				data: null,
-				error: functionsError
+				error: invokeError
 			})
 
 			await store.completeDiscogsOAuth()

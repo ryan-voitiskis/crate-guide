@@ -24,8 +24,10 @@ onMounted(async () => await discogsAuth.completeDiscogsOAuth())
 					<TriangleAlert class="mr-1 inline h-5 w-5" />
 					Failed to authenticate with Discogs.
 				</template>
-				An error occurred while authenticating with Discogs. Please go back and
-				try again.
+				{{
+					discogsAuth.oAuthCompletionError ??
+					'Failed to authenticate with Discogs. Please go back and try again.'
+				}}
 			</NoticeWarning>
 
 			<Button as-child variant="ghost">
