@@ -14,14 +14,18 @@ export const useTracksStore = defineStore('tracks', () => {
 	const playableTracks = computed(() => tracks.value.filter((t) => t.playable))
 
 	async function fetchAllTracks() {
-		if (!user.supaUser?.id) return
-
+		if (isLoadingTracks.value) return
 		isLoadingTracks.value = true
 		try {
+			const userId = await user
+				.resolveAuthenticatedUserId()
+				.catch(() => null as string | null)
+			if (!userId) return
+
 			const { data, error } = await supabase
 				.from('tracks')
 				.select(`*, records!inner(user_id)`)
-				.eq('records.user_id', user.supaUser.id)
+				.eq('records.user_id', userId)
 				.order('created_at', { ascending: false })
 
 			if (error) throw error

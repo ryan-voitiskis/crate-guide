@@ -20,7 +20,8 @@ const mockSupaUser = ref<{ id: string } | null>(null)
 const mockUserStore = {
 	get supaUser() {
 		return mockSupaUser.value
-	}
+	},
+	resolveAuthenticatedUserId: vi.fn()
 }
 
 const mockRecordsStore = {
@@ -61,6 +62,10 @@ describe('useUserData', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
 		mockSupaUser.value = null
+		mockUserStore.resolveAuthenticatedUserId.mockImplementation(async () => {
+			if (!mockSupaUser.value?.id) throw new Error('User not logged in.')
+			return mockSupaUser.value.id
+		})
 		mockRecordsStore.isLoadingRecords = false
 		mockRecordsStore.hasRecords = false
 		mockRecordsStore.fetchAllRecords.mockResolvedValue(undefined)
@@ -218,24 +223,27 @@ describe('useUserData', () => {
 			expect(hasLoadedData.value).toBe(false)
 		})
 
-		it('sets isLoadingUserData during fetch', async () => {
-			mockSupaUser.value = { id: 'user-123' }
-			let resolveRecords: (value: unknown) => void
-			mockRecordsStore.fetchAllRecords.mockImplementation(
-				() =>
-					new Promise((resolve) => {
-						resolveRecords = resolve
-					})
+			it('sets isLoadingUserData during fetch', async () => {
+				mockSupaUser.value = { id: 'user-123' }
+				let resolveRecords: ((value: unknown) => void) | undefined
+				mockRecordsStore.fetchAllRecords.mockImplementation(
+					() =>
+						new Promise((resolve) => {
+							resolveRecords = resolve
+						})
 			)
 
 			const { loadAllUserData, isLoadingUserData } = useUserData()
 
 			const loadPromise = loadAllUserData()
-			// Need to await a tick for the async function to start
+			// Extra tick needed because auth resolution happens before store fetches.
+			await Promise.resolve()
 			await Promise.resolve()
 			expect(isLoadingUserData.value).toBe(true)
+			expect(resolveRecords).toBeTypeOf('function')
 
-			resolveRecords!(undefined)
+			if (!resolveRecords) throw new Error('resolveRecords was not assigned')
+			resolveRecords(undefined)
 			await loadPromise
 			expect(isLoadingUserData.value).toBe(false)
 		})

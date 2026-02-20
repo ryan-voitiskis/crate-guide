@@ -29,14 +29,18 @@ export const useRecordsStore = defineStore('records', () => {
 	)
 
 	async function fetchAllRecords() {
-		if (!user.supaUser?.id) return
-
+		if (isLoadingRecords.value) return
 		isLoadingRecords.value = true
 		try {
+			const userId = await user
+				.resolveAuthenticatedUserId()
+				.catch(() => null as string | null)
+			if (!userId) return
+
 			const { data, error } = await supabase
 				.from('records')
 				.select('*')
-				.eq('user_id', user.supaUser.id)
+				.eq('user_id', userId)
 				.order('created_at', { ascending: false })
 
 			if (error) throw error

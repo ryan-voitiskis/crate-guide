@@ -6,8 +6,10 @@ import { useCratesStore } from '../cratesStore'
 // Mock dependencies
 const mockUserStore: {
 	supaUser: { id: string } | null
+	resolveAuthenticatedUserId: ReturnType<typeof vi.fn>
 } = {
-	supaUser: { id: 'test-user-id' }
+	supaUser: { id: 'test-user-id' },
+	resolveAuthenticatedUserId: vi.fn()
 }
 
 // Create a chainable mock query builder
@@ -71,6 +73,10 @@ describe('cratesStore', () => {
 
 		// Reset user store
 		mockUserStore.supaUser = { id: 'test-user-id' }
+		mockUserStore.resolveAuthenticatedUserId.mockImplementation(async () => {
+			if (!mockUserStore.supaUser?.id) throw new Error('User not logged in.')
+			return mockUserStore.supaUser.id
+		})
 	})
 
 	describe('initial state', () => {

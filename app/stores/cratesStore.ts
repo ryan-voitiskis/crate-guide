@@ -17,14 +17,18 @@ export const useCratesStore = defineStore('crates', () => {
 	const hasCrates = computed(() => crates.value.length > 0)
 
 	async function fetchAllCrates() {
-		if (!user.supaUser?.id) return
-
+		if (isLoadingCrates.value) return
 		isLoadingCrates.value = true
 		try {
+			const userId = await user
+				.resolveAuthenticatedUserId()
+				.catch(() => null as string | null)
+			if (!userId) return
+
 			const { data, error } = await supabase
 				.from('crates')
 				.select('*')
-				.eq('user_id', user.supaUser.id)
+				.eq('user_id', userId)
 				.order('created_at', { ascending: false })
 
 			if (error) throw error

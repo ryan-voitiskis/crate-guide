@@ -15,6 +15,11 @@ export const useUserStore = defineStore('user', () => {
 		const reactiveUserId = supaUser.value?.id
 		if (reactiveUserId) return reactiveUserId
 
+		const { data: sessionData, error: sessionError } =
+			await supabase.auth.getSession()
+		if (sessionError) throw sessionError
+		if (sessionData.session?.user?.id) return sessionData.session.user.id
+
 		const { data, error } = await supabase.auth.getUser()
 		if (error) throw error
 		if (!data.user?.id) throw new Error('User not logged in.')
@@ -227,6 +232,7 @@ export const useUserStore = defineStore('user', () => {
 		currentTheme,
 		userAlreadyRegistered,
 		isUpdatingSettings,
+		resolveAuthenticatedUserId,
 		signUpWithEmail,
 		signInWithEmail,
 		signInWithProvider,

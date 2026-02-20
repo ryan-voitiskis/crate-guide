@@ -68,6 +68,14 @@ let mockQueryBuilder = createMockQueryBuilder()
 const mockSupabaseClient = {
 	from: vi.fn(() => mockQueryBuilder),
 	auth: {
+		getSession: vi.fn().mockImplementation(async () => ({
+			data: {
+				session: mockSupaUser.value
+					? { user: { id: mockSupaUser.value.id } }
+					: null
+			},
+			error: null
+		})),
 		getUser: vi
 			.fn()
 			.mockImplementation(async () => ({ data: { user: mockSupaUser.value } })),
@@ -110,6 +118,14 @@ describe('userStore', () => {
 		mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 		mockSupabaseClient.auth.getUser.mockImplementation(async () => ({
 			data: { user: mockSupaUser.value },
+			error: null
+		}))
+		mockSupabaseClient.auth.getSession.mockImplementation(async () => ({
+			data: {
+				session: mockSupaUser.value
+					? { user: { id: mockSupaUser.value.id } }
+					: null
+			},
 			error: null
 		}))
 

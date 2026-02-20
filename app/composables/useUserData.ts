@@ -22,7 +22,7 @@ export function useUserData() {
 	)
 
 	async function loadAllUserData() {
-		if (!user.supaUser?.id) return
+		if (isLoadingUserData.value) return
 		if (hasLoadedData.value) {
 			toast.error('User data already loaded')
 			return
@@ -31,6 +31,11 @@ export function useUserData() {
 		isLoadingUserData.value = true
 
 		try {
+			const userId = await user
+				.resolveAuthenticatedUserId()
+				.catch(() => null as string | null)
+			if (!userId) return
+
 			const [recordsResult, tracksResult, cratesResult] =
 				await Promise.allSettled([
 					records.fetchAllRecords(),
@@ -53,6 +58,15 @@ export function useUserData() {
 		}
 	}
 
+	async function bootstrapLoadFromSession() {
+		if (user.supaUser?.id || hasLoadedData.value || isLoadingUserData.value) return
+		const userId = await user
+			.resolveAuthenticatedUserId()
+			.catch(() => null as string | null)
+		if (!userId) return
+		await loadAllUserData()
+	}
+
 	async function refreshAllUserData() {
 		hasLoadedData.value = false
 		await loadAllUserData()
@@ -68,7 +82,7 @@ export function useUserData() {
 	// Auto-load data when user signs in
 	watchEffect(() => {
 		if (user.supaUser?.id && !hasLoadedData.value) {
-			loadAllUserData()
+			void loadAllUserData()
 		}
 	})
 
@@ -81,6 +95,10 @@ export function useUserData() {
 			}
 		}
 	)
+
+	// Attempt initial load on app bootstrap only when a persisted session exists
+	// but the reactive Supabase user hasn't hydrated yet.
+	if (!user.supaUser?.id) void bootstrapLoadFromSession()
 
 	return {
 		isLoadingUserData,
