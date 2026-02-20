@@ -10,6 +10,10 @@ export const useUserStore = defineStore('user', () => {
 	const profile = ref<Profile | null>(null)
 	const userAlreadyRegistered = ref(false)
 	const isUpdatingSettings = ref(false)
+	const localThemePreference = ref<ThemeOptions>(
+		getSavedThemePreference() ?? 'light'
+	)
+	let settingsUpdateQueue: Promise<boolean> = Promise.resolve(true)
 
 	async function resolveAuthenticatedUserId(): Promise<string> {
 		const reactiveUserId = supaUser.value?.id
@@ -27,8 +31,9 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	const currentTheme = computed((): ThemeOptions => {
-		return profile.value?.ui_theme ?? 'light'
+		return profile.value?.ui_theme ?? localThemePreference.value
 	})
+	setTheme(currentTheme.value)
 
 	async function signUpWithEmail(email: string, password: string) {
 		try {
@@ -131,7 +136,10 @@ export const useUserStore = defineStore('user', () => {
 				.single()
 			if (error) throw error
 			profile.value = data as Profile
-			setTheme(profile.value.ui_theme ?? 'light')
+			const theme = profile.value.ui_theme ?? 'light'
+			localThemePreference.value = theme
+			saveThemePreference(theme)
+			setTheme(theme)
 			return true
 		} catch {
 			toast.error(`Error getting your profile.`, { duration: 30000 })
@@ -140,36 +148,46 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	async function updateSettings(settingsPartial: Partial<Profile>) {
-		if (isUpdatingSettings.value) return
-		isUpdatingSettings.value = true
 		// optimistically update the local state
 		if (profile.value) profile.value = { ...profile.value, ...settingsPartial }
-		try {
-			const userId = await resolveAuthenticatedUserId()
-			const { data, error } = await supabase
-				.from('profiles')
-				.update(settingsPartial)
-				.eq('id', userId)
-				.select()
-				.single()
-			if (error) throw error
-			// update with the server response to ensure consistency
-			profile.value = data as Profile
-		} catch {
-			fetchProfile()
-			toast.error(`Error updating your settings.`, { duration: 30000 })
-		} finally {
-			isUpdatingSettings.value = false
+		const runUpdate = async (): Promise<boolean> => {
+			isUpdatingSettings.value = true
+			try {
+				const userId = await resolveAuthenticatedUserId()
+				const { data, error } = await supabase
+					.from('profiles')
+					.update(settingsPartial)
+					.eq('id', userId)
+					.select()
+					.single()
+				if (error) throw error
+				// update with the server response to ensure consistency
+				profile.value = data as Profile
+				return true
+			} catch {
+				await fetchProfile()
+				toast.error(`Error updating your settings.`, { duration: 30000 })
+				return false
+			} finally {
+				isUpdatingSettings.value = false
+			}
 		}
+
+		settingsUpdateQueue = settingsUpdateQueue.then(runUpdate, runUpdate)
+		return settingsUpdateQueue
 	}
 
 	async function updateTheme(newTheme: ThemeOptions) {
+		const previousTheme = currentTheme.value
+		localThemePreference.value = newTheme
+		saveThemePreference(newTheme)
 		setTheme(newTheme)
-		try {
-			await updateSettings({ ui_theme: newTheme })
-		} catch (e) {
-			setTheme(currentTheme.value)
-			throw e
+		if (!supaUser.value?.id) return
+		const didPersist = await updateSettings({ ui_theme: newTheme })
+		if (!didPersist) {
+			localThemePreference.value = previousTheme
+			saveThemePreference(previousTheme)
+			setTheme(previousTheme)
 		}
 	}
 

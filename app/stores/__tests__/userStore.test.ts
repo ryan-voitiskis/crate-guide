@@ -28,6 +28,8 @@ const mockCratesStore = {
 }
 
 const mockSetTheme = vi.fn()
+const mockGetSavedThemePreference = vi.fn().mockReturnValue('light')
+const mockSaveThemePreference = vi.fn()
 
 function createMockProfile(overrides: Partial<Profile> = {}): Profile {
 	return {
@@ -102,6 +104,8 @@ vi.stubGlobal('useRecordsStore', () => mockRecordsStore)
 vi.stubGlobal('useTracksStore', () => mockTracksStore)
 vi.stubGlobal('useCratesStore', () => mockCratesStore)
 vi.stubGlobal('setTheme', mockSetTheme)
+vi.stubGlobal('getSavedThemePreference', mockGetSavedThemePreference)
+vi.stubGlobal('saveThemePreference', mockSaveThemePreference)
 vi.stubGlobal('isError', isError)
 vi.stubGlobal('watchEffect', vi.fn()) // Disable watchEffect to prevent auto-fetch
 
@@ -131,6 +135,7 @@ describe('userStore', () => {
 
 		// Reset supaUser
 		mockSupaUser.value = { id: 'test-user-id', email: 'test@example.com' }
+		mockGetSavedThemePreference.mockReturnValue('light')
 	})
 
 	describe('initial state', () => {
@@ -158,11 +163,26 @@ describe('userStore', () => {
 			expect(store.currentTheme).toBe('light')
 		})
 
+		it('returns saved theme when profile is null', () => {
+			mockGetSavedThemePreference.mockReturnValue('auto')
+			const store = useUserStore()
+			store.profile = null
+
+			expect(store.currentTheme).toBe('auto')
+		})
+
 		it('returns profile theme when set', () => {
 			const store = useUserStore()
 			store.profile = createMockProfile({ ui_theme: 'dark' })
 
 			expect(store.currentTheme).toBe('dark')
+		})
+
+		it('returns auto when profile theme is auto', () => {
+			const store = useUserStore()
+			store.profile = createMockProfile({ ui_theme: 'auto' })
+
+			expect(store.currentTheme).toBe('auto')
 		})
 
 		it('returns light when profile has no theme', () => {
@@ -517,21 +537,37 @@ describe('userStore', () => {
 			})
 
 			const updatePromise = store.updateSettings({ turntable_pitch_range: 16 })
+			await Promise.resolve()
 			expect(store.isUpdatingSettings).toBe(true)
 
 			await updatePromise
 			expect(store.isUpdatingSettings).toBe(false)
 		})
 
-		it('prevents concurrent updates', async () => {
+		it('queues concurrent updates instead of dropping them', async () => {
 			const store = useUserStore()
 			store.profile = createMockProfile()
-			store.isUpdatingSettings = true
+			mockQueryBuilder.single
+				.mockResolvedValueOnce({
+					data: { id: 'test', turntable_pitch_range: 16 },
+					error: null
+				})
+				.mockResolvedValueOnce({
+					data: { id: 'test', key_format: 'camelot' },
+					error: null
+				})
 
-			await store.updateSettings({ turntable_pitch_range: 16 })
+			const firstUpdate = store.updateSettings({ turntable_pitch_range: 16 })
+			const secondUpdate = store.updateSettings({ key_format: 'camelot' })
+			await Promise.all([firstUpdate, secondUpdate])
 
-			// Should not call the API
-			expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
+			expect(mockQueryBuilder.update).toHaveBeenNthCalledWith(1, {
+				turntable_pitch_range: 16
+			})
+			expect(mockQueryBuilder.update).toHaveBeenNthCalledWith(2, {
+				key_format: 'camelot'
+			})
 		})
 
 		it('refetches profile on error', async () => {
@@ -585,6 +621,33 @@ describe('userStore', () => {
 			await store.updateTheme('dark')
 
 			expect(mockQueryBuilder.update).toHaveBeenCalledWith({ ui_theme: 'dark' })
+		})
+
+		it('saves new theme preference locally', async () => {
+			const store = useUserStore()
+			store.profile = createMockProfile({ ui_theme: 'light' })
+			mockQueryBuilder.single.mockResolvedValue({
+				data: { id: 'test', ui_theme: 'dark' },
+				error: null
+			})
+
+			await store.updateTheme('dark')
+
+			expect(mockSaveThemePreference).toHaveBeenCalledWith('dark')
+		})
+
+		it('persists auto theme preference', async () => {
+			const store = useUserStore()
+			store.profile = createMockProfile({ ui_theme: 'light' })
+			mockQueryBuilder.single.mockResolvedValue({
+				data: { id: 'test', ui_theme: 'auto' },
+				error: null
+			})
+
+			await store.updateTheme('auto')
+
+			expect(mockSetTheme).toHaveBeenCalledWith('auto')
+			expect(mockQueryBuilder.update).toHaveBeenCalledWith({ ui_theme: 'auto' })
 		})
 	})
 

@@ -275,7 +275,7 @@ export type Database = {
 			}
 		}
 		Enums: {
-			ui_theme_enum: 'light' | 'dark'
+			ui_theme_enum: 'light' | 'dark' | 'auto'
 		}
 		CompositeTypes: {
 			[_ in never]: never
@@ -406,7 +406,7 @@ export const Constants = {
 	},
 	public: {
 		Enums: {
-			ui_theme_enum: ['light', 'dark']
+			ui_theme_enum: ['light', 'dark', 'auto']
 		}
 	}
 } as const
