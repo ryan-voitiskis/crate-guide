@@ -120,6 +120,16 @@ describe('useDiscogsApi', () => {
 				makeDiscogsApiRequest('GET', 'https://api.discogs.com/test')
 			).rejects.toThrow('[object Object]')
 		})
+
+		it('propagates invoke rejection errors', async () => {
+			mockInvoke.mockRejectedValue(new Error('Network down'))
+
+			const { makeDiscogsApiRequest } = useDiscogsApi()
+
+			await expect(
+				makeDiscogsApiRequest('GET', 'https://api.discogs.com/test')
+			).rejects.toThrow('Network down')
+		})
 	})
 
 	describe('getFolders', () => {

@@ -461,14 +461,39 @@ describe('beatportStore', () => {
 	})
 
 	describe('cancelBulkBeatportFetch', () => {
-		it('sets cancel flag', () => {
+		it('stops processing remaining tracks after cancellation', async () => {
 			const store = useBeatportStore()
+			const tracks = [
+				createMockTrack({ id: 'track-1', beatport_data: null }),
+				createMockTrack({ id: 'track-2', beatport_data: null })
+			]
+			mockTracksStore.tracks = tracks
+			mockTracksStore.getTrackById.mockImplementation((id: string) =>
+				tracks.find((t) => t.id === id)
+			)
+			mockTracksStore.updateTrack.mockImplementation((id: string) =>
+				tracks.find((t) => t.id === id)
+			)
+
+			let resolveFirstSearch: ((value: null) => void) | undefined
+			mockBeatportScraper.searchTracks.mockImplementation(
+				() =>
+					new Promise((resolve) => {
+						resolveFirstSearch = resolve as (value: null) => void
+					})
+			)
+
+			const bulkPromise = store.bulkFetchBeatportData()
+			await Promise.resolve()
 
 			store.cancelBulkBeatportFetch()
+			resolveFirstSearch!(null)
 
-			// The flag is internal but affects bulk operation
-			// We can verify by checking the method doesn't throw
-			expect(() => store.cancelBulkBeatportFetch()).not.toThrow()
+			await bulkPromise
+
+			expect(mockBeatportScraper.searchTracks).toHaveBeenCalledTimes(1)
+			expect(store.bulkBeatportProgress).toBe(50)
+			expect(store.isBulkFetchingBeatportData).toBe(false)
 		})
 	})
 

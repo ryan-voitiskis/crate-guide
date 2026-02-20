@@ -3,6 +3,7 @@ import {
 	createMockDiscogsRelease,
 	resetReleaseIdCounter
 } from 'test/mocks/fixtures/discogs'
+import { nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Import after mocking
 import { useDiscogsStore } from '../discogsStore'
@@ -431,14 +432,51 @@ describe('discogsStore', () => {
 	})
 
 	describe('cancelImport', () => {
-		it('sets shouldCancelImport flag', () => {
+		it('signals cancellation to in-flight imports', async () => {
 			const store = useDiscogsStore()
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease(), selected: true }
+			]
+
+			mockFilterOutExistingReleases.mockResolvedValue({
+				releasesToFetch: [{ ...createMockDiscogsRelease(), selected: true }],
+				skipped: []
+			})
+
+			let shouldCancel: (() => boolean) | undefined
+			let resolveFetch: (
+				value: {
+					releases: unknown[]
+					failed: { label: string; error: string }[]
+					cancelled: boolean
+				}
+			) => void
+
+			mockFetchReleaseDetails.mockImplementation(
+				(
+					_releases: unknown[],
+					_onProgress: unknown,
+					isCancelled: () => boolean
+				) => {
+					shouldCancel = isCancelled
+					return new Promise((resolve) => {
+						resolveFetch = resolve
+					})
+				}
+			)
+
+			const importPromise = store.importSelectedReleases()
+			await Promise.resolve()
 
 			store.cancelImport()
+			expect(shouldCancel?.()).toBe(true)
 
-			// The flag is internal, but we can test the effect through importSelectedReleases
-			// For now, just verify the method exists and doesn't throw
-			expect(() => store.cancelImport()).not.toThrow()
+			resolveFetch!({ releases: [], failed: [], cancelled: true })
+			await importPromise
+
+			expect(store.isImporting).toBe(false)
+			expect(store.showImportProgressDialog).toBe(false)
+			expect(mockImportFetchedReleases).not.toHaveBeenCalled()
 		})
 	})
 
@@ -706,8 +744,7 @@ describe('discogsStore', () => {
 			mockDiscogsApi.getFolders.mockResolvedValue({ folders: [] })
 
 			store.showGetFoldersDialog = true
-			// Wait for watcher to trigger
-			await new Promise((resolve) => setTimeout(resolve, 0))
+			await nextTick()
 
 			expect(mockDiscogsApi.getFolders).toHaveBeenCalled()
 		})
@@ -718,7 +755,7 @@ describe('discogsStore', () => {
 			mockDiscogsApi.getFolders.mockResolvedValue({ folders: [] })
 
 			store.showGetFoldersDialog = true
-			await new Promise((resolve) => setTimeout(resolve, 0))
+			await nextTick()
 
 			expect(mockDiscogsApi.getFolders).not.toHaveBeenCalled()
 		})
