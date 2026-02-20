@@ -14,6 +14,7 @@ export default defineNuxtConfig({
 	devtools: { enabled: false },
 	css: ['~/assets/css/main.css'],
 	vite: {
+		// @ts-expect-error Vite plugin type mismatch between Nuxt's internal Vite types and plugin package types
 		plugins: [tailwindcss()]
 	},
 	modules: [
