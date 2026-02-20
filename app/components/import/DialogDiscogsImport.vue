@@ -70,11 +70,11 @@ const hasResults = computed(() => {
 
 					<div
 						v-if="discogs.importResults.skipped.length > 0"
-						class="flex flex-col items-start text-blue-900"
+						class="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20"
 					>
 						<div class="flex items-start">
-							<Info class="mt-0.5 mr-2 h-5 w-5" />
-							<p class="mb-2">
+							<Info class="mt-0.5 mr-2 h-5 w-5 text-blue-600 dark:text-blue-400" />
+							<p class="mb-2 text-blue-800 dark:text-blue-200">
 								Skipped {{ discogs.importResults.skipped.length }}
 								{{
 									discogs.importResults.skipped.length === 1
@@ -86,7 +86,10 @@ const hasResults = computed(() => {
 						</div>
 						<Collapsible v-model:open="showSkipped" class="space-y-2">
 							<CollapsibleTrigger as-child>
-								<Button variant="blank" class="p-0">
+								<Button
+									variant="blank"
+									class="p-0 text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
+								>
 									Show details
 									<ChevronDown
 										class="transition-all"
@@ -98,7 +101,7 @@ const hasResults = computed(() => {
 								<div
 									v-for="(record, index) in discogs.importResults.skipped"
 									:key="`skipped-${index}`"
-									class="text-xs"
+									class="text-xs text-blue-700 dark:text-blue-300"
 								>
 									{{ record.label }}
 								</div>

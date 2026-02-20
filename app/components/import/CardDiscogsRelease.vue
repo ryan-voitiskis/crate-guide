@@ -25,7 +25,7 @@ const isSelected = computed({
 </script>
 
 <template>
-	<div class="record overflow-hidden rounded-lg !bg-white">
+	<div class="record overflow-hidden rounded-lg">
 		<div class="cover"></div>
 		<h3 class="title">{{ release.basic_information.title }}</h3>
 		<div class="label">
@@ -50,7 +50,9 @@ const isSelected = computed({
 
 <style scoped lang="scss">
 .record {
-	background: var(--item-bg);
+	background: var(--card);
+	border: 1px solid var(--border);
+	color: var(--card-foreground);
 	display: grid;
 	grid-template-columns: 90px 1fr 40px;
 	grid-template-rows: 40px 20px 30px;
@@ -64,7 +66,7 @@ const isSelected = computed({
 		background-size: contain;
 	}
 	h3.title {
-		color: var(--darker-text);
+		color: var(--card-foreground);
 		grid-area: 1 / 2 / 2 / 3;
 		line-height: 40px;
 		margin: 0 0 0 10px;
@@ -73,6 +75,7 @@ const isSelected = computed({
 		white-space: nowrap;
 	}
 	.label {
+		color: var(--muted-foreground);
 		grid-area: 2 / 2 / 3 / 3;
 		line-height: 20px;
 		font-size: 12px;
@@ -84,10 +87,11 @@ const isSelected = computed({
 			font-weight: 600;
 		}
 		.year {
-			color: var(--light-text);
+			color: var(--muted-foreground);
 		}
 	}
 	.artists {
+		color: var(--card-foreground);
 		grid-area: 3 / 2 / 4 / 3;
 		line-height: 30px;
 		margin: 0 0 0 10px;
