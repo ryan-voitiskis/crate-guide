@@ -28,9 +28,28 @@ export default defineConfig({
 			{
 				test: {
 					name: 'stores',
-					include: ['app/stores/**/*.test.ts', 'app/composables/**/*.test.ts'],
+					include: [
+						'app/stores/**/*.test.ts',
+						'app/composables/**/*.test.ts',
+						'app/middleware/**/*.test.ts'
+					],
 					environment: 'node',
 					setupFiles: ['./test/setup-stores.ts']
+				},
+				resolve: {
+					alias: {
+						'~': fileURLToPath(new URL('./app', import.meta.url)),
+						'@': fileURLToPath(new URL('./app', import.meta.url)),
+						test: fileURLToPath(new URL('./test', import.meta.url))
+					}
+				}
+			},
+			{
+				test: {
+					name: 'e2e',
+					include: ['test/e2e/**/*.e2e.test.ts'],
+					environment: 'node',
+					testTimeout: 120000
 				},
 				resolve: {
 					alias: {
