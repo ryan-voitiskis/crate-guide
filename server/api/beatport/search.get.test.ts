@@ -20,7 +20,11 @@ const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 // Mock defineEventHandler to return the handler function directly
-vi.stubGlobal('defineEventHandler', (handler: Function) => handler)
+type MockEventHandler = (event: unknown) => unknown | Promise<unknown>
+vi.stubGlobal(
+	'defineEventHandler',
+	<T extends MockEventHandler>(handler: T): T => handler
+)
 
 // Import the handler after mocks are set up
 // We need to dynamically import to ensure mocks are in place

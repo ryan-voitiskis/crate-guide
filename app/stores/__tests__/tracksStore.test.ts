@@ -11,7 +11,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useTracksStore } from '../tracksStore'
 
 // Mock dependencies
-const mockUserStore = {
+const mockUserStore: {
+	supaUser: { id: string } | null
+} = {
 	supaUser: { id: 'test-user-id' }
 }
 
@@ -103,7 +105,7 @@ describe('tracksStore', () => {
 
 	describe('fetchAllTracks', () => {
 		it('does nothing when user is not signed in', async () => {
-			mockUserStore.supaUser = null as any
+			mockUserStore.supaUser = null
 			const store = useTracksStore()
 
 			await store.fetchAllTracks()
@@ -158,7 +160,7 @@ describe('tracksStore', () => {
 
 	describe('createTrack', () => {
 		it('returns null when user is not signed in', async () => {
-			mockUserStore.supaUser = null as any
+			mockUserStore.supaUser = null
 			const store = useTracksStore()
 
 			const result = await store.createTrack({
@@ -590,10 +592,13 @@ describe('tracksStore', () => {
 			expect(result[0]!.id).toBe('match')
 		})
 
-		it('handles tracks with null position', () => {
-			const store = useTracksStore()
-			store.tracks = [
-				createMockTrack({ id: 'no-position', position: null as any }),
+			it('handles tracks with null position', () => {
+				const store = useTracksStore()
+				store.tracks = [
+					createMockTrack({
+						id: 'no-position',
+						position: null as unknown as string
+					}),
 				createMockTrack({ id: 'with-position', position: 'A1' })
 			]
 

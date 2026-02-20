@@ -1,5 +1,4 @@
 import { vi } from 'vitest'
-import type { Database } from '~/../../shared/types/database'
 
 type MockQueryBuilder = {
 	select: ReturnType<typeof vi.fn>

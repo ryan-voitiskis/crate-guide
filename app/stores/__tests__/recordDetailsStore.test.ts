@@ -108,7 +108,7 @@ describe('recordDetailsStore', () => {
 			store.selectedRecordId = 'record-1'
 
 			// Access computed to trigger getter
-			store.selectedRecord
+			void store.selectedRecord
 
 			expect(mockRecordsStore.getRecordById).toHaveBeenCalledWith('record-1')
 		})
@@ -146,7 +146,7 @@ describe('recordDetailsStore', () => {
 			store.selectedRecordId = 'record-1'
 
 			// Access computed to trigger getter
-			store.recordTracks
+			void store.recordTracks
 
 			expect(mockTracksStore.getTracksByRecordId).toHaveBeenCalledWith(
 				'record-1'

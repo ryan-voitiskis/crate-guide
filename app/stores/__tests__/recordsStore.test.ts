@@ -10,7 +10,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useRecordsStore } from '../recordsStore'
 
 // Mock dependencies
-const mockUserStore = {
+const mockUserStore: {
+	supaUser: { id: string } | null
+} = {
 	supaUser: { id: 'test-user-id' }
 }
 
@@ -165,7 +167,7 @@ describe('recordsStore', () => {
 
 	describe('fetchAllRecords', () => {
 		it('does nothing when user is not signed in', async () => {
-			mockUserStore.supaUser = null as any
+			mockUserStore.supaUser = null
 			const store = useRecordsStore()
 
 			await store.fetchAllRecords()
@@ -225,7 +227,7 @@ describe('recordsStore', () => {
 		}
 
 		it('returns null when user is not signed in', async () => {
-			mockUserStore.supaUser = null as any
+			mockUserStore.supaUser = null
 			const store = useRecordsStore()
 
 			const result = await store.createRecord(newRecordData)

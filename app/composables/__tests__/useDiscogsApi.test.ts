@@ -9,7 +9,13 @@ const mockSupabase = {
 }
 
 // Mock user store
-const mockUserStore = {
+type MockUserProfile = {
+	discogs_username: string | null
+}
+
+const mockUserStore: {
+	profile: MockUserProfile | null
+} = {
 	profile: {
 		discogs_username: 'testuser'
 	}
@@ -135,7 +141,7 @@ describe('useDiscogsApi', () => {
 		})
 
 		it('throws error when no discogs username', async () => {
-			mockUserStore.profile = { discogs_username: null } as any
+			mockUserStore.profile = { discogs_username: null }
 
 			const { getFolders } = useDiscogsApi()
 
@@ -143,7 +149,7 @@ describe('useDiscogsApi', () => {
 		})
 
 		it('throws error when profile is null', async () => {
-			mockUserStore.profile = null as any
+			mockUserStore.profile = null
 
 			const { getFolders } = useDiscogsApi()
 
@@ -191,7 +197,7 @@ describe('useDiscogsApi', () => {
 		})
 
 		it('throws error when no discogs username', async () => {
-			mockUserStore.profile = { discogs_username: '' } as any
+			mockUserStore.profile = { discogs_username: '' }
 
 			const { getFolderReleases } = useDiscogsApi()
 
@@ -222,7 +228,7 @@ describe('useDiscogsApi', () => {
 		})
 
 		it('does not require discogs username', async () => {
-			mockUserStore.profile = { discogs_username: null } as any
+			mockUserStore.profile = { discogs_username: null }
 			mockInvoke.mockResolvedValue({
 				data: { id: 12345 },
 				error: null

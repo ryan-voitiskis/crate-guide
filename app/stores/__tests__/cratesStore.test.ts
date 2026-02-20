@@ -4,7 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useCratesStore } from '../cratesStore'
 
 // Mock dependencies
-const mockUserStore = {
+const mockUserStore: {
+	supaUser: { id: string } | null
+} = {
 	supaUser: { id: 'test-user-id' }
 }
 
@@ -114,7 +116,7 @@ describe('cratesStore', () => {
 
 	describe('fetchAllCrates', () => {
 		it('does nothing when user is not signed in', async () => {
-			mockUserStore.supaUser = null as any
+			mockUserStore.supaUser = null
 			const store = useCratesStore()
 
 			await store.fetchAllCrates()
@@ -162,7 +164,7 @@ describe('cratesStore', () => {
 
 	describe('createCrate', () => {
 		it('returns null when user is not signed in', async () => {
-			mockUserStore.supaUser = null as any
+			mockUserStore.supaUser = null
 			const store = useCratesStore()
 
 			const result = await store.createCrate({

@@ -1,10 +1,13 @@
 import { createPinia, setActivePinia } from 'pinia'
+import type { Profile } from '~/../../shared/types/supabase'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Import after mocking
 import { useUserStore } from '../userStore'
 
 // Mock dependencies
-const mockSupaUser = {
+const mockSupaUser: {
+	value: { id: string; email: string } | null
+} = {
 	value: { id: 'test-user-id', email: 'test@example.com' }
 }
 
@@ -25,6 +28,28 @@ const mockCratesStore = {
 }
 
 const mockSetTheme = vi.fn()
+
+function createMockProfile(overrides: Partial<Profile> = {}): Profile {
+	return {
+		discogs_access_secret: null,
+		discogs_access_token: null,
+		discogs_avatar_url: null,
+		discogs_request_secret: null,
+		discogs_request_token: null,
+		discogs_uid: null,
+		discogs_username: null,
+		id: 'test',
+		just_completed_discogs_oauth: false,
+		key_format: 'camelot',
+		list_layout: 'grid',
+		name: null,
+		selected_crate: 'all',
+		turntable_pitch_range: 8,
+		turntable_theme: 'classic',
+		ui_theme: 'light',
+		...overrides
+	}
+}
 
 // Create a chainable mock query builder
 function createMockQueryBuilder() {
@@ -112,14 +137,15 @@ describe('userStore', () => {
 
 		it('returns profile theme when set', () => {
 			const store = useUserStore()
-			store.profile = { id: 'test', ui_theme: 'dark' } as any
+			store.profile = createMockProfile({ ui_theme: 'dark' })
 
 			expect(store.currentTheme).toBe('dark')
 		})
 
 		it('returns light when profile has no theme', () => {
 			const store = useUserStore()
-			store.profile = { id: 'test', ui_theme: null } as any
+			store.profile = createMockProfile() as unknown as Profile
+			store.profile.ui_theme = null as unknown as Profile['ui_theme']
 
 			expect(store.currentTheme).toBe('light')
 		})
@@ -236,7 +262,7 @@ describe('userStore', () => {
 	describe('signOut', () => {
 		it('clears profile on success', async () => {
 			const store = useUserStore()
-			store.profile = { id: 'test' } as any
+			store.profile = createMockProfile()
 			mockSupabaseClient.auth.signOut.mockResolvedValue({ error: null })
 
 			await store.signOut()
@@ -246,7 +272,7 @@ describe('userStore', () => {
 
 		it('handles sign out errors', async () => {
 			const store = useUserStore()
-			store.profile = { id: 'test' } as any
+			store.profile = createMockProfile()
 			mockSupabaseClient.auth.signOut.mockResolvedValue({
 				error: new Error('Sign out failed')
 			})
@@ -254,7 +280,8 @@ describe('userStore', () => {
 			await store.signOut()
 
 			// Profile should not be cleared on error
-			expect(store.profile).toEqual({ id: 'test' })
+			expect(store.profile).not.toBeNull()
+			expect(store.profile?.id).toBe('test')
 		})
 	})
 
@@ -355,7 +382,7 @@ describe('userStore', () => {
 	describe('fetchProfile', () => {
 		it('returns false when user is not logged in', async () => {
 			const store = useUserStore()
-			mockSupaUser.value = null as any
+			mockSupaUser.value = null
 
 			const result = await store.fetchProfile()
 
@@ -405,7 +432,7 @@ describe('userStore', () => {
 	describe('updateSettings', () => {
 		it('performs optimistic update', async () => {
 			const store = useUserStore()
-			store.profile = { id: 'test', turntable_pitch_range: 8 } as any
+			store.profile = createMockProfile({ turntable_pitch_range: 8 })
 			mockQueryBuilder.single.mockResolvedValue({
 				data: { id: 'test', turntable_pitch_range: 16 },
 				error: null
@@ -421,7 +448,7 @@ describe('userStore', () => {
 
 		it('updates with server response', async () => {
 			const store = useUserStore()
-			store.profile = { id: 'test', turntable_pitch_range: 8 } as any
+			store.profile = createMockProfile({ turntable_pitch_range: 8 })
 			const serverResponse = {
 				id: 'test',
 				turntable_pitch_range: 16,
@@ -439,7 +466,7 @@ describe('userStore', () => {
 
 		it('sets isUpdatingSettings during update', async () => {
 			const store = useUserStore()
-			store.profile = { id: 'test' } as any
+			store.profile = createMockProfile()
 			mockQueryBuilder.single.mockResolvedValue({
 				data: { id: 'test' },
 				error: null
@@ -454,7 +481,7 @@ describe('userStore', () => {
 
 		it('prevents concurrent updates', async () => {
 			const store = useUserStore()
-			store.profile = { id: 'test' } as any
+			store.profile = createMockProfile()
 			store.isUpdatingSettings = true
 
 			await store.updateSettings({ turntable_pitch_range: 16 })
@@ -465,7 +492,7 @@ describe('userStore', () => {
 
 		it('refetches profile on error', async () => {
 			const store = useUserStore()
-			store.profile = { id: 'test' } as any
+			store.profile = createMockProfile()
 			mockQueryBuilder.single.mockResolvedValue({
 				data: null,
 				error: new Error('Update failed')
@@ -479,8 +506,8 @@ describe('userStore', () => {
 
 		it('does nothing when user not logged in', async () => {
 			const store = useUserStore()
-			store.profile = { id: 'test' } as any
-			mockSupaUser.value = null as any
+			store.profile = createMockProfile()
+			mockSupaUser.value = null
 
 			await store.updateSettings({ turntable_pitch_range: 16 })
 
@@ -492,7 +519,7 @@ describe('userStore', () => {
 	describe('updateTheme', () => {
 		it('calls setTheme with new theme', async () => {
 			const store = useUserStore()
-			store.profile = { id: 'test', ui_theme: 'light' } as any
+			store.profile = createMockProfile({ ui_theme: 'light' })
 			mockQueryBuilder.single.mockResolvedValue({
 				data: { id: 'test', ui_theme: 'dark' },
 				error: null
@@ -505,7 +532,7 @@ describe('userStore', () => {
 
 		it('calls updateSettings with new theme', async () => {
 			const store = useUserStore()
-			store.profile = { id: 'test', ui_theme: 'light' } as any
+			store.profile = createMockProfile({ ui_theme: 'light' })
 			mockQueryBuilder.single.mockResolvedValue({
 				data: { id: 'test', ui_theme: 'dark' },
 				error: null
@@ -520,7 +547,7 @@ describe('userStore', () => {
 	describe('deleteAllUserData', () => {
 		it('returns false when user is not signed in', async () => {
 			const store = useUserStore()
-			mockSupaUser.value = null as any
+			mockSupaUser.value = null
 
 			const result = await store.deleteAllUserData()
 

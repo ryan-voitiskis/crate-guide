@@ -26,6 +26,25 @@ const mockDiscogsApi = {
 	getRelease: vi.fn()
 }
 
+type MockDiscogsFolder = {
+	id: number
+	name: string
+	count: number
+	resource_url: string
+}
+
+function createMockFolder(
+	overrides: Partial<MockDiscogsFolder> = {}
+): MockDiscogsFolder {
+	return {
+		id: 1,
+		name: 'House',
+		count: 50,
+		resource_url: 'https://api.discogs.com/users/testuser/collection/folders/1',
+		...overrides
+	}
+}
+
 // Create a chainable mock query builder
 function createMockQueryBuilder() {
 	const builder = {
@@ -160,7 +179,7 @@ describe('discogsStore', () => {
 
 		it('clears existing folders before fetching', async () => {
 			const store = useDiscogsStore()
-			store.folders = [{ id: 1, name: 'Old', count: 10 }] as any
+			store.folders = [createMockFolder({ id: 1, name: 'Old', count: 10 })]
 			mockDiscogsApi.getFolders.mockResolvedValue({
 				folders: [{ id: 2, name: 'New', count: 20 }]
 			})
@@ -203,7 +222,7 @@ describe('discogsStore', () => {
 
 		it('does nothing when selected folder not found', async () => {
 			const store = useDiscogsStore()
-			store.folders = [{ id: 1, name: 'House', count: 50 }] as any
+			store.folders = [createMockFolder()]
 			store.selectedFolder = 'Techno'
 
 			await store.fetchFolderReleases()
@@ -213,7 +232,7 @@ describe('discogsStore', () => {
 
 		it('sets isLoadingSelectedFolder during fetch', async () => {
 			const store = useDiscogsStore()
-			store.folders = [{ id: 1, name: 'House', count: 50 }] as any
+			store.folders = [createMockFolder()]
 			store.selectedFolder = 'House'
 			mockDiscogsApi.getFolderReleases.mockResolvedValue({
 				releases: [],
@@ -229,7 +248,7 @@ describe('discogsStore', () => {
 
 		it('fetches releases with correct folder ID', async () => {
 			const store = useDiscogsStore()
-			store.folders = [{ id: 42, name: 'House', count: 50 }] as any
+			store.folders = [createMockFolder({ id: 42 })]
 			store.selectedFolder = 'House'
 			mockDiscogsApi.getFolderReleases.mockResolvedValue({
 				releases: [],
@@ -243,7 +262,7 @@ describe('discogsStore', () => {
 
 		it('populates releasesToImport with selected flag', async () => {
 			const store = useDiscogsStore()
-			store.folders = [{ id: 1, name: 'House', count: 2 }] as any
+			store.folders = [createMockFolder({ count: 2 })]
 			store.selectedFolder = 'House'
 			const mockReleases = [
 				createMockDiscogsRelease({ id: 1 }),
@@ -263,7 +282,7 @@ describe('discogsStore', () => {
 
 		it('handles pagination - fetches all pages', async () => {
 			const store = useDiscogsStore()
-			store.folders = [{ id: 1, name: 'House', count: 150 }] as any
+			store.folders = [createMockFolder({ count: 150 })]
 			store.selectedFolder = 'House'
 
 			mockDiscogsApi.getFolderReleases
@@ -286,7 +305,7 @@ describe('discogsStore', () => {
 
 		it('opens filter dialog after successful fetch', async () => {
 			const store = useDiscogsStore()
-			store.folders = [{ id: 1, name: 'House', count: 10 }] as any
+			store.folders = [createMockFolder({ count: 10 })]
 			store.selectedFolder = 'House'
 			store.showGetFoldersDialog = true
 			mockDiscogsApi.getFolderReleases.mockResolvedValue({
@@ -302,7 +321,7 @@ describe('discogsStore', () => {
 
 		it('handles missing releases in response', async () => {
 			const store = useDiscogsStore()
-			store.folders = [{ id: 1, name: 'House', count: 10 }] as any
+			store.folders = [createMockFolder({ count: 10 })]
 			store.selectedFolder = 'House'
 			mockDiscogsApi.getFolderReleases.mockResolvedValue({
 				pagination: { pages: 1 }
@@ -315,7 +334,7 @@ describe('discogsStore', () => {
 
 		it('handles missing pagination in response', async () => {
 			const store = useDiscogsStore()
-			store.folders = [{ id: 1, name: 'House', count: 10 }] as any
+			store.folders = [createMockFolder({ count: 10 })]
 			store.selectedFolder = 'House'
 			mockDiscogsApi.getFolderReleases.mockResolvedValue({
 				releases: [createMockDiscogsRelease()]
@@ -328,7 +347,7 @@ describe('discogsStore', () => {
 
 		it('handles API errors gracefully', async () => {
 			const store = useDiscogsStore()
-			store.folders = [{ id: 1, name: 'House', count: 10 }] as any
+			store.folders = [createMockFolder({ count: 10 })]
 			store.selectedFolder = 'House'
 			mockDiscogsApi.getFolderReleases.mockRejectedValue(new Error('API Error'))
 
@@ -695,7 +714,7 @@ describe('discogsStore', () => {
 
 		it('does not fetch folders when dialog opens but folders exist', async () => {
 			const store = useDiscogsStore()
-			store.folders = [{ id: 1, name: 'Existing', count: 10 }] as any
+			store.folders = [createMockFolder({ name: 'Existing', count: 10 })]
 			mockDiscogsApi.getFolders.mockResolvedValue({ folders: [] })
 
 			store.showGetFoldersDialog = true

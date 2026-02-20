@@ -380,7 +380,6 @@ describe('platter-physics', () => {
 				// ~0.5 seconds
 				velocity = smoothVelocity(velocity, target, 16)
 			}
-			const velocityAtStart = velocity
 
 			// Quick stop
 			target = 0
