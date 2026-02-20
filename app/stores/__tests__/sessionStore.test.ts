@@ -1,12 +1,13 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
 import {
 	createMockTrack,
 	createMockTrackWithBpm,
 	createMockTrackWithKey,
 	resetTrackIdCounter
 } from 'test/mocks/fixtures/tracks'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+// Import after mocking
+import { useSessionStore } from '../sessionStore'
 
 // Mock stores and dependencies
 const mockTracksStore = {
@@ -35,9 +36,6 @@ const mockSupabaseClient = {
 vi.stubGlobal('useTracksStore', () => mockTracksStore)
 vi.stubGlobal('useUserStore', () => mockUserStore)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
-
-// Import after mocking
-import { useSessionStore } from '../sessionStore'
 
 describe('sessionStore', () => {
 	beforeEach(() => {

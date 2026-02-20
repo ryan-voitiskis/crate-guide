@@ -56,7 +56,10 @@ export function calculateTargetVelocity(
  * @param lastTime - Previous frame timestamp (0 for first frame)
  * @returns Delta time in milliseconds, capped at MAX_DELTA_TIME
  */
-export function calculateDeltaTime(currentTime: number, lastTime: number): number {
+export function calculateDeltaTime(
+	currentTime: number,
+	lastTime: number
+): number {
 	const rawDelta = lastTime ? currentTime - lastTime : DEFAULT_DELTA_TIME
 	return Math.min(rawDelta, MAX_DELTA_TIME)
 }
@@ -74,7 +77,10 @@ export function smoothVelocity(
 	targetVelocity: number,
 	deltaTime: number
 ): number {
-	return currentVelocity + (targetVelocity - currentVelocity) * VELOCITY_FACTOR * deltaTime
+	return (
+		currentVelocity +
+		(targetVelocity - currentVelocity) * VELOCITY_FACTOR * deltaTime
+	)
 }
 
 /**

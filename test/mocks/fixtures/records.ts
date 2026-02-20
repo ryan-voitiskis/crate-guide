@@ -1,4 +1,7 @@
-import type { DiscogsArtistDb, DiscogsLabelDb } from '~/../../shared/types/discogs'
+import type {
+	DiscogsArtistDb,
+	DiscogsLabelDb
+} from '~/../../shared/types/discogs'
 import type { DatabaseRecord } from '~/../../shared/types/supabase'
 
 type Record = DatabaseRecord

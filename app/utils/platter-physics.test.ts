@@ -1,16 +1,15 @@
 import { describe, expect, it } from 'vitest'
-
 import {
+	DEFAULT_DELTA_TIME,
+	MAX_DELTA_TIME,
+	VELOCITY_FACTOR,
+	VELOCITY_THRESHOLD,
 	calculateDeltaTime,
 	calculateNextAngle,
 	calculateTargetVelocity,
-	DEFAULT_DELTA_TIME,
-	MAX_DELTA_TIME,
 	shouldContinueAnimation,
 	simulateVelocityConvergence,
-	smoothVelocity,
-	VELOCITY_FACTOR,
-	VELOCITY_THRESHOLD
+	smoothVelocity
 } from './platter-physics'
 
 describe('platter-physics', () => {
@@ -282,8 +281,12 @@ describe('platter-physics', () => {
 			const result120fps = simulateVelocityConvergence(target, 2000, 8)
 
 			// All should be within 5% of each other
-			expect(Math.abs(result60fps - result30fps) / result60fps).toBeLessThan(0.05)
-			expect(Math.abs(result60fps - result120fps) / result60fps).toBeLessThan(0.05)
+			expect(Math.abs(result60fps - result30fps) / result60fps).toBeLessThan(
+				0.05
+			)
+			expect(Math.abs(result60fps - result120fps) / result60fps).toBeLessThan(
+				0.05
+			)
 		})
 
 		it('starts from zero', () => {

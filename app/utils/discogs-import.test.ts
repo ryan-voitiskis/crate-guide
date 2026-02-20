@@ -1,16 +1,23 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
 import {
 	createMockDiscogsRelease,
 	createMockDiscogsReleaseFull,
 	resetReleaseIdCounter
 } from 'test/mocks/fixtures/discogs'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+// Import after mocking
+import {
+	fetchReleaseDetails,
+	filterOutExistingReleases,
+	importFetchedReleases
+} from './discogs-import'
 
 // Mock dependencies - need to stub globals for Nuxt auto-imports
 const mockGetExistingDiscogsIds = vi.fn()
 const mockGetRelease = vi.fn()
 const mockImportRecordWithTracks = vi.fn()
-const mockFormatReleaseDisplayTitle = vi.fn((r) => r.basic_information?.title || 'Unknown')
+const mockFormatReleaseDisplayTitle = vi.fn(
+	(r) => r.basic_information?.title || 'Unknown'
+)
 const mockFormatFullReleaseDisplayTitle = vi.fn((r) => r.title || 'Unknown')
 const mockIsError = vi.fn((e) => e instanceof Error)
 const mockIsDiscogsReleaseFull = vi.fn(() => true)
@@ -18,20 +25,16 @@ const mockIsDiscogsReleaseFull = vi.fn(() => true)
 // Stub all auto-imported functions
 vi.stubGlobal('getExistingDiscogsIds', mockGetExistingDiscogsIds)
 vi.stubGlobal('formatReleaseDisplayTitle', mockFormatReleaseDisplayTitle)
-vi.stubGlobal('formatFullReleaseDisplayTitle', mockFormatFullReleaseDisplayTitle)
+vi.stubGlobal(
+	'formatFullReleaseDisplayTitle',
+	mockFormatFullReleaseDisplayTitle
+)
 vi.stubGlobal('isError', mockIsError)
 vi.stubGlobal('isDiscogsReleaseFull', mockIsDiscogsReleaseFull)
 vi.stubGlobal('importRecordWithTracks', mockImportRecordWithTracks)
 vi.stubGlobal('useDiscogsApi', () => ({
 	getRelease: mockGetRelease
 }))
-
-// Import after mocking
-import {
-	fetchReleaseDetails,
-	filterOutExistingReleases,
-	importFetchedReleases
-} from './discogs-import'
 
 // Helper to create a selectable release (with selected: true)
 function createSelectableRelease(
@@ -91,7 +94,16 @@ describe('filterOutExistingReleases', () => {
 					thumb: '',
 					cover_image: '',
 					formats: [],
-					labels: [{ id: 1, name: 'Test Label', catno: 'TL001', entity_type: '', entity_type_name: '', resource_url: '' }],
+					labels: [
+						{
+							id: 1,
+							name: 'Test Label',
+							catno: 'TL001',
+							entity_type: '',
+							entity_type_name: '',
+							resource_url: ''
+						}
+					],
 					artists: [],
 					genre: [],
 					styles: []

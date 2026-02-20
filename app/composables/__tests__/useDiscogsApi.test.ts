@@ -35,15 +35,12 @@ describe('useDiscogsApi', () => {
 			const { makeDiscogsApiRequest } = useDiscogsApi()
 			await makeDiscogsApiRequest('GET', 'https://api.discogs.com/test')
 
-			expect(mockInvoke).toHaveBeenCalledWith(
-				'authenticated-discogs-request',
-				{
-					body: JSON.stringify({
-						httpMethod: 'GET',
-						url: 'https://api.discogs.com/test'
-					})
-				}
-			)
+			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
+				body: JSON.stringify({
+					httpMethod: 'GET',
+					url: 'https://api.discogs.com/test'
+				})
+			})
 		})
 
 		it('includes additional params in request body', async () => {
@@ -55,17 +52,14 @@ describe('useDiscogsApi', () => {
 				per_page: 50
 			})
 
-			expect(mockInvoke).toHaveBeenCalledWith(
-				'authenticated-discogs-request',
-				{
-					body: JSON.stringify({
-						httpMethod: 'GET',
-						url: 'https://api.discogs.com/test',
-						page: 1,
-						per_page: 50
-					})
-				}
-			)
+			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
+				body: JSON.stringify({
+					httpMethod: 'GET',
+					url: 'https://api.discogs.com/test',
+					page: 1,
+					per_page: 50
+				})
+			})
 		})
 
 		it('returns data on success', async () => {
@@ -73,7 +67,10 @@ describe('useDiscogsApi', () => {
 			mockInvoke.mockResolvedValue({ data: expectedData, error: null })
 
 			const { makeDiscogsApiRequest } = useDiscogsApi()
-			const result = await makeDiscogsApiRequest('GET', 'https://api.discogs.com/test')
+			const result = await makeDiscogsApiRequest(
+				'GET',
+				'https://api.discogs.com/test'
+			)
 
 			expect(result).toEqual(expectedData)
 		})
@@ -129,15 +126,12 @@ describe('useDiscogsApi', () => {
 			const { getFolders } = useDiscogsApi()
 			await getFolders()
 
-			expect(mockInvoke).toHaveBeenCalledWith(
-				'authenticated-discogs-request',
-				{
-					body: JSON.stringify({
-						httpMethod: 'GET',
-						url: 'https://api.discogs.com/users/testuser/collection/folders'
-					})
-				}
-			)
+			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
+				body: JSON.stringify({
+					httpMethod: 'GET',
+					url: 'https://api.discogs.com/users/testuser/collection/folders'
+				})
+			})
 		})
 
 		it('throws error when no discogs username', async () => {
@@ -167,17 +161,14 @@ describe('useDiscogsApi', () => {
 			const { getFolderReleases } = useDiscogsApi()
 			await getFolderReleases(0)
 
-			expect(mockInvoke).toHaveBeenCalledWith(
-				'authenticated-discogs-request',
-				{
-					body: JSON.stringify({
-						httpMethod: 'GET',
-						url: 'https://api.discogs.com/users/testuser/collection/folders/0/releases',
-						page: 1,
-						per_page: 100
-					})
-				}
-			)
+			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
+				body: JSON.stringify({
+					httpMethod: 'GET',
+					url: 'https://api.discogs.com/users/testuser/collection/folders/0/releases',
+					page: 1,
+					per_page: 100
+				})
+			})
 		})
 
 		it('includes custom pagination params', async () => {
@@ -189,17 +180,14 @@ describe('useDiscogsApi', () => {
 			const { getFolderReleases } = useDiscogsApi()
 			await getFolderReleases(1, 3, 50)
 
-			expect(mockInvoke).toHaveBeenCalledWith(
-				'authenticated-discogs-request',
-				{
-					body: JSON.stringify({
-						httpMethod: 'GET',
-						url: 'https://api.discogs.com/users/testuser/collection/folders/1/releases',
-						page: 3,
-						per_page: 50
-					})
-				}
-			)
+			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
+				body: JSON.stringify({
+					httpMethod: 'GET',
+					url: 'https://api.discogs.com/users/testuser/collection/folders/1/releases',
+					page: 3,
+					per_page: 50
+				})
+			})
 		})
 
 		it('throws error when no discogs username', async () => {
@@ -224,15 +212,12 @@ describe('useDiscogsApi', () => {
 			const { getRelease } = useDiscogsApi()
 			const result = await getRelease(12345)
 
-			expect(mockInvoke).toHaveBeenCalledWith(
-				'authenticated-discogs-request',
-				{
-					body: JSON.stringify({
-						httpMethod: 'GET',
-						url: 'https://api.discogs.com/releases/12345'
-					})
-				}
-			)
+			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
+				body: JSON.stringify({
+					httpMethod: 'GET',
+					url: 'https://api.discogs.com/releases/12345'
+				})
+			})
 			expect(result).toEqual(mockRelease)
 		})
 

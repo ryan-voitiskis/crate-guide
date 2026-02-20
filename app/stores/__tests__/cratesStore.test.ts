@@ -1,5 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+// Import after mocking
+import { useCratesStore } from '../cratesStore'
 
 // Mock dependencies
 const mockUserStore = {
@@ -30,20 +32,19 @@ const mockSupabaseClient = {
 vi.stubGlobal('useUserStore', () => mockUserStore)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
 
-// Import after mocking
-import { useCratesStore } from '../cratesStore'
-
 // Helper to create mock crate
-function createMockCrate(overrides?: Partial<{
-	id: string
-	name: string
-	description: string | null
-	color: string | null
-	records: string[]
-	user_id: string
-	created_at: string
-	updated_at: string
-}>) {
+function createMockCrate(
+	overrides?: Partial<{
+		id: string
+		name: string
+		description: string | null
+		color: string | null
+		records: string[]
+		user_id: string
+		created_at: string
+		updated_at: string
+	}>
+) {
 	return {
 		id: `crate-${Math.random().toString(36).slice(2)}`,
 		name: 'Test Crate',
@@ -134,7 +135,10 @@ describe('cratesStore', () => {
 
 		it('populates crates from response', async () => {
 			const store = useCratesStore()
-			const mockData = [createMockCrate({ id: 'crate-1' }), createMockCrate({ id: 'crate-2' })]
+			const mockData = [
+				createMockCrate({ id: 'crate-1' }),
+				createMockCrate({ id: 'crate-2' })
+			]
 			mockQueryBuilder.order.mockResolvedValue({ data: mockData, error: null })
 
 			await store.fetchAllCrates()
@@ -174,7 +178,10 @@ describe('cratesStore', () => {
 		it('adds created crate to local state', async () => {
 			const store = useCratesStore()
 			const createdCrate = createMockCrate({ id: 'new-crate' })
-			mockQueryBuilder.single.mockResolvedValue({ data: createdCrate, error: null })
+			mockQueryBuilder.single.mockResolvedValue({
+				data: createdCrate,
+				error: null
+			})
 
 			const result = await store.createCrate({
 				name: 'New Crate',
@@ -229,7 +236,9 @@ describe('cratesStore', () => {
 			const store = useCratesStore()
 			store.crates = [createMockCrate({ id: 'existing-crate' })]
 
-			const result = await store.updateCrate('non-existent', { name: 'Updated' })
+			const result = await store.updateCrate('non-existent', {
+				name: 'Updated'
+			})
 
 			expect(result).toBeNull()
 		})
@@ -291,7 +300,10 @@ describe('cratesStore', () => {
 
 		it('performs optimistic delete', async () => {
 			const store = useCratesStore()
-			store.crates = [createMockCrate({ id: 'crate-1' }), createMockCrate({ id: 'crate-2' })]
+			store.crates = [
+				createMockCrate({ id: 'crate-1' }),
+				createMockCrate({ id: 'crate-2' })
+			]
 
 			const deletePromise = store.deleteCrate('crate-1')
 
@@ -381,7 +393,10 @@ describe('cratesStore', () => {
 			const store = useCratesStore()
 			store.crates = [createMockCrate({ id: 'crate-1' })]
 
-			const result = await store.removeRecordFromCrate('non-existent', 'record-1')
+			const result = await store.removeRecordFromCrate(
+				'non-existent',
+				'record-1'
+			)
 
 			expect(result).toBe(false)
 		})
@@ -397,7 +412,9 @@ describe('cratesStore', () => {
 
 		it('removes record from crate on success', async () => {
 			const store = useCratesStore()
-			store.crates = [createMockCrate({ id: 'crate-1', records: ['record-1', 'record-2'] })]
+			store.crates = [
+				createMockCrate({ id: 'crate-1', records: ['record-1', 'record-2'] })
+			]
 			mockQueryBuilder.single.mockResolvedValue({
 				data: createMockCrate({ id: 'crate-1', records: ['record-2'] }),
 				error: null
@@ -466,7 +483,9 @@ describe('cratesStore', () => {
 
 		it('returns record IDs for crate', () => {
 			const store = useCratesStore()
-			store.crates = [createMockCrate({ id: 'crate-1', records: ['record-1', 'record-2'] })]
+			store.crates = [
+				createMockCrate({ id: 'crate-1', records: ['record-1', 'record-2'] })
+			]
 
 			const result = store.getCrateRecords('crate-1')
 
@@ -545,7 +564,9 @@ describe('cratesStore', () => {
 
 		it('returns correct stats for crate', () => {
 			const store = useCratesStore()
-			store.crates = [createMockCrate({ id: 'crate-1', records: ['r1', 'r2', 'r3'] })]
+			store.crates = [
+				createMockCrate({ id: 'crate-1', records: ['r1', 'r2', 'r3'] })
+			]
 
 			const result = store.getCrateStats('crate-1')
 
@@ -575,7 +596,9 @@ describe('cratesStore', () => {
 
 		it('creates copy with default name', async () => {
 			const store = useCratesStore()
-			store.crates = [createMockCrate({ id: 'crate-1', name: 'Original', records: ['r1'] })]
+			store.crates = [
+				createMockCrate({ id: 'crate-1', name: 'Original', records: ['r1'] })
+			]
 			mockQueryBuilder.single.mockResolvedValue({
 				data: createMockCrate({ id: 'copy', name: 'Original (Copy)' }),
 				error: null
@@ -610,7 +633,11 @@ describe('cratesStore', () => {
 		it('copies records from original crate', async () => {
 			const store = useCratesStore()
 			store.crates = [
-				createMockCrate({ id: 'crate-1', name: 'Original', records: ['r1', 'r2'] })
+				createMockCrate({
+					id: 'crate-1',
+					name: 'Original',
+					records: ['r1', 'r2']
+				})
 			]
 			mockQueryBuilder.single.mockResolvedValue({
 				data: createMockCrate({ id: 'copy', records: ['r1', 'r2'] }),

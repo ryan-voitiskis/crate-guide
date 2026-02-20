@@ -1,7 +1,6 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { getUser, getUserProfile } from '../supabaseHelpers.ts'
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest.ts'
-
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 export async function fetchAndSetIdentity(
 	supabase: SupabaseClient,

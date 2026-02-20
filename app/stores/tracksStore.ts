@@ -24,7 +24,7 @@ export const useTracksStore = defineStore('tracks', () => {
 				.eq('records.user_id', user.supaUser.id)
 				.order('created_at', { ascending: false })
 
-		if (error) throw error
+			if (error) throw error
 			// Map to Track type, stripping the joined records data from the query.
 			// Safe cast: Json fields (artists, extraartists, genres) are stored by this
 			// app in the expected DiscogsArtistDb[] and string[] formats

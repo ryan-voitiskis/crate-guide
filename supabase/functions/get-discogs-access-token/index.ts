@@ -72,7 +72,10 @@ Deno.serve(async (req) => {
 		return new Response(null, { headers, status: 200 })
 	} catch (e) {
 		console.error('Function error:', e)
-		return new Response(JSON.stringify({ error: 'Internal server error' }), { headers, status: 500 })
+		return new Response(JSON.stringify({ error: 'Internal server error' }), {
+			headers,
+			status: 500
+		})
 	}
 })
 

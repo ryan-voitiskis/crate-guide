@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, ref } from 'vue'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock route - path should be a string, not a ref
 let mockRoutePath = '/'

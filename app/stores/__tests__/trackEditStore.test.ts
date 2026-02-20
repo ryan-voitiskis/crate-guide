@@ -1,6 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
 // Import after mocking (no dependencies to mock for this simple store)
 import { useTrackEditStore } from '../trackEditStore'
 

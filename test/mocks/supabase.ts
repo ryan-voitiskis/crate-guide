@@ -1,5 +1,4 @@
 import { vi } from 'vitest'
-
 import type { Database } from '~/../../shared/types/database'
 
 type MockQueryBuilder = {
@@ -47,7 +46,9 @@ export function createMockSupabaseClient() {
 		rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
 		auth: {
 			signUp: vi.fn().mockResolvedValue({ data: null, error: null }),
-			signInWithPassword: vi.fn().mockResolvedValue({ data: null, error: null }),
+			signInWithPassword: vi
+				.fn()
+				.mockResolvedValue({ data: null, error: null }),
 			signInWithOAuth: vi.fn().mockResolvedValue({ data: null, error: null }),
 			signOut: vi.fn().mockResolvedValue({ error: null }),
 			resetPasswordForEmail: vi
@@ -55,9 +56,7 @@ export function createMockSupabaseClient() {
 				.mockResolvedValue({ data: null, error: null }),
 			updateUser: vi.fn().mockResolvedValue({ data: null, error: null }),
 			verifyOtp: vi.fn().mockResolvedValue({ data: null, error: null }),
-			getUser: vi
-				.fn()
-				.mockResolvedValue({ data: { user: null }, error: null }),
+			getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
 			getSession: vi
 				.fn()
 				.mockResolvedValue({ data: { session: null }, error: null }),

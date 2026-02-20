@@ -2,11 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock the event handler utilities before importing the handler
 const mockGetQuery = vi.fn()
-const mockCreateError = vi.fn((options: { statusCode: number; statusMessage: string }) => {
-	const error = new Error(options.statusMessage) as Error & { statusCode: number }
-	error.statusCode = options.statusCode
-	return error
-})
+const mockCreateError = vi.fn(
+	(options: { statusCode: number; statusMessage: string }) => {
+		const error = new Error(options.statusMessage) as Error & {
+			statusCode: number
+		}
+		error.statusCode = options.statusCode
+		return error
+	}
+)
 
 vi.stubGlobal('getQuery', mockGetQuery)
 vi.stubGlobal('createError', mockCreateError)
@@ -36,7 +40,10 @@ describe('beatport/search API', () => {
 
 	describe('query parameter validation', () => {
 		it('returns 400 when query parameter "q" is missing', async () => {
-			mockGetQuery.mockReturnValue({ artist: 'Test Artist', title: 'Test Track' })
+			mockGetQuery.mockReturnValue({
+				artist: 'Test Artist',
+				title: 'Test Track'
+			})
 
 			await expect(handler({})).rejects.toMatchObject({
 				statusCode: 400,
@@ -96,7 +103,11 @@ describe('beatport/search API', () => {
 				track_id: 12345,
 				track_name: 'Test Track',
 				artists: [
-					{ artist_id: 1, artist_name: 'Test Artist', artist_type_name: 'Artist' }
+					{
+						artist_id: 1,
+						artist_name: 'Test Artist',
+						artist_type_name: 'Artist'
+					}
 				],
 				bpm: 128,
 				key_name: 'Am',
@@ -127,8 +138,12 @@ describe('beatport/search API', () => {
 					img: 'https://example.com/track.jpg'
 				}
 			})
-			expect((result as { data: { url: string } }).data.url).toContain('beatport.com/track')
-			expect((result as { data: { accessed: number } }).data.accessed).toBeDefined()
+			expect((result as { data: { url: string } }).data.url).toContain(
+				'beatport.com/track'
+			)
+			expect(
+				(result as { data: { accessed: number } }).data.accessed
+			).toBeDefined()
 		})
 
 		it('returns success: false when no matching track found', async () => {
@@ -142,7 +157,11 @@ describe('beatport/search API', () => {
 				track_id: 12345,
 				track_name: 'Different Track',
 				artists: [
-					{ artist_id: 1, artist_name: 'Different Artist', artist_type_name: 'Artist' }
+					{
+						artist_id: 1,
+						artist_name: 'Different Artist',
+						artist_type_name: 'Artist'
+					}
 				],
 				bpm: 130,
 				key_name: 'Bm',
@@ -197,7 +216,8 @@ describe('beatport/search API', () => {
 				title: 'Test Track'
 			})
 
-			const html = '<html><head><script id="__NEXT_DATA__" type="application/json">{invalid json}</script></head><body></body></html>'
+			const html =
+				'<html><head><script id="__NEXT_DATA__" type="application/json">{invalid json}</script></head><body></body></html>'
 			mockFetch.mockResolvedValueOnce({
 				ok: true,
 				text: () => Promise.resolve(html)
@@ -222,7 +242,11 @@ describe('beatport/search API', () => {
 				track_id: 12345,
 				track_name: 'Test Track',
 				artists: [
-					{ artist_id: 1, artist_name: 'Test Artist', artist_type_name: 'Artist' }
+					{
+						artist_id: 1,
+						artist_name: 'Test Artist',
+						artist_type_name: 'Artist'
+					}
 				],
 				bpm: 125,
 				key_name: 'Cm',
@@ -342,7 +366,11 @@ describe('beatport/search API', () => {
 				track_id: 12345,
 				track_name: 'Test Track',
 				artists: [
-					{ artist_id: 1, artist_name: 'test artist', artist_type_name: 'Artist' }
+					{
+						artist_id: 1,
+						artist_name: 'test artist',
+						artist_type_name: 'Artist'
+					}
 				],
 				bpm: 128,
 				key_name: 'Am',
@@ -371,7 +399,11 @@ describe('beatport/search API', () => {
 				track_id: 12345,
 				track_name: 'Track (Extended Remix)',
 				artists: [
-					{ artist_id: 1, artist_name: 'Test Artist', artist_type_name: 'Artist' }
+					{
+						artist_id: 1,
+						artist_name: 'Test Artist',
+						artist_type_name: 'Artist'
+					}
 				],
 				bpm: 130,
 				key_name: 'Bm',

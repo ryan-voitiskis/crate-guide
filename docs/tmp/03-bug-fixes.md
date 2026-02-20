@@ -12,45 +12,57 @@
 The `getCompatibleTracks()` function uses falsy checks for track keys, but key `0` represents C Major in the Camelot wheel. This causes C Major tracks to be incorrectly filtered out.
 
 **Current Code**:
+
 ```typescript
 if (!track.bpm || !track.key || !currentTrack.bpm || !currentTrack.key) {
-  return false
+	return false
 }
 ```
 
 **Problem**:
+
 - `!track.key` evaluates to `true` when `key === 0` (C Major)
 - Tracks with key=0 are incorrectly excluded from compatibility results
 
 **Evidence**:
 Test file `tracksStore.test.ts:733` contains the comment:
+
 ```typescript
 // Note: Key 0 (C) is treated as falsy in the store's null check
 ```
 
 **Fix**:
+
 ```typescript
 if (
-  track.bpm === null || track.bpm === undefined ||
-  track.key === null || track.key === undefined ||
-  currentTrack.bpm === null || currentTrack.bpm === undefined ||
-  currentTrack.key === null || currentTrack.key === undefined
+	track.bpm === null ||
+	track.bpm === undefined ||
+	track.key === null ||
+	track.key === undefined ||
+	currentTrack.bpm === null ||
+	currentTrack.bpm === undefined ||
+	currentTrack.key === null ||
+	currentTrack.key === undefined
 ) {
-  return false
+	return false
 }
 ```
 
 **Or more concisely**:
+
 ```typescript
 if (
-  track.bpm == null || track.key == null ||
-  currentTrack.bpm == null || currentTrack.key == null
+	track.bpm == null ||
+	track.key == null ||
+	currentTrack.bpm == null ||
+	currentTrack.key == null
 ) {
-  return false
+	return false
 }
 ```
 
 **Testing Required**:
+
 - Add test case for track with key=0 (C Major)
 - Verify C Major tracks appear in compatibility results
 - Check harmonic mixing suggestions include key=0 tracks
@@ -66,34 +78,36 @@ if (
 The `autoSaveTimeout` variable is module-scoped outside the reactive system. If the store is destroyed and recreated (unlikely in SPA but possible), the timeout reference could leak.
 
 **Current Code**:
+
 ```typescript
 let autoSaveTimeout: ReturnType<typeof setTimeout> | null = null
 
 function scheduleAutoSave() {
-  if (autoSaveTimeout) clearTimeout(autoSaveTimeout)
-  autoSaveTimeout = setTimeout(async () => {
-    // ...
-  }, 2000)
+	if (autoSaveTimeout) clearTimeout(autoSaveTimeout)
+	autoSaveTimeout = setTimeout(async () => {
+		// ...
+	}, 2000)
 }
 ```
 
 **Fix**:
+
 ```typescript
 const autoSaveTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
 
 function scheduleAutoSave() {
-  if (autoSaveTimeout.value) clearTimeout(autoSaveTimeout.value)
-  autoSaveTimeout.value = setTimeout(async () => {
-    // ...
-  }, 2000)
+	if (autoSaveTimeout.value) clearTimeout(autoSaveTimeout.value)
+	autoSaveTimeout.value = setTimeout(async () => {
+		// ...
+	}, 2000)
 }
 
 function clearSession() {
-  if (autoSaveTimeout.value) {
-    clearTimeout(autoSaveTimeout.value)
-    autoSaveTimeout.value = null
-  }
-  // ... rest of cleanup
+	if (autoSaveTimeout.value) {
+		clearTimeout(autoSaveTimeout.value)
+		autoSaveTimeout.value = null
+	}
+	// ... rest of cleanup
 }
 ```
 
@@ -110,6 +124,7 @@ function clearSession() {
 If `scheduleAutoSave()` is called rapidly and the first `createActiveSet()` completes between two scheduled callbacks, both callbacks might attempt operations.
 
 **Current Flow**:
+
 1. First callback fires, `activeSetId` is null → calls `createActiveSet()`
 2. Second callback scheduled before first completes
 3. First callback sets `activeSetId`
@@ -121,27 +136,28 @@ If `scheduleAutoSave()` is called rapidly and the first `createActiveSet()` comp
 **Note**: The store already has `isAutoSaving` ref at line 63. The fix only requires converting `autoSaveTimeout` to a ref and ensuring the guard is used properly.
 
 **Recommended Fix**: Convert timeout to ref (isAutoSaving already exists):
+
 ```typescript
 // autoSaveTimeout should be a ref (isAutoSaving already exists at line 63)
 const autoSaveTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
 
 function scheduleAutoSave() {
-  if (autoSaveTimeout.value) clearTimeout(autoSaveTimeout.value)
+	if (autoSaveTimeout.value) clearTimeout(autoSaveTimeout.value)
 
-  autoSaveTimeout.value = setTimeout(async () => {
-    if (isAutoSaving.value) return // Already saving
-    isAutoSaving.value = true
+	autoSaveTimeout.value = setTimeout(async () => {
+		if (isAutoSaving.value) return // Already saving
+		isAutoSaving.value = true
 
-    try {
-      if (!activeSetId.value) {
-        activeSetId.value = await createActiveSet()
-      } else {
-        await updateActiveSet()
-      }
-    } finally {
-      isAutoSaving.value = false
-    }
-  }, 2000)
+		try {
+			if (!activeSetId.value) {
+				activeSetId.value = await createActiveSet()
+			} else {
+				await updateActiveSet()
+			}
+		} finally {
+			isAutoSaving.value = false
+		}
+	}, 2000)
 }
 ```
 
@@ -151,6 +167,7 @@ function scheduleAutoSave() {
 
 **Severity**: LOW
 **Locations**:
+
 - `app/components/records/CardRecordShort.vue:45` - `<!-- TODO: fallback -->`
 - `app/components/records/DialogTrackEdit.vue:17` - `// TODO: check this is right!`
 - `app/components/records/DialogRecordDetails.vue:342` - `<!-- TODO: the colour of AlertDialogAction should be red or amber -->`
@@ -168,6 +185,7 @@ function scheduleAutoSave() {
 
 **Description**:
 Uses hardcoded Tailwind colors instead of design tokens:
+
 ```vue
 <span class="text-green-600 dark:text-green-400">
   {{ beatport.bulkBeatportResults.successful }} found
@@ -178,6 +196,7 @@ Uses hardcoded Tailwind colors instead of design tokens:
 ```
 
 **Fix**: Use semantic color tokens if available in design system, or create them:
+
 ```vue
 <span class="text-success">...</span>
 <span class="text-destructive">...</span>
@@ -194,15 +213,15 @@ Uses hardcoded Tailwind colors instead of design tokens:
 This is the only component using `<style scoped>` with hardcoded HSL values instead of Tailwind utilities. Inconsistent with the rest of the codebase.
 
 **Current Code**:
+
 ```vue
 <style scoped>
 .pitch-fader::-webkit-slider-thumb {
-  background: linear-gradient(
-    to right,
-    hsl(0, 0%, 87%) 0%,
-    hsl(0, 0%, 44%) 33%,
-    /* ... */
-  );
+	background: linear-gradient(
+		to right,
+		hsl(0, 0%, 87%) 0%,
+		hsl(0, 0%, 44%) 33% /* ... */
+	);
 }
 </style>
 ```
@@ -216,11 +235,13 @@ This is the only component using `<style scoped>` with hardcoded HSL values inst
 ### EDGE-001: Empty Error Catch Blocks
 
 **Locations**:
+
 - `app/stores/recordsStore.ts:44`
 - `app/stores/tracksStore.ts:49`
 - `app/stores/cratesStore.ts:41`
 
 **Current Pattern**:
+
 ```typescript
 } catch {
   toast.error('Error fetching records.')
@@ -230,6 +251,7 @@ This is the only component using `<style scoped>` with hardcoded HSL values inst
 **Problem**: Error details are lost, making debugging difficult.
 
 **Fix**:
+
 ```typescript
 } catch (error) {
   console.error('Failed to fetch records:', error)
@@ -246,18 +268,19 @@ This is the only component using `<style scoped>` with hardcoded HSL values inst
 **Problem**: Long network stalls could freeze the UI indefinitely.
 
 **Fix**: Add timeouts to critical operations:
+
 ```typescript
 const controller = new AbortController()
 const timeoutId = setTimeout(() => controller.abort(), 10000)
 
 try {
-  const { data, error } = await supabase
-    .from('records')
-    .select('*')
-    .abortSignal(controller.signal)
-  // ...
+	const { data, error } = await supabase
+		.from('records')
+		.select('*')
+		.abortSignal(controller.signal)
+	// ...
 } finally {
-  clearTimeout(timeoutId)
+	clearTimeout(timeoutId)
 }
 ```
 

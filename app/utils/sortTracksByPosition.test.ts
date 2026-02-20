@@ -1,7 +1,9 @@
+import {
+	createMockTrack,
+	resetTrackIdCounter
+} from 'test/mocks/fixtures/tracks'
 import { beforeEach, describe, expect, it } from 'vitest'
-
 import { sortTracksByPosition } from './sortTracksByPosition'
-import { createMockTrack, resetTrackIdCounter } from 'test/mocks/fixtures/tracks'
 
 describe('sortTracksByPosition', () => {
 	beforeEach(() => {

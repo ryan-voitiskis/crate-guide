@@ -7,14 +7,14 @@
 
 ### Coverage Summary
 
-| Category | Tested | Total | Coverage |
-|----------|--------|-------|----------|
-| Stores | 8 | 11 | 73% |
-| Composables | 3 | 6 | 50% |
-| Utilities | 8 | 15 | 53% |
-| Components | 0 | 184 | 0% |
-| Pages | 0 | 17 | 0% |
-| Server API | 0 | 1 | 0% |
+| Category    | Tested | Total | Coverage |
+| ----------- | ------ | ----- | -------- |
+| Stores      | 8      | 11    | 73%      |
+| Composables | 3      | 6     | 50%      |
+| Utilities   | 8      | 15    | 53%      |
+| Components  | 0      | 184   | 0%       |
+| Pages       | 0      | 17    | 0%       |
+| Server API  | 0      | 1     | 0%       |
 
 ---
 
@@ -28,32 +28,34 @@
 **Current State**: 184 Vue components with no unit tests.
 
 **Recommended Testing Approach**:
+
 ```typescript
 // Example: DialogCrateForm.test.ts
-import { mount } from '@vue/test-utils'
 import { createTestingPinia } from '@pinia/testing'
+import { mount } from '@vue/test-utils'
 import DialogCrateForm from '../DialogCrateForm.vue'
 
 describe('DialogCrateForm', () => {
-  it('validates required name field', async () => {
-    const wrapper = mount(DialogCrateForm, {
-      props: { open: true },
-      global: {
-        plugins: [createTestingPinia()]
-      }
-    })
+	it('validates required name field', async () => {
+		const wrapper = mount(DialogCrateForm, {
+			props: { open: true },
+			global: {
+				plugins: [createTestingPinia()]
+			}
+		})
 
-    await wrapper.find('button[type="submit"]').trigger('click')
-    expect(wrapper.text()).toContain('Name is required')
-  })
+		await wrapper.find('button[type="submit"]').trigger('click')
+		expect(wrapper.text()).toContain('Name is required')
+	})
 
-  it('emits saved event on successful submit', async () => {
-    // ...
-  })
+	it('emits saved event on successful submit', async () => {
+		// ...
+	})
 })
 ```
 
 **Priority Components to Test**:
+
 1. `DialogCrateForm.vue` - Core CRUD form
 2. `DialogRecordDetails.vue` - Complex edit dialog
 3. `DialogTrackEdit.vue` - Form with validation
@@ -68,42 +70,44 @@ describe('DialogCrateForm', () => {
 **Current State**: No tests for the Beatport search endpoint.
 
 **Risks**:
+
 - HTML parsing logic untested
 - Error handling paths uncovered
 - Edge cases (malformed responses) not verified
 
 **Recommended Tests**:
+
 ```typescript
 // server/api/beatport/search.test.ts
-import { describe, it, expect, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 describe('beatport/search API', () => {
-  it('returns 400 when query parameter missing', async () => {
-    const event = { getQuery: () => ({}) }
-    await expect(handler(event)).rejects.toThrow('Bad Request')
-  })
+	it('returns 400 when query parameter missing', async () => {
+		const event = { getQuery: () => ({}) }
+		await expect(handler(event)).rejects.toThrow('Bad Request')
+	})
 
-  it('parses __NEXT_DATA__ correctly', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      text: () => Promise.resolve(mockBeatportHtml)
-    })
+	it('parses __NEXT_DATA__ correctly', async () => {
+		vi.spyOn(global, 'fetch').mockResolvedValue({
+			ok: true,
+			text: () => Promise.resolve(mockBeatportHtml)
+		})
 
-    const result = await handler(mockEvent)
-    expect(result.data).toMatchObject({
-      bpm: 128,
-      key: 'Am'
-    })
-  })
+		const result = await handler(mockEvent)
+		expect(result.data).toMatchObject({
+			bpm: 128,
+			key: 'Am'
+		})
+	})
 
-  it('handles Beatport 429 rate limit', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({
-      ok: false,
-      status: 429
-    })
+	it('handles Beatport 429 rate limit', async () => {
+		vi.spyOn(global, 'fetch').mockResolvedValue({
+			ok: false,
+			status: 429
+		})
 
-    await expect(handler(mockEvent)).rejects.toThrow('429')
-  })
+		await expect(handler(mockEvent)).rejects.toThrow('429')
+	})
 })
 ```
 
@@ -128,31 +132,32 @@ describe('beatport/search API', () => {
    - Track loading
 
 **Example Test**:
+
 ```typescript
 // discogsAuthStore.test.ts
 describe('discogsAuthStore', () => {
-  it('completes OAuth flow with valid verifier', async () => {
-    const store = useDiscogsAuthStore()
+	it('completes OAuth flow with valid verifier', async () => {
+		const store = useDiscogsAuthStore()
 
-    mockSupabase.functions.invoke.mockResolvedValue({
-      data: { access_token: 'token', access_secret: 'secret' }
-    })
+		mockSupabase.functions.invoke.mockResolvedValue({
+			data: { access_token: 'token', access_secret: 'secret' }
+		})
 
-    await store.completeOAuthFlow('verifier123')
+		await store.completeOAuthFlow('verifier123')
 
-    expect(mockSupabase.functions.invoke).toHaveBeenCalledWith(
-      'get-discogs-access-token',
-      expect.objectContaining({ body: expect.stringContaining('verifier123') })
-    )
-  })
+		expect(mockSupabase.functions.invoke).toHaveBeenCalledWith(
+			'get-discogs-access-token',
+			expect.objectContaining({ body: expect.stringContaining('verifier123') })
+		)
+	})
 
-  it('handles OAuth failure gracefully', async () => {
-    mockSupabase.functions.invoke.mockRejectedValue(new Error('OAuth failed'))
+	it('handles OAuth failure gracefully', async () => {
+		mockSupabase.functions.invoke.mockRejectedValue(new Error('OAuth failed'))
 
-    await store.completeOAuthFlow('invalid')
+		await store.completeOAuthFlow('invalid')
 
-    expect(toast.error).toHaveBeenCalled()
-  })
+		expect(toast.error).toHaveBeenCalled()
+	})
 })
 ```
 
@@ -178,21 +183,26 @@ describe('discogsAuthStore', () => {
    - Schema validation
 
 **Example Test**:
+
 ```typescript
 // useBeatportScraper.test.ts
 describe('useBeatportScraper', () => {
-  it('formats search query correctly', async () => {
-    const { searchTracks } = useBeatportScraper()
+	it('formats search query correctly', async () => {
+		const { searchTracks } = useBeatportScraper()
 
-    await searchTracks({ artist: 'Artist Name', title: 'Track Title' })
+		await searchTracks({ artist: 'Artist Name', title: 'Track Title' })
 
-    expect($fetch).toHaveBeenCalledWith(
-      '/api/beatport/search',
-      expect.objectContaining({
-        query: { q: 'Artist Name Track Title', artist: 'Artist Name', title: 'Track Title' }
-      })
-    )
-  })
+		expect($fetch).toHaveBeenCalledWith(
+			'/api/beatport/search',
+			expect.objectContaining({
+				query: {
+					q: 'Artist Name Track Title',
+					artist: 'Artist Name',
+					title: 'Track Title'
+				}
+			})
+		)
+	})
 })
 ```
 
@@ -200,16 +210,16 @@ describe('useBeatportScraper', () => {
 
 **Missing Utility Tests**:
 
-| File | Status | Notes |
-|------|--------|-------|
-| cn.ts | ❌ | Class merging utility |
-| discogs-database.ts | ❌ | DB operations |
-| discogs-formatting.ts | ❌ | Display formatting |
-| discogs-validation.ts | ❌ | Input validation |
-| openInNewTab.ts | ❌ | Browser utility |
-| setTheme.ts | ❌ | Theme management |
-| supabase-client.ts | ❌ | Client initialization |
-| typeGuards.ts | ❌ | Type checking |
+| File                  | Status | Notes                 |
+| --------------------- | ------ | --------------------- |
+| cn.ts                 | ❌     | Class merging utility |
+| discogs-database.ts   | ❌     | DB operations         |
+| discogs-formatting.ts | ❌     | Display formatting    |
+| discogs-validation.ts | ❌     | Input validation      |
+| openInNewTab.ts       | ❌     | Browser utility       |
+| setTheme.ts           | ❌     | Theme management      |
+| supabase-client.ts    | ❌     | Client initialization |
+| typeGuards.ts         | ❌     | Type checking         |
 
 **Priority**: `discogs-validation.ts` and `typeGuards.ts` should be tested as they affect data integrity.
 
@@ -224,6 +234,7 @@ describe('useBeatportScraper', () => {
 **Missing Integration Scenarios**:
 
 1. **Record Import Flow**
+
    ```typescript
    // Should test:
    // discogsStore.importSelectedReleases()
@@ -232,6 +243,7 @@ describe('useBeatportScraper', () => {
    ```
 
 2. **Session Playback Flow**
+
    ```typescript
    // Should test:
    // sessionStore.loadTrackOnDeck()
@@ -247,23 +259,24 @@ describe('useBeatportScraper', () => {
    ```
 
 **Example Integration Test**:
+
 ```typescript
 describe('Record Import Integration', () => {
-  it('imports records and updates all stores', async () => {
-    const discogs = useDiscogsStore()
-    const records = useRecordsStore()
-    const tracks = useTracksStore()
+	it('imports records and updates all stores', async () => {
+		const discogs = useDiscogsStore()
+		const records = useRecordsStore()
+		const tracks = useTracksStore()
 
-    // Setup mock data
-    discogs.releasesToImport = [mockRelease]
+		// Setup mock data
+		discogs.releasesToImport = [mockRelease]
 
-    // Perform import
-    await discogs.importSelectedReleases()
+		// Perform import
+		await discogs.importSelectedReleases()
 
-    // Verify all stores updated
-    expect(records.fetchAllRecords).toHaveBeenCalled()
-    expect(tracks.fetchAllTracks).toHaveBeenCalled()
-  })
+		// Verify all stores updated
+		expect(records.fetchAllRecords).toHaveBeenCalled()
+		expect(tracks.fetchAllTracks).toHaveBeenCalled()
+	})
 })
 ```
 
@@ -276,33 +289,35 @@ describe('Record Import Integration', () => {
 **Current**: vitest.config.ts has Nuxt environment commented out.
 
 **Required Changes**:
+
 ```typescript
 // vitest.config.ts
 export default defineConfig({
-  test: {
-    projects: [
-      // ... existing projects
-      {
-        name: 'components',
-        include: ['app/components/**/*.test.ts'],
-        environment: 'nuxt',
-        setupFiles: ['./test/setup-components.ts']
-      }
-    ]
-  }
+	test: {
+		projects: [
+			// ... existing projects
+			{
+				name: 'components',
+				include: ['app/components/**/*.test.ts'],
+				environment: 'nuxt',
+				setupFiles: ['./test/setup-components.ts']
+			}
+		]
+	}
 })
 ```
 
 **Setup File**:
+
 ```typescript
 // test/setup-components.ts
-import { config } from '@vue/test-utils'
 import { createTestingPinia } from '@pinia/testing'
+import { config } from '@vue/test-utils'
 
 config.global.plugins = [createTestingPinia()]
 config.global.stubs = {
-  NuxtLink: true,
-  ClientOnly: true
+	NuxtLink: true,
+	ClientOnly: true
 }
 ```
 
@@ -311,6 +326,7 @@ config.global.stubs = {
 **Recommendation**: Add Playwright for critical user flows.
 
 **Priority Flows**:
+
 1. Login → Dashboard → Browse records
 2. Import records from Discogs
 3. Create crate → Add records
@@ -318,18 +334,18 @@ config.global.stubs = {
 
 ```typescript
 // e2e/import-records.spec.ts
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 test('import records from Discogs', async ({ page }) => {
-  await page.goto('/login')
-  await page.fill('[name="email"]', 'test@example.com')
-  await page.fill('[name="password"]', 'password')
-  await page.click('button[type="submit"]')
+	await page.goto('/login')
+	await page.fill('[name="email"]', 'test@example.com')
+	await page.fill('[name="password"]', 'password')
+	await page.click('button[type="submit"]')
 
-  await page.waitForURL('/records')
-  await page.click('text=Import from Discogs')
+	await page.waitForURL('/records')
+	await page.click('text=Import from Discogs')
 
-  // ... rest of flow
+	// ... rest of flow
 })
 ```
 
@@ -342,8 +358,8 @@ test('import records from Discogs', async ({ page }) => {
 ```typescript
 // CardRecord.test.ts
 it('renders correctly with full record data', () => {
-  const wrapper = mount(CardRecord, { props: { record: fullMockRecord } })
-  expect(wrapper.html()).toMatchSnapshot()
+	const wrapper = mount(CardRecord, { props: { record: fullMockRecord } })
+	expect(wrapper.html()).toMatchSnapshot()
 })
 ```
 
@@ -352,13 +368,13 @@ it('renders correctly with full record data', () => {
 ```typescript
 // vitest.config.ts
 export default defineConfig({
-  test: {
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'html'],
-      exclude: ['**/*.test.ts', 'test/**']
-    }
-  }
+	test: {
+		coverage: {
+			provider: 'v8',
+			reporter: ['text', 'html'],
+			exclude: ['**/*.test.ts', 'test/**']
+		}
+	}
 })
 ```
 
@@ -367,31 +383,36 @@ export default defineConfig({
 **Current**: `test/mocks/fixtures/` has basic factories.
 
 **Improvements**:
+
 ```typescript
 // test/factories/index.ts
 import { faker } from '@faker-js/faker'
 
-export function createRecord(overrides?: Partial<DatabaseRecord>): DatabaseRecord {
-  return {
-    id: faker.string.uuid(),
-    user_id: faker.string.uuid(),
-    title: faker.music.songName(),
-    artists: [{ name: faker.person.fullName(), discogs_id: faker.number.int() }],
-    year: faker.date.past({ years: 50 }).getFullYear(),
-    created_at: faker.date.recent().toISOString(),
-    ...overrides
-  }
+export function createRecord(
+	overrides?: Partial<DatabaseRecord>
+): DatabaseRecord {
+	return {
+		id: faker.string.uuid(),
+		user_id: faker.string.uuid(),
+		title: faker.music.songName(),
+		artists: [
+			{ name: faker.person.fullName(), discogs_id: faker.number.int() }
+		],
+		year: faker.date.past({ years: 50 }).getFullYear(),
+		created_at: faker.date.recent().toISOString(),
+		...overrides
+	}
 }
 
 export function createTrack(overrides?: Partial<Track>): Track {
-  return {
-    id: faker.string.uuid(),
-    record_id: faker.string.uuid(),
-    title: faker.music.songName(),
-    bpm: faker.number.int({ min: 80, max: 180 }),
-    key: faker.number.int({ min: 0, max: 23 }),
-    ...overrides
-  }
+	return {
+		id: faker.string.uuid(),
+		record_id: faker.string.uuid(),
+		title: faker.music.songName(),
+		bpm: faker.number.int({ min: 80, max: 180 }),
+		key: faker.number.int({ min: 0, max: 23 }),
+		...overrides
+	}
 }
 ```
 
@@ -400,23 +421,28 @@ export function createTrack(overrides?: Partial<Track>): Track {
 ## Implementation Roadmap
 
 ### Phase 1: Critical Coverage (Week 1-2)
+
 - [ ] Add Beatport API endpoint tests
 - [ ] Add tests for 3 untested stores
 - [ ] Add component testing infrastructure
 
 ### Phase 2: Component Testing (Week 2-4)
+
 - [ ] Test top 10 critical components
 - [ ] Add snapshot tests for cards/dialogs
 
 ### Phase 3: Integration Testing (Week 4-6)
+
 - [ ] Multi-store integration tests
 - [ ] User flow integration tests
 
 ### Phase 4: E2E Testing (Week 6-8)
+
 - [ ] Add Playwright
 - [ ] Test critical user journeys
 
 ### Target Coverage
+
 - **Stores**: 100% (11/11)
 - **Composables**: 100% (6/6)
 - **Utilities**: 80% (12/15)

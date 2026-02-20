@@ -1,8 +1,12 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+// Import after mocking
+import { useUserStore } from '../userStore'
 
 // Mock dependencies
-const mockSupaUser = { value: { id: 'test-user-id', email: 'test@example.com' } }
+const mockSupaUser = {
+	value: { id: 'test-user-id', email: 'test@example.com' }
+}
 
 const mockRouter = {
 	push: vi.fn()
@@ -43,7 +47,9 @@ const mockSupabaseClient = {
 		signInWithPassword: vi.fn().mockResolvedValue({ data: null, error: null }),
 		signInWithOAuth: vi.fn().mockResolvedValue({ data: null, error: null }),
 		signOut: vi.fn().mockResolvedValue({ error: null }),
-		resetPasswordForEmail: vi.fn().mockResolvedValue({ data: null, error: null }),
+		resetPasswordForEmail: vi
+			.fn()
+			.mockResolvedValue({ data: null, error: null }),
 		updateUser: vi.fn().mockResolvedValue({ data: null, error: null }),
 		verifyOtp: vi.fn().mockResolvedValue({ data: null, error: null })
 	}
@@ -65,9 +71,6 @@ vi.stubGlobal('watchEffect', vi.fn()) // Disable watchEffect to prevent auto-fet
 
 // Mock process.env
 vi.stubGlobal('process', { env: { SITE_URL: 'https://example.com' } })
-
-// Import after mocking
-import { useUserStore } from '../userStore'
 
 describe('userStore', () => {
 	beforeEach(() => {
@@ -125,7 +128,10 @@ describe('userStore', () => {
 	describe('signUpWithEmail', () => {
 		it('navigates to home on success', async () => {
 			const store = useUserStore()
-			mockSupabaseClient.auth.signUp.mockResolvedValue({ data: {}, error: null })
+			mockSupabaseClient.auth.signUp.mockResolvedValue({
+				data: {},
+				error: null
+			})
 
 			await store.signUpWithEmail('test@example.com', 'password123')
 
@@ -274,10 +280,11 @@ describe('userStore', () => {
 
 			await store.sendPasswordResetEmail('test@example.com')
 
-			expect(mockSupabaseClient.auth.resetPasswordForEmail).toHaveBeenCalledWith(
-				'test@example.com',
-				{ redirectTo: 'https://example.com/update-password' }
-			)
+			expect(
+				mockSupabaseClient.auth.resetPasswordForEmail
+			).toHaveBeenCalledWith('test@example.com', {
+				redirectTo: 'https://example.com/update-password'
+			})
 		})
 
 		it('returns false on error', async () => {
@@ -358,7 +365,10 @@ describe('userStore', () => {
 		it('returns true and sets profile on success', async () => {
 			const store = useUserStore()
 			const mockProfile = { id: 'test-user-id', ui_theme: 'dark' }
-			mockQueryBuilder.single.mockResolvedValue({ data: mockProfile, error: null })
+			mockQueryBuilder.single.mockResolvedValue({
+				data: mockProfile,
+				error: null
+			})
 
 			const result = await store.fetchProfile()
 
@@ -369,7 +379,10 @@ describe('userStore', () => {
 		it('calls setTheme with profile theme', async () => {
 			const store = useUserStore()
 			const mockProfile = { id: 'test-user-id', ui_theme: 'dark' }
-			mockQueryBuilder.single.mockResolvedValue({ data: mockProfile, error: null })
+			mockQueryBuilder.single.mockResolvedValue({
+				data: mockProfile,
+				error: null
+			})
 
 			await store.fetchProfile()
 

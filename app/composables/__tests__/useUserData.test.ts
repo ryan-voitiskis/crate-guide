@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock vue-sonner module
 vi.mock('vue-sonner', () => ({

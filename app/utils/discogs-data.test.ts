@@ -1,13 +1,3 @@
-import { describe, expect, it } from 'vitest'
-
-import {
-	normalizeArtist,
-	transformRelease,
-	transformReleaseArtists,
-	transformReleaseLabels,
-	transformReleaseTracks
-} from './discogs-data'
-
 import {
 	createMockDiscogsArtist,
 	createMockDiscogsLabel,
@@ -15,6 +5,14 @@ import {
 	createMockDiscogsTrack,
 	mockDiscogsReleases
 } from 'test/mocks/fixtures/discogs'
+import { describe, expect, it } from 'vitest'
+import {
+	normalizeArtist,
+	transformRelease,
+	transformReleaseArtists,
+	transformReleaseLabels,
+	transformReleaseTracks
+} from './discogs-data'
 
 describe('normalizeArtist', () => {
 	it('trims whitespace', () => {
@@ -75,9 +73,7 @@ describe('transformReleaseArtists', () => {
 	})
 
 	it('normalizes artist names with disambiguation numbers', () => {
-		const artists = [
-			createMockDiscogsArtist({ id: 1, name: 'John Smith (2)' })
-		]
+		const artists = [createMockDiscogsArtist({ id: 1, name: 'John Smith (2)' })]
 
 		const result = transformReleaseArtists(artists)
 
@@ -231,9 +227,7 @@ describe('transformReleaseTracks', () => {
 					tracklist: [
 						createMockDiscogsTrack({
 							title: 'Track',
-							extraartists: [
-								createMockDiscogsArtist({ name: 'Artist', role })
-							]
+							extraartists: [createMockDiscogsArtist({ name: 'Artist', role })]
 						})
 					]
 				})

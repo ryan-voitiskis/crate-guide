@@ -25,7 +25,10 @@ Deno.serve(async (req) => {
 		if (!url) throw new Error('Missing url.')
 
 		if (!validateDiscogsUrl(url)) {
-			return new Response(JSON.stringify({ error: 'Invalid Discogs URL' }), { headers, status: 400 })
+			return new Response(JSON.stringify({ error: 'Invalid Discogs URL' }), {
+				headers,
+				status: 400
+			})
 		}
 
 		const response = await makeAuthenticatedRequest(
@@ -41,6 +44,9 @@ Deno.serve(async (req) => {
 		return new Response(JSON.stringify(responseObj), { headers, status: 200 })
 	} catch (e) {
 		console.error('Function error:', e)
-		return new Response(JSON.stringify({ error: 'Internal server error' }), { headers, status: 500 })
+		return new Response(JSON.stringify({ error: 'Internal server error' }), {
+			headers,
+			status: 500
+		})
 	}
 })

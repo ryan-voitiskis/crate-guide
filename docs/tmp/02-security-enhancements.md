@@ -6,17 +6,17 @@ The application has a solid security foundation with Supabase Auth, RLS policies
 
 ## Current Security Posture
 
-| Area | Status | Notes |
-|------|--------|-------|
-| Authentication | ✅ Strong | Supabase Auth with email/OAuth |
-| Authorization (RLS) | ✅ Strong | User isolation at DB level |
-| Input Validation | ✅ Strong | Zod schemas, VeeValidate |
-| XSS Prevention | ✅ Strong | Vue auto-escaping, no v-html |
-| SQL Injection | ✅ Strong | Parameterized queries via Supabase SDK |
-| Secrets Management | ✅ Good | Env vars, no hardcoded secrets |
-| CORS | ⚠️ Needs Work | Wildcard origin in Edge Functions |
-| CSP Headers | ❌ Missing | No Content Security Policy |
-| Error Disclosure | ⚠️ Needs Work | Edge Functions expose stack traces |
+| Area                | Status        | Notes                                  |
+| ------------------- | ------------- | -------------------------------------- |
+| Authentication      | ✅ Strong     | Supabase Auth with email/OAuth         |
+| Authorization (RLS) | ✅ Strong     | User isolation at DB level             |
+| Input Validation    | ✅ Strong     | Zod schemas, VeeValidate               |
+| XSS Prevention      | ✅ Strong     | Vue auto-escaping, no v-html           |
+| SQL Injection       | ✅ Strong     | Parameterized queries via Supabase SDK |
+| Secrets Management  | ✅ Good       | Env vars, no hardcoded secrets         |
+| CORS                | ⚠️ Needs Work | Wildcard origin in Edge Functions      |
+| CSP Headers         | ❌ Missing    | No Content Security Policy             |
+| Error Disclosure    | ⚠️ Needs Work | Edge Functions expose stack traces     |
 
 ## Priority 1: Critical Security Issues
 
@@ -25,6 +25,7 @@ The application has a solid security foundation with Supabase Auth, RLS policies
 **Location**: All Edge Functions in `supabase/functions/`
 
 **Current Code**:
+
 ```typescript
 // get-discogs-request-token/index.ts
 catch (e) {
@@ -35,6 +36,7 @@ catch (e) {
 **Risk**: Exposes internal error messages, stack traces, and potentially sensitive information to clients.
 
 **Fix**:
+
 ```typescript
 catch (e) {
   console.error('Function error:', e)
@@ -44,6 +46,7 @@ catch (e) {
 ```
 
 **Files to Update**:
+
 - `supabase/functions/get-discogs-request-token/index.ts`
 - `supabase/functions/get-discogs-access-token/index.ts`
 - `supabase/functions/authenticated-discogs-request/index.ts`
@@ -53,20 +56,23 @@ catch (e) {
 **Location**: `supabase/functions/_shared/cors.ts`
 
 **Current Code**:
+
 ```typescript
 export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  // ...
+	'Access-Control-Allow-Origin': '*'
+	// ...
 }
 ```
 
 **Risk**: Allows any domain to call Edge Functions. While auth is required, this is overly permissive.
 
 **Fix**:
+
 ```typescript
 export const corsHeaders = {
-  'Access-Control-Allow-Origin': Deno.env.get('SITE_URL') || 'https://crate.guide',
-  // ...
+	'Access-Control-Allow-Origin':
+		Deno.env.get('SITE_URL') || 'https://crate.guide'
+	// ...
 }
 ```
 
@@ -77,21 +83,22 @@ export const corsHeaders = {
 **Risk**: No validation that the URL is a legitimate Discogs API endpoint. Could be exploited for SSRF attacks.
 
 **Fix**:
+
 ```typescript
 const ALLOWED_DISCOGS_HOSTS = ['api.discogs.com']
 
 function validateDiscogsUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url)
-    return ALLOWED_DISCOGS_HOSTS.includes(parsed.host)
-  } catch {
-    return false
-  }
+	try {
+		const parsed = new URL(url)
+		return ALLOWED_DISCOGS_HOSTS.includes(parsed.host)
+	} catch {
+		return false
+	}
 }
 
 // In handler:
 if (!validateDiscogsUrl(requestBody.url)) {
-  return new Response('Invalid URL', { status: 400 })
+	return new Response('Invalid URL', { status: 400 })
 }
 ```
 
@@ -102,6 +109,7 @@ if (!validateDiscogsUrl(requestBody.url)) {
 **Location**: `nuxt.config.ts` or server middleware
 
 **Implementation**:
+
 ```typescript
 // nuxt.config.ts
 nitro: {
@@ -130,6 +138,7 @@ nitro: {
 **Location**: `supabase/functions/_shared/supabaseHelpers.ts`
 
 **Current Code**:
+
 ```typescript
 let cachedSupabaseClient: SupabaseClient | null = null
 let cachedUser: User | null = null
@@ -139,30 +148,34 @@ let cachedProfile: Profile | null = null
 **Risk**: In serverless environments, module state can persist across invocations serving different users.
 
 **Fix**: Create fresh client per request:
+
 ```typescript
 export async function getAuthenticatedUser(authHeader: string) {
-  const supabase = createClient<Database>(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: authHeader } } }
-  )
+	const supabase = createClient<Database>(
+		Deno.env.get('SUPABASE_URL')!,
+		Deno.env.get('SUPABASE_ANON_KEY')!,
+		{ global: { headers: { Authorization: authHeader } } }
+	)
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Unauthorized')
+	const {
+		data: { user }
+	} = await supabase.auth.getUser()
+	if (!user) throw new Error('Unauthorized')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
+	const { data: profile } = await supabase
+		.from('profiles')
+		.select('*')
+		.eq('id', user.id)
+		.single()
 
-  return { supabase, user, profile }
+	return { supabase, user, profile }
 }
 ```
 
 ### 2.3 Add HSTS Header
 
 **Add to CSP headers above**:
+
 ```typescript
 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
 ```
@@ -178,28 +191,34 @@ export async function getAuthenticatedUser(authHeader: string) {
 ### 3.2 Add Rate Limiting to Edge Functions
 
 **Implementation**: Use Supabase's built-in rate limiting or implement custom logic:
+
 ```typescript
 // Check rate limit before processing
 const rateLimitKey = `discogs_${user.id}`
 const requests = await redis.incr(rateLimitKey)
 if (requests === 1) await redis.expire(rateLimitKey, 60)
 if (requests > 60) {
-  return new Response('Rate limit exceeded', { status: 429 })
+	return new Response('Rate limit exceeded', { status: 429 })
 }
 ```
 
 ### 3.3 Add Audit Logging
 
 **Implementation**: Log authentication events and sensitive operations:
+
 ```typescript
-async function logSecurityEvent(userId: string, action: string, details: object) {
-  await supabase.from('audit_logs').insert({
-    user_id: userId,
-    action,
-    details,
-    ip_address: request.headers.get('x-forwarded-for'),
-    created_at: new Date().toISOString()
-  })
+async function logSecurityEvent(
+	userId: string,
+	action: string,
+	details: object
+) {
+	await supabase.from('audit_logs').insert({
+		user_id: userId,
+		action,
+		details,
+		ip_address: request.headers.get('x-forwarded-for'),
+		created_at: new Date().toISOString()
+	})
 }
 ```
 
@@ -208,23 +227,27 @@ async function logSecurityEvent(userId: string, action: string, details: object)
 **Current**: No check if Discogs tokens are still valid before use.
 
 **Fix**: Add token validation before authenticated requests:
+
 ```typescript
 // Check token freshness (Discogs tokens don't expire, but good practice)
 if (!profile.discogs_access_token || !profile.discogs_access_secret) {
-  throw new Error('Discogs not connected')
+	throw new Error('Discogs not connected')
 }
 ```
 
 ## Beatport Scraping Considerations
 
 ### Legal/ToS Risk
+
 Web scraping Beatport may violate their Terms of Service. Consider:
+
 1. Using Beatport's official API (if available for your use case)
 2. Adding clear user consent for automated data fetching
 3. Implementing aggressive rate limiting (1 req/sec max)
 4. Caching results to minimize requests
 
 ### Technical Hardening
+
 ```typescript
 // server/api/beatport/search.get.ts
 // Add timeout and error handling
@@ -232,12 +255,12 @@ const controller = new AbortController()
 const timeoutId = setTimeout(() => controller.abort(), 10000)
 
 try {
-  const response = await fetch(url, {
-    signal: controller.signal,
-    // ... other options
-  })
+	const response = await fetch(url, {
+		signal: controller.signal
+		// ... other options
+	})
 } finally {
-  clearTimeout(timeoutId)
+	clearTimeout(timeoutId)
 }
 ```
 

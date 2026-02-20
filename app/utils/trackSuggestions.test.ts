@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-
 import {
 	calculatePitchAdjustment,
 	calculateTempoScore,
@@ -114,10 +113,7 @@ describe('filterAlreadyPlayed', () => {
 	})
 
 	it('returns all tracks when none are played', () => {
-		const tracks = [
-			createTestTrack({ id: '1' }),
-			createTestTrack({ id: '2' })
-		]
+		const tracks = [createTestTrack({ id: '1' }), createTestTrack({ id: '2' })]
 		const playedIds = new Set<string>()
 
 		const result = filterAlreadyPlayed(tracks, playedIds)
@@ -126,10 +122,7 @@ describe('filterAlreadyPlayed', () => {
 	})
 
 	it('returns empty array when all tracks are played', () => {
-		const tracks = [
-			createTestTrack({ id: '1' }),
-			createTestTrack({ id: '2' })
-		]
+		const tracks = [createTestTrack({ id: '1' }), createTestTrack({ id: '2' })]
 		const playedIds = new Set(['1', '2'])
 
 		const result = filterAlreadyPlayed(tracks, playedIds)

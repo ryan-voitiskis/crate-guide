@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest'
-
 import {
+	type ImportRecordResult,
 	isValidImportResult,
-	validateImportResult,
-	type ImportRecordResult
+	validateImportResult
 } from './discogs-validation'
 
 describe('isValidImportResult', () => {

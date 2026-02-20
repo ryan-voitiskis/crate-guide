@@ -1,10 +1,11 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
 import {
 	createMockDiscogsRelease,
 	resetReleaseIdCounter
 } from 'test/mocks/fixtures/discogs'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+// Import after mocking
+import { useDiscogsStore } from '../discogsStore'
 
 // Mock dependencies
 const mockUserStore = {
@@ -35,7 +36,10 @@ function createMockQueryBuilder() {
 		single: vi.fn().mockResolvedValue({ data: null, error: null })
 	}
 	// Make the builder thenable for update operations
-	builder.select.mockResolvedValue({ data: [mockUserStore.profile], error: null })
+	builder.select.mockResolvedValue({
+		data: [mockUserStore.profile],
+		error: null
+	})
 	return builder
 }
 
@@ -63,9 +67,6 @@ vi.stubGlobal('filterOutExistingReleases', mockFilterOutExistingReleases)
 vi.stubGlobal('fetchReleaseDetails', mockFetchReleaseDetails)
 vi.stubGlobal('importFetchedReleases', mockImportFetchedReleases)
 vi.stubGlobal('isError', isError)
-
-// Import after mocking
-import { useDiscogsStore } from '../discogsStore'
 
 describe('discogsStore', () => {
 	beforeEach(() => {
@@ -374,7 +375,10 @@ describe('discogsStore', () => {
 
 		it('updates user profile on success', async () => {
 			const store = useDiscogsStore()
-			const updatedProfile = { ...mockUserStore.profile, discogs_username: null }
+			const updatedProfile = {
+				...mockUserStore.profile,
+				discogs_username: null
+			}
 			mockQueryBuilder.select.mockResolvedValue({
 				data: [updatedProfile],
 				error: null
@@ -451,7 +455,9 @@ describe('discogsStore', () => {
 		it('opens import progress dialog', async () => {
 			const store = useDiscogsStore()
 			store.showFilterDialog = true
-			store.releasesToImport = [{ ...createMockDiscogsRelease(), selected: true }]
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease(), selected: true }
+			]
 
 			await store.importSelectedReleases()
 
@@ -461,7 +467,9 @@ describe('discogsStore', () => {
 
 		it('sets isImporting during import', async () => {
 			const store = useDiscogsStore()
-			store.releasesToImport = [{ ...createMockDiscogsRelease(), selected: true }]
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease(), selected: true }
+			]
 
 			let wasImporting = false
 			mockFilterOutExistingReleases.mockImplementation(() => {
@@ -477,7 +485,9 @@ describe('discogsStore', () => {
 
 		it('sets importPhase to fetching initially', async () => {
 			const store = useDiscogsStore()
-			store.releasesToImport = [{ ...createMockDiscogsRelease(), selected: true }]
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease(), selected: true }
+			]
 
 			let capturedPhase: string | null = null
 			mockFilterOutExistingReleases.mockImplementation(() => {
@@ -493,7 +503,9 @@ describe('discogsStore', () => {
 
 		it('resets import progress at start', async () => {
 			const store = useDiscogsStore()
-			store.releasesToImport = [{ ...createMockDiscogsRelease(), selected: true }]
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease(), selected: true }
+			]
 			store.importProgress = 50
 
 			await store.importSelectedReleases()
@@ -504,7 +516,9 @@ describe('discogsStore', () => {
 
 		it('resets import results at start', async () => {
 			const store = useDiscogsStore()
-			store.releasesToImport = [{ ...createMockDiscogsRelease(), selected: true }]
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease(), selected: true }
+			]
 			store.importResults = { successful: 5, skipped: [], failed: [] }
 
 			await store.importSelectedReleases()
@@ -515,7 +529,9 @@ describe('discogsStore', () => {
 
 		it('tracks skipped releases from existing duplicates', async () => {
 			const store = useDiscogsStore()
-			store.releasesToImport = [{ ...createMockDiscogsRelease(), selected: true }]
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease(), selected: true }
+			]
 			mockFilterOutExistingReleases.mockResolvedValue({
 				releasesToFetch: [],
 				skipped: [{ label: 'Already Imported EP' }]
@@ -523,12 +539,16 @@ describe('discogsStore', () => {
 
 			await store.importSelectedReleases()
 
-			expect(store.importResults.skipped).toEqual([{ label: 'Already Imported EP' }])
+			expect(store.importResults.skipped).toEqual([
+				{ label: 'Already Imported EP' }
+			])
 		})
 
 		it('handles cancelled import', async () => {
 			const store = useDiscogsStore()
-			store.releasesToImport = [{ ...createMockDiscogsRelease(), selected: true }]
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease(), selected: true }
+			]
 			mockFilterOutExistingReleases.mockResolvedValue({
 				releasesToFetch: [{ ...createMockDiscogsRelease(), selected: true }],
 				skipped: []
@@ -547,7 +567,9 @@ describe('discogsStore', () => {
 
 		it('refreshes stores after successful import', async () => {
 			const store = useDiscogsStore()
-			store.releasesToImport = [{ ...createMockDiscogsRelease(), selected: true }]
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease(), selected: true }
+			]
 			mockFilterOutExistingReleases.mockResolvedValue({
 				releasesToFetch: [{ ...createMockDiscogsRelease(), selected: true }],
 				skipped: []
@@ -570,7 +592,9 @@ describe('discogsStore', () => {
 
 		it('does not refresh stores when no imports succeed', async () => {
 			const store = useDiscogsStore()
-			store.releasesToImport = [{ ...createMockDiscogsRelease(), selected: true }]
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease(), selected: true }
+			]
 			mockFilterOutExistingReleases.mockResolvedValue({
 				releasesToFetch: [],
 				skipped: [{ label: 'All Skipped' }]
@@ -584,7 +608,9 @@ describe('discogsStore', () => {
 
 		it('tracks failed imports', async () => {
 			const store = useDiscogsStore()
-			store.releasesToImport = [{ ...createMockDiscogsRelease(), selected: true }]
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease(), selected: true }
+			]
 			mockFilterOutExistingReleases.mockResolvedValue({
 				releasesToFetch: [{ ...createMockDiscogsRelease(), selected: true }],
 				skipped: []
@@ -605,7 +631,9 @@ describe('discogsStore', () => {
 
 		it('accumulates failures from both fetch and import phases', async () => {
 			const store = useDiscogsStore()
-			store.releasesToImport = [{ ...createMockDiscogsRelease(), selected: true }]
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease(), selected: true }
+			]
 			mockFilterOutExistingReleases.mockResolvedValue({
 				releasesToFetch: [{ ...createMockDiscogsRelease(), selected: true }],
 				skipped: []
@@ -635,7 +663,9 @@ describe('discogsStore', () => {
 
 		it('cleans up state in finally block', async () => {
 			const store = useDiscogsStore()
-			store.releasesToImport = [{ ...createMockDiscogsRelease(), selected: true }]
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease(), selected: true }
+			]
 			mockFilterOutExistingReleases.mockRejectedValue(new Error('Unexpected'))
 
 			try {

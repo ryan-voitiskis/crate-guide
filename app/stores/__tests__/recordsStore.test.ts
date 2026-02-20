@@ -1,12 +1,13 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
 import {
 	createMockRecord,
 	createMockRecordWithArtists,
 	createMockRecordWithLabels,
 	resetRecordIdCounter
 } from 'test/mocks/fixtures/records'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+// Import after mocking
+import { useRecordsStore } from '../recordsStore'
 
 // Mock dependencies
 const mockUserStore = {
@@ -36,9 +37,6 @@ const mockSupabaseClient = {
 // Stub globals before importing the store
 vi.stubGlobal('useUserStore', () => mockUserStore)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
-
-// Import after mocking
-import { useRecordsStore } from '../recordsStore'
 
 describe('recordsStore', () => {
 	beforeEach(() => {
@@ -79,7 +77,11 @@ describe('recordsStore', () => {
 	describe('computed properties', () => {
 		it('recordsCount returns correct count', () => {
 			const store = useRecordsStore()
-			store.records = [createMockRecord(), createMockRecord(), createMockRecord()]
+			store.records = [
+				createMockRecord(),
+				createMockRecord(),
+				createMockRecord()
+			]
 
 			expect(store.recordsCount).toBe(3)
 		})
@@ -149,7 +151,10 @@ describe('recordsStore', () => {
 
 		it('displayedRecords returns search results when searching', async () => {
 			const store = useRecordsStore()
-			const houseRecord = createMockRecord({ id: 'house', title: 'House Music' })
+			const houseRecord = createMockRecord({
+				id: 'house',
+				title: 'House Music'
+			})
 			store.records = [houseRecord, createMockRecord({ title: 'Techno' })]
 
 			await store.performSearch('house')
@@ -230,8 +235,14 @@ describe('recordsStore', () => {
 
 		it('adds created record to local state', async () => {
 			const store = useRecordsStore()
-			const createdRecord = createMockRecord({ ...newRecordData, id: 'new-record-id' })
-			mockQueryBuilder.single.mockResolvedValue({ data: createdRecord, error: null })
+			const createdRecord = createMockRecord({
+				...newRecordData,
+				id: 'new-record-id'
+			})
+			mockQueryBuilder.single.mockResolvedValue({
+				data: createdRecord,
+				error: null
+			})
 
 			const result = await store.createRecord(newRecordData)
 
@@ -271,7 +282,9 @@ describe('recordsStore', () => {
 			const store = useRecordsStore()
 			store.records = [createMockRecord({ id: 'existing-record' })]
 
-			const result = await store.updateRecord('non-existent', { title: 'Updated' })
+			const result = await store.updateRecord('non-existent', {
+				title: 'Updated'
+			})
 
 			expect(result).toBeNull()
 		})
@@ -314,7 +327,10 @@ describe('recordsStore', () => {
 				title: 'Updated',
 				updated_at: '2024-01-01T00:00:00Z'
 			})
-			mockQueryBuilder.single.mockResolvedValue({ data: serverResponse, error: null })
+			mockQueryBuilder.single.mockResolvedValue({
+				data: serverResponse,
+				error: null
+			})
 
 			await store.updateRecord('record-1', { title: 'Updated' })
 

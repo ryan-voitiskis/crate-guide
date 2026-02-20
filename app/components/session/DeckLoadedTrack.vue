@@ -60,7 +60,7 @@ const artistNames = computed(() => {
 </script>
 
 <template>
-	<Card class="h-32 overflow-hidden">
+	<Card class="h-24 overflow-hidden py-0">
 		<CardContent class="h-full p-0">
 			<!-- Empty state -->
 			<button
@@ -73,11 +73,9 @@ const artistNames = computed(() => {
 			</button>
 
 			<!-- Loaded state -->
-			<div v-else class="flex h-full gap-3 p-3">
+			<div v-else class="flex h-full gap-3 pr-3">
 				<!-- Cover image (full height) -->
-				<div
-					class="relative aspect-square h-full shrink-0 overflow-hidden rounded"
-				>
+				<div class="relative aspect-square h-full shrink-0 overflow-hidden">
 					<img
 						v-if="coverUrl"
 						:src="coverUrl"

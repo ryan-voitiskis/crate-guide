@@ -2,7 +2,6 @@
  * @vitest-environment jsdom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
 import { searchBeatportTrack } from './scraper'
 
 // Mock global $fetch that Nuxt auto-imports
@@ -161,7 +160,12 @@ describe('searchBeatportTrack', () => {
 
 	it('returns first matching track from multiple results', async () => {
 		const html = createBeatportSearchHTML([
-			{ artist: 'Other Artist', title: 'Other Track', bpm: 120, key: 'E Minor' },
+			{
+				artist: 'Other Artist',
+				title: 'Other Track',
+				bpm: 120,
+				key: 'E Minor'
+			},
 			{
 				artist: 'Test Artist',
 				title: 'Test Track',

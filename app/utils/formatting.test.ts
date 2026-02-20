@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-
 import { mmssToMs, msToMMSS, parseBPM } from './formatting'
 
 describe('msToMMSS', () => {

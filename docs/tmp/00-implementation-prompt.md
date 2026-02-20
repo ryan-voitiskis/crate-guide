@@ -16,14 +16,14 @@ This directory contains 6 analysis documents produced by a thorough codebase rev
 
 ## Document Index
 
-| File | Purpose | Priority |
-|------|---------|----------|
-| `01-architecture-analysis.md` | Codebase overview, patterns, concerns | Reference |
-| `02-security-enhancements.md` | Security vulnerabilities and fixes | HIGH |
-| `03-bug-fixes.md` | Bugs with severity ratings | HIGH/MEDIUM |
-| `04-code-quality-improvements.md` | Type safety, duplication, complexity | MEDIUM |
-| `05-feature-proposals.md` | New feature ideas with roadmap | LOW |
-| `06-test-coverage-gaps.md` | Testing gaps and recommendations | MEDIUM |
+| File                              | Purpose                               | Priority    |
+| --------------------------------- | ------------------------------------- | ----------- |
+| `01-architecture-analysis.md`     | Codebase overview, patterns, concerns | Reference   |
+| `02-security-enhancements.md`     | Security vulnerabilities and fixes    | HIGH        |
+| `03-bug-fixes.md`                 | Bugs with severity ratings            | HIGH/MEDIUM |
+| `04-code-quality-improvements.md` | Type safety, duplication, complexity  | MEDIUM      |
+| `05-feature-proposals.md`         | New feature ideas with roadmap        | LOW         |
+| `06-test-coverage-gaps.md`        | Testing gaps and recommendations      | MEDIUM      |
 
 ---
 
@@ -62,12 +62,14 @@ git status
 ```
 
 **If tests fail:**
+
 1. STOP immediately
 2. Debug the failure
 3. Fix before proceeding
 4. Re-run verification
 
 **Critical Path Dependencies:**
+
 - Phase 1 (Security) → Must complete before any other work
 - Phase 2 (Bugs) → Depends on Phase 1 passing
 - Phase 3 (Quality) → Can run after Phase 2
@@ -82,6 +84,7 @@ git status
 **All commits MUST follow conventional commit format.**
 
 ### Format
+
 ```
 <type>(<scope>): <description>
 
@@ -91,19 +94,22 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 ### Types (use exactly these)
-| Type | When to Use |
-|------|-------------|
-| `fix` | Bug fixes, security patches |
-| `feat` | New features |
+
+| Type       | When to Use                                         |
+| ---------- | --------------------------------------------------- |
+| `fix`      | Bug fixes, security patches                         |
+| `feat`     | New features                                        |
 | `refactor` | Code changes that neither fix bugs nor add features |
-| `test` | Adding or updating tests |
-| `docs` | Documentation only |
-| `chore` | Build, config, tooling changes |
+| `test`     | Adding or updating tests                            |
+| `docs`     | Documentation only                                  |
+| `chore`    | Build, config, tooling changes                      |
 
 ### Scopes (use these or similar)
+
 `security`, `stores`, `components`, `utils`, `api`, `edge-functions`, `tests`
 
 ### Examples
+
 ```bash
 # Security fix
 git commit -m "fix(security): prevent error disclosure in Edge Functions
@@ -127,6 +133,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 ```
 
 ### Commit Timing
+
 - Commit after EACH phase passes verification
 - Never batch multiple phases into one commit
 - Atomic commits enable easier rollback if issues arise
@@ -136,6 +143,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 ## Phase 1: Security Fixes (Priority: CRITICAL)
 
 Already completed in initial pass. Verify with:
+
 ```bash
 git diff supabase/functions/
 ```
@@ -143,6 +151,7 @@ git diff supabase/functions/
 If not applied, launch subagents for each:
 
 ### Subagent 1A: Error Disclosure
+
 ```
 Read docs/tmp/02-security-enhancements.md section "1.1 Edge Function Error Information Disclosure"
 Fix the 3 Edge Functions listed. Change JSON.stringify(e) to generic error response.
@@ -150,12 +159,14 @@ Files: supabase/functions/get-discogs-*/index.ts, authenticated-discogs-request/
 ```
 
 ### Subagent 1B: CORS + SSRF
+
 ```
 Read docs/tmp/02-security-enhancements.md sections "1.2 CORS Wildcard Origin" and "1.3 Missing URL Validation"
 Fix CORS in _shared/cors.ts. Add URL validation to authenticated-discogs-request/index.ts.
 ```
 
 ### Subagent 1C: Module Caching
+
 ```
 Read docs/tmp/02-security-enhancements.md section "2.2 Remove Edge Function Module-Level Caching"
 Refactor supabase/functions/_shared/supabaseHelpers.ts to remove module-level caching.
@@ -167,6 +178,7 @@ Update all consumer files.
 ## Phase 2: Bug Fixes (Priority: HIGH)
 
 ### Subagent 2A: Critical Bug (if not already fixed)
+
 ```
 Read docs/tmp/03-bug-fixes.md section "BUG-001: Falsy Key Check"
 Fix app/stores/tracksStore.ts:238 - change falsy checks to null checks.
@@ -175,6 +187,7 @@ Run: npm run test:run
 ```
 
 ### Subagent 2B: Session Store Timeout
+
 ```
 Read docs/tmp/03-bug-fixes.md section "BUG-002: Session Auto-Save Timeout"
 Convert autoSaveTimeout to ref in app/stores/sessionStore.ts:337.
@@ -182,6 +195,7 @@ Note: isAutoSaving already exists at line 63.
 ```
 
 ### Subagent 2C: Error Logging
+
 ```
 Read docs/tmp/03-bug-fixes.md section "EDGE-001: Empty Error Catch Blocks"
 Add console.error to catch blocks in:
@@ -196,6 +210,7 @@ Pattern: } catch (error) { console.error('Context:', error); toast.error('...') 
 ## Phase 3: Code Quality (Priority: MEDIUM)
 
 ### Subagent 3A: Type Assertions
+
 ```
 Read docs/tmp/04-code-quality-improvements.md section "QUAL-001"
 Add type guards or Zod validation to replace 'as' assertions in stores.
@@ -203,6 +218,7 @@ Focus on: recordsStore.ts:43, tracksStore.ts:48, sessionStore.ts:420
 ```
 
 ### Subagent 3B: Non-Null Assertions
+
 ```
 Read docs/tmp/04-code-quality-improvements.md section "QUAL-002"
 Fix non-null assertions in app/utils/keyFunctions.ts at lines 144, 248, 310.
@@ -210,6 +226,7 @@ Add explicit null checks with error throws.
 ```
 
 ### Subagent 3C: TODO Cleanup
+
 ```
 Read docs/tmp/04-code-quality-improvements.md section "QUAL-011"
 Review each TODO and either implement or remove with explanation:
@@ -225,6 +242,7 @@ Review each TODO and either implement or remove with explanation:
 ## Phase 4: Test Coverage (Priority: MEDIUM)
 
 ### Subagent 4A: Untested Stores
+
 ```
 Read docs/tmp/06-test-coverage-gaps.md section "GAP-003: Untested Stores"
 Create test files for:
@@ -235,6 +253,7 @@ Follow existing test patterns in the __tests__ directory.
 ```
 
 ### Subagent 4B: Untested Utilities
+
 ```
 Read docs/tmp/06-test-coverage-gaps.md section "GAP-005: Untested Utilities"
 Create tests for high-priority utilities:
@@ -243,6 +262,7 @@ Create tests for high-priority utilities:
 ```
 
 ### Subagent 4C: API Endpoint Test
+
 ```
 Read docs/tmp/06-test-coverage-gaps.md section "GAP-002: Server API Endpoint"
 Create server/api/beatport/search.test.ts with:
@@ -256,6 +276,7 @@ Create server/api/beatport/search.test.ts with:
 ## Phase 5: Refactoring (Priority: LOW)
 
 ### Subagent 5A: Extract Suggestion Logic
+
 ```
 Read docs/tmp/04-code-quality-improvements.md section "QUAL-006"
 Extract pure functions from sessionStore.ts getSuggestionsForDeck():
@@ -267,6 +288,7 @@ Update sessionStore to use them.
 ```
 
 ### Subagent 5B: CRUD Store Pattern (Optional)
+
 ```
 Read docs/tmp/04-code-quality-improvements.md section "QUAL-004"
 Evaluate creating a generic CRUD store factory.
@@ -278,9 +300,11 @@ This is optional - only if significant time savings justify the abstraction.
 ## Phase 6: Features (Priority: LOW - User Discretion)
 
 Features should only be implemented upon explicit user request. Reference:
+
 - `docs/tmp/05-feature-proposals.md`
 
 Quick wins (if requested):
+
 - FEAT-003: Session export (2 hours)
 - FEAT-006: Record condition tracking (2 hours)
 - FEAT-010: Keyboard navigation (4 hours)
@@ -290,6 +314,7 @@ Quick wins (if requested):
 ## Verification Commands
 
 After each phase:
+
 ```bash
 # Run tests
 npm run test:run
@@ -380,6 +405,7 @@ EOF
 ```
 
 ### IMPORTANT: Never Skip Verification
+
 If tests fail or typecheck errors occur, DO NOT COMMIT. Fix the issues first.
 
 ---
@@ -387,11 +413,13 @@ If tests fail or typecheck errors occur, DO NOT COMMIT. Fix the issues first.
 ## Notes for Orchestrating Agent
 
 ### Before Starting
+
 1. **Check git status first** - Some fixes may already be applied
 2. **Run `npm run test:run`** - Establish baseline (should be 666+ tests passing)
 3. **Read this entire prompt** - Understand the full scope before delegating
 
 ### During Execution
+
 4. **STOP AND VERIFY after each phase** - This is non-negotiable
 5. **Run tests after each subagent completes** - Catch regressions immediately
 6. **Don't parallelize file conflicts** - If two tasks touch the same file, run sequentially
@@ -399,12 +427,14 @@ If tests fail or typecheck errors occur, DO NOT COMMIT. Fix the issues first.
 8. **Reference docs by section** - Never load full documents into context
 
 ### Critical Path Enforcement
+
 9. **Phase 1 must complete before Phase 2** - Security is foundational
 10. **Never proceed if tests fail** - Fix failures before continuing
 11. **Commit after each phase passes** - Atomic commits enable rollback
 12. **User approval before features** - Only implement Phase 6 on explicit request
 
 ### Context Management
+
 13. **Delegate aggressively** - Use subagents for all implementation work
 14. **Summarize subagent results** - Don't re-read files the subagent already modified
 15. **Trust but verify** - Run tests to confirm subagent work succeeded
@@ -414,6 +444,7 @@ If tests fail or typecheck errors occur, DO NOT COMMIT. Fix the issues first.
 ## Current Status
 
 As of initial analysis:
+
 - [x] Phase 1: Security fixes applied
 - [x] Phase 2A: Critical bug (key=0) fixed
 - [ ] Phase 2B-C: Remaining bug fixes

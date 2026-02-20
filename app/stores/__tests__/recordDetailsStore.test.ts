@@ -1,8 +1,15 @@
 import { createPinia, setActivePinia } from 'pinia'
+import {
+	createMockRecord,
+	resetRecordIdCounter
+} from 'test/mocks/fixtures/records'
+import {
+	createMockTrack,
+	resetTrackIdCounter
+} from 'test/mocks/fixtures/tracks'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-import { createMockRecord, resetRecordIdCounter } from 'test/mocks/fixtures/records'
-import { createMockTrack, resetTrackIdCounter } from 'test/mocks/fixtures/tracks'
+// Import after mocking
+import { useRecordDetailsStore } from '../recordDetailsStore'
 
 // Mock dependencies
 const mockRecords: ReturnType<typeof createMockRecord>[] = []
@@ -32,9 +39,6 @@ const mockSortTracksByPosition = vi.fn((tracks) => {
 vi.stubGlobal('useRecordsStore', () => mockRecordsStore)
 vi.stubGlobal('useTracksStore', () => mockTracksStore)
 vi.stubGlobal('sortTracksByPosition', mockSortTracksByPosition)
-
-// Import after mocking
-import { useRecordDetailsStore } from '../recordDetailsStore'
 
 describe('recordDetailsStore', () => {
 	beforeEach(() => {
@@ -119,8 +123,16 @@ describe('recordDetailsStore', () => {
 
 		it('returns tracks for selected record', () => {
 			mockTracks.push(
-				createMockTrack({ id: 'track-1', record_id: 'record-1', position: 'A1' }),
-				createMockTrack({ id: 'track-2', record_id: 'record-1', position: 'A2' })
+				createMockTrack({
+					id: 'track-1',
+					record_id: 'record-1',
+					position: 'A1'
+				}),
+				createMockTrack({
+					id: 'track-2',
+					record_id: 'record-1',
+					position: 'A2'
+				})
 			)
 
 			const store = useRecordDetailsStore()
@@ -136,13 +148,23 @@ describe('recordDetailsStore', () => {
 			// Access computed to trigger getter
 			store.recordTracks
 
-			expect(mockTracksStore.getTracksByRecordId).toHaveBeenCalledWith('record-1')
+			expect(mockTracksStore.getTracksByRecordId).toHaveBeenCalledWith(
+				'record-1'
+			)
 		})
 
 		it('sorts tracks by position', () => {
 			mockTracks.push(
-				createMockTrack({ id: 'track-2', record_id: 'record-1', position: 'B1' }),
-				createMockTrack({ id: 'track-1', record_id: 'record-1', position: 'A1' })
+				createMockTrack({
+					id: 'track-2',
+					record_id: 'record-1',
+					position: 'B1'
+				}),
+				createMockTrack({
+					id: 'track-1',
+					record_id: 'record-1',
+					position: 'A1'
+				})
 			)
 
 			const store = useRecordDetailsStore()

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-
 import {
+	type KeyAndMode,
 	adjustKey,
 	createKeyComposite,
 	getCamelotMajor,
@@ -16,8 +16,7 @@ import {
 	parseBeatportKey,
 	parseKeyComposite,
 	pitchClassMap,
-	scoreHarmony,
-	type KeyAndMode
+	scoreHarmony
 } from './keyFunctions'
 
 describe('mod', () => {

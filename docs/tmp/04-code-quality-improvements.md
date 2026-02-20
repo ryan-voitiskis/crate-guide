@@ -12,6 +12,7 @@ The codebase demonstrates strong patterns overall, with consistent use of Vue 3 
 **Locations**: Multiple stores
 
 **Current Pattern**:
+
 ```typescript
 // app/stores/recordsStore.ts:43
 records.value = (data as DatabaseRecord[]) || []
@@ -26,28 +27,30 @@ savedSets.value = (data as unknown as SavedSet[]) ?? []
 **Problem**: `as` assertions bypass type checking. If Supabase returns unexpected data, runtime errors occur.
 
 **Fix Option 1 - Runtime Validation**:
+
 ```typescript
 import { z } from 'zod'
 
 const recordSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  // ... all fields
+	id: z.string(),
+	title: z.string()
+	// ... all fields
 })
 
 const records = recordSchema.array().parse(data)
 ```
 
 **Fix Option 2 - Type Guard**:
+
 ```typescript
 function isRecordArray(data: unknown): data is DatabaseRecord[] {
-  return Array.isArray(data) && data.every(isRecord)
+	return Array.isArray(data) && data.every(isRecord)
 }
 
 if (isRecordArray(data)) {
-  records.value = data
+	records.value = data
 } else {
-  console.error('Invalid record data from API')
+	console.error('Invalid record data from API')
 }
 ```
 
@@ -57,6 +60,7 @@ if (isRecordArray(data)) {
 **Location**: `app/utils/keyFunctions.ts`
 
 **Current Code**:
+
 ```typescript
 // Line 144
 pitchClassMap.find((i) => i.pitchClass === pitchClass)!.camelotMajor
@@ -69,6 +73,7 @@ const key = noteMap[note!]
 ```
 
 **Fix**: Handle null cases explicitly:
+
 ```typescript
 // Line 144
 const match = pitchClassMap.find((i) => i.pitchClass === pitchClass)
@@ -87,6 +92,7 @@ const mode = parseInt(modeStr, 10)
 **Current State**: Inconsistent error handling across stores
 
 **Pattern A (Silent)**:
+
 ```typescript
 } catch {
   toast.error('Error message')
@@ -94,6 +100,7 @@ const mode = parseInt(modeStr, 10)
 ```
 
 **Pattern B (Logged)**:
+
 ```typescript
 } catch (e) {
   console.error('Context:', e)
@@ -102,6 +109,7 @@ const mode = parseInt(modeStr, 10)
 ```
 
 **Pattern C (Detailed)**:
+
 ```typescript
 } catch (e) {
   toast.error(isError(e) ? e.message : 'Default message')
@@ -109,6 +117,7 @@ const mode = parseInt(modeStr, 10)
 ```
 
 **Recommended Standard**:
+
 ```typescript
 } catch (error) {
   console.error('[storeName.methodName]:', error)
@@ -127,6 +136,7 @@ const mode = parseInt(modeStr, 10)
 
 **Current Duplication**:
 Each store implements nearly identical patterns:
+
 - `isLoadingX`, `isCreatingX`, `isUpdatingX`, `isDeletingX` refs
 - `fetchAllX()` with identical structure
 - `createX()` with optimistic add
@@ -134,51 +144,63 @@ Each store implements nearly identical patterns:
 - `deleteX()` with optimistic delete + rollback
 
 **Proposed Solution**:
+
 ```typescript
 // utils/createCrudStore.ts
 interface CrudStoreConfig<T> {
-  tableName: string
-  storeName: string
-  orderBy?: { column: string; ascending: boolean }
+	tableName: string
+	storeName: string
+	orderBy?: { column: string; ascending: boolean }
 }
 
-export function createCrudStore<T extends { id: string }>(config: CrudStoreConfig<T>) {
-  return defineStore(config.storeName, () => {
-    const items = ref<T[]>([])
-    const isLoading = ref(false)
-    const isCreating = ref(false)
-    const isUpdating = ref(false)
-    const isDeleting = ref(false)
+export function createCrudStore<T extends { id: string }>(
+	config: CrudStoreConfig<T>
+) {
+	return defineStore(config.storeName, () => {
+		const items = ref<T[]>([])
+		const isLoading = ref(false)
+		const isCreating = ref(false)
+		const isUpdating = ref(false)
+		const isDeleting = ref(false)
 
-    async function fetchAll() {
-      isLoading.value = true
-      try {
-        const query = supabase.from(config.tableName).select('*')
-        if (config.orderBy) {
-          query.order(config.orderBy.column, { ascending: config.orderBy.ascending })
-        }
-        const { data, error } = await query
-        if (error) throw error
-        items.value = data as T[]
-      } catch (e) {
-        console.error(`[${config.storeName}] Fetch failed:`, e)
-        toast.error(`Failed to load ${config.storeName}`)
-      } finally {
-        isLoading.value = false
-      }
-    }
+		async function fetchAll() {
+			isLoading.value = true
+			try {
+				const query = supabase.from(config.tableName).select('*')
+				if (config.orderBy) {
+					query.order(config.orderBy.column, {
+						ascending: config.orderBy.ascending
+					})
+				}
+				const { data, error } = await query
+				if (error) throw error
+				items.value = data as T[]
+			} catch (e) {
+				console.error(`[${config.storeName}] Fetch failed:`, e)
+				toast.error(`Failed to load ${config.storeName}`)
+			} finally {
+				isLoading.value = false
+			}
+		}
 
-    // ... create, update, delete with same pattern
+		// ... create, update, delete with same pattern
 
-    return { items, isLoading, isCreating, isUpdating, isDeleting, fetchAll, /* ... */ }
-  })
+		return {
+			items,
+			isLoading,
+			isCreating,
+			isUpdating,
+			isDeleting,
+			fetchAll /* ... */
+		}
+	})
 }
 
 // Usage:
 export const useRecordsStore = createCrudStore<DatabaseRecord>({
-  tableName: 'records',
-  storeName: 'records',
-  orderBy: { column: 'created_at', ascending: false }
+	tableName: 'records',
+	storeName: 'records',
+	orderBy: { column: 'created_at', ascending: false }
 })
 ```
 
@@ -191,44 +213,51 @@ export const useRecordsStore = createCrudStore<DatabaseRecord>({
 Both stores have similar search implementations with filter predicates.
 
 **Proposed Solution**:
+
 ```typescript
 // utils/createSearchableState.ts
 export function useSearchableState<T>(
-  items: Ref<T[]>,
-  searchFields: (keyof T)[]
+	items: Ref<T[]>,
+	searchFields: (keyof T)[]
 ) {
-  const searchQuery = ref('')
-  const searchResults = ref<T[]>([])
-  const isSearching = ref(false)
+	const searchQuery = ref('')
+	const searchResults = ref<T[]>([])
+	const isSearching = ref(false)
 
-  const hasSearchQuery = computed(() => searchQuery.value.trim().length > 0)
-  const displayedItems = computed(() =>
-    hasSearchQuery.value ? searchResults.value : items.value
-  )
+	const hasSearchQuery = computed(() => searchQuery.value.trim().length > 0)
+	const displayedItems = computed(() =>
+		hasSearchQuery.value ? searchResults.value : items.value
+	)
 
-  function performSearch() {
-    if (!hasSearchQuery.value) {
-      searchResults.value = []
-      return
-    }
-    const query = searchQuery.value.toLowerCase()
-    searchResults.value = items.value.filter(item =>
-      searchFields.some(field => {
-        const value = item[field]
-        return typeof value === 'string' && value.toLowerCase().includes(query)
-      })
-    )
-  }
+	function performSearch() {
+		if (!hasSearchQuery.value) {
+			searchResults.value = []
+			return
+		}
+		const query = searchQuery.value.toLowerCase()
+		searchResults.value = items.value.filter((item) =>
+			searchFields.some((field) => {
+				const value = item[field]
+				return typeof value === 'string' && value.toLowerCase().includes(query)
+			})
+		)
+	}
 
-  return {
-    searchQuery: readonly(searchQuery),
-    searchResults: readonly(searchResults),
-    isSearching: readonly(isSearching),
-    hasSearchQuery,
-    displayedItems,
-    setSearchQuery: (q: string) => { searchQuery.value = q; performSearch() },
-    clearSearch: () => { searchQuery.value = ''; searchResults.value = [] }
-  }
+	return {
+		searchQuery: readonly(searchQuery),
+		searchResults: readonly(searchResults),
+		isSearching: readonly(isSearching),
+		hasSearchQuery,
+		displayedItems,
+		setSearchQuery: (q: string) => {
+			searchQuery.value = q
+			performSearch()
+		},
+		clearSearch: () => {
+			searchQuery.value = ''
+			searchResults.value = []
+		}
+	}
 }
 ```
 
@@ -243,73 +272,78 @@ export function useSearchableState<T>(
 **Complexity**: ~100 lines, 4 nested filters, complex scoring
 
 **Current Structure**:
+
 ```typescript
 function getSuggestionsForDeck(deckIndex: number): ScoredTrack[] {
-  // Get deck and validate
-  // Filter by BPM reachability
-  // Filter already played
-  // Filter same record
-  // Score each track (harmony + tempo)
-  // Sort and limit
+	// Get deck and validate
+	// Filter by BPM reachability
+	// Filter already played
+	// Filter same record
+	// Score each track (harmony + tempo)
+	// Sort and limit
 }
 ```
 
 **Proposed Refactor**:
+
 ```typescript
 // utils/trackSuggestions.ts
 export function filterByBpmReach(
-  tracks: Track[],
-  targetBpm: number,
-  pitchRange: number
+	tracks: Track[],
+	targetBpm: number,
+	pitchRange: number
 ): Track[] {
-  return tracks.filter(t => {
-    if (!t.bpm) return false
-    const minReachable = t.bpm * (1 - pitchRange / 100)
-    const maxReachable = t.bpm * (1 + pitchRange / 100)
-    return targetBpm >= minReachable && targetBpm <= maxReachable
-  })
+	return tracks.filter((t) => {
+		if (!t.bpm) return false
+		const minReachable = t.bpm * (1 - pitchRange / 100)
+		const maxReachable = t.bpm * (1 + pitchRange / 100)
+		return targetBpm >= minReachable && targetBpm <= maxReachable
+	})
 }
 
 export function filterAlreadyPlayed(
-  tracks: Track[],
-  playedIds: Set<string>
+	tracks: Track[],
+	playedIds: Set<string>
 ): Track[] {
-  return tracks.filter(t => !playedIds.has(t.id))
+	return tracks.filter((t) => !playedIds.has(t.id))
 }
 
 export function scoreTrack(
-  track: Track,
-  targetBpm: number,
-  targetKey: number | null,
-  pitchRange: number
+	track: Track,
+	targetBpm: number,
+	targetKey: number | null,
+	pitchRange: number
 ): ScoredTrack {
-  const tempoScore = calculateTempoScore(track.bpm, targetBpm, pitchRange)
-  const harmonyScore = calculateHarmonyScore(track.key, targetKey)
-  const score = harmonyScore * 0.7 + tempoScore * 0.3
-  return { ...track, score, tempoScore, harmonyScore }
+	const tempoScore = calculateTempoScore(track.bpm, targetBpm, pitchRange)
+	const harmonyScore = calculateHarmonyScore(track.key, targetKey)
+	const score = harmonyScore * 0.7 + tempoScore * 0.3
+	return { ...track, score, tempoScore, harmonyScore }
 }
 
 // In store:
 function getSuggestionsForDeck(deckIndex: number): ScoredTrack[] {
-  const deck = decks.value[deckIndex]
-  if (!deck?.loadedTrack) return []
+	const deck = decks.value[deckIndex]
+	if (!deck?.loadedTrack) return []
 
-  const adjustedBpm = getAdjustedBpm(deckIndex)
-  const adjustedKey = getAdjustedKey(deckIndex)
+	const adjustedBpm = getAdjustedBpm(deckIndex)
+	const adjustedKey = getAdjustedKey(deckIndex)
 
-  let candidates = tracks.playableTracks
-  candidates = filterByBpmReach(candidates, adjustedBpm, pitchRange.value)
-  candidates = filterAlreadyPlayed(candidates, getPlayedTrackIds())
-  candidates = candidates.filter(t => t.record_id !== deck.loadedTrack!.record_id)
+	let candidates = tracks.playableTracks
+	candidates = filterByBpmReach(candidates, adjustedBpm, pitchRange.value)
+	candidates = filterAlreadyPlayed(candidates, getPlayedTrackIds())
+	candidates = candidates.filter(
+		(t) => t.record_id !== deck.loadedTrack!.record_id
+	)
 
-  return candidates
-    .map(t => scoreTrack(t, adjustedBpm, adjustedKey, pitchRange.value))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 50)
+	return candidates
+		.map((t) => scoreTrack(t, adjustedBpm, adjustedKey, pitchRange.value))
+		.sort((a, b) => b.score - a.score)
+		.slice(0, 50)
 }
 ```
 
 **Benefits**:
+
 - Pure functions are easily testable
 - Logic is reusable
 - Store becomes a thin orchestration layer
@@ -322,19 +356,23 @@ function getSuggestionsForDeck(deckIndex: number): ScoredTrack[] {
 **Current**: Deeply nested if/else with 3+ levels.
 
 **Proposed**: Use lookup table pattern:
+
 ```typescript
-const HARMONY_SCORES: Record<number, { affinity: number; description: string }> = {
-  0: { affinity: 1.0, description: 'Same key' },
-  1: { affinity: 0.9, description: 'Adjacent key' },
-  2: { affinity: 0.7, description: 'Relative major/minor' },
-  // ... etc
+const HARMONY_SCORES: Record<
+	number,
+	{ affinity: number; description: string }
+> = {
+	0: { affinity: 1.0, description: 'Same key' },
+	1: { affinity: 0.9, description: 'Adjacent key' },
+	2: { affinity: 0.7, description: 'Relative major/minor' }
+	// ... etc
 }
 
 function scoreHarmony(key1: number, key2: number): HarmonyResult {
-  const distance = getHarmonicDistance(key1, key2)
-  const score = HARMONY_SCORES[distance]
-  if (!score) return { harmonicAffinity: 0, description: 'Incompatible' }
-  return { harmonicAffinity: score.affinity, description: score.description }
+	const distance = getHarmonicDistance(key1, key2)
+	const score = HARMONY_SCORES[distance]
+	if (!score) return { harmonicAffinity: 0, description: 'Incompatible' }
+	return { harmonicAffinity: score.affinity, description: score.description }
 }
 ```
 
@@ -348,6 +386,7 @@ function scoreHarmony(key1: number, key2: number): HarmonyResult {
 **Locations**: Various callback functions
 
 **Current**:
+
 ```typescript
 (c: Crate) => c.id === id
 (r: DatabaseRecord) => r.id === id
@@ -355,6 +394,7 @@ function scoreHarmony(key1: number, key2: number): HarmonyResult {
 ```
 
 **Recommended**:
+
 ```typescript
 (crate: Crate) => crate.id === id
 (record: DatabaseRecord) => record.id === id
@@ -381,6 +421,7 @@ function scoreHarmony(key1: number, key2: number): HarmonyResult {
 **Current**: No JSDoc comments on public functions.
 
 **Recommended**:
+
 ```typescript
 /**
  * Fetches all records for the current user from the database.
@@ -388,7 +429,7 @@ function scoreHarmony(key1: number, key2: number): HarmonyResult {
  * @throws Displays toast error if fetch fails
  */
 async function fetchAllRecords(): Promise<void> {
-  // ...
+	// ...
 }
 
 /**
@@ -399,13 +440,14 @@ async function fetchAllRecords(): Promise<void> {
  * @returns Sorted array of scored tracks, limited to top 50
  */
 function getSuggestionsForDeck(deckIndex: number): ScoredTrack[] {
-  // ...
+	// ...
 }
 ```
 
 ### QUAL-011: Resolve TODO Comments
 
 **Locations**:
+
 - `app/utils/keyFunctions.ts:1,7,14` - Module organization TODOs
 - `app/components/records/CardRecordShort.vue:45` - Fallback TODO
 - `app/components/records/DialogTrackEdit.vue:17` - Validation TODO
@@ -418,19 +460,19 @@ function getSuggestionsForDeck(deckIndex: number): ScoredTrack[] {
 
 ## Implementation Priority
 
-| ID | Description | Priority | Effort |
-|----|-------------|----------|--------|
-| QUAL-001 | Type assertions → guards | Medium | Medium |
-| QUAL-002 | Fix non-null assertions | Medium | Low |
-| QUAL-003 | Standardize error handling | Medium | Low |
-| QUAL-004 | CRUD store factory | Medium | High |
-| QUAL-005 | Extract search logic | Low | Medium |
-| QUAL-006 | Refactor suggestions | Medium | Medium |
-| QUAL-007 | Simplify scoreHarmony | Low | Low |
-| QUAL-008 | Expand variable names | Low | Low |
-| QUAL-009 | Fix count naming | Low | Low |
-| QUAL-010 | Add JSDoc | Low | Medium |
-| QUAL-011 | Resolve TODOs | Low | Low |
+| ID       | Description                | Priority | Effort |
+| -------- | -------------------------- | -------- | ------ |
+| QUAL-001 | Type assertions → guards   | Medium   | Medium |
+| QUAL-002 | Fix non-null assertions    | Medium   | Low    |
+| QUAL-003 | Standardize error handling | Medium   | Low    |
+| QUAL-004 | CRUD store factory         | Medium   | High   |
+| QUAL-005 | Extract search logic       | Low      | Medium |
+| QUAL-006 | Refactor suggestions       | Medium   | Medium |
+| QUAL-007 | Simplify scoreHarmony      | Low      | Low    |
+| QUAL-008 | Expand variable names      | Low      | Low    |
+| QUAL-009 | Fix count naming           | Low      | Low    |
+| QUAL-010 | Add JSDoc                  | Low      | Medium |
+| QUAL-011 | Resolve TODOs              | Low      | Low    |
 
 ---
 

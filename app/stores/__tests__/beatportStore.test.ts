@@ -1,7 +1,11 @@
 import { createPinia, setActivePinia } from 'pinia'
+import {
+	createMockTrack,
+	resetTrackIdCounter
+} from 'test/mocks/fixtures/tracks'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-import { createMockTrack, resetTrackIdCounter } from 'test/mocks/fixtures/tracks'
+// Import after mocking
+import { useBeatportStore } from '../beatportStore'
 
 // Mock dependencies
 const mockTracksStore = {
@@ -27,9 +31,6 @@ vi.stubGlobal('useTracksStore', () => mockTracksStore)
 vi.stubGlobal('useBeatportScraper', () => mockBeatportScraper)
 vi.stubGlobal('h', mockH)
 vi.stubGlobal('parseBeatportKey', mockParseBeatportKey)
-
-// Import after mocking
-import { useBeatportStore } from '../beatportStore'
 
 describe('beatportStore', () => {
 	beforeEach(() => {
@@ -90,7 +91,11 @@ describe('beatportStore', () => {
 
 		it('returns true when notFound marker exists', () => {
 			const store = useBeatportStore()
-			const notFoundMarker = { searched: true, notFound: true, searchedAt: Date.now() }
+			const notFoundMarker = {
+				searched: true,
+				notFound: true,
+				searchedAt: Date.now()
+			}
 			expect(store.hasBeenSearched(notFoundMarker)).toBe(true)
 		})
 
@@ -114,7 +119,11 @@ describe('beatportStore', () => {
 
 		it('returns false when notFound marker exists', () => {
 			const store = useBeatportStore()
-			const notFoundMarker = { searched: true, notFound: true, searchedAt: Date.now() }
+			const notFoundMarker = {
+				searched: true,
+				notFound: true,
+				searchedAt: Date.now()
+			}
 			expect(store.hasFoundData(notFoundMarker)).toBe(false)
 		})
 
@@ -151,7 +160,11 @@ describe('beatportStore', () => {
 
 		it('returns false when track has no artist', async () => {
 			const store = useBeatportStore()
-			const track = createMockTrack({ id: 'track-1', artists: [], title: 'Test' })
+			const track = createMockTrack({
+				id: 'track-1',
+				artists: [],
+				title: 'Test'
+			})
 			mockTracksStore.getTrackById.mockReturnValue(track)
 
 			const result = await store.getBeatportData('track-1')

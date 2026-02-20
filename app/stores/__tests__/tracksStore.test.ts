@@ -1,6 +1,4 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
 import {
 	createMockTrack,
 	createMockTrackWithArtists,
@@ -8,6 +6,9 @@ import {
 	createMockTrackWithKey,
 	resetTrackIdCounter
 } from 'test/mocks/fixtures/tracks'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+// Import after mocking
+import { useTracksStore } from '../tracksStore'
 
 // Mock dependencies
 const mockUserStore = {
@@ -37,9 +38,6 @@ const mockSupabaseClient = {
 // Stub globals before importing the store
 vi.stubGlobal('useUserStore', () => mockUserStore)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
-
-// Import after mocking
-import { useTracksStore } from '../tracksStore'
 
 describe('tracksStore', () => {
 	beforeEach(() => {
@@ -127,8 +125,14 @@ describe('tracksStore', () => {
 		it('populates tracks from response', async () => {
 			const store = useTracksStore()
 			const mockData = [
-				{ ...createMockTrack({ id: 'track-1' }), records: { user_id: 'test-user-id' } },
-				{ ...createMockTrack({ id: 'track-2' }), records: { user_id: 'test-user-id' } }
+				{
+					...createMockTrack({ id: 'track-1' }),
+					records: { user_id: 'test-user-id' }
+				},
+				{
+					...createMockTrack({ id: 'track-2' }),
+					records: { user_id: 'test-user-id' }
+				}
 			]
 			mockQueryBuilder.order.mockResolvedValue({ data: mockData, error: null })
 
@@ -197,8 +201,14 @@ describe('tracksStore', () => {
 				playable: true,
 				beatport_data: null
 			}
-			const createdTrack = createMockTrack({ ...newTrackData, id: 'new-track-id' })
-			mockQueryBuilder.single.mockResolvedValue({ data: createdTrack, error: null })
+			const createdTrack = createMockTrack({
+				...newTrackData,
+				id: 'new-track-id'
+			})
+			mockQueryBuilder.single.mockResolvedValue({
+				data: createdTrack,
+				error: null
+			})
 
 			const result = await store.createTrack(newTrackData)
 
@@ -270,7 +280,9 @@ describe('tracksStore', () => {
 			const store = useTracksStore()
 			store.tracks = [createMockTrack({ id: 'existing-track' })]
 
-			const result = await store.updateTrack('non-existent', { title: 'Updated' })
+			const result = await store.updateTrack('non-existent', {
+				title: 'Updated'
+			})
 
 			expect(result).toBeNull()
 		})
@@ -315,7 +327,10 @@ describe('tracksStore', () => {
 				title: 'Updated',
 				updated_at: '2024-01-01T00:00:00Z'
 			})
-			mockQueryBuilder.single.mockResolvedValue({ data: serverResponse, error: null })
+			mockQueryBuilder.single.mockResolvedValue({
+				data: serverResponse,
+				error: null
+			})
 
 			await store.updateTrack('track-1', { title: 'Updated' })
 
@@ -704,7 +719,11 @@ describe('tracksStore', () => {
 			const store = useTracksStore()
 			store.tracks = [
 				createMockTrack({ id: 'house-1', genres: ['House'], playable: true }),
-				createMockTrack({ id: 'deep-house', genres: ['Deep House'], playable: true }),
+				createMockTrack({
+					id: 'deep-house',
+					genres: ['Deep House'],
+					playable: true
+				}),
 				createMockTrack({ id: 'techno', genres: ['Techno'], playable: true })
 			]
 
@@ -719,7 +738,11 @@ describe('tracksStore', () => {
 			const store = useTracksStore()
 			store.tracks = [
 				createMockTrack({ id: 'playable', genres: ['House'], playable: true }),
-				createMockTrack({ id: 'non-playable', genres: ['House'], playable: false })
+				createMockTrack({
+					id: 'non-playable',
+					genres: ['House'],
+					playable: false
+				})
 			]
 
 			const result = store.getTracksByGenre('house')
@@ -783,7 +806,12 @@ describe('tracksStore', () => {
 			const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 5 })
 			store.tracks = [
 				createMockTrack({ id: 'playable', bpm: 128, key: 5, playable: true }),
-				createMockTrack({ id: 'non-playable', bpm: 128, key: 5, playable: false })
+				createMockTrack({
+					id: 'non-playable',
+					bpm: 128,
+					key: 5,
+					playable: false
+				})
 			]
 
 			const result = store.getCompatibleTracks(currentTrack)
@@ -841,11 +869,25 @@ describe('tracksStore', () => {
 		describe('BPM compatibility', () => {
 			it('includes tracks within default tolerance (5 BPM)', () => {
 				const store = useTracksStore()
-				const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 5 })
+				const currentTrack = createMockTrack({
+					id: 'current',
+					bpm: 128,
+					key: 5
+				})
 				store.tracks = [
 					createMockTrack({ id: 'same', bpm: 128, key: 5, playable: true }),
-					createMockTrack({ id: 'within-tolerance', bpm: 133, key: 5, playable: true }),
-					createMockTrack({ id: 'outside-tolerance', bpm: 140, key: 5, playable: true })
+					createMockTrack({
+						id: 'within-tolerance',
+						bpm: 133,
+						key: 5,
+						playable: true
+					}),
+					createMockTrack({
+						id: 'outside-tolerance',
+						bpm: 140,
+						key: 5,
+						playable: true
+					})
 				]
 
 				const result = store.getCompatibleTracks(currentTrack)
@@ -857,10 +899,24 @@ describe('tracksStore', () => {
 
 			it('respects custom BPM tolerance', () => {
 				const store = useTracksStore()
-				const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 5 })
+				const currentTrack = createMockTrack({
+					id: 'current',
+					bpm: 128,
+					key: 5
+				})
 				store.tracks = [
-					createMockTrack({ id: 'within-10', bpm: 138, key: 5, playable: true }),
-					createMockTrack({ id: 'outside-10', bpm: 145, key: 5, playable: true })
+					createMockTrack({
+						id: 'within-10',
+						bpm: 138,
+						key: 5,
+						playable: true
+					}),
+					createMockTrack({
+						id: 'outside-10',
+						bpm: 145,
+						key: 5,
+						playable: true
+					})
 				]
 
 				const result = store.getCompatibleTracks(currentTrack, 10)
@@ -871,7 +927,11 @@ describe('tracksStore', () => {
 
 			it('handles octave matching (half tempo)', () => {
 				const store = useTracksStore()
-				const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 5 })
+				const currentTrack = createMockTrack({
+					id: 'current',
+					bpm: 128,
+					key: 5
+				})
 				store.tracks = [
 					// 64 BPM * 2 = 128 BPM (compatible)
 					createMockTrack({ id: 'half-tempo', bpm: 64, key: 5, playable: true })
@@ -887,7 +947,12 @@ describe('tracksStore', () => {
 				const currentTrack = createMockTrack({ id: 'current', bpm: 64, key: 5 })
 				store.tracks = [
 					// 128 BPM / 2 = 64 BPM (compatible)
-					createMockTrack({ id: 'double-tempo', bpm: 128, key: 5, playable: true })
+					createMockTrack({
+						id: 'double-tempo',
+						bpm: 128,
+						key: 5,
+						playable: true
+					})
 				]
 
 				const result = store.getCompatibleTracks(currentTrack)
@@ -899,7 +964,11 @@ describe('tracksStore', () => {
 		describe('key compatibility (harmonic mixing)', () => {
 			it('includes same key', () => {
 				const store = useTracksStore()
-				const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 5 })
+				const currentTrack = createMockTrack({
+					id: 'current',
+					bpm: 128,
+					key: 5
+				})
 				store.tracks = [
 					createMockTrack({ id: 'same-key', bpm: 128, key: 5, playable: true })
 				]
@@ -911,9 +980,18 @@ describe('tracksStore', () => {
 
 			it('includes adjacent keys (+1 semitone)', () => {
 				const store = useTracksStore()
-				const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 5 })
+				const currentTrack = createMockTrack({
+					id: 'current',
+					bpm: 128,
+					key: 5
+				})
 				store.tracks = [
-					createMockTrack({ id: 'key-plus-1', bpm: 128, key: 6, playable: true })
+					createMockTrack({
+						id: 'key-plus-1',
+						bpm: 128,
+						key: 6,
+						playable: true
+					})
 				]
 
 				const result = store.getCompatibleTracks(currentTrack)
@@ -923,9 +1001,18 @@ describe('tracksStore', () => {
 
 			it('includes adjacent keys (-1 semitone)', () => {
 				const store = useTracksStore()
-				const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 5 })
+				const currentTrack = createMockTrack({
+					id: 'current',
+					bpm: 128,
+					key: 5
+				})
 				store.tracks = [
-					createMockTrack({ id: 'key-minus-1', bpm: 128, key: 4, playable: true })
+					createMockTrack({
+						id: 'key-minus-1',
+						bpm: 128,
+						key: 4,
+						playable: true
+					})
 				]
 
 				const result = store.getCompatibleTracks(currentTrack)
@@ -935,7 +1022,11 @@ describe('tracksStore', () => {
 
 			it('includes perfect fifth (+7 semitones)', () => {
 				const store = useTracksStore()
-				const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 5 })
+				const currentTrack = createMockTrack({
+					id: 'current',
+					bpm: 128,
+					key: 5
+				})
 				store.tracks = [
 					// Key 5 + 7 = key 12 which wraps to 0, but 0 is falsy
 					// So test with key 2: 2 + 7 = 9
@@ -951,9 +1042,18 @@ describe('tracksStore', () => {
 				const store = useTracksStore()
 				// Key 11 + 1 wraps to 0, key 11 - 1 = 10
 				// Test key 1: adjacent is 2 (1+1) or 0 (1-1, but 0 is falsy)
-				const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 1 })
+				const currentTrack = createMockTrack({
+					id: 'current',
+					bpm: 128,
+					key: 1
+				})
 				store.tracks = [
-					createMockTrack({ id: 'adjacent-up', bpm: 128, key: 2, playable: true })
+					createMockTrack({
+						id: 'adjacent-up',
+						bpm: 128,
+						key: 2,
+						playable: true
+					})
 				]
 
 				const result = store.getCompatibleTracks(currentTrack)
@@ -963,7 +1063,11 @@ describe('tracksStore', () => {
 
 			it('excludes incompatible keys', () => {
 				const store = useTracksStore()
-				const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 5 })
+				const currentTrack = createMockTrack({
+					id: 'current',
+					bpm: 128,
+					key: 5
+				})
 				store.tracks = [
 					// Key 5 compatible: 5 (same), 4 (5-1), 6 (5+1), 12 (5+7)
 					// Incompatible: anything else

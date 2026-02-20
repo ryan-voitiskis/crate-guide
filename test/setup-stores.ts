@@ -1,8 +1,8 @@
 /**
  * Setup file for testing Pinia stores with Nuxt auto-imports
  */
-import { defineStore } from 'pinia'
 import { computed, readonly, ref, watch } from 'vue'
+import { defineStore } from 'pinia'
 import { vi } from 'vitest'
 
 // Provide Nuxt auto-imports as globals

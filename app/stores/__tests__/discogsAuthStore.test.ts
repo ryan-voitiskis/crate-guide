@@ -1,10 +1,16 @@
+import { toast } from 'vue-sonner'
+import { FunctionsError } from '@supabase/supabase-js'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { FunctionsError } from '@supabase/supabase-js'
+// Import after mocking
+import { useDiscogsAuthStore } from '../discogsAuthStore'
 
 // Mock dependencies
 const mockUserStore = {
-	profile: null as { discogs_access_token?: string; discogs_access_secret?: string } | null,
+	profile: null as {
+		discogs_access_token?: string
+		discogs_access_secret?: string
+	} | null,
 	fetchProfile: vi.fn().mockResolvedValue(true)
 }
 
@@ -52,11 +58,6 @@ vi.mock('vue-sonner', () => ({
 		success: vi.fn()
 	}
 }))
-
-import { toast } from 'vue-sonner'
-
-// Import after mocking
-import { useDiscogsAuthStore } from '../discogsAuthStore'
 
 describe('discogsAuthStore', () => {
 	beforeEach(() => {
@@ -163,7 +164,9 @@ describe('discogsAuthStore', () => {
 
 			await store.initDiscogsOAuthFlow()
 
-			expect(toast.error).toHaveBeenCalledWith('Error authenticating with Discogs.')
+			expect(toast.error).toHaveBeenCalledWith(
+				'Error authenticating with Discogs.'
+			)
 		})
 
 		it('does not redirect on failure', async () => {
