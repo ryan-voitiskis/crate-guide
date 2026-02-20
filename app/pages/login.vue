@@ -4,6 +4,7 @@ import { useForm } from 'vee-validate'
 import * as z from 'zod'
 
 const user = useUserStore()
+const router = useRouter()
 
 const signingInWithGithub = ref(false)
 const signingInWithGoogle = ref(false)
@@ -28,7 +29,17 @@ async function signInWithGoogle() {
 }
 
 const onSubmit = form.handleSubmit((values: LoginFormValues) =>
-	user.signInWithEmail(values.email, values.password)
+	user.signInWithEmail(values.email, values.password).then((success) => {
+		if (success) router.push('/auth/finalising')
+	})
+)
+
+watch(
+	() => user.supaUser,
+	(newUser) => {
+		if (newUser) router.push('/')
+	},
+	{ immediate: true }
 )
 </script>
 

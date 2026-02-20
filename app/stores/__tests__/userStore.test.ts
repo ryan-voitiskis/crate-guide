@@ -191,27 +191,29 @@ describe('userStore', () => {
 	})
 
 	describe('signInWithEmail', () => {
-		it('navigates to home on success', async () => {
+		it('returns true on success without navigating', async () => {
 			const store = useUserStore()
 			mockSupabaseClient.auth.signInWithPassword.mockResolvedValue({
 				data: {},
 				error: null
 			})
 
-			await store.signInWithEmail('test@example.com', 'password123')
+			const result = await store.signInWithEmail('test@example.com', 'password123')
 
-			expect(mockRouter.push).toHaveBeenCalledWith('/')
+			expect(result).toBe(true)
+			expect(mockRouter.push).not.toHaveBeenCalled()
 		})
 
-		it('handles auth errors', async () => {
+		it('returns false on auth errors', async () => {
 			const store = useUserStore()
 			mockSupabaseClient.auth.signInWithPassword.mockResolvedValue({
 				data: null,
 				error: { message: 'Invalid credentials' }
 			})
 
-			await store.signInWithEmail('test@example.com', 'wrong')
+			const result = await store.signInWithEmail('test@example.com', 'wrong')
 
+			expect(result).toBe(false)
 			expect(mockRouter.push).not.toHaveBeenCalled()
 		})
 	})

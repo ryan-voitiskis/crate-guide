@@ -39,10 +39,11 @@ export const useUserStore = defineStore('user', () => {
 				password
 			})
 			if (error) throw error
-			router.push('/')
 			toast.success('Sign in successful!')
+			return true
 		} catch (e) {
 			toast.error(isError(e) ? e.message : 'Error signing in.')
+			return false
 		}
 	}
 

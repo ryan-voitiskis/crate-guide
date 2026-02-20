@@ -7,7 +7,11 @@ export default defineNuxtRouteMiddleware((to) => {
 		to.path.startsWith('/auth/') ||
 		to.path.startsWith('/demo')
 
-	if (!user.value && !isPublicRoute) {
+	if (user.value && publicRoutes.includes(to.path)) {
+		return navigateTo('/')
+	}
+
+	if (user.value === null && !isPublicRoute) {
 		return navigateTo('/login')
 	}
 })
