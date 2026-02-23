@@ -31,7 +31,7 @@
 		"supa:restart": "supabase stop && supabase start",
 		"supa:functions": "supabase functions serve --no-verify-jwt",
 		"supa:reset": "supabase db reset",
-		"setStagingSecrets": "npx supabase secrets set --project-ref=luhufzpayswbgewenudn --env-file ./supabase/.env",
+		"setStagingSecrets": "npx supabase secrets set --project-ref=luhufzpayswbgewenudn --env-file ./supabase/functions/.env",
 		"genTypes": "supabase gen types --lang=typescript --local > shared/types/database.ts && supabase gen types --lang=typescript --local > supabase/functions/_shared/types/database.ts"
 	},
 	"dependencies": {
