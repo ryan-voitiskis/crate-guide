@@ -36,7 +36,28 @@ interface BeatportTrackJSON {
 	track_image_dynamic_uri?: string
 }
 
+interface RateLimitEntry {
+	count: number
+	resetAt: number
+}
+
+const RATE_LIMIT_WINDOW_MS = 1000
+const RATE_LIMIT_MAX_REQUESTS = 1
+const RATE_LIMIT_CLEANUP_INTERVAL_MS = RATE_LIMIT_WINDOW_MS
+const BEATPORT_REQUEST_TIMEOUT_MS = 10_000
+const rateLimitStore = new Map<string, RateLimitEntry>()
+let lastRateLimitCleanupAt = 0
+
 export default defineEventHandler(async (event) => {
+	const user = await serverSupabaseUser(event)
+
+	if (!user) {
+		throw createError({
+			statusCode: 401,
+			statusMessage: 'Authentication required'
+		})
+	}
+
 	const query = getQuery(event)
 	const q = query.q as string
 	const artist = query.artist as string
@@ -56,10 +77,39 @@ export default defineEventHandler(async (event) => {
 		})
 	}
 
+	const clientIp = getClientIp(event)
+	const rateLimitKeys = new Set<string>()
+
+	if (typeof user.id === 'string' && user.id.length > 0) {
+		rateLimitKeys.add(`user:${user.id}`)
+	}
+
+	if (typeof clientIp === 'string' && clientIp.length > 0) {
+		rateLimitKeys.add(`ip:${clientIp}`)
+	}
+
+	if (rateLimitKeys.size === 0) {
+		rateLimitKeys.add('user:unknown')
+	}
+
+	if (isRateLimited(Array.from(rateLimitKeys))) {
+		throw createError({
+			statusCode: 429,
+			statusMessage: 'Too many requests'
+		})
+	}
+
+	const controller = new AbortController()
+	const timeoutId = setTimeout(
+		() => controller.abort(),
+		BEATPORT_REQUEST_TIMEOUT_MS
+	)
+
 	try {
 		const response = await fetch(
 			`https://www.beatport.com/search/tracks?q=${encodeURIComponent(q)}`,
 			{
+				signal: controller.signal,
 				headers: {
 					'User-Agent':
 						'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -94,13 +144,99 @@ export default defineEventHandler(async (event) => {
 			success: true,
 			data: trackData
 		}
-	} catch {
+	} catch (error) {
+		if (isAbortError(error)) {
+			throw createError({
+				statusCode: 504,
+				statusMessage: 'Beatport request timed out'
+			})
+		}
+
 		throw createError({
 			statusCode: 500,
 			statusMessage: 'Failed to fetch from Beatport'
 		})
+	} finally {
+		clearTimeout(timeoutId)
 	}
 })
+
+function isRateLimited(keys: string[]): boolean {
+	const now = Date.now()
+	pruneExpiredRateLimitEntries(now)
+
+	for (const key of keys) {
+		const existingEntry = rateLimitStore.get(key)
+
+		if (!existingEntry || existingEntry.resetAt <= now) {
+			rateLimitStore.set(key, {
+				count: 1,
+				resetAt: now + RATE_LIMIT_WINDOW_MS
+			})
+			continue
+		}
+
+		existingEntry.count += 1
+		if (existingEntry.count > RATE_LIMIT_MAX_REQUESTS) {
+			return true
+		}
+	}
+
+	return false
+}
+
+function pruneExpiredRateLimitEntries(now: number): void {
+	if (now - lastRateLimitCleanupAt < RATE_LIMIT_CLEANUP_INTERVAL_MS) {
+		return
+	}
+
+	for (const [key, entry] of rateLimitStore) {
+		if (entry.resetAt <= now) {
+			rateLimitStore.delete(key)
+		}
+	}
+
+	lastRateLimitCleanupAt = now
+}
+
+function getClientIp(event: unknown): string | null {
+	const request = (
+		event as {
+			node?: {
+				req?: {
+					headers?: Record<string, string | string[] | undefined>
+					socket?: { remoteAddress?: string | null }
+				}
+			}
+		}
+	).node?.req
+	const forwardedFor = request?.headers?.['x-forwarded-for']
+
+	if (typeof forwardedFor === 'string' && forwardedFor.length > 0) {
+		return forwardedFor.split(',')[0]?.trim() ?? null
+	}
+
+	if (Array.isArray(forwardedFor) && typeof forwardedFor[0] === 'string') {
+		return forwardedFor[0]
+	}
+
+	const remoteAddress = request?.socket?.remoteAddress
+	if (typeof remoteAddress === 'string' && remoteAddress.length > 0) {
+		return remoteAddress
+	}
+
+	return null
+}
+
+function isAbortError(error: unknown): boolean {
+	if (!(error instanceof Error)) {
+		return false
+	}
+
+	return (
+		error.name === 'AbortError' || error.message.toLowerCase().includes('abort')
+	)
+}
 
 function extractTrackDataFromHTML(
 	html: string,

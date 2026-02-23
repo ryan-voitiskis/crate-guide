@@ -15,6 +15,9 @@ const mockCreateError = vi.fn(
 vi.stubGlobal('getQuery', mockGetQuery)
 vi.stubGlobal('createError', mockCreateError)
 
+const mockServerSupabaseUser = vi.fn()
+vi.stubGlobal('serverSupabaseUser', mockServerSupabaseUser)
+
 // Mock global fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -36,10 +39,25 @@ describe('beatport/search API', () => {
 		mockGetQuery.mockReset()
 		mockCreateError.mockClear()
 		mockFetch.mockReset()
+		mockServerSupabaseUser.mockReset()
+		mockServerSupabaseUser.mockResolvedValue({ id: 'user-123' })
 
 		// Re-import handler to get fresh module with mocks
 		const module = await import('./search.get')
 		handler = module.default
+	})
+
+	describe('authentication', () => {
+		it('returns 401 when user is not authenticated', async () => {
+			mockServerSupabaseUser.mockResolvedValueOnce(null)
+
+			await expect(handler({})).rejects.toMatchObject({
+				statusCode: 401,
+				message: 'Authentication required'
+			})
+
+			expect(mockFetch).not.toHaveBeenCalled()
+		})
 	})
 
 	describe('query parameter validation', () => {
@@ -282,6 +300,95 @@ describe('beatport/search API', () => {
 	})
 
 	describe('error handling', () => {
+		it('throws 429 error when requests are throttled', async () => {
+			mockGetQuery.mockReturnValue({
+				q: 'Test Artist Test Track',
+				artist: 'Test Artist',
+				title: 'Test Track'
+			})
+
+			mockFetch.mockResolvedValue({
+				ok: true,
+				text: () => Promise.resolve('<html><body></body></html>')
+			})
+
+			await handler({})
+
+			await expect(handler({})).rejects.toMatchObject({
+				statusCode: 429,
+				message: 'Too many requests'
+			})
+
+			expect(mockFetch).toHaveBeenCalledTimes(1)
+		})
+
+		it('throttles by shared IP even across different users', async () => {
+			mockGetQuery.mockReturnValue({
+				q: 'Test Artist Test Track',
+				artist: 'Test Artist',
+				title: 'Test Track'
+			})
+			mockServerSupabaseUser
+				.mockResolvedValueOnce({ id: 'user-1' })
+				.mockResolvedValueOnce({ id: 'user-2' })
+
+			mockFetch.mockResolvedValue({
+				ok: true,
+				text: () => Promise.resolve('<html><body></body></html>')
+			})
+
+			const event = {
+				node: {
+					req: {
+						headers: { 'x-forwarded-for': '203.0.113.5' },
+						socket: { remoteAddress: '203.0.113.5' }
+					}
+				}
+			}
+
+			await handler(event)
+
+			await expect(handler(event)).rejects.toMatchObject({
+				statusCode: 429,
+				message: 'Too many requests'
+			})
+
+			expect(mockFetch).toHaveBeenCalledTimes(1)
+		})
+
+		it('throws 504 error when Beatport request times out', async () => {
+			mockGetQuery.mockReturnValue({
+				q: 'Test Artist Test Track',
+				artist: 'Test Artist',
+				title: 'Test Track'
+			})
+
+			vi.useFakeTimers()
+
+			mockFetch.mockImplementationOnce(
+				(_url: string, options?: { signal?: AbortSignal }) =>
+					new Promise((_resolve, reject) => {
+						options?.signal?.addEventListener('abort', () => {
+							const abortError = new Error('This operation was aborted')
+							abortError.name = 'AbortError'
+							reject(abortError)
+						})
+					})
+			)
+
+			try {
+				const request = handler({})
+				const timeoutExpectation = expect(request).rejects.toMatchObject({
+					statusCode: 504,
+					message: 'Beatport request timed out'
+				})
+				await vi.advanceTimersByTimeAsync(10_000)
+				await timeoutExpectation
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
 		it('throws 500 error when Beatport returns rate limit (429)', async () => {
 			// Note: The endpoint's catch block converts all fetch-related errors to 500
 			// A future improvement could preserve the original status code
