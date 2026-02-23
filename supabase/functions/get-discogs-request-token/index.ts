@@ -15,7 +15,6 @@ const oauth_consumer_key = Deno.env.get('DISCOGS_CONSUMER_KEY') || ''
 const oauth_consumer_secret = Deno.env.get('DISCOGS_CONSUMER_SECRET') || ''
 const userAgent = Deno.env.get('DISCOGS_USER_AGENT') || ''
 const requestTokenURL = 'https://api.discogs.com/oauth/request_token'
-const oauthCallback = `${Deno.env.get('SITE_URL')}auth/discogs/capture-verifier`
 
 Deno.serve(async (req) => {
 	if (req.method === 'OPTIONS') return new Response('ok', { headers })
@@ -24,6 +23,8 @@ Deno.serve(async (req) => {
 	if (!authHeader) return new Response(null, { headers, status: 401 })
 
 	try {
+		const oauthCallback = buildOAuthCallback()
+
 		const params = new URLSearchParams()
 		params.append('oauth_consumer_key', oauth_consumer_key)
 		params.append('oauth_nonce', await generateToken())
@@ -86,3 +87,30 @@ Deno.serve(async (req) => {
 		})
 	}
 })
+
+function buildOAuthCallback() {
+	const siteURL = Deno.env.get('SITE_URL')?.trim()
+	if (!siteURL) {
+		throw new PublicOAuthError(
+			'Server configuration error: SITE_URL is required for Discogs authorization.'
+		)
+	}
+
+	let parsedSiteURL: URL
+	try {
+		parsedSiteURL = new URL(siteURL)
+	} catch {
+		throw new PublicOAuthError(
+			'Server configuration error: SITE_URL must be a valid absolute URL.'
+		)
+	}
+
+	// Preserve any configured base path and make trailing slash optional.
+	parsedSiteURL.pathname = parsedSiteURL.pathname.endsWith('/')
+		? parsedSiteURL.pathname
+		: `${parsedSiteURL.pathname}/`
+	parsedSiteURL.search = ''
+	parsedSiteURL.hash = ''
+
+	return new URL('auth/discogs/capture-verifier', parsedSiteURL).toString()
+}
