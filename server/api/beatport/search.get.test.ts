@@ -389,9 +389,7 @@ describe('beatport/search API', () => {
 			}
 		})
 
-		it('throws 500 error when Beatport returns rate limit (429)', async () => {
-			// Note: The endpoint's catch block converts all fetch-related errors to 500
-			// A future improvement could preserve the original status code
+		it('throws 429 error when Beatport returns rate limit (429)', async () => {
 			mockGetQuery.mockReturnValue({
 				q: 'Test Artist Test Track',
 				artist: 'Test Artist',
@@ -404,8 +402,8 @@ describe('beatport/search API', () => {
 			})
 
 			await expect(handler({})).rejects.toMatchObject({
-				statusCode: 500,
-				message: 'Failed to fetch from Beatport'
+				statusCode: 429,
+				message: 'Beatport returned 429'
 			})
 		})
 
@@ -424,8 +422,26 @@ describe('beatport/search API', () => {
 			})
 		})
 
-		it('throws 500 error when Beatport returns 503', async () => {
-			// Note: The endpoint's catch block converts all fetch-related errors to 500
+		it('throws 500 error when fetch rejects with statusCode error', async () => {
+			mockGetQuery.mockReturnValue({
+				q: 'Test Artist Test Track',
+				artist: 'Test Artist',
+				title: 'Test Track'
+			})
+
+			const fetchError = new Error('Network failure') as Error & {
+				statusCode: number
+			}
+			fetchError.statusCode = 429
+			mockFetch.mockRejectedValueOnce(fetchError)
+
+			await expect(handler({})).rejects.toMatchObject({
+				statusCode: 500,
+				message: 'Failed to fetch from Beatport'
+			})
+		})
+
+		it('throws 503 error when Beatport returns 503', async () => {
 			mockGetQuery.mockReturnValue({
 				q: 'Test Artist Test Track',
 				artist: 'Test Artist',
@@ -438,8 +454,8 @@ describe('beatport/search API', () => {
 			})
 
 			await expect(handler({})).rejects.toMatchObject({
-				statusCode: 500,
-				message: 'Failed to fetch from Beatport'
+				statusCode: 503,
+				message: 'Beatport returned 503'
 			})
 		})
 	})

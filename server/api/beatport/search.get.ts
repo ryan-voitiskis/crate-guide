@@ -104,6 +104,7 @@ export default defineEventHandler(async (event) => {
 		() => controller.abort(),
 		BEATPORT_REQUEST_TIMEOUT_MS
 	)
+	const beatportHttpErrors = new WeakSet<Error>()
 
 	try {
 		const response = await fetch(
@@ -124,10 +125,14 @@ export default defineEventHandler(async (event) => {
 		)
 
 		if (!response.ok) {
-			throw createError({
+			const beatportHttpError = createError({
 				statusCode: response.status,
 				statusMessage: `Beatport returned ${response.status}`
 			})
+			if (beatportHttpError instanceof Error) {
+				beatportHttpErrors.add(beatportHttpError)
+			}
+			throw beatportHttpError
 		}
 
 		const html = await response.text()
@@ -150,6 +155,10 @@ export default defineEventHandler(async (event) => {
 				statusCode: 504,
 				statusMessage: 'Beatport request timed out'
 			})
+		}
+
+		if (error instanceof Error && beatportHttpErrors.has(error)) {
+			throw error
 		}
 
 		throw createError({
