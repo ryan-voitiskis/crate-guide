@@ -436,6 +436,41 @@ describe('beatportStore', () => {
 			expect(store.bulkBeatportProgress).toBe(100)
 		})
 
+		it('spaces Beatport requests between bulk items', async () => {
+			const store = useBeatportStore()
+			const tracks = [
+				createMockTrack({ id: 'track-1', beatport_data: null }),
+				createMockTrack({ id: 'track-2', beatport_data: null })
+			]
+			mockTracksStore.tracks = tracks
+			mockTracksStore.getTrackById.mockImplementation((id: string) =>
+				tracks.find((t) => t.id === id)
+			)
+			mockBeatportScraper.searchTracks.mockResolvedValue(null)
+			mockTracksStore.updateTrack.mockImplementation((id: string) =>
+				tracks.find((t) => t.id === id)
+			)
+
+			vi.useFakeTimers()
+
+			try {
+				const bulkPromise = store.bulkFetchBeatportData()
+				await Promise.resolve()
+
+				expect(mockBeatportScraper.searchTracks).toHaveBeenCalledTimes(1)
+
+				await vi.advanceTimersByTimeAsync(999)
+				expect(mockBeatportScraper.searchTracks).toHaveBeenCalledTimes(1)
+
+				await vi.advanceTimersByTimeAsync(1)
+				expect(mockBeatportScraper.searchTracks).toHaveBeenCalledTimes(2)
+
+				await bulkPromise
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
 		it('updates currentProcessingTrack during bulk operation', async () => {
 			const store = useBeatportStore()
 			const track = createMockTrack({ id: 'track-1', beatport_data: null })

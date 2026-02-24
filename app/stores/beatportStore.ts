@@ -29,6 +29,8 @@ interface BeatportNotFoundMarker {
 	searchedAt: number
 }
 
+const BEATPORT_BULK_REQUEST_INTERVAL_MS = 1000
+
 // Helper to check if track has been searched (found or not found)
 function hasBeenSearched(
 	beatportData: BeatportTrackData | BeatportNotFoundMarker | null
@@ -51,6 +53,10 @@ function hasFoundData(
 		'url' in beatportData &&
 		(!!beatportData.url || beatportData.bpm !== undefined)
 	)
+}
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 export const useBeatportStore = defineStore('beatport', () => {
@@ -258,6 +264,11 @@ export const useBeatportStore = defineStore('beatport', () => {
 			bulkBeatportProgress.value = Math.round(
 				((i + 1) / tracksToProcess.length) * 100
 			)
+
+			const hasMoreTracks = i < tracksToProcess.length - 1
+			if (!bulkBeatportCancelled.value && hasMoreTracks) {
+				await sleep(BEATPORT_BULK_REQUEST_INTERVAL_MS)
+			}
 		}
 
 		isBulkFetchingBeatportData.value = false
