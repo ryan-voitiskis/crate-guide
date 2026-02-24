@@ -346,14 +346,76 @@ describe('beatport/search API', () => {
 				}
 			}
 
-			await handler(event)
+			vi.useFakeTimers()
+			vi.setSystemTime(new Date('2026-02-24T00:00:00.000Z'))
 
-			await expect(handler(event)).rejects.toMatchObject({
-				statusCode: 429,
-				message: 'Too many requests'
+			try {
+				await handler(event)
+
+				await expect(handler(event)).rejects.toMatchObject({
+					statusCode: 429,
+					message: 'Too many requests'
+				})
+
+				expect(mockFetch).toHaveBeenCalledTimes(1)
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
+		it('does not consume user quota when shared IP is rate limited', async () => {
+			mockGetQuery.mockReturnValue({
+				q: 'Test Artist Test Track',
+				artist: 'Test Artist',
+				title: 'Test Track'
+			})
+			mockServerSupabaseUser
+				.mockResolvedValueOnce({ id: 'user-1' })
+				.mockResolvedValueOnce({ id: 'user-2' })
+				.mockResolvedValueOnce({ id: 'user-2' })
+
+			mockFetch.mockResolvedValue({
+				ok: true,
+				text: () => Promise.resolve('<html><body></body></html>')
 			})
 
-			expect(mockFetch).toHaveBeenCalledTimes(1)
+			const sharedIpEvent = {
+				node: {
+					req: {
+						headers: { 'x-forwarded-for': '203.0.113.5' },
+						socket: { remoteAddress: '203.0.113.5' }
+					}
+				}
+			}
+			const alternateIpEvent = {
+				node: {
+					req: {
+						headers: { 'x-forwarded-for': '203.0.113.6' },
+						socket: { remoteAddress: '203.0.113.6' }
+					}
+				}
+			}
+
+			vi.useFakeTimers()
+			vi.setSystemTime(new Date('2026-02-24T00:00:00.000Z'))
+
+			try {
+				await handler(sharedIpEvent)
+
+				await expect(handler(sharedIpEvent)).rejects.toMatchObject({
+					statusCode: 429,
+					message: 'Too many requests'
+				})
+
+				await expect(handler(alternateIpEvent)).resolves.toMatchObject({
+					success: false,
+					error: 'No matching track found'
+				})
+
+				expect(mockFetch).toHaveBeenCalledTimes(2)
+			} finally {
+				vi.useRealTimers()
+			}
 		})
 
 		it('throws 504 error when Beatport request times out', async () => {

@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockFetch = vi.fn()
 vi.stubGlobal('$fetch', mockFetch)
 
-const { useBeatportScraper } = await import('../useBeatportScraper')
+const { useBeatportScraper, BeatportScraperError } = await import(
+	'../useBeatportScraper'
+)
 
 describe('useBeatportScraper', () => {
 	beforeEach(() => {
@@ -31,7 +33,10 @@ describe('useBeatportScraper', () => {
 	})
 
 	it('passes encoded query and match params to endpoint', async () => {
-		mockFetch.mockResolvedValue({ success: false, error: 'No match' })
+		mockFetch.mockResolvedValue({
+			success: false,
+			error: 'No matching track found'
+		})
 
 		const { searchTracks } = useBeatportScraper()
 		await searchTracks({ artist: 'Artist & Friends', title: 'Track (Remix)' })
@@ -45,8 +50,11 @@ describe('useBeatportScraper', () => {
 		expect(requestUrl).toContain(`title=${encodeURIComponent('Track (Remix)')}`)
 	})
 
-	it('returns null when response is not successful', async () => {
-		mockFetch.mockResolvedValue({ success: false, error: 'No match' })
+	it('returns null only for explicit no-match payload', async () => {
+		mockFetch.mockResolvedValue({
+			success: false,
+			error: 'No matching track found'
+		})
 
 		const { searchTracks } = useBeatportScraper()
 		const result = await searchTracks({ artist: 'Missing', title: 'Track' })
@@ -54,15 +62,42 @@ describe('useBeatportScraper', () => {
 		expect(result).toBeNull()
 	})
 
-	it('returns null when fetch throws', async () => {
-		const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+	it('throws typed error for unsuccessful non no-match payload', async () => {
+		mockFetch.mockResolvedValue({ success: false, error: 'Too many requests' })
+
+		const { searchTracks } = useBeatportScraper()
+		await expect(
+			searchTracks({ artist: 'Test Artist', title: 'Track' })
+		).rejects.toMatchObject({
+			name: 'BeatportScraperError',
+			type: 'api'
+		})
+	})
+
+	it('throws typed transport error when fetch throws without status', async () => {
 		mockFetch.mockRejectedValue(new Error('Network error'))
 
 		const { searchTracks } = useBeatportScraper()
-		const result = await searchTracks({ artist: 'Test Artist', title: 'Track' })
+		await expect(
+			searchTracks({ artist: 'Test Artist', title: 'Track' })
+		).rejects.toBeInstanceOf(BeatportScraperError)
+		await expect(
+			searchTracks({ artist: 'Test Artist', title: 'Track' })
+		).rejects.toMatchObject({
+			type: 'transport',
+			statusCode: null
+		})
+	})
 
-		expect(result).toBeNull()
-		expect(consoleSpy).toHaveBeenCalled()
-		consoleSpy.mockRestore()
+	it('throws typed api error when fetch throws with status', async () => {
+		mockFetch.mockRejectedValue({ statusCode: 429, message: 'Too many requests' })
+
+		const { searchTracks } = useBeatportScraper()
+		await expect(
+			searchTracks({ artist: 'Test Artist', title: 'Track' })
+		).rejects.toMatchObject({
+			type: 'api',
+			statusCode: 429
+		})
 	})
 })

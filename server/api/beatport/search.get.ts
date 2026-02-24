@@ -45,6 +45,7 @@ const RATE_LIMIT_WINDOW_MS = 1000
 const RATE_LIMIT_MAX_REQUESTS = 1
 const RATE_LIMIT_CLEANUP_INTERVAL_MS = RATE_LIMIT_WINDOW_MS
 const BEATPORT_REQUEST_TIMEOUT_MS = 10_000
+// Process-local in-memory limiter: applies per Node.js process only.
 const rateLimitStore = new Map<string, RateLimitEntry>()
 let lastRateLimitCleanupAt = 0
 
@@ -104,7 +105,6 @@ export default defineEventHandler(async (event) => {
 		() => controller.abort(),
 		BEATPORT_REQUEST_TIMEOUT_MS
 	)
-	const beatportHttpErrors = new WeakSet<Error>()
 
 	try {
 		const response = await fetch(
@@ -125,14 +125,10 @@ export default defineEventHandler(async (event) => {
 		)
 
 		if (!response.ok) {
-			const beatportHttpError = createError({
+			throw createError({
 				statusCode: response.status,
 				statusMessage: `Beatport returned ${response.status}`
 			})
-			if (beatportHttpError instanceof Error) {
-				beatportHttpErrors.add(beatportHttpError)
-			}
-			throw beatportHttpError
 		}
 
 		const html = await response.text()
@@ -157,7 +153,7 @@ export default defineEventHandler(async (event) => {
 			})
 		}
 
-		if (error instanceof Error && beatportHttpErrors.has(error)) {
+		if (isBeatportStatusError(error)) {
 			throw error
 		}
 
@@ -176,7 +172,17 @@ function isRateLimited(keys: string[]): boolean {
 
 	for (const key of keys) {
 		const existingEntry = rateLimitStore.get(key)
+		const nextCount =
+			!existingEntry || existingEntry.resetAt <= now
+				? 1
+				: existingEntry.count + 1
+		if (nextCount > RATE_LIMIT_MAX_REQUESTS) {
+			return true
+		}
+	}
 
+	for (const key of keys) {
+		const existingEntry = rateLimitStore.get(key)
 		if (!existingEntry || existingEntry.resetAt <= now) {
 			rateLimitStore.set(key, {
 				count: 1,
@@ -184,11 +190,7 @@ function isRateLimited(keys: string[]): boolean {
 			})
 			continue
 		}
-
 		existingEntry.count += 1
-		if (existingEntry.count > RATE_LIMIT_MAX_REQUESTS) {
-			return true
-		}
 	}
 
 	return false
@@ -244,6 +246,19 @@ function isAbortError(error: unknown): boolean {
 
 	return (
 		error.name === 'AbortError' || error.message.toLowerCase().includes('abort')
+	)
+}
+
+function isBeatportStatusError(
+	error: unknown
+): error is Error & { statusCode: number } {
+	if (!(error instanceof Error)) {
+		return false
+	}
+
+	return (
+		typeof (error as { statusCode?: unknown }).statusCode === 'number' &&
+		error.message.startsWith('Beatport returned ')
 	)
 }
 

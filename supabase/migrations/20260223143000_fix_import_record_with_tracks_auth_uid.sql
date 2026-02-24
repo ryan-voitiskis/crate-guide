@@ -12,7 +12,6 @@ DECLARE
     caller_user_id UUID;
     inserted_record_id UUID;
     track_record JSONB;
-    result JSONB;
 BEGIN
     caller_user_id := auth.uid();
 
@@ -133,20 +132,11 @@ BEGIN
     END IF;
 
     -- Return success result with the inserted record data
-    result := jsonb_build_object(
+    RETURN jsonb_build_object(
         'success', true,
         'record_id', inserted_record_id,
         'tracks_inserted', jsonb_array_length(tracks)
     );
-
-    RETURN result;
-EXCEPTION
-    WHEN OTHERS THEN
-        -- Return error result
-        RETURN jsonb_build_object(
-            'success', false,
-            'error', SQLERRM
-        );
 END;
 $$;
 

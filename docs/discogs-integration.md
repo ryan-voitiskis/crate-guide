@@ -151,6 +151,7 @@ Comprehensive TypeScript types and runtime validation ensure data integrity thro
 ### Database Atomicity
 
 The `import_record_with_tracks` RPC function ensures that records and their tracks are inserted atomically, preventing partial imports on database errors.
+On success it returns `{ success: true, record_id, tracks_inserted }`; authentication/validation/SQL failures are raised and surface to clients as RPC errors (not `{ success: false, error }` payloads).
 
 ## Usage for Future Development
 

@@ -312,7 +312,7 @@ export const useBeatportStore = defineStore('beatport', () => {
 			return result !== null
 		} catch (error) {
 			console.error('Error fetching Beatport data:', error)
-			return false
+			throw error
 		}
 	}
 
