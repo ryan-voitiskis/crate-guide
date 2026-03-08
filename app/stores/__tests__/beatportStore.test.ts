@@ -299,6 +299,15 @@ describe('beatportStore', () => {
 			expect(result).toBe(false)
 			expect(store.isLoadingBeatportData).toBe(false)
 			expect(consoleSpy).toHaveBeenCalled()
+			expect(mockTracksStore.updateTrack).not.toHaveBeenCalledWith(
+				'track-1',
+				expect.objectContaining({
+					beatport_data: expect.objectContaining({
+						notFound: true
+					})
+				}),
+				{ silent: true }
+			)
 			consoleSpy.mockRestore()
 		})
 	})
@@ -427,6 +436,41 @@ describe('beatportStore', () => {
 			expect(store.bulkBeatportProgress).toBe(100)
 		})
 
+		it('spaces Beatport requests between bulk items', async () => {
+			const store = useBeatportStore()
+			const tracks = [
+				createMockTrack({ id: 'track-1', beatport_data: null }),
+				createMockTrack({ id: 'track-2', beatport_data: null })
+			]
+			mockTracksStore.tracks = tracks
+			mockTracksStore.getTrackById.mockImplementation((id: string) =>
+				tracks.find((t) => t.id === id)
+			)
+			mockBeatportScraper.searchTracks.mockResolvedValue(null)
+			mockTracksStore.updateTrack.mockImplementation((id: string) =>
+				tracks.find((t) => t.id === id)
+			)
+
+			vi.useFakeTimers()
+
+			try {
+				const bulkPromise = store.bulkFetchBeatportData()
+				await Promise.resolve()
+
+				expect(mockBeatportScraper.searchTracks).toHaveBeenCalledTimes(1)
+
+				await vi.advanceTimersByTimeAsync(999)
+				expect(mockBeatportScraper.searchTracks).toHaveBeenCalledTimes(1)
+
+				await vi.advanceTimersByTimeAsync(1)
+				expect(mockBeatportScraper.searchTracks).toHaveBeenCalledTimes(2)
+
+				await bulkPromise
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
 		it('updates currentProcessingTrack during bulk operation', async () => {
 			const store = useBeatportStore()
 			const track = createMockTrack({ id: 'track-1', beatport_data: null })
@@ -457,6 +501,75 @@ describe('beatportStore', () => {
 
 			expect(store.lastProcessedTrack).not.toBeNull()
 			expect(store.lastProcessedTrack?.trackId).toBe('track-1')
+		})
+
+		it('does not write notFound marker on transient scraper failure', async () => {
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+			const store = useBeatportStore()
+			const track = createMockTrack({ id: 'track-1', beatport_data: null })
+			mockTracksStore.tracks = [track]
+			mockTracksStore.getTrackById.mockReturnValue(track)
+			mockBeatportScraper.searchTracks.mockRejectedValue(
+				Object.assign(new Error('Failed to search Beatport (429)'), {
+					name: 'BeatportScraperError',
+					type: 'api',
+					statusCode: 429
+				})
+			)
+
+			await store.bulkFetchBeatportData()
+
+			expect(mockTracksStore.updateTrack).not.toHaveBeenCalledWith(
+				'track-1',
+				expect.objectContaining({
+					beatport_data: expect.objectContaining({
+						notFound: true
+					})
+				}),
+				{ silent: true }
+			)
+			consoleSpy.mockRestore()
+		})
+
+		it('retries transient scraper failure in a later bulk run', async () => {
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+			const store = useBeatportStore()
+			const track = createMockTrack({ id: 'track-1', beatport_data: null })
+			mockTracksStore.tracks = [track]
+			mockTracksStore.getTrackById.mockImplementation((id: string) =>
+				mockTracksStore.tracks.find((t) => t.id === id)
+			)
+			mockBeatportScraper.searchTracks
+				.mockRejectedValueOnce(
+					Object.assign(new Error('Failed to search Beatport (504)'), {
+						name: 'BeatportScraperError',
+						type: 'api',
+						statusCode: 504
+					})
+				)
+				.mockResolvedValueOnce({
+					url: 'https://beatport.com/track/123',
+					bpm: 128
+				})
+			mockTracksStore.updateTrack.mockImplementation(
+				(id: string, updates: { beatport_data?: { url?: string; bpm?: number } }) => {
+					const target = mockTracksStore.tracks.find((t) => t.id === id)
+					if (target && updates.beatport_data) {
+						target.beatport_data = updates.beatport_data
+					}
+					return target
+				}
+			)
+
+			await store.bulkFetchBeatportData()
+			expect(store.bulkBeatportResults.successful).toBe(0)
+			expect(store.bulkBeatportResults.failed).toHaveLength(1)
+			expect(track.beatport_data).toBeNull()
+
+			await store.bulkFetchBeatportData()
+			expect(mockBeatportScraper.searchTracks).toHaveBeenCalledTimes(2)
+			expect(store.bulkBeatportResults.successful).toBe(1)
+			consoleSpy.mockRestore()
 		})
 	})
 

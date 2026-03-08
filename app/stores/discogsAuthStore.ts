@@ -72,11 +72,15 @@ export const useDiscogsAuthStore = defineStore('discogsAuth', () => {
 				) {
 					rawMessage = payload.error
 				}
-			} catch {}
+			} catch {
+				// Intentionally ignore JSON parsing failures and fall back to text parsing.
+			}
 			try {
 				const text = await context.text()
 				if (!rawMessage && text) rawMessage = text
-			} catch {}
+			} catch {
+				// Intentionally ignore text parsing failures and fall back to error.message.
+			}
 		}
 
 		if (!rawMessage && error instanceof Error && error.message) {
