@@ -15,29 +15,18 @@ function selectSpeed() {
 
 <template>
 	<button
-		class="relative flex h-5 w-12 items-center border-[3px] border-zinc-700 bg-zinc-300 p-0 transition-all hover:bg-zinc-200"
+		class="relative flex h-3 w-10 items-center border-2 border-zinc-700 bg-zinc-300 p-0 transition-all hover:bg-zinc-200 active:scale-95"
 		@click="selectSpeed"
 	>
-		<!-- Speed label -->
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			viewBox="0 0 100 100"
-			class="h-full w-8"
+		<span
+			class="pl-1 text-[8px] font-medium text-zinc-700 select-none"
 		>
-			<text
-				x="50"
-				y="55"
-				text-anchor="middle"
-				dominant-baseline="middle"
-				class="fill-zinc-700 text-[42px] font-medium select-none"
-			>
-				{{ speed }}
-			</text>
-		</svg>
+			{{ speed }}
+		</span>
 
 		<!-- Indicator light -->
 		<div
-			class="absolute top-1/2 right-1 h-2 w-2 -translate-y-1/2"
+			class="absolute top-1/2 right-0.5 h-1.5 w-1.5 -translate-y-1/2"
 			:class="
 				isActive
 					? 'bg-red-600 shadow-[0_0_4px_2px_rgba(220,38,38,0.5)]'

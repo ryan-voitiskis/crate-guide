@@ -10,6 +10,26 @@ const user = useUserStore()
 const deck = computed(() => session.decks[props.deckIndex])
 const pitchRange = computed(() => user.profile?.turntable_pitch_range ?? 8)
 
+// Label color: silver turntable → dark, black turntable → amber,
+// no turntable (compact) → theme-aware
+const labelClass = computed(() => {
+	if (props.compact) return 'text-zinc-700 dark:text-amber-200/80'
+	const theme = user.profile?.turntable_theme ?? 'silver'
+	return theme === 'silver' ? 'text-[#333]' : 'text-amber-200/80'
+})
+
+const valueClass = computed(() => {
+	if (props.compact) return 'text-zinc-700 dark:text-amber-200'
+	const theme = user.profile?.turntable_theme ?? 'silver'
+	return theme === 'silver' ? 'text-[#333]' : 'text-amber-200'
+})
+
+const faderTrackClass = computed(() => {
+	if (props.compact) return 'bg-zinc-300 dark:bg-zinc-700'
+	const theme = user.profile?.turntable_theme ?? 'silver'
+	return theme === 'silver' ? 'bg-zinc-400' : 'bg-zinc-800'
+})
+
 function handlePitchInput(event: Event) {
 	const value = (event.target as HTMLInputElement).valueAsNumber
 	session.setPitch(props.deckIndex, value)
@@ -23,15 +43,15 @@ function resetPitch() {
 <template>
 	<div
 		class="flex shrink-0 items-stretch"
-		:class="compact ? 'h-32 gap-1' : 'h-48 gap-0'"
+		:class="compact ? 'h-32 gap-1' : 'h-[210px] gap-0'"
 	>
 		<!-- Full mode: Reset button and pitch display stacked on the LEFT -->
 		<div
 			v-if="!compact"
-			class="flex flex-col items-center justify-between py-1"
+			class="mr-1 flex flex-col items-center justify-between py-1"
 		>
 			<!-- Pitch percentage display -->
-			<div class="font-mono text-xs text-amber-200 tabular-nums">
+			<div class="font-mono text-xs tabular-nums" :class="valueClass">
 				{{
 					deck?.pitch !== undefined
 						? (deck.pitch > 0 ? '+' : '') +
@@ -47,7 +67,7 @@ function resetPitch() {
 					:disabled="deck?.pitch === 0"
 					@click="resetPitch"
 				/>
-				<span class="text-[11px] text-amber-200/80">reset</span>
+				<span class="text-[11px]" :class="labelClass">reset</span>
 			</div>
 		</div>
 
@@ -74,7 +94,7 @@ function resetPitch() {
 				fill="none"
 				viewBox="0 0 24 250"
 				stroke="currentColor"
-				class="h-full w-6 shrink-0 text-amber-200/80"
+				:class="['h-full w-6 shrink-0', labelClass]"
 				stroke-width=".5"
 				preserveAspectRatio="none"
 			>
@@ -168,7 +188,7 @@ function resetPitch() {
 			</svg>
 
 			<!-- Fader track -->
-			<div class="relative h-full w-10 overflow-hidden bg-zinc-800">
+			<div class="relative h-full w-10 overflow-hidden" :class="faderTrackClass">
 				<!-- Center groove -->
 				<div
 					class="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-zinc-950"
@@ -206,7 +226,7 @@ function resetPitch() {
 }
 
 .pitch-fader-full {
-	width: 192px;
+	width: 210px;
 	height: 40px;
 }
 

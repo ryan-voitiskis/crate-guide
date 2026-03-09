@@ -33,28 +33,48 @@ const deckBackground = computed(() => {
 </script>
 
 <template>
-	<div class="flex h-full max-w-[640px] min-w-80 flex-1 flex-col gap-2">
+	<div class="flex h-full w-[380px] shrink-0 flex-col gap-2">
 		<!-- Deck header -->
-		<div class="flex items-center justify-between px-1">
+		<div class="px-1">
 			<span class="text-muted-foreground text-sm font-medium">
 				Deck {{ deckIndex + 1 }}
 			</span>
-			<span
-				v-if="deck.rpm && session.showTurntableSim"
-				class="text-muted-foreground text-xs"
-			>
-				{{ deck.rpm }} RPM
-			</span>
 		</div>
 
-		<!-- Turntable ON: deck background with turntable + pitch fader -->
+		<!-- Turntable ON: SL-1200 style layout -->
 		<template v-if="session.showTurntableSim">
 			<div
-				class="flex gap-3 rounded-lg p-3"
-				:style="{ background: deckBackground }"
+				class="relative flex h-[250px] flex-col overflow-hidden"
+				:style="{
+					background: deckBackground,
+					boxShadow: 'inset 1px 1px 0 0 rgba(255,255,255,0.15), inset -1px -1px 0 0 rgba(0,0,0,0.3)'
+				}"
 			>
-				<TurntableSimulator :deck-index="deckIndex" :deck="deck" />
-				<DeckPitchFader :deck-index="deckIndex" />
+				<!-- Top: platter + pitch fader -->
+				<div class="flex items-center p-3 pb-0">
+					<TurntableSimulator
+						:deck-index="deckIndex"
+						:deck="deck"
+					/>
+					<DeckPitchFader
+						:deck-index="deckIndex"
+						class="ml-auto"
+					/>
+				</div>
+				<!-- Bottom controls: start/stop + RPM -->
+				<div class="relative z-10 flex items-end gap-2 px-3 -mt-6">
+					<TurntableStartStop :deck-index="deckIndex" />
+					<div class="flex gap-0.5">
+						<TurntableRpmSelect
+							:deck-index="deckIndex"
+							:speed="33"
+						/>
+						<TurntableRpmSelect
+							:deck-index="deckIndex"
+							:speed="45"
+						/>
+					</div>
+				</div>
 			</div>
 
 			<!-- Loaded track card below deck -->

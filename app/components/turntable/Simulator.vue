@@ -6,24 +6,18 @@ defineProps<{
 </script>
 
 <template>
-	<div class="relative h-48 w-48 shrink-0">
+	<div class="relative h-56 w-56 shrink-0 overflow-visible">
+		<!-- Tonearm base (below platter) -->
+		<TurntableTonearm :is-playing="deck.isPlaying" layer="base" />
+
 		<!-- Platter -->
 		<TurntablePlatter
 			:deck-index="deckIndex"
 			:deck="deck"
-			class="absolute inset-0"
+			class="absolute inset-0 z-10"
 		/>
 
-		<!-- Tonearm -->
-		<TurntableTonearm :is-playing="deck.isPlaying" />
-
-		<!-- Controls row: Start/Stop + RPM selectors -->
-		<div class="absolute bottom-2 left-2 flex items-end gap-1">
-			<TurntableStartStop :deck-index="deckIndex" />
-			<div class="flex flex-col gap-0.5">
-				<TurntableRpmSelect :deck-index="deckIndex" :speed="33" />
-				<TurntableRpmSelect :deck-index="deckIndex" :speed="45" />
-			</div>
-		</div>
+		<!-- Tonearm arm (above platter) -->
+		<TurntableTonearm :is-playing="deck.isPlaying" layer="arm" />
 	</div>
 </template>

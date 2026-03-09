@@ -12,23 +12,13 @@ function toggle() {
 
 <template>
 	<button
-		class="flex h-14 w-20 items-center justify-center border-[3px] border-zinc-700 bg-zinc-300 p-0 transition-all hover:bg-zinc-200"
+		class="flex h-7 w-10 items-center justify-center border-2 border-zinc-700 bg-zinc-300 p-0 transition-all hover:bg-zinc-200 active:scale-95"
 		@click="toggle"
 	>
-		<svg
-			xmlns="http://www.w3.org/2000/svg"
-			viewBox="0 0 100 100"
-			class="h-full w-full"
+		<span
+			class="text-[5px] font-medium leading-tight tracking-wide text-zinc-700 select-none"
 		>
-			<text
-				x="50"
-				y="55"
-				text-anchor="middle"
-				dominant-baseline="middle"
-				class="fill-zinc-700 text-[18px] font-medium select-none"
-			>
-				start &bull; stop
-			</text>
-		</svg>
+			START<br />&bull; STOP
+		</span>
 	</button>
 </template>

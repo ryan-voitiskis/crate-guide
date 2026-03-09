@@ -93,8 +93,8 @@ onUnmounted(() => {
 <template>
 	<svg
 		ref="platter"
-		width="192"
-		height="192"
+		width="208"
+		height="208"
 		viewBox="0 0 366 366"
 		class="shrink-0 will-change-transform"
 	>
