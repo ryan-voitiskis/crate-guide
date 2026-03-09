@@ -69,6 +69,8 @@ const trackEdit = useTrackEditStore()
 				<Button
 					size="icon"
 					variant="ghost"
+					title="Edit track"
+					aria-label="Edit track"
 					@click="trackEdit.openEditTrackDialog(track.id)"
 				>
 					<Pencil />
@@ -76,6 +78,8 @@ const trackEdit = useTrackEditStore()
 				<Button
 					size="icon"
 					variant="destructive-ghost"
+					title="Delete track"
+					aria-label="Delete track"
 					@click="recordDetails.trackToConfirmDelete = track"
 				>
 					<Trash />

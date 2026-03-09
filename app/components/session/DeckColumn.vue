@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { CircleX } from 'lucide-vue-next'
+
 const props = defineProps<{
 	deckIndex: number
 	deck: Deck
@@ -35,10 +37,20 @@ const deckBackground = computed(() => {
 <template>
 	<div class="flex h-full w-[380px] shrink-0 flex-col gap-2">
 		<!-- Deck header -->
-		<div class="px-1">
+		<div class="flex items-center justify-between px-1">
 			<span class="text-muted-foreground text-sm font-medium">
 				Deck {{ deckIndex + 1 }}
 			</span>
+			<Button
+				v-if="deck.loadedTrack"
+				variant="ghost"
+				size="icon"
+				class="h-6 w-6"
+				title="Eject track"
+				@click="session.unloadDeck(deckIndex)"
+			>
+				<CircleX class="h-3.5 w-3.5" />
+			</Button>
 		</div>
 
 		<!-- Turntable ON: SL-1200 style layout -->

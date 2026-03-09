@@ -367,6 +367,8 @@ async function focusFirstField() {
 								v-if="isEditingRow(index)"
 								size="icon"
 								variant="ghost"
+								title="Save artist"
+								aria-label="Save artist"
 								:class="[meta.valid ? 'text-green-600' : 'text-gray-400']"
 								@click="saveArtist"
 							>
@@ -376,6 +378,8 @@ async function focusFirstField() {
 								v-else
 								size="icon"
 								variant="ghost"
+								title="Edit artist"
+								aria-label="Edit artist"
 								:disabled="isFormActive"
 								@click="startEdit(index)"
 							>
@@ -385,6 +389,8 @@ async function focusFirstField() {
 								v-if="isEditingRow(index)"
 								size="icon"
 								variant="ghost"
+								title="Cancel edit"
+								aria-label="Cancel edit"
 								class="text-muted-foreground"
 								@click="cancelForm"
 							>
@@ -394,6 +400,8 @@ async function focusFirstField() {
 								v-else
 								size="icon"
 								variant="destructive-ghost"
+								title="Remove artist"
+								aria-label="Remove artist"
 								:disabled="isFormActive"
 								@click="removeArtist(index)"
 							>

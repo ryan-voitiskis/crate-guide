@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Disc3, FolderOpen, History, Save, Trash2 } from 'lucide-vue-next'
+import { Disc3, FolderOpen, History, Save } from 'lucide-vue-next'
 
 const session = useSessionStore()
 
@@ -75,13 +75,5 @@ function handleDeckCountChange(value: unknown) {
 			Save
 		</Button>
 
-		<Button
-			variant="ghost"
-			size="sm"
-			:disabled="session.currentSession.length === 0"
-			@click="session.clearSession()"
-		>
-			<Trash2 class="h-4 w-4" />
-		</Button>
 	</div>
 </template>

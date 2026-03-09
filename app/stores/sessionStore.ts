@@ -216,6 +216,16 @@ export const useSessionStore = defineStore('session', () => {
 		deck.isPlaying = !deck.isPlaying
 	}
 
+	function unloadDeck(deckIndex: number) {
+		const deck = decks.value[deckIndex]
+		if (!deck) return
+		deck.loadedTrack = null
+		deck.pitch = 0
+		deck.faderPosition = 0
+		deck.faderSliding = false
+		deck.isPlaying = false
+	}
+
 	// === Actions: Suggestion Click Handling ===
 	function handleSuggestionClick(trackId: string, sourceDeckIndex: number) {
 		if (deckCount.value === 1) {
@@ -483,6 +493,7 @@ export const useSessionStore = defineStore('session', () => {
 		setPitch,
 		setRpm,
 		togglePlaying,
+		unloadDeck,
 		handleSuggestionClick,
 		loadToSelectedDeck,
 		closeDeckSelectDialog,
