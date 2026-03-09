@@ -41,15 +41,10 @@ function resetPitch() {
 </script>
 
 <template>
-	<div
-		class="flex shrink-0 items-stretch"
-		:class="compact ? 'h-32 gap-1' : 'h-[210px] gap-0'"
-	>
-		<!-- Full mode: Reset button and pitch display stacked on the LEFT -->
-		<div
-			v-if="!compact"
-			class="mr-1 flex flex-col items-center justify-between py-1"
-		>
+	<!-- Full mode: vertical SL-1200 style -->
+	<div v-if="!compact" class="flex h-[210px] shrink-0 items-stretch gap-0">
+		<!-- Reset button and pitch display stacked on the LEFT -->
+		<div class="mr-1 flex flex-col items-center justify-between py-1">
 			<!-- Pitch percentage display -->
 			<div class="font-mono text-xs tabular-nums" :class="valueClass">
 				{{
@@ -70,21 +65,6 @@ function resetPitch() {
 				<span class="text-[11px]" :class="labelClass">reset</span>
 			</div>
 		</div>
-
-		<!-- Compact mode: Reset button on the LEFT, rotated 90deg anti-clockwise -->
-		<button
-			v-if="compact"
-			class="flex h-16 w-5 items-center justify-center self-end rounded-sm bg-zinc-300 text-zinc-700 shadow-md transition-all hover:bg-zinc-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-			:disabled="deck?.pitch === 0"
-			@click="resetPitch"
-		>
-			<span
-				class="text-[8px] font-medium"
-				style="writing-mode: vertical-rl; transform: rotate(180deg)"
-			>
-				reset
-			</span>
-		</button>
 
 		<!-- Labels and fader container -->
 		<div class="relative flex h-full">
@@ -201,15 +181,61 @@ function resetPitch() {
 					:max="100"
 					:value="deck?.faderSliding ? deck.faderPosition : (deck?.pitch ?? 0)"
 					:disabled="deck?.faderSliding"
-					class="pitch-fader"
-					:class="[
-						{ sliding: deck?.faderSliding },
-						compact ? 'pitch-fader-compact' : 'pitch-fader-full'
-					]"
+					class="pitch-fader pitch-fader-full"
+					:class="{ sliding: deck?.faderSliding }"
 					@input="handlePitchInput"
 				/>
 			</div>
 		</div>
+	</div>
+
+	<!-- Compact mode: horizontal fader with reset button on the right -->
+	<div v-else class="flex h-10 shrink-0 items-center gap-2">
+		<!-- Pitch percentage display -->
+		<div
+			class="w-10 shrink-0 text-center font-mono text-xs tabular-nums"
+			:class="valueClass"
+		>
+			{{
+				deck?.pitch !== undefined
+					? (deck.pitch > 0 ? '+' : '') +
+						((deck.pitch / 100) * pitchRange).toFixed(1)
+					: '0.0'
+			}}%
+		</div>
+
+		<!-- Horizontal fader track -->
+		<div
+			class="relative h-10 flex-1 overflow-hidden"
+			:class="faderTrackClass"
+		>
+			<!-- Center groove (vertical line at center) -->
+			<div
+				class="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 bg-zinc-950"
+			/>
+
+			<!-- Slider input (horizontal, inverted for battle mode) -->
+			<input
+				type="range"
+				:min="-100"
+				:max="100"
+				style="direction: rtl"
+				:value="deck?.faderSliding ? deck.faderPosition : (deck?.pitch ?? 0)"
+				:disabled="deck?.faderSliding"
+				class="pitch-fader-horizontal"
+				:class="{ sliding: deck?.faderSliding }"
+				@input="handlePitchInput"
+			/>
+		</div>
+
+		<!-- Reset button -->
+		<button
+			class="flex h-8 shrink-0 items-center rounded-sm bg-zinc-300 px-2 text-[10px] font-medium text-zinc-700 shadow-md transition-all hover:bg-zinc-200 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+			:disabled="deck?.pitch === 0"
+			@click="resetPitch"
+		>
+			reset
+		</button>
 	</div>
 </template>
 
@@ -230,9 +256,97 @@ function resetPitch() {
 	height: 40px;
 }
 
-.pitch-fader-compact {
-	width: 128px;
+/* Compact horizontal fader (no rotation) */
+.pitch-fader-horizontal {
+	-webkit-appearance: none;
+	appearance: none;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: transparent;
+	cursor: pointer;
+	margin: 0;
+}
+
+.pitch-fader-horizontal::-webkit-slider-runnable-track {
+	width: 100%;
+	height: 3px;
+	background: transparent;
+}
+
+.pitch-fader-horizontal::-moz-range-track {
+	width: 100%;
+	height: 3px;
+	background: transparent;
+}
+
+.pitch-fader-horizontal::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 36px;
 	height: 40px;
+	background: linear-gradient(
+		to right,
+		hsl(0, 0%, 87%) 0%,
+		hsl(0, 0%, 44%) 33%,
+		hsl(0, 0%, 87%) 33%,
+		hsl(0, 0%, 87%) 47%,
+		hsl(0, 0%, 0%) 47%,
+		hsl(0, 0%, 0%) 53%,
+		hsl(0, 0%, 87%) 53%,
+		hsl(0, 0%, 87%) 67%,
+		hsl(0, 0%, 33%) 67%,
+		hsl(0, 0%, 87%) 100%
+	);
+	border: none;
+	border-radius: 0;
+	cursor: grab;
+	box-shadow: 2px 0 4px rgba(0, 0, 0, 0.4);
+}
+
+.pitch-fader-horizontal::-webkit-slider-thumb:active {
+	cursor: grabbing;
+}
+
+.pitch-fader-horizontal::-moz-range-thumb {
+	width: 36px;
+	height: 40px;
+	background: linear-gradient(
+		to right,
+		hsl(0, 0%, 87%) 0%,
+		hsl(0, 0%, 44%) 33%,
+		hsl(0, 0%, 87%) 33%,
+		hsl(0, 0%, 87%) 47%,
+		hsl(0, 0%, 0%) 47%,
+		hsl(0, 0%, 0%) 53%,
+		hsl(0, 0%, 87%) 53%,
+		hsl(0, 0%, 87%) 67%,
+		hsl(0, 0%, 33%) 67%,
+		hsl(0, 0%, 87%) 100%
+	);
+	border: none;
+	border-radius: 0;
+	cursor: grab;
+	box-shadow: 2px 0 4px rgba(0, 0, 0, 0.4);
+}
+
+.pitch-fader-horizontal::-moz-range-thumb:active {
+	cursor: grabbing;
+}
+
+.pitch-fader-horizontal:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.pitch-fader-horizontal:disabled::-webkit-slider-thumb {
+	cursor: not-allowed;
+}
+
+.pitch-fader-horizontal:disabled::-moz-range-thumb {
+	cursor: not-allowed;
 }
 
 .pitch-fader.sliding {

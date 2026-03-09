@@ -85,17 +85,14 @@ const deckBackground = computed(() => {
 			/>
 		</template>
 
-		<!-- Turntable OFF: DeckLoadedTrack + pitch fader in a row -->
+		<!-- Turntable OFF: DeckLoadedTrack with pitch fader below -->
 		<template v-else>
-			<div class="flex gap-2">
-				<DeckLoadedTrack
-					class="flex-1"
-					:track="deck.loadedTrack ?? undefined"
-					:deck-index="deckIndex"
-					@load="showLoadDialog = true"
-				/>
-				<DeckPitchFader :deck-index="deckIndex" compact />
-			</div>
+			<DeckLoadedTrack
+				:track="deck.loadedTrack ?? undefined"
+				:deck-index="deckIndex"
+				@load="showLoadDialog = true"
+			/>
+			<DeckPitchFader :deck-index="deckIndex" compact />
 		</template>
 
 		<!-- Suggestions list -->
