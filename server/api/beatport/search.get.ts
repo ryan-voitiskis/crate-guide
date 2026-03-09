@@ -1,16 +1,8 @@
-interface BeatportTrackData {
-	accessed: number
-	url: string
-	genre: string
-	bpm: number | null
-	key: string
-	img: string
-}
-
-interface SearchTrackParams {
-	artist: string
-	title: string
-}
+import { serverSupabaseUser } from '#supabase/server'
+import type {
+	BeatportTrackData,
+	SearchTrackParams
+} from '../../../shared/types/beatport'
 
 interface BeatportTrackJSON {
 	track_id: number
@@ -285,7 +277,8 @@ function extractTrackDataFromHTML(
 		}
 
 		return null
-	} catch {
+	} catch (e) {
+		console.error('Failed to extract track data from Beatport HTML:', e)
 		return null
 	}
 }

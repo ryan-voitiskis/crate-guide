@@ -23,10 +23,7 @@ export function useUserData() {
 
 	async function loadAllUserData() {
 		if (isLoadingUserData.value) return
-		if (hasLoadedData.value) {
-			toast.error('User data already loaded')
-			return
-		}
+		if (hasLoadedData.value) return
 
 		isLoadingUserData.value = true
 

@@ -1,5 +1,9 @@
 import { toast } from 'vue-sonner'
 import { Wand } from 'lucide-vue-next'
+import type {
+	BeatportNotFoundMarker,
+	BeatportTrackData
+} from '~~/shared/types/beatport'
 
 interface BulkTrackResult {
 	trackId: string
@@ -12,21 +16,6 @@ interface BulkTrackResult {
 	bpm?: number | null
 	key?: string
 	genre?: string
-}
-
-// Local type for beatport data structure
-interface BeatportTrackData {
-	url?: string
-	bpm?: number
-	key?: string
-	img?: string
-}
-
-// Local type for "not found" marker
-interface BeatportNotFoundMarker {
-	searched: boolean
-	notFound: boolean
-	searchedAt: number
 }
 
 const BEATPORT_BULK_REQUEST_INTERVAL_MS = 1000

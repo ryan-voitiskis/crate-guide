@@ -6,7 +6,7 @@ export default defineNuxtConfig({
 	alias: {
 		test: fileURLToPath(new URL('./test', import.meta.url))
 	},
-	compatibilityDate: '2024-04-03',
+	compatibilityDate: '2026-03-01',
 	future: {
 		compatibilityVersion: 4
 	},
@@ -22,8 +22,7 @@ export default defineNuxtConfig({
 		'@nuxtjs/supabase',
 		'@pinia/nuxt',
 		'@vueuse/nuxt',
-		'shadcn-nuxt',
-		'nuxt-lucide-icons'
+		'shadcn-nuxt'
 	],
 	shadcn: {
 		prefix: '',

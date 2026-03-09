@@ -42,6 +42,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 
 	async function fetchFolderReleases() {
 		if (!selectedFolder.value) return
+		if (isLoadingSelectedFolder.value) return
 		const folder = folders.value.find((f) => f.name === selectedFolder.value)
 		if (!folder) return
 		isLoadingSelectedFolder.value = true
@@ -68,6 +69,10 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	}
 
 	async function disconnectDiscogs() {
+		if (!user.profile) {
+			toast.error('Profile not loaded.')
+			return
+		}
 		isDisconnecting.value = true
 		try {
 			const supabase = useSupabaseClient<Database>()
@@ -81,7 +86,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 					discogs_access_secret: null,
 					discogs_avatar_url: null
 				})
-				.eq('id', user.profile!.id)
+				.eq('id', user.profile?.id ?? '')
 				.select()
 			if (error) {
 				toast.error('Error disconnecting Discogs.')
@@ -115,6 +120,11 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		importPhase.value = 'fetching'
 		importResults.value = { successful: 0, skipped: [], failed: [] }
 
+		if (!user.profile) {
+			toast.error('Profile not loaded.')
+			return
+		}
+
 		try {
 			// Step 1: Handle existing releases
 			const { releasesToFetch, skipped } =
@@ -146,7 +156,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			importPhase.value = 'saving'
 			const { successful, failed: importFailed } = await importFetchedReleases(
 				releases,
-				user.profile!.id
+				user.profile.id
 			)
 			importResults.value.successful = successful
 			importResults.value.failed.push(...importFailed)

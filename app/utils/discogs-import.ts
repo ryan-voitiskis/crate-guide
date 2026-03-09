@@ -63,6 +63,11 @@ export async function fetchReleaseDetails(
 				error: isError(e) ? e.message : 'Unknown error'
 			})
 		}
+
+		// Discogs rate limit: 60 req/min, 1 req/sec burst
+		if (i < releasesToFetch.length - 1) {
+			await new Promise((r) => setTimeout(r, 1000))
+		}
 	}
 
 	return { releases, failed, cancelled: false }

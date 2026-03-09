@@ -1,16 +1,7 @@
-interface BeatportTrackData {
-	accessed: number
-	url: string
-	genre: string
-	bpm: number | null
-	key: string
-	img: string
-}
-
-interface SearchTrackParams {
-	artist: string
-	title: string
-}
+import type {
+	BeatportTrackData,
+	SearchTrackParams
+} from '~~/shared/types/beatport'
 
 interface BeatportResponse {
 	success: boolean

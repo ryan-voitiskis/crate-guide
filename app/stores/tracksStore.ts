@@ -19,7 +19,11 @@ export const useTracksStore = defineStore('tracks', () => {
 		try {
 			const userId = await user
 				.resolveAuthenticatedUserId()
-				.catch(() => null as string | null)
+				.catch((e: unknown) => {
+					console.error('Auth failed in tracksStore:', e)
+					toast.error('Failed to load data')
+					return null as string | null
+				})
 			if (!userId) return
 
 			const { data, error } = await supabase

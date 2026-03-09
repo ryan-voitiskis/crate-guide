@@ -24,6 +24,14 @@ Deno.serve(async (req) => {
 		const { httpMethod = 'GET', url, page, per_page } = await req.json()
 		if (!url) throw new Error('Missing url.')
 
+		const ALLOWED_METHODS = ['GET', 'POST'] as const
+		if (!ALLOWED_METHODS.includes(httpMethod)) {
+			return new Response(JSON.stringify({ error: 'Invalid HTTP method' }), {
+				headers,
+				status: 400
+			})
+		}
+
 		if (!validateDiscogsUrl(url)) {
 			return new Response(JSON.stringify({ error: 'Invalid Discogs URL' }), {
 				headers,
@@ -38,6 +46,14 @@ Deno.serve(async (req) => {
 			page,
 			per_page
 		)
+
+		if (!response.ok) {
+			const errorBody = await response.text()
+			return new Response(errorBody, {
+				headers,
+				status: response.status
+			})
+		}
 
 		const responseObj = await response.json()
 

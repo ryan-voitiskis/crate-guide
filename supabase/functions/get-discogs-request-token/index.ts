@@ -23,6 +23,9 @@ Deno.serve(async (req) => {
 	if (!authHeader) return new Response(null, { headers, status: 401 })
 
 	try {
+		const supabase = createAuthedSupabaseClient(authHeader)
+		const user = await getUser(supabase)
+
 		const oauthCallback = buildOAuthCallback()
 
 		const params = new URLSearchParams()
@@ -59,9 +62,6 @@ Deno.serve(async (req) => {
 				'Discogs did not provide an OAuth request token secret. Please try again.'
 			)
 
-		const supabase = createAuthedSupabaseClient(authHeader)
-		const user = await getUser(supabase)
-
 		const { error } = await supabase
 			.from('profiles')
 			.update({
@@ -81,9 +81,10 @@ Deno.serve(async (req) => {
 			e,
 			'Could not start Discogs authorization. Please try again.'
 		)
+		const status = e instanceof PublicOAuthError ? 400 : 500
 		return new Response(JSON.stringify({ error: message }), {
 			headers,
-			status: 500
+			status
 		})
 	}
 })

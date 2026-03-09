@@ -24,8 +24,10 @@ export const useDiscogsAuthStore = defineStore('discogsAuth', () => {
 		const { data, error } = await supabase.functions.invoke(
 			'get-discogs-request-token'
 		)
-		if (error) toast.error('Error authenticating with Discogs.')
-		else if (data)
+		if (error) {
+			isDiscogsConnecting.value = false
+			toast.error('Error authenticating with Discogs.')
+		} else if (data)
 			window.location.href = `https://discogs.com/oauth/authorize?oauth_token=${data}`
 	}
 

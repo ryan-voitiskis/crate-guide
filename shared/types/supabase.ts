@@ -1,12 +1,18 @@
 import type { ThemeOptions } from '~/utils/setTheme'
+import type { BeatportNotFoundMarker, BeatportTrackData } from './beatport.ts'
 import type { Database } from './database.ts'
 import type { DiscogsArtistDb, DiscogsLabelDb } from './discogs.ts'
+import type { TurntableThemeOptions } from './options.ts'
+
+export type KeyFormat = 'key' | 'camelot'
 
 export type Profile = Omit<
 	Database['public']['Tables']['profiles']['Row'],
-	'ui_theme'
+	'ui_theme' | 'key_format' | 'turntable_theme'
 > & {
 	ui_theme: ThemeOptions
+	key_format: KeyFormat
+	turntable_theme: TurntableThemeOptions
 }
 
 export type DatabaseRecord = Omit<
@@ -24,8 +30,7 @@ export type Track = Omit<
 	artists: DiscogsArtistDb[]
 	extraartists: DiscogsArtistDb[]
 	genres: string[]
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	beatport_data: any | null
+	beatport_data: BeatportTrackData | BeatportNotFoundMarker | null
 }
 
 export type Crate = Database['public']['Tables']['crates']['Row']

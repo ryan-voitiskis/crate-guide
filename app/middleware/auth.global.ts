@@ -12,7 +12,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 		return navigateTo('/')
 	}
 
-	if (user.value === null && !isPublicRoute) {
+	if (!user.value && !isPublicRoute) {
 		const { data } = await supabase.auth.getSession()
 		if (data.session?.user) return
 		return navigateTo('/login')

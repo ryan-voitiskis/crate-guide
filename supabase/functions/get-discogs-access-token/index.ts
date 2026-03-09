@@ -96,9 +96,10 @@ Deno.serve(async (req) => {
 	} catch (e) {
 		console.error('Function error:', e)
 		const message = getPublicOAuthErrorMessage(e)
+		const status = e instanceof PublicOAuthError ? 400 : 500
 		return new Response(JSON.stringify({ error: message }), {
 			headers,
-			status: 500
+			status
 		})
 	}
 })

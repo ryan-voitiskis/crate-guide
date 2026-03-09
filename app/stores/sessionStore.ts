@@ -314,8 +314,8 @@ export const useSessionStore = defineStore('session', () => {
 				.eq('id', activeSetId.value)
 
 			if (error) throw error
-		} catch {
-			// Silent fail for auto-save - don't interrupt user flow
+		} catch (e) {
+			console.error('Auto-save failed:', e)
 		} finally {
 			isAutoSaving.value = false
 		}
@@ -366,7 +366,8 @@ export const useSessionStore = defineStore('session', () => {
 			// writes it as PlayedTrackEntry[]. The double cast is needed because
 			// Supabase types played_tracks as Json, not the specific array type.
 			savedSets.value = (data as unknown as SavedSet[]) ?? []
-		} catch {
+		} catch (e) {
+			console.error(e)
 			toast.error('Failed to load saved sets')
 		} finally {
 			isLoadingSets.value = false
@@ -448,7 +449,8 @@ export const useSessionStore = defineStore('session', () => {
 				selectedSetId.value = null
 			}
 			toast.success('Set deleted')
-		} catch {
+		} catch (e) {
+			console.error(e)
 			toast.error('Failed to delete set')
 		}
 	}

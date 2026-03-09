@@ -76,7 +76,7 @@ export const useUserStore = defineStore('user', () => {
 		try {
 			const { error } = await supabase.auth.signInWithOAuth({
 				provider,
-				options: { redirectTo: `${process.env.SITE_URL}/auth/finalising` }
+				options: { redirectTo: `${window.location.origin}/auth/finalising` }
 			})
 			if (error) throw error
 		} catch (e) {
@@ -90,7 +90,8 @@ export const useUserStore = defineStore('user', () => {
 			if (error) throw error
 			profile.value = null
 			toast.success('You are now signed out.')
-		} catch {
+		} catch (e) {
+			console.error(e)
 			toast.error(`Error signing out.`, { duration: 30000 })
 		}
 	}
@@ -98,7 +99,7 @@ export const useUserStore = defineStore('user', () => {
 	async function sendPasswordResetEmail(email: string): Promise<boolean> {
 		try {
 			const { error } = await supabase.auth.resetPasswordForEmail(email, {
-				redirectTo: `${process.env.SITE_URL}/update-password`
+				redirectTo: `${window.location.origin}/update-password`
 			})
 			if (error) throw error
 			toast.success('Password reset email sent!')
@@ -150,7 +151,8 @@ export const useUserStore = defineStore('user', () => {
 				? keyFormat
 				: 'key'
 			return true
-		} catch {
+		} catch (e) {
+			console.error(e)
 			toast.error(`Error getting your profile.`, { duration: 30000 })
 			return false
 		}
@@ -190,7 +192,8 @@ export const useUserStore = defineStore('user', () => {
 				// update with the server response to ensure consistency
 				profile.value = data as Profile
 				return true
-			} catch {
+			} catch (e) {
+				console.error(e)
 				await fetchProfile()
 				toast.error(`Error updating your settings.`, { duration: 30000 })
 				return false
@@ -239,17 +242,14 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	async function deleteAllUserData(): Promise<boolean> {
-		if (!supaUser.value?.id) {
-			toast.error('You must be signed in to delete data.')
-			return false
-		}
-
 		try {
+			const userId = await resolveAuthenticatedUserId()
+
 			// Delete all records (tracks cascade automatically via FK)
 			const { error: recordsError } = await supabase
 				.from('records')
 				.delete()
-				.eq('user_id', supaUser.value.id)
+				.eq('user_id', userId)
 
 			if (recordsError) throw recordsError
 
@@ -257,7 +257,7 @@ export const useUserStore = defineStore('user', () => {
 			const { error: cratesError } = await supabase
 				.from('crates')
 				.update({ records: [] })
-				.eq('user_id', supaUser.value.id)
+				.eq('user_id', userId)
 
 			if (cratesError) throw cratesError
 
@@ -265,7 +265,7 @@ export const useUserStore = defineStore('user', () => {
 			const { error: setsError } = await supabase
 				.from('sets')
 				.update({ played_tracks: [] })
-				.eq('user_id', supaUser.value.id)
+				.eq('user_id', userId)
 
 			if (setsError) throw setsError
 

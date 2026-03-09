@@ -4,10 +4,12 @@ export async function getExistingDiscogsIds(
 	const supabase = getSupabase()
 	const discogsIds = selectedReleases.map((r) => r.id)
 
-	const { data: existingRecords } = await supabase
+	const { data: existingRecords, error } = await supabase
 		.from('records')
 		.select('discogs_id')
 		.in('discogs_id', discogsIds)
+
+	if (error) throw error
 
 	return new Set(
 		existingRecords
