@@ -4,8 +4,12 @@ const props = defineProps<{
 	deckIndex: number
 }>()
 
+const records = useRecordsStore()
 const session = useSessionStore()
 const user = useUserStore()
+
+const record = computed(() => records.getRecordById(props.track.record_id))
+const coverUrl = computed(() => record.value?.cover ?? null)
 
 const keyDisplay = computed(() => {
 	if (props.track.key === null || props.track.mode === null) return null
@@ -45,25 +49,28 @@ function handleClick() {
 
 <template>
 	<button
-		class="hover:bg-muted/50 border-border w-full rounded-lg border p-2 text-left transition-colors"
+		class="bg-card hover:bg-muted/50 w-full overflow-hidden rounded-lg border text-left transition-colors"
 		@click="handleClick"
 	>
-		<div class="flex items-start gap-2">
-			<!-- Score indicator -->
-			<div
-				class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium"
-				:class="{
-					'bg-green-500/20 text-green-500': scorePercent >= 70,
-					'bg-yellow-500/20 text-yellow-500':
-						scorePercent >= 40 && scorePercent < 70,
-					'bg-muted text-muted-foreground': scorePercent < 40
-				}"
-			>
-				{{ scorePercent }}
+		<div class="flex h-16 items-center">
+			<!-- Cover art -->
+			<div class="h-full shrink-0 aspect-square overflow-hidden">
+				<img
+					v-if="coverUrl"
+					:src="coverUrl"
+					:alt="track.title"
+					class="h-full w-full object-cover"
+				/>
+				<div
+					v-else
+					class="bg-muted flex h-full w-full items-center justify-center"
+				>
+					<span class="text-muted-foreground text-[8px]">No cover</span>
+				</div>
 			</div>
 
 			<!-- Track info -->
-			<div class="min-w-0 flex-1">
+			<div class="min-w-0 flex-1 px-2">
 				<div class="truncate text-sm leading-tight font-medium">
 					{{ track.title }}
 				</div>
@@ -72,13 +79,10 @@ function handleClick() {
 				</div>
 
 				<!-- Metadata row -->
-				<div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
-					<!-- BPM -->
+				<div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
 					<span v-if="track.bpm" class="text-muted-foreground">
 						{{ track.bpm.toFixed(0) }}
 					</span>
-
-					<!-- Key with color -->
 					<span
 						v-if="keyDisplay"
 						class="font-medium"
@@ -86,17 +90,26 @@ function handleClick() {
 					>
 						{{ keyDisplay }}
 					</span>
-
-					<!-- Key combination type -->
 					<span v-if="keyCombinationLabel" class="text-muted-foreground">
 						{{ keyCombinationLabel }}
 					</span>
-
-					<!-- Pitch adjustment needed -->
 					<span class="text-muted-foreground">
 						{{ pitchAdjustmentDisplay }}
 					</span>
 				</div>
+			</div>
+
+			<!-- Score indicator -->
+			<div
+				class="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium"
+				:class="{
+					'bg-green-500/20 text-green-500': scorePercent >= 70,
+					'bg-yellow-500/20 text-yellow-500':
+						scorePercent >= 40 && scorePercent < 70,
+					'bg-muted text-muted-foreground': scorePercent < 40
+				}"
+			>
+				{{ scorePercent }}
 			</div>
 		</div>
 	</button>

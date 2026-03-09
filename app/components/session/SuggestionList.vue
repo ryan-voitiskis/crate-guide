@@ -15,7 +15,7 @@ defineProps<{
 		</div>
 
 		<ScrollArea class="flex-1">
-			<div v-if="suggestions.length > 0" class="space-y-1 pr-2">
+			<div v-if="suggestions.length > 0" class="space-y-2">
 				<SuggestionCard
 					v-for="track in suggestions"
 					:key="track.id"
