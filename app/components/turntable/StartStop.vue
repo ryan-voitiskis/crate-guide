@@ -16,9 +16,11 @@ function toggle() {
 		@click="toggle"
 	>
 		<span
-			class="text-[5px] font-medium leading-tight tracking-wide text-zinc-700 select-none"
+			class="text-[5px] leading-tight font-medium tracking-wide text-zinc-700 select-none"
 		>
-			START<br />&bull; STOP
+			START
+			<br />
+			&bull; STOP
 		</span>
 	</button>
 </template>

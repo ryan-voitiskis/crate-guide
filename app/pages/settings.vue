@@ -67,16 +67,20 @@ const user = useUserStore()
 						>
 							<div class="space-y-1">
 								<p class="text-sm font-medium">
-									{{ user.supaUser.user_metadata?.full_name || 'Signed in user' }}
+									{{
+										user.supaUser.user_metadata?.full_name || 'Signed in user'
+									}}
 								</p>
-								<p class="text-muted-foreground text-sm">{{ user.supaUser.email }}</p>
+								<p class="text-muted-foreground text-sm">
+									{{ user.supaUser.email }}
+								</p>
 							</div>
 							<Button variant="outline" @click="user.signOut">Log out</Button>
 						</div>
 					</CardContent>
 				</Card>
 
-				<Card v-if="user.supaUser" class="gap-4 border-destructive/50">
+				<Card v-if="user.supaUser" class="border-destructive/50 gap-4">
 					<CardHeader class="pb-0">
 						<CardTitle class="text-destructive">Danger Zone</CardTitle>
 						<CardDescription>

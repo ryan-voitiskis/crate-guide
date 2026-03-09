@@ -70,7 +70,9 @@ const hasResults = computed(() => {
 						class="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20"
 					>
 						<div class="flex items-start">
-							<Info class="mt-0.5 mr-2 h-5 w-5 text-blue-600 dark:text-blue-400" />
+							<Info
+								class="mt-0.5 mr-2 h-5 w-5 text-blue-600 dark:text-blue-400"
+							/>
 							<p class="mb-2 text-blue-800 dark:text-blue-200">
 								Skipped {{ discogs.importResults.skipped.length }}
 								{{

@@ -66,4 +66,3 @@ Perform this in small commits, one subsystem at a time:
   - `npm run typecheck`
   - `npm run build`
 - If introducing temporary compatibility annotations (like `@ts-expect-error`), document why inline.
-

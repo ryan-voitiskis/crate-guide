@@ -59,7 +59,8 @@ export function useUserData() {
 	}
 
 	async function bootstrapLoadFromSession() {
-		if (user.supaUser?.id || hasLoadedData.value || isLoadingUserData.value) return
+		if (user.supaUser?.id || hasLoadedData.value || isLoadingUserData.value)
+			return
 		const userId = await user
 			.resolveAuthenticatedUserId()
 			.catch(() => null as string | null)

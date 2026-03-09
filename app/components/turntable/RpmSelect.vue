@@ -18,9 +18,7 @@ function selectSpeed() {
 		class="relative flex h-3 w-10 items-center border-2 border-zinc-700 bg-zinc-300 p-0 transition-all hover:bg-zinc-200 active:scale-95"
 		@click="selectSpeed"
 	>
-		<span
-			class="pl-1 text-[8px] font-medium text-zinc-700 select-none"
-		>
+		<span class="pl-1 text-[8px] font-medium text-zinc-700 select-none">
 			{{ speed }}
 		</span>
 

@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
-import type { Profile } from '~/../../shared/types/supabase'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Profile } from '~/../../shared/types/supabase'
 // Import after mocking
 import { useUserStore } from '../userStore'
 
@@ -292,7 +292,10 @@ describe('userStore', () => {
 				error: null
 			})
 
-			const result = await store.signInWithEmail('test@example.com', 'password123')
+			const result = await store.signInWithEmail(
+				'test@example.com',
+				'password123'
+			)
 
 			expect(result).toBe(true)
 			expect(mockRouter.push).not.toHaveBeenCalled()
@@ -489,7 +492,9 @@ describe('userStore', () => {
 			const store = useUserStore()
 			mockSupaUser.value = null
 			mockSupabaseClient.auth.getUser.mockResolvedValue({
-				data: { user: { id: 'fallback-user-id', email: 'fallback@example.com' } },
+				data: {
+					user: { id: 'fallback-user-id', email: 'fallback@example.com' }
+				},
 				error: null
 			})
 			const mockProfile = { id: 'fallback-user-id', ui_theme: 'dark' }

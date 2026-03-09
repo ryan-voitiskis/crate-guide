@@ -598,13 +598,13 @@ describe('tracksStore', () => {
 			expect(result[0]!.id).toBe('match')
 		})
 
-			it('handles tracks with null position', () => {
-				const store = useTracksStore()
-				store.tracks = [
-					createMockTrack({
-						id: 'no-position',
-						position: null as unknown as string
-					}),
+		it('handles tracks with null position', () => {
+			const store = useTracksStore()
+			store.tracks = [
+				createMockTrack({
+					id: 'no-position',
+					position: null as unknown as string
+				}),
 				createMockTrack({ id: 'with-position', position: 'A1' })
 			]
 

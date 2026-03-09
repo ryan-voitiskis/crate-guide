@@ -73,7 +73,9 @@ watch(
 
 <template>
 	<Dialog :open="open" @update:open="handleClose">
-		<DialogContent class="flex h-[90dvh] max-w-2xl flex-col gap-0 overflow-hidden p-0">
+		<DialogContent
+			class="flex h-[90dvh] max-w-2xl flex-col gap-0 overflow-hidden p-0"
+		>
 			<DialogHeader class="min-w-0 shrink-0 space-y-3 border-b p-6 pb-4">
 				<DialogTitle>Add Records</DialogTitle>
 				<DialogDescription>Add records to "{{ crate.name }}"</DialogDescription>

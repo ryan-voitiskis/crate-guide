@@ -1,8 +1,8 @@
 import { corsHeaders } from '../_shared/cors.ts'
 import {
+	PublicOAuthError,
 	buildDiscogsOAuthHttpError,
-	getPublicOAuthErrorMessage,
-	PublicOAuthError
+	getPublicOAuthErrorMessage
 } from '../_shared/discogs/oauthErrors.ts'
 import { generateToken } from '../_shared/generateToken.ts'
 import {

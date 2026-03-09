@@ -1,10 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import {
-	buildDiscogsOAuthHttpError,
-	PublicOAuthError
-} from './oauthErrors.ts'
 import { getUser, getUserProfile } from '../supabaseHelpers.ts'
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest.ts'
+import { PublicOAuthError, buildDiscogsOAuthHttpError } from './oauthErrors.ts'
 
 export async function fetchAndSetIdentity(
 	supabase: SupabaseClient,

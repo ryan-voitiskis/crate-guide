@@ -54,7 +54,7 @@ function handleClick() {
 	>
 		<div class="flex h-16 items-center">
 			<!-- Cover art -->
-			<div class="h-full shrink-0 aspect-square overflow-hidden">
+			<div class="aspect-square h-full shrink-0 overflow-hidden">
 				<img
 					v-if="coverUrl"
 					:src="coverUrl"
@@ -79,7 +79,9 @@ function handleClick() {
 				</div>
 
 				<!-- Metadata row -->
-				<div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+				<div
+					class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs"
+				>
 					<span v-if="track.bpm" class="text-muted-foreground">
 						{{ track.bpm.toFixed(0) }}
 					</span>

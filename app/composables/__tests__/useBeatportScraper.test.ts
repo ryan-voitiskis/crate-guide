@@ -3,9 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockFetch = vi.fn()
 vi.stubGlobal('$fetch', mockFetch)
 
-const { useBeatportScraper, BeatportScraperError } = await import(
-	'../useBeatportScraper'
-)
+const { useBeatportScraper, BeatportScraperError } =
+	await import('../useBeatportScraper')
 
 describe('useBeatportScraper', () => {
 	beforeEach(() => {
@@ -46,7 +45,9 @@ describe('useBeatportScraper', () => {
 		expect(requestUrl).toContain(
 			`q=${encodeURIComponent('Artist & Friends Track (Remix)')}`
 		)
-		expect(requestUrl).toContain(`artist=${encodeURIComponent('Artist & Friends')}`)
+		expect(requestUrl).toContain(
+			`artist=${encodeURIComponent('Artist & Friends')}`
+		)
 		expect(requestUrl).toContain(`title=${encodeURIComponent('Track (Remix)')}`)
 	})
 
@@ -90,7 +91,10 @@ describe('useBeatportScraper', () => {
 	})
 
 	it('throws typed api error when fetch throws with status', async () => {
-		mockFetch.mockRejectedValue({ statusCode: 429, message: 'Too many requests' })
+		mockFetch.mockRejectedValue({
+			statusCode: 429,
+			message: 'Too many requests'
+		})
 
 		const { searchTracks } = useBeatportScraper()
 		await expect(

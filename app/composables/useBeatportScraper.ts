@@ -105,8 +105,7 @@ export function useBeatportScraper() {
 			const statusCode = getStatusCode(error)
 			const type: BeatportScraperErrorType =
 				statusCode !== null ? 'api' : 'transport'
-			const statusCodeMessage =
-				statusCode !== null ? ` (${statusCode})` : ''
+			const statusCodeMessage = statusCode !== null ? ` (${statusCode})` : ''
 
 			throw new BeatportScraperError(
 				`Failed to search Beatport${statusCodeMessage}`,

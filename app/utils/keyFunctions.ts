@@ -175,7 +175,9 @@ export function getKeyStringShort(pitchClass: number, mode: number): string {
 		?.tone.slice(0, 2)} ${mode === 0 ? `Min` : `Maj`}`
 }
 
-export function isKeyFormat(value: string | null | undefined): value is KeyFormat {
+export function isKeyFormat(
+	value: string | null | undefined
+): value is KeyFormat {
 	return value === 'key' || value === 'camelot'
 }
 

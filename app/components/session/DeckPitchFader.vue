@@ -168,7 +168,10 @@ function resetPitch() {
 			</svg>
 
 			<!-- Fader track -->
-			<div class="relative h-full w-10 overflow-hidden" :class="faderTrackClass">
+			<div
+				class="relative h-full w-10 overflow-hidden"
+				:class="faderTrackClass"
+			>
 				<!-- Center groove -->
 				<div
 					class="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-zinc-950"
@@ -205,10 +208,7 @@ function resetPitch() {
 		</div>
 
 		<!-- Horizontal fader track -->
-		<div
-			class="relative h-10 flex-1 overflow-hidden"
-			:class="faderTrackClass"
-		>
+		<div class="relative h-10 flex-1 overflow-hidden" :class="faderTrackClass">
 			<!-- Center groove (vertical line at center) -->
 			<div
 				class="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 bg-zinc-950"

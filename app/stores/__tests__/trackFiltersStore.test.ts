@@ -1,5 +1,5 @@
-import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock tracks data
@@ -76,10 +76,23 @@ const mockUserStore = {
 // Mock utility functions
 const mockGetFormattedKeyString = vi.fn(
 	(key: number, mode: number, format: 'key' | 'camelot') => {
-	const keys = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
-	return format === 'camelot'
-		? `${key + 1}${mode === 0 ? 'A' : 'B'}`
-		: `${keys[key]}${mode === 0 ? 'm' : ''}`
+		const keys = [
+			'C',
+			'Db',
+			'D',
+			'Eb',
+			'E',
+			'F',
+			'Gb',
+			'G',
+			'Ab',
+			'A',
+			'Bb',
+			'B'
+		]
+		return format === 'camelot'
+			? `${key + 1}${mode === 0 ? 'A' : 'B'}`
+			: `${keys[key]}${mode === 0 ? 'm' : ''}`
 	}
 )
 

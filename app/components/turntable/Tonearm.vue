@@ -60,7 +60,12 @@ defineProps<{
 		overflow="visible"
 	>
 		<defs>
-			<linearGradient id="armTube" x1="0" y1="0" x2="1" y2="0"
+			<linearGradient
+				id="armTube"
+				x1="0"
+				y1="0"
+				x2="1"
+				y2="0"
 				gradientUnits="objectBoundingBox"
 			>
 				<stop offset="0%" stop-color="#909090" />
@@ -264,11 +269,6 @@ defineProps<{
 			stroke="#777"
 			stroke-width="0.3"
 		/>
-		<circle
-			cx="25"
-			cy="34"
-			r="1.8"
-			fill="#777"
-		/>
+		<circle cx="25" cy="34" r="1.8" fill="#777" />
 	</svg>
 </template>

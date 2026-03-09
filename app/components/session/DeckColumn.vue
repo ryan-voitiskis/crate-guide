@@ -59,32 +59,21 @@ const deckBackground = computed(() => {
 				class="relative flex h-[250px] flex-col overflow-hidden"
 				:style="{
 					background: deckBackground,
-					boxShadow: 'inset 1px 1px 0 0 rgba(255,255,255,0.15), inset -1px -1px 0 0 rgba(0,0,0,0.3)'
+					boxShadow:
+						'inset 1px 1px 0 0 rgba(255,255,255,0.15), inset -1px -1px 0 0 rgba(0,0,0,0.3)'
 				}"
 			>
 				<!-- Top: platter + pitch fader -->
 				<div class="flex items-center p-3 pb-0">
-					<TurntableSimulator
-						:deck-index="deckIndex"
-						:deck="deck"
-					/>
-					<DeckPitchFader
-						:deck-index="deckIndex"
-						class="ml-auto"
-					/>
+					<TurntableSimulator :deck-index="deckIndex" :deck="deck" />
+					<DeckPitchFader :deck-index="deckIndex" class="ml-auto" />
 				</div>
 				<!-- Bottom controls: start/stop + RPM -->
-				<div class="relative z-10 flex items-end gap-2 px-3 -mt-6">
+				<div class="relative z-10 -mt-6 flex items-end gap-2 px-3">
 					<TurntableStartStop :deck-index="deckIndex" />
 					<div class="flex gap-0.5">
-						<TurntableRpmSelect
-							:deck-index="deckIndex"
-							:speed="33"
-						/>
-						<TurntableRpmSelect
-							:deck-index="deckIndex"
-							:speed="45"
-						/>
+						<TurntableRpmSelect :deck-index="deckIndex" :speed="33" />
+						<TurntableRpmSelect :deck-index="deckIndex" :speed="45" />
 					</div>
 				</div>
 			</div>

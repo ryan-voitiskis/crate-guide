@@ -552,7 +552,10 @@ describe('beatportStore', () => {
 					bpm: 128
 				})
 			mockTracksStore.updateTrack.mockImplementation(
-				(id: string, updates: { beatport_data?: { url?: string; bpm?: number } }) => {
+				(
+					id: string,
+					updates: { beatport_data?: { url?: string; bpm?: number } }
+				) => {
 					const target = mockTracksStore.tracks.find((t) => t.id === id)
 					if (target && updates.beatport_data) {
 						target.beatport_data = updates.beatport_data

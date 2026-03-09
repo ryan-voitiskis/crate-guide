@@ -1,9 +1,9 @@
+import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import {
 	createMockDiscogsRelease,
 	resetReleaseIdCounter
 } from 'test/mocks/fixtures/discogs'
-import { nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Import after mocking
 import { useDiscogsStore } from '../discogsStore'
@@ -444,13 +444,11 @@ describe('discogsStore', () => {
 			})
 
 			let shouldCancel: (() => boolean) | undefined
-			let resolveFetch: (
-				value: {
-					releases: unknown[]
-					failed: { label: string; error: string }[]
-					cancelled: boolean
-				}
-			) => void
+			let resolveFetch: (value: {
+				releases: unknown[]
+				failed: { label: string; error: string }[]
+				cancelled: boolean
+			}) => void
 
 			mockFetchReleaseDetails.mockImplementation(
 				(
