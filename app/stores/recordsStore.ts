@@ -3,6 +3,8 @@ import { toast } from 'vue-sonner'
 export const useRecordsStore = defineStore('records', () => {
 	const supabase = useSupabaseClient<Database>()
 	const user = useUserStore()
+	const cratesStore = useCratesStore()
+	const tracksStore = useTracksStore()
 
 	const records = ref<DatabaseRecord[]>([])
 	const isLoadingRecords = ref(false)
@@ -173,6 +175,39 @@ export const useRecordsStore = defineStore('records', () => {
 		}
 	}
 
+	async function removeRecordFromCollection(id: string): Promise<boolean> {
+		isDeletingRecord.value = true
+
+		try {
+			const { error } = await supabase.rpc('remove_record_from_collection', {
+				target_record_id: id
+			})
+
+			if (error) throw error
+
+			records.value = records.value.filter((record) => record.id !== id)
+			searchResults.value = searchResults.value.filter(
+				(record) => record.id !== id
+			)
+			tracksStore.tracks = tracksStore.tracks.filter(
+				(track) => track.record_id !== id
+			)
+			cratesStore.crates = cratesStore.crates.map((crate) => ({
+				...crate,
+				records: crate.records.filter((recordId) => recordId !== id)
+			}))
+
+			toast.success('Record removed from collection')
+			return true
+		} catch (error) {
+			console.error('Failed to remove record from collection:', error)
+			toast.error('Failed to remove record')
+			return false
+		} finally {
+			isDeletingRecord.value = false
+		}
+	}
+
 	function getRecordById(id: string): DatabaseRecord | undefined {
 		return records.value.find((r: DatabaseRecord) => r.id === id)
 	}
@@ -241,6 +276,7 @@ export const useRecordsStore = defineStore('records', () => {
 		createRecord,
 		updateRecord,
 		deleteRecord,
+		removeRecordFromCollection,
 		getRecordById,
 		getRecordsByIds,
 		performSearch,

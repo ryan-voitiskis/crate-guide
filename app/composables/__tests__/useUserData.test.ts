@@ -171,7 +171,7 @@ describe('useUserData', () => {
 			expect(hasLoadedData.value).toBe(true)
 		})
 
-		it('shows error toast when already loaded', async () => {
+		it('does nothing when data is already loaded', async () => {
 			mockSupaUser.value = { id: 'user-123' }
 			const { loadAllUserData, hasLoadedData } = useUserData()
 
@@ -181,10 +181,10 @@ describe('useUserData', () => {
 
 			vi.clearAllMocks()
 
-			// Second load shows error
+			// Second load returns early
 			await loadAllUserData()
 
-			expect(mockToast.error).toHaveBeenCalledWith('User data already loaded')
+			expect(mockToast.error).not.toHaveBeenCalled()
 			expect(mockRecordsStore.fetchAllRecords).not.toHaveBeenCalled()
 		})
 

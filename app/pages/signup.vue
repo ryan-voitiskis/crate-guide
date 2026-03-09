@@ -20,18 +20,20 @@ type SignupFormValues = z.infer<typeof schema>
 
 const form = useForm({ validationSchema: toTypedSchema(schema) })
 
-const onSubmit = form.handleSubmit((values: SignupFormValues) => {
-	user.signUpWithEmail(values.email, values.password)
+const onSubmit = form.handleSubmit(async (values: SignupFormValues) => {
+	await user.signUpWithEmail(values.email, values.password)
 })
 
 async function signInWithGithub() {
 	signingInWithGithub.value = true
-	await user.signInWithProvider('github')
+	const started = await user.signInWithProvider('github')
+	if (!started) signingInWithGithub.value = false
 }
 
 async function signInWithGoogle() {
 	signingInWithGoogle.value = true
-	await user.signInWithProvider('google')
+	const started = await user.signInWithProvider('google')
+	if (!started) signingInWithGoogle.value = false
 }
 </script>
 

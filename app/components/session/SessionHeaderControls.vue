@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { Disc3, FolderOpen, History, Save } from 'lucide-vue-next'
+import {
+	AlertTriangle,
+	Disc3,
+	FolderOpen,
+	History,
+	Save
+} from 'lucide-vue-next'
 
 const session = useSessionStore()
 
@@ -55,6 +61,17 @@ function handleDeckCountChange(value: unknown) {
 
 	<!-- Right: Session actions -->
 	<div class="flex items-center gap-2">
+		<div
+			v-if="session.autoSaveError"
+			class="text-destructive border-destructive/30 bg-destructive/10 flex items-center gap-1 rounded-md border px-2 py-1 text-xs"
+			aria-live="polite"
+		>
+			<AlertTriangle class="size-3.5 shrink-0" />
+			<span class="md:hidden">Auto-save failed</span>
+			<span class="hidden max-w-56 md:inline">
+				{{ session.autoSaveError }}
+			</span>
+		</div>
 		<Button
 			variant="outline"
 			size="sm"
@@ -69,6 +86,7 @@ function handleDeckCountChange(value: unknown) {
 			variant="outline"
 			size="sm"
 			:disabled="session.currentSession.length === 0"
+			:title="session.autoSaveError ?? undefined"
 			@click="session.showSaveDialog = true"
 		>
 			<Save class="mr-1.5 h-4 w-4" />

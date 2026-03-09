@@ -8,11 +8,7 @@ export default defineConfig({
 			{
 				test: {
 					name: 'unit',
-					include: [
-						'app/utils/**/*.test.ts',
-						'shared/**/*.test.ts',
-						'server/**/*.test.ts'
-					],
+					include: ['app/utils/**/*.test.ts', 'shared/**/*.test.ts'],
 					exclude: ['app/stores/**/*.test.ts', 'app/composables/**/*.test.ts'],
 					environment: 'node'
 				},
@@ -41,6 +37,23 @@ export default defineConfig({
 						'~': fileURLToPath(new URL('./app', import.meta.url)),
 						'@': fileURLToPath(new URL('./app', import.meta.url)),
 						test: fileURLToPath(new URL('./test', import.meta.url))
+					}
+				}
+			},
+			{
+				test: {
+					name: 'server',
+					include: ['server/**/*.test.ts'],
+					environment: 'node'
+				},
+				resolve: {
+					alias: {
+						'~': fileURLToPath(new URL('./app', import.meta.url)),
+						'@': fileURLToPath(new URL('./app', import.meta.url)),
+						test: fileURLToPath(new URL('./test', import.meta.url)),
+						'#supabase/server': fileURLToPath(
+							new URL('./test/mocks/supabase-server.ts', import.meta.url)
+						)
 					}
 				}
 			},

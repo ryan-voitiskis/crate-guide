@@ -1,9 +1,9 @@
+import type { KeyFormat } from '~~/shared/types/supabase'
+
 type Option = {
 	id: string
 	name: string
 }
-
-export type KeyFormat = 'key' | 'camelot'
 
 export type HarmonyScore = {
 	harmonicAffinity: number | null // 0 - 1 compatibility of keys, 1 is a perfect combination

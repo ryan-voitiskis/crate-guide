@@ -52,7 +52,7 @@ export async function fetchReleaseDetails(
 		}
 
 		const release = releasesToFetch[i]!
-		onProgress(Math.round((i / releasesToFetch.length) * 100), release)
+		onProgress(Math.round(((i + 1) / releasesToFetch.length) * 100), release)
 
 		try {
 			const data = await discogsApi.getRelease(release.id)

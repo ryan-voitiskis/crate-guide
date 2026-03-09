@@ -3,6 +3,26 @@ import { getUser, getUserProfile } from '../supabaseHelpers.ts'
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest.ts'
 import { PublicOAuthError, buildDiscogsOAuthHttpError } from './oauthErrors.ts'
 
+function isTrustedDiscogsResourceUrl(
+	resourceUrl: unknown
+): resourceUrl is string {
+	if (typeof resourceUrl !== 'string' || resourceUrl.length === 0) {
+		return false
+	}
+
+	try {
+		const url = new URL(resourceUrl)
+		return (
+			url.protocol === 'https:' &&
+			['api.discogs.com', 'www.discogs.com', 'discogs.com'].includes(
+				url.hostname
+			)
+		)
+	} catch {
+		return false
+	}
+}
+
 export async function fetchAndSetIdentity(
 	supabase: SupabaseClient,
 	authHeader: string
@@ -28,7 +48,7 @@ export async function fetchAndSetIdentity(
 	}
 
 	let discogs_avatar_url = null
-	if (identity.resource_url) {
+	if (isTrustedDiscogsResourceUrl(identity.resource_url)) {
 		try {
 			const discogsUserResponse = await fetch(identity.resource_url)
 			if (discogsUserResponse.ok) {
@@ -38,6 +58,8 @@ export async function fetchAndSetIdentity(
 		} catch (e) {
 			console.warn('Failed to fetch Discogs avatar URL:', e)
 		}
+	} else if (identity.resource_url) {
+		console.warn('Skipping unexpected Discogs resource URL host')
 	}
 
 	const user = await getUser(supabase)

@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
-
 const recordDetails = useRecordDetailsStore()
 const recordsStore = useRecordsStore()
 const cratesStore = useCratesStore()
@@ -39,36 +37,11 @@ async function handleRemove() {
 	const recordId = record.value.id
 
 	try {
-		// Remove from all crates first (already silent, no toasts)
-		for (const crate of affectedCrates.value) {
-			await cratesStore.removeRecordFromCrate(crate.id, recordId)
-		}
-
-		// Delete the record (tracks cascade automatically)
-		// Note: recordsStore.deleteRecord shows its own toast, so we suppress it
-		const recordIndex = recordsStore.records.findIndex((r) => r.id === recordId)
-		if (recordIndex === -1) return
-
-		const removedRecord = recordsStore.records.splice(recordIndex, 1)[0]
-		if (!removedRecord) return
-
-		const supabase = useSupabaseClient<Database>()
-		const { error } = await supabase.from('records').delete().eq('id', recordId)
-
-		if (error) {
-			// Revert optimistic update
-			recordsStore.records.splice(recordIndex, 0, removedRecord)
-			throw error
-		}
+		const success = await recordsStore.removeRecordFromCollection(recordId)
+		if (!success) return
 
 		// Close any open dialogs
 		recordDetails.closeRecord()
-
-		// Show single consolidated toast
-		toast.success('Record removed from collection')
-	} catch (error) {
-		console.error('Error removing record:', error)
-		toast.error('Failed to remove record')
 	} finally {
 		isRemoving.value = false
 		recordDetails.recordToRemove = null

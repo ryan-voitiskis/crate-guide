@@ -24,7 +24,17 @@ const mockTracksStore = {
 }
 
 const mockCratesStore = {
+	crates: [] as Array<{ id: string; records: string[] }>,
 	fetchAllCrates: vi.fn().mockResolvedValue(undefined)
+}
+
+const mockSessionStore = {
+	savedSets: [] as Array<{
+		id: string
+		played_tracks: Array<{ track_id: string }>
+	}>,
+	clearSession: vi.fn(),
+	fetchSavedSets: vi.fn().mockResolvedValue(undefined)
 }
 
 const mockSetTheme = vi.fn()
@@ -50,7 +60,7 @@ function createMockProfile(overrides: Partial<Profile> = {}): Profile {
 		name: null,
 		selected_crate: 'all',
 		turntable_pitch_range: 8,
-		turntable_theme: 'classic',
+		turntable_theme: 'silver',
 		ui_theme: 'light',
 		...overrides
 	}
@@ -73,6 +83,7 @@ let mockQueryBuilder = createMockQueryBuilder()
 
 const mockSupabaseClient = {
 	from: vi.fn(() => mockQueryBuilder),
+	rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
 	auth: {
 		getSession: vi.fn().mockImplementation(async () => ({
 			data: {
@@ -107,6 +118,7 @@ vi.stubGlobal('useRouter', () => mockRouter)
 vi.stubGlobal('useRecordsStore', () => mockRecordsStore)
 vi.stubGlobal('useTracksStore', () => mockTracksStore)
 vi.stubGlobal('useCratesStore', () => mockCratesStore)
+vi.stubGlobal('useSessionStore', () => mockSessionStore)
 vi.stubGlobal('setTheme', mockSetTheme)
 vi.stubGlobal('getSavedThemePreference', mockGetSavedThemePreference)
 vi.stubGlobal('saveThemePreference', mockSaveThemePreference)
@@ -125,6 +137,7 @@ describe('userStore', () => {
 		// Reset mock query builder
 		mockQueryBuilder = createMockQueryBuilder()
 		mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
+		mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: null })
 		mockSupabaseClient.auth.getUser.mockImplementation(async () => ({
 			data: { user: mockSupaUser.value },
 			error: null
@@ -141,6 +154,15 @@ describe('userStore', () => {
 		// Reset supaUser
 		mockSupaUser.value = { id: 'test-user-id', email: 'test@example.com' }
 		mockGetSavedThemePreference.mockReturnValue('light')
+		mockCratesStore.crates = [
+			{ id: 'crate-1', records: ['record-1', 'record-2'] }
+		]
+		mockSessionStore.savedSets = [
+			{
+				id: 'set-1',
+				played_tracks: [{ track_id: 'track-1' }]
+			}
+		]
 	})
 
 	describe('initial state', () => {
@@ -246,40 +268,49 @@ describe('userStore', () => {
 	})
 
 	describe('signUpWithEmail', () => {
-		it('navigates to home on success', async () => {
+		it('returns true and navigates to home on success', async () => {
 			const store = useUserStore()
 			mockSupabaseClient.auth.signUp.mockResolvedValue({
 				data: {},
 				error: null
 			})
 
-			await store.signUpWithEmail('test@example.com', 'password123')
+			const result = await store.signUpWithEmail(
+				'test@example.com',
+				'password123'
+			)
 
+			expect(result).toBe(true)
 			expect(mockRouter.push).toHaveBeenCalledWith('/')
 		})
 
-		it('handles already registered user', async () => {
+		it('returns false when the user is already registered', async () => {
 			const store = useUserStore()
 			mockSupabaseClient.auth.signUp.mockResolvedValue({
 				data: null,
 				error: { message: 'User already registered' }
 			})
 
-			await store.signUpWithEmail('test@example.com', 'password123')
+			const result = await store.signUpWithEmail(
+				'test@example.com',
+				'password123'
+			)
 
+			expect(result).toBe(false)
 			expect(store.userAlreadyRegistered).toBe(true)
 			expect(mockRouter.push).toHaveBeenCalledWith('/login')
 		})
 
-		it('handles auth errors', async () => {
+		it('returns false on auth errors', async () => {
 			const store = useUserStore()
 			mockSupabaseClient.auth.signUp.mockResolvedValue({
 				data: null,
 				error: { message: 'Invalid email' }
 			})
 
-			await store.signUpWithEmail('invalid', 'password')
+			const result = await store.signUpWithEmail('invalid', 'password')
 
+			expect(result).toBe(false)
 			expect(mockRouter.push).not.toHaveBeenCalled()
 		})
 	})
@@ -316,45 +347,46 @@ describe('userStore', () => {
 	})
 
 	describe('signInWithProvider', () => {
-		it('calls signInWithOAuth with github', async () => {
+		it('returns true and calls signInWithOAuth with github', async () => {
 			const store = useUserStore()
 			mockSupabaseClient.auth.signInWithOAuth.mockResolvedValue({
 				data: {},
 				error: null
 			})
 
-			await store.signInWithProvider('github')
+			const result = await store.signInWithProvider('github')
 
+			expect(result).toBe(true)
 			expect(mockSupabaseClient.auth.signInWithOAuth).toHaveBeenCalledWith({
 				provider: 'github',
 				options: { redirectTo: 'https://example.com/auth/finalising' }
 			})
 		})
 
-		it('calls signInWithOAuth with google', async () => {
+		it('returns true and calls signInWithOAuth with google', async () => {
 			const store = useUserStore()
 			mockSupabaseClient.auth.signInWithOAuth.mockResolvedValue({
 				data: {},
 				error: null
 			})
 
-			await store.signInWithProvider('google')
+			const result = await store.signInWithProvider('google')
 
+			expect(result).toBe(true)
 			expect(mockSupabaseClient.auth.signInWithOAuth).toHaveBeenCalledWith({
 				provider: 'google',
 				options: { redirectTo: 'https://example.com/auth/finalising' }
 			})
 		})
 
-		it('handles OAuth errors', async () => {
+		it('returns false on OAuth errors', async () => {
 			const store = useUserStore()
 			mockSupabaseClient.auth.signInWithOAuth.mockResolvedValue({
 				data: null,
 				error: { message: 'OAuth error' }
 			})
 
-			// Should not throw
-			await expect(store.signInWithProvider('github')).resolves.not.toThrow()
+			await expect(store.signInWithProvider('github')).resolves.toBe(false)
 		})
 	})
 
@@ -869,41 +901,44 @@ describe('userStore', () => {
 			expect(result).toBe(false)
 		})
 
-		it('deletes records, clears crates and sets', async () => {
+		it('calls the transactional delete-all RPC', async () => {
 			const store = useUserStore()
-			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
 
 			await store.deleteAllUserData()
 
-			// Should call from with records, crates, sets
-			expect(mockSupabaseClient.from).toHaveBeenCalledWith('records')
-			expect(mockSupabaseClient.from).toHaveBeenCalledWith('crates')
-			expect(mockSupabaseClient.from).toHaveBeenCalledWith('sets')
+			expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+				'delete_all_user_data'
+			)
 		})
 
-		it('clears local stores on success', async () => {
+		it('clears local stores and reconciles related session state on success', async () => {
 			const store = useUserStore()
-			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
 
 			await store.deleteAllUserData()
 
 			expect(mockRecordsStore.clearRecords).toHaveBeenCalled()
 			expect(mockTracksStore.clearTracks).toHaveBeenCalled()
-			expect(mockCratesStore.fetchAllCrates).toHaveBeenCalled()
+			expect(mockSessionStore.clearSession).toHaveBeenCalled()
+			expect(mockCratesStore.crates).toEqual([{ id: 'crate-1', records: [] }])
+			expect(mockSessionStore.savedSets).toEqual([
+				{
+					id: 'set-1',
+					played_tracks: []
+				}
+			])
 		})
 
 		it('returns true on success', async () => {
 			const store = useUserStore()
-			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
 
 			const result = await store.deleteAllUserData()
 
 			expect(result).toBe(true)
 		})
 
-		it('returns false on database error', async () => {
+		it('returns false on rpc error', async () => {
 			const store = useUserStore()
-			mockQueryBuilder.eq.mockResolvedValue({
+			mockSupabaseClient.rpc.mockResolvedValue({
 				data: null,
 				error: new Error('Delete failed')
 			})
@@ -911,6 +946,18 @@ describe('userStore', () => {
 			const result = await store.deleteAllUserData()
 
 			expect(result).toBe(false)
+			expect(mockRecordsStore.clearRecords).not.toHaveBeenCalled()
+			expect(mockTracksStore.clearTracks).not.toHaveBeenCalled()
+			expect(mockSessionStore.clearSession).not.toHaveBeenCalled()
+			expect(mockCratesStore.crates).toEqual([
+				{ id: 'crate-1', records: ['record-1', 'record-2'] }
+			])
+			expect(mockSessionStore.savedSets).toEqual([
+				{
+					id: 'set-1',
+					played_tracks: [{ track_id: 'track-1' }]
+				}
+			])
 		})
 	})
 })

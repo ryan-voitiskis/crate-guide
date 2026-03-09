@@ -19,33 +19,75 @@ interface BulkTrackResult {
 }
 
 const BEATPORT_BULK_REQUEST_INTERVAL_MS = 1000
+const BEATPORT_NO_MATCH_MESSAGE = 'No matching track found'
+const BEATPORT_INVALID_TRACK_MESSAGE =
+	'Track needs artist and title to search Beatport'
+const BEATPORT_SAVE_NO_MATCH_ERROR = 'Failed to save Beatport search result'
+const BEATPORT_SAVE_DATA_ERROR = 'Failed to save Beatport data'
+
+type BeatportLookupStatus = 'success' | 'not_found' | 'invalid_input'
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null
+}
+
+function isBeatportNotFoundMarker(
+	beatportData: unknown
+): beatportData is BeatportNotFoundMarker {
+	return (
+		isObjectRecord(beatportData) &&
+		beatportData.searched === true &&
+		beatportData.notFound === true &&
+		typeof beatportData.searchedAt === 'number'
+	)
+}
 
 // Helper to check if track has been searched (found or not found)
-function hasBeenSearched(
-	beatportData: BeatportTrackData | BeatportNotFoundMarker | null
-): boolean {
-	if (!beatportData) return false
-	// If it has the notFound marker, it was searched
-	if ('notFound' in beatportData && beatportData.notFound === true) return true
-	// If it has actual data (url, bpm, etc.), it was found
-	if ('url' in beatportData && beatportData.url) return true
-	return false
+function hasBeenSearched(beatportData: unknown): boolean {
+	return hasFoundData(beatportData) || isBeatportNotFoundMarker(beatportData)
 }
 
 // Helper to check if track was found (has actual data, not just "not found" marker)
 function hasFoundData(
-	beatportData: BeatportTrackData | BeatportNotFoundMarker | null
+	beatportData: unknown
 ): beatportData is BeatportTrackData {
-	if (!beatportData) return false
-	if ('notFound' in beatportData && beatportData.notFound === true) return false
+	if (!isObjectRecord(beatportData) || isBeatportNotFoundMarker(beatportData)) {
+		return false
+	}
+
 	return (
-		'url' in beatportData &&
-		(!!beatportData.url || beatportData.bpm !== undefined)
+		typeof beatportData.accessed === 'number' &&
+		typeof beatportData.url === 'string' &&
+		typeof beatportData.genre === 'string' &&
+		(typeof beatportData.bpm === 'number' || beatportData.bpm === null) &&
+		typeof beatportData.key === 'string' &&
+		typeof beatportData.img === 'string'
 	)
 }
 
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function persistNotFoundMarker(
+	tracks: ReturnType<typeof useTracksStore>,
+	trackId: string
+): Promise<void> {
+	const notFoundMarker: BeatportNotFoundMarker = {
+		searched: true,
+		notFound: true,
+		searchedAt: Date.now()
+	}
+
+	const result = await tracks.updateTrack(
+		trackId,
+		{ beatport_data: notFoundMarker },
+		{ silent: true }
+	)
+
+	if (!result) {
+		throw new Error(BEATPORT_SAVE_NO_MATCH_ERROR)
+	}
 }
 
 export const useBeatportStore = defineStore('beatport', () => {
@@ -99,18 +141,8 @@ export const useBeatportStore = defineStore('beatport', () => {
 			})
 
 			if (!beatportData) {
-				// Save "not found" marker so we don't search again
-				const notFoundMarker: BeatportNotFoundMarker = {
-					searched: true,
-					notFound: true,
-					searchedAt: Date.now()
-				}
-				await tracks.updateTrack(
-					track.id,
-					{ beatport_data: notFoundMarker },
-					{ silent: true }
-				)
-				toast('No matching track found on Beatport', {
+				await persistNotFoundMarker(tracks, track.id)
+				toast(`${BEATPORT_NO_MATCH_MESSAGE} on Beatport`, {
 					icon: h(Wand, { class: 'size-5 text-amber-500' })
 				})
 				return false
@@ -137,7 +169,7 @@ export const useBeatportStore = defineStore('beatport', () => {
 				return true
 			}
 
-			return false
+			throw new Error(BEATPORT_SAVE_DATA_ERROR)
 		} catch (error) {
 			console.error('Error fetching Beatport data:', error)
 			toast.error('Failed to get Beatport data')
@@ -190,15 +222,17 @@ export const useBeatportStore = defineStore('beatport', () => {
 			}
 
 			try {
-				const success = await getBeatportDataSilent(track.id)
+				const result = await getBeatportDataSilent(track.id)
 
 				// Get updated track to access beatport image
 				const updatedTrack = tracksStore.getTrackById(track.id)
-				const beatportImage = updatedTrack?.beatport_data?.img || null
+				const beatportData = hasFoundData(updatedTrack?.beatport_data)
+					? updatedTrack.beatport_data
+					: null
+				const beatportImage = beatportData?.img ?? null
 
-				if (success) {
+				if (result === 'success') {
 					bulkBeatportResults.value.successful++
-					const beatportData = updatedTrack?.beatport_data
 					lastProcessedTrack.value = {
 						trackId: track.id,
 						title: track.title,
@@ -209,11 +243,11 @@ export const useBeatportStore = defineStore('beatport', () => {
 						key: beatportData?.key,
 						genre: beatportData?.genre
 					}
-				} else {
+				} else if (result === 'not_found') {
 					bulkBeatportResults.value.failed.push({
 						trackId: track.id,
 						title: track.title,
-						error: 'No matching track found'
+						error: BEATPORT_NO_MATCH_MESSAGE
 					})
 					lastProcessedTrack.value = {
 						trackId: track.id,
@@ -221,7 +255,17 @@ export const useBeatportStore = defineStore('beatport', () => {
 						artist: firstArtist,
 						image: null,
 						success: false,
-						error: 'No matching track found'
+						error: BEATPORT_NO_MATCH_MESSAGE
+					}
+				} else {
+					bulkBeatportResults.value.skipped++
+					lastProcessedTrack.value = {
+						trackId: track.id,
+						title: track.title,
+						artist: firstArtist,
+						image: null,
+						success: false,
+						error: BEATPORT_INVALID_TRACK_MESSAGE
 					}
 				}
 			} catch (error) {
@@ -265,14 +309,18 @@ export const useBeatportStore = defineStore('beatport', () => {
 	}
 
 	// Silent version for bulk operations (no toasts)
-	async function getBeatportDataSilent(trackId: string): Promise<boolean> {
+	async function getBeatportDataSilent(
+		trackId: string
+	): Promise<BeatportLookupStatus> {
 		const tracks = useTracksStore()
 		const track = tracks.getTrackById(trackId)
 
-		if (!track) return false
+		if (!track) {
+			throw new Error('Track not found')
+		}
 
 		const firstArtist = track.artists?.[0]?.name
-		if (!firstArtist || !track.title) return false
+		if (!firstArtist || !track.title) return 'invalid_input'
 
 		try {
 			const beatportScraper = useBeatportScraper()
@@ -282,18 +330,8 @@ export const useBeatportStore = defineStore('beatport', () => {
 			})
 
 			if (!beatportData) {
-				// Save "not found" marker
-				const notFoundMarker: BeatportNotFoundMarker = {
-					searched: true,
-					notFound: true,
-					searchedAt: Date.now()
-				}
-				await tracks.updateTrack(
-					track.id,
-					{ beatport_data: notFoundMarker },
-					{ silent: true }
-				)
-				return false
+				await persistNotFoundMarker(tracks, track.id)
+				return 'not_found'
 			}
 
 			const keyData = parseBeatportKey(beatportData.key)
@@ -309,7 +347,11 @@ export const useBeatportStore = defineStore('beatport', () => {
 			const result = await tracks.updateTrack(track.id, updates, {
 				silent: true
 			})
-			return result !== null
+			if (!result) {
+				throw new Error(BEATPORT_SAVE_DATA_ERROR)
+			}
+
+			return 'success'
 		} catch (error) {
 			console.error('Error fetching Beatport data:', error)
 			throw error

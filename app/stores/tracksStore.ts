@@ -1,4 +1,5 @@
 import { toast } from 'vue-sonner'
+import type { BeatportTrackData } from '~~/shared/types/beatport'
 
 export const useTracksStore = defineStore('tracks', () => {
 	const supabase = useSupabaseClient<Database>()
@@ -12,6 +13,80 @@ export const useTracksStore = defineStore('tracks', () => {
 	const tracksCount = computed(() => tracks.value.length)
 	const hasTracks = computed(() => tracks.value.length > 0)
 	const playableTracks = computed(() => tracks.value.filter((t) => t.playable))
+
+	function serializeTrackArtists(
+		artists: DiscogsArtistDb[]
+	): Database['public']['Tables']['tracks']['Insert']['artists'] {
+		return artists.map((artist) => ({
+			discogs_id: artist.discogs_id,
+			name: artist.name,
+			role: artist.role
+		}))
+	}
+
+	function serializeTrackGenres(
+		genres: string[]
+	): Database['public']['Tables']['tracks']['Insert']['genres'] {
+		return [...genres]
+	}
+
+	function serializeBeatportData(
+		beatportData: Track['beatport_data']
+	): Database['public']['Tables']['tracks']['Insert']['beatport_data'] {
+		if (!beatportData) return null
+
+		if ('notFound' in beatportData && beatportData.notFound) {
+			return {
+				searched: beatportData.searched,
+				notFound: beatportData.notFound,
+				searchedAt: beatportData.searchedAt
+			}
+		}
+
+		const trackData = beatportData as BeatportTrackData
+
+		return {
+			accessed: trackData.accessed,
+			url: trackData.url,
+			genre: trackData.genre,
+			bpm: trackData.bpm,
+			key: trackData.key,
+			img: trackData.img
+		}
+	}
+
+	function toTrackInsertPayload(
+		trackData: Omit<Track, 'id' | 'created_at' | 'updated_at'>
+	): Database['public']['Tables']['tracks']['Insert'] {
+		return {
+			...trackData,
+			artists: serializeTrackArtists(trackData.artists),
+			extraartists: serializeTrackArtists(trackData.extraartists),
+			genres: serializeTrackGenres(trackData.genres),
+			beatport_data: serializeBeatportData(trackData.beatport_data)
+		}
+	}
+
+	function toTrackUpdatePayload(
+		updates: Partial<
+			Omit<Track, 'id' | 'record_id' | 'created_at' | 'updated_at'>
+		>
+	): Database['public']['Tables']['tracks']['Update'] {
+		return {
+			...updates,
+			artists: updates.artists
+				? serializeTrackArtists(updates.artists)
+				: undefined,
+			extraartists: updates.extraartists
+				? serializeTrackArtists(updates.extraartists)
+				: undefined,
+			genres: updates.genres ? serializeTrackGenres(updates.genres) : undefined,
+			beatport_data:
+				updates.beatport_data === undefined
+					? undefined
+					: serializeBeatportData(updates.beatport_data)
+		}
+	}
 
 	async function fetchAllTracks() {
 		if (isLoadingTracks.value) return
@@ -75,9 +150,10 @@ export const useTracksStore = defineStore('tracks', () => {
 
 		isCreatingTrack.value = true
 		try {
+			const insertPayload = toTrackInsertPayload(trackData)
 			const { data, error } = await supabase
 				.from('tracks')
-				.insert(trackData)
+				.insert(insertPayload)
 				.select()
 				.single()
 
@@ -117,9 +193,10 @@ export const useTracksStore = defineStore('tracks', () => {
 		tracks.value[trackIndex] = { ...originalTrack, ...updates } as Track
 
 		try {
+			const updatePayload = toTrackUpdatePayload(updates)
 			const { data, error } = await supabase
 				.from('tracks')
-				.update(updates)
+				.update(updatePayload)
 				.eq('id', id)
 				.select()
 				.single()

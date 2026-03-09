@@ -183,10 +183,10 @@ describe('fetchReleaseDetails', () => {
 
 		await fetchReleaseDetails(releases, onProgress)
 
-		expect(onProgress).toHaveBeenCalledWith(0, expect.any(Object)) // 0/4 = 0%
 		expect(onProgress).toHaveBeenCalledWith(25, expect.any(Object)) // 1/4 = 25%
 		expect(onProgress).toHaveBeenCalledWith(50, expect.any(Object)) // 2/4 = 50%
 		expect(onProgress).toHaveBeenCalledWith(75, expect.any(Object)) // 3/4 = 75%
+		expect(onProgress).toHaveBeenCalledWith(100, expect.any(Object)) // 4/4 = 100%
 	})
 
 	it('handles fetch failures gracefully', async () => {

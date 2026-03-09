@@ -20,12 +20,14 @@ const form = useForm({ validationSchema: toTypedSchema(schema) })
 
 async function signInWithGithub() {
 	signingInWithGithub.value = true
-	await user.signInWithProvider('github')
+	const started = await user.signInWithProvider('github')
+	if (!started) signingInWithGithub.value = false
 }
 
 async function signInWithGoogle() {
 	signingInWithGoogle.value = true
-	await user.signInWithProvider('google')
+	const started = await user.signInWithProvider('google')
+	if (!started) signingInWithGoogle.value = false
 }
 
 const onSubmit = form.handleSubmit((values: LoginFormValues) =>

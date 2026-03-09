@@ -129,6 +129,7 @@ export default defineEventHandler(async (event) => {
 		if (!trackData) {
 			return {
 				success: false,
+				code: 'NO_MATCH',
 				error: 'No matching track found'
 			}
 		}

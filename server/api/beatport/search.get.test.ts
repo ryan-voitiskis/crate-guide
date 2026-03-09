@@ -16,7 +16,9 @@ vi.stubGlobal('getQuery', mockGetQuery)
 vi.stubGlobal('createError', mockCreateError)
 
 const mockServerSupabaseUser = vi.fn()
-vi.stubGlobal('serverSupabaseUser', mockServerSupabaseUser)
+vi.mock('#supabase/server', () => ({
+	serverSupabaseUser: mockServerSupabaseUser
+}))
 
 // Mock global fetch
 const mockFetch = vi.fn()
@@ -206,6 +208,7 @@ describe('beatport/search API', () => {
 
 			expect(result).toMatchObject({
 				success: false,
+				code: 'NO_MATCH',
 				error: 'No matching track found'
 			})
 		})
@@ -227,6 +230,7 @@ describe('beatport/search API', () => {
 
 			expect(result).toMatchObject({
 				success: false,
+				code: 'NO_MATCH',
 				error: 'No matching track found'
 			})
 		})
@@ -249,6 +253,7 @@ describe('beatport/search API', () => {
 
 			expect(result).toMatchObject({
 				success: false,
+				code: 'NO_MATCH',
 				error: 'No matching track found'
 			})
 		})
@@ -409,6 +414,7 @@ describe('beatport/search API', () => {
 
 				await expect(handler(alternateIpEvent)).resolves.toMatchObject({
 					success: false,
+					code: 'NO_MATCH',
 					error: 'No matching track found'
 				})
 

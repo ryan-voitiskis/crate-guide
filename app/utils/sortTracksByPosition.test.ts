@@ -108,6 +108,18 @@ describe('sortTracksByPosition', () => {
 		expect(result[1]?.id).toBe('second')
 	})
 
+	it('does not mutate the input array', () => {
+		const original = [
+			createMockTrack({ id: 'track-b', position: 'B1' }),
+			createMockTrack({ id: 'track-a', position: 'A1' })
+		]
+
+		const result = sortTracksByPosition(original)
+
+		expect(original.map((track) => track.id)).toEqual(['track-b', 'track-a'])
+		expect(result.map((track) => track.id)).toEqual(['track-a', 'track-b'])
+	})
+
 	it('handles mixed letter positions (A, B, C, D sides)', () => {
 		const tracks = [
 			createMockTrack({ position: 'D1' }),

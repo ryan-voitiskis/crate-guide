@@ -5,10 +5,12 @@ import type {
 
 interface BeatportResponse {
 	success: boolean
+	code?: string
 	data?: BeatportTrackData
 	error?: string
 }
 
+const BEATPORT_NO_MATCH_CODE = 'NO_MATCH'
 const BEATPORT_NO_MATCH_ERROR = 'No matching track found'
 
 type BeatportScraperErrorType = 'api' | 'transport'
@@ -40,7 +42,9 @@ export class BeatportScraperError extends Error {
 
 function isNoMatchResponse(response: BeatportResponse): boolean {
 	return (
-		response.success === false && response.error === BEATPORT_NO_MATCH_ERROR
+		response.success === false &&
+		(response.code === BEATPORT_NO_MATCH_CODE ||
+			response.error === BEATPORT_NO_MATCH_ERROR)
 	)
 }
 

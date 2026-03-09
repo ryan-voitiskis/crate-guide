@@ -34,6 +34,7 @@ describe('useBeatportScraper', () => {
 	it('passes encoded query and match params to endpoint', async () => {
 		mockFetch.mockResolvedValue({
 			success: false,
+			code: 'NO_MATCH',
 			error: 'No matching track found'
 		})
 
@@ -52,6 +53,19 @@ describe('useBeatportScraper', () => {
 	})
 
 	it('returns null only for explicit no-match payload', async () => {
+		mockFetch.mockResolvedValue({
+			success: false,
+			code: 'NO_MATCH',
+			error: 'No matching track found'
+		})
+
+		const { searchTracks } = useBeatportScraper()
+		const result = await searchTracks({ artist: 'Missing', title: 'Track' })
+
+		expect(result).toBeNull()
+	})
+
+	it('accepts legacy no-match payloads without the code field', async () => {
 		mockFetch.mockResolvedValue({
 			success: false,
 			error: 'No matching track found'

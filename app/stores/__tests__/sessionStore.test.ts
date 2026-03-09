@@ -20,8 +20,8 @@ const mockUserStore = {
 	supaUser: { id: 'test-user-id' }
 }
 
-const mockSupabaseClient = {
-	from: vi.fn(() => ({
+function createMockQueryBuilder() {
+	return {
 		insert: vi.fn().mockReturnThis(),
 		update: vi.fn().mockReturnThis(),
 		delete: vi.fn().mockReturnThis(),
@@ -29,7 +29,13 @@ const mockSupabaseClient = {
 		eq: vi.fn().mockReturnThis(),
 		order: vi.fn().mockReturnThis(),
 		single: vi.fn().mockResolvedValue({ data: null, error: null })
-	}))
+	}
+}
+
+let mockQueryBuilder = createMockQueryBuilder()
+
+const mockSupabaseClient = {
+	from: vi.fn(() => mockQueryBuilder)
 }
 
 // Stub Nuxt composables (these are auto-imported in the store)
@@ -44,6 +50,8 @@ describe('sessionStore', () => {
 		setActivePinia(createPinia())
 
 		// Reset mock stores
+		mockQueryBuilder = createMockQueryBuilder()
+		mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 		mockTracksStore.playableTracks = []
 		mockTracksStore.getTrackById.mockReset()
 		mockUserStore.profile = { turntable_pitch_range: 8 }
@@ -586,12 +594,109 @@ describe('sessionStore', () => {
 			store.decks[0]!.loadedTrack = createMockTrack({ id: 'loaded' })
 			store.decks[0]!.pitch = 50
 			store.decks[0]!.isPlaying = true
+			store.autoSaveError = 'Auto-save failed'
 
 			store.clearSession()
 
 			expect(store.decks[0]!.loadedTrack).toBeNull()
 			expect(store.decks[0]!.pitch).toBe(0)
 			expect(store.decks[0]!.isPlaying).toBe(false)
+			expect(store.autoSaveError).toBeNull()
+		})
+	})
+
+	describe('auto-save failures', () => {
+		it('surfaces create auto-save failures and clears the error after a successful retry', async () => {
+			vi.useFakeTimers()
+			mockQueryBuilder.single
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Insert failed')
+				})
+				.mockResolvedValueOnce({
+					data: { id: 'set-1' },
+					error: null
+				})
+			const store = useSessionStore()
+
+			try {
+				store.currentSession = [
+					{
+						track_id: 'track-1',
+						time_added: Date.now(),
+						adjusted_bpm: 128,
+						transition_rating: null
+					}
+				]
+				await vi.advanceTimersByTimeAsync(2000)
+
+				expect(store.autoSaveError).toBe(
+					'Auto-save failed. Your current session is not saved yet.'
+				)
+				expect(store.activeSetId).toBeNull()
+
+				store.currentSession = [
+					...store.currentSession,
+					{
+						track_id: 'track-2',
+						time_added: Date.now(),
+						adjusted_bpm: 129,
+						transition_rating: null
+					}
+				]
+				await vi.advanceTimersByTimeAsync(2000)
+
+				expect(store.activeSetId).toBe('set-1')
+				expect(store.autoSaveError).toBeNull()
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
+		it('surfaces update auto-save failures and clears the error after a successful retry', async () => {
+			vi.useFakeTimers()
+			mockQueryBuilder.eq
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Update failed')
+				})
+				.mockResolvedValueOnce({
+					data: null,
+					error: null
+				})
+			const store = useSessionStore()
+			store.activeSetId = 'set-1'
+
+			try {
+				store.currentSession = [
+					{
+						track_id: 'track-1',
+						time_added: Date.now(),
+						adjusted_bpm: 128,
+						transition_rating: null
+					}
+				]
+				await vi.advanceTimersByTimeAsync(2000)
+
+				expect(store.autoSaveError).toBe(
+					'Auto-save failed. Your current session is not saved yet.'
+				)
+
+				store.currentSession = [
+					...store.currentSession,
+					{
+						track_id: 'track-2',
+						time_added: Date.now(),
+						adjusted_bpm: 129,
+						transition_rating: null
+					}
+				]
+				await vi.advanceTimersByTimeAsync(2000)
+
+				expect(store.autoSaveError).toBeNull()
+			} finally {
+				vi.useRealTimers()
+			}
 		})
 	})
 

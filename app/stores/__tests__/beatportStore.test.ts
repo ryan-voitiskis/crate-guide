@@ -1,11 +1,20 @@
+import { toast } from 'vue-sonner'
 import { createPinia, setActivePinia } from 'pinia'
 import {
 	createMockTrack,
 	resetTrackIdCounter
 } from 'test/mocks/fixtures/tracks'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { BeatportTrackData } from '~~/shared/types/beatport'
+import type { Track } from '~~/shared/types/supabase'
 // Import after mocking
 import { useBeatportStore } from '../beatportStore'
+
+vi.mock('vue-sonner', () => ({
+	toast: Object.assign(vi.fn(), {
+		error: vi.fn()
+	})
+}))
 
 // Mock dependencies
 const mockTracksStore = {
@@ -31,6 +40,20 @@ vi.stubGlobal('useTracksStore', () => mockTracksStore)
 vi.stubGlobal('useBeatportScraper', () => mockBeatportScraper)
 vi.stubGlobal('h', mockH)
 vi.stubGlobal('parseBeatportKey', mockParseBeatportKey)
+
+function createBeatportTrackData(
+	overrides: Partial<BeatportTrackData> = {}
+): BeatportTrackData {
+	return {
+		accessed: Date.now(),
+		url: 'https://beatport.com/track/123',
+		genre: 'House',
+		bpm: 128,
+		key: 'Am',
+		img: 'https://example.com/track.jpg',
+		...overrides
+	}
+}
 
 describe('beatportStore', () => {
 	beforeEach(() => {
@@ -101,13 +124,13 @@ describe('beatportStore', () => {
 
 		it('returns true when url exists in data', () => {
 			const store = useBeatportStore()
-			const foundData = { url: 'https://beatport.com/track/123', bpm: 128 }
+			const foundData = createBeatportTrackData()
 			expect(store.hasBeenSearched(foundData)).toBe(true)
 		})
 
 		it('returns false for empty object', () => {
 			const store = useBeatportStore()
-			expect(store.hasBeenSearched({})).toBe(false)
+			expect(store.hasBeenSearched({} as unknown)).toBe(false)
 		})
 	})
 
@@ -129,22 +152,15 @@ describe('beatportStore', () => {
 
 		it('returns true when url exists', () => {
 			const store = useBeatportStore()
-			const foundData = { url: 'https://beatport.com/track/123' }
+			const foundData = createBeatportTrackData()
 			expect(store.hasFoundData(foundData)).toBe(true)
 		})
 
-		it('returns true when url is empty but bpm exists', () => {
+		it('returns false when required Beatport fields are missing', () => {
 			const store = useBeatportStore()
-			// url must be present (even if undefined) for the check to work
-			const foundData = { url: undefined, bpm: 128 }
-			expect(store.hasFoundData(foundData)).toBe(true)
-		})
-
-		it('returns false when bpm exists but url property is missing', () => {
-			const store = useBeatportStore()
-			// Without url property at all, hasFoundData returns false
-			const foundData = { bpm: 128 }
-			expect(store.hasFoundData(foundData)).toBe(false)
+			expect(
+				store.hasFoundData({ url: 'https://beatport.com/track/123' })
+			).toBe(false)
 		})
 	})
 
@@ -223,15 +239,32 @@ describe('beatportStore', () => {
 			)
 		})
 
+		it('returns false when saving a no-match marker fails', async () => {
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+			const store = useBeatportStore()
+			const track = createMockTrack({ id: 'track-1' })
+			mockTracksStore.getTrackById.mockReturnValue(track)
+			mockBeatportScraper.searchTracks.mockResolvedValue(null)
+			mockTracksStore.updateTrack.mockResolvedValue(false)
+
+			const result = await store.getBeatportData('track-1')
+
+			expect(result).toBe(false)
+			expect(toast).not.toHaveBeenCalledWith(
+				'No matching track found on Beatport',
+				expect.anything()
+			)
+			expect(toast.error).toHaveBeenCalledWith('Failed to get Beatport data')
+			consoleSpy.mockRestore()
+		})
+
 		it('updates track with found data', async () => {
 			const store = useBeatportStore()
 			const track = createMockTrack({ id: 'track-1', bpm: null, key: null })
 			mockTracksStore.getTrackById.mockReturnValue(track)
-			mockBeatportScraper.searchTracks.mockResolvedValue({
-				url: 'https://beatport.com/track/123',
-				bpm: 128,
-				key: 'Am'
-			})
+			mockBeatportScraper.searchTracks.mockResolvedValue(
+				createBeatportTrackData({ bpm: 128, key: 'Am' })
+			)
 			mockParseBeatportKey.mockReturnValue({ key: 9, mode: 0 })
 			mockTracksStore.updateTrack.mockResolvedValue(track)
 
@@ -250,14 +283,35 @@ describe('beatportStore', () => {
 			)
 		})
 
+		it('returns false when saving Beatport data fails', async () => {
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+			const store = useBeatportStore()
+			const track = createMockTrack({ id: 'track-1', bpm: null, key: null })
+			mockTracksStore.getTrackById.mockReturnValue(track)
+			mockBeatportScraper.searchTracks.mockResolvedValue(
+				createBeatportTrackData({ bpm: 128, key: 'Am' })
+			)
+			mockParseBeatportKey.mockReturnValue({ key: 9, mode: 0 })
+			mockTracksStore.updateTrack.mockResolvedValue(false)
+
+			const result = await store.getBeatportData('track-1')
+
+			expect(result).toBe(false)
+			expect(toast).not.toHaveBeenCalledWith(
+				'Beatport data found',
+				expect.anything()
+			)
+			expect(toast.error).toHaveBeenCalledWith('Failed to get Beatport data')
+			consoleSpy.mockRestore()
+		})
+
 		it('does not overwrite existing bpm', async () => {
 			const store = useBeatportStore()
 			const track = createMockTrack({ id: 'track-1', bpm: 125, key: null })
 			mockTracksStore.getTrackById.mockReturnValue(track)
-			mockBeatportScraper.searchTracks.mockResolvedValue({
-				url: 'https://beatport.com/track/123',
-				bpm: 128
-			})
+			mockBeatportScraper.searchTracks.mockResolvedValue(
+				createBeatportTrackData({ bpm: 128 })
+			)
 			mockParseBeatportKey.mockReturnValue({ key: null, mode: null })
 			mockTracksStore.updateTrack.mockResolvedValue(track)
 
@@ -272,10 +326,9 @@ describe('beatportStore', () => {
 			const store = useBeatportStore()
 			const track = createMockTrack({ id: 'track-1', bpm: null, key: 5 })
 			mockTracksStore.getTrackById.mockReturnValue(track)
-			mockBeatportScraper.searchTracks.mockResolvedValue({
-				url: 'https://beatport.com/track/123',
-				key: 'Am'
-			})
+			mockBeatportScraper.searchTracks.mockResolvedValue(
+				createBeatportTrackData({ key: 'Am' })
+			)
 			mockParseBeatportKey.mockReturnValue({ key: 9, mode: 0 })
 			mockTracksStore.updateTrack.mockResolvedValue(track)
 
@@ -341,7 +394,9 @@ describe('beatportStore', () => {
 			const store = useBeatportStore()
 			const searchedTrack = createMockTrack({
 				id: 'searched',
-				beatport_data: { url: 'https://beatport.com/track/1' }
+				beatport_data: createBeatportTrackData({
+					url: 'https://beatport.com/track/1'
+				})
 			})
 			const unsearchedTrack = createMockTrack({
 				id: 'unsearched',
@@ -364,7 +419,9 @@ describe('beatportStore', () => {
 			const store = useBeatportStore()
 			const searchedTrack = createMockTrack({
 				id: 'searched',
-				beatport_data: { url: 'https://beatport.com/track/1' }
+				beatport_data: createBeatportTrackData({
+					url: 'https://beatport.com/track/1'
+				})
 			})
 			const unsearchedTrack = createMockTrack({
 				id: 'unsearched',
@@ -390,10 +447,9 @@ describe('beatportStore', () => {
 			const track = createMockTrack({ id: 'track-1', beatport_data: null })
 			mockTracksStore.tracks = [track]
 			mockTracksStore.getTrackById.mockReturnValue(track)
-			mockBeatportScraper.searchTracks.mockResolvedValue({
-				url: 'https://beatport.com/track/123',
-				bpm: 128
-			})
+			mockBeatportScraper.searchTracks.mockResolvedValue(
+				createBeatportTrackData({ bpm: 128 })
+			)
 			mockTracksStore.updateTrack.mockResolvedValue(track)
 
 			await store.bulkFetchBeatportData()
@@ -413,6 +469,90 @@ describe('beatportStore', () => {
 
 			expect(store.bulkBeatportResults.failed.length).toBe(1)
 			expect(store.bulkBeatportResults.failed[0]!.trackId).toBe('track-1')
+		})
+
+		it('skips tracks that cannot be searched locally', async () => {
+			const store = useBeatportStore()
+			const track = createMockTrack({
+				id: 'track-1',
+				title: '',
+				artists: [],
+				beatport_data: null
+			})
+			mockTracksStore.tracks = [track]
+			mockTracksStore.getTrackById.mockReturnValue(track)
+
+			await store.bulkFetchBeatportData()
+
+			expect(mockBeatportScraper.searchTracks).not.toHaveBeenCalled()
+			expect(mockTracksStore.updateTrack).not.toHaveBeenCalled()
+			expect(store.bulkBeatportResults).toEqual({
+				successful: 0,
+				failed: [],
+				skipped: 1,
+				total: 1
+			})
+			expect(store.lastProcessedTrack).toMatchObject({
+				trackId: 'track-1',
+				success: false,
+				error: 'Track needs artist and title to search Beatport'
+			})
+		})
+
+		it('reports no-match marker persistence failures distinctly', async () => {
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+			const store = useBeatportStore()
+			const track = createMockTrack({ id: 'track-1', beatport_data: null })
+			mockTracksStore.tracks = [track]
+			mockTracksStore.getTrackById.mockReturnValue(track)
+			mockBeatportScraper.searchTracks.mockResolvedValue(null)
+			mockTracksStore.updateTrack.mockResolvedValue(false)
+
+			await store.bulkFetchBeatportData()
+
+			expect(store.bulkBeatportResults.successful).toBe(0)
+			expect(store.bulkBeatportResults.failed).toEqual([
+				{
+					trackId: 'track-1',
+					title: track.title,
+					error: 'Failed to save Beatport search result'
+				}
+			])
+			expect(store.lastProcessedTrack).toMatchObject({
+				trackId: 'track-1',
+				success: false,
+				error: 'Failed to save Beatport search result'
+			})
+			consoleSpy.mockRestore()
+		})
+
+		it('reports Beatport data persistence failures distinctly', async () => {
+			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+			const store = useBeatportStore()
+			const track = createMockTrack({ id: 'track-1', beatport_data: null })
+			mockTracksStore.tracks = [track]
+			mockTracksStore.getTrackById.mockReturnValue(track)
+			mockBeatportScraper.searchTracks.mockResolvedValue(
+				createBeatportTrackData()
+			)
+			mockTracksStore.updateTrack.mockResolvedValue(false)
+
+			await store.bulkFetchBeatportData()
+
+			expect(store.bulkBeatportResults.successful).toBe(0)
+			expect(store.bulkBeatportResults.failed).toEqual([
+				{
+					trackId: 'track-1',
+					title: track.title,
+					error: 'Failed to save Beatport data'
+				}
+			])
+			expect(store.lastProcessedTrack).toMatchObject({
+				trackId: 'track-1',
+				success: false,
+				error: 'Failed to save Beatport data'
+			})
+			consoleSpy.mockRestore()
 		})
 
 		it('updates progress during bulk operation', async () => {
@@ -547,15 +687,9 @@ describe('beatportStore', () => {
 						statusCode: 504
 					})
 				)
-				.mockResolvedValueOnce({
-					url: 'https://beatport.com/track/123',
-					bpm: 128
-				})
+				.mockResolvedValueOnce(createBeatportTrackData({ bpm: 128 }))
 			mockTracksStore.updateTrack.mockImplementation(
-				(
-					id: string,
-					updates: { beatport_data?: { url?: string; bpm?: number } }
-				) => {
+				(id: string, updates: { beatport_data?: Track['beatport_data'] }) => {
 					const target = mockTracksStore.tracks.find((t) => t.id === id)
 					if (target && updates.beatport_data) {
 						target.beatport_data = updates.beatport_data

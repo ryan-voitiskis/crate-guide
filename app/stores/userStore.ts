@@ -16,6 +16,19 @@ export const useUserStore = defineStore('user', () => {
 	)
 	let settingsUpdateQueue: Promise<boolean> = Promise.resolve(true)
 
+	function getSiteUrl(): string {
+		if (typeof window !== 'undefined' && window.location.origin) {
+			return window.location.origin
+		}
+
+		const configuredSiteUrl = process.env.SITE_URL?.trim()
+		if (configuredSiteUrl) {
+			return configuredSiteUrl.replace(/\/+$/, '')
+		}
+
+		throw new Error('SITE_URL is required when window.location is unavailable')
+	}
+
 	async function resolveAuthenticatedUserId(): Promise<string> {
 		const reactiveUserId = supaUser.value?.id
 		if (reactiveUserId) return reactiveUserId
@@ -40,20 +53,25 @@ export const useUserStore = defineStore('user', () => {
 	})
 	setTheme(currentTheme.value)
 
-	async function signUpWithEmail(email: string, password: string) {
+	async function signUpWithEmail(
+		email: string,
+		password: string
+	): Promise<boolean> {
 		try {
 			const { error } = await supabase.auth.signUp({ email, password })
 			if (error?.message === 'User already registered') {
 				userAlreadyRegistered.value = true
 				router.push('/login')
 				toast.warning(`You've already created an account.`)
-				return
+				return false
 			}
 			if (error) throw error
 			router.push('/')
 			toast.success('Sign up successful!')
+			return true
 		} catch (e) {
 			toast.error(isError(e) ? e.message : 'Error signing up.')
+			return false
 		}
 	}
 
@@ -72,15 +90,19 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
-	async function signInWithProvider(provider: 'github' | 'google') {
+	async function signInWithProvider(
+		provider: 'github' | 'google'
+	): Promise<boolean> {
 		try {
 			const { error } = await supabase.auth.signInWithOAuth({
 				provider,
-				options: { redirectTo: `${window.location.origin}/auth/finalising` }
+				options: { redirectTo: `${getSiteUrl()}/auth/finalising` }
 			})
 			if (error) throw error
+			return true
 		} catch (e) {
 			toast.error(isError(e) ? e.message : 'Error signing in.')
+			return false
 		}
 	}
 
@@ -99,7 +121,7 @@ export const useUserStore = defineStore('user', () => {
 	async function sendPasswordResetEmail(email: string): Promise<boolean> {
 		try {
 			const { error } = await supabase.auth.resetPasswordForEmail(email, {
-				redirectTo: `${window.location.origin}/update-password`
+				redirectTo: `${getSiteUrl()}/update-password`
 			})
 			if (error) throw error
 			toast.success('Password reset email sent!')
@@ -243,41 +265,28 @@ export const useUserStore = defineStore('user', () => {
 
 	async function deleteAllUserData(): Promise<boolean> {
 		try {
-			const userId = await resolveAuthenticatedUserId()
+			await resolveAuthenticatedUserId()
+			const { error } = await supabase.rpc('delete_all_user_data')
 
-			// Delete all records (tracks cascade automatically via FK)
-			const { error: recordsError } = await supabase
-				.from('records')
-				.delete()
-				.eq('user_id', userId)
-
-			if (recordsError) throw recordsError
-
-			// Clear all crates' records arrays (keep crate structure)
-			const { error: cratesError } = await supabase
-				.from('crates')
-				.update({ records: [] })
-				.eq('user_id', userId)
-
-			if (cratesError) throw cratesError
-
-			// Clear all sets' played_tracks arrays (keep set structure)
-			const { error: setsError } = await supabase
-				.from('sets')
-				.update({ played_tracks: [] })
-				.eq('user_id', userId)
-
-			if (setsError) throw setsError
+			if (error) throw error
 
 			// Clear local state in all stores
 			const records = useRecordsStore()
 			const tracks = useTracksStore()
 			const crates = useCratesStore()
+			const session = useSessionStore()
 
 			records.clearRecords()
 			tracks.clearTracks()
-			// Refetch crates to get the updated (empty) records arrays
-			await crates.fetchAllCrates()
+			crates.crates = crates.crates.map((crate) => ({
+				...crate,
+				records: []
+			}))
+			session.savedSets = session.savedSets.map((savedSet) => ({
+				...savedSet,
+				played_tracks: []
+			}))
+			session.clearSession()
 
 			toast.success('All records and tracks have been deleted.')
 			return true

@@ -13,7 +13,14 @@ export default defineNuxtRouteMiddleware(async (to) => {
 	}
 
 	if (!user.value && !isPublicRoute) {
-		const { data } = await supabase.auth.getSession()
+		const { data, error } = await supabase.auth.getSession()
+		if (error) {
+			console.error('Failed to restore session:', error)
+			throw createError({
+				statusCode: 503,
+				statusMessage: 'Failed to verify session'
+			})
+		}
 		if (data.session?.user) return
 		return navigateTo('/login')
 	}

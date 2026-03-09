@@ -11,11 +11,21 @@ const mockSupabaseClient = {
 }
 
 const mockNavigateTo = vi.fn((path: string) => ({ path }))
+const mockCreateError = vi.fn(
+	(options: { statusCode: number; statusMessage: string }) => {
+		const error = new Error(options.statusMessage) as Error & {
+			statusCode: number
+		}
+		error.statusCode = options.statusCode
+		return error
+	}
+)
 
 vi.stubGlobal('defineNuxtRouteMiddleware', (handler: unknown) => handler)
 vi.stubGlobal('useSupabaseUser', () => mockSupabaseUser)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
 vi.stubGlobal('navigateTo', mockNavigateTo)
+vi.stubGlobal('createError', mockCreateError)
 
 describe('auth.global middleware', () => {
 	async function loadMiddleware() {
@@ -79,5 +89,21 @@ describe('auth.global middleware', () => {
 
 		expect(mockNavigateTo).not.toHaveBeenCalled()
 		expect(result).toBeUndefined()
+	})
+
+	it('throws when session lookup fails', async () => {
+		mockGetSession.mockResolvedValue({
+			data: { session: null },
+			error: new Error('Session lookup failed')
+		})
+		const middleware = await loadMiddleware()
+
+		await expect(
+			middleware({ path: '/tracks' }, { path: '/' })
+		).rejects.toMatchObject({
+			statusCode: 503,
+			message: 'Failed to verify session'
+		})
+		expect(mockNavigateTo).not.toHaveBeenCalled()
 	})
 })

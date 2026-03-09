@@ -269,8 +269,16 @@ export type Database = {
 			[_ in never]: never
 		}
 		Functions: {
+			delete_all_user_data: {
+				Args: Record<PropertyKey, never>
+				Returns: Json
+			}
 			import_record_with_tracks: {
 				Args: { record: Json; tracks?: Json }
+				Returns: Json
+			}
+			remove_record_from_collection: {
+				Args: { target_record_id: string }
 				Returns: Json
 			}
 		}

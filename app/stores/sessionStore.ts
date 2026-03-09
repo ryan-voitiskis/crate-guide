@@ -62,6 +62,7 @@ export const useSessionStore = defineStore('session', () => {
 	const isLoadingSets = ref(false)
 	const isSavingSession = ref(false)
 	const isAutoSaving = ref(false)
+	const autoSaveError = ref<string | null>(null)
 
 	// === UI State ===
 	const showTurntableSim = ref(true)
@@ -265,6 +266,7 @@ export const useSessionStore = defineStore('session', () => {
 	function clearSession() {
 		currentSession.value = []
 		activeSetId.value = null
+		autoSaveError.value = null
 		if (autoSaveTimeout.value) {
 			clearTimeout(autoSaveTimeout.value)
 			autoSaveTimeout.value = null
@@ -284,6 +286,7 @@ export const useSessionStore = defineStore('session', () => {
 	async function createActiveSet(): Promise<string | null> {
 		if (!user.supaUser?.id || currentSession.value.length === 0) return null
 
+		isAutoSaving.value = true
 		try {
 			const { data, error } = await supabase
 				.from('sets')
@@ -296,10 +299,16 @@ export const useSessionStore = defineStore('session', () => {
 				.single()
 
 			if (error) throw error
+			autoSaveError.value = null
 			return data.id
 		} catch (e) {
 			console.error('Failed to create active set:', e)
+			autoSaveError.value =
+				'Auto-save failed. Your current session is not saved yet.'
+			toast.error(autoSaveError.value)
 			return null
+		} finally {
+			isAutoSaving.value = false
 		}
 	}
 
@@ -314,8 +323,12 @@ export const useSessionStore = defineStore('session', () => {
 				.eq('id', activeSetId.value)
 
 			if (error) throw error
+			autoSaveError.value = null
 		} catch (e) {
 			console.error('Auto-save failed:', e)
+			autoSaveError.value =
+				'Auto-save failed. Your current session is not saved yet.'
+			toast.error(autoSaveError.value)
 		} finally {
 			isAutoSaving.value = false
 		}
@@ -427,6 +440,7 @@ export const useSessionStore = defineStore('session', () => {
 
 			toast.success('Session saved')
 			showSaveDialog.value = false
+			autoSaveError.value = null
 			return savedSet
 		} catch (e) {
 			console.error('Failed to save session:', e)
@@ -472,6 +486,7 @@ export const useSessionStore = defineStore('session', () => {
 		isLoadingSets,
 		isSavingSession,
 		isAutoSaving,
+		autoSaveError,
 		showTurntableSim,
 		showHistory,
 		deckSelectDialog,
