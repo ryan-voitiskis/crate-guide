@@ -2,7 +2,7 @@ import withNuxt from './.nuxt/eslint.config.mjs'
 
 export default withNuxt(
 	{
-		ignores: ['client_old/**', 'server_old/**', 'OLD/**']
+		ignores: ['docs/tmp/**']
 	},
 	{
 		files: ['**/*.ts', '**/*.vue'],

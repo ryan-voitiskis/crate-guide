@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import type { AcceptableValue } from 'reka-ui'
+
 const user = useUserStore()
 
-function handleThemeChange(value: string) {
-	user.updateTheme(value as ThemeOptions)
+function handleThemeChange(value: AcceptableValue) {
+	if (typeof value === 'string') user.updateTheme(value as ThemeOptions)
 }
 </script>
 

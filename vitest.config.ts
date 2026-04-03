@@ -72,14 +72,6 @@ export default defineConfig({
 					}
 				}
 			}
-			// Nuxt tests - uncomment when needed for components
-			// await defineVitestProject({
-			//   test: {
-			//     name: 'nuxt',
-			//     include: ['test/nuxt/**/*.test.ts'],
-			//     environment: 'nuxt',
-			//   },
-			// }),
 		]
 	}
 })

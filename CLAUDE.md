@@ -1,4 +1,4 @@
-- Component naming: type-first PascalCase (`DialogUserSettings.vue`, `CardRecord.vue`)
+- Component naming: type-first PascalCase (`DialogRecordDetails.vue`, `CardRecordShort.vue`)
 - Tailwind utility classes only — no `<style>` blocks, no `@apply`
-- Icons use `Icon` prefix, notices use `Notice` prefix (auto-registered via nuxt.config)
+- Auto-registered prefixes via nuxt.config: `Icon` (icons), `Notice` (notices), `Turntable` (turntable)
 - Run `npm run format` after changes

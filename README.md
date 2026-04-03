@@ -170,7 +170,6 @@ Supabase Edge Functions handle Discogs OAuth flow:
 
 Additional documentation in [`docs/`](docs/):
 
-- [Development Setup](docs/DEVELOPMENT.md)
 - [Discogs Integration](docs/discogs-integration.md)
 
 ## Contributing
