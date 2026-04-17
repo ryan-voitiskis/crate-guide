@@ -305,7 +305,7 @@ Make `cors.ts` throw at module load if `SITE_URL` is missing, matching the reque
 
 **Verification** — verified. All three edge functions import the module.
 
-**Implementation:** pending commit — `supabase/functions/_shared/cors.ts` now throws at module load if `SITE_URL` is missing.
+**Implementation:** `09c305e` — `supabase/functions/_shared/cors.ts` now throws at module load if `SITE_URL` is missing.
 
 ---
 
@@ -329,6 +329,8 @@ to.path === '/demo' || to.path.startsWith('/demo/')
 ```
 
 **Verification** — verified.
+
+**Implementation:** pending commit — `app/middleware/auth.global.ts:6-10` switched to exact + slash match.
 
 ---
 
