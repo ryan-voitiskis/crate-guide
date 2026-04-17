@@ -34,106 +34,8 @@ describe('useDiscogsApi', () => {
 		mockUserStore.profile = { discogs_username: 'testuser' }
 	})
 
-	describe('makeDiscogsApiRequest', () => {
-		it('invokes supabase function with correct params', async () => {
-			mockInvoke.mockResolvedValue({ data: { test: true }, error: null })
-
-			const { makeDiscogsApiRequest } = useDiscogsApi()
-			await makeDiscogsApiRequest('GET', 'https://api.discogs.com/test')
-
-			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
-				body: JSON.stringify({
-					httpMethod: 'GET',
-					url: 'https://api.discogs.com/test'
-				})
-			})
-		})
-
-		it('includes additional params in request body', async () => {
-			mockInvoke.mockResolvedValue({ data: {}, error: null })
-
-			const { makeDiscogsApiRequest } = useDiscogsApi()
-			await makeDiscogsApiRequest('GET', 'https://api.discogs.com/test', {
-				page: 1,
-				per_page: 50
-			})
-
-			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
-				body: JSON.stringify({
-					httpMethod: 'GET',
-					url: 'https://api.discogs.com/test',
-					page: 1,
-					per_page: 50
-				})
-			})
-		})
-
-		it('returns data on success', async () => {
-			const expectedData = { releases: [], pagination: {} }
-			mockInvoke.mockResolvedValue({ data: expectedData, error: null })
-
-			const { makeDiscogsApiRequest } = useDiscogsApi()
-			const result = await makeDiscogsApiRequest(
-				'GET',
-				'https://api.discogs.com/test'
-			)
-
-			expect(result).toEqual(expectedData)
-		})
-
-		it('throws error with message when request fails', async () => {
-			mockInvoke.mockResolvedValue({
-				data: null,
-				error: { message: 'Rate limit exceeded' }
-			})
-
-			const { makeDiscogsApiRequest } = useDiscogsApi()
-
-			await expect(
-				makeDiscogsApiRequest('GET', 'https://api.discogs.com/test')
-			).rejects.toThrow('Rate limit exceeded')
-		})
-
-		it('throws error with toString when no message', async () => {
-			mockInvoke.mockResolvedValue({
-				data: null,
-				error: { toString: () => 'Network error' }
-			})
-
-			const { makeDiscogsApiRequest } = useDiscogsApi()
-
-			await expect(
-				makeDiscogsApiRequest('GET', 'https://api.discogs.com/test')
-			).rejects.toThrow('Network error')
-		})
-
-		it('throws object string when no error message available', async () => {
-			// When error is an empty object, toString() returns '[object Object]'
-			mockInvoke.mockResolvedValue({
-				data: null,
-				error: {}
-			})
-
-			const { makeDiscogsApiRequest } = useDiscogsApi()
-
-			await expect(
-				makeDiscogsApiRequest('GET', 'https://api.discogs.com/test')
-			).rejects.toThrow('[object Object]')
-		})
-
-		it('propagates invoke rejection errors', async () => {
-			mockInvoke.mockRejectedValue(new Error('Network down'))
-
-			const { makeDiscogsApiRequest } = useDiscogsApi()
-
-			await expect(
-				makeDiscogsApiRequest('GET', 'https://api.discogs.com/test')
-			).rejects.toThrow('Network down')
-		})
-	})
-
 	describe('getFolders', () => {
-		it('calls correct endpoint with username', async () => {
+		it('invokes dispatcher with the folders endpoint', async () => {
 			mockInvoke.mockResolvedValue({
 				data: { folders: [] },
 				error: null
@@ -143,32 +45,61 @@ describe('useDiscogsApi', () => {
 			await getFolders()
 
 			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
-				body: JSON.stringify({
-					httpMethod: 'GET',
-					url: 'https://api.discogs.com/users/testuser/collection/folders'
-				})
+				body: JSON.stringify({ endpoint: 'folders' })
 			})
 		})
 
-		it('throws error when no discogs username', async () => {
+		it('throws when no discogs username', async () => {
 			mockUserStore.profile = { discogs_username: null }
 
 			const { getFolders } = useDiscogsApi()
 
 			await expect(getFolders()).rejects.toThrow('Discogs username required.')
+			expect(mockInvoke).not.toHaveBeenCalled()
 		})
 
-		it('throws error when profile is null', async () => {
+		it('throws when profile is null', async () => {
 			mockUserStore.profile = null
 
 			const { getFolders } = useDiscogsApi()
 
 			await expect(getFolders()).rejects.toThrow('Discogs username required.')
+			expect(mockInvoke).not.toHaveBeenCalled()
+		})
+
+		it('surfaces dispatcher errors', async () => {
+			mockInvoke.mockResolvedValue({
+				data: null,
+				error: { message: 'Rate limit exceeded' }
+			})
+
+			const { getFolders } = useDiscogsApi()
+
+			await expect(getFolders()).rejects.toThrow('Rate limit exceeded')
+		})
+
+		it('falls back to toString when error has no message', async () => {
+			mockInvoke.mockResolvedValue({
+				data: null,
+				error: { toString: () => 'Network error' }
+			})
+
+			const { getFolders } = useDiscogsApi()
+
+			await expect(getFolders()).rejects.toThrow('Network error')
+		})
+
+		it('propagates invoke rejection errors', async () => {
+			mockInvoke.mockRejectedValue(new Error('Network down'))
+
+			const { getFolders } = useDiscogsApi()
+
+			await expect(getFolders()).rejects.toThrow('Network down')
 		})
 	})
 
 	describe('getFolderReleases', () => {
-		it('calls correct endpoint with folder ID and default pagination', async () => {
+		it('invokes dispatcher with folder id and default pagination', async () => {
 			mockInvoke.mockResolvedValue({
 				data: { releases: [] },
 				error: null
@@ -179,15 +110,15 @@ describe('useDiscogsApi', () => {
 
 			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
 				body: JSON.stringify({
-					httpMethod: 'GET',
-					url: 'https://api.discogs.com/users/testuser/collection/folders/0/releases',
+					endpoint: 'folder_releases',
+					folder_id: 0,
 					page: 1,
 					per_page: 100
 				})
 			})
 		})
 
-		it('includes custom pagination params', async () => {
+		it('invokes dispatcher with custom pagination', async () => {
 			mockInvoke.mockResolvedValue({
 				data: { releases: [] },
 				error: null
@@ -198,15 +129,15 @@ describe('useDiscogsApi', () => {
 
 			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
 				body: JSON.stringify({
-					httpMethod: 'GET',
-					url: 'https://api.discogs.com/users/testuser/collection/folders/1/releases',
+					endpoint: 'folder_releases',
+					folder_id: 1,
 					page: 3,
 					per_page: 50
 				})
 			})
 		})
 
-		it('throws error when no discogs username', async () => {
+		it('throws when no discogs username', async () => {
 			mockUserStore.profile = { discogs_username: '' }
 
 			const { getFolderReleases } = useDiscogsApi()
@@ -214,11 +145,12 @@ describe('useDiscogsApi', () => {
 			await expect(getFolderReleases(0)).rejects.toThrow(
 				'Discogs username required.'
 			)
+			expect(mockInvoke).not.toHaveBeenCalled()
 		})
 	})
 
 	describe('getRelease', () => {
-		it('calls correct endpoint with release ID', async () => {
+		it('invokes dispatcher with release id', async () => {
 			const mockRelease = { id: 12345, title: 'Test Album' }
 			mockInvoke.mockResolvedValue({
 				data: mockRelease,
@@ -229,10 +161,7 @@ describe('useDiscogsApi', () => {
 			const result = await getRelease(12345)
 
 			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
-				body: JSON.stringify({
-					httpMethod: 'GET',
-					url: 'https://api.discogs.com/releases/12345'
-				})
+				body: JSON.stringify({ endpoint: 'release', release_id: 12345 })
 			})
 			expect(result).toEqual(mockRelease)
 		})

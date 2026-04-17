@@ -185,6 +185,8 @@ The UI never uses `POST` and never embeds query params inside `url`. The signatu
 
 **Verification** — verified. Single caller (`useDiscogsApi.ts`) with three distinct endpoints. POST path unused. Query-param signature gap confirmed but currently unexercised.
 
+**Implementation:** pending commit — `authenticated-discogs-request/index.ts` rewritten as a per-endpoint dispatcher that accepts `{ endpoint: 'folders' | 'folder_releases' | 'release', ...structured params }` and builds the Discogs URL server-side from the caller's profile (never a raw URL from the client). Unknown endpoints return 400; validation errors return 400; only GET is supported. `makeAuthenticatedRequest.ts` now takes `(url, authHeader)`: it parses every query param off the input URL via `new URL()`, merges them into the OAuth signature base string alongside the oauth_* params, and rebuilds the final URL from the signed set (RFC 5849 §3.4.1.3.2 compliant). `useDiscogsApi.ts` drops the generic `makeDiscogsApiRequest` and exposes only the three named methods, which now send `{ endpoint, ...params }` bodies. Tests updated accordingly.
+
 ---
 
 ### H5. Rate limiter broken on Cloudflare isolates + `X-Forwarded-For` trusted as-is
@@ -257,7 +259,7 @@ On the next schema consolidation, replace the init body with a short comment poi
 
 **Verification** — verified superseded.
 
-**Implementation:** pending commit — added a `NOTE: SUPERSEDED by 20260223143000_fix_import_record_with_tracks_auth_uid.sql` block above the function in `20250823004226_init.sql` directing readers to the fix migration. Body left intact so the migration still runs standalone; the later migration's `CREATE OR REPLACE` installs the fixed body on reset.
+**Implementation:** `6255f4d` — added a `NOTE: SUPERSEDED by 20260223143000_fix_import_record_with_tracks_auth_uid.sql` block above the function in `20250823004226_init.sql` directing readers to the fix migration. Body left intact so the migration still runs standalone; the later migration's `CREATE OR REPLACE` installs the fixed body on reset.
 
 ---
 

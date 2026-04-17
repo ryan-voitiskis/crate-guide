@@ -10,12 +10,20 @@ const oauth_consumer_key = Deno.env.get('DISCOGS_CONSUMER_KEY') || ''
 const oauth_consumer_secret = Deno.env.get('DISCOGS_CONSUMER_SECRET') || ''
 const userAgent = Deno.env.get('DISCOGS_USER_AGENT') || ''
 
+/**
+ * Make an authenticated Discogs GET request on behalf of the calling user.
+ *
+ * The signature base string includes every query parameter present on the
+ * input URL plus the OAuth parameters. This matches RFC 5849 §3.4.1.3.2 and
+ * is stricter than the Discogs server appears to require today, but future-
+ * proofs us against them tightening validation.
+ *
+ * POST is intentionally not supported — no UI feature needs it, and removing
+ * it keeps the blast radius of a coerced-client attack scoped to reads.
+ */
 export async function makeAuthenticatedRequest(
-	httpMethod: 'GET' | 'POST',
 	url: string,
-	authHeader: string,
-	page?: number,
-	per_page?: number
+	authHeader: string
 ): Promise<Response> {
 	const supabase = createAuthedSupabaseClient(authHeader)
 	const user = await getUser(supabase)
@@ -25,10 +33,16 @@ export async function makeAuthenticatedRequest(
 	if (!profile.discogs_access_secret)
 		throw new Error('Missing Discogs access token secret.')
 
+	const parsedUrl = new URL(url)
+	const baseUrl = `${parsedUrl.origin}${parsedUrl.pathname}`
+
 	const oauth_nonce = await generateToken(12)
 	const oauth_timestamp = Math.floor(Date.now() / 1000).toString()
 
-	let signatureParams = {
+	// Merge OAuth params with every query param present on the caller-supplied
+	// URL. oauthSignature.generate encodes and sorts keys per the spec; we just
+	// need to hand it the complete param set.
+	const signatureParams: Record<string, string> = {
 		oauth_consumer_key,
 		oauth_token: profile.discogs_access_token,
 		oauth_nonce,
@@ -36,35 +50,26 @@ export async function makeAuthenticatedRequest(
 		oauth_signature_method: 'HMAC-SHA1',
 		oauth_version: '1.0'
 	}
-	if (page) signatureParams = Object.assign(signatureParams, { page })
-	if (per_page) signatureParams = Object.assign(signatureParams, { per_page })
+	for (const [key, value] of parsedUrl.searchParams) {
+		signatureParams[key] = value
+	}
 
-	// generates a RFC 3986 encoded, BASE64 encoded HMAC-SHA1 hash
 	const encodedSignature = oauthSignature.generate(
-		httpMethod,
-		url,
+		'GET',
+		baseUrl,
 		signatureParams,
 		oauth_consumer_secret,
 		profile.discogs_access_secret
 	)
 
-	const URLParams = new URLSearchParams()
-	URLParams.append('oauth_consumer_key', oauth_consumer_key)
-	URLParams.append('oauth_token', profile.discogs_access_token)
-	URLParams.append('oauth_signature', encodedSignature)
-	URLParams.append('oauth_signature_method', 'HMAC-SHA1')
-	URLParams.append('oauth_timestamp', oauth_timestamp)
-	URLParams.append('oauth_nonce', oauth_nonce)
-	URLParams.append('oauth_version', '1.0')
-	if (page) URLParams.append('page', page.toString())
-	if (per_page) URLParams.append('per_page', per_page.toString())
-
-	const options = {
-		method: httpMethod,
-		headers: {
-			'User-Agent': userAgent
-		}
+	const finalParams = new URLSearchParams()
+	for (const [key, value] of Object.entries(signatureParams)) {
+		finalParams.append(key, value)
 	}
+	finalParams.append('oauth_signature', encodedSignature)
 
-	return await fetch(`${url}?${URLParams}`, options)
+	return await fetch(`${baseUrl}?${finalParams}`, {
+		method: 'GET',
+		headers: { 'User-Agent': userAgent }
+	})
 }
