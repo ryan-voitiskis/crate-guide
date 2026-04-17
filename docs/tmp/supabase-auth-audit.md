@@ -117,7 +117,7 @@ Either way, the code + config need work.
 
 **Verification** — verified. `config.toml:110` confirmed; `userStore.ts:56-76` confirmed to ignore the `data.session == null` case.
 
-**Implementation:** pending commit — `supabase/config.toml` sets `enable_confirmations = true` and bumps `max_frequency` to `"60s"` (L6 folded in). `signUpWithEmail` now routes to `/auth/check-inbox` when `data.session` is null; still routes to `/` in the no-confirmation flow. New `app/pages/auth/check-inbox.vue` instructs the user to open their inbox and confirm. Existing `app/pages/auth/confirm.vue` already handles the link-click flow. Tests updated to cover both signup paths.
+**Implementation:** `ce87888` — `supabase/config.toml` sets `enable_confirmations = true` and bumps `max_frequency` to `"60s"` (L6 folded in). `signUpWithEmail` now routes to `/auth/check-inbox` when `data.session` is null; still routes to `/` in the no-confirmation flow. New `app/pages/auth/check-inbox.vue` instructs the user to open their inbox and confirm. Existing `app/pages/auth/confirm.vue` already handles the link-click flow. Tests updated to cover both signup paths.
 
 ---
 
@@ -213,6 +213,8 @@ The UI never uses `POST` and never embeds query params inside `url`. The signatu
 Recommend (1) over (4): once the table exists, any future abuse-prone endpoint gets atomic, platform-portable rate limiting for free.
 
 **Verification** — verified. No other consumer of `getClientIp`. Platform confirmed as Cloudflare Pages.
+
+**Implementation:** pending commit — `nuxt.config.ts` now sets `nitro.preset = 'cloudflare-pages'`. New migration `supabase/migrations/20260417120200_add_rate_limit_rpc.sql` adds `public.rate_limits` (RLS-enabled, no policies — writes only through the RPC) and `public.check_rate_limit(rate_keys TEXT[], max_requests INT, window_ms INT)` with multi-key atomic semantics: if any key would exceed, none increment and it returns false (preserves "don't consume user quota when shared IP is limited"). New shared helper `server/utils/getClientIp.ts` reads `cf-connecting-ip` only, falling back to `socket.remoteAddress`; never trusts `X-Forwarded-For`. `server/api/beatport/search.get.ts` now calls the RPC with `['beatport:user:<uid>', 'beatport:ip:<addr>']`. Types regenerated (`supabase gen types typescript --local`). `npm run build` produces the `cloudflare-pages` Nitro output under `dist/_worker.js`.
 
 ---
 

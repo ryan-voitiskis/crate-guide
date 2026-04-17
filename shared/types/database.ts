@@ -124,6 +124,24 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			rate_limits: {
+				Row: {
+					count: number
+					key: string
+					reset_at: string
+				}
+				Insert: {
+					count: number
+					key: string
+					reset_at: string
+				}
+				Update: {
+					count?: number
+					key?: string
+					reset_at?: string
+				}
+				Relationships: []
+			}
 			records: {
 				Row: {
 					artists: Json
@@ -269,10 +287,11 @@ export type Database = {
 			[_ in never]: never
 		}
 		Functions: {
-			delete_all_user_data: {
-				Args: Record<PropertyKey, never>
-				Returns: Json
+			check_rate_limit: {
+				Args: { max_requests: number; rate_keys: string[]; window_ms: number }
+				Returns: boolean
 			}
+			delete_all_user_data: { Args: never; Returns: Json }
 			import_record_with_tracks: {
 				Args: { record: Json; tracks?: Json }
 				Returns: Json

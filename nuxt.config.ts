@@ -11,6 +11,9 @@ export default defineNuxtConfig({
 		compatibilityVersion: 4
 	},
 	ssr: false,
+	nitro: {
+		preset: 'cloudflare-pages'
+	},
 	devtools: { enabled: false },
 	css: ['~/assets/css/main.css'],
 	vite: {

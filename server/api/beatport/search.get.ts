@@ -1,8 +1,9 @@
-import { serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import type {
 	BeatportTrackData,
 	SearchTrackParams
 } from '../../../shared/types/beatport'
+import { getClientIp } from '../../utils/getClientIp'
 
 interface BeatportTrackJSON {
 	track_id: number
@@ -28,18 +29,9 @@ interface BeatportTrackJSON {
 	track_image_dynamic_uri?: string
 }
 
-interface RateLimitEntry {
-	count: number
-	resetAt: number
-}
-
 const RATE_LIMIT_WINDOW_MS = 1000
 const RATE_LIMIT_MAX_REQUESTS = 1
-const RATE_LIMIT_CLEANUP_INTERVAL_MS = RATE_LIMIT_WINDOW_MS
 const BEATPORT_REQUEST_TIMEOUT_MS = 10_000
-// Process-local in-memory limiter: applies per Node.js process only.
-const rateLimitStore = new Map<string, RateLimitEntry>()
-let lastRateLimitCleanupAt = 0
 
 export default defineEventHandler(async (event) => {
 	const user = await serverSupabaseUser(event)
@@ -71,21 +63,36 @@ export default defineEventHandler(async (event) => {
 	}
 
 	const clientIp = getClientIp(event)
-	const rateLimitKeys = new Set<string>()
+	const rateLimitKeys: string[] = []
 
 	if (typeof user.id === 'string' && user.id.length > 0) {
-		rateLimitKeys.add(`user:${user.id}`)
+		rateLimitKeys.push(`beatport:user:${user.id}`)
 	}
 
 	if (typeof clientIp === 'string' && clientIp.length > 0) {
-		rateLimitKeys.add(`ip:${clientIp}`)
+		rateLimitKeys.push(`beatport:ip:${clientIp}`)
 	}
 
-	if (rateLimitKeys.size === 0) {
-		rateLimitKeys.add('user:unknown')
+	if (rateLimitKeys.length === 0) {
+		rateLimitKeys.push('beatport:user:unknown')
 	}
 
-	if (isRateLimited(Array.from(rateLimitKeys))) {
+	const supabase = await serverSupabaseClient(event)
+	const { data: allowed, error: rateLimitError } = await supabase.rpc(
+		'check_rate_limit',
+		{
+			rate_keys: rateLimitKeys,
+			max_requests: RATE_LIMIT_MAX_REQUESTS,
+			window_ms: RATE_LIMIT_WINDOW_MS
+		}
+	)
+	if (rateLimitError) {
+		throw createError({
+			statusCode: 500,
+			statusMessage: 'Rate limit check failed'
+		})
+	}
+	if (!allowed) {
 		throw createError({
 			statusCode: 429,
 			statusMessage: 'Too many requests'
@@ -158,79 +165,6 @@ export default defineEventHandler(async (event) => {
 		clearTimeout(timeoutId)
 	}
 })
-
-function isRateLimited(keys: string[]): boolean {
-	const now = Date.now()
-	pruneExpiredRateLimitEntries(now)
-
-	for (const key of keys) {
-		const existingEntry = rateLimitStore.get(key)
-		const nextCount =
-			!existingEntry || existingEntry.resetAt <= now
-				? 1
-				: existingEntry.count + 1
-		if (nextCount > RATE_LIMIT_MAX_REQUESTS) {
-			return true
-		}
-	}
-
-	for (const key of keys) {
-		const existingEntry = rateLimitStore.get(key)
-		if (!existingEntry || existingEntry.resetAt <= now) {
-			rateLimitStore.set(key, {
-				count: 1,
-				resetAt: now + RATE_LIMIT_WINDOW_MS
-			})
-			continue
-		}
-		existingEntry.count += 1
-	}
-
-	return false
-}
-
-function pruneExpiredRateLimitEntries(now: number): void {
-	if (now - lastRateLimitCleanupAt < RATE_LIMIT_CLEANUP_INTERVAL_MS) {
-		return
-	}
-
-	for (const [key, entry] of rateLimitStore) {
-		if (entry.resetAt <= now) {
-			rateLimitStore.delete(key)
-		}
-	}
-
-	lastRateLimitCleanupAt = now
-}
-
-function getClientIp(event: unknown): string | null {
-	const request = (
-		event as {
-			node?: {
-				req?: {
-					headers?: Record<string, string | string[] | undefined>
-					socket?: { remoteAddress?: string | null }
-				}
-			}
-		}
-	).node?.req
-	const forwardedFor = request?.headers?.['x-forwarded-for']
-
-	if (typeof forwardedFor === 'string' && forwardedFor.length > 0) {
-		return forwardedFor.split(',')[0]?.trim() ?? null
-	}
-
-	if (Array.isArray(forwardedFor) && typeof forwardedFor[0] === 'string') {
-		return forwardedFor[0]
-	}
-
-	const remoteAddress = request?.socket?.remoteAddress
-	if (typeof remoteAddress === 'string' && remoteAddress.length > 0) {
-		return remoteAddress
-	}
-
-	return null
-}
 
 function isAbortError(error: unknown): boolean {
 	if (!(error instanceof Error)) {

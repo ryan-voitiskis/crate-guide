@@ -16,8 +16,11 @@ vi.stubGlobal('getQuery', mockGetQuery)
 vi.stubGlobal('createError', mockCreateError)
 
 const mockServerSupabaseUser = vi.fn()
+const mockRpc = vi.fn()
+const mockServerSupabaseClient = vi.fn()
 vi.mock('#supabase/server', () => ({
-	serverSupabaseUser: mockServerSupabaseUser
+	serverSupabaseUser: mockServerSupabaseUser,
+	serverSupabaseClient: mockServerSupabaseClient
 }))
 
 // Mock global fetch
@@ -43,6 +46,11 @@ describe('beatport/search API', () => {
 		mockFetch.mockReset()
 		mockServerSupabaseUser.mockReset()
 		mockServerSupabaseUser.mockResolvedValue({ id: 'user-123' })
+		mockRpc.mockReset()
+		mockServerSupabaseClient.mockReset()
+		mockServerSupabaseClient.mockResolvedValue({ rpc: mockRpc })
+		// Default: rate limiter allows the request unless a test overrides it.
+		mockRpc.mockResolvedValue({ data: true, error: null })
 
 		// Re-import handler to get fresh module with mocks
 		const module = await import('./search.get')
@@ -304,124 +312,128 @@ describe('beatport/search API', () => {
 		})
 	})
 
-	describe('error handling', () => {
-		it('throws 429 error when requests are throttled', async () => {
+	describe('rate limiting', () => {
+		it('passes user and IP keys to check_rate_limit RPC', async () => {
 			mockGetQuery.mockReturnValue({
 				q: 'Test Artist Test Track',
 				artist: 'Test Artist',
 				title: 'Test Track'
 			})
+			mockServerSupabaseUser.mockResolvedValueOnce({ id: 'user-abc' })
 
-			mockFetch.mockResolvedValue({
+			mockFetch.mockResolvedValueOnce({
 				ok: true,
 				text: () => Promise.resolve('<html><body></body></html>')
 			})
 
-			await handler({})
+			await handler({
+				node: {
+					req: {
+						headers: { 'cf-connecting-ip': '203.0.113.5' },
+						socket: { remoteAddress: '10.0.0.1' }
+					}
+				}
+			})
+
+			expect(mockRpc).toHaveBeenCalledTimes(1)
+			expect(mockRpc).toHaveBeenCalledWith('check_rate_limit', {
+				rate_keys: ['beatport:user:user-abc', 'beatport:ip:203.0.113.5'],
+				max_requests: 1,
+				window_ms: 1000
+			})
+		})
+
+		it('falls back to socket.remoteAddress when cf-connecting-ip is absent', async () => {
+			mockGetQuery.mockReturnValue({
+				q: 'Test Artist Test Track',
+				artist: 'Test Artist',
+				title: 'Test Track'
+			})
+			mockServerSupabaseUser.mockResolvedValueOnce({ id: 'user-abc' })
+
+			mockFetch.mockResolvedValueOnce({
+				ok: true,
+				text: () => Promise.resolve('<html><body></body></html>')
+			})
+
+			await handler({
+				node: {
+					req: {
+						headers: {},
+						socket: { remoteAddress: '10.0.0.1' }
+					}
+				}
+			})
+
+			expect(mockRpc).toHaveBeenCalledWith('check_rate_limit', {
+				rate_keys: ['beatport:user:user-abc', 'beatport:ip:10.0.0.1'],
+				max_requests: 1,
+				window_ms: 1000
+			})
+		})
+
+		it('never trusts x-forwarded-for for IP keying', async () => {
+			mockGetQuery.mockReturnValue({
+				q: 'Test Artist Test Track',
+				artist: 'Test Artist',
+				title: 'Test Track'
+			})
+			mockServerSupabaseUser.mockResolvedValueOnce({ id: 'user-abc' })
+
+			mockFetch.mockResolvedValueOnce({
+				ok: true,
+				text: () => Promise.resolve('<html><body></body></html>')
+			})
+
+			await handler({
+				node: {
+					req: {
+						headers: { 'x-forwarded-for': '198.51.100.99' },
+						socket: { remoteAddress: '10.0.0.1' }
+					}
+				}
+			})
+
+			const keys = mockRpc.mock.calls[0]![1].rate_keys as string[]
+			expect(keys).not.toContain('beatport:ip:198.51.100.99')
+			expect(keys).toContain('beatport:ip:10.0.0.1')
+		})
+	})
+
+	describe('error handling', () => {
+		it('throws 429 when check_rate_limit returns false', async () => {
+			mockGetQuery.mockReturnValue({
+				q: 'Test Artist Test Track',
+				artist: 'Test Artist',
+				title: 'Test Track'
+			})
+			mockRpc.mockResolvedValueOnce({ data: false, error: null })
 
 			await expect(handler({})).rejects.toMatchObject({
 				statusCode: 429,
 				message: 'Too many requests'
 			})
 
-			expect(mockFetch).toHaveBeenCalledTimes(1)
+			expect(mockFetch).not.toHaveBeenCalled()
 		})
 
-		it('throttles by shared IP even across different users', async () => {
+		it('throws 500 when check_rate_limit errors', async () => {
 			mockGetQuery.mockReturnValue({
 				q: 'Test Artist Test Track',
 				artist: 'Test Artist',
 				title: 'Test Track'
 			})
-			mockServerSupabaseUser
-				.mockResolvedValueOnce({ id: 'user-1' })
-				.mockResolvedValueOnce({ id: 'user-2' })
-
-			mockFetch.mockResolvedValue({
-				ok: true,
-				text: () => Promise.resolve('<html><body></body></html>')
+			mockRpc.mockResolvedValueOnce({
+				data: null,
+				error: { message: 'db down' }
 			})
 
-			const event = {
-				node: {
-					req: {
-						headers: { 'x-forwarded-for': '203.0.113.5' },
-						socket: { remoteAddress: '203.0.113.5' }
-					}
-				}
-			}
-
-			vi.useFakeTimers()
-			vi.setSystemTime(new Date('2026-02-24T00:00:00.000Z'))
-
-			try {
-				await handler(event)
-
-				await expect(handler(event)).rejects.toMatchObject({
-					statusCode: 429,
-					message: 'Too many requests'
-				})
-
-				expect(mockFetch).toHaveBeenCalledTimes(1)
-			} finally {
-				vi.useRealTimers()
-			}
-		})
-
-		it('does not consume user quota when shared IP is rate limited', async () => {
-			mockGetQuery.mockReturnValue({
-				q: 'Test Artist Test Track',
-				artist: 'Test Artist',
-				title: 'Test Track'
-			})
-			mockServerSupabaseUser
-				.mockResolvedValueOnce({ id: 'user-1' })
-				.mockResolvedValueOnce({ id: 'user-2' })
-				.mockResolvedValueOnce({ id: 'user-2' })
-
-			mockFetch.mockResolvedValue({
-				ok: true,
-				text: () => Promise.resolve('<html><body></body></html>')
+			await expect(handler({})).rejects.toMatchObject({
+				statusCode: 500,
+				message: 'Rate limit check failed'
 			})
 
-			const sharedIpEvent = {
-				node: {
-					req: {
-						headers: { 'x-forwarded-for': '203.0.113.5' },
-						socket: { remoteAddress: '203.0.113.5' }
-					}
-				}
-			}
-			const alternateIpEvent = {
-				node: {
-					req: {
-						headers: { 'x-forwarded-for': '203.0.113.6' },
-						socket: { remoteAddress: '203.0.113.6' }
-					}
-				}
-			}
-
-			vi.useFakeTimers()
-			vi.setSystemTime(new Date('2026-02-24T00:00:00.000Z'))
-
-			try {
-				await handler(sharedIpEvent)
-
-				await expect(handler(sharedIpEvent)).rejects.toMatchObject({
-					statusCode: 429,
-					message: 'Too many requests'
-				})
-
-				await expect(handler(alternateIpEvent)).resolves.toMatchObject({
-					success: false,
-					code: 'NO_MATCH',
-					error: 'No matching track found'
-				})
-
-				expect(mockFetch).toHaveBeenCalledTimes(2)
-			} finally {
-				vi.useRealTimers()
-			}
+			expect(mockFetch).not.toHaveBeenCalled()
 		})
 
 		it('throws 504 error when Beatport request times out', async () => {
