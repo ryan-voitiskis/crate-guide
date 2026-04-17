@@ -377,7 +377,7 @@ Read `DISCOGS_USER_AGENT` at module scope in `fetchAndSetIdentity.ts` and add `h
 
 **Verification** — verified.
 
-**Implementation:** pending commit — `supabase/functions/_shared/discogs/fetchAndSetIdentity.ts` reads `DISCOGS_USER_AGENT` at module scope and passes it as `User-Agent` header on the avatar fetch.
+**Implementation:** `199075b` — `supabase/functions/_shared/discogs/fetchAndSetIdentity.ts` reads `DISCOGS_USER_AGENT` at module scope and passes it as `User-Agent` header on the avatar fetch.
 
 ---
 
@@ -390,6 +390,8 @@ Read `DISCOGS_USER_AGENT` at module scope in `fetchAndSetIdentity.ts` and add `h
 ### L2. `additional_redirect_urls` has `https://127.0.0.1:3000`
 
 `supabase/config.toml:88`. Git blame (commit `c7d85459`, 2024-07-27) shows this was added in the initial `supabase init` scaffold — it's the Supabase CLI's default, not a deliberate loopback-HTTPS entry. **Drop it** and replace with the real dev/prod origins you want to allow redirects to (e.g. `["http://localhost:3000"]` plus whatever the Cloudflare Pages URL ends up being).
+
+**Implementation:** pending commit — `supabase/config.toml:88` replaced `https://127.0.0.1:3000` with `http://localhost:3000`. Cloudflare Pages URL must be added here once the project is provisioned.
 
 ### L3. Client `select()`s return Discogs secret columns
 
