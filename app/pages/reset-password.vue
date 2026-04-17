@@ -23,53 +23,45 @@ const onSubmit = form.handleSubmit(async (values: ResetPasswordFormValues) => {
 </script>
 
 <template>
-	<div class="flex h-screen items-center justify-center">
-		<Card class="w-full max-w-md rounded-lg bg-white p-6 shadow-md">
-			<CardHeader class="space-y-1">
-				<Button variant="blank" size="xl-icon" class="mx-auto mb-2" as-child>
-					<NuxtLink to="/">
-						<LogoCrateGuide />
-					</NuxtLink>
-				</Button>
-				<CardTitle class="text-2xl">
-					{{ linkSent ? 'Reset link sent!' : 'Reset password' }}
-				</CardTitle>
-				<CardDescription>
-					{{
-						linkSent
-							? `Check your inbox for the link you've just been sent`
-							: `Enter your email to receive a link to reset your password`
-					}}
-				</CardDescription>
-			</CardHeader>
-			<CardContent class="grid gap-4">
-				<form v-if="!linkSent" class="flex flex-col gap-3" @submit="onSubmit">
-					<FormField v-slot="{ componentField }" name="email">
-						<FormItem>
-							<FormLabel>Email</FormLabel>
-							<FormControl>
-								<Input placeholder="user@domain.com" v-bind="componentField" />
-							</FormControl>
-							<FormMessage />
-						</FormItem>
-					</FormField>
+	<AuthShell
+		chip="B-side · Recovery"
+		:title="linkSent ? 'Check your inbox' : 'Reset password'"
+		:subtitle="
+			linkSent
+				? `We've sent you a link to reset your password.`
+				: `Enter your email and we'll send you a reset link.`
+		"
+		catalog="CG · B01"
+	>
+		<div class="grid gap-4">
+			<form v-if="!linkSent" class="flex flex-col gap-3" @submit="onSubmit">
+				<FormField v-slot="{ componentField }" name="email">
+					<FormItem>
+						<FormLabel>Email</FormLabel>
+						<FormControl>
+							<Input placeholder="user@domain.com" v-bind="componentField" />
+						</FormControl>
+						<FormMessage />
+					</FormItem>
+				</FormField>
 
-					<Button
-						class="mt-3 w-full"
-						type="submit"
-						:loading="form.isSubmitting.value"
-					>
-						Send reset link
-					</Button>
-				</form>
-				<div v-else>
-					<p class="text-center"></p>
-					<AnimationTick class="mx-auto mt-4" />
-				</div>
-				<Button variant="link" as-child>
-					<NuxtLink to="/login">Back to login</NuxtLink>
+				<Button
+					class="mt-2 w-full"
+					type="submit"
+					:loading="form.isSubmitting.value"
+				>
+					Send reset link
 				</Button>
-			</CardContent>
-		</Card>
-	</div>
+			</form>
+			<div v-else class="py-2">
+				<AnimationTick class="mx-auto" />
+			</div>
+
+			<Separator class="my-1" span-class="bg-card" />
+
+			<Button variant="link" as-child>
+				<NuxtLink to="/login">Back to login</NuxtLink>
+			</Button>
+		</div>
+	</AuthShell>
 </template>

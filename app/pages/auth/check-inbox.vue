@@ -3,41 +3,30 @@ import { Mail } from 'lucide-vue-next'
 </script>
 
 <template>
-	<div class="flex h-screen items-center justify-center">
-		<Card class="w-full max-w-md rounded-lg p-6 shadow-md">
-			<CardHeader class="space-y-1">
-				<Button variant="blank" size="xl-icon" class="mx-auto mb-2" as-child>
-					<NuxtLink to="/demo">
-						<LogoCrateGuide />
-					</NuxtLink>
+	<AuthShell
+		chip="Intermission · Awaiting cue"
+		title="Check your inbox"
+		subtitle="Click the confirmation link we just sent to finish creating your account."
+		catalog="CG · A02b"
+	>
+		<div class="grid gap-4">
+			<div
+				class="border-border/70 bg-muted/30 text-muted-foreground flex items-center gap-3 rounded-md border p-4 text-sm"
+			>
+				<Mail class="text-primary size-5 shrink-0" />
+				<p>
+					If it doesn't arrive within a few minutes, check your spam folder.
+				</p>
+			</div>
+
+			<Separator class="my-1" span-class="bg-card" />
+
+			<div class="text-center text-sm">
+				<span class="text-muted-foreground">Already confirmed?</span>
+				<Button variant="link" as-child>
+					<NuxtLink to="/login">Log in</NuxtLink>
 				</Button>
-				<CardTitle class="text-2xl">Check your inbox</CardTitle>
-				<CardDescription>
-					We sent you a confirmation email to finish creating your account.
-				</CardDescription>
-			</CardHeader>
-			<CardContent class="grid gap-4">
-				<div
-					class="border-border bg-muted/30 flex items-start gap-3 rounded-md border p-4 text-sm"
-				>
-					<Mail class="mt-0.5 size-5 shrink-0" />
-					<div class="space-y-1">
-						<p>Open the email and click the confirmation link.</p>
-						<p class="text-muted-foreground">
-							If it doesn't arrive within a few minutes, check your spam folder.
-						</p>
-					</div>
-				</div>
-
-				<Separator class="my-2" span-class="bg-card" />
-
-				<span class="text-center">
-					Already confirmed?
-					<Button variant="link" as-child>
-						<NuxtLink to="/login">Log in</NuxtLink>
-					</Button>
-				</span>
-			</CardContent>
-		</Card>
-	</div>
+			</div>
+		</div>
+	</AuthShell>
 </template>

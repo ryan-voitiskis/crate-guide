@@ -23,39 +23,33 @@ const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
 </script>
 
 <template>
-	<div class="flex h-screen items-center justify-center">
-		<Card class="w-full max-w-md rounded-lg bg-white p-6 shadow-md">
-			<CardHeader class="space-y-1">
-				<LogoCrateGuide class="mx-auto mb-2 w-24" />
-				<CardTitle class="text-2xl">Update your password</CardTitle>
-				<CardDescription>Enter your new password</CardDescription>
-			</CardHeader>
-			<CardContent class="grid gap-4">
-				<form class="flex flex-col gap-3" @submit="onSubmit">
-					<FormField v-slot="{ componentField }" name="password">
-						<FormItem>
-							<FormLabel>Password</FormLabel>
-							<FormControl>
-								<InputPassword v-bind="componentField" />
-							</FormControl>
-							<FormMessage />
-						</FormItem>
-					</FormField>
+	<AuthShell chip="B-side · New key" title="New password" catalog="CG · B02">
+		<div class="grid gap-4">
+			<form class="flex flex-col gap-3" @submit="onSubmit">
+				<FormField v-slot="{ componentField }" name="password">
+					<FormItem>
+						<FormLabel>New password</FormLabel>
+						<FormControl>
+							<InputPassword v-bind="componentField" />
+						</FormControl>
+						<FormMessage />
+					</FormItem>
+				</FormField>
 
-					<Button
-						class="mt-3 w-full"
-						type="submit"
-						:loading="form.isSubmitting.value"
-					>
-						Update password
-					</Button>
-				</form>
-				<span class="text-center">
-					<Button variant="link" as-child>
-						<NuxtLink to="/login">Back to login</NuxtLink>
-					</Button>
-				</span>
-			</CardContent>
-		</Card>
-	</div>
+				<Button
+					class="mt-2 w-full"
+					type="submit"
+					:loading="form.isSubmitting.value"
+				>
+					Update password
+				</Button>
+			</form>
+
+			<Separator class="my-1" span-class="bg-card" />
+
+			<Button variant="link" as-child>
+				<NuxtLink to="/login">Back to login</NuxtLink>
+			</Button>
+		</div>
+	</AuthShell>
 </template>
