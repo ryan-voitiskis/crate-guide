@@ -3,6 +3,8 @@ import { getUser, getUserProfile } from '../supabaseHelpers.ts'
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest.ts'
 import { PublicOAuthError, buildDiscogsOAuthHttpError } from './oauthErrors.ts'
 
+const userAgent = Deno.env.get('DISCOGS_USER_AGENT') || ''
+
 function isTrustedDiscogsResourceUrl(
 	resourceUrl: unknown
 ): resourceUrl is string {
@@ -50,7 +52,9 @@ export async function fetchAndSetIdentity(
 	let discogs_avatar_url = null
 	if (isTrustedDiscogsResourceUrl(identity.resource_url)) {
 		try {
-			const discogsUserResponse = await fetch(identity.resource_url)
+			const discogsUserResponse = await fetch(identity.resource_url, {
+				headers: { 'User-Agent': userAgent }
+			})
 			if (discogsUserResponse.ok) {
 				const discogsUser = await discogsUserResponse.json()
 				discogs_avatar_url = discogsUser.avatar_url

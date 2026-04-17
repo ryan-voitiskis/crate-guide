@@ -330,7 +330,7 @@ to.path === '/demo' || to.path.startsWith('/demo/')
 
 **Verification** — verified.
 
-**Implementation:** pending commit — `app/middleware/auth.global.ts:6-10` switched to exact + slash match.
+**Implementation:** `aa47d37` — `app/middleware/auth.global.ts:6-10` switched to exact + slash match.
 
 ---
 
@@ -376,6 +376,8 @@ Discogs requires a `User-Agent` on all API requests. Today they may still respon
 Read `DISCOGS_USER_AGENT` at module scope in `fetchAndSetIdentity.ts` and add `headers: { 'User-Agent': userAgent }` to the fetch. The env var is already read in `makeAuthenticatedRequest.ts:11` in the same folder.
 
 **Verification** — verified.
+
+**Implementation:** pending commit — `supabase/functions/_shared/discogs/fetchAndSetIdentity.ts` reads `DISCOGS_USER_AGENT` at module scope and passes it as `User-Agent` header on the avatar fetch.
 
 ---
 
