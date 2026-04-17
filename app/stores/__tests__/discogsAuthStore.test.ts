@@ -7,8 +7,7 @@ import { useDiscogsAuthStore } from '../discogsAuthStore'
 // Mock dependencies
 const mockUserStore = {
 	profile: null as {
-		discogs_access_token?: string
-		discogs_access_secret?: string
+		discogs_username?: string | null
 	} | null,
 	fetchProfile: vi.fn().mockResolvedValue(true)
 }
@@ -99,33 +98,23 @@ describe('discogsAuthStore', () => {
 			expect(store.isOAuthed).toBe(false)
 		})
 
-		it('returns false when tokens are missing', () => {
+		it('returns false when discogs_username is missing', () => {
 			const store = useDiscogsAuthStore()
 			mockUserStore.profile = {}
 
 			expect(store.isOAuthed).toBe(false)
 		})
 
-		it('returns false when only access_token exists', () => {
+		it('returns false when discogs_username is null', () => {
 			const store = useDiscogsAuthStore()
-			mockUserStore.profile = { discogs_access_token: 'token' }
+			mockUserStore.profile = { discogs_username: null }
 
 			expect(store.isOAuthed).toBe(false)
 		})
 
-		it('returns false when only access_secret exists', () => {
+		it('returns true when discogs_username is set', () => {
 			const store = useDiscogsAuthStore()
-			mockUserStore.profile = { discogs_access_secret: 'secret' }
-
-			expect(store.isOAuthed).toBe(false)
-		})
-
-		it('returns true when both tokens exist', () => {
-			const store = useDiscogsAuthStore()
-			mockUserStore.profile = {
-				discogs_access_token: 'token',
-				discogs_access_secret: 'secret'
-			}
+			mockUserStore.profile = { discogs_username: 'some-user' }
 
 			expect(store.isOAuthed).toBe(true)
 		})

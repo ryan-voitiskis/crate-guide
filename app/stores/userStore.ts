@@ -2,6 +2,13 @@ import { toast } from 'vue-sonner'
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { defineStore } from 'pinia'
 
+// Explicit column list for client-side profile reads. Excludes the four
+// Discogs OAuth credential columns (request/access token/secret) so an XSS
+// cannot exfiltrate them via cached Pinia state. Discogs connection state is
+// derived from discogs_username instead (see discogsAuthStore isOAuthed).
+export const PROFILE_SAFE_COLUMNS =
+	'id, name, discogs_avatar_url, discogs_uid, discogs_username, just_completed_discogs_oauth, key_format, list_layout, selected_crate, turntable_pitch_range, turntable_theme, ui_theme'
+
 export const useUserStore = defineStore('user', () => {
 	const supabase = useSupabaseClient<Database>()
 	const supaUser = useSupabaseUser()
@@ -159,7 +166,7 @@ export const useUserStore = defineStore('user', () => {
 			const userId = await resolveAuthenticatedUserId()
 			const { data, error } = await supabase
 				.from('profiles')
-				.select()
+				.select(PROFILE_SAFE_COLUMNS)
 				.eq('id', userId)
 				.single()
 			if (error) throw error
@@ -191,7 +198,7 @@ export const useUserStore = defineStore('user', () => {
 					.from('profiles')
 					.update(settingsPartial)
 					.eq('id', userId)
-					.select()
+					.select(PROFILE_SAFE_COLUMNS)
 					.single()
 				if (!data) {
 					if (error && error.code !== 'PGRST116') throw error
@@ -204,7 +211,7 @@ export const useUserStore = defineStore('user', () => {
 							},
 							{ onConflict: 'id' }
 						)
-						.select()
+						.select(PROFILE_SAFE_COLUMNS)
 						.single()
 					if (upsertError || !upsertedData) throw upsertError
 					profile.value = upsertedData as Profile

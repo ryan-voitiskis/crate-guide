@@ -13,10 +13,11 @@ export const useDiscogsAuthStore = defineStore('discogsAuth', () => {
 	const oAuthCompletionFailed = ref(false)
 	const oAuthCompletionError = ref<string | null>(null)
 
+	// Derived from discogs_username (set at the end of the OAuth flow in
+	// fetchAndSetIdentity, cleared on disconnect) so the client never needs
+	// to read the access token/secret columns.
 	const isOAuthed = computed((): boolean => {
-		return Boolean(
-			user.profile?.discogs_access_secret && user.profile.discogs_access_token
-		)
+		return Boolean(user.profile?.discogs_username)
 	})
 
 	async function initDiscogsOAuthFlow() {

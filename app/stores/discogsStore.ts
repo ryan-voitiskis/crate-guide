@@ -1,4 +1,5 @@
 import { toast } from 'vue-sonner'
+import { PROFILE_SAFE_COLUMNS } from './userStore'
 
 export const useDiscogsStore = defineStore('discogs', () => {
 	const user = useUserStore()
@@ -87,7 +88,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 					discogs_avatar_url: null
 				})
 				.eq('id', user.profile?.id ?? '')
-				.select()
+				.select(PROFILE_SAFE_COLUMNS)
 			if (error) {
 				toast.error('Error disconnecting Discogs.')
 			} else if (data && data.length > 0) {

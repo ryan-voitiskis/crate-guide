@@ -391,7 +391,7 @@ Read `DISCOGS_USER_AGENT` at module scope in `fetchAndSetIdentity.ts` and add `h
 
 `supabase/config.toml:88`. Git blame (commit `c7d85459`, 2024-07-27) shows this was added in the initial `supabase init` scaffold — it's the Supabase CLI's default, not a deliberate loopback-HTTPS entry. **Drop it** and replace with the real dev/prod origins you want to allow redirects to (e.g. `["http://localhost:3000"]` plus whatever the Cloudflare Pages URL ends up being).
 
-**Implementation:** pending commit — `supabase/config.toml:88` replaced `https://127.0.0.1:3000` with `http://localhost:3000`. Cloudflare Pages URL must be added here once the project is provisioned.
+**Implementation:** `6d9110b` — `supabase/config.toml:88` replaced `https://127.0.0.1:3000` with `http://localhost:3000`. Cloudflare Pages URL must be added here once the project is provisioned.
 
 ### L3. Client `select()`s return Discogs secret columns
 
@@ -403,6 +403,8 @@ All four client call sites that hit `profiles` issue bare `.select()` (no column
 - `discogsStore.ts:80` (disconnect)
 
 Every one of these needs to change (narrow to an explicit column list) either as H3's fix or as interim mitigation.
+
+**Implementation:** pending commit — added `PROFILE_SAFE_COLUMNS` constant in `userStore.ts`; all 4 call sites now `.select(PROFILE_SAFE_COLUMNS)`, which excludes `discogs_request_token`, `discogs_request_secret`, `discogs_access_token`, `discogs_access_secret`. `isOAuthed` in `discogsAuthStore.ts` now derives from `discogs_username` (truthy iff the OAuth flow completed through `fetchAndSetIdentity`; cleared on disconnect). Tests updated to match new shape. Disconnect still nulls all four secret columns in the `UPDATE` payload — only `SELECT` output is narrowed.
 
 ### L4. `crates.records` / `sets.played_tracks` can hold cross-tenant UUIDs
 
