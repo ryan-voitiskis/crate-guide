@@ -233,7 +233,7 @@ One migration that `DROP POLICY` + `CREATE POLICY` for both policies with explic
 
 **Verification** — verified. Fallback behaviour confirmed against Postgres 15 spec. Finding is non-exploitable but worth normalising.
 
-**Implementation:** pending commit — `supabase/migrations/20260417120100_explicit_with_check_profiles_records.sql`; applied cleanly via `supabase db reset`.
+**Implementation:** `f088b3d` — `supabase/migrations/20260417120100_explicit_with_check_profiles_records.sql`; applied cleanly via `supabase db reset`.
 
 ---
 
@@ -280,6 +280,8 @@ if (profile.discogs_request_token !== oauth_token) {
 Field type is `string | null` on `Profile`.
 
 **Verification** — verified.
+
+**Implementation:** pending commit — guard added in `supabase/functions/get-discogs-access-token/index.ts` after `getUserProfile`, before signature construction.
 
 ---
 

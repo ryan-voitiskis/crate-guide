@@ -37,6 +37,11 @@ Deno.serve(async (req) => {
 		const supabase = createAuthedSupabaseClient(authHeader)
 		const user = await getUser(supabase)
 		const profile = await getUserProfile(supabase, user)
+		if (profile.discogs_request_token !== oauth_token) {
+			throw new PublicOAuthError(
+				'Discogs callback does not match the pending request. Please restart the Discogs connection.'
+			)
+		}
 		const oauthSignature = generateOAuthSignature(
 			oauth_consumer_secret,
 			profile
