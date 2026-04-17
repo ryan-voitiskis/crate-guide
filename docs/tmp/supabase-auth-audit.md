@@ -361,6 +361,8 @@ Zod is bypassable by calling `supabase.auth.signUp` from a non-UI client (e.g., 
 
 **Verification** — verified locally; hosted setting will be provisioned from `config.toml` after CLI bump.
 
+**Implementation:** pending commit — no CLI bump required (Supabase CLI is 2.92.1 via homebrew, not in `package.json`; current CLI fully supports the syntax). Canonical syntax confirmed via `supabase init` in a scratch dir: the keys live directly on `[auth]` (not a `[auth.password_requirements]` table as the audit originally proposed). Added `minimum_password_length = 8` and `password_requirements = "lower_upper_letters_digits"` to `supabase/config.toml`. Client Zod `max(64)` retained as UX guard.
+
 ---
 
 ### M7. `fetchAndSetIdentity` sends avatar fetch without `User-Agent`
@@ -404,7 +406,7 @@ All four client call sites that hit `profiles` issue bare `.select()` (no column
 
 Every one of these needs to change (narrow to an explicit column list) either as H3's fix or as interim mitigation.
 
-**Implementation:** pending commit — added `PROFILE_SAFE_COLUMNS` constant in `userStore.ts`; all 4 call sites now `.select(PROFILE_SAFE_COLUMNS)`, which excludes `discogs_request_token`, `discogs_request_secret`, `discogs_access_token`, `discogs_access_secret`. `isOAuthed` in `discogsAuthStore.ts` now derives from `discogs_username` (truthy iff the OAuth flow completed through `fetchAndSetIdentity`; cleared on disconnect). Tests updated to match new shape. Disconnect still nulls all four secret columns in the `UPDATE` payload — only `SELECT` output is narrowed.
+**Implementation:** `3a27d33` — added `PROFILE_SAFE_COLUMNS` constant in `userStore.ts`; all 4 call sites now `.select(PROFILE_SAFE_COLUMNS)`, which excludes `discogs_request_token`, `discogs_request_secret`, `discogs_access_token`, `discogs_access_secret`. `isOAuthed` in `discogsAuthStore.ts` now derives from `discogs_username` (truthy iff the OAuth flow completed through `fetchAndSetIdentity`; cleared on disconnect). Tests updated to match new shape. Disconnect still nulls all four secret columns in the `UPDATE` payload — only `SELECT` output is narrowed.
 
 ### L4. `crates.records` / `sets.played_tracks` can hold cross-tenant UUIDs
 
