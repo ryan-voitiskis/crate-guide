@@ -10,7 +10,11 @@ import { useDiscogsStore } from '../discogsStore'
 
 // Mock dependencies
 const mockUserStore = {
-	profile: { id: 'test-user-id', discogs_username: 'testuser' }
+	profile: { id: 'test-user-id', discogs_username: 'testuser' } as {
+		id: string
+		discogs_username: string | null
+	} | null,
+	fetchProfile: vi.fn().mockResolvedValue(true)
 }
 
 const mockRecordsStore = {
@@ -65,8 +69,11 @@ function createMockQueryBuilder() {
 
 let mockQueryBuilder = createMockQueryBuilder()
 
+const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null })
+
 const mockSupabaseClient = {
-	from: vi.fn(() => mockQueryBuilder)
+	from: vi.fn(() => mockQueryBuilder),
+	rpc: mockRpc
 }
 
 // Mock utility functions
@@ -100,6 +107,10 @@ describe('discogsStore', () => {
 
 		// Reset user store
 		mockUserStore.profile = { id: 'test-user-id', discogs_username: 'testuser' }
+		mockUserStore.fetchProfile.mockResolvedValue(true)
+
+		// Reset rpc mock to default success
+		mockRpc.mockResolvedValue({ data: null, error: null })
 	})
 
 	describe('initial state', () => {
@@ -361,10 +372,6 @@ describe('discogsStore', () => {
 	describe('disconnectDiscogs', () => {
 		it('sets isDisconnecting during operation', async () => {
 			const store = useDiscogsStore()
-			mockQueryBuilder.select.mockResolvedValue({
-				data: [{ ...mockUserStore.profile, discogs_username: null }],
-				error: null
-			})
 
 			const disconnectPromise = store.disconnectDiscogs()
 			expect(store.isDisconnecting).toBe(true)
@@ -373,48 +380,39 @@ describe('discogsStore', () => {
 			expect(store.isDisconnecting).toBe(false)
 		})
 
-		it('updates profile to clear Discogs data', async () => {
+		it('calls the disconnect_discogs RPC and refreshes profile', async () => {
 			const store = useDiscogsStore()
-			mockQueryBuilder.select.mockResolvedValue({
-				data: [{ ...mockUserStore.profile, discogs_username: null }],
-				error: null
-			})
 
 			await store.disconnectDiscogs()
 
-			expect(mockSupabaseClient.from).toHaveBeenCalledWith('profiles')
-			expect(mockQueryBuilder.update).toHaveBeenCalledWith({
-				discogs_username: null,
-				discogs_request_token: null,
-				discogs_request_secret: null,
-				discogs_access_token: null,
-				discogs_access_secret: null,
-				discogs_avatar_url: null
-			})
+			expect(mockRpc).toHaveBeenCalledWith('disconnect_discogs')
+			expect(mockUserStore.fetchProfile).toHaveBeenCalledTimes(1)
 		})
 
-		it('updates user profile on success', async () => {
+		it('does not touch the profiles table directly', async () => {
 			const store = useDiscogsStore()
-			const updatedProfile = {
-				...mockUserStore.profile,
-				discogs_username: null
-			}
-			mockQueryBuilder.select.mockResolvedValue({
-				data: [updatedProfile],
-				error: null
-			})
 
 			await store.disconnectDiscogs()
 
-			expect(mockUserStore.profile).toEqual(updatedProfile)
+			expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('profiles')
 		})
 
-		it('handles database errors gracefully', async () => {
+		it('handles RPC errors gracefully', async () => {
 			const store = useDiscogsStore()
-			mockQueryBuilder.select.mockResolvedValue({
+			mockRpc.mockResolvedValueOnce({
 				data: null,
-				error: new Error('Database error')
+				error: new Error('RPC failed')
 			})
+
+			await store.disconnectDiscogs()
+
+			expect(store.isDisconnecting).toBe(false)
+			expect(mockUserStore.fetchProfile).not.toHaveBeenCalled()
+		})
+
+		it('handles profile refresh failure gracefully', async () => {
+			const store = useDiscogsStore()
+			mockUserStore.fetchProfile.mockResolvedValueOnce(false)
 
 			await store.disconnectDiscogs()
 
@@ -423,10 +421,20 @@ describe('discogsStore', () => {
 
 		it('handles exceptions gracefully', async () => {
 			const store = useDiscogsStore()
-			mockQueryBuilder.select.mockRejectedValue(new Error('Network error'))
+			mockRpc.mockRejectedValueOnce(new Error('Network error'))
 
 			await store.disconnectDiscogs()
 
+			expect(store.isDisconnecting).toBe(false)
+		})
+
+		it('returns early when profile is not loaded', async () => {
+			mockUserStore.profile = null
+			const store = useDiscogsStore()
+
+			await store.disconnectDiscogs()
+
+			expect(mockRpc).not.toHaveBeenCalled()
 			expect(store.isDisconnecting).toBe(false)
 		})
 	})

@@ -24,7 +24,9 @@ Deno.serve(async (req) => {
 
 	try {
 		const supabase = createAuthedSupabaseClient(authHeader)
-		const user = await getUser(supabase)
+		// Validate the caller's session before making a Discogs request we'd
+		// only be able to discard if they turned out to be unauthenticated.
+		await getUser(supabase)
 
 		const oauthCallback = buildOAuthCallback()
 
@@ -62,13 +64,10 @@ Deno.serve(async (req) => {
 				'Discogs did not provide an OAuth request token secret. Please try again.'
 			)
 
-		const { error } = await supabase
-			.from('profiles')
-			.update({
-				discogs_request_token: discogsResponse.oauth_token,
-				discogs_request_secret: discogsResponse.oauth_token_secret
-			})
-			.eq('id', user.id)
+		const { error } = await supabase.rpc('set_discogs_request_credentials', {
+			p_token: discogsResponse.oauth_token,
+			p_secret: discogsResponse.oauth_token_secret
+		})
 		if (error) throw error
 
 		return new Response(JSON.stringify(discogsResponse.oauth_token), {

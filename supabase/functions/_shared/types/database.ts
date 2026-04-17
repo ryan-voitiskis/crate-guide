@@ -67,13 +67,39 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			discogs_credentials: {
+				Row: {
+					access_secret: string | null
+					access_token: string | null
+					created_at: string
+					request_secret: string | null
+					request_token: string | null
+					updated_at: string
+					user_id: string
+				}
+				Insert: {
+					access_secret?: string | null
+					access_token?: string | null
+					created_at?: string
+					request_secret?: string | null
+					request_token?: string | null
+					updated_at?: string
+					user_id: string
+				}
+				Update: {
+					access_secret?: string | null
+					access_token?: string | null
+					created_at?: string
+					request_secret?: string | null
+					request_token?: string | null
+					updated_at?: string
+					user_id?: string
+				}
+				Relationships: []
+			}
 			profiles: {
 				Row: {
-					discogs_access_secret: string | null
-					discogs_access_token: string | null
 					discogs_avatar_url: string | null
-					discogs_request_secret: string | null
-					discogs_request_token: string | null
 					discogs_uid: string | null
 					discogs_username: string | null
 					id: string
@@ -87,11 +113,7 @@ export type Database = {
 					ui_theme: Database['public']['Enums']['ui_theme_enum']
 				}
 				Insert: {
-					discogs_access_secret?: string | null
-					discogs_access_token?: string | null
 					discogs_avatar_url?: string | null
-					discogs_request_secret?: string | null
-					discogs_request_token?: string | null
 					discogs_uid?: string | null
 					discogs_username?: string | null
 					id: string
@@ -105,11 +127,7 @@ export type Database = {
 					ui_theme?: Database['public']['Enums']['ui_theme_enum']
 				}
 				Update: {
-					discogs_access_secret?: string | null
-					discogs_access_token?: string | null
 					discogs_avatar_url?: string | null
-					discogs_request_secret?: string | null
-					discogs_request_token?: string | null
 					discogs_uid?: string | null
 					discogs_username?: string | null
 					id?: string
@@ -121,6 +139,24 @@ export type Database = {
 					turntable_pitch_range?: number
 					turntable_theme?: string
 					ui_theme?: Database['public']['Enums']['ui_theme_enum']
+				}
+				Relationships: []
+			}
+			rate_limits: {
+				Row: {
+					count: number
+					key: string
+					reset_at: string
+				}
+				Insert: {
+					count: number
+					key: string
+					reset_at: string
+				}
+				Update: {
+					count?: number
+					key?: string
+					reset_at?: string
 				}
 				Relationships: []
 			}
@@ -269,10 +305,13 @@ export type Database = {
 			[_ in never]: never
 		}
 		Functions: {
-			delete_all_user_data: {
-				Args: Record<PropertyKey, never>
-				Returns: Json
+			check_rate_limit: {
+				Args: { max_requests: number; rate_keys: string[]; window_ms: number }
+				Returns: boolean
 			}
+			delete_all_user_data: { Args: never; Returns: Json }
+			disconnect_discogs: { Args: never; Returns: undefined }
+			get_discogs_credentials: { Args: never; Returns: Json }
 			import_record_with_tracks: {
 				Args: { record: Json; tracks?: Json }
 				Returns: Json
@@ -280,6 +319,14 @@ export type Database = {
 			remove_record_from_collection: {
 				Args: { target_record_id: string }
 				Returns: Json
+			}
+			set_discogs_access_credentials: {
+				Args: { p_secret: string; p_token: string }
+				Returns: undefined
+			}
+			set_discogs_request_credentials: {
+				Args: { p_secret: string; p_token: string }
+				Returns: undefined
 			}
 		}
 		Enums: {

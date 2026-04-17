@@ -2,10 +2,11 @@ import { toast } from 'vue-sonner'
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { defineStore } from 'pinia'
 
-// Explicit column list for client-side profile reads. Excludes the four
-// Discogs OAuth credential columns (request/access token/secret) so an XSS
-// cannot exfiltrate them via cached Pinia state. Discogs connection state is
-// derived from discogs_username instead (see discogsAuthStore isOAuthed).
+// Explicit column list for client-side profile reads. The Discogs OAuth
+// secret columns were moved to public.discogs_credentials (no SELECT RLS) so
+// this list simply enumerates every non-secret profile column the UI needs.
+// Discogs connection state is derived from discogs_username (see
+// discogsAuthStore isOAuthed).
 export const PROFILE_SAFE_COLUMNS =
 	'id, name, discogs_avatar_url, discogs_uid, discogs_username, just_completed_discogs_oauth, key_format, list_layout, selected_crate, turntable_pitch_range, turntable_theme, ui_theme'
 

@@ -154,6 +154,8 @@ Option 2 is the proportionate choice and uses the existing edge-function pattern
 
 **Verification** — verified. All read/write sites enumerated; the four columns are read via unfiltered `.select()` in every client call site.
 
+**Implementation:** `pending commit` — new migration `20260417120300_move_discogs_credentials.sql` creates `public.discogs_credentials` (user_id PK, no RLS policies), backfills from `public.profiles`, and drops the four Discogs secret columns from `profiles`. Four `SECURITY DEFINER` RPCs (`get_discogs_credentials`, `set_discogs_request_credentials`, `set_discogs_access_credentials`, `disconnect_discogs`) derive identity from `auth.uid()` and pin `search_path = pg_catalog, public, auth`; authenticated role only has EXECUTE on these. Edge functions `get-discogs-request-token`, `get-discogs-access-token`, and shared `makeAuthenticatedRequest` now call `get_discogs_credentials` / `set_*` RPCs instead of writing to `profiles`. `app/stores/discogsStore.ts` `disconnectDiscogs` now calls the `disconnect_discogs` RPC and refreshes the profile via `user.fetchProfile()`. Also fixed a latent post-H4 regression in `fetchAndSetIdentity.ts` that still called `makeAuthenticatedRequest` with a 3-arg signature. Tests updated; 878/878 pass.
+
 ---
 
 ### H4. `authenticated-discogs-request` is an unrestricted Discogs proxy
@@ -185,7 +187,7 @@ The UI never uses `POST` and never embeds query params inside `url`. The signatu
 
 **Verification** — verified. Single caller (`useDiscogsApi.ts`) with three distinct endpoints. POST path unused. Query-param signature gap confirmed but currently unexercised.
 
-**Implementation:** pending commit — `authenticated-discogs-request/index.ts` rewritten as a per-endpoint dispatcher that accepts `{ endpoint: 'folders' | 'folder_releases' | 'release', ...structured params }` and builds the Discogs URL server-side from the caller's profile (never a raw URL from the client). Unknown endpoints return 400; validation errors return 400; only GET is supported. `makeAuthenticatedRequest.ts` now takes `(url, authHeader)`: it parses every query param off the input URL via `new URL()`, merges them into the OAuth signature base string alongside the oauth_* params, and rebuilds the final URL from the signed set (RFC 5849 §3.4.1.3.2 compliant). `useDiscogsApi.ts` drops the generic `makeDiscogsApiRequest` and exposes only the three named methods, which now send `{ endpoint, ...params }` bodies. Tests updated accordingly.
+**Implementation:** `51b88df` — `authenticated-discogs-request/index.ts` rewritten as a per-endpoint dispatcher that accepts `{ endpoint: 'folders' | 'folder_releases' | 'release', ...structured params }` and builds the Discogs URL server-side from the caller's profile (never a raw URL from the client). Unknown endpoints return 400; validation errors return 400; only GET is supported. `makeAuthenticatedRequest.ts` now takes `(url, authHeader)`: it parses every query param off the input URL via `new URL()`, merges them into the OAuth signature base string alongside the oauth\_\* params, and rebuilds the final URL from the signed set (RFC 5849 §3.4.1.3.2 compliant). `useDiscogsApi.ts` drops the generic `makeDiscogsApiRequest` and exposes only the three named methods, which now send `{ endpoint, ...params }` bodies. Tests updated accordingly.
 
 ---
 

@@ -1,5 +1,4 @@
 import { toast } from 'vue-sonner'
-import { PROFILE_SAFE_COLUMNS } from './userStore'
 
 export const useDiscogsStore = defineStore('discogs', () => {
 	const user = useUserStore()
@@ -77,24 +76,14 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		isDisconnecting.value = true
 		try {
 			const supabase = useSupabaseClient<Database>()
-			const { data, error } = await supabase
-				.from('profiles')
-				.update({
-					discogs_username: null,
-					discogs_request_token: null,
-					discogs_request_secret: null,
-					discogs_access_token: null,
-					discogs_access_secret: null,
-					discogs_avatar_url: null
-				})
-				.eq('id', user.profile?.id ?? '')
-				.select(PROFILE_SAFE_COLUMNS)
+			const { error } = await supabase.rpc('disconnect_discogs')
 			if (error) {
 				toast.error('Error disconnecting Discogs.')
-			} else if (data && data.length > 0) {
-				toast.success('Discogs disconnected.')
-				user.profile = data[0] as Profile
+				return
 			}
+			const refreshed = await user.fetchProfile()
+			if (refreshed) toast.success('Discogs disconnected.')
+			else toast.error('Error disconnecting Discogs.')
 		} catch {
 			toast.error('Error disconnecting Discogs.')
 		} finally {

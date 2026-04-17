@@ -46,11 +46,7 @@ const mockIsKeyFormat = vi.fn(
 
 function createMockProfile(overrides: Partial<Profile> = {}): Profile {
 	return {
-		discogs_access_secret: null,
-		discogs_access_token: null,
 		discogs_avatar_url: null,
-		discogs_request_secret: null,
-		discogs_request_token: null,
 		discogs_uid: null,
 		discogs_username: null,
 		id: 'test',
