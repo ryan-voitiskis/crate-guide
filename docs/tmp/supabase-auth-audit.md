@@ -86,7 +86,7 @@ No policy or trigger re-creation needed; `CREATE OR REPLACE` is enough.
 
 **Verification** — verified. `handle_new_user` is defined only once (init migration) and never redefined. The proposed fix matches the `SET search_path` clause already used by every other `SECURITY DEFINER` function in the repo.
 
-**Implementation:** pending commit — `supabase/migrations/20260417120000_pin_handle_new_user_search_path.sql` created; applied cleanly via `supabase db reset`.
+**Implementation:** `bc0fa64` — `supabase/migrations/20260417120000_pin_handle_new_user_search_path.sql`; applied cleanly via `supabase db reset`.
 
 ---
 
@@ -232,6 +232,8 @@ This is purely a readability / future-proofing concern: a future edit to `USING`
 One migration that `DROP POLICY` + `CREATE POLICY` for both policies with explicit `WITH CHECK (auth.uid() = …)` mirroring the `USING` clause. Zero behaviour change.
 
 **Verification** — verified. Fallback behaviour confirmed against Postgres 15 spec. Finding is non-exploitable but worth normalising.
+
+**Implementation:** pending commit — `supabase/migrations/20260417120100_explicit_with_check_profiles_records.sql`; applied cleanly via `supabase db reset`.
 
 ---
 
