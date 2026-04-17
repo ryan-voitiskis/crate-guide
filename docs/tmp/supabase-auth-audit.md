@@ -117,6 +117,8 @@ Either way, the code + config need work.
 
 **Verification** — verified. `config.toml:110` confirmed; `userStore.ts:56-76` confirmed to ignore the `data.session == null` case.
 
+**Implementation:** pending commit — `supabase/config.toml` sets `enable_confirmations = true` and bumps `max_frequency` to `"60s"` (L6 folded in). `signUpWithEmail` now routes to `/auth/check-inbox` when `data.session` is null; still routes to `/` in the no-confirmation flow. New `app/pages/auth/check-inbox.vue` instructs the user to open their inbox and confirm. Existing `app/pages/auth/confirm.vue` already handles the link-click flow. Tests updated to cover both signup paths.
+
 ---
 
 ### H3. Discogs OAuth tokens are readable by the session user via RLS
@@ -361,7 +363,7 @@ Zod is bypassable by calling `supabase.auth.signUp` from a non-UI client (e.g., 
 
 **Verification** — verified locally; hosted setting will be provisioned from `config.toml` after CLI bump.
 
-**Implementation:** pending commit — no CLI bump required (Supabase CLI is 2.92.1 via homebrew, not in `package.json`; current CLI fully supports the syntax). Canonical syntax confirmed via `supabase init` in a scratch dir: the keys live directly on `[auth]` (not a `[auth.password_requirements]` table as the audit originally proposed). Added `minimum_password_length = 8` and `password_requirements = "lower_upper_letters_digits"` to `supabase/config.toml`. Client Zod `max(64)` retained as UX guard.
+**Implementation:** `98aa178` — no CLI bump required (Supabase CLI is 2.92.1 via homebrew, not in `package.json`; current CLI fully supports the syntax). Canonical syntax confirmed via `supabase init` in a scratch dir: the keys live directly on `[auth]` (not a `[auth.password_requirements]` table as the audit originally proposed). Added `minimum_password_length = 8` and `password_requirements = "lower_upper_letters_digits"` to `supabase/config.toml`. Client Zod `max(64)` retained as UX guard.
 
 ---
 
@@ -419,6 +421,8 @@ Every one of these needs to change (narrow to an explicit column list) either as
 ### L6. `max_rows = 1000`, signup `max_frequency = "1s"`
 
 `supabase/config.toml:16, 112`. `max_rows` is fine. `max_frequency = "1s"` is very permissive for signup-confirmation email throttling (industry default ~60s); bump when H2 is addressed.
+
+**Implementation:** folded into H2 — `max_frequency` is now `"60s"`.
 
 ### L7. No Content-Security-Policy set
 

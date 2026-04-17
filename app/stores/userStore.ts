@@ -65,7 +65,7 @@ export const useUserStore = defineStore('user', () => {
 		password: string
 	): Promise<boolean> {
 		try {
-			const { error } = await supabase.auth.signUp({ email, password })
+			const { data, error } = await supabase.auth.signUp({ email, password })
 			if (error?.message === 'User already registered') {
 				userAlreadyRegistered.value = true
 				router.push('/login')
@@ -73,6 +73,12 @@ export const useUserStore = defineStore('user', () => {
 				return false
 			}
 			if (error) throw error
+			// When email confirmations are enabled, signUp succeeds but no session
+			// is created until the user clicks the link in their inbox.
+			if (!data.session) {
+				router.push('/auth/check-inbox')
+				return true
+			}
 			router.push('/')
 			toast.success('Sign up successful!')
 			return true

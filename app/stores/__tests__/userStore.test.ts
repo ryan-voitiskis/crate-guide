@@ -268,10 +268,26 @@ describe('userStore', () => {
 	})
 
 	describe('signUpWithEmail', () => {
-		it('returns true and navigates to home on success', async () => {
+		it('returns true and navigates to check-inbox when confirmation is required', async () => {
 			const store = useUserStore()
 			mockSupabaseClient.auth.signUp.mockResolvedValue({
-				data: {},
+				data: { session: null },
+				error: null
+			})
+
+			const result = await store.signUpWithEmail(
+				'test@example.com',
+				'password123'
+			)
+
+			expect(result).toBe(true)
+			expect(mockRouter.push).toHaveBeenCalledWith('/auth/check-inbox')
+		})
+
+		it('returns true and navigates to home when a session is created immediately', async () => {
+			const store = useUserStore()
+			mockSupabaseClient.auth.signUp.mockResolvedValue({
+				data: { session: { access_token: 'token' } },
 				error: null
 			})
 
