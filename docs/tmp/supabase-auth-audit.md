@@ -281,7 +281,7 @@ Field type is `string | null` on `Profile`.
 
 **Verification** — verified.
 
-**Implementation:** pending commit — guard added in `supabase/functions/get-discogs-access-token/index.ts` after `getUserProfile`, before signature construction.
+**Implementation:** `bce93d9` — guard added in `supabase/functions/get-discogs-access-token/index.ts` after `getUserProfile`, before signature construction.
 
 ---
 
@@ -304,6 +304,8 @@ If `SITE_URL` is ever unset in a staging/preview environment, the header is sile
 Make `cors.ts` throw at module load if `SITE_URL` is missing, matching the request-token function's posture. Any caller of `cors.ts` that already bootstraps before responding will surface the error once, loudly, rather than silently mis-CORS.
 
 **Verification** — verified. All three edge functions import the module.
+
+**Implementation:** pending commit — `supabase/functions/_shared/cors.ts` now throws at module load if `SITE_URL` is missing.
 
 ---
 
