@@ -214,7 +214,7 @@ Recommend (1) over (4): once the table exists, any future abuse-prone endpoint g
 
 **Verification** — verified. No other consumer of `getClientIp`. Platform confirmed as Cloudflare Pages.
 
-**Implementation:** pending commit — `nuxt.config.ts` now sets `nitro.preset = 'cloudflare-pages'`. New migration `supabase/migrations/20260417120200_add_rate_limit_rpc.sql` adds `public.rate_limits` (RLS-enabled, no policies — writes only through the RPC) and `public.check_rate_limit(rate_keys TEXT[], max_requests INT, window_ms INT)` with multi-key atomic semantics: if any key would exceed, none increment and it returns false (preserves "don't consume user quota when shared IP is limited"). New shared helper `server/utils/getClientIp.ts` reads `cf-connecting-ip` only, falling back to `socket.remoteAddress`; never trusts `X-Forwarded-For`. `server/api/beatport/search.get.ts` now calls the RPC with `['beatport:user:<uid>', 'beatport:ip:<addr>']`. Types regenerated (`supabase gen types typescript --local`). `npm run build` produces the `cloudflare-pages` Nitro output under `dist/_worker.js`.
+**Implementation:** `1740a60` — `nuxt.config.ts` now sets `nitro.preset = 'cloudflare-pages'`. New migration `supabase/migrations/20260417120200_add_rate_limit_rpc.sql` adds `public.rate_limits` (RLS-enabled, no policies — writes only through the RPC) and `public.check_rate_limit(rate_keys TEXT[], max_requests INT, window_ms INT)` with multi-key atomic semantics: if any key would exceed, none increment and it returns false (preserves "don't consume user quota when shared IP is limited"). New shared helper `server/utils/getClientIp.ts` reads `cf-connecting-ip` only, falling back to `socket.remoteAddress`; never trusts `X-Forwarded-For`. `server/api/beatport/search.get.ts` now calls the RPC with `['beatport:user:<uid>', 'beatport:ip:<addr>']`. Types regenerated (`supabase gen types typescript --local`). `npm run build` produces the `cloudflare-pages` Nitro output under `dist/_worker.js`.
 
 ---
 
@@ -256,6 +256,8 @@ One migration that `DROP POLICY` + `CREATE POLICY` for both policies with explic
 On the next schema consolidation, replace the init body with a short comment pointing to the fix migration. Do not re-run migrations.
 
 **Verification** — verified superseded.
+
+**Implementation:** pending commit — added a `NOTE: SUPERSEDED by 20260223143000_fix_import_record_with_tracks_auth_uid.sql` block above the function in `20250823004226_init.sql` directing readers to the fix migration. Body left intact so the migration still runs standalone; the later migration's `CREATE OR REPLACE` installs the fixed body on reset.
 
 ---
 

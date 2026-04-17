@@ -425,7 +425,17 @@ CREATE TRIGGER tracks_validate_genres_trigger
 -- LAYER 6: BUSINESS LOGIC (Complex Functions)
 -- ============================================================================
 
--- Function to import a record with its tracks atomically
+-- Function to import a record with its tracks atomically.
+--
+-- NOTE: The body below is SUPERSEDED by the redefinition in
+-- 20260223143000_fix_import_record_with_tracks_auth_uid.sql, which replaces
+-- this function to derive user_id from auth.uid() instead of accepting it
+-- from the client and pins search_path. The later migration uses
+-- CREATE OR REPLACE with a byte-identical signature, so fresh `supabase db
+-- reset` ends with the fixed body in place. The body is kept here only so
+-- this migration still runs to completion standalone — when reading this
+-- file to reason about the current security posture of
+-- import_record_with_tracks, read the fix migration instead.
 CREATE OR REPLACE FUNCTION public.import_record_with_tracks(
     record JSONB,
     tracks JSONB DEFAULT '[]'::JSONB
