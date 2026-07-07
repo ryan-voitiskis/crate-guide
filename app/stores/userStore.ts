@@ -242,6 +242,12 @@ export const useUserStore = defineStore('user', () => {
 		return settingsUpdateQueue
 	}
 
+	function setLocalTheme(newTheme: ThemeOptions) {
+		localThemePreference.value = newTheme
+		saveThemePreference(newTheme)
+		setTheme(newTheme)
+	}
+
 	async function updateTheme(newTheme: ThemeOptions) {
 		const previousTheme = currentTheme.value
 		localThemePreference.value = newTheme
@@ -342,6 +348,7 @@ export const useUserStore = defineStore('user', () => {
 		verifyOtp,
 		fetchProfile,
 		updateSettings,
+		setLocalTheme,
 		updateTheme,
 		updateKeyFormat,
 		deleteAllUserData

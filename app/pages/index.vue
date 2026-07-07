@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const records = useRecordsStore()
 const session = useSessionStore()
 const tracks = useTracksStore()
 
@@ -16,7 +17,7 @@ onMounted(() => {
 		<DialogSaveSession />
 
 		<Teleport to="#header-left" defer>
-			<template v-if="isActive">
+			<template v-if="isActive && records.hasRecords">
 				<SessionHeaderControls />
 			</template>
 		</Teleport>
@@ -25,9 +26,16 @@ onMounted(() => {
 
 		<div class="relative min-h-0 flex-1">
 			<StateLoading
-				v-if="tracks.isLoadingTracks"
+				v-if="records.isLoadingRecords || tracks.isLoadingTracks"
 				message="Loading tracks..."
 				class="h-full"
+			/>
+
+			<StateEmptyCollection
+				v-else-if="!records.hasRecords"
+				icon="session"
+				title="Add records to start a session"
+				description="Sessions are built from the tracks in your record library."
 			/>
 
 			<div
@@ -35,7 +43,7 @@ onMounted(() => {
 				class="flex h-full flex-col items-center justify-center gap-4 p-8"
 			>
 				<p class="text-muted-foreground text-center">
-					Import your record collection first to start a session.
+					Add tracks to your records before starting a session.
 				</p>
 			</div>
 
@@ -51,7 +59,12 @@ onMounted(() => {
 					</div>
 				</ScrollArea>
 
-				<Transition name="slide">
+				<Transition
+					enter-active-class="transition-all duration-200"
+					enter-from-class="translate-x-full opacity-0"
+					leave-active-class="transition-all duration-200"
+					leave-to-class="translate-x-full opacity-0"
+				>
 					<div
 						v-if="session.showHistory"
 						class="border-border w-80 shrink-0 border-l"
@@ -63,16 +76,3 @@ onMounted(() => {
 		</div>
 	</div>
 </template>
-
-<style scoped>
-.slide-enter-active,
-.slide-leave-active {
-	transition: all 0.2s ease;
-}
-
-.slide-enter-from,
-.slide-leave-to {
-	transform: translateX(100%);
-	opacity: 0;
-}
-</style>

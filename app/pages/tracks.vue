@@ -93,7 +93,7 @@ function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
 		<DialogBeatportImport ref="beatportImportDialog" />
 
 		<Teleport to="#header-left" defer>
-			<template v-if="isActive">
+			<template v-if="isActive && tracks.hasTracks">
 				<div class="relative max-w-md flex-1">
 					<Search
 						class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
@@ -122,6 +122,13 @@ function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
 				<StateLoading
 					v-if="records.isLoadingRecords || tracks.isLoadingTracks"
 					message="Loading tracks..."
+				/>
+
+				<StateEmptyCollection
+					v-else-if="!records.hasRecords"
+					icon="tracks"
+					title="Add records to build your track list"
+					description="Tracks appear automatically from imported or manually added records."
 				/>
 
 				<div v-else-if="tracks.hasTracks" class="flex flex-col gap-4">
@@ -269,7 +276,7 @@ function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
 				>
 					<h3 class="mb-2 text-lg font-semibold">No tracks yet</h3>
 					<p class="text-muted-foreground max-w-sm">
-						Import some records to see your tracks here.
+						Add tracks to your records to see them here.
 					</p>
 				</div>
 			</div>

@@ -46,7 +46,7 @@ watch(
 </script>
 
 <template>
-	<AuthShell chip="Side A · Sign in" title="Log in" catalog="CG · A01">
+	<ShellAuth chip="Side A · Sign in" title="Log in" catalog="CG · A01">
 		<template #header-extras>
 			<NoticeWarning v-if="user.userAlreadyRegistered">
 				<template #title>
@@ -135,5 +135,5 @@ watch(
 				</Button>
 			</div>
 		</div>
-	</AuthShell>
+	</ShellAuth>
 </template>

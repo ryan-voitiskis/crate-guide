@@ -3,19 +3,29 @@ import { CloudDownload, KeyRound, Plus } from 'lucide-vue-next'
 
 const discogs = useDiscogsStore()
 const discogsAuth = useDiscogsAuthStore()
+const manualEntry = useManualRecordEntryStore()
 const records = useRecordsStore()
 const tracks = useTracksStore()
 const crates = useCratesStore()
 
 const isActive = usePageActive()
+
+const discogsImportLabel = computed(() =>
+	discogsAuth.isOAuthed ? 'Import' : 'Connect Discogs'
+)
+
+function handleDiscogsImport() {
+	if (discogsAuth.isOAuthed) {
+		discogs.showGetFoldersDialog = true
+		return
+	}
+
+	discogsAuth.initDiscogsOAuthFlow()
+}
 </script>
 
 <template>
 	<div class="flex h-full flex-col">
-		<DialogCollectionImport />
-		<DialogReleaseImportFilter />
-		<DialogDiscogsImport />
-		<DialogRecordDetails />
 		<DialogAddToCrate />
 		<AlertConfirmRemoveRecord />
 
@@ -24,10 +34,16 @@ const isActive = usePageActive()
 				<InputRecordsSearch />
 				<Button
 					variant="secondary"
-					@click="discogs.showGetFoldersDialog = true"
+					:loading="discogsAuth.isDiscogsConnecting"
+					@click="handleDiscogsImport"
 				>
-					<CloudDownload class="mr-2" />
-					Import
+					<CloudDownload v-if="discogsAuth.isOAuthed" class="mr-2" />
+					<KeyRound v-else class="mr-2" />
+					{{ discogsImportLabel }}
+				</Button>
+				<Button variant="outline" @click="manualEntry.openDialog">
+					<Plus class="mr-2" />
+					Add manually
 				</Button>
 			</template>
 		</Teleport>
@@ -57,54 +73,12 @@ const isActive = usePageActive()
 					/>
 				</div>
 
-				<div v-else-if="discogsAuth.isOAuthed">
-					<div
-						class="mx-auto flex max-w-sm flex-col items-center justify-center py-16 text-center"
-					>
-						<h3 class="mb-2 text-lg font-semibold">Import from Discogs</h3>
-						<p class="text-muted-foreground mb-6 max-w-sm">
-							Import your record collection from Discogs.
-						</p>
-
-						<Button
-							class="mb-2 w-full"
-							@click="discogs.showGetFoldersDialog = true"
-						>
-							<CloudDownload class="mr-2" />
-							Import
-						</Button>
-						or
-						<Button variant="secondary" class="mt-2 w-full">
-							<Plus class="mr-2" />
-							Add manually
-						</Button>
-					</div>
-				</div>
-
-				<div
+				<StateEmptyCollection
 					v-else
-					class="mx-auto flex max-w-sm flex-col items-center justify-center py-16 text-center"
-				>
-					<h3 class="mb-2 text-lg font-semibold">Connect to Discogs</h3>
-					<p class="text-muted-foreground mb-6 max-w-sm">
-						Import your record collection from Discogs.
-					</p>
-
-					<Button
-						class="mb-2 w-full"
-						:loading="discogsAuth.isDiscogsConnecting"
-						@click="discogsAuth.initDiscogsOAuthFlow"
-					>
-						<KeyRound class="mr-2" />
-						Connect to Discogs
-					</Button>
-
-					<span>or</span>
-					<Button variant="secondary" class="mt-2 w-full">
-						<Plus class="mr-2" />
-						Add manually
-					</Button>
-				</div>
+					icon="records"
+					title="Start your record library"
+					description="Import your Discogs collection in one pass, or add records manually."
+				/>
 			</div>
 		</div>
 	</div>

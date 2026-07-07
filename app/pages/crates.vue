@@ -2,6 +2,7 @@
 import { FolderOpen, Plus } from 'lucide-vue-next'
 
 const crates = useCratesStore()
+const records = useRecordsStore()
 
 const isActive = usePageActive()
 
@@ -78,8 +79,15 @@ watch(
 		<div class="scrollbar-hidden flex-1 overflow-y-auto">
 			<div class="mx-auto max-w-[1600px] space-y-6 p-2">
 				<StateLoading
-					v-if="crates.isLoadingCrates"
+					v-if="crates.isLoadingCrates || records.isLoadingRecords"
 					message="Loading crates..."
+				/>
+
+				<StateEmptyCollection
+					v-else-if="!records.hasRecords"
+					icon="crates"
+					title="Add records before building crates"
+					description="Crates help organize records for sets and gigs once your library exists."
 				/>
 
 				<div v-else-if="crates.hasCrates" class="space-y-4">

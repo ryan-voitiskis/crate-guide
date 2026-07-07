@@ -1,4 +1,51 @@
 import { toast } from 'vue-sonner'
+import { validateImportResult } from '~/utils/discogs-validation'
+
+type ManualRecordTrackInput = {
+	title: string
+	artistName?: string | null
+	position?: string | null
+	duration?: number | null
+	bpm?: number | null
+	rpm?: number | null
+	key?: number | null
+	mode?: number | null
+	genres?: string[]
+	playable?: boolean
+}
+
+type ManualRecordWithTracksInput = {
+	title: string
+	artistName?: string | null
+	labelName?: string | null
+	catno?: string | null
+	year?: number | null
+	cover?: string | null
+	defaultGenres?: string[]
+	defaultRpm?: number | null
+	tracks: ManualRecordTrackInput[]
+}
+
+function buildArtistPayload(name?: string | null): DiscogsArtistDb[] {
+	const trimmedName = name?.trim()
+	return trimmedName ? [{ name: trimmedName, role: null }] : []
+}
+
+function buildLabelPayload(
+	name?: string | null,
+	catno?: string | null
+): DiscogsLabelDb[] {
+	const trimmedName = name?.trim()
+	if (!trimmedName) return []
+
+	const trimmedCatno = catno?.trim()
+	return [
+		{
+			name: trimmedName,
+			catno: trimmedCatno || undefined
+		}
+	]
+}
 
 export const useRecordsStore = defineStore('records', () => {
 	const supabase = useSupabaseClient<Database>()
@@ -29,6 +76,16 @@ export const useRecordsStore = defineStore('records', () => {
 	const displayedRecords = computed(() =>
 		hasSearchQuery.value ? searchResults.value : records.value
 	)
+
+	async function resolveMutationUserId(): Promise<string | null> {
+		try {
+			return await user.resolveAuthenticatedUserId()
+		} catch (error) {
+			console.error('Auth failed in recordsStore mutation:', error)
+			toast.error('You must be signed in to create records.')
+			return null
+		}
+	}
 
 	async function fetchAllRecords() {
 		if (isLoadingRecords.value) return
@@ -64,18 +121,16 @@ export const useRecordsStore = defineStore('records', () => {
 	async function createRecord(
 		recordData: Omit<DatabaseRecord, 'id' | 'created_at' | 'updated_at'>
 	): Promise<DatabaseRecord | null> {
-		if (!user.supaUser?.id) {
-			toast.error('You must be signed in to create records.')
-			return null
-		}
-
 		isCreatingRecord.value = true
 		try {
+			const userId = await resolveMutationUserId()
+			if (!userId) return null
+
 			const { data, error } = await supabase
 				.from('records')
 				.insert({
 					...recordData,
-					user_id: user.supaUser.id
+					user_id: userId
 				})
 				.select()
 				.single()
@@ -88,6 +143,81 @@ export const useRecordsStore = defineStore('records', () => {
 			return data as DatabaseRecord
 		} catch (error) {
 			console.error('Failed to create record:', error)
+			toast.error('Error creating record.')
+			return null
+		} finally {
+			isCreatingRecord.value = false
+		}
+	}
+
+	async function createRecordWithTracks(
+		recordInput: ManualRecordWithTracksInput
+	): Promise<DatabaseRecord | null> {
+		isCreatingRecord.value = true
+
+		try {
+			const userId = await resolveMutationUserId()
+			if (!userId) return null
+
+			const recordArtists = buildArtistPayload(recordInput.artistName)
+			const defaultGenres = recordInput.defaultGenres ?? []
+
+			const recordPayload = {
+				user_id: userId,
+				discogs_id: null,
+				discogs_release_url: null,
+				title: recordInput.title.trim(),
+				artists: recordArtists,
+				labels: buildLabelPayload(recordInput.labelName, recordInput.catno),
+				year: recordInput.year ?? null,
+				cover: recordInput.cover?.trim() || null
+			}
+
+			const trackPayloads = recordInput.tracks.map((track) => {
+				const trackArtists = buildArtistPayload(track.artistName)
+
+				return {
+					title: track.title.trim(),
+					artists: trackArtists.length ? trackArtists : recordArtists,
+					extraartists: [],
+					position: track.position?.trim() || null,
+					duration: track.duration ?? null,
+					bpm: track.bpm ?? null,
+					rpm: track.rpm ?? recordInput.defaultRpm ?? null,
+					key: track.key ?? null,
+					mode: track.mode ?? null,
+					genres: track.genres?.length ? track.genres : defaultGenres,
+					time_signature_upper: null,
+					time_signature_lower: null,
+					playable: track.playable ?? true
+				}
+			})
+
+			const { data, error } = await supabase.rpc('import_record_with_tracks', {
+				record: recordPayload,
+				tracks: trackPayloads
+			})
+
+			if (error) throw error
+
+			const result = validateImportResult(data)
+
+			await Promise.all([fetchAllRecords(), tracksStore.fetchAllTracks()])
+
+			const createdRecord = result.record_id
+				? getRecordById(result.record_id)
+				: records.value[0]
+
+			const tracksInserted = result.tracks_inserted ?? trackPayloads.length
+			toast.success(
+				tracksInserted > 0
+					? `Record and ${tracksInserted} ${tracksInserted === 1 ? 'track' : 'tracks'} created successfully.`
+					: 'Record created successfully.'
+			)
+
+			return createdRecord ?? null
+		} catch (error) {
+			console.error('Failed to create record with tracks:', error)
 			toast.error('Error creating record.')
 			return null
 		} finally {
@@ -274,6 +404,7 @@ export const useRecordsStore = defineStore('records', () => {
 		displayedRecords,
 		fetchAllRecords,
 		createRecord,
+		createRecordWithTracks,
 		updateRecord,
 		deleteRecord,
 		removeRecordFromCollection,

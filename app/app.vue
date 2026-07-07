@@ -10,5 +10,10 @@ useUserData()
 		<NuxtPage />
 	</NuxtLayout>
 
+	<DialogCollectionImport />
+	<DialogReleaseImportFilter />
+	<DialogDiscogsImport />
+	<DialogRecordCreateManual />
+	<DialogRecordDetails />
 	<Toaster position="bottom-center" />
 </template>

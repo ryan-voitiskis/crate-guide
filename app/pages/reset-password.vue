@@ -23,7 +23,7 @@ const onSubmit = form.handleSubmit(async (values: ResetPasswordFormValues) => {
 </script>
 
 <template>
-	<AuthShell
+	<ShellAuth
 		chip="B-side · Recovery"
 		:title="linkSent ? 'Check your inbox' : 'Reset password'"
 		:subtitle="
@@ -63,5 +63,5 @@ const onSubmit = form.handleSubmit(async (values: ResetPasswordFormValues) => {
 				<NuxtLink to="/login">Back to login</NuxtLink>
 			</Button>
 		</div>
-	</AuthShell>
+	</ShellAuth>
 </template>

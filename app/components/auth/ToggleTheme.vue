@@ -16,7 +16,11 @@ const label = computed(() => `Theme: ${labels[current.value]}`)
 function cycle() {
 	const idx = order.indexOf(current.value)
 	const next = order[(idx + 1) % order.length] ?? 'auto'
-	user.updateTheme(next)
+	// On unauthenticated auth pages skip the DB write path — otherwise a
+	// stale/partial session could surface profile-update error toasts
+	// unrelated to what the user was doing.
+	if (user.supaUser?.id) user.updateTheme(next)
+	else user.setLocalTheme(next)
 }
 </script>
 

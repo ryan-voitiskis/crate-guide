@@ -1,6 +1,6 @@
 <script setup lang="ts">
 interface Props {
-	/** Small catalog chip shown above the title, e.g. "SIDE A · SIGN IN" */
+	/** Small catalog chip shown above the title, e.g. "Side A · Sign in" */
 	chip?: string
 	/** Main display title */
 	title: string
@@ -12,9 +12,28 @@ interface Props {
 	catalog?: string
 }
 
-withDefaults(defineProps<Props>(), {
-	logoTo: '/demo',
-	catalog: 'CG · 001'
+const props = withDefaults(defineProps<Props>(), {
+	logoTo: '/demo'
+})
+
+const grooveRadii = [96, 86, 76, 66]
+
+// Map each title character to a peak amplitude (% mix into primary) shaped
+// like a kick drum's frequency spectrum: strong low-end, fast decay into the
+// mids, with a small transient "click" resurgence near the tail.
+const titleChars = computed(() => {
+	const letters = [...props.title]
+	const last = Math.max(letters.length - 1, 1)
+	return letters.map((char, i) => {
+		const t = i / last
+		const lowEnd = 70 * Math.pow(1 - t, 1.8)
+		const click = t > 0.6 ? 22 * Math.max(0, 1 - Math.abs(t - 0.85) * 4) : 0
+		return {
+			char,
+			peak: Math.max(lowEnd, click, 6).toFixed(1),
+			delay: (i * 45).toString()
+		}
+	})
 })
 </script>
 
@@ -30,7 +49,7 @@ withDefaults(defineProps<Props>(), {
 
 		<!-- Floating theme toggle -->
 		<div class="absolute top-4 right-4 z-20 sm:top-6 sm:right-6">
-			<AuthThemeToggle />
+			<ToggleTheme />
 		</div>
 
 		<!-- Card frame -->
@@ -66,34 +85,15 @@ withDefaults(defineProps<Props>(), {
 							class="text-foreground/15 absolute inset-0 -m-6 size-[calc(100%+3rem)]"
 							fill="none"
 						>
-							<circle
-								cx="100"
-								cy="100"
-								r="96"
-								stroke="currentColor"
-								stroke-width="0.5"
-							/>
-							<circle
-								cx="100"
-								cy="100"
-								r="86"
-								stroke="currentColor"
-								stroke-width="0.5"
-							/>
-							<circle
-								cx="100"
-								cy="100"
-								r="76"
-								stroke="currentColor"
-								stroke-width="0.5"
-							/>
-							<circle
-								cx="100"
-								cy="100"
-								r="66"
-								stroke="currentColor"
-								stroke-width="0.5"
-							/>
+							<g stroke="currentColor" stroke-width="0.5">
+								<circle
+									v-for="r in grooveRadii"
+									:key="r"
+									cx="100"
+									cy="100"
+									:r="r"
+								/>
+							</g>
 						</svg>
 						<NuxtLink
 							:to="logoTo"
@@ -109,17 +109,24 @@ withDefaults(defineProps<Props>(), {
 				<header class="space-y-3 px-6 pt-4 pb-2 sm:px-8">
 					<div
 						v-if="chip"
-						aria-hidden="true"
 						class="text-foreground/35 flex items-center gap-2 font-mono text-[0.7rem] tracking-[0.2em] uppercase"
 					>
-						<span class="bg-foreground/20 h-px w-6" />
+						<span aria-hidden="true" class="bg-foreground/20 h-px w-6" />
 						<span>{{ chip }}</span>
 					</div>
 					<h1
-						class="text-foreground text-4xl leading-none font-bold tracking-tight"
-						style="font-family: 'Egyptian505', serif"
+						class="text-foreground font-mono text-2xl leading-[1.1] font-normal tracking-tight whitespace-pre sm:text-[1.75rem]"
 					>
-						{{ title }}
+						<!-- prettier-ignore -->
+						<span
+							v-for="(item, i) in titleChars"
+							:key="i"
+							class="kick-title-char"
+							:style="{
+								'--kick-peak': `${item.peak}%`,
+								'--kick-delay': `${item.delay}ms`
+							}"
+						>{{ item.char }}</span>
 					</h1>
 					<p v-if="subtitle" class="text-muted-foreground text-sm">
 						{{ subtitle }}
@@ -134,6 +141,7 @@ withDefaults(defineProps<Props>(), {
 
 				<!-- Footer catalog strip (decorative) -->
 				<div
+					v-if="catalog"
 					aria-hidden="true"
 					class="border-border/50 text-foreground/35 flex items-center justify-between border-t px-6 py-3 font-mono text-[0.65rem] tracking-[0.18em] uppercase sm:px-8"
 				>

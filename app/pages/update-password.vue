@@ -23,7 +23,7 @@ const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
 </script>
 
 <template>
-	<AuthShell chip="B-side · New key" title="New password" catalog="CG · B02">
+	<ShellAuth chip="B-side · New key" title="New password" catalog="CG · B02">
 		<div class="grid gap-4">
 			<form class="flex flex-col gap-3" @submit="onSubmit">
 				<FormField v-slot="{ componentField }" name="password">
@@ -51,5 +51,5 @@ const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
 				<NuxtLink to="/login">Back to login</NuxtLink>
 			</Button>
 		</div>
-	</AuthShell>
+	</ShellAuth>
 </template>

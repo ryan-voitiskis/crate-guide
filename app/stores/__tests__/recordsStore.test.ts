@@ -45,7 +45,8 @@ const mockCratesStore = {
 }
 
 const mockTracksStore = {
-	tracks: [] as ReturnType<typeof createMockTrack>[]
+	tracks: [] as ReturnType<typeof createMockTrack>[],
+	fetchAllTracks: vi.fn()
 }
 
 // Stub globals before importing the store
@@ -66,6 +67,7 @@ describe('recordsStore', () => {
 		mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: null })
 		mockCratesStore.crates = []
 		mockTracksStore.tracks = []
+		mockTracksStore.fetchAllTracks.mockResolvedValue(undefined)
 
 		// Reset user store
 		mockUserStore.supaUser = { id: 'test-user-id' }
@@ -295,6 +297,116 @@ describe('recordsStore', () => {
 			})
 
 			const result = await store.createRecord(newRecordData)
+
+			expect(result).toBeNull()
+		})
+	})
+
+	describe('createRecordWithTracks', () => {
+		it('returns null when user is not signed in', async () => {
+			mockUserStore.supaUser = null
+			const store = useRecordsStore()
+
+			const result = await store.createRecordWithTracks({
+				title: 'Manual Record',
+				tracks: []
+			})
+
+			expect(result).toBeNull()
+			expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+		})
+
+		it('imports a manual record with tracks and refreshes local data', async () => {
+			const store = useRecordsStore()
+			const createdRecord = createMockRecord({
+				id: 'manual-record-id',
+				title: 'Manual Record'
+			})
+
+			mockSupabaseClient.rpc.mockResolvedValue({
+				data: {
+					success: true,
+					record_id: 'manual-record-id',
+					tracks_inserted: 2
+				},
+				error: null
+			})
+			mockQueryBuilder.order.mockResolvedValue({
+				data: [createdRecord],
+				error: null
+			})
+
+			const result = await store.createRecordWithTracks({
+				title: 'Manual Record',
+				artistName: 'Manual Artist',
+				labelName: 'Manual Label',
+				catno: 'MAN-001',
+				year: 2026,
+				cover: 'https://example.com/cover.jpg',
+				defaultGenres: ['House'],
+				defaultRpm: 45,
+				tracks: [
+					{
+						title: 'First Track',
+						position: 'A1',
+						duration: 180000,
+						bpm: 128,
+						key: 0,
+						mode: 1
+					},
+					{
+						title: 'Second Track',
+						artistName: 'Other Artist',
+						position: 'B1'
+					}
+				]
+			})
+
+			expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+				'import_record_with_tracks',
+				{
+					record: expect.objectContaining({
+						user_id: 'test-user-id',
+						title: 'Manual Record',
+						artists: [{ name: 'Manual Artist', role: null }],
+						labels: [{ name: 'Manual Label', catno: 'MAN-001' }],
+						year: 2026,
+						cover: 'https://example.com/cover.jpg'
+					}),
+					tracks: [
+						expect.objectContaining({
+							title: 'First Track',
+							position: 'A1',
+							artists: [{ name: 'Manual Artist', role: null }],
+							genres: ['House'],
+							rpm: 45
+						}),
+						expect.objectContaining({
+							title: 'Second Track',
+							position: 'B1',
+							artists: [{ name: 'Other Artist', role: null }],
+							genres: ['House'],
+							rpm: 45
+						})
+					]
+				}
+			)
+			expect(mockTracksStore.fetchAllTracks).toHaveBeenCalled()
+			expect(result?.id).toBe('manual-record-id')
+			expect(store.records[0]!.id).toBe('manual-record-id')
+		})
+
+		it('returns null on RPC error', async () => {
+			const store = useRecordsStore()
+			mockSupabaseClient.rpc.mockResolvedValue({
+				data: null,
+				error: new Error('Import failed')
+			})
+
+			const result = await store.createRecordWithTracks({
+				title: 'Manual Record',
+				tracks: []
+			})
 
 			expect(result).toBeNull()
 		})

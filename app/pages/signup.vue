@@ -38,7 +38,7 @@ async function signInWithGoogle() {
 </script>
 
 <template>
-	<AuthShell
+	<ShellAuth
 		chip="Cut 02 · New record"
 		title="Create your account"
 		catalog="CG · A02"
@@ -114,5 +114,5 @@ async function signInWithGoogle() {
 				</Button>
 			</div>
 		</div>
-	</AuthShell>
+	</ShellAuth>
 </template>

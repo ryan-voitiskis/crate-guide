@@ -43,6 +43,7 @@ function handleDeckCountChange(value: unknown) {
 		<Toggle
 			:pressed="session.showTurntableSim"
 			aria-label="Toggle turntable"
+			class="gap-0"
 			@click="session.showTurntableSim = !session.showTurntableSim"
 		>
 			<Disc3 class="mr-1.5 h-4 w-4" />
@@ -52,6 +53,7 @@ function handleDeckCountChange(value: unknown) {
 		<Toggle
 			:pressed="session.showHistory"
 			aria-label="Toggle history"
+			class="gap-0"
 			@click="session.showHistory = !session.showHistory"
 		>
 			<History class="mr-1.5 h-4 w-4" />

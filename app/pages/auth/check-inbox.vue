@@ -3,7 +3,7 @@ import { Mail } from 'lucide-vue-next'
 </script>
 
 <template>
-	<AuthShell
+	<ShellAuth
 		chip="Intermission · Awaiting cue"
 		title="Check your inbox"
 		subtitle="Click the confirmation link we just sent to finish creating your account."
@@ -28,5 +28,5 @@ import { Mail } from 'lucide-vue-next'
 				</Button>
 			</div>
 		</div>
-	</AuthShell>
+	</ShellAuth>
 </template>

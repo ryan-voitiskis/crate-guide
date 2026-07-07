@@ -195,3 +195,45 @@
 	opacity: 0;
 	transform: scale(0.95);
 }
+
+/* Kick-drum spectrum pulse: per-char color analyzer feel on auth titles.
+   Typed custom property lets the color-mix percentage interpolate smoothly.
+   Peak amplitude is set per-span via --kick-peak (low chars hit hardest,
+   high chars barely move), simulating a kick's frequency spectrum. */
+@property --kick-pulse {
+	syntax: '<percentage>';
+	initial-value: 0%;
+	inherits: false;
+}
+
+@keyframes kick-char-pulse {
+	0% {
+		--kick-pulse: 0%;
+	}
+	12% {
+		--kick-pulse: var(--kick-peak, 0%);
+	}
+	60% {
+		--kick-pulse: calc(var(--kick-peak, 0%) * 0.25);
+	}
+	100% {
+		--kick-pulse: 0%;
+	}
+}
+
+.kick-title-char {
+	display: inline-block;
+	color: color-mix(
+		in oklch,
+		var(--foreground),
+		var(--primary) var(--kick-pulse, 0%)
+	);
+	animation: kick-char-pulse 720ms cubic-bezier(0.2, 0, 0.25, 1) 4 both;
+	animation-delay: var(--kick-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.kick-title-char {
+		animation: none;
+	}
+}
