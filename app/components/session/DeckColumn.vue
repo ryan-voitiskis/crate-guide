@@ -56,6 +56,7 @@ const deckBackground = computed(() => {
 		<!-- Turntable ON: SL-1200 style layout -->
 		<template v-if="session.showTurntableSim">
 			<div
+				:data-testid="`deck-${deckIndex}-turntable`"
 				class="relative flex h-[250px] flex-col overflow-hidden"
 				:style="{
 					background: deckBackground,
@@ -64,7 +65,7 @@ const deckBackground = computed(() => {
 				}"
 			>
 				<!-- Top: platter + pitch fader -->
-				<div class="flex items-center p-3 pb-0">
+				<div class="flex items-start p-1 pb-0">
 					<TurntableSimulator :deck-index="deckIndex" :deck="deck" />
 					<DeckPitchFader :deck-index="deckIndex" class="ml-auto" />
 				</div>
