@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { getPitchDeltaColour, hexToRgba } from '~/utils/colourInterpolation'
+
 const props = defineProps<{
 	deckIndex: number
 	compact?: boolean
@@ -93,63 +95,14 @@ const legendTextClass = 'text-[#c9c6bd]'
 const legendMarkClass = 'bg-[#c9c6bd]'
 const pitchValueClass =
 	'font-mono text-[13px] leading-none font-semibold tabular-nums'
-const pitchColourStops = {
-	slower: '#93c5fd',
-	neutral: '#a7f3d0',
-	faster: '#fca5a5'
-} as const
 const brushedScaleGrainClass =
 	'pointer-events-none absolute inset-0 bg-[linear-gradient(92deg,rgba(255,255,255,0.16)_0%,transparent_18%,rgba(0,0,0,0.18)_37%,transparent_56%,rgba(255,255,255,0.13)_73%,rgba(0,0,0,0.12)_100%),linear-gradient(180deg,rgba(255,255,255,0.1)_0%,transparent_34%,rgba(0,0,0,0.24)_100%),url(/textures/brushed-metal-009.jpg)] bg-no-repeat opacity-90 mix-blend-soft-light [background-size:100%_100%,100%_100%,100%_100%]'
 const brushedRailGrainClass =
 	'pointer-events-none absolute inset-0 bg-[linear-gradient(92deg,rgba(255,255,255,0.14)_0%,transparent_20%,rgba(0,0,0,0.22)_43%,transparent_62%,rgba(255,255,255,0.11)_78%,rgba(0,0,0,0.14)_100%),linear-gradient(180deg,rgba(255,255,255,0.09)_0%,transparent_32%,rgba(0,0,0,0.28)_100%),url(/textures/brushed-metal-009.jpg)] bg-no-repeat opacity-95 mix-blend-soft-light [background-size:100%_100%,100%_100%,100%_100%]'
 
-function clamp(value: number, min: number, max: number) {
-	return Math.max(min, Math.min(max, value))
-}
-
-function hexToRgb(hex: string) {
-	const value = hex.replace('#', '')
-	const parsed = Number.parseInt(value, 16)
-	return {
-		r: (parsed >> 16) & 255,
-		g: (parsed >> 8) & 255,
-		b: parsed & 255
-	}
-}
-
-function rgbToHex({ r, g, b }: { r: number; g: number; b: number }) {
-	const toHex = (value: number) =>
-		Math.round(value).toString(16).padStart(2, '0')
-	return `#${toHex(r)}${toHex(g)}${toHex(b)}`
-}
-
-function interpolateHexColour(start: string, end: string, amount: number) {
-	const from = hexToRgb(start)
-	const to = hexToRgb(end)
-	const t = clamp(amount, 0, 1)
-	return rgbToHex({
-		r: from.r + (to.r - from.r) * t,
-		g: from.g + (to.g - from.g) * t,
-		b: from.b + (to.b - from.b) * t
-	})
-}
-
-function hexToRgba(hex: string, alpha: number) {
-	const { r, g, b } = hexToRgb(hex)
-	return `rgba(${r},${g},${b},${alpha})`
-}
-
-const pitchValueColour = computed(() => {
-	const pitch = clamp(faderValue.value, -100, 100)
-	if (Math.abs(pitch) < 1) return pitchColourStops.neutral
-
-	const target = pitch < 0 ? pitchColourStops.slower : pitchColourStops.faster
-	return interpolateHexColour(
-		pitchColourStops.neutral,
-		target,
-		Math.abs(pitch) / 100
-	)
-})
+const pitchValueColour = computed(() =>
+	getPitchDeltaColour(faderValue.value, 100)
+)
 const pitchValueStyle = computed(() => ({
 	color: pitchValueColour.value,
 	textShadow: `0 0 3px ${hexToRgba(pitchValueColour.value, 0.46)}, 0 0 10px ${hexToRgba(pitchValueColour.value, 0.2)}`

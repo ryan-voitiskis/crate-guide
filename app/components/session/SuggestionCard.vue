@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import {
+	getPitchDeltaColour,
+	getSuggestionScoreColour,
+	hexToRgba
+} from '~/utils/colourInterpolation'
+
 const props = defineProps<{
 	track: ScoredTrack
 	deckIndex: number
@@ -36,11 +42,21 @@ const keyCombinationLabel = computed(() => {
 })
 
 const scorePercent = computed(() => Math.round(props.track.score * 100))
+const scoreColour = computed(() => getSuggestionScoreColour(props.track.score))
+const scoreBadgeStyle = computed(() => ({
+	backgroundColor: hexToRgba(scoreColour.value, 0.12),
+	borderColor: hexToRgba(scoreColour.value, 0.34),
+	boxShadow: `inset 0 0 0 1px ${hexToRgba(scoreColour.value, 0.1)}`,
+	color: scoreColour.value
+}))
 
 const pitchAdjustmentDisplay = computed(() => {
 	const adjustment = props.track.pitchAdjustment * 100
 	return (adjustment > 0 ? '+' : '') + adjustment.toFixed(1) + '%'
 })
+const pitchAdjustmentColour = computed(() =>
+	getPitchDeltaColour(props.track.pitchAdjustment)
+)
 
 function handleClick() {
 	session.handleSuggestionClick(props.track.id, props.deckIndex)
@@ -95,7 +111,10 @@ function handleClick() {
 					<span v-if="keyCombinationLabel" class="text-muted-foreground">
 						{{ keyCombinationLabel }}
 					</span>
-					<span class="text-muted-foreground">
+					<span
+						class="font-medium tabular-nums"
+						:style="{ color: pitchAdjustmentColour }"
+					>
 						{{ pitchAdjustmentDisplay }}
 					</span>
 				</div>
@@ -103,13 +122,8 @@ function handleClick() {
 
 			<!-- Score indicator -->
 			<div
-				class="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium"
-				:class="{
-					'bg-green-500/20 text-green-500': scorePercent >= 70,
-					'bg-yellow-500/20 text-yellow-500':
-						scorePercent >= 40 && scorePercent < 70,
-					'bg-muted text-muted-foreground': scorePercent < 40
-				}"
+				class="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors"
+				:style="scoreBadgeStyle"
 			>
 				{{ scorePercent }}
 			</div>
