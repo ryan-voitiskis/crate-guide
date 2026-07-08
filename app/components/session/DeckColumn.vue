@@ -17,10 +17,29 @@ const showLoadDialog = ref(false)
 
 // Turntable theme backgrounds
 const silverDeckBackground = `linear-gradient(
-	to right bottom,
-	#8f8d97, #9d9ca6, #acacb4, #bbbcc3, #cbccd2,
-	#cfd0d6, #d3d4d9, #d7d8dd, #d0d0d6, #c8c9cf, #c1c1c9, #babac2
+	135deg,
+	#d8d8cc 0%,
+	#cacabd 16%,
+	#e1e0d5 34%,
+	#c5c5b8 52%,
+	#dad9cd 70%,
+	#babab0 100%
 )`
+const silverDeckOverlay = `radial-gradient(
+	circle at 12% 11%,
+	rgba(255, 255, 246, 0.64) 0%,
+	rgba(255, 255, 246, 0.22) 9%,
+	transparent 21%
+), radial-gradient(
+	ellipse at 78% 17%,
+	rgba(255, 255, 244, 0.36) 0%,
+	transparent 34%
+), radial-gradient(
+	ellipse at 86% 82%,
+	rgba(91, 91, 86, 0.16) 0%,
+	transparent 48%
+)`
+const silverDeckMaterial = `${silverDeckOverlay}, ${silverDeckBackground}`
 
 const blackDeckBackground = `linear-gradient(
 	to right bottom,
@@ -30,7 +49,7 @@ const blackDeckBackground = `linear-gradient(
 
 const deckBackground = computed(() => {
 	const theme = user.profile?.turntable_theme ?? 'silver'
-	return theme === 'black' ? blackDeckBackground : silverDeckBackground
+	return theme === 'black' ? blackDeckBackground : silverDeckMaterial
 })
 </script>
 

@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
 	clampNumber,
 	getPitchDeltaColour,
+	getPitchDeltaHighContrastColour,
 	getSuggestionScoreColour,
 	hexToRgba,
 	interpolateHexColour,
-	pitchDeltaColourStops
+	pitchDeltaColourStops,
+	pitchDeltaHighContrastColourStops
 } from './colourInterpolation'
 
 describe('clampNumber', () => {
@@ -38,6 +40,20 @@ describe('getPitchDeltaColour', () => {
 		expect(getPitchDeltaColour(-1)).toBe(pitchDeltaColourStops.slower)
 		expect(getPitchDeltaColour(0)).toBe(pitchDeltaColourStops.neutral)
 		expect(getPitchDeltaColour(1)).toBe(pitchDeltaColourStops.faster)
+	})
+})
+
+describe('getPitchDeltaHighContrastColour', () => {
+	it('returns darker semantic pitch colours at the ends and centre', () => {
+		expect(getPitchDeltaHighContrastColour(-1)).toBe(
+			pitchDeltaHighContrastColourStops.slower
+		)
+		expect(getPitchDeltaHighContrastColour(0)).toBe(
+			pitchDeltaHighContrastColourStops.neutral
+		)
+		expect(getPitchDeltaHighContrastColour(1)).toBe(
+			pitchDeltaHighContrastColourStops.faster
+		)
 	})
 })
 

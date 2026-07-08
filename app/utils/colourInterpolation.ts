@@ -1,8 +1,20 @@
+type PitchDeltaColourStops = {
+	readonly slower: string
+	readonly neutral: string
+	readonly faster: string
+}
+
 export const pitchDeltaColourStops = {
 	slower: '#93c5fd',
 	neutral: '#a7f3d0',
 	faster: '#fca5a5'
-} as const
+} as const satisfies PitchDeltaColourStops
+
+export const pitchDeltaHighContrastColourStops = {
+	slower: '#3f73dc',
+	neutral: '#20936f',
+	faster: '#d44545'
+} as const satisfies PitchDeltaColourStops
 
 const suggestionScoreColourStops = {
 	low: '#a1a1aa',
@@ -60,17 +72,30 @@ export function hexToRgba(hex: string, alpha: number) {
 export function getPitchDeltaColour(
 	delta: number,
 	maxMagnitude = 1,
-	neutralThreshold = maxMagnitude * 0.01
+	neutralThreshold = maxMagnitude * 0.01,
+	colourStops: PitchDeltaColourStops = pitchDeltaColourStops
 ) {
 	const pitch = clampNumber(delta, -maxMagnitude, maxMagnitude)
-	if (Math.abs(pitch) <= neutralThreshold) return pitchDeltaColourStops.neutral
+	if (Math.abs(pitch) <= neutralThreshold) return colourStops.neutral
 
-	const target =
-		pitch < 0 ? pitchDeltaColourStops.slower : pitchDeltaColourStops.faster
+	const target = pitch < 0 ? colourStops.slower : colourStops.faster
 	return interpolateHexColour(
-		pitchDeltaColourStops.neutral,
+		colourStops.neutral,
 		target,
 		Math.abs(pitch) / maxMagnitude
+	)
+}
+
+export function getPitchDeltaHighContrastColour(
+	delta: number,
+	maxMagnitude = 1,
+	neutralThreshold = maxMagnitude * 0.01
+) {
+	return getPitchDeltaColour(
+		delta,
+		maxMagnitude,
+		neutralThreshold,
+		pitchDeltaHighContrastColourStops
 	)
 }
 
