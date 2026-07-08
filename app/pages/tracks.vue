@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { Disc, Loader2, Search, Wand } from 'lucide-vue-next'
+import { Disc, Search } from 'lucide-vue-next'
 
 const records = useRecordsStore()
-const beatport = useBeatportStore()
 const tracks = useTracksStore()
 const trackFilters = useTrackFiltersStore()
 const user = useUserStore()
@@ -10,11 +9,6 @@ const user = useUserStore()
 const isActive = usePageActive()
 
 const selectedTrackId = ref<string | null>(null)
-const beatportImportDialog = ref()
-
-function showBeatportImportDialog() {
-	beatportImportDialog.value.showDialog = true
-}
 
 function openTrackDetails(trackId: string) {
 	selectedTrackId.value = trackId
@@ -70,18 +64,6 @@ function formatKey(track: Track): string {
 		'short'
 	)
 }
-
-async function fetchBeatportForTrack(track: Track, event: Event) {
-	event.stopPropagation()
-	await beatport.getBeatportData(track.id)
-}
-
-function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
-	if (!track.beatport_data) return 'none'
-	if (beatport.hasFoundData(track.beatport_data)) return 'found'
-	if (beatport.hasBeenSearched(track.beatport_data)) return 'not-found'
-	return 'none'
-}
 </script>
 
 <template>
@@ -90,7 +72,6 @@ function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
 			:track-id="selectedTrackId"
 			@close="selectedTrackId = null"
 		/>
-		<DialogBeatportImport ref="beatportImportDialog" />
 
 		<Teleport to="#header-left" defer>
 			<template v-if="isActive && tracks.hasTracks">
@@ -106,14 +87,6 @@ function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
 					/>
 				</div>
 				<DialogTrackFilters />
-				<Button
-					variant="outline"
-					size="default"
-					@click="showBeatportImportDialog"
-				>
-					<Wand class="mr-2 size-4" />
-					Get Beatport data
-				</Button>
 			</template>
 		</Teleport>
 
@@ -212,35 +185,6 @@ function getBeatportStatus(track: Track): 'none' | 'found' | 'not-found' {
 											>
 												Unplayable
 											</span>
-											<button
-												class="hover:bg-accent mr-2 flex size-8 items-center justify-center rounded-md transition-colors"
-												:disabled="beatport.loadingTrackId === track.id"
-												:title="
-													getBeatportStatus(track) === 'found'
-														? 'Beatport data found - click to refresh'
-														: getBeatportStatus(track) === 'not-found'
-															? 'Not found on Beatport - click to retry'
-															: 'Search Beatport for BPM and key'
-												"
-												@click="fetchBeatportForTrack(track, $event)"
-											>
-												<Loader2
-													v-if="beatport.loadingTrackId === track.id"
-													class="text-muted-foreground size-4 animate-spin"
-												/>
-												<Wand
-													v-else
-													class="size-4"
-													:class="{
-														'text-muted-foreground/50':
-															getBeatportStatus(track) === 'none',
-														'text-green-600 dark:text-green-400':
-															getBeatportStatus(track) === 'found',
-														'text-amber-600 dark:text-amber-400':
-															getBeatportStatus(track) === 'not-found'
-													}"
-												/>
-											</button>
 										</div>
 									</div>
 								</div>

@@ -1,9 +1,11 @@
 import { toast } from 'vue-sonner'
 import { Wand } from 'lucide-vue-next'
-import type {
-	BeatportNotFoundMarker,
-	BeatportTrackData
-} from '~~/shared/types/beatport'
+import {
+	BEATPORT_SCRAPING_DISABLED_MESSAGE,
+	BEATPORT_SCRAPING_DISABLED_STATUS,
+	type BeatportNotFoundMarker,
+	type BeatportTrackData
+} from '../../shared/types/beatport'
 
 interface BulkTrackResult {
 	trackId: string
@@ -24,6 +26,9 @@ const BEATPORT_INVALID_TRACK_MESSAGE =
 	'Track needs artist and title to search Beatport'
 const BEATPORT_SAVE_NO_MATCH_ERROR = 'Failed to save Beatport search result'
 const BEATPORT_SAVE_DATA_ERROR = 'Failed to save Beatport data'
+const BEATPORT_FETCH_ERROR = 'Failed to get Beatport data'
+const BEATPORT_BLOCKED_ERROR =
+	'Beatport is blocking automated requests right now'
 
 type BeatportLookupStatus = 'success' | 'not_found' | 'invalid_input'
 
@@ -67,6 +72,37 @@ function hasFoundData(
 
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function getBeatportErrorStatus(error: unknown): number | null {
+	if (!isObjectRecord(error)) return null
+
+	const statusCode = error.statusCode
+	if (typeof statusCode === 'number') return statusCode
+
+	const status = error.status
+	if (typeof status === 'number') return status
+
+	return null
+}
+
+function getBeatportErrorMessage(error: unknown): string {
+	const status = getBeatportErrorStatus(error)
+	if (
+		status === BEATPORT_SCRAPING_DISABLED_STATUS ||
+		(error instanceof Error &&
+			error.message === BEATPORT_SCRAPING_DISABLED_MESSAGE)
+	) {
+		return BEATPORT_SCRAPING_DISABLED_MESSAGE
+	}
+
+	return status === 403 || status === 503
+		? BEATPORT_BLOCKED_ERROR
+		: BEATPORT_FETCH_ERROR
+}
+
+function isBeatportScrapingEnabled(): boolean {
+	return false
 }
 
 async function persistNotFoundMarker(
@@ -116,6 +152,11 @@ export const useBeatportStore = defineStore('beatport', () => {
 	})
 
 	async function getBeatportData(trackId: string): Promise<boolean> {
+		if (!isBeatportScrapingEnabled()) {
+			toast.error(BEATPORT_SCRAPING_DISABLED_MESSAGE)
+			return false
+		}
+
 		const tracks = useTracksStore()
 		const track = tracks.getTrackById(trackId)
 
@@ -172,7 +213,7 @@ export const useBeatportStore = defineStore('beatport', () => {
 			throw new Error(BEATPORT_SAVE_DATA_ERROR)
 		} catch (error) {
 			console.error('Error fetching Beatport data:', error)
-			toast.error('Failed to get Beatport data')
+			toast.error(getBeatportErrorMessage(error))
 			return false
 		} finally {
 			isLoadingBeatportData.value = false
@@ -191,6 +232,36 @@ export const useBeatportStore = defineStore('beatport', () => {
 				)
 
 		if (tracksToProcess.length === 0) {
+			return
+		}
+
+		if (!isBeatportScrapingEnabled()) {
+			const lastTrack = tracksToProcess[tracksToProcess.length - 1]
+			isBulkFetchingBeatportData.value = false
+			bulkBeatportCancelled.value = false
+			bulkBeatportProgress.value = 100
+			currentProcessingTrack.value = null
+			lastProcessedTrack.value = lastTrack
+				? {
+						trackId: lastTrack.id,
+						title: lastTrack.title,
+						artist: lastTrack.artists?.[0]?.name || 'Unknown Artist',
+						image: null,
+						success: false,
+						error: BEATPORT_SCRAPING_DISABLED_MESSAGE
+					}
+				: null
+			bulkBeatportResults.value = {
+				successful: 0,
+				failed: tracksToProcess.map((track) => ({
+					trackId: track.id,
+					title: track.title,
+					error: BEATPORT_SCRAPING_DISABLED_MESSAGE
+				})),
+				skipped: 0,
+				total: tracksToProcess.length
+			}
+			toast.error(BEATPORT_SCRAPING_DISABLED_MESSAGE)
 			return
 		}
 
@@ -270,7 +341,11 @@ export const useBeatportStore = defineStore('beatport', () => {
 				}
 			} catch (error) {
 				const errorMessage =
-					error instanceof Error ? error.message : 'Unknown error'
+					getBeatportErrorStatus(error) !== null
+						? getBeatportErrorMessage(error)
+						: error instanceof Error
+							? error.message
+							: 'Unknown error'
 
 				bulkBeatportResults.value.failed.push({
 					trackId: track.id,
@@ -312,6 +387,10 @@ export const useBeatportStore = defineStore('beatport', () => {
 	async function getBeatportDataSilent(
 		trackId: string
 	): Promise<BeatportLookupStatus> {
+		if (!isBeatportScrapingEnabled()) {
+			throw new Error(BEATPORT_SCRAPING_DISABLED_MESSAGE)
+		}
+
 		const tracks = useTracksStore()
 		const track = tracks.getTrackById(trackId)
 

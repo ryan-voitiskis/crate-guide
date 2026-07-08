@@ -1,7 +1,9 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
-import type {
-	BeatportTrackData,
-	SearchTrackParams
+import {
+	BEATPORT_SCRAPING_DISABLED_MESSAGE,
+	BEATPORT_SCRAPING_DISABLED_STATUS,
+	type BeatportTrackData,
+	type SearchTrackParams
 } from '../../../shared/types/beatport'
 import { getClientIp } from '../../utils/getClientIp'
 
@@ -32,6 +34,11 @@ interface BeatportTrackJSON {
 const RATE_LIMIT_WINDOW_MS = 1000
 const RATE_LIMIT_MAX_REQUESTS = 1
 const BEATPORT_REQUEST_TIMEOUT_MS = 10_000
+const BEATPORT_CHALLENGE_MESSAGE = 'Beatport returned anti-bot challenge'
+
+function isBeatportScrapingEnabled(): boolean {
+	return false
+}
 
 export default defineEventHandler(async (event) => {
 	const user = await serverSupabaseUser(event)
@@ -40,6 +47,13 @@ export default defineEventHandler(async (event) => {
 		throw createError({
 			statusCode: 401,
 			statusMessage: 'Authentication required'
+		})
+	}
+
+	if (!isBeatportScrapingEnabled()) {
+		throw createError({
+			statusCode: BEATPORT_SCRAPING_DISABLED_STATUS,
+			statusMessage: BEATPORT_SCRAPING_DISABLED_MESSAGE
 		})
 	}
 
@@ -124,6 +138,15 @@ export default defineEventHandler(async (event) => {
 		)
 
 		if (!response.ok) {
+			const statusBody =
+				response.status === 403 ? await response.text().catch(() => '') : ''
+			if (isBeatportChallengeResponse(statusBody)) {
+				throw createError({
+					statusCode: 503,
+					statusMessage: BEATPORT_CHALLENGE_MESSAGE
+				})
+			}
+
 			throw createError({
 				statusCode: response.status,
 				statusMessage: `Beatport returned ${response.status}`
@@ -131,6 +154,13 @@ export default defineEventHandler(async (event) => {
 		}
 
 		const html = await response.text()
+		if (isBeatportChallengeResponse(html)) {
+			throw createError({
+				statusCode: 503,
+				statusMessage: BEATPORT_CHALLENGE_MESSAGE
+			})
+		}
+
 		const trackData = extractTrackDataFromHTML(html, { artist, title })
 
 		if (!trackData) {
@@ -189,13 +219,22 @@ function isBeatportStatusError(
 	)
 }
 
+function isBeatportChallengeResponse(html: string): boolean {
+	return (
+		html.includes('challenges.cloudflare.com') ||
+		html.includes('cf_chl') ||
+		html.includes('Just a moment...') ||
+		html.includes('Enable JavaScript and cookies to continue')
+	)
+}
+
 function extractTrackDataFromHTML(
 	html: string,
 	{ artist, title }: SearchTrackParams
 ): BeatportTrackData | null {
 	try {
 		const nextDataMatch = html.match(
-			/__NEXT_DATA__" type="application\/json">(.+?)<\/script>/
+			/<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/
 		)
 		if (!nextDataMatch || !nextDataMatch[1]) return null
 

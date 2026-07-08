@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toTypedSchema } from '@vee-validate/zod'
-import { ImageOff, Pencil, PencilOff, Wand } from 'lucide-vue-next'
+import { ImageOff, Pencil, PencilOff } from 'lucide-vue-next'
 import { useForm } from 'vee-validate'
 import { z } from 'zod'
 
@@ -14,7 +14,6 @@ const emit = defineEmits<{
 
 const tracks = useTracksStore()
 const records = useRecordsStore()
-const beatport = useBeatportStore()
 const user = useUserStore()
 
 const isEditMode = ref(false)
@@ -211,11 +210,6 @@ function formatKey(track: Track): string {
 	if (track.key === null || track.mode === null) return 'Not specified'
 	return getFormattedKeyString(track.key, track.mode, user.currentKeyFormat)
 }
-
-async function handleGetBeatportData() {
-	if (!selectedTrack.value) return
-	await beatport.getBeatportData(selectedTrack.value.id)
-}
 </script>
 
 <template>
@@ -274,16 +268,6 @@ async function handleGetBeatportData() {
 							<PencilOff v-if="isEditMode" class="mr-2 size-4" />
 							<Pencil v-else class="mr-2 size-4" />
 							{{ isEditMode ? 'Cancel Edit' : 'Edit Track' }}
-						</Button>
-						<Button
-							variant="outline"
-							size="sm"
-							:loading="beatport.isLoadingBeatportData"
-							:disabled="beatport.isLoadingBeatportData"
-							@click="handleGetBeatportData"
-						>
-							<Wand class="mr-2 size-4" />
-							Get Beatport data
 						</Button>
 					</div>
 

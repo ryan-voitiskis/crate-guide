@@ -1,7 +1,9 @@
-import type {
-	BeatportTrackData,
-	SearchTrackParams
-} from '~~/shared/types/beatport'
+import {
+	BEATPORT_SCRAPING_DISABLED_MESSAGE,
+	BEATPORT_SCRAPING_DISABLED_STATUS,
+	type BeatportTrackData,
+	type SearchTrackParams
+} from '../../shared/types/beatport'
 
 interface BeatportResponse {
 	success: boolean
@@ -66,15 +68,28 @@ function getStatusCode(error: unknown): number | null {
 	return null
 }
 
+function isBeatportScrapingEnabled(): boolean {
+	return false
+}
+
 export function useBeatportScraper() {
 	const searchTracks = async ({
 		artist,
 		title
 	}: SearchTrackParams): Promise<BeatportTrackData | null> => {
+		if (!isBeatportScrapingEnabled()) {
+			throw new BeatportScraperError(BEATPORT_SCRAPING_DISABLED_MESSAGE, {
+				type: 'api',
+				statusCode: BEATPORT_SCRAPING_DISABLED_STATUS,
+				originalError: null
+			})
+		}
+
 		try {
 			const query = `${artist} ${title}`
 			const response = await $fetch<BeatportResponse>(
-				`/api/beatport/search?q=${encodeURIComponent(query)}&artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`
+				`/api/beatport/search?q=${encodeURIComponent(query)}&artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`,
+				{ retry: 0 }
 			)
 
 			if (response.success && response.data) {
