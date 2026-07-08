@@ -70,7 +70,7 @@ const deckBackground = computed(() => {
 					<DeckPitchFader :deck-index="deckIndex" class="ml-auto" />
 				</div>
 				<!-- Bottom controls: start/stop + RPM -->
-				<div class="relative z-10 -mt-6 flex items-end gap-2 px-3">
+				<div class="absolute bottom-1 left-1.5 z-10 flex items-end gap-1.5">
 					<TurntableStartStop :deck-index="deckIndex" />
 					<div class="flex gap-0.5">
 						<TurntableRpmSelect :deck-index="deckIndex" :speed="33" />

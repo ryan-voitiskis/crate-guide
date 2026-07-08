@@ -15,20 +15,22 @@ function selectSpeed() {
 
 <template>
 	<button
-		class="relative flex h-3 w-10 items-center border-2 border-zinc-700 bg-zinc-300 p-0 transition-all hover:bg-zinc-200 active:scale-95"
+		class="relative flex h-4 w-12 items-center rounded-[1px] border-2 border-black/75 bg-[#e7e2d6] p-0 shadow-[0_1px_0_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.82)] transition-[filter] hover:brightness-105 active:brightness-95"
 		@click="selectSpeed"
 	>
-		<span class="pl-1 text-[8px] font-medium text-zinc-700 select-none">
+		<span
+			class="pl-1.5 text-[9px] leading-none font-medium text-[#3f3b34] select-none [text-shadow:0_1px_0_rgba(255,255,255,0.55)]"
+		>
 			{{ speed }}
 		</span>
 
 		<!-- Indicator light -->
 		<div
-			class="absolute top-1/2 right-0.5 h-1.5 w-1.5 -translate-y-1/2"
+			class="absolute top-1/2 right-1 h-2 w-2 -translate-y-1/2 rounded-[1px] border border-red-950/50"
 			:class="
 				isActive
-					? 'bg-red-600 shadow-[0_0_4px_2px_rgba(220,38,38,0.5)]'
-					: 'bg-zinc-500'
+					? 'bg-[radial-gradient(circle_at_35%_30%,#fca5a5_0%,#ef4444_38%,#991b1b_100%)] shadow-[0_0_5px_2px_rgba(239,68,68,0.5),inset_0_1px_0_rgba(255,255,255,0.45)]'
+					: 'bg-red-950/55 shadow-[inset_0_1px_1px_rgba(0,0,0,0.65)]'
 			"
 		/>
 	</button>
