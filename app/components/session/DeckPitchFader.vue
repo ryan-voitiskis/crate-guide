@@ -117,6 +117,10 @@ const legendMarkClass = computed(() =>
 )
 const pitchValueClass =
 	'font-mono text-[13px] leading-none font-semibold tabular-nums'
+const resetButtonClass =
+	'flex h-8 w-8 items-center justify-center rounded-full bg-[#171716] p-[2px] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.85)] transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:hover:brightness-100'
+const resetButtonFaceClass =
+	'pointer-events-none block h-full w-full rounded-full bg-[radial-gradient(circle_at_35%_30%,#ffffff_0%,#d9d9d6_34%,#a8a8a2_68%,#f2f0e8_100%)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),inset_0_-2px_3px_rgba(0,0,0,0.18),0_0_0_1px_rgba(255,255,255,0.14)]'
 const moduleShellClass = computed(() =>
 	isSilverTurntableTheme.value
 		? 'border-[#858176] bg-[#c4c0b5] shadow-[0_1px_0_rgba(255,255,255,0.58),inset_0_0_0_1px_rgba(255,255,255,0.22),inset_0_8px_12px_rgba(255,255,255,0.2),inset_0_-10px_16px_rgba(0,0,0,0.12)]'
@@ -322,10 +326,13 @@ function resetPitch() {
 				<button
 					:data-testid="`deck-${deckIndex}-pitch-reset`"
 					aria-label="Reset pitch"
-					class="relative z-30 flex h-8 w-8 items-center justify-center rounded-full border-2 border-black/75 bg-[radial-gradient(circle_at_35%_30%,#ffffff_0%,#d9d9d6_34%,#a8a8a2_68%,#f2f0e8_100%)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),inset_0_-2px_3px_rgba(0,0,0,0.18)] transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:hover:brightness-100"
+					class="relative z-30"
+					:class="resetButtonClass"
 					:disabled="deck?.pitch === 0"
 					@click="resetPitch"
-				/>
+				>
+					<span aria-hidden="true" :class="resetButtonFaceClass" />
+				</button>
 				<span
 					class="text-[10px] leading-none font-medium"
 					:class="fullDeckLabelClass"
@@ -445,10 +452,13 @@ function resetPitch() {
 			<button
 				:data-testid="`deck-${deckIndex}-pitch-reset`"
 				aria-label="Reset pitch"
-				class="relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-black/75 bg-[radial-gradient(circle_at_35%_30%,#ffffff_0%,#d9d9d6_34%,#a8a8a2_68%,#f2f0e8_100%)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),inset_0_-2px_3px_rgba(0,0,0,0.18)] transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:hover:brightness-100"
+				class="relative"
+				:class="resetButtonClass"
 				:disabled="deck?.pitch === 0"
 				@click="resetPitch"
-			/>
+			>
+				<span aria-hidden="true" :class="resetButtonFaceClass" />
+			</button>
 			<span
 				class="text-[10px] leading-none font-medium"
 				:class="fullDeckLabelClass"
