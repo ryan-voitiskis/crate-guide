@@ -7,10 +7,12 @@ import {
 	Check,
 	CheckCircle2,
 	FileUp,
+	ListChecks,
 	Loader2,
 	RefreshCw,
 	ShieldCheck,
-	Upload
+	Upload,
+	X
 } from 'lucide-vue-next'
 import { parseRekordboxXml } from '~/utils/rekordboxXml'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
@@ -19,7 +21,13 @@ import {
 	buildTrackEnrichmentUpdate
 } from '~/utils/trackEnrichment'
 
-type ReviewFilter = 'ready' | 'review' | 'matched' | 'unmatched' | 'done'
+type ReviewFilter =
+	| 'ready'
+	| 'review'
+	| 'staged'
+	| 'matched'
+	| 'unmatched'
+	| 'done'
 type ApplySummary = {
 	total: number
 	succeeded: number
@@ -79,6 +87,11 @@ const unmatchedRows = computed(() => rows.value.filter((row) => !row.track))
 const doneRows = computed(() =>
 	rows.value.filter((row) => row.applied || row.alreadyComplete)
 )
+const stagedRows = computed(() =>
+	rows.value.filter(
+		(row) => approvedIds.value.has(row.id) && canApproveRow(row)
+	)
+)
 const blockedCount = computed(
 	() => rows.value.filter((row) => !!row.approvalBlockedReason).length
 )
@@ -109,6 +122,7 @@ const filterOptions = computed<
 >(() => [
 	{ value: 'ready', label: 'Ready', count: readyRows.value.length },
 	{ value: 'review', label: 'Needs review', count: reviewRows.value.length },
+	{ value: 'staged', label: 'Staged', count: stagedRows.value.length },
 	{ value: 'matched', label: 'All matches', count: matchedRows.value.length },
 	{
 		value: 'unmatched',
@@ -124,6 +138,8 @@ const filteredRows = computed(() => {
 			return readyRows.value
 		case 'review':
 			return reviewRows.value
+		case 'staged':
+			return stagedRows.value
 		case 'matched':
 			return matchedRows.value
 		case 'unmatched':
@@ -133,6 +149,20 @@ const filteredRows = computed(() => {
 		default:
 			return []
 	}
+})
+const approvableFilteredRows = computed(() =>
+	filteredRows.value.filter(canApproveRow)
+)
+const stagedFilteredCount = computed(
+	() =>
+		approvableFilteredRows.value.filter((row) => approvedIds.value.has(row.id))
+			.length
+)
+const filteredSelectionState = computed<boolean | 'indeterminate'>(() => {
+	if (stagedFilteredCount.value === 0) return false
+	if (stagedFilteredCount.value === approvableFilteredRows.value.length)
+		return true
+	return 'indeterminate'
 })
 const pageCount = computed(() =>
 	Math.max(1, Math.ceil(filteredRows.value.length / rowsPerPage))
@@ -150,11 +180,7 @@ const shownEnd = computed(() =>
 	Math.min(currentPage.value * rowsPerPage, filteredRows.value.length)
 )
 
-const approvedRows = computed(() =>
-	rows.value.filter(
-		(row) => approvedIds.value.has(row.id) && canApproveRow(row)
-	)
-)
+const approvedRows = computed(() => stagedRows.value)
 const selectedBpmCount = computed(
 	() => approvedRows.value.filter((row) => row.canFillBpm).length
 )
@@ -257,12 +283,13 @@ function setRowApproved(row: TrackEnrichmentRow, checked: boolean) {
 	approvedIds.value = nextApproved
 }
 
-function selectSafeMatches() {
-	approvedIds.value = new Set(
-		rows.value
-			.filter((row) => row.defaultApproved && canApproveRow(row))
-			.map((row) => row.id)
-	)
+function setFilteredRowsApproved(checked: boolean) {
+	const nextApproved = new Set(approvedIds.value)
+	for (const row of approvableFilteredRows.value) {
+		if (checked) nextApproved.add(row.id)
+		else nextApproved.delete(row.id)
+	}
+	approvedIds.value = nextApproved
 }
 
 function clearSelection() {
@@ -301,8 +328,9 @@ function getConfidenceVariant(confidence: TrackEnrichmentRow['confidence']) {
 
 function getRowClasses(row: TrackEnrichmentRow): string {
 	if (row.error) return 'bg-destructive/5'
+	if (isRowApproved(row))
+		return 'border-l-2 border-l-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/15'
 	if (row.approvalBlockedReason || row.hasConflict) return 'bg-amber-500/5'
-	if (isRowApproved(row)) return 'bg-primary/5'
 	return ''
 }
 
@@ -400,7 +428,7 @@ function returnToReview() {
 </script>
 
 <template>
-	<div class="flex h-full flex-col">
+	<div class="flex min-h-0 flex-1 flex-col">
 		<div class="scrollbar-hidden flex-1 overflow-y-auto">
 			<div class="mx-auto flex max-w-[1600px] flex-col gap-4 p-2 pb-0">
 				<input
@@ -579,7 +607,7 @@ function returnToReview() {
 
 					<template v-else>
 						<div
-							class="border-border grid grid-cols-2 divide-x divide-y overflow-hidden rounded-md border sm:grid-cols-5 sm:divide-y-0"
+							class="border-border grid grid-cols-2 divide-x divide-y overflow-hidden rounded-md border sm:grid-cols-6 sm:divide-y-0"
 						>
 							<div class="px-3 py-2.5">
 								<div class="text-muted-foreground text-xs">XML tracks</div>
@@ -612,7 +640,15 @@ function returnToReview() {
 									{{ reviewRows.length }}
 								</div>
 							</div>
-							<div class="col-span-2 px-3 py-2.5 sm:col-span-1">
+							<div class="px-3 py-2.5">
+								<div class="text-muted-foreground text-xs">Staged</div>
+								<div
+									class="mt-0.5 text-lg font-semibold text-emerald-700 tabular-nums dark:text-emerald-400"
+								>
+									{{ approvedRows.length }}
+								</div>
+							</div>
+							<div class="px-3 py-2.5">
 								<div class="text-muted-foreground text-xs">
 									Not in collection
 								</div>
@@ -659,8 +695,17 @@ function returnToReview() {
 							</ToggleGroup>
 
 							<div class="flex items-center gap-1 self-end lg:self-auto">
-								<Button variant="ghost" size="sm" @click="selectSafeMatches">
-									Select safe
+								<Button
+									variant="ghost"
+									size="sm"
+									:disabled="
+										approvableFilteredRows.length === 0 ||
+										filteredSelectionState === true
+									"
+									@click="setFilteredRowsApproved(true)"
+								>
+									<ListChecks class="mr-1.5 size-4" />
+									Stage all eligible ({{ approvableFilteredRows.length }})
 								</Button>
 								<Button
 									variant="ghost"
@@ -668,7 +713,8 @@ function returnToReview() {
 									:disabled="approvedRows.length === 0"
 									@click="clearSelection"
 								>
-									Clear
+									<X class="mr-1.5 size-4" />
+									Clear staged
 								</Button>
 							</div>
 						</div>
@@ -687,12 +733,27 @@ function returnToReview() {
 
 						<template v-else>
 							<div class="border-border overflow-x-auto rounded-md border">
-								<Table class="min-w-[1080px] table-fixed">
+								<Table class="min-w-[1160px] table-fixed">
 									<TableHeader>
 										<TableRow>
-											<TableHead class="w-14">Apply</TableHead>
-											<TableHead class="w-[22%]">Crate Guide match</TableHead>
-											<TableHead class="w-[22%]">XML source</TableHead>
+											<TableHead class="w-32">
+												<div class="flex items-center gap-2">
+													<Checkbox
+														:model-value="filteredSelectionState"
+														:disabled="
+															approvableFilteredRows.length === 0 || isApplying
+														"
+														large-hit-area
+														aria-label="Stage all eligible tracks in this view"
+														@update:model-value="
+															setFilteredRowsApproved($event === true)
+														"
+													/>
+													<span>Stage</span>
+												</div>
+											</TableHead>
+											<TableHead class="w-[21%]">Crate Guide match</TableHead>
+											<TableHead class="w-[21%]">XML source</TableHead>
 											<TableHead class="w-32">BPM</TableHead>
 											<TableHead class="w-36">Key</TableHead>
 											<TableHead>Confidence</TableHead>
@@ -705,12 +766,32 @@ function returnToReview() {
 											:class="getRowClasses(row)"
 										>
 											<TableCell>
-												<Checkbox
-													:checked="isRowApproved(row)"
-													:disabled="!canApproveRow(row) || isApplying"
-													:aria-label="`Apply ${row.source.name || 'XML track'}`"
-													@update:checked="setRowApproved(row, $event === true)"
-												/>
+												<div class="flex items-center gap-2">
+													<Checkbox
+														:model-value="isRowApproved(row)"
+														:disabled="!canApproveRow(row) || isApplying"
+														large-hit-area
+														:aria-label="`Stage ${row.source.name || 'XML track'}`"
+														@update:model-value="
+															setRowApproved(row, $event === true)
+														"
+													/>
+													<span
+														v-if="isRowApproved(row)"
+														class="text-xs font-medium text-emerald-700 dark:text-emerald-400"
+													>
+														Staged
+													</span>
+													<span
+														v-else-if="canApproveRow(row)"
+														class="text-muted-foreground text-xs"
+													>
+														Not staged
+													</span>
+													<span v-else class="text-muted-foreground text-xs">
+														Unavailable
+													</span>
+												</div>
 											</TableCell>
 											<TableCell class="whitespace-normal">
 												<div class="truncate font-medium">
@@ -850,15 +931,22 @@ function returnToReview() {
 						</template>
 
 						<div
-							class="border-border bg-background/95 sticky bottom-0 z-10 -mx-2 mt-1 flex flex-col gap-2 border-t px-3 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between"
+							class="border-border bg-background/95 sticky bottom-0 z-10 -mx-2 mt-1 flex flex-col gap-2 border-t-2 border-t-emerald-500 px-3 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between"
 						>
-							<div class="min-w-0">
-								<div class="text-sm font-medium">
-									{{ approvedRows.length }} tracks selected
+							<div class="flex min-w-0 items-center gap-3">
+								<div
+									class="flex size-9 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+								>
+									<ListChecks class="size-4" />
 								</div>
-								<div class="text-muted-foreground text-xs">
-									{{ selectedBpmCount }} BPM and {{ selectedKeyModeCount }} key
-									values will be filled
+								<div class="min-w-0">
+									<div class="text-sm font-semibold">
+										{{ approvedRows.length }} tracks staged for import
+									</div>
+									<div class="text-muted-foreground text-xs">
+										{{ selectedBpmCount }} BPM and
+										{{ selectedKeyModeCount }} key values will be filled
+									</div>
 								</div>
 							</div>
 							<Button
@@ -866,7 +954,7 @@ function returnToReview() {
 								@click="openApplyReview"
 							>
 								<ShieldCheck class="mr-2 size-4" />
-								Review {{ approvedRows.length }} updates
+								Review staged updates ({{ approvedRows.length }})
 							</Button>
 						</div>
 					</template>
@@ -878,7 +966,7 @@ function returnToReview() {
 			<DialogContent class="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>
-						Apply {{ approvedRows.length }} track updates?
+						Apply {{ approvedRows.length }} staged track updates?
 					</DialogTitle>
 					<DialogDescription>
 						Only blank fields will be filled. Existing BPM and key values remain
