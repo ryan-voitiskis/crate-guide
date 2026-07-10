@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ExternalLink } from 'lucide-vue-next'
+
 const user = useUserStore()
 </script>
 
@@ -102,6 +104,17 @@ const user = useUserStore()
 						</div>
 					</CardContent>
 				</Card>
+
+				<a
+					href="https://github.com/ryan-voitiskis/crate-guide"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-sm transition-colors"
+				>
+					<IconGithub class="size-4" />
+					Source code · AGPL-3.0
+					<ExternalLink class="size-3.5" />
+				</a>
 			</div>
 		</div>
 	</div>

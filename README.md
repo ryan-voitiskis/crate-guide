@@ -1,6 +1,6 @@
 # Crate Guide
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Live Site](https://img.shields.io/badge/Live-crate.guide-green)](https://crate.guide)
 
 A DJ-focused vinyl record collection manager with real-time session mixing, harmonic track discovery, and turntable simulation. Import from Discogs, organize crates, and mix with BPM and key-aware suggestions.
@@ -185,4 +185,9 @@ Contributions are welcome. Please open an issue to discuss proposed changes befo
 
 ## License
 
-[MIT License](LICENSE)
+Crate Guide is a personal, non-commercial project maintained for fun and
+intended to remain open source. It is licensed under the
+[GNU Affero General Public License v3.0](LICENSE). Network users must be offered
+the corresponding source for modified versions.
+
+See [Third-Party Notices](THIRD_PARTY_NOTICES.md) for dependency attribution.

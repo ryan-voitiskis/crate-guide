@@ -10,6 +10,7 @@
 		"npm": ">=11.6.2"
 	},
 	"private": true,
+	"license": "AGPL-3.0-only",
 	"type": "module",
 	"scripts": {
 		"test": "vitest --project unit --project stores --project server",
