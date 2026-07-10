@@ -232,6 +232,7 @@ export type Database = {
 			tracks: {
 				Row: {
 					artists: Json
+					audio_features: Json | null
 					beatport_data: Json | null
 					bpm: number | null
 					created_at: string | null
@@ -252,6 +253,7 @@ export type Database = {
 				}
 				Insert: {
 					artists?: Json
+					audio_features?: Json | null
 					beatport_data?: Json | null
 					bpm?: number | null
 					created_at?: string | null
@@ -272,6 +274,7 @@ export type Database = {
 				}
 				Update: {
 					artists?: Json
+					audio_features?: Json | null
 					beatport_data?: Json | null
 					bpm?: number | null
 					created_at?: string | null

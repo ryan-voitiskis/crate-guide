@@ -27,6 +27,7 @@ function createTestTrack(overrides: Partial<Track> = {}): Track {
 		extraartists: [],
 		genres: [],
 		beatport_data: null,
+		audio_features: null,
 		created_at: null,
 		updated_at: null,
 		...overrides

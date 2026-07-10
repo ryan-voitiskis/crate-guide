@@ -18,8 +18,8 @@ vi.stubGlobal('computed', computed)
 const { useNavigation, navItems } = await import('../useNavigation')
 
 describe('navItems', () => {
-	it('has 5 navigation items', () => {
-		expect(navItems).toHaveLength(5)
+	it('has 6 navigation items', () => {
+		expect(navItems).toHaveLength(6)
 	})
 
 	it('includes session page', () => {
@@ -44,6 +44,13 @@ describe('navItems', () => {
 		const crates = navItems.find((item) => item.label === 'Crates')
 		expect(crates).toBeDefined()
 		expect(crates?.path).toBe('/crates')
+	})
+
+	it('includes enrichment page outside demo mode', () => {
+		const enrichment = navItems.find((item) => item.label === 'Enrich')
+		expect(enrichment).toBeDefined()
+		expect(enrichment?.path).toBe('/enrichment')
+		expect(enrichment?.demo).toBe(false)
 	})
 
 	it('includes settings page', () => {
@@ -95,6 +102,26 @@ describe('useNavigation', () => {
 			mockRoutePath = '/demo/tracks'
 			const { basePath } = useNavigation()
 			expect(basePath.value).toBe('/demo')
+		})
+	})
+
+	describe('visibleNavItems', () => {
+		it('includes enrichment in authenticated navigation', () => {
+			mockRoutePath = '/'
+			const { visibleNavItems } = useNavigation()
+
+			expect(visibleNavItems.value.map((item) => item.label)).toContain(
+				'Enrich'
+			)
+		})
+
+		it('omits enrichment in demo navigation', () => {
+			mockRoutePath = '/demo'
+			const { visibleNavItems } = useNavigation()
+
+			expect(visibleNavItems.value.map((item) => item.label)).not.toContain(
+				'Enrich'
+			)
 		})
 	})
 

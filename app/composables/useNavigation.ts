@@ -1,10 +1,18 @@
-import { Disc, FolderOpen, Music, Radio, Settings } from 'lucide-vue-next'
+import {
+	Disc,
+	FolderOpen,
+	Music,
+	Radio,
+	Settings,
+	WandSparkles
+} from 'lucide-vue-next'
 
 export const navItems = [
 	{ path: '', label: 'Session', icon: Radio },
 	{ path: '/tracks', label: 'Tracks', icon: Music },
 	{ path: '/records', label: 'Records', icon: Disc },
 	{ path: '/crates', label: 'Crates', icon: FolderOpen },
+	{ path: '/enrichment', label: 'Enrich', icon: WandSparkles, demo: false },
 	{ path: '/settings', label: 'Settings', icon: Settings }
 ] as const
 
@@ -13,6 +21,11 @@ export function useNavigation() {
 
 	const isDemo = computed(() => route.path.startsWith('/demo'))
 	const basePath = computed(() => (isDemo.value ? '/demo' : ''))
+	const visibleNavItems = computed(() =>
+		navItems.filter(
+			(item) => !isDemo.value || !('demo' in item) || item.demo !== false
+		)
+	)
 
 	function isActive(itemPath: string) {
 		const fullPath = basePath.value + itemPath
@@ -32,6 +45,7 @@ export function useNavigation() {
 	return {
 		isDemo,
 		basePath,
+		visibleNavItems,
 		isActive,
 		getHref
 	}

@@ -24,6 +24,7 @@ export function createMockTrack(overrides?: Partial<Track>): Track {
 		time_signature_lower: null,
 		playable: true,
 		beatport_data: null,
+		audio_features: null,
 		created_at: new Date().toISOString(),
 		updated_at: new Date().toISOString(),
 		...overrides

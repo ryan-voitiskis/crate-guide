@@ -1,4 +1,5 @@
 import type { ThemeOptions } from '~/utils/setTheme'
+import type { TrackAudioFeatures } from './audioFeatures.ts'
 import type { BeatportNotFoundMarker, BeatportTrackData } from './beatport.ts'
 import type { Database } from './database.ts'
 import type { DiscogsArtistDb, DiscogsLabelDb } from './discogs.ts'
@@ -25,12 +26,13 @@ export type DatabaseRecord = Omit<
 
 export type Track = Omit<
 	Database['public']['Tables']['tracks']['Row'],
-	'artists' | 'extraartists' | 'genres' | 'beatport_data'
+	'artists' | 'extraartists' | 'genres' | 'beatport_data' | 'audio_features'
 > & {
 	artists: DiscogsArtistDb[]
 	extraartists: DiscogsArtistDb[]
 	genres: string[]
 	beatport_data: BeatportTrackData | BeatportNotFoundMarker | null
+	audio_features: TrackAudioFeatures | null
 }
 
 export type Crate = Database['public']['Tables']['crates']['Row']

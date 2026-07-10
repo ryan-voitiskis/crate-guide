@@ -1,5 +1,30 @@
 import { toast } from 'vue-sonner'
+import type { TrackAudioFeatures } from '~~/shared/types/audioFeatures'
 import type { BeatportTrackData } from '~~/shared/types/beatport'
+import type { Json } from '~~/shared/types/database'
+
+type TrackCreateInput = Omit<
+	Track,
+	'id' | 'created_at' | 'updated_at' | 'audio_features'
+> & {
+	audio_features?: TrackAudioFeatures | null
+}
+
+type TrackUpdateInput = Partial<
+	Omit<Track, 'id' | 'record_id' | 'created_at' | 'updated_at'>
+>
+
+export type TrackBatchUpdate = {
+	id: string
+	updates: TrackUpdateInput
+}
+
+export type TrackBatchUpdateResult = {
+	id: string
+	success: boolean
+	track: Track | null
+	error: string | null
+}
 
 export const useTracksStore = defineStore('tracks', () => {
 	const supabase = useSupabaseClient<Database>()
@@ -55,22 +80,28 @@ export const useTracksStore = defineStore('tracks', () => {
 		}
 	}
 
+	function serializeAudioFeatures(
+		audioFeatures: TrackAudioFeatures | null | undefined
+	): Database['public']['Tables']['tracks']['Insert']['audio_features'] {
+		if (audioFeatures === undefined) return undefined
+		return audioFeatures as unknown as Json
+	}
+
 	function toTrackInsertPayload(
-		trackData: Omit<Track, 'id' | 'created_at' | 'updated_at'>
+		trackData: TrackCreateInput
 	): Database['public']['Tables']['tracks']['Insert'] {
 		return {
 			...trackData,
 			artists: serializeTrackArtists(trackData.artists),
 			extraartists: serializeTrackArtists(trackData.extraartists),
 			genres: serializeTrackGenres(trackData.genres),
-			beatport_data: serializeBeatportData(trackData.beatport_data)
+			beatport_data: serializeBeatportData(trackData.beatport_data),
+			audio_features: serializeAudioFeatures(trackData.audio_features)
 		}
 	}
 
 	function toTrackUpdatePayload(
-		updates: Partial<
-			Omit<Track, 'id' | 'record_id' | 'created_at' | 'updated_at'>
-		>
+		updates: TrackUpdateInput
 	): Database['public']['Tables']['tracks']['Update'] {
 		return {
 			...updates,
@@ -84,8 +115,15 @@ export const useTracksStore = defineStore('tracks', () => {
 			beatport_data:
 				updates.beatport_data === undefined
 					? undefined
-					: serializeBeatportData(updates.beatport_data)
+					: serializeBeatportData(updates.beatport_data),
+			audio_features: serializeAudioFeatures(updates.audio_features)
 		}
+	}
+
+	function getErrorMessage(error: unknown): string {
+		if (error instanceof Error) return error.message
+		if (typeof error === 'string') return error
+		return 'Unknown error'
 	}
 
 	async function fetchAllTracks() {
@@ -129,6 +167,7 @@ export const useTracksStore = defineStore('tracks', () => {
 					time_signature_lower: track.time_signature_lower,
 					playable: track.playable,
 					beatport_data: track.beatport_data,
+					audio_features: track.audio_features,
 					created_at: track.created_at,
 					updated_at: track.updated_at
 				})) as Track[]) || []
@@ -141,7 +180,7 @@ export const useTracksStore = defineStore('tracks', () => {
 	}
 
 	async function createTrack(
-		trackData: Omit<Track, 'id' | 'created_at' | 'updated_at'>
+		trackData: TrackCreateInput
 	): Promise<Track | null> {
 		if (!user.supaUser?.id) {
 			toast.error('You must be signed in to create tracks.')
@@ -160,9 +199,12 @@ export const useTracksStore = defineStore('tracks', () => {
 			if (error) throw error
 
 			// Add to local state (safe cast - Supabase returns the inserted row with same shape)
-			tracks.value.unshift(data as Track)
+			tracks.value.unshift({
+				...(data as Track),
+				audio_features: (data as Track).audio_features ?? null
+			})
 			toast.success('Track created successfully.')
-			return data as Track
+			return tracks.value[0] ?? null
 		} catch (error) {
 			console.error('Failed to create track:', error)
 			toast.error('Error creating track.')
@@ -172,21 +214,18 @@ export const useTracksStore = defineStore('tracks', () => {
 		}
 	}
 
-	async function updateTrack(
+	async function applyTrackUpdate(
 		id: string,
-		updates: Partial<
-			Omit<Track, 'id' | 'record_id' | 'created_at' | 'updated_at'>
-		>,
-		options?: { silent?: boolean }
-	): Promise<Track | null> {
-		isUpdatingTrack.value = true
-
-		// Optimistic update
+		updates: TrackUpdateInput,
+		options?: {
+			suppressSuccessToast?: boolean
+			suppressErrorToast?: boolean
+		}
+	): Promise<{ track: Track | null; error: string | null }> {
 		const trackIndex = tracks.value.findIndex((t: Track) => t.id === id)
 		if (trackIndex === -1) {
-			toast.error('Track not found.')
-			isUpdatingTrack.value = false
-			return null
+			if (!options?.suppressErrorToast) toast.error('Track not found.')
+			return { track: null, error: 'Track not found.' }
 		}
 
 		const originalTrack = tracks.value[trackIndex]
@@ -204,15 +243,73 @@ export const useTracksStore = defineStore('tracks', () => {
 			if (error) throw error
 
 			// Update with server response (safe cast - Supabase returns the updated row)
-			tracks.value[trackIndex] = data as Track
-			if (!options?.silent) toast.success('Track updated successfully.')
-			return data as Track
+			tracks.value[trackIndex] = {
+				...(data as Track),
+				audio_features: (data as Track).audio_features ?? null
+			}
+			if (!options?.suppressSuccessToast)
+				toast.success('Track updated successfully.')
+			return { track: tracks.value[trackIndex] ?? null, error: null }
 		} catch (error) {
 			console.error('Failed to update track:', error)
 			// Revert optimistic update (index was validated above, originalTrack is defined)
 			tracks.value[trackIndex] = originalTrack!
-			toast.error('Error updating track.')
-			return null
+			if (!options?.suppressErrorToast) toast.error('Error updating track.')
+			return { track: null, error: getErrorMessage(error) }
+		}
+	}
+
+	async function updateTrack(
+		id: string,
+		updates: TrackUpdateInput,
+		options?: { silent?: boolean }
+	): Promise<Track | null> {
+		isUpdatingTrack.value = true
+
+		try {
+			const result = await applyTrackUpdate(id, updates, {
+				suppressSuccessToast: options?.silent,
+				suppressErrorToast: false
+			})
+			return result.track
+		} finally {
+			isUpdatingTrack.value = false
+		}
+	}
+
+	async function updateTracksBatch(
+		batchUpdates: TrackBatchUpdate[],
+		options?: {
+			onProgress?: (
+				completed: number,
+				total: number,
+				result: TrackBatchUpdateResult
+			) => void
+		}
+	): Promise<TrackBatchUpdateResult[]> {
+		isUpdatingTrack.value = true
+		const results: TrackBatchUpdateResult[] = []
+
+		try {
+			for (const batchUpdate of batchUpdates) {
+				const result = await applyTrackUpdate(
+					batchUpdate.id,
+					batchUpdate.updates,
+					{
+						suppressSuccessToast: true,
+						suppressErrorToast: true
+					}
+				)
+				const batchResult = {
+					id: batchUpdate.id,
+					success: !!result.track,
+					track: result.track,
+					error: result.error
+				}
+				results.push(batchResult)
+				options?.onProgress?.(results.length, batchUpdates.length, batchResult)
+			}
+			return results
 		} finally {
 			isUpdatingTrack.value = false
 		}
@@ -367,6 +464,7 @@ export const useTracksStore = defineStore('tracks', () => {
 		fetchAllTracks,
 		createTrack,
 		updateTrack,
+		updateTracksBatch,
 		deleteTrack,
 		getTrackById,
 		getTracksByRecordId,

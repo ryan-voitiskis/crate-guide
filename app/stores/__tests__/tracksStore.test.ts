@@ -10,6 +10,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Import after mocking
 import { useTracksStore } from '../tracksStore'
 
+const mockToast = vi.hoisted(() => ({
+	success: vi.fn(),
+	error: vi.fn(),
+	info: vi.fn(),
+	warning: vi.fn()
+}))
+
+vi.mock('vue-sonner', () => ({
+	toast: mockToast
+}))
+
 // Mock dependencies
 const mockUserStore: {
 	supaUser: { id: string } | null
@@ -46,6 +57,8 @@ vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
 describe('tracksStore', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
+		mockToast.success.mockClear()
+		mockToast.error.mockClear()
 		resetTrackIdCounter()
 		setActivePinia(createPinia())
 
@@ -148,6 +161,39 @@ describe('tracksStore', () => {
 
 			expect(store.tracks.length).toBe(2)
 			expect(store.tracks[0]!.id).toBe('track-1')
+		})
+
+		it('preserves audio_features from response mapping', async () => {
+			const store = useTracksStore()
+			const audioFeatures = {
+				version: 1 as const,
+				updatedAt: '2026-07-09T00:00:00.000Z',
+				applied: {
+					bpm: {
+						source: 'rekordboxXml' as const,
+						appliedAt: '2026-07-09T00:00:00.000Z'
+					},
+					keyMode: null
+				},
+				match: {
+					confidence: 'high' as const,
+					score: 100,
+					reasons: ['Title match'],
+					warnings: []
+				},
+				sources: {}
+			}
+			const mockData = [
+				{
+					...createMockTrack({ id: 'track-1', audio_features: audioFeatures }),
+					records: { user_id: 'test-user-id' }
+				}
+			]
+			mockQueryBuilder.order.mockResolvedValue({ data: mockData, error: null })
+
+			await store.fetchAllTracks()
+
+			expect(store.tracks[0]!.audio_features).toEqual(audioFeatures)
 		})
 
 		it('handles fetch error gracefully', async () => {
@@ -358,6 +404,82 @@ describe('tracksStore', () => {
 
 			await updatePromise
 			expect(store.isUpdatingTrack).toBe(false)
+		})
+
+		it('serializes audio_features in update payloads', async () => {
+			const store = useTracksStore()
+			store.tracks = [createMockTrack({ id: 'track-1' })]
+			mockQueryBuilder.single.mockResolvedValue({
+				data: createMockTrack({ id: 'track-1' }),
+				error: null
+			})
+
+			await store.updateTrack('track-1', {
+				audio_features: {
+					version: 1,
+					updatedAt: '2026-07-09T00:00:00.000Z',
+					applied: {
+						bpm: null,
+						keyMode: null
+					},
+					match: {
+						confidence: 'manual',
+						score: 0,
+						reasons: [],
+						warnings: []
+					},
+					sources: {}
+				}
+			})
+
+			expect(mockQueryBuilder.update).toHaveBeenCalledWith(
+				expect.objectContaining({
+					audio_features: expect.objectContaining({
+						version: 1,
+						updatedAt: '2026-07-09T00:00:00.000Z'
+					})
+				})
+			)
+		})
+	})
+
+	describe('updateTracksBatch', () => {
+		it('returns per-row results and suppresses per-row toasts', async () => {
+			const store = useTracksStore()
+			store.tracks = [
+				createMockTrack({ id: 'track-1', title: 'Original 1' }),
+				createMockTrack({ id: 'track-2', title: 'Original 2' })
+			]
+			mockQueryBuilder.single
+				.mockResolvedValueOnce({
+					data: createMockTrack({ id: 'track-1', title: 'Updated 1' }),
+					error: null
+				})
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Update failed')
+				})
+
+			const progress: number[] = []
+			const results = await store.updateTracksBatch(
+				[
+					{ id: 'track-1', updates: { title: 'Updated 1' } },
+					{ id: 'track-2', updates: { title: 'Updated 2' } }
+				],
+				{
+					onProgress: (completed) => progress.push(completed)
+				}
+			)
+
+			expect(results).toMatchObject([
+				{ id: 'track-1', success: true, error: null },
+				{ id: 'track-2', success: false, error: 'Update failed' }
+			])
+			expect(progress).toEqual([1, 2])
+			expect(store.tracks[0]!.title).toBe('Updated 1')
+			expect(store.tracks[1]!.title).toBe('Original 2')
+			expect(mockToast.success).not.toHaveBeenCalled()
+			expect(mockToast.error).not.toHaveBeenCalled()
 		})
 	})
 

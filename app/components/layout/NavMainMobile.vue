@@ -3,7 +3,7 @@ const emit = defineEmits<{
 	navigate: []
 }>()
 
-const { isActive, getHref } = useNavigation()
+const { isActive, getHref, visibleNavItems } = useNavigation()
 
 function handleNavigate() {
 	emit('navigate')
@@ -13,7 +13,7 @@ function handleNavigate() {
 <template>
 	<nav class="flex flex-col gap-1">
 		<NuxtLink
-			v-for="item in navItems"
+			v-for="item in visibleNavItems"
 			:key="item.path"
 			:to="getHref(item.path)"
 			class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors"
