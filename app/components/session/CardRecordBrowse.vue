@@ -27,7 +27,7 @@ const catalogueNumber = computed(() =>
 		@click="$emit('select')"
 	>
 		<div
-			class="bg-muted flex aspect-square w-full items-center justify-center overflow-hidden rounded-md"
+			class="bg-muted flex aspect-square w-full items-center justify-center overflow-hidden rounded-none"
 		>
 			<img
 				v-if="record.cover"

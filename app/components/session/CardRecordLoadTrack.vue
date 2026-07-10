@@ -59,7 +59,7 @@ function getTrackKeyColor(track: Track): string | null {
 	<article class="overflow-hidden rounded-lg border">
 		<div class="flex flex-col gap-4 p-3 sm:flex-row">
 			<div
-				class="bg-muted flex aspect-square w-full shrink-0 items-center justify-center overflow-hidden rounded-md sm:size-36"
+				class="bg-muted flex aspect-square w-full shrink-0 items-center justify-center overflow-hidden rounded-none sm:size-36"
 			>
 				<img
 					v-if="result.record.cover"

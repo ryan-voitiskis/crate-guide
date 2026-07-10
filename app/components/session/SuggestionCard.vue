@@ -65,7 +65,7 @@ function handleClick() {
 
 <template>
 	<button
-		class="bg-card hover:bg-muted/50 w-full overflow-hidden rounded-lg border text-left transition-colors"
+		class="bg-card hover:bg-muted/50 w-full overflow-hidden rounded-none border text-left transition-colors"
 		@click="handleClick"
 	>
 		<div class="flex h-16 items-center">

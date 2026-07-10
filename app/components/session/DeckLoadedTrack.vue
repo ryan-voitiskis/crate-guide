@@ -71,7 +71,7 @@ const artistNames = computed(() => {
 </script>
 
 <template>
-	<Card class="h-24 overflow-hidden py-0">
+	<Card class="h-24 overflow-hidden rounded-none py-0">
 		<CardContent class="h-full p-0">
 			<!-- Empty state -->
 			<button
