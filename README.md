@@ -11,8 +11,8 @@ A DJ-focused vinyl record collection manager with real-time session mixing, harm
 - **Turntable Simulation** — SL-1200 style deck with animated platter, tonearm, and RPM controls
 - **Collection Management** — Catalog records and tracks with detailed metadata
 - **Discogs Integration** — Import records from your Discogs collection via OAuth 1.0
-- **BPM & Key** — Match rekordbox XML exports to collection tracks and stage
-  missing BPM/key values for review
+- **BPM & Key** — Reuse Rekordbox XML or analyze local audio in the browser,
+  then match and stage missing BPM/key values for review
 - **Crate Organization** — Color-coded crates for organizing gigs and sets
 - **Harmonic Mixing** — Find compatible tracks by BPM range and Camelot key relationships
 - **Track Discovery** — Filter and search by BPM, key, genre, artist, and more
@@ -31,6 +31,7 @@ A DJ-focused vinyl record collection manager with real-time session mixing, harm
 | Backend       | Supabase (PostgreSQL, Auth, Edge Functions)     |
 | Testing       | Vitest (unit + store), Playwright (e2e)         |
 | External APIs | Discogs                                         |
+| Audio         | Essentia.js, music-metadata, Web Audio API      |
 
 ### Project Structure
 

@@ -2,6 +2,7 @@ import type { RekordboxXmlSource } from '~~/shared/types/audioFeatures'
 import { parseBeatportKey, pitchClassMap } from './keyFunctions'
 
 export type RekordboxXmlTrack = {
+	sourceType: 'rekordboxXml'
 	index: number
 	trackId: string | null
 	name: string | null
@@ -278,6 +279,7 @@ function parseTrackElement(element: Element, index: number): RekordboxXmlTrack {
 	if (parsedTonality.warning) warnings.push(parsedTonality.warning)
 
 	return {
+		sourceType: 'rekordboxXml',
 		index,
 		trackId: getAttribute(element, 'TrackID'),
 		name,
@@ -326,7 +328,7 @@ export function parseRekordboxXml(xmlText: string): RekordboxXmlParseResult {
 			tracks: [],
 			entriesDeclared: null,
 			warnings,
-			errors: ['Unable to parse rekordbox XML']
+			errors: ['Unable to parse Rekordbox XML']
 		}
 	}
 

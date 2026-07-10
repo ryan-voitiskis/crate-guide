@@ -13,6 +13,7 @@ import {
 	Upload,
 	X
 } from 'lucide-vue-next'
+import type { LocalAudioTrackSource } from '~/types/localAudio'
 import { parseRekordboxXml } from '~/utils/rekordboxXml'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
 import {
@@ -41,6 +42,7 @@ const tracks = useTracksStore()
 const user = useUserStore()
 
 const fileInput = ref<HTMLInputElement | null>(null)
+const activeSource = ref<'rekordboxXml' | 'localAudio'>('rekordboxXml')
 const selectedFileName = ref<string | null>(null)
 const rows = ref<TrackEnrichmentRow[]>([])
 const stagedRowIds = ref<Set<string>>(new Set())
@@ -116,6 +118,9 @@ const parseProgress = computed(() =>
 		: Math.round((parseCompleted.value / parseTotal.value) * 100)
 )
 const visibleParseWarnings = computed(() => parseWarnings.value.slice(0, 5))
+const sourceLabel = computed(() =>
+	activeSource.value === 'rekordboxXml' ? 'Rekordbox XML' : 'Local audio'
+)
 
 const filterOptions = computed<
 	{ value: ReviewFilter; label: string; count: number }[]
@@ -221,6 +226,7 @@ function handleFileDrop(file: File) {
 }
 
 async function parseFile(file: File) {
+	activeSource.value = 'rekordboxXml'
 	isParsing.value = true
 	parseCompleted.value = 0
 	parseTotal.value = 0
@@ -244,7 +250,7 @@ async function parseFile(file: File) {
 
 		parseTotal.value = result.tracks.length
 		const nextRows = await buildTrackEnrichmentRowsAsync({
-			xmlTracks: result.tracks,
+			sources: result.tracks,
 			tracks: tracks.tracks,
 			records: records.records,
 			onProgress: (completed, total) => {
@@ -263,6 +269,60 @@ async function parseFile(file: File) {
 	} finally {
 		isParsing.value = false
 	}
+}
+
+async function reviewLocalSources(sources: LocalAudioTrackSource[]) {
+	isParsing.value = true
+	parseCompleted.value = 0
+	parseTotal.value = sources.length
+	parseWarnings.value = []
+	parseErrors.value = []
+	rows.value = []
+	stagedRowIds.value = new Set()
+	selectedFileName.value = `${sources.length} local audio files`
+	selectedFilter.value = 'ready'
+	currentPage.value = 1
+	lastApplySummary.value = null
+
+	try {
+		const nextRows = await buildTrackEnrichmentRowsAsync({
+			sources,
+			tracks: tracks.tracks,
+			records: records.records,
+			onProgress: (completed, total) => {
+				parseCompleted.value = completed
+				parseTotal.value = total
+			}
+		})
+		rows.value = nextRows
+		stagedRowIds.value = new Set(
+			nextRows.filter((row) => row.defaultStaged).map((row) => row.id)
+		)
+	} catch (error) {
+		parseErrors.value = [
+			error instanceof Error ? error.message : 'Unknown matching error'
+		]
+	} finally {
+		isParsing.value = false
+	}
+}
+
+function replaceSource() {
+	if (activeSource.value === 'rekordboxXml') {
+		openFilePicker()
+		return
+	}
+	rows.value = []
+	stagedRowIds.value = new Set()
+	selectedFileName.value = null
+	lastApplySummary.value = null
+}
+
+function startAnotherSource() {
+	rows.value = []
+	stagedRowIds.value = new Set()
+	selectedFileName.value = null
+	lastApplySummary.value = null
 }
 
 function setRowStaged(row: TrackEnrichmentRow, checked: boolean) {
@@ -305,7 +365,7 @@ async function applyStagedRows() {
 	for (const row of rowsToApply) {
 		const update = buildTrackEnrichmentUpdate(
 			row,
-			selectedFileName.value ?? 'unknown.xml',
+			selectedFileName.value ?? sourceLabel.value,
 			importedAt
 		)
 		if (update) preparedUpdates.push({ row, update })
@@ -414,10 +474,10 @@ function returnToReview() {
 						v-if="rows.length > 0 && !lastApplySummary"
 						variant="outline"
 						:loading="isParsing"
-						@click="openFilePicker"
+						@click="replaceSource"
 					>
 						<RefreshCw class="mr-2 size-4" />
-						Replace XML
+						Replace {{ sourceLabel }}
 					</Button>
 				</div>
 
@@ -484,12 +544,15 @@ function returnToReview() {
 
 					<PanelTrackEnrichmentSource
 						v-if="rows.length === 0"
+						:active-source="activeSource"
 						:is-parsing="isParsing"
 						:parse-completed="parseCompleted"
 						:parse-total="parseTotal"
 						:parse-progress="parseProgress"
 						@select-file="openFilePicker"
 						@drop-file="handleFileDrop"
+						@select-source="activeSource = $event"
+						@review-local="reviewLocalSources"
 					/>
 
 					<div v-else-if="lastApplySummary" class="py-8 sm:py-12">
@@ -536,9 +599,9 @@ function returnToReview() {
 									<ArrowLeft class="mr-2 size-4" />
 									Review results
 								</Button>
-								<Button @click="openFilePicker">
+								<Button @click="startAnotherSource">
 									<FileUp class="mr-2 size-4" />
-									Import another XML
+									Use another source
 								</Button>
 							</div>
 						</div>
@@ -549,7 +612,9 @@ function returnToReview() {
 							class="border-border grid grid-cols-2 divide-x divide-y overflow-hidden rounded-md border sm:grid-cols-6 sm:divide-y-0"
 						>
 							<div class="px-3 py-2.5">
-								<div class="text-muted-foreground text-xs">XML tracks</div>
+								<div class="text-muted-foreground text-xs">
+									{{ sourceLabel }} tracks
+								</div>
 								<div class="mt-0.5 text-lg font-semibold tabular-nums">
 									{{ rows.length }}
 								</div>
@@ -678,6 +743,7 @@ function returnToReview() {
 								:stageable-row-count="stageableFilteredRows.length"
 								:is-applying="isApplying"
 								:key-format="user.currentKeyFormat"
+								:source-label="sourceLabel"
 								@stage-all="setFilteredRowsStaged"
 								@stage-row="setRowStaged"
 							/>

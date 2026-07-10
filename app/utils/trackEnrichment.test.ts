@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { createLocalAudioTrackSource } from './localAudio'
 import type { RekordboxXmlTrack } from './rekordboxXml'
 import {
 	buildTrackEnrichmentRows,
@@ -53,6 +54,7 @@ function createSource(
 	overrides: Partial<RekordboxXmlTrack> = {}
 ): RekordboxXmlTrack {
 	return {
+		sourceType: 'rekordboxXml',
 		index: 0,
 		trackId: '1',
 		name: 'Cafe Track',
@@ -81,10 +83,81 @@ function createSource(
 	}
 }
 
+function createLocalSource(input: {
+	bpm?: number | null
+	key?: string | null
+	analysis?: boolean
+}) {
+	return createLocalAudioTrackSource({
+		index: 0,
+		fileName: 'Cafe Track.flac',
+		relativePath: 'Test Artist/Synthetic Album/Cafe Track.flac',
+		fileSize: 1024,
+		lastModified: 1,
+		tags: {
+			title: 'Cafe Track',
+			artist: 'Test Artist',
+			album: 'Synthetic Album',
+			genres: ['House'],
+			durationSeconds: 225,
+			bpm: input.bpm ?? null,
+			key: input.key ?? null
+		},
+		analysis: input.analysis
+			? {
+					analyzerVersion: 'essentia.js@0.1.3',
+					configurationVersion: 'center-180s-44k1-v1',
+					bpm: 128,
+					bpmConfidence: 3.2,
+					bpmEstimates: [128],
+					key: 'A',
+					scale: 'minor',
+					keyStrength: 0.7,
+					sampleRate: 44100,
+					durationSeconds: 225,
+					analyzedDurationSeconds: 180,
+					analysisOffsetSeconds: 22.5,
+					warnings: []
+				}
+			: null
+	})
+}
+
 describe('buildTrackEnrichmentRows', () => {
+	it('auto-stages strong local matches backed by embedded tags', () => {
+		const [row] = buildTrackEnrichmentRows({
+			sources: [createLocalSource({ bpm: 128, key: 'A minor' })],
+			tracks: [createTrack()],
+			records: [createRecord()]
+		})
+
+		expect(row).toMatchObject({
+			confidence: 'high',
+			defaultStaged: true,
+			proposedBpmSource: 'embeddedTags',
+			proposedKeyModeSource: 'embeddedTags'
+		})
+	})
+
+	it('requires manual staging for Essentia-derived values', () => {
+		const [row] = buildTrackEnrichmentRows({
+			sources: [createLocalSource({ analysis: true })],
+			tracks: [createTrack()],
+			records: [createRecord()]
+		})
+
+		expect(row).toMatchObject({
+			confidence: 'high',
+			defaultStaged: false,
+			proposedBpmSource: 'essentiaBrowser',
+			proposedKeyModeSource: null,
+			canFillKeyMode: false
+		})
+	})
+
 	it('marks title, artist, album matches as high confidence and stages blank updates', () => {
 		const [row] = buildTrackEnrichmentRows({
-			xmlTracks: [createSource()],
+			sources: [createSource()],
 			tracks: [createTrack()],
 			records: [createRecord()]
 		})
@@ -100,9 +173,7 @@ describe('buildTrackEnrichmentRows', () => {
 
 	it('uses high confidence when title and artist match and duration corroborates without album', () => {
 		const [row] = buildTrackEnrichmentRows({
-			xmlTracks: [
-				createSource({ album: null, locationHint: 'Cafe Track.wav' })
-			],
+			sources: [createSource({ album: null, locationHint: 'Cafe Track.wav' })],
 			tracks: [createTrack()],
 			records: [createRecord({ title: 'Different Album' })]
 		})
@@ -113,7 +184,7 @@ describe('buildTrackEnrichmentRows', () => {
 
 	it('rejects an exact title match when the artists are unrelated', () => {
 		const [row] = buildTrackEnrichmentRows({
-			xmlTracks: [createSource({ artist: 'Different Artist' })],
+			sources: [createSource({ artist: 'Different Artist' })],
 			tracks: [createTrack()],
 			records: [createRecord()]
 		})
@@ -124,7 +195,7 @@ describe('buildTrackEnrichmentRows', () => {
 
 	it('keeps featured or contained artist matches for manual confirmation', () => {
 		const [row] = buildTrackEnrichmentRows({
-			xmlTracks: [createSource({ artist: 'Test Artist feat. Guest Artist' })],
+			sources: [createSource({ artist: 'Test Artist feat. Guest Artist' })],
 			tracks: [createTrack()],
 			records: [createRecord()]
 		})
@@ -139,7 +210,7 @@ describe('buildTrackEnrichmentRows', () => {
 
 	it('does not use Discogs extraartist credits as performer identity', () => {
 		const [row] = buildTrackEnrichmentRows({
-			xmlTracks: [createSource()],
+			sources: [createSource()],
 			tracks: [
 				createTrack({
 					artists: [{ name: 'Different Artist', role: null }],
@@ -156,7 +227,7 @@ describe('buildTrackEnrichmentRows', () => {
 
 	it('does not let release artists override explicit track artists', () => {
 		const [row] = buildTrackEnrichmentRows({
-			xmlTracks: [createSource()],
+			sources: [createSource()],
 			tracks: [
 				createTrack({
 					artists: [{ name: 'Different Artist', role: null }]
@@ -170,7 +241,7 @@ describe('buildTrackEnrichmentRows', () => {
 
 	it('accepts small title and artist spelling differences with corroboration', () => {
 		const [row] = buildTrackEnrichmentRows({
-			xmlTracks: [
+			sources: [
 				createSource({
 					name: 'Cafe Trak',
 					artist: 'Test Artst',
@@ -192,7 +263,7 @@ describe('buildTrackEnrichmentRows', () => {
 
 	it('sends duration conflicts to manual review', () => {
 		const [row] = buildTrackEnrichmentRows({
-			xmlTracks: [createSource({ totalTimeSeconds: 400 })],
+			sources: [createSource({ totalTimeSeconds: 400 })],
 			tracks: [createTrack()],
 			records: [createRecord()]
 		})
@@ -205,7 +276,7 @@ describe('buildTrackEnrichmentRows', () => {
 
 	it('sends existing value conflicts to manual review', () => {
 		const [row] = buildTrackEnrichmentRows({
-			xmlTracks: [createSource()],
+			sources: [createSource()],
 			tracks: [createTrack({ bpm: 120 })],
 			records: [createRecord()]
 		})
@@ -216,7 +287,7 @@ describe('buildTrackEnrichmentRows', () => {
 
 	it('sends ambiguous matches to manual review', () => {
 		const [row] = buildTrackEnrichmentRows({
-			xmlTracks: [createSource()],
+			sources: [createSource()],
 			tracks: [
 				createTrack({ id: 'track-1' }),
 				createTrack({ id: 'track-2', record_id: 'record-2' })
@@ -232,7 +303,7 @@ describe('buildTrackEnrichmentRows', () => {
 
 	it('blocks equally ranked XML rows from updating the same track', () => {
 		const rows = buildTrackEnrichmentRows({
-			xmlTracks: [
+			sources: [
 				createSource({ index: 0, name: 'Untitled' }),
 				createSource({ index: 1, name: 'Untitled' })
 			],
@@ -258,7 +329,7 @@ describe('buildTrackEnrichmentRows', () => {
 
 describe('buildTrackEnrichmentRowsAsync', () => {
 	it('yields matching progress without changing the result', async () => {
-		const xmlTracks = [
+		const sources = [
 			createSource({ index: 0 }),
 			createSource({
 				index: 1,
@@ -267,7 +338,7 @@ describe('buildTrackEnrichmentRowsAsync', () => {
 			})
 		]
 		const options = {
-			xmlTracks,
+			sources,
 			tracks: [createTrack()],
 			records: [createRecord()]
 		}
@@ -285,9 +356,42 @@ describe('buildTrackEnrichmentRowsAsync', () => {
 })
 
 describe('buildTrackEnrichmentUpdate', () => {
+	it('stores sanitized local metadata and exact applied provenance', () => {
+		const [row] = buildTrackEnrichmentRows({
+			sources: [createLocalSource({ analysis: true })],
+			tracks: [createTrack()],
+			records: [createRecord()]
+		})
+		const update = buildTrackEnrichmentUpdate(
+			row!,
+			'Local audio',
+			'2026-07-10T00:00:00.000Z'
+		)
+
+		expect(update?.updates.audio_features).toMatchObject({
+			applied: {
+				bpm: { source: 'essentiaBrowser' },
+				keyMode: null
+			},
+			sources: {
+				embeddedTags: {
+					fileName: 'Cafe Track.flac',
+					locationHint: 'Test Artist/Synthetic Album/Cafe Track.flac'
+				},
+				essentiaBrowser: {
+					configurationVersion: 'center-180s-44k1-v1',
+					bpm: 128
+				}
+			}
+		})
+		expect(JSON.stringify(update?.updates.audio_features)).not.toContain(
+			'/Users/'
+		)
+	})
+
 	it('fills only blank top-level values and writes audio feature provenance', () => {
 		const [row] = buildTrackEnrichmentRows({
-			xmlTracks: [createSource()],
+			sources: [createSource()],
 			tracks: [createTrack()],
 			records: [createRecord()]
 		})
@@ -330,7 +434,7 @@ describe('buildTrackEnrichmentUpdate', () => {
 
 	it('does not treat key 0 as blank', () => {
 		const [row] = buildTrackEnrichmentRows({
-			xmlTracks: [createSource({ parsedKey: 9, parsedMode: 0 })],
+			sources: [createSource({ parsedKey: 9, parsedMode: 0 })],
 			tracks: [createTrack({ bpm: null, key: 0, mode: 1 })],
 			records: [createRecord()]
 		})
@@ -366,7 +470,17 @@ describe('mergeRekordboxAudioFeatures', () => {
 				sources: {
 					embeddedTags: {
 						importedAt: '2026-07-08T00:00:00.000Z',
-						raw: { bpm: 127 }
+						fileName: 'track.flac',
+						locationHint: 'Album/track.flac',
+						fileSize: 1024,
+						lastModified: 0,
+						title: 'Cafe Track',
+						artist: 'Test Artist',
+						album: 'Synthetic Album',
+						genres: ['House'],
+						durationSeconds: 225,
+						bpm: 127,
+						key: null
 					}
 				}
 			},
@@ -407,7 +521,7 @@ describe('mergeRekordboxAudioFeatures', () => {
 			'2026-07-09T00:00:00.000Z'
 		)
 
-		expect(merged.sources.embeddedTags?.raw).toEqual({ bpm: 127 })
+		expect(merged.sources.embeddedTags?.bpm).toBe(127)
 		expect(merged.sources.rekordboxXml?.fileName).toBe('collection.xml')
 		expect(merged.applied.bpm).toBeNull()
 		expect(merged.applied.keyMode?.source).toBe('rekordboxXml')

@@ -1,0 +1,167 @@
+import type {
+	LocalAudioAnalysis,
+	LocalAudioWorkerRequest,
+	LocalAudioWorkerResponse
+} from '~/types/localAudio'
+import {
+	LOCAL_AUDIO_ANALYZER_VERSION,
+	LOCAL_AUDIO_CONFIGURATION_VERSION,
+	LOCAL_AUDIO_SAMPLE_RATE
+} from '~/utils/localAudio'
+
+let essentiaInstance: null | {
+	version: string
+	arrayToVector(samples: Float32Array): unknown
+	vectorToArray(vector: unknown): ArrayLike<number>
+	RhythmExtractor2013(
+		signal: unknown,
+		maxTempo?: number,
+		method?: string,
+		minTempo?: number
+	): Record<string, unknown>
+	KeyExtractor(
+		audio: unknown,
+		averageDetuningCorrection?: boolean,
+		frameSize?: number,
+		hopSize?: number,
+		hpcpSize?: number,
+		maxFrequency?: number,
+		maximumSpectralPeaks?: number,
+		minFrequency?: number,
+		pcpThreshold?: number,
+		profileType?: string,
+		sampleRate?: number,
+		spectralPeaksThreshold?: number,
+		tuningFrequency?: number,
+		weightType?: string,
+		windowType?: string
+	): Record<string, unknown>
+} = null
+
+async function getEssentia() {
+	if (essentiaInstance) return essentiaInstance
+	const [{ default: Essentia }, { EssentiaWASM }] = await Promise.all([
+		import('essentia.js/dist/essentia.js-core.es.js'),
+		import('essentia.js/dist/essentia-wasm.es.js')
+	])
+	essentiaInstance = new Essentia(EssentiaWASM)
+	return essentiaInstance
+}
+
+function numberField(
+	source: Record<string, unknown>,
+	key: string
+): number | null {
+	const value = source[key]
+	return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function stringField(
+	source: Record<string, unknown>,
+	key: string
+): string | null {
+	const value = source[key]
+	return typeof value === 'string' && value ? value : null
+}
+
+function vectorField(
+	essentia: Awaited<ReturnType<typeof getEssentia>>,
+	source: Record<string, unknown>,
+	key: string
+): number[] {
+	const value = source[key]
+	if (!value) return []
+	try {
+		return Array.from(essentia.vectorToArray(value)).filter(Number.isFinite)
+	} catch {
+		return []
+	}
+}
+
+function deleteVector(vector: unknown) {
+	if (
+		typeof vector === 'object' &&
+		vector !== null &&
+		'delete' in vector &&
+		typeof vector.delete === 'function'
+	) {
+		vector.delete()
+	}
+}
+
+async function analyze(
+	request: LocalAudioWorkerRequest
+): Promise<LocalAudioAnalysis> {
+	const essentia = await getEssentia()
+	const samples = new Float32Array(request.samples)
+	const signal = essentia.arrayToVector(samples)
+	let rhythm: Record<string, unknown> | null = null
+
+	try {
+		rhythm = essentia.RhythmExtractor2013(signal, 208, 'multifeature', 40)
+		const key = essentia.KeyExtractor(
+			signal,
+			true,
+			4096,
+			4096,
+			12,
+			3500,
+			60,
+			25,
+			0.2,
+			'edma',
+			LOCAL_AUDIO_SAMPLE_RATE,
+			0.0001,
+			440,
+			'cosine',
+			'hann'
+		)
+
+		const bpm = numberField(rhythm, 'bpm')
+		const warnings: string[] = []
+		if (bpm !== null && (bpm < 30 || bpm > 300)) {
+			warnings.push(`Analyzer returned out-of-range BPM ${bpm.toFixed(1)}`)
+		}
+		if (request.analyzedDurationSeconds < request.durationSeconds - 1) {
+			warnings.push(
+				`Analyzed a ${Math.round(request.analyzedDurationSeconds)} second ` +
+					`center segment of a ${Math.round(request.durationSeconds)} second track`
+			)
+		}
+
+		return {
+			analyzerVersion: `${LOCAL_AUDIO_ANALYZER_VERSION} (${essentia.version})`,
+			configurationVersion: LOCAL_AUDIO_CONFIGURATION_VERSION,
+			bpm,
+			bpmConfidence: numberField(rhythm, 'confidence'),
+			bpmEstimates: vectorField(essentia, rhythm, 'estimates'),
+			key: stringField(key, 'key'),
+			scale: stringField(key, 'scale'),
+			keyStrength: numberField(key, 'strength'),
+			sampleRate: LOCAL_AUDIO_SAMPLE_RATE,
+			durationSeconds: request.durationSeconds,
+			analyzedDurationSeconds: request.analyzedDurationSeconds,
+			analysisOffsetSeconds: request.analysisOffsetSeconds,
+			warnings
+		}
+	} finally {
+		deleteVector(rhythm?.ticks)
+		deleteVector(rhythm?.estimates)
+		deleteVector(rhythm?.bpmIntervals)
+		deleteVector(signal)
+	}
+}
+
+self.onmessage = async (event: MessageEvent<LocalAudioWorkerRequest>) => {
+	const request = event.data
+	let response: LocalAudioWorkerResponse
+	try {
+		response = { id: request.id, result: await analyze(request) }
+	} catch (error) {
+		response = {
+			id: request.id,
+			error: error instanceof Error ? error.message : String(error)
+		}
+	}
+	self.postMessage(response)
+}

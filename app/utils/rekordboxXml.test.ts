@@ -91,7 +91,7 @@ describe('parseRekordboxXml', () => {
 		const result = parseRekordboxXml('<DJ_PLAYLISTS><COLLECTION><TRACK>')
 
 		expect(result.tracks).toEqual([])
-		expect(result.errors).toContain('Unable to parse rekordbox XML')
+		expect(result.errors).toContain('Unable to parse Rekordbox XML')
 	})
 
 	it('warns when the Entries attribute does not match parsed tracks', () => {

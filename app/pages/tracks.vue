@@ -154,7 +154,7 @@ function formatKey(track: Track): string {
 								{{ missingKeyCount }} key
 							</span>
 							<Button size="sm" @click="navigateTo('/enrichment')">
-								Use rekordbox data
+								Use Rekordbox data
 							</Button>
 						</div>
 					</div>

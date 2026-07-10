@@ -8,8 +8,10 @@ import {
 	ShieldCheck,
 	Upload
 } from 'lucide-vue-next'
+import type { LocalAudioTrackSource } from '~/types/localAudio'
 
 const props = defineProps<{
+	activeSource: 'rekordboxXml' | 'localAudio'
 	isParsing: boolean
 	parseCompleted: number
 	parseTotal: number
@@ -17,8 +19,10 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+	selectSource: [source: 'rekordboxXml' | 'localAudio']
 	selectFile: []
 	dropFile: [file: File]
+	reviewLocal: [sources: LocalAudioTrackSource[]]
 }>()
 
 function handleDrop(event: DragEvent) {
@@ -35,12 +39,27 @@ function handleDrop(event: DragEvent) {
 				Choose where the track data comes from
 			</h2>
 			<p class="text-muted-foreground mt-1 text-sm">
-				Start with rekordbox when your DJ library has already been analyzed.
+				Start with Rekordbox when your DJ library has already been analyzed.
 			</p>
 		</div>
 
-		<div class="grid gap-3 md:grid-cols-2">
-			<div class="border-primary bg-primary/5 rounded-md border p-4">
+		<div
+			class="grid gap-3 md:grid-cols-2"
+			role="radiogroup"
+			aria-label="Data source"
+		>
+			<button
+				type="button"
+				role="radio"
+				:aria-checked="activeSource === 'rekordboxXml'"
+				class="rounded-md border p-4 text-left transition-colors"
+				:class="
+					activeSource === 'rekordboxXml'
+						? 'border-primary bg-primary/5'
+						: 'border-border hover:bg-muted/40'
+				"
+				@click="emit('selectSource', 'rekordboxXml')"
+			>
 				<div class="flex items-start gap-3">
 					<div
 						class="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-md"
@@ -49,7 +68,7 @@ function handleDrop(event: DragEvent) {
 					</div>
 					<div class="min-w-0 flex-1">
 						<div class="flex flex-wrap items-center gap-2">
-							<h3 class="text-sm font-semibold">rekordbox XML</h3>
+							<h3 class="text-sm font-semibold">Rekordbox XML</h3>
 							<Badge>Recommended</Badge>
 						</div>
 						<p class="text-muted-foreground mt-1 text-sm">
@@ -57,11 +76,25 @@ function handleDrop(event: DragEvent) {
 							with.
 						</p>
 					</div>
-					<Check class="text-primary mt-1 size-4 shrink-0" />
+					<Check
+						v-if="activeSource === 'rekordboxXml'"
+						class="text-primary mt-1 size-4 shrink-0"
+					/>
 				</div>
-			</div>
+			</button>
 
-			<div class="border-border bg-muted/30 rounded-md border p-4 opacity-75">
+			<button
+				type="button"
+				role="radio"
+				:aria-checked="activeSource === 'localAudio'"
+				class="rounded-md border p-4 text-left transition-colors"
+				:class="
+					activeSource === 'localAudio'
+						? 'border-primary bg-primary/5'
+						: 'border-border hover:bg-muted/40'
+				"
+				@click="emit('selectSource', 'localAudio')"
+			>
 				<div class="flex items-start gap-3">
 					<div
 						class="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-md"
@@ -71,18 +104,25 @@ function handleDrop(event: DragEvent) {
 					<div class="min-w-0 flex-1">
 						<div class="flex flex-wrap items-center gap-2">
 							<h3 class="text-sm font-semibold">Analyze local audio</h3>
-							<Badge variant="secondary">Coming soon</Badge>
+							<Badge variant="secondary">Experimental</Badge>
 						</div>
 						<p class="text-muted-foreground mt-1 text-sm">
-							Run Essentia on a folder of tracks when rekordbox data is not
-							available.
+							Read embedded BPM and key tags, then estimate missing values
+							privately on this device.
 						</p>
 					</div>
+					<Check
+						v-if="activeSource === 'localAudio'"
+						class="text-primary mt-1 size-4 shrink-0"
+					/>
 				</div>
-			</div>
+			</button>
 		</div>
 
-		<div class="border-border overflow-hidden rounded-md border">
+		<div
+			v-if="activeSource === 'rekordboxXml'"
+			class="border-border overflow-hidden rounded-md border"
+		>
 			<div class="grid md:grid-cols-[minmax(0,1fr)_minmax(300px,0.8fr)]">
 				<div class="border-border p-4 md:border-r">
 					<div class="flex items-start gap-3">
@@ -94,7 +134,7 @@ function handleDrop(event: DragEvent) {
 						<div>
 							<h3 class="text-sm font-semibold">Export your collection</h3>
 							<p class="text-muted-foreground mt-1 text-sm">
-								In rekordbox, choose
+								In Rekordbox, choose
 								<span class="text-foreground font-medium">
 									File → Export Collection in xml format
 								</span>
@@ -178,8 +218,16 @@ function handleDrop(event: DragEvent) {
 			</div>
 		</div>
 
-		<p class="text-muted-foreground text-xs">
-			rekordbox is a trademark of AlphaTheta Corporation. Crate Guide is
+		<PanelTrackEnrichmentLocalAudio
+			v-else
+			@review="emit('reviewLocal', $event)"
+		/>
+
+		<p
+			v-if="activeSource === 'rekordboxXml'"
+			class="text-muted-foreground text-xs"
+		>
+			Rekordbox is a trademark of AlphaTheta Corporation. Crate Guide is
 			independent and is not affiliated with or endorsed by AlphaTheta.
 		</p>
 	</section>

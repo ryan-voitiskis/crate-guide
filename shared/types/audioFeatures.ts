@@ -47,12 +47,32 @@ export type RekordboxXmlSource = {
 
 export type EmbeddedTagsSource = {
 	importedAt: string
-	raw: Record<string, unknown>
+	fileName: string
+	locationHint: string | null
+	fileSize: number
+	lastModified: number
+	title: string | null
+	artist: string | null
+	album: string | null
+	genres: string[]
+	durationSeconds: number | null
+	bpm: number | null
+	key: string | null
 }
 
 export type EssentiaBrowserSource = {
 	importedAt: string
-	analyzerVersion: string | null
+	analyzerVersion: string
+	configurationVersion: string
+	bpm: number | null
+	bpmConfidence: number | null
+	bpmEstimates: number[]
+	key: string | null
+	scale: string | null
+	keyStrength: number | null
+	sampleRate: number
+	durationSeconds: number
+	analyzedDurationSeconds: number
+	analysisOffsetSeconds: number
 	warnings: string[]
-	raw: Record<string, unknown>
 }

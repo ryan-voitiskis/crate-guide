@@ -17,7 +17,10 @@ export default defineNuxtConfig({
 	devtools: { enabled: false },
 	css: ['~/assets/css/main.css'],
 	vite: {
-		plugins: [tailwindcss()]
+		plugins: [tailwindcss()],
+		worker: {
+			format: 'es'
+		}
 	},
 	modules: [
 		'@nuxt/eslint',

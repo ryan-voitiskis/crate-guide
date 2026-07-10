@@ -1,4 +1,8 @@
+import type { LocalAudioTrackSource } from '~/types/localAudio'
 import type {
+	AudioFeatureSourceKey,
+	EmbeddedTagsSource,
+	EssentiaBrowserSource,
 	RekordboxXmlSource,
 	TrackAudioFeatures
 } from '~~/shared/types/audioFeatures'
@@ -14,10 +18,11 @@ import {
 import { isValidBPM } from './track-validation'
 
 export type TrackEnrichmentConfidence = 'high' | 'medium' | 'manual'
+export type TrackEnrichmentSource = RekordboxXmlTrack | LocalAudioTrackSource
 
 export type TrackEnrichmentRow = {
 	id: string
-	source: RekordboxXmlTrack
+	source: TrackEnrichmentSource
 	track: Track | null
 	record: DatabaseRecord | null
 	confidence: TrackEnrichmentConfidence
@@ -27,6 +32,8 @@ export type TrackEnrichmentRow = {
 	proposedBpm: number | null
 	proposedKey: number | null
 	proposedMode: number | null
+	proposedBpmSource: AudioFeatureSourceKey | null
+	proposedKeyModeSource: AudioFeatureSourceKey | null
 	canFillBpm: boolean
 	canFillKeyMode: boolean
 	alreadyComplete: boolean
@@ -63,7 +70,7 @@ type CandidateMatch = {
 }
 
 type BuildTrackEnrichmentRowsOptions = {
-	xmlTracks: RekordboxXmlTrack[]
+	sources: TrackEnrichmentSource[]
 	tracks: Track[]
 	records: DatabaseRecord[]
 }
@@ -175,7 +182,7 @@ function createCandidateMatchMetadata(
 }
 
 function createSourceMatchMetadata(
-	source: RekordboxXmlTrack
+	source: TrackEnrichmentSource
 ): SourceMatchMetadata {
 	return {
 		titles: [
@@ -332,7 +339,7 @@ function compareDuration(
 }
 
 function scoreCandidate(
-	source: RekordboxXmlTrack,
+	source: TrackEnrichmentSource,
 	sourceMetadata: SourceMatchMetadata,
 	candidateMetadata: CandidateMatchMetadata
 ): CandidateMatch | null {
@@ -445,7 +452,7 @@ function hasValueConflict(row: {
 
 function chooseConfidence(
 	candidate: CandidateMatch | null,
-	source: RekordboxXmlTrack,
+	source: TrackEnrichmentSource,
 	candidates: CandidateMatch[],
 	hasConflict: boolean
 ): TrackEnrichmentConfidence {
@@ -485,11 +492,31 @@ function chooseConfidence(
 	return 'manual'
 }
 
-function buildUnmatchedRow(source: RekordboxXmlTrack): TrackEnrichmentRow {
+function getBpmSource(
+	source: TrackEnrichmentSource
+): AudioFeatureSourceKey | null {
+	return source.sourceType === 'localAudio'
+		? source.bpmSource
+		: source.averageBpm === null
+			? null
+			: 'rekordboxXml'
+}
+
+function getKeyModeSource(
+	source: TrackEnrichmentSource
+): AudioFeatureSourceKey | null {
+	return source.sourceType === 'localAudio'
+		? source.keyModeSource
+		: source.parsedKey === null || source.parsedMode === null
+			? null
+			: 'rekordboxXml'
+}
+
+function buildUnmatchedRow(source: TrackEnrichmentSource): TrackEnrichmentRow {
 	const warnings = [...source.warnings, 'No matching Crate Guide track found']
 
 	return {
-		id: `source-${source.index}`,
+		id: `source-${source.sourceType}-${source.index}`,
 		source,
 		track: null,
 		record: null,
@@ -500,6 +527,8 @@ function buildUnmatchedRow(source: RekordboxXmlTrack): TrackEnrichmentRow {
 		proposedBpm: source.averageBpm,
 		proposedKey: source.parsedKey,
 		proposedMode: source.parsedMode,
+		proposedBpmSource: getBpmSource(source),
+		proposedKeyModeSource: getKeyModeSource(source),
 		canFillBpm: false,
 		canFillKeyMode: false,
 		alreadyComplete: false,
@@ -535,8 +564,8 @@ function blockCompetingTrackMatches(
 
 			const reason =
 				bestRows.length > 1 && row.score === bestScore
-					? 'Multiple XML rows match this track equally'
-					: 'A stronger XML row already matches this track'
+					? 'Multiple source rows match this track equally'
+					: 'A stronger source row already matches this track'
 
 			row.confidence = 'manual'
 			row.hasConflict = true
@@ -563,7 +592,7 @@ function prepareCandidateMetadata(
 }
 
 function buildTrackEnrichmentRow(
-	source: RekordboxXmlTrack,
+	source: TrackEnrichmentSource,
 	candidateMetadata: CandidateMatchMetadata[]
 ): TrackEnrichmentRow {
 	const sourceMetadata = createSourceMatchMetadata(source)
@@ -617,10 +646,13 @@ function buildTrackEnrichmentRow(
 	}
 
 	const defaultStaged =
-		confidence === 'high' && !hasConflict && (canFillBpm || canFillKeyMode)
+		confidence === 'high' &&
+		!hasConflict &&
+		!('requiresManualReview' in source && source.requiresManualReview) &&
+		(canFillBpm || canFillKeyMode)
 
 	return {
-		id: `${source.index}-${candidate.track.id}`,
+		id: `${source.sourceType}-${source.index}-${candidate.track.id}`,
 		source,
 		track: candidate.track,
 		record: candidate.record,
@@ -631,6 +663,8 @@ function buildTrackEnrichmentRow(
 		proposedBpm,
 		proposedKey,
 		proposedMode,
+		proposedBpmSource: getBpmSource(source),
+		proposedKeyModeSource: getKeyModeSource(source),
 		canFillBpm,
 		canFillKeyMode,
 		alreadyComplete,
@@ -643,12 +677,12 @@ function buildTrackEnrichmentRow(
 }
 
 export function buildTrackEnrichmentRows({
-	xmlTracks,
+	sources,
 	tracks,
 	records
 }: BuildTrackEnrichmentRowsOptions): TrackEnrichmentRow[] {
 	const candidateMetadata = prepareCandidateMetadata(tracks, records)
-	const builtRows = xmlTracks.map((source) =>
+	const builtRows = sources.map((source) =>
 		buildTrackEnrichmentRow(source, candidateMetadata)
 	)
 
@@ -656,7 +690,7 @@ export function buildTrackEnrichmentRows({
 }
 
 export async function buildTrackEnrichmentRowsAsync({
-	xmlTracks,
+	sources,
 	tracks,
 	records,
 	onProgress,
@@ -669,20 +703,20 @@ export async function buildTrackEnrichmentRowsAsync({
 	const builtRows: TrackEnrichmentRow[] = []
 	const batchSize = Math.max(1, yieldEvery)
 
-	for (let index = 0; index < xmlTracks.length; index++) {
-		const source = xmlTracks[index]
+	for (let index = 0; index < sources.length; index++) {
+		const source = sources[index]
 		if (!source) continue
 		builtRows.push(buildTrackEnrichmentRow(source, candidateMetadata))
 
 		const completed = index + 1
 		if (completed % batchSize === 0) {
-			onProgress?.(completed, xmlTracks.length)
+			onProgress?.(completed, sources.length)
 			await new Promise<void>((resolve) => setTimeout(resolve, 0))
 		}
 	}
 
-	if (xmlTracks.length % batchSize !== 0) {
-		onProgress?.(xmlTracks.length, xmlTracks.length)
+	if (sources.length % batchSize !== 0) {
+		onProgress?.(sources.length, sources.length)
 	}
 	return blockCompetingTrackMatches(builtRows)
 }
@@ -742,6 +776,76 @@ export function mergeRekordboxAudioFeatures(
 	}
 }
 
+function toEmbeddedTagsSource(
+	source: LocalAudioTrackSource,
+	importedAt: string
+): EmbeddedTagsSource {
+	return {
+		importedAt,
+		fileName: source.fileName,
+		locationHint: source.locationHint,
+		fileSize: source.fileSize,
+		lastModified: source.lastModified,
+		title: source.tags.title,
+		artist: source.tags.artist,
+		album: source.tags.album,
+		genres: source.tags.genres,
+		durationSeconds: source.tags.durationSeconds,
+		bpm: source.tags.bpm,
+		key: source.tags.key
+	}
+}
+
+function toEssentiaBrowserSource(
+	source: LocalAudioTrackSource,
+	importedAt: string
+): EssentiaBrowserSource | null {
+	if (!source.analysis) return null
+	return {
+		importedAt,
+		...source.analysis
+	}
+}
+
+export function mergeLocalAudioFeatures(
+	existing: TrackAudioFeatures | null,
+	source: LocalAudioTrackSource,
+	match: {
+		confidence: TrackEnrichmentConfidence
+		score: number
+		reasons: string[]
+		warnings: string[]
+	},
+	applied: {
+		bpm: AudioFeatureSourceKey | null
+		keyMode: AudioFeatureSourceKey | null
+	},
+	importedAt: string
+): TrackAudioFeatures {
+	const base =
+		existing?.version === 1 ? existing : createEmptyAudioFeatures(importedAt)
+	const essentiaBrowser = toEssentiaBrowserSource(source, importedAt)
+
+	return {
+		version: 1,
+		updatedAt: importedAt,
+		applied: {
+			bpm: applied.bpm
+				? { source: applied.bpm, appliedAt: importedAt }
+				: base.applied.bpm,
+			keyMode: applied.keyMode
+				? { source: applied.keyMode, appliedAt: importedAt }
+				: base.applied.keyMode
+		},
+		match,
+		sources: {
+			...base.sources,
+			embeddedTags: toEmbeddedTagsSource(source, importedAt),
+			...(essentiaBrowser ? { essentiaBrowser } : {})
+		}
+	}
+}
+
 export function buildTrackEnrichmentUpdate(
 	row: TrackEnrichmentRow,
 	fileName: string,
@@ -751,10 +855,13 @@ export function buildTrackEnrichmentUpdate(
 
 	const updates: TrackBatchUpdate['updates'] = {}
 	const shouldApplyBpm =
-		row.track.bpm === null && isValidProposedBpm(row.proposedBpm)
+		row.track.bpm === null &&
+		row.proposedBpmSource !== null &&
+		isValidProposedBpm(row.proposedBpm)
 	const shouldApplyKeyMode =
 		row.track.key === null &&
 		row.track.mode === null &&
+		row.proposedKeyModeSource !== null &&
 		isValidKeyMode(row.proposedKey, row.proposedMode)
 
 	if (shouldApplyBpm) updates.bpm = row.proposedBpm
@@ -763,21 +870,34 @@ export function buildTrackEnrichmentUpdate(
 		updates.mode = row.proposedMode
 	}
 
-	updates.audio_features = mergeRekordboxAudioFeatures(
-		row.track.audio_features,
-		toRekordboxXmlSource(row.source, fileName, importedAt),
-		{
-			confidence: row.confidence,
-			score: row.score,
-			reasons: row.reasons,
-			warnings: row.warnings
-		},
-		{
-			bpm: shouldApplyBpm,
-			keyMode: shouldApplyKeyMode
-		},
-		importedAt
-	)
+	const match = {
+		confidence: row.confidence,
+		score: row.score,
+		reasons: row.reasons,
+		warnings: row.warnings
+	}
+	updates.audio_features =
+		row.source.sourceType === 'rekordboxXml'
+			? mergeRekordboxAudioFeatures(
+					row.track.audio_features,
+					toRekordboxXmlSource(row.source, fileName, importedAt),
+					match,
+					{
+						bpm: shouldApplyBpm,
+						keyMode: shouldApplyKeyMode
+					},
+					importedAt
+				)
+			: mergeLocalAudioFeatures(
+					row.track.audio_features,
+					row.source,
+					match,
+					{
+						bpm: shouldApplyBpm ? row.proposedBpmSource : null,
+						keyMode: shouldApplyKeyMode ? row.proposedKeyModeSource : null
+					},
+					importedAt
+				)
 
 	return {
 		id: row.track.id,

@@ -11,6 +11,7 @@ const props = defineProps<{
 	stageableRowCount: number
 	isApplying: boolean
 	keyFormat: KeyFormat
+	sourceLabel: string
 }>()
 
 const emit = defineEmits<{
@@ -80,7 +81,7 @@ function getRowClasses(row: TrackEnrichmentRow): string {
 						</div>
 					</TableHead>
 					<TableHead class="w-[21%]">Crate Guide match</TableHead>
-					<TableHead class="w-[21%]">XML source</TableHead>
+					<TableHead class="w-[21%]">{{ sourceLabel }} source</TableHead>
 					<TableHead class="w-32">BPM</TableHead>
 					<TableHead class="w-36">Key</TableHead>
 					<TableHead>Confidence</TableHead>
@@ -94,7 +95,7 @@ function getRowClasses(row: TrackEnrichmentRow): string {
 								:model-value="isRowStaged(row)"
 								:disabled="!canStageTrackEnrichmentRow(row) || isApplying"
 								large-hit-area
-								:aria-label="`Stage ${row.source.name || 'XML track'}`"
+								:aria-label="`Stage ${row.source.name || 'source track'}`"
 								@update:model-value="emit('stage-row', row, $event === true)"
 							/>
 							<span
