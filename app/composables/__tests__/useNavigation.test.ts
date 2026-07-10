@@ -47,7 +47,7 @@ describe('navItems', () => {
 	})
 
 	it('includes enrichment page outside demo mode', () => {
-		const enrichment = navItems.find((item) => item.label === 'Enrich')
+		const enrichment = navItems.find((item) => item.label === 'BPM & Key')
 		expect(enrichment).toBeDefined()
 		expect(enrichment?.path).toBe('/enrichment')
 		expect(enrichment?.demo).toBe(false)
@@ -111,7 +111,7 @@ describe('useNavigation', () => {
 			const { visibleNavItems } = useNavigation()
 
 			expect(visibleNavItems.value.map((item) => item.label)).toContain(
-				'Enrich'
+				'BPM & Key'
 			)
 		})
 
@@ -120,7 +120,7 @@ describe('useNavigation', () => {
 			const { visibleNavItems } = useNavigation()
 
 			expect(visibleNavItems.value.map((item) => item.label)).not.toContain(
-				'Enrich'
+				'BPM & Key'
 			)
 		})
 	})

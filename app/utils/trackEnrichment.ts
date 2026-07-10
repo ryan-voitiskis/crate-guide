@@ -1,8 +1,8 @@
-import type { TrackBatchUpdate } from '~/stores/tracksStore'
 import type {
 	RekordboxXmlSource,
 	TrackAudioFeatures
 } from '~~/shared/types/audioFeatures'
+import type { TrackBatchUpdate } from '~~/shared/types/trackUpdates'
 import {
 	type RekordboxXmlTrack,
 	getLocationAlbumHint,
@@ -14,15 +14,6 @@ import {
 import { isValidBPM } from './track-validation'
 
 export type TrackEnrichmentConfidence = 'high' | 'medium' | 'manual'
-
-export type TrackEnrichmentFilter =
-	| 'all'
-	| 'high'
-	| 'medium'
-	| 'manual'
-	| 'conflicts'
-	| 'fillable'
-	| 'complete'
 
 export type TrackEnrichmentRow = {
 	id: string
@@ -40,10 +31,19 @@ export type TrackEnrichmentRow = {
 	canFillKeyMode: boolean
 	alreadyComplete: boolean
 	hasConflict: boolean
-	approvalBlockedReason: string | null
-	defaultApproved: boolean
+	stagingBlockedReason: string | null
+	defaultStaged: boolean
 	error: string | null
 	applied: boolean
+}
+
+export function canStageTrackEnrichmentRow(row: TrackEnrichmentRow): boolean {
+	return (
+		!!row.track &&
+		!row.applied &&
+		!row.stagingBlockedReason &&
+		(row.canFillBpm || row.canFillKeyMode)
+	)
 }
 
 type CandidateMatch = {
@@ -137,10 +137,13 @@ function getCandidateArtistValues(
 	track: Track,
 	record: DatabaseRecord | null
 ): string[] {
-	const names = [
-		...track.artists.map((artist) => artist.name),
-		...(record?.artists.map((artist) => artist.name) ?? [])
-	]
+	const trackArtistNames = track.artists
+		.map((artist) => artist.name)
+		.filter(Boolean)
+	const names =
+		trackArtistNames.length > 0
+			? trackArtistNames
+			: (record?.artists.map((artist) => artist.name) ?? [])
 
 	return Array.from(new Set(names.filter(Boolean)))
 }
@@ -501,8 +504,8 @@ function buildUnmatchedRow(source: RekordboxXmlTrack): TrackEnrichmentRow {
 		canFillKeyMode: false,
 		alreadyComplete: false,
 		hasConflict: false,
-		approvalBlockedReason: null,
-		defaultApproved: false,
+		stagingBlockedReason: null,
+		defaultStaged: false,
 		error: null,
 		applied: false
 	}
@@ -537,8 +540,8 @@ function blockCompetingTrackMatches(
 
 			row.confidence = 'manual'
 			row.hasConflict = true
-			row.approvalBlockedReason = reason
-			row.defaultApproved = false
+			row.stagingBlockedReason = reason
+			row.defaultStaged = false
 			row.warnings = [...row.warnings, reason]
 		}
 	}
@@ -613,7 +616,7 @@ function buildTrackEnrichmentRow(
 		warnings.push('Existing key and mode are incomplete')
 	}
 
-	const defaultApproved =
+	const defaultStaged =
 		confidence === 'high' && !hasConflict && (canFillBpm || canFillKeyMode)
 
 	return {
@@ -632,8 +635,8 @@ function buildTrackEnrichmentRow(
 		canFillKeyMode,
 		alreadyComplete,
 		hasConflict,
-		approvalBlockedReason: null,
-		defaultApproved,
+		stagingBlockedReason: null,
+		defaultStaged,
 		error: null,
 		applied: false
 	}
@@ -744,7 +747,7 @@ export function buildTrackEnrichmentUpdate(
 	fileName: string,
 	importedAt: string
 ): TrackBatchUpdate | null {
-	if (!row.track || row.approvalBlockedReason) return null
+	if (!row.track || row.stagingBlockedReason) return null
 
 	const updates: TrackBatchUpdate['updates'] = {}
 	const shouldApplyBpm =
@@ -778,29 +781,10 @@ export function buildTrackEnrichmentUpdate(
 
 	return {
 		id: row.track.id,
-		updates
-	}
-}
-
-export function filterTrackEnrichmentRows(
-	rows: TrackEnrichmentRow[],
-	filter: TrackEnrichmentFilter
-): TrackEnrichmentRow[] {
-	switch (filter) {
-		case 'high':
-			return rows.filter((row) => row.confidence === 'high')
-		case 'medium':
-			return rows.filter((row) => row.confidence === 'medium')
-		case 'manual':
-			return rows.filter((row) => row.confidence === 'manual')
-		case 'conflicts':
-			return rows.filter((row) => row.hasConflict)
-		case 'fillable':
-			return rows.filter((row) => row.canFillBpm || row.canFillKeyMode)
-		case 'complete':
-			return rows.filter((row) => row.alreadyComplete)
-		case 'all':
-		default:
-			return rows
+		updates,
+		preconditions: {
+			bpmMustBeNull: shouldApplyBpm,
+			keyModeMustBeNull: shouldApplyKeyMode
+		}
 	}
 }

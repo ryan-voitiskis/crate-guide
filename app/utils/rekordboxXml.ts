@@ -182,12 +182,20 @@ function getAttribute(element: Element, name: string): string | null {
 	return cleanXmlString(element.getAttribute(name))
 }
 
+function decodeUriComponent(value: string): string {
+	try {
+		return decodeURIComponent(value)
+	} catch {
+		return value
+	}
+}
+
 function decodeLocation(location: string | null): string | null {
 	if (!location) return null
 
 	try {
 		const url = new URL(location)
-		if (url.protocol === 'file:') return decodeURIComponent(url.pathname)
+		if (url.protocol === 'file:') return decodeUriComponent(url.pathname)
 	} catch {
 		// Fall through to best-effort cleanup below.
 	}
@@ -195,11 +203,23 @@ function decodeLocation(location: string | null): string | null {
 	const withoutProtocol = location
 		.replace(/^file:\/\/localhost/i, '')
 		.replace(/^file:\/\//i, '')
-	return cleanXmlString(decodeURIComponent(withoutProtocol))
+	return cleanXmlString(decodeUriComponent(withoutProtocol))
 }
 
 function getPathSegments(path: string): string[] {
 	return path.replace(/\\/g, '/').split('/').filter(Boolean)
+}
+
+function stripHomeDirectory(segments: string[]): string[] {
+	const homeRootIndex = segments.findIndex(
+		(segment, index) =>
+			index <= 1 && ['users', 'home'].includes(segment.toLowerCase())
+	)
+
+	if (homeRootIndex === -1 || segments.length <= homeRootIndex + 2) {
+		return segments
+	}
+	return segments.slice(homeRootIndex + 2)
 }
 
 function getCommonDirectory(paths: string[]): string[] {
@@ -210,12 +230,14 @@ function getCommonDirectory(paths: string[]): string[] {
 	if (directorySegments.length < 2) return []
 
 	const [firstSegments, ...otherSegments] = directorySegments
+	if (!firstSegments) return []
 	const common: string[] = []
 
-	for (let index = 0; index < firstSegments!.length; index++) {
-		const segment = firstSegments![index]
+	for (let index = 0; index < firstSegments.length; index++) {
+		const segment = firstSegments[index]
+		if (!segment) break
 		if (otherSegments.every((segments) => segments[index] === segment)) {
-			common.push(segment!)
+			common.push(segment)
 		} else {
 			break
 		}
@@ -239,7 +261,7 @@ function toRelativeLocationHint(
 
 	const relativeSegments = canUseCommonDirectory
 		? segments.slice(commonDirectory.length)
-		: segments.slice(Math.max(0, segments.length - 3))
+		: stripHomeDirectory(segments).slice(-3)
 
 	return relativeSegments.join('/') || null
 }
@@ -304,7 +326,7 @@ export function parseRekordboxXml(xmlText: string): RekordboxXmlParseResult {
 			tracks: [],
 			entriesDeclared: null,
 			warnings,
-			errors: ['Unable to parse Rekordbox XML']
+			errors: ['Unable to parse rekordbox XML']
 		}
 	}
 

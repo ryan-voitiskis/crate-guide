@@ -12,7 +12,7 @@ export const navItems = [
 	{ path: '/tracks', label: 'Tracks', icon: Music },
 	{ path: '/records', label: 'Records', icon: Disc },
 	{ path: '/crates', label: 'Crates', icon: FolderOpen },
-	{ path: '/enrichment', label: 'Enrich', icon: WandSparkles, demo: false },
+	{ path: '/enrichment', label: 'BPM & Key', icon: WandSparkles, demo: false },
 	{ path: '/settings', label: 'Settings', icon: Settings }
 ] as const
 

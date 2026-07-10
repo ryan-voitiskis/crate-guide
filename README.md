@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Live Site](https://img.shields.io/badge/Live-crate.guide-green)](https://crate.guide)
 
-A DJ-focused vinyl record collection manager with real-time session mixing, harmonic track discovery, and turntable simulation. Import from Discogs and Beatport, organize crates, and mix with BPM and key-aware suggestions.
+A DJ-focused vinyl record collection manager with real-time session mixing, harmonic track discovery, and turntable simulation. Import from Discogs, organize crates, and mix with BPM and key-aware suggestions.
 
 ## Features
 
@@ -11,7 +11,8 @@ A DJ-focused vinyl record collection manager with real-time session mixing, harm
 - **Turntable Simulation** — SL-1200 style deck with animated platter, tonearm, and RPM controls
 - **Collection Management** — Catalog records and tracks with detailed metadata
 - **Discogs Integration** — Import records from your Discogs collection via OAuth 1.0
-- **Beatport Integration** — Bulk import track metadata from Beatport
+- **BPM & Key** — Match rekordbox XML exports to collection tracks and stage
+  missing BPM/key values for review
 - **Crate Organization** — Color-coded crates for organizing gigs and sets
 - **Harmonic Mixing** — Find compatible tracks by BPM range and Camelot key relationships
 - **Track Discovery** — Filter and search by BPM, key, genre, artist, and more
@@ -29,7 +30,7 @@ A DJ-focused vinyl record collection manager with real-time session mixing, harm
 | State         | Pinia                                           |
 | Backend       | Supabase (PostgreSQL, Auth, Edge Functions)     |
 | Testing       | Vitest (unit + store), Playwright (e2e)         |
-| External APIs | Discogs, Beatport                               |
+| External APIs | Discogs                                         |
 
 ### Project Structure
 
@@ -41,7 +42,7 @@ A DJ-focused vinyl record collection manager with real-time session mixing, harm
 │   │   ├── tracks/     # Track list, filters, editing
 │   │   ├── records/    # Record cards, details, editing
 │   │   ├── crates/     # Crate management
-│   │   ├── import/     # Discogs/Beatport import dialogs
+│   │   ├── import/     # Collection import dialogs
 │   │   ├── icons/      # Icon components (auto-prefixed)
 │   │   ├── notices/    # Notice components (auto-prefixed)
 │   │   ├── ui/         # shadcn-vue primitives
@@ -171,6 +172,7 @@ Supabase Edge Functions handle Discogs OAuth flow:
 Additional documentation in [`docs/`](docs/):
 
 - [Discogs Integration](docs/discogs-integration.md)
+- [Track Enrichment](docs/track-enrichment.md)
 
 ## Contributing
 

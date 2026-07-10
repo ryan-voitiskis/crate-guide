@@ -2,28 +2,17 @@ import { toast } from 'vue-sonner'
 import type { TrackAudioFeatures } from '~~/shared/types/audioFeatures'
 import type { BeatportTrackData } from '~~/shared/types/beatport'
 import type { Json } from '~~/shared/types/database'
+import type {
+	TrackBatchUpdate,
+	TrackBatchUpdateResult,
+	TrackUpdateInput
+} from '~~/shared/types/trackUpdates'
 
 type TrackCreateInput = Omit<
 	Track,
 	'id' | 'created_at' | 'updated_at' | 'audio_features'
 > & {
 	audio_features?: TrackAudioFeatures | null
-}
-
-type TrackUpdateInput = Partial<
-	Omit<Track, 'id' | 'record_id' | 'created_at' | 'updated_at'>
->
-
-export type TrackBatchUpdate = {
-	id: string
-	updates: TrackUpdateInput
-}
-
-export type TrackBatchUpdateResult = {
-	id: string
-	success: boolean
-	track: Track | null
-	error: string | null
 }
 
 export const useTracksStore = defineStore('tracks', () => {
@@ -84,6 +73,7 @@ export const useTracksStore = defineStore('tracks', () => {
 		audioFeatures: TrackAudioFeatures | null | undefined
 	): Database['public']['Tables']['tracks']['Insert']['audio_features'] {
 		if (audioFeatures === undefined) return undefined
+		// Application audio feature types are JSON-compatible by construction.
 		return audioFeatures as unknown as Json
 	}
 
@@ -220,6 +210,7 @@ export const useTracksStore = defineStore('tracks', () => {
 		options?: {
 			suppressSuccessToast?: boolean
 			suppressErrorToast?: boolean
+			preconditions?: TrackBatchUpdate['preconditions']
 		}
 	): Promise<{ track: Track | null; error: string | null }> {
 		const trackIndex = tracks.value.findIndex((t: Track) => t.id === id)
@@ -233,12 +224,16 @@ export const useTracksStore = defineStore('tracks', () => {
 
 		try {
 			const updatePayload = toTrackUpdatePayload(updates)
-			const { data, error } = await supabase
-				.from('tracks')
-				.update(updatePayload)
-				.eq('id', id)
-				.select()
-				.single()
+			let query = supabase.from('tracks').update(updatePayload).eq('id', id)
+
+			if (options?.preconditions?.bpmMustBeNull) {
+				query = query.is('bpm', null)
+			}
+			if (options?.preconditions?.keyModeMustBeNull) {
+				query = query.is('key', null).is('mode', null)
+			}
+
+			const { data, error } = await query.select().single()
 
 			if (error) throw error
 
@@ -297,7 +292,8 @@ export const useTracksStore = defineStore('tracks', () => {
 					batchUpdate.updates,
 					{
 						suppressSuccessToast: true,
-						suppressErrorToast: true
+						suppressErrorToast: true,
+						preconditions: batchUpdate.preconditions
 					}
 				)
 				const batchResult = {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Disc, Search } from 'lucide-vue-next'
+import { Disc, Gauge, KeyRound, Search, WandSparkles } from 'lucide-vue-next'
 
 const records = useRecordsStore()
 const tracks = useTracksStore()
@@ -25,6 +25,21 @@ const tracksWithRecords = computed(() =>
 		track,
 		record: getRecordForTrack(track.id)
 	}))
+)
+
+const missingBpmCount = computed(
+	() => tracks.tracks.filter((track) => track.bpm === null).length
+)
+const missingKeyCount = computed(
+	() =>
+		tracks.tracks.filter((track) => track.key === null || track.mode === null)
+			.length
+)
+const missingAnalysisCount = computed(
+	() =>
+		tracks.tracks.filter(
+			(track) => track.bpm === null || track.key === null || track.mode === null
+		).length
 )
 
 function getCoverStyle(cover: string | null | undefined) {
@@ -105,6 +120,45 @@ function formatKey(track: Track): string {
 				/>
 
 				<div v-else-if="tracks.hasTracks" class="flex flex-col gap-4">
+					<div
+						v-if="missingAnalysisCount > 0"
+						class="border-border bg-muted/30 flex flex-col gap-3 rounded-md border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+					>
+						<div class="flex min-w-0 items-start gap-3 sm:items-center">
+							<div
+								class="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-md"
+							>
+								<WandSparkles class="size-4" />
+							</div>
+							<div class="min-w-0">
+								<div class="text-sm font-semibold">
+									Complete your track data
+								</div>
+								<div class="text-muted-foreground text-xs">
+									{{ missingAnalysisCount }} tracks are missing BPM or key. Add
+									them to improve tempo and harmonic suggestions.
+								</div>
+							</div>
+						</div>
+						<div class="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+							<span
+								class="border-border bg-background inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs tabular-nums"
+							>
+								<Gauge class="text-muted-foreground size-3.5" />
+								{{ missingBpmCount }} BPM
+							</span>
+							<span
+								class="border-border bg-background inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs tabular-nums"
+							>
+								<KeyRound class="text-muted-foreground size-3.5" />
+								{{ missingKeyCount }} key
+							</span>
+							<Button size="sm" @click="navigateTo('/enrichment')">
+								Use rekordbox data
+							</Button>
+						</div>
+					</div>
+
 					<div class="flex items-center justify-between">
 						<div class="text-muted-foreground text-sm">
 							{{ trackFilters.filteredTracks.length }} of

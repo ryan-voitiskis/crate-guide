@@ -8,7 +8,6 @@ import {
 	CheckCircle2,
 	FileUp,
 	ListChecks,
-	Loader2,
 	RefreshCw,
 	ShieldCheck,
 	Upload,
@@ -18,7 +17,8 @@ import { parseRekordboxXml } from '~/utils/rekordboxXml'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
 import {
 	buildTrackEnrichmentRowsAsync,
-	buildTrackEnrichmentUpdate
+	buildTrackEnrichmentUpdate,
+	canStageTrackEnrichmentRow
 } from '~/utils/trackEnrichment'
 
 type ReviewFilter =
@@ -43,7 +43,7 @@ const user = useUserStore()
 const fileInput = ref<HTMLInputElement | null>(null)
 const selectedFileName = ref<string | null>(null)
 const rows = ref<TrackEnrichmentRow[]>([])
-const approvedIds = ref<Set<string>>(new Set())
+const stagedRowIds = ref<Set<string>>(new Set())
 const selectedFilter = ref<ReviewFilter>('ready')
 const currentPage = ref(1)
 const parseWarnings = ref<string[]>([])
@@ -59,7 +59,7 @@ const lastApplySummary = ref<ApplySummary | null>(null)
 
 const rowsPerPage = 100
 const workflowSteps = [
-	{ number: 1, label: 'Import XML' },
+	{ number: 1, label: 'Choose source' },
 	{ number: 2, label: 'Review matches' },
 	{ number: 3, label: 'Apply updates' }
 ] as const
@@ -72,15 +72,15 @@ const currentStep = computed<1 | 2 | 3>(() => {
 
 const matchedRows = computed(() => rows.value.filter((row) => !!row.track))
 const readyRows = computed(() =>
-	rows.value.filter((row) => row.defaultApproved && !row.applied)
+	rows.value.filter((row) => row.defaultStaged && !row.applied)
 )
 const reviewRows = computed(() =>
 	rows.value.filter(
 		(row) =>
 			!!row.track &&
 			!row.applied &&
-			!row.defaultApproved &&
-			(row.canFillBpm || row.canFillKeyMode || !!row.approvalBlockedReason)
+			!row.defaultStaged &&
+			(row.canFillBpm || row.canFillKeyMode || !!row.stagingBlockedReason)
 	)
 )
 const unmatchedRows = computed(() => rows.value.filter((row) => !row.track))
@@ -89,11 +89,11 @@ const doneRows = computed(() =>
 )
 const stagedRows = computed(() =>
 	rows.value.filter(
-		(row) => approvedIds.value.has(row.id) && canApproveRow(row)
+		(row) => stagedRowIds.value.has(row.id) && canStageTrackEnrichmentRow(row)
 	)
 )
 const blockedCount = computed(
-	() => rows.value.filter((row) => !!row.approvalBlockedReason).length
+	() => rows.value.filter((row) => !!row.stagingBlockedReason).length
 )
 const rowErrorCount = computed(
 	() => rows.value.filter((row) => !!row.error).length
@@ -150,17 +150,17 @@ const filteredRows = computed(() => {
 			return []
 	}
 })
-const approvableFilteredRows = computed(() =>
-	filteredRows.value.filter(canApproveRow)
+const stageableFilteredRows = computed(() =>
+	filteredRows.value.filter(canStageTrackEnrichmentRow)
 )
 const stagedFilteredCount = computed(
 	() =>
-		approvableFilteredRows.value.filter((row) => approvedIds.value.has(row.id))
+		stageableFilteredRows.value.filter((row) => stagedRowIds.value.has(row.id))
 			.length
 )
 const filteredSelectionState = computed<boolean | 'indeterminate'>(() => {
 	if (stagedFilteredCount.value === 0) return false
-	if (stagedFilteredCount.value === approvableFilteredRows.value.length)
+	if (stagedFilteredCount.value === stageableFilteredRows.value.length)
 		return true
 	return 'indeterminate'
 })
@@ -180,12 +180,11 @@ const shownEnd = computed(() =>
 	Math.min(currentPage.value * rowsPerPage, filteredRows.value.length)
 )
 
-const approvedRows = computed(() => stagedRows.value)
-const selectedBpmCount = computed(
-	() => approvedRows.value.filter((row) => row.canFillBpm).length
+const stagedBpmCount = computed(
+	() => stagedRows.value.filter((row) => row.canFillBpm).length
 )
-const selectedKeyModeCount = computed(
-	() => approvedRows.value.filter((row) => row.canFillKeyMode).length
+const stagedKeyModeCount = computed(
+	() => stagedRows.value.filter((row) => row.canFillKeyMode).length
 )
 
 watch(selectedFilter, () => {
@@ -217,6 +216,10 @@ async function handleFileInput(event: Event) {
 	input.value = ''
 }
 
+function handleFileDrop(file: File) {
+	void parseFile(file)
+}
+
 async function parseFile(file: File) {
 	isParsing.value = true
 	parseCompleted.value = 0
@@ -224,7 +227,7 @@ async function parseFile(file: File) {
 	parseWarnings.value = []
 	parseErrors.value = []
 	rows.value = []
-	approvedIds.value = new Set()
+	stagedRowIds.value = new Set()
 	selectedFileName.value = file.name
 	selectedFilter.value = 'ready'
 	currentPage.value = 1
@@ -250,8 +253,8 @@ async function parseFile(file: File) {
 			}
 		})
 		rows.value = nextRows
-		approvedIds.value = new Set(
-			nextRows.filter((row) => row.defaultApproved).map((row) => row.id)
+		stagedRowIds.value = new Set(
+			nextRows.filter((row) => row.defaultStaged).map((row) => row.id)
 		)
 	} catch (error) {
 		const message =
@@ -262,132 +265,80 @@ async function parseFile(file: File) {
 	}
 }
 
-function canApproveRow(row: TrackEnrichmentRow): boolean {
-	return (
-		!!row.track &&
-		!row.applied &&
-		!row.approvalBlockedReason &&
-		(row.canFillBpm || row.canFillKeyMode)
-	)
+function setRowStaged(row: TrackEnrichmentRow, checked: boolean) {
+	if (!canStageTrackEnrichmentRow(row)) return
+	const nextStagedIds = new Set(stagedRowIds.value)
+	if (checked) nextStagedIds.add(row.id)
+	else nextStagedIds.delete(row.id)
+	stagedRowIds.value = nextStagedIds
 }
 
-function isRowApproved(row: TrackEnrichmentRow): boolean {
-	return approvedIds.value.has(row.id)
-}
-
-function setRowApproved(row: TrackEnrichmentRow, checked: boolean) {
-	if (!canApproveRow(row)) return
-	const nextApproved = new Set(approvedIds.value)
-	if (checked) nextApproved.add(row.id)
-	else nextApproved.delete(row.id)
-	approvedIds.value = nextApproved
-}
-
-function setFilteredRowsApproved(checked: boolean) {
-	const nextApproved = new Set(approvedIds.value)
-	for (const row of approvableFilteredRows.value) {
-		if (checked) nextApproved.add(row.id)
-		else nextApproved.delete(row.id)
+function setFilteredRowsStaged(checked: boolean) {
+	const nextStagedIds = new Set(stagedRowIds.value)
+	for (const row of stageableFilteredRows.value) {
+		if (checked) nextStagedIds.add(row.id)
+		else nextStagedIds.delete(row.id)
 	}
-	approvedIds.value = nextApproved
+	stagedRowIds.value = nextStagedIds
 }
 
-function clearSelection() {
-	approvedIds.value = new Set()
-}
-
-function formatBpm(value: number | null | undefined): string {
-	return value === null || value === undefined ? '-' : value.toFixed(1)
-}
-
-function formatKeyValue(
-	key: number | null | undefined,
-	mode: number | null | undefined
-): string {
-	if (
-		key === null ||
-		key === undefined ||
-		mode === null ||
-		mode === undefined
-	) {
-		return '-'
-	}
-	return getFormattedKeyString(key, mode, user.currentKeyFormat, 'short')
-}
-
-function formatTrackArtists(row: TrackEnrichmentRow): string {
-	if (!row.track) return '-'
-	return row.track.artists.map((artist) => artist.name).join(', ') || '-'
-}
-
-function getConfidenceVariant(confidence: TrackEnrichmentRow['confidence']) {
-	if (confidence === 'high') return 'default'
-	if (confidence === 'medium') return 'secondary'
-	return 'outline'
-}
-
-function getRowClasses(row: TrackEnrichmentRow): string {
-	if (row.error) return 'bg-destructive/5'
-	if (isRowApproved(row))
-		return 'border-l-2 border-l-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/15'
-	if (row.approvalBlockedReason || row.hasConflict) return 'bg-amber-500/5'
-	return ''
+function clearStagedRows() {
+	stagedRowIds.value = new Set()
 }
 
 function openApplyReview() {
-	if (approvedRows.value.length === 0) {
-		toast.warning('Select at least one match to apply.')
+	if (stagedRows.value.length === 0) {
+		toast.warning('Stage at least one match to apply.')
 		return
 	}
 	showApplyDialog.value = true
 }
 
-async function applyApprovedRows() {
-	const rowsToApply = approvedRows.value
+async function applyStagedRows() {
+	const rowsToApply = stagedRows.value
 	const importedAt = new Date().toISOString()
-	const selectedBpm = selectedBpmCount.value
-	const selectedKeyMode = selectedKeyModeCount.value
-	const updatesWithRows = rowsToApply
-		.map((row) => ({
-			row,
-			update: buildTrackEnrichmentUpdate(
-				row,
-				selectedFileName.value ?? 'unknown.xml',
-				importedAt
-			)
-		}))
-		.filter((entry) => entry.update !== null)
+	const preparedUpdates: {
+		row: TrackEnrichmentRow
+		update: NonNullable<ReturnType<typeof buildTrackEnrichmentUpdate>>
+	}[] = []
 
-	if (updatesWithRows.length === 0) {
-		toast.warning('No selected matches can be applied.')
+	for (const row of rowsToApply) {
+		const update = buildTrackEnrichmentUpdate(
+			row,
+			selectedFileName.value ?? 'unknown.xml',
+			importedAt
+		)
+		if (update) preparedUpdates.push({ row, update })
+	}
+
+	if (preparedUpdates.length === 0) {
+		toast.warning('No staged matches can be applied.')
 		showApplyDialog.value = false
 		return
 	}
 
 	isApplying.value = true
 	applyCompleted.value = 0
-	applyTotal.value = updatesWithRows.length
+	applyTotal.value = preparedUpdates.length
 	rows.value = rows.value.map((row) =>
-		approvedIds.value.has(row.id) ? { ...row, error: null } : row
+		stagedRowIds.value.has(row.id) ? { ...row, error: null } : row
 	)
 
 	try {
 		const results = await tracks.updateTracksBatch(
-			updatesWithRows.map((entry) => entry.update!),
+			preparedUpdates.map((entry) => entry.update),
 			{
 				onProgress: (completed) => {
 					applyCompleted.value = completed
 				}
 			}
 		)
+		const resultByRowId = new Map(
+			preparedUpdates.map((entry, index) => [entry.row.id, results[index]])
+		)
 
 		rows.value = rows.value.map((row) => {
-			const resultIndex = updatesWithRows.findIndex(
-				(entry) => entry.row.id === row.id
-			)
-			if (resultIndex === -1) return row
-
-			const result = results[resultIndex]
+			const result = resultByRowId.get(row.id)
 			if (!result) return row
 
 			return {
@@ -400,12 +351,19 @@ async function applyApprovedRows() {
 
 		const succeeded = results.filter((result) => result.success).length
 		const failed = results.length - succeeded
+		const successfulUpdates = preparedUpdates.filter(
+			(_entry, index) => results[index]?.success
+		)
 		lastApplySummary.value = {
 			total: results.length,
 			succeeded,
 			failed,
-			bpm: selectedBpm,
-			keyMode: selectedKeyMode
+			bpm: successfulUpdates.filter(
+				(entry) => entry.update.updates.bpm !== undefined
+			).length,
+			keyMode: successfulUpdates.filter(
+				(entry) => entry.update.updates.key !== undefined
+			).length
 		}
 
 		if (failed > 0) {
@@ -443,9 +401,12 @@ function returnToReview() {
 					class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
 				>
 					<div class="min-w-0">
-						<h1 class="text-xl font-semibold">Track Enrichment</h1>
+						<h1 class="text-xl font-semibold">BPM &amp; Key</h1>
 						<p class="text-muted-foreground truncate text-sm">
-							{{ selectedFileName || 'Import BPM and key from Rekordbox' }}
+							{{
+								selectedFileName ||
+								'Complete your collection with existing DJ analysis'
+							}}
 						</p>
 					</div>
 
@@ -521,37 +482,15 @@ function returnToReview() {
 						</div>
 					</NoticeWarning>
 
-					<div
+					<PanelTrackEnrichmentSource
 						v-if="rows.length === 0"
-						class="border-border flex min-h-72 flex-col items-center justify-center rounded-md border border-dashed p-8 text-center"
-					>
-						<FileUp class="text-muted-foreground mb-3 size-9" />
-						<h2 class="text-base font-semibold">
-							Choose a Rekordbox collection XML
-						</h2>
-						<p class="text-muted-foreground mt-1 max-w-lg text-sm">
-							Matches are reviewed before applying. Existing BPM and key values
-							are never overwritten.
-						</p>
-						<Button class="mt-5" :loading="isParsing" @click="openFilePicker">
-							<FileUp class="mr-2 size-4" />
-							Select XML
-						</Button>
-						<div
-							v-if="isParsing && parseTotal > 0"
-							class="mt-4 flex w-full max-w-sm flex-col gap-2"
-						>
-							<div
-								class="text-muted-foreground flex items-center justify-between text-xs"
-							>
-								<span>Matching collection</span>
-								<span class="font-mono">
-									{{ parseCompleted }} / {{ parseTotal }}
-								</span>
-							</div>
-							<Progress :model-value="parseProgress" />
-						</div>
-					</div>
+						:is-parsing="isParsing"
+						:parse-completed="parseCompleted"
+						:parse-total="parseTotal"
+						:parse-progress="parseProgress"
+						@select-file="openFilePicker"
+						@drop-file="handleFileDrop"
+					/>
 
 					<div v-else-if="lastApplySummary" class="py-8 sm:py-12">
 						<div
@@ -561,7 +500,7 @@ function returnToReview() {
 							<h2 class="mt-4 text-lg font-semibold">Enrichment complete</h2>
 							<p class="text-muted-foreground mt-1 text-sm">
 								{{ lastApplySummary.succeeded }} of {{ lastApplySummary.total }}
-								selected tracks updated.
+								staged tracks updated.
 							</p>
 
 							<div
@@ -645,7 +584,7 @@ function returnToReview() {
 								<div
 									class="mt-0.5 text-lg font-semibold text-emerald-700 tabular-nums dark:text-emerald-400"
 								>
-									{{ approvedRows.length }}
+									{{ stagedRows.length }}
 								</div>
 							</div>
 							<div class="px-3 py-2.5">
@@ -699,19 +638,19 @@ function returnToReview() {
 									variant="ghost"
 									size="sm"
 									:disabled="
-										approvableFilteredRows.length === 0 ||
+										stageableFilteredRows.length === 0 ||
 										filteredSelectionState === true
 									"
-									@click="setFilteredRowsApproved(true)"
+									@click="setFilteredRowsStaged(true)"
 								>
 									<ListChecks class="mr-1.5 size-4" />
-									Stage all eligible ({{ approvableFilteredRows.length }})
+									Stage all eligible ({{ stageableFilteredRows.length }})
 								</Button>
 								<Button
 									variant="ghost"
 									size="sm"
-									:disabled="approvedRows.length === 0"
-									@click="clearSelection"
+									:disabled="stagedRows.length === 0"
+									@click="clearStagedRows"
 								>
 									<X class="mr-1.5 size-4" />
 									Clear staged
@@ -732,173 +671,16 @@ function returnToReview() {
 						</div>
 
 						<template v-else>
-							<div class="border-border overflow-x-auto rounded-md border">
-								<Table class="min-w-[1160px] table-fixed">
-									<TableHeader>
-										<TableRow>
-											<TableHead class="w-32">
-												<div class="flex items-center gap-2">
-													<Checkbox
-														:model-value="filteredSelectionState"
-														:disabled="
-															approvableFilteredRows.length === 0 || isApplying
-														"
-														large-hit-area
-														aria-label="Stage all eligible tracks in this view"
-														@update:model-value="
-															setFilteredRowsApproved($event === true)
-														"
-													/>
-													<span>Stage</span>
-												</div>
-											</TableHead>
-											<TableHead class="w-[21%]">Crate Guide match</TableHead>
-											<TableHead class="w-[21%]">XML source</TableHead>
-											<TableHead class="w-32">BPM</TableHead>
-											<TableHead class="w-36">Key</TableHead>
-											<TableHead>Confidence</TableHead>
-										</TableRow>
-									</TableHeader>
-									<TableBody>
-										<TableRow
-											v-for="row in pagedRows"
-											:key="row.id"
-											:class="getRowClasses(row)"
-										>
-											<TableCell>
-												<div class="flex items-center gap-2">
-													<Checkbox
-														:model-value="isRowApproved(row)"
-														:disabled="!canApproveRow(row) || isApplying"
-														large-hit-area
-														:aria-label="`Stage ${row.source.name || 'XML track'}`"
-														@update:model-value="
-															setRowApproved(row, $event === true)
-														"
-													/>
-													<span
-														v-if="isRowApproved(row)"
-														class="text-xs font-medium text-emerald-700 dark:text-emerald-400"
-													>
-														Staged
-													</span>
-													<span
-														v-else-if="canApproveRow(row)"
-														class="text-muted-foreground text-xs"
-													>
-														Not staged
-													</span>
-													<span v-else class="text-muted-foreground text-xs">
-														Unavailable
-													</span>
-												</div>
-											</TableCell>
-											<TableCell class="whitespace-normal">
-												<div class="truncate font-medium">
-													{{ row.track?.title || '-' }}
-												</div>
-												<div class="text-muted-foreground truncate text-xs">
-													{{ formatTrackArtists(row) }}
-												</div>
-												<div class="text-muted-foreground truncate text-xs">
-													{{ row.record?.title || '-' }}
-												</div>
-											</TableCell>
-											<TableCell class="whitespace-normal">
-												<div class="truncate font-medium">
-													{{ row.source.name || '-' }}
-												</div>
-												<div class="text-muted-foreground truncate text-xs">
-													{{ row.source.artist || '-' }}
-												</div>
-												<div class="text-muted-foreground truncate text-xs">
-													{{
-														row.source.album || row.source.locationHint || '-'
-													}}
-												</div>
-											</TableCell>
-											<TableCell class="font-mono text-xs">
-												<div
-													class="grid grid-cols-[1fr_auto_1fr] items-center gap-1"
-												>
-													<span class="text-muted-foreground text-right">
-														{{ formatBpm(row.track?.bpm) }}
-													</span>
-													<ArrowRight class="text-muted-foreground size-3" />
-													<span :class="row.canFillBpm ? 'font-semibold' : ''">
-														{{ formatBpm(row.proposedBpm) }}
-													</span>
-												</div>
-											</TableCell>
-											<TableCell class="font-mono text-xs">
-												<div
-													class="grid grid-cols-[1fr_auto_1fr] items-center gap-1"
-												>
-													<span class="text-muted-foreground text-right">
-														{{
-															formatKeyValue(row.track?.key, row.track?.mode)
-														}}
-													</span>
-													<ArrowRight class="text-muted-foreground size-3" />
-													<span
-														:class="row.canFillKeyMode ? 'font-semibold' : ''"
-													>
-														{{
-															formatKeyValue(row.proposedKey, row.proposedMode)
-														}}
-													</span>
-												</div>
-											</TableCell>
-											<TableCell class="whitespace-normal">
-												<div class="mb-1 flex flex-wrap items-center gap-1">
-													<Badge
-														:variant="getConfidenceVariant(row.confidence)"
-													>
-														{{ row.confidence }}
-													</Badge>
-													<Badge
-														v-if="row.approvalBlockedReason"
-														variant="outline"
-													>
-														<AlertTriangle class="size-3" />
-														Blocked
-													</Badge>
-													<Badge v-else-if="row.hasConflict" variant="outline">
-														<AlertTriangle class="size-3" />
-														Conflict
-													</Badge>
-													<Badge v-if="row.applied" variant="secondary">
-														<Check class="size-3" />
-														Applied
-													</Badge>
-													<Badge
-														v-if="isApplying && isRowApproved(row)"
-														variant="outline"
-													>
-														<Loader2 class="size-3 animate-spin" />
-														Queued
-													</Badge>
-												</div>
-												<div class="text-muted-foreground line-clamp-2 text-xs">
-													{{ row.reasons.join(', ') || 'No reliable match' }}
-												</div>
-												<div
-													v-if="row.warnings.length"
-													class="mt-1 line-clamp-2 text-xs text-amber-700 dark:text-amber-400"
-												>
-													{{ row.warnings.join(', ') }}
-												</div>
-												<div
-													v-if="row.error"
-													class="text-destructive mt-1 text-xs"
-												>
-													{{ row.error }}
-												</div>
-											</TableCell>
-										</TableRow>
-									</TableBody>
-								</Table>
-							</div>
+							<TableTrackEnrichmentReview
+								:rows="pagedRows"
+								:staged-row-ids="stagedRowIds"
+								:filtered-selection-state="filteredSelectionState"
+								:stageable-row-count="stageableFilteredRows.length"
+								:is-applying="isApplying"
+								:key-format="user.currentKeyFormat"
+								@stage-all="setFilteredRowsStaged"
+								@stage-row="setRowStaged"
+							/>
 
 							<div class="flex items-center justify-between gap-3 pb-2 text-sm">
 								<div class="text-muted-foreground tabular-nums">
@@ -941,20 +723,20 @@ function returnToReview() {
 								</div>
 								<div class="min-w-0">
 									<div class="text-sm font-semibold">
-										{{ approvedRows.length }} tracks staged for import
+										{{ stagedRows.length }} tracks staged for import
 									</div>
 									<div class="text-muted-foreground text-xs">
-										{{ selectedBpmCount }} BPM and
-										{{ selectedKeyModeCount }} key values will be filled
+										{{ stagedBpmCount }} BPM and {{ stagedKeyModeCount }} key
+										values will be filled
 									</div>
 								</div>
 							</div>
 							<Button
-								:disabled="approvedRows.length === 0 || isApplying"
+								:disabled="stagedRows.length === 0 || isApplying"
 								@click="openApplyReview"
 							>
 								<ShieldCheck class="mr-2 size-4" />
-								Review staged updates ({{ approvedRows.length }})
+								Review staged updates ({{ stagedRows.length }})
 							</Button>
 						</div>
 					</template>
@@ -966,7 +748,7 @@ function returnToReview() {
 			<DialogContent class="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>
-						Apply {{ approvedRows.length }} staged track updates?
+						Apply {{ stagedRows.length }} staged track updates?
 					</DialogTitle>
 					<DialogDescription>
 						Only blank fields will be filled. Existing BPM and key values remain
@@ -978,19 +760,19 @@ function returnToReview() {
 					<div class="px-3 py-3 text-center">
 						<div class="text-muted-foreground text-xs">Tracks</div>
 						<div class="mt-1 text-xl font-semibold tabular-nums">
-							{{ approvedRows.length }}
+							{{ stagedRows.length }}
 						</div>
 					</div>
 					<div class="px-3 py-3 text-center">
 						<div class="text-muted-foreground text-xs">BPM</div>
 						<div class="mt-1 text-xl font-semibold tabular-nums">
-							{{ selectedBpmCount }}
+							{{ stagedBpmCount }}
 						</div>
 					</div>
 					<div class="px-3 py-3 text-center">
 						<div class="text-muted-foreground text-xs">Keys</div>
 						<div class="mt-1 text-xl font-semibold tabular-nums">
-							{{ selectedKeyModeCount }}
+							{{ stagedKeyModeCount }}
 						</div>
 					</div>
 				</div>
@@ -1018,7 +800,7 @@ function returnToReview() {
 					>
 						Back to review
 					</Button>
-					<Button :loading="isApplying" @click="applyApprovedRows">
+					<Button :loading="isApplying" @click="applyStagedRows">
 						<Upload class="mr-2 size-4" />
 						Apply updates
 					</Button>

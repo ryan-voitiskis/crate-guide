@@ -38,6 +38,7 @@ function createMockQueryBuilder() {
 		update: vi.fn().mockReturnThis(),
 		delete: vi.fn().mockReturnThis(),
 		eq: vi.fn().mockReturnThis(),
+		is: vi.fn().mockReturnThis(),
 		order: vi.fn().mockReturnThis(),
 		single: vi.fn().mockResolvedValue({ data: null, error: null })
 	}
@@ -463,7 +464,14 @@ describe('tracksStore', () => {
 			const progress: number[] = []
 			const results = await store.updateTracksBatch(
 				[
-					{ id: 'track-1', updates: { title: 'Updated 1' } },
+					{
+						id: 'track-1',
+						updates: { title: 'Updated 1' },
+						preconditions: {
+							bpmMustBeNull: true,
+							keyModeMustBeNull: true
+						}
+					},
 					{ id: 'track-2', updates: { title: 'Updated 2' } }
 				],
 				{
@@ -478,6 +486,9 @@ describe('tracksStore', () => {
 			expect(progress).toEqual([1, 2])
 			expect(store.tracks[0]!.title).toBe('Updated 1')
 			expect(store.tracks[1]!.title).toBe('Original 2')
+			expect(mockQueryBuilder.is).toHaveBeenCalledWith('bpm', null)
+			expect(mockQueryBuilder.is).toHaveBeenCalledWith('key', null)
+			expect(mockQueryBuilder.is).toHaveBeenCalledWith('mode', null)
 			expect(mockToast.success).not.toHaveBeenCalled()
 			expect(mockToast.error).not.toHaveBeenCalled()
 		})

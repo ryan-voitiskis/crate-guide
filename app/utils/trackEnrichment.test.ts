@@ -82,7 +82,7 @@ function createSource(
 }
 
 describe('buildTrackEnrichmentRows', () => {
-	it('marks title, artist, album matches as high confidence and preselects blank updates', () => {
+	it('marks title, artist, album matches as high confidence and stages blank updates', () => {
 		const [row] = buildTrackEnrichmentRows({
 			xmlTracks: [createSource()],
 			tracks: [createTrack()],
@@ -93,7 +93,7 @@ describe('buildTrackEnrichmentRows', () => {
 			confidence: 'high',
 			canFillBpm: true,
 			canFillKeyMode: true,
-			defaultApproved: true,
+			defaultStaged: true,
 			hasConflict: false
 		})
 	})
@@ -108,7 +108,7 @@ describe('buildTrackEnrichmentRows', () => {
 		})
 
 		expect(row?.confidence).toBe('high')
-		expect(row?.defaultApproved).toBe(true)
+		expect(row?.defaultStaged).toBe(true)
 	})
 
 	it('rejects an exact title match when the artists are unrelated', () => {
@@ -119,7 +119,7 @@ describe('buildTrackEnrichmentRows', () => {
 		})
 
 		expect(row?.track).toBeNull()
-		expect(row?.defaultApproved).toBe(false)
+		expect(row?.defaultStaged).toBe(false)
 	})
 
 	it('keeps featured or contained artist matches for manual confirmation', () => {
@@ -132,7 +132,7 @@ describe('buildTrackEnrichmentRows', () => {
 		expect(row).toMatchObject({
 			track: { id: 'track-1' },
 			confidence: 'manual',
-			defaultApproved: false
+			defaultStaged: false
 		})
 		expect(row?.reasons).toContain('Partial artist match')
 	})
@@ -154,6 +154,20 @@ describe('buildTrackEnrichmentRows', () => {
 		expect(row?.track).toBeNull()
 	})
 
+	it('does not let release artists override explicit track artists', () => {
+		const [row] = buildTrackEnrichmentRows({
+			xmlTracks: [createSource()],
+			tracks: [
+				createTrack({
+					artists: [{ name: 'Different Artist', role: null }]
+				})
+			],
+			records: [createRecord()]
+		})
+
+		expect(row?.track).toBeNull()
+	})
+
 	it('accepts small title and artist spelling differences with corroboration', () => {
 		const [row] = buildTrackEnrichmentRows({
 			xmlTracks: [
@@ -170,7 +184,7 @@ describe('buildTrackEnrichmentRows', () => {
 		expect(row).toMatchObject({
 			track: { id: 'track-1' },
 			confidence: 'high',
-			defaultApproved: true
+			defaultStaged: true
 		})
 		expect(row?.reasons).toContain('Close title match')
 		expect(row?.reasons).toContain('Close artist match')
@@ -227,8 +241,8 @@ describe('buildTrackEnrichmentRows', () => {
 		})
 
 		expect(rows).toHaveLength(2)
-		expect(rows.every((row) => row.approvalBlockedReason !== null)).toBe(true)
-		expect(rows.every((row) => row.defaultApproved === false)).toBe(true)
+		expect(rows.every((row) => row.stagingBlockedReason !== null)).toBe(true)
+		expect(rows.every((row) => row.defaultStaged === false)).toBe(true)
 		expect(
 			rows.every(
 				(row) =>
@@ -307,6 +321,10 @@ describe('buildTrackEnrichmentUpdate', () => {
 					}
 				}
 			}
+		})
+		expect(update?.preconditions).toEqual({
+			bpmMustBeNull: true,
+			keyModeMustBeNull: true
 		})
 	})
 

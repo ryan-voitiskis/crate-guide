@@ -91,7 +91,7 @@ describe('parseRekordboxXml', () => {
 		const result = parseRekordboxXml('<DJ_PLAYLISTS><COLLECTION><TRACK>')
 
 		expect(result.tracks).toEqual([])
-		expect(result.errors).toContain('Unable to parse Rekordbox XML')
+		expect(result.errors).toContain('Unable to parse rekordbox XML')
 	})
 
 	it('warns when the Entries attribute does not match parsed tracks', () => {
@@ -117,5 +117,29 @@ describe('parseRekordboxXml', () => {
 			'Collection/Synthetic Album/Only Track.wav'
 		)
 		expect(result.tracks[0]?.locationHint).not.toContain('/Users/example')
+	})
+
+	it('keeps malformed percent-encoded locations non-fatal', () => {
+		const result = parseRekordboxXml(`
+			<DJ_PLAYLISTS Version="1.0.0">
+				<COLLECTION Entries="1">
+					<TRACK Name="Only Track" Artist="Artist" Location="file://localhost/Music/Album/Bad%ZZName.wav"/>
+				</COLLECTION>
+			</DJ_PLAYLISTS>`)
+
+		expect(result.errors).toEqual([])
+		expect(result.tracks[0]?.locationHint).toBe('Music/Album/Bad%ZZName.wav')
+	})
+
+	it('removes home-directory names from shallow location hints', () => {
+		const result = parseRekordboxXml(`
+			<DJ_PLAYLISTS Version="1.0.0">
+				<COLLECTION Entries="1">
+					<TRACK Name="Only Track" Artist="Artist" Location="file://localhost/Users/private-user/Only%20Track.wav"/>
+				</COLLECTION>
+			</DJ_PLAYLISTS>`)
+
+		expect(result.tracks[0]?.locationHint).toBe('Only Track.wav')
+		expect(result.tracks[0]?.locationHint).not.toContain('private-user')
 	})
 })
