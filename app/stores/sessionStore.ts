@@ -67,6 +67,7 @@ export const useSessionStore = defineStore('session', () => {
 	// === UI State ===
 	const showTurntableSim = ref(true)
 	const showHistory = ref(true)
+	const loadTrackCrateId = ref<string | null>(null)
 	const deckSelectDialog = ref<{
 		open: boolean
 		trackId: string
@@ -142,6 +143,9 @@ export const useSessionStore = defineStore('session', () => {
 		if (!deck) return
 
 		deck.loadedTrack = track
+		if (track.rpm === 33 || track.rpm === 45) {
+			deck.rpm = track.rpm
+		}
 
 		let finalAdjustedBpm: number | null = track.bpm
 
@@ -489,6 +493,7 @@ export const useSessionStore = defineStore('session', () => {
 		autoSaveError,
 		showTurntableSim,
 		showHistory,
+		loadTrackCrateId,
 		deckSelectDialog,
 		showSetManager,
 		showSaveDialog,

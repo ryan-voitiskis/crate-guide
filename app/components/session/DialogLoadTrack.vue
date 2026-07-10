@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ImageOff, Search } from 'lucide-vue-next'
+import { ArrowLeft, Search } from 'lucide-vue-next'
 
 const props = defineProps<{
 	open: boolean
@@ -10,137 +10,309 @@ const emit = defineEmits<{
 	'update:open': [value: boolean]
 }>()
 
+const ALL_RECORDS_SCOPE = '__all-records__'
+const BROWSE_LIMIT = 100
+const SEARCH_LIMIT = 50
+
 const session = useSessionStore()
 const tracks = useTracksStore()
 const records = useRecordsStore()
-const user = useUserStore()
+const crates = useCratesStore()
 
 const searchQuery = ref('')
+const focusedRecordId = ref<string | null>(null)
+const expandedRecordIds = ref(new Set<string>())
+const resultsContentRef = ref<HTMLElement | null>(null)
 
-const filteredTracks = computed(() => {
-	const playable = tracks.playableTracks
-	if (!searchQuery.value.trim()) return playable.slice(0, 100)
-	return tracks
-		.searchTracks(searchQuery.value)
-		.filter((t) => t.playable)
-		.slice(0, 100)
+const selectedCrate = computed(() =>
+	session.loadTrackCrateId
+		? crates.crates.find((crate) => crate.id === session.loadTrackCrateId)
+		: undefined
+)
+
+const selectedCrateValue = computed({
+	get: () => session.loadTrackCrateId ?? ALL_RECORDS_SCOPE,
+	set: (value: string) => {
+		session.loadTrackCrateId = value === ALL_RECORDS_SCOPE ? null : value
+		focusedRecordId.value = null
+		expandedRecordIds.value = new Set()
+	}
 })
+
+const scopeRecordOrder = computed(() => selectedCrate.value?.records)
+
+const allResults = computed(() =>
+	buildLoadTrackRecordResults({
+		records: records.records,
+		tracks: tracks.tracks,
+		query: searchQuery.value,
+		recordOrder: scopeRecordOrder.value
+	})
+)
+
+const browseResults = computed(() => allResults.value.slice(0, BROWSE_LIMIT))
+const searchResults = computed(() => allResults.value.slice(0, SEARCH_LIMIT))
+
+const focusedResult = computed(() =>
+	focusedRecordId.value
+		? allResults.value.find(
+				(result) => result.record.id === focusedRecordId.value
+			)
+		: undefined
+)
+
+const hasQuery = computed(() => searchQuery.value.trim().length > 0)
+const browseIsTruncated = computed(
+	() => !hasQuery.value && allResults.value.length > BROWSE_LIMIT
+)
+const searchIsTruncated = computed(
+	() => hasQuery.value && allResults.value.length > SEARCH_LIMIT
+)
+
+const playedTrackIds = computed(
+	() => new Set(session.currentSession.map((entry) => entry.track_id))
+)
+
+const loadedDeckByTrackId = computed(() => {
+	const loaded: Record<string, number> = {}
+	session.decks.forEach((deck, index) => {
+		if (deck.loadedTrack) loaded[deck.loadedTrack.id] = index + 1
+	})
+	return loaded
+})
+
+const resultSignature = computed(() =>
+	searchResults.value
+		.map((result) =>
+			[
+				result.record.id,
+				result.matchedTrackIds.join(','),
+				result.previewTracks.map((track) => track.id).join(',')
+			].join(':')
+		)
+		.join('|')
+)
+
+watch(
+	() => crates.crates.map((crate) => crate.id),
+	() => {
+		if (
+			session.loadTrackCrateId &&
+			!crates.crates.some((crate) => crate.id === session.loadTrackCrateId)
+		) {
+			session.loadTrackCrateId = null
+			focusedRecordId.value = null
+			expandedRecordIds.value = new Set()
+		}
+	},
+	{ immediate: true }
+)
+
+watch(searchQuery, () => {
+	focusedRecordId.value = null
+	expandedRecordIds.value = new Set()
+})
+
+watch(
+	[() => props.open, () => searchQuery.value, resultSignature],
+	async ([open]) => {
+		if (!open || !hasQuery.value) return
+		await nextTick()
+		resultsContentRef.value
+			?.querySelector<HTMLElement>('[data-track-match="true"]')
+			?.scrollIntoView({ block: 'nearest' })
+	}
+)
+
+watch(
+	() => props.open,
+	async (open) => {
+		if (!open) return
+		await nextTick()
+		getDialogElement()
+			?.querySelector<HTMLInputElement>('[data-testid="load-track-search"]')
+			?.focus()
+	}
+)
+
+function getDialogElement(): HTMLElement | null {
+	return (
+		(resultsContentRef.value?.closest(
+			'[data-testid="load-track-dialog"]'
+		) as HTMLElement | null) ?? null
+	)
+}
+
+function resetTransientState() {
+	searchQuery.value = ''
+	focusedRecordId.value = null
+	expandedRecordIds.value = new Set()
+}
 
 function handleTrackClick(trackId: string) {
 	session.loadTrack(trackId, props.deckIndex, false)
 	emit('update:open', false)
-	searchQuery.value = ''
+	resetTransientState()
 }
 
 function handleOpenChange(open: boolean) {
 	emit('update:open', open)
-	if (!open) {
-		searchQuery.value = ''
-	}
+	if (!open) resetTransientState()
 }
 
-function getArtistNames(track: Track): string {
-	return track.artists.map((a) => a.name).join(', ')
+function focusFirstTrack() {
+	resultsContentRef.value
+		?.querySelector<HTMLButtonElement>('[data-testid="load-track-option"]')
+		?.focus()
 }
 
-function getTrackCover(track: Track): string | null {
-	return records.getRecordById(track.record_id)?.cover ?? null
-}
-
-function getTrackKeyDisplay(track: Track): string | null {
-	if (track.key === null || track.mode === null) return null
-	return getFormattedKeyString(
-		track.key,
-		track.mode,
-		user.currentKeyFormat,
-		'short'
-	)
-}
-
-function getTrackKeyColor(track: Track): string | null {
-	if (track.key === null || track.mode === null) return null
-	return getKeyColour(track.key, track.mode)
+function toggleExpanded(recordId: string) {
+	const expanded = new Set(expandedRecordIds.value)
+	if (expanded.has(recordId)) expanded.delete(recordId)
+	else expanded.add(recordId)
+	expandedRecordIds.value = expanded
 }
 </script>
 
 <template>
 	<Dialog :open="open" @update:open="handleOpenChange">
-		<DialogContent class="overflow-hidden sm:max-w-xl">
-			<DialogHeader>
-				<DialogTitle>Load Track to Deck {{ deckIndex + 1 }}</DialogTitle>
-				<DialogDescription>
-					Search and select a track to load.
-				</DialogDescription>
-			</DialogHeader>
+		<DialogContent
+			data-testid="load-track-dialog"
+			class="max-h-[80dvh] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:max-w-4xl"
+		>
+			<div class="space-y-4 px-6 pt-6 pr-12 pb-4">
+				<DialogHeader>
+					<DialogTitle>Load Track to Deck {{ deckIndex + 1 }}</DialogTitle>
+					<DialogDescription>
+						Find a physical record, then choose the track you are loading.
+					</DialogDescription>
+				</DialogHeader>
 
-			<div class="min-w-0 space-y-4 py-4">
-				<!-- Search input -->
-				<div class="relative w-full max-w-full">
-					<Search
-						class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
-					/>
-					<Input
-						v-model="searchQuery"
-						placeholder="Search tracks..."
-						class="w-full max-w-full pl-9"
-					/>
-				</div>
-
-				<!-- Track list -->
-				<ScrollArea class="h-[400px]">
-					<div class="space-y-1 pr-2">
-						<button
-							v-for="track in filteredTracks"
-							:key="track.id"
-							class="hover:bg-accent flex w-full items-center gap-3 rounded-lg border p-2 text-left transition-colors"
-							@click="handleTrackClick(track.id)"
-						>
-							<div
-								class="bg-muted flex size-12 shrink-0 items-center justify-center overflow-hidden rounded bg-cover bg-center"
-								:style="
-									getTrackCover(track)
-										? { backgroundImage: `url('${getTrackCover(track)}')` }
-										: {}
-								"
-							>
-								<ImageOff
-									v-if="!getTrackCover(track)"
-									class="text-muted-foreground size-4"
-								/>
-							</div>
-
-							<div class="min-w-0 flex-1">
-								<div class="truncate text-sm font-medium">
-									{{ track.title }}
-								</div>
-								<div class="text-muted-foreground truncate text-xs">
-									{{ getArtistNames(track) }}
-								</div>
-							</div>
-							<div class="shrink-0 text-right text-xs">
-								<div v-if="track.bpm" class="text-muted-foreground">
-									{{ track.bpm.toFixed(1) }} BPM
-								</div>
-								<Badge
-									v-if="getTrackKeyDisplay(track)"
-									variant="outline"
-									class="mt-1 min-w-9 justify-center px-1.5 font-medium"
-									:style="{ color: getTrackKeyColor(track) ?? undefined }"
-								>
-									{{ getTrackKeyDisplay(track) }}
-								</Badge>
-							</div>
-						</button>
-
-						<div
-							v-if="filteredTracks.length === 0"
-							class="text-muted-foreground py-8 text-center text-sm"
-						>
-							No tracks found
-						</div>
+				<div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+					<div class="relative min-w-0 flex-1">
+						<Search
+							class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2"
+						/>
+						<Input
+							v-model="searchQuery"
+							data-testid="load-track-search"
+							placeholder="Search records, tracks, artists, labels or cat. no."
+							class="w-full pl-9"
+							@keydown.down.prevent="focusFirstTrack"
+						/>
 					</div>
-				</ScrollArea>
+
+					<Select v-if="crates.crates.length" v-model="selectedCrateValue">
+						<SelectTrigger class="w-full sm:w-64">
+							<SelectValue placeholder="All records" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem :value="ALL_RECORDS_SCOPE">All records</SelectItem>
+							<SelectItem
+								v-for="crate in crates.crates"
+								:key="crate.id"
+								:value="crate.id"
+							>
+								{{ crate.name }} ({{ crate.records.length }})
+							</SelectItem>
+						</SelectContent>
+					</Select>
+				</div>
 			</div>
+
+			<ScrollArea data-testid="load-track-results" class="min-h-0 border-t">
+				<div ref="resultsContentRef" class="p-4 sm:p-6">
+					<template v-if="hasQuery">
+						<div
+							v-if="allResults.length"
+							class="text-muted-foreground mb-3 text-xs"
+						>
+							{{ allResults.length }}
+							{{ allResults.length === 1 ? 'record' : 'records' }} found
+						</div>
+						<div v-if="searchResults.length" class="space-y-3">
+							<CardRecordLoadTrack
+								v-for="result in searchResults"
+								:key="result.record.id"
+								:result="result"
+								:expanded="expandedRecordIds.has(result.record.id)"
+								:loaded-deck-by-track-id="loadedDeckByTrackId"
+								:played-track-ids="playedTrackIds"
+								@select-track="handleTrackClick"
+								@toggle-expanded="toggleExpanded(result.record.id)"
+							/>
+						</div>
+						<p
+							v-if="searchIsTruncated"
+							class="text-muted-foreground pt-4 text-center text-xs"
+						>
+							Showing the first {{ SEARCH_LIMIT }} records. Refine your search
+							to see more.
+						</p>
+						<div
+							v-if="!allResults.length"
+							class="text-muted-foreground py-12 text-center text-sm"
+						>
+							No records match “{{ searchQuery.trim() }}”.
+						</div>
+					</template>
+
+					<template v-else-if="focusedRecordId">
+						<Button
+							variant="ghost"
+							size="sm"
+							class="mb-3 -ml-2"
+							@click="focusedRecordId = null"
+						>
+							<ArrowLeft class="size-4" />
+							Back to records
+						</Button>
+						<CardRecordLoadTrack
+							v-if="focusedResult"
+							:result="focusedResult"
+							expanded
+							:show-expansion-control="false"
+							:loaded-deck-by-track-id="loadedDeckByTrackId"
+							:played-track-ids="playedTrackIds"
+							@select-track="handleTrackClick"
+						/>
+						<div v-else class="text-muted-foreground py-12 text-center text-sm">
+							This record is no longer available in the selected scope.
+						</div>
+					</template>
+
+					<template v-else>
+						<div
+							v-if="browseResults.length"
+							class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+						>
+							<CardRecordBrowse
+								v-for="result in browseResults"
+								:key="result.record.id"
+								:record="result.record"
+								@select="focusedRecordId = result.record.id"
+							/>
+						</div>
+						<p
+							v-if="browseIsTruncated"
+							class="text-muted-foreground pt-4 text-center text-xs"
+						>
+							Showing the first {{ BROWSE_LIMIT }} records. Search or choose a
+							crate to narrow the list.
+						</p>
+						<div
+							v-if="!allResults.length"
+							class="text-muted-foreground py-12 text-center text-sm"
+						>
+							{{
+								selectedCrate
+									? 'There are no playable records in this crate.'
+									: 'There are no playable records in your collection.'
+							}}
+						</div>
+					</template>
+				</div>
+			</ScrollArea>
 		</DialogContent>
 	</Dialog>
 </template>

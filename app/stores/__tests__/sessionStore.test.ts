@@ -490,6 +490,43 @@ describe('sessionStore', () => {
 		})
 	})
 
+	describe('loadTrack', () => {
+		it('sets the target deck to 45 RPM for a 45 RPM track', () => {
+			const track = createMockTrack({ rpm: 45 })
+			mockTracksStore.getTrackById.mockReturnValue(track)
+			const store = useSessionStore()
+
+			store.loadTrack(track.id, 0)
+
+			expect(store.decks[0]!.rpm).toBe(45)
+		})
+
+		it('sets the target deck to 33 RPM for a 33 RPM track', () => {
+			const track = createMockTrack({ rpm: 33 })
+			mockTracksStore.getTrackById.mockReturnValue(track)
+			const store = useSessionStore()
+			store.decks[0]!.rpm = 45
+
+			store.loadTrack(track.id, 0)
+
+			expect(store.decks[0]!.rpm).toBe(33)
+		})
+
+		it.each([null, 78])(
+			'preserves the target deck RPM for an unsupported %s RPM value',
+			(rpm) => {
+				const track = createMockTrack({ rpm })
+				mockTracksStore.getTrackById.mockReturnValue(track)
+				const store = useSessionStore()
+				store.decks[0]!.rpm = 45
+
+				store.loadTrack(track.id, 0)
+
+				expect(store.decks[0]!.rpm).toBe(45)
+			}
+		)
+	})
+
 	describe('setRpm', () => {
 		it('sets RPM on deck', () => {
 			const store = useSessionStore()
@@ -564,6 +601,21 @@ describe('sessionStore', () => {
 	})
 
 	describe('clearSession', () => {
+		it('defaults load-track crate scope to all records', () => {
+			const store = useSessionStore()
+
+			expect(store.loadTrackCrateId).toBeNull()
+		})
+
+		it('preserves load-track crate scope', () => {
+			const store = useSessionStore()
+			store.loadTrackCrateId = 'crate-1'
+
+			store.clearSession()
+
+			expect(store.loadTrackCrateId).toBe('crate-1')
+		})
+
 		it('clears session history', () => {
 			const store = useSessionStore()
 			store.currentSession = [
