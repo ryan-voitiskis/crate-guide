@@ -79,21 +79,26 @@ network request.
 - `package.json:19` defines `test:e2e` as the Vitest `e2e` project.
 - `@playwright/test` is a direct dev dependency but has no repository import.
   `playwright-core` is imported for the `Page` type and must remain.
+- Clean-install reconciliation found the root `node_modules/srvx` lock entry at
+  `0.11.21` while the installed graph requires `0.11.22`. The committed repair
+  changes only that entry's version, resolved URL, and integrity; npm's
+  unrelated `peer`-flag normalization is deliberately excluded.
 
 Repository conventions: npm is the package manager; commits use Conventional
 Commits; run `npm run format` after changes. Do not add a second E2E runner.
 
 ## Commands you will need
 
-| Purpose                 | Command                                | Expected on success                                 |
-| ----------------------- | -------------------------------------- | --------------------------------------------------- |
-| Browser prerequisite    | `npx playwright-core install chromium` | exit 0; compatible Chromium is installed            |
-| E2E                     | `npm run test:e2e`                     | exit 0; both login redirect tests run and pass      |
-| Production build        | `npm run build`                        | exit 0; Cloudflare Pages worker output is generated |
-| Unit/store/server tests | `npm run test:run`                     | exit 0; all existing tests pass                     |
-| Lint                    | `npm run lint`                         | exit 0                                              |
-| Typecheck               | `npm run typecheck`                    | exit 0                                              |
-| Format                  | `npm run format`                       | exit 0; only intended files change                  |
+| Purpose                  | Command                                | Expected on success                                 |
+| ------------------------ | -------------------------------------- | --------------------------------------------------- |
+| Clean dependency install | `fnm exec --using=24.12.0 npm ci`      | exit 0; tracked lock metadata remains byte-stable   |
+| Browser prerequisite     | `npx playwright-core install chromium` | exit 0; compatible Chromium is installed            |
+| E2E                      | `npm run test:e2e`                     | exit 0; both login redirect tests run and pass      |
+| Production build         | `npm run build`                        | exit 0; Cloudflare Pages worker output is generated |
+| Unit/store/server tests  | `npm run test:run`                     | exit 0; all existing tests pass                     |
+| Lint                     | `npm run lint`                         | exit 0                                              |
+| Typecheck                | `npm run typecheck`                    | exit 0                                              |
+| Format                   | `npm run format`                       | exit 0; only intended files change                  |
 
 ## Scope
 
@@ -171,6 +176,11 @@ npm run test:e2e
 
 Expected: `rg` returns no matches and E2E still exits 0.
 
+Execution evidence: with Node 24.12.0 and npm 11.6.2, `npm ci` initially
+rejected the stale root `srvx@0.11.21` lock entry. After updating only its
+version, resolved URL, and integrity to `0.11.22`, `npm ci` exited 0 without
+rewriting any tracked file.
+
 ### Step 3: Prove production output was not changed
 
 Run the production build without any test override.
@@ -220,6 +230,8 @@ it.
 - [ ] `nuxt.config.ts` remains unchanged and `npm run build` emits Cloudflare
       worker output.
 - [ ] `@playwright/test` is absent; `playwright-core` remains.
+- [ ] `fnm exec --using=24.12.0 npm ci` exits 0 and leaves the committed root
+      `srvx@0.11.22` lock metadata byte-stable.
 - [ ] Lint, typecheck, unit/store/server tests, and formatting pass.
 - [ ] No out-of-scope files changed.
 
