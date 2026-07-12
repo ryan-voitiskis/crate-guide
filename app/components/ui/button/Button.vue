@@ -9,7 +9,6 @@ interface Props extends PrimitiveProps {
 	variant?: ButtonVariants['variant']
 	size?: ButtonVariants['size']
 	class?: HTMLAttributes['class']
-	loading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -22,17 +21,8 @@ const props = withDefaults(defineProps<Props>(), {
 		data-slot="button"
 		:as="as"
 		:as-child="asChild"
-		:class="cn(buttonVariants({ variant, size }), props.class, 'relative')"
-		:disabled="loading"
+		:class="cn(buttonVariants({ variant, size }), props.class)"
 	>
-		<span
-			v-if="loading"
-			class="absolute inset-0 flex items-center justify-center"
-		>
-			<SpinnerLoading class="opacity-80" />
-		</span>
-		<div :class="['flex items-center', { 'opacity-0': loading }]">
-			<slot />
-		</div>
+		<slot />
 	</Primitive>
 </template>

@@ -284,13 +284,13 @@ function handleInteractOutside(event: Event) {
 								<Label>Color</Label>
 								<ColorPicker v-model="colorValue" />
 							</div>
-							<Button
+							<ButtonLoading
 								:loading="cratesStore.isUpdatingCrate"
 								:disabled="!meta.valid"
 								@click="saveChanges"
 							>
 								Save
-							</Button>
+							</ButtonLoading>
 						</div>
 					</div>
 				</template>

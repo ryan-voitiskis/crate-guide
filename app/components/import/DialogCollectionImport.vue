@@ -46,13 +46,13 @@ const discogs = useDiscogsStore()
 				</div>
 			</DialogHeader>
 			<DialogFooter>
-				<Button
+				<ButtonLoading
 					variant="default"
 					:loading="discogs.isLoadingSelectedFolder"
 					@click="discogs.fetchFolderReleases()"
 				>
 					Confirm
-				</Button>
+				</ButtonLoading>
 			</DialogFooter>
 		</DialogContent>
 	</Dialog>

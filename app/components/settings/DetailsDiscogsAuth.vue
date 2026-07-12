@@ -37,7 +37,7 @@ const props = withDefaults(defineProps<{ showHeading?: boolean }>(), {
 				Connect Crate Guide to your Discogs account so you can import your
 				collection.
 			</p>
-			<Button
+			<ButtonLoading
 				class="my-2 w-full"
 				variant="secondary"
 				:loading="discogsAuth.isDiscogsConnecting"
@@ -45,7 +45,7 @@ const props = withDefaults(defineProps<{ showHeading?: boolean }>(), {
 			>
 				<KeyRound class="mr-2" />
 				Connect to Discogs
-			</Button>
+			</ButtonLoading>
 		</div>
 	</div>
 </template>

@@ -70,10 +70,9 @@ function getRowClasses(row: TrackEnrichmentRow): string {
 				<TableRow>
 					<TableHead class="w-32">
 						<div class="flex items-center gap-2">
-							<Checkbox
+							<CheckboxLargeHitArea
 								:model-value="filteredSelectionState"
 								:disabled="stageableRowCount === 0 || isApplying"
-								large-hit-area
 								aria-label="Stage all eligible tracks in this view"
 								@update:model-value="emit('stage-all', $event === true)"
 							/>
@@ -91,10 +90,9 @@ function getRowClasses(row: TrackEnrichmentRow): string {
 				<TableRow v-for="row in rows" :key="row.id" :class="getRowClasses(row)">
 					<TableCell>
 						<div class="flex items-center gap-2">
-							<Checkbox
+							<CheckboxLargeHitArea
 								:model-value="isRowStaged(row)"
 								:disabled="!canStageTrackEnrichmentRow(row) || isApplying"
-								large-hit-area
 								:aria-label="`Stage ${row.source.name || 'source track'}`"
 								@update:model-value="emit('stage-row', row, $event === true)"
 							/>

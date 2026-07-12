@@ -8,27 +8,17 @@ import { AlertDialogAction } from 'reka-ui'
 const props = defineProps<
 	AlertDialogActionProps & {
 		class?: HTMLAttributes['class']
-		loading?: boolean
 	}
 >()
 
-const delegatedProps = reactiveOmit(props, 'class', 'loading')
+const delegatedProps = reactiveOmit(props, 'class')
 </script>
 
 <template>
 	<AlertDialogAction
 		v-bind="delegatedProps"
-		:class="cn(buttonVariants(), props.class, 'relative')"
-		:disabled="loading"
+		:class="cn(buttonVariants(), props.class)"
 	>
-		<span
-			v-if="loading"
-			class="absolute inset-0 flex items-center justify-center"
-		>
-			<SpinnerLoading class="opacity-80" />
-		</span>
-		<div :class="['flex items-center', { 'opacity-0': loading }]">
-			<slot />
-		</div>
+		<slot />
 	</AlertDialogAction>
 </template>

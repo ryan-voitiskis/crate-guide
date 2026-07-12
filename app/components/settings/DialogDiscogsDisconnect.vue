@@ -23,13 +23,13 @@ async function handleDisconnect() {
 				</DialogDescription>
 			</DialogHeader>
 			<DialogFooter>
-				<Button
+				<ButtonLoading
 					variant="destructive"
 					:loading="discogs.isDisconnecting"
 					@click="handleDisconnect"
 				>
 					Disconnect
-				</Button>
+				</ButtonLoading>
 			</DialogFooter>
 		</DialogContent>
 	</Dialog>

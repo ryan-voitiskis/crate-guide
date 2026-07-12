@@ -93,14 +93,14 @@ async function handleDelete() {
 
 			<DialogFooter class="gap-2">
 				<Button variant="outline" @click="showDialog = false">Cancel</Button>
-				<Button
+				<ButtonLoading
 					variant="destructive"
 					:disabled="!isConfirmed || isDeleting"
 					:loading="isDeleting"
 					@click="handleDelete"
 				>
 					Delete All Data
-				</Button>
+				</ButtonLoading>
 			</DialogFooter>
 		</DialogContent>
 	</Dialog>

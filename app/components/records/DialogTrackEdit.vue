@@ -404,9 +404,9 @@ function confirmDiscardAndProceed() {
 					class="flex flex-col justify-end gap-2 pt-0 max-sm:px-2 sm:flex-row"
 				>
 					<Button variant="secondary" @click="handleCancel">Cancel</Button>
-					<Button :loading="isSubmitting" @click="saveTrack">
+					<ButtonLoading :loading="isSubmitting" @click="saveTrack">
 						{{ isEditing ? 'Update Track' : 'Add Track' }}
-					</Button>
+					</ButtonLoading>
 				</div>
 			</div>
 		</DialogContent>

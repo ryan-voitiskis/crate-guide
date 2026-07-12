@@ -644,14 +644,14 @@ async function saveManualRecord() {
 				>
 					Next
 				</Button>
-				<Button
+				<ButtonLoading
 					v-else
 					:loading="records.isCreatingRecord"
 					@click="saveManualRecord"
 				>
 					<Save class="mr-2 size-4" />
 					{{ saveLabel }}
-				</Button>
+				</ButtonLoading>
 			</DialogFooter>
 		</DialogContent>
 	</Dialog>

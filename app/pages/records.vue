@@ -32,7 +32,7 @@ function handleDiscogsImport() {
 		<Teleport to="#header-left" defer>
 			<template v-if="isActive && records.hasRecords">
 				<InputRecordsSearch />
-				<Button
+				<ButtonLoading
 					variant="secondary"
 					:loading="discogsAuth.isDiscogsConnecting"
 					@click="handleDiscogsImport"
@@ -40,7 +40,7 @@ function handleDiscogsImport() {
 					<CloudDownload v-if="discogsAuth.isOAuthed" class="mr-2" />
 					<KeyRound v-else class="mr-2" />
 					{{ discogsImportLabel }}
-				</Button>
+				</ButtonLoading>
 				<Button variant="outline" @click="manualEntry.openDialog">
 					<Plus class="mr-2" />
 					Add manually

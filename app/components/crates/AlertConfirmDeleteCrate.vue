@@ -29,13 +29,13 @@ function handleCancel() {
 			</AlertDialogHeader>
 			<AlertDialogFooter>
 				<AlertDialogCancel @click="handleCancel">Cancel</AlertDialogCancel>
-				<AlertDialogAction
+				<AlertDialogActionLoading
 					class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 					:loading="cratesStore.isDeletingCrate"
 					@click="handleDelete"
 				>
 					Delete
-				</AlertDialogAction>
+				</AlertDialogActionLoading>
 			</AlertDialogFooter>
 		</AlertDialogContent>
 	</AlertDialog>

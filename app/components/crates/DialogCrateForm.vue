@@ -153,7 +153,9 @@ function handleCancel() {
 
 			<DialogFooter class="gap-2">
 				<Button variant="secondary" @click="handleCancel">Cancel</Button>
-				<Button :loading="isSubmitting" @click="saveCrate">Create</Button>
+				<ButtonLoading :loading="isSubmitting" @click="saveCrate">
+					Create
+				</ButtonLoading>
 			</DialogFooter>
 		</DialogContent>
 	</Dialog>

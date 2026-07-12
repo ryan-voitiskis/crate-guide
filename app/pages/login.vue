@@ -58,7 +58,7 @@ watch(
 
 		<div class="grid gap-4">
 			<div class="grid grid-cols-2 gap-3">
-				<Button
+				<ButtonLoading
 					variant="outline"
 					:loading="signingInWithGithub"
 					:disabled="signingInWithGoogle || form.isSubmitting.value"
@@ -66,8 +66,8 @@ watch(
 				>
 					<IconGithub class="mr-2 size-5" />
 					GitHub
-				</Button>
-				<Button
+				</ButtonLoading>
+				<ButtonLoading
 					variant="outline"
 					:loading="signingInWithGoogle"
 					:disabled="signingInWithGithub || form.isSubmitting.value"
@@ -75,10 +75,10 @@ watch(
 				>
 					<IconGoogle class="mr-2 size-5" />
 					Google
-				</Button>
+				</ButtonLoading>
 			</div>
 
-			<Separator label="OR" class="my-1" span-class="bg-card" />
+			<SeparatorLabelled label="OR" class="my-1" />
 
 			<form class="flex flex-col gap-3" @submit="onSubmit">
 				<FormField v-slot="{ componentField }" name="email">
@@ -101,14 +101,14 @@ watch(
 					</FormItem>
 				</FormField>
 
-				<Button
+				<ButtonLoading
 					class="mt-2 w-full"
 					type="submit"
 					:disabled="signingInWithGithub || signingInWithGoogle"
 					:loading="form.isSubmitting.value"
 				>
 					Sign in
-				</Button>
+				</ButtonLoading>
 			</form>
 
 			<div class="flex flex-col gap-1 pt-1 text-center text-sm">
@@ -126,7 +126,7 @@ watch(
 				</div>
 			</div>
 
-			<Separator class="my-1" span-class="bg-card" />
+			<Separator class="my-1" />
 
 			<div class="text-muted-foreground text-center text-sm">
 				<p>Not ready to create an account?</p>

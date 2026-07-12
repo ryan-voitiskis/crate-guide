@@ -154,7 +154,7 @@ watch(
 							</div>
 
 							<!-- Add Button -->
-							<Button
+							<ButtonLoading
 								variant="ghost"
 								size="icon"
 								:loading="addingRecordId === record.id"
@@ -163,7 +163,7 @@ watch(
 								@click="addRecord(record.id)"
 							>
 								<Plus class="size-4" />
-							</Button>
+							</ButtonLoading>
 						</div>
 					</TransitionGroup>
 				</ScrollArea>

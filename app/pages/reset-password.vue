@@ -45,19 +45,19 @@ const onSubmit = form.handleSubmit(async (values: ResetPasswordFormValues) => {
 					</FormItem>
 				</FormField>
 
-				<Button
+				<ButtonLoading
 					class="mt-2 w-full"
 					type="submit"
 					:loading="form.isSubmitting.value"
 				>
 					Send reset link
-				</Button>
+				</ButtonLoading>
 			</form>
 			<div v-else class="py-2">
 				<AnimationTick class="mx-auto" />
 			</div>
 
-			<Separator class="my-1" span-class="bg-card" />
+			<Separator class="my-1" />
 
 			<Button variant="link" as-child>
 				<NuxtLink to="/login">Back to login</NuxtLink>

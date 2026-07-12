@@ -191,7 +191,9 @@ function handleCrateCreated(crate: Crate) {
 
 			<DialogFooter class="gap-2">
 				<Button variant="secondary" @click="handleCancel">Cancel</Button>
-				<Button :loading="isSaving" @click="handleSave">Save</Button>
+				<ButtonLoading :loading="isSaving" @click="handleSave">
+					Save
+				</ButtonLoading>
 			</DialogFooter>
 		</DialogContent>
 	</Dialog>

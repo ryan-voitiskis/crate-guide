@@ -172,10 +172,10 @@ function handleDrop(event: DragEvent) {
 								before saving.
 							</p>
 							<div class="mt-3 flex flex-wrap items-center gap-2">
-								<Button :loading="isParsing" @click="emit('selectFile')">
+								<ButtonLoading :loading="isParsing" @click="emit('selectFile')">
 									<Upload class="mr-2 size-4" />
 									Select XML
-								</Button>
+								</ButtonLoading>
 								<span class="text-muted-foreground hidden text-xs sm:inline">
 									or drop the file here
 								</span>

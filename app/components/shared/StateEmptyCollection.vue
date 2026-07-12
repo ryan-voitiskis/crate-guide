@@ -70,14 +70,14 @@ function handlePrimaryAction() {
 		</p>
 
 		<div class="w-full space-y-2">
-			<Button
+			<ButtonLoading
 				class="w-full"
 				:loading="discogsAuth.isDiscogsConnecting"
 				@click="handlePrimaryAction"
 			>
 				<component :is="primaryIcon" class="mr-2 size-4" />
 				{{ primaryLabel }}
-			</Button>
+			</ButtonLoading>
 
 			<div class="text-muted-foreground text-sm">or</div>
 

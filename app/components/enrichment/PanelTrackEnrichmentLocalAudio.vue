@@ -146,7 +146,7 @@ function reviewAvailableData() {
 					</div>
 				</div>
 
-				<Button
+				<ButtonLoading
 					class="mt-4 w-full"
 					:loading="isPickingFolder"
 					:disabled="isAnalyzing"
@@ -154,7 +154,7 @@ function reviewAvailableData() {
 				>
 					<FolderOpen class="mr-2 size-4" />
 					{{ entries.length ? 'Choose another folder' : 'Choose folder' }}
-				</Button>
+				</ButtonLoading>
 				<Button
 					variant="ghost"
 					size="sm"

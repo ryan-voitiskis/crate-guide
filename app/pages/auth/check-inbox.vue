@@ -19,7 +19,7 @@ import { Mail } from 'lucide-vue-next'
 				</p>
 			</div>
 
-			<Separator class="my-1" span-class="bg-card" />
+			<Separator class="my-1" />
 
 			<div class="text-center text-sm">
 				<span class="text-muted-foreground">Already confirmed?</span>

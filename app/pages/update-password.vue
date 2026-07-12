@@ -36,16 +36,16 @@ const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
 					</FormItem>
 				</FormField>
 
-				<Button
+				<ButtonLoading
 					class="mt-2 w-full"
 					type="submit"
 					:loading="form.isSubmitting.value"
 				>
 					Update password
-				</Button>
+				</ButtonLoading>
 			</form>
 
-			<Separator class="my-1" span-class="bg-card" />
+			<Separator class="my-1" />
 
 			<Button variant="link" as-child>
 				<NuxtLink to="/login">Back to login</NuxtLink>

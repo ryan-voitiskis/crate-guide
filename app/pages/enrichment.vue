@@ -901,10 +901,10 @@ function returnToReview() {
 					>
 						Back to review
 					</Button>
-					<Button :loading="isApplying" @click="applyStagedRows">
+					<ButtonLoading :loading="isApplying" @click="applyStagedRows">
 						<Upload class="mr-2 size-4" />
 						Apply updates
-					</Button>
+					</ButtonLoading>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

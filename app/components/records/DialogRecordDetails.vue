@@ -309,17 +309,17 @@ function confirmDiscardAndProceed() {
 						<Button variant="secondary" @click="handleCancelEdit">
 							Cancel
 						</Button>
-						<Button
+						<ButtonLoading
 							:disabled="!meta.valid"
 							:loading="records.isUpdatingRecord"
 							@click="saveRecord"
 						>
 							Save Changes
-						</Button>
+						</ButtonLoading>
 					</div>
 				</div>
 
-				<Separator class="my-8" span-class="bg-card" />
+				<Separator class="my-8" />
 
 				<SectionRecordTracks />
 			</div>

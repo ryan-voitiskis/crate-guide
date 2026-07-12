@@ -453,13 +453,13 @@ function formatKey(track: Track): string {
 						<Button variant="secondary" @click="handleCancelEdit">
 							Cancel
 						</Button>
-						<Button
+						<ButtonLoading
 							:disabled="!meta.valid"
 							:loading="tracks.isUpdatingTrack"
 							@click="saveTrack"
 						>
 							Save Changes
-						</Button>
+						</ButtonLoading>
 					</div>
 				</div>
 			</div>

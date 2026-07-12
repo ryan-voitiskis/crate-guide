@@ -64,13 +64,13 @@ function handleCancel() {
 			</AlertDialogHeader>
 			<AlertDialogFooter>
 				<AlertDialogCancel @click="handleCancel">Cancel</AlertDialogCancel>
-				<AlertDialogAction
+				<AlertDialogActionLoading
 					class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 					:loading="isRemoving"
 					@click="handleRemove"
 				>
 					Remove
-				</AlertDialogAction>
+				</AlertDialogActionLoading>
 			</AlertDialogFooter>
 		</AlertDialogContent>
 	</AlertDialog>
