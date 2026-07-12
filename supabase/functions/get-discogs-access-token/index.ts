@@ -10,6 +10,8 @@ import {
 	createAuthedSupabaseClient,
 	getUser
 } from '../_shared/supabaseHelpers.ts'
+import { validateDiscogsCallbackCredentials } from './validateCredentials.ts'
+import type { DiscogsCredentialsRow } from './validateCredentials.ts'
 
 const headers = { ...corsHeaders, 'Content-Type': 'application/json' }
 
@@ -17,13 +19,6 @@ const oauth_consumer_key = Deno.env.get('DISCOGS_CONSUMER_KEY') || ''
 const oauth_consumer_secret = Deno.env.get('DISCOGS_CONSUMER_SECRET') || ''
 const userAgent = Deno.env.get('DISCOGS_USER_AGENT') || ''
 const accessTokenURL = 'https://api.discogs.com/oauth/access_token'
-
-interface DiscogsCredentialsRow {
-	request_token: string | null
-	request_secret: string | null
-	access_token: string | null
-	access_secret: string | null
-}
 
 Deno.serve(async (req) => {
 	if (req.method === 'OPTIONS') return new Response('ok', { headers })
@@ -48,18 +43,9 @@ Deno.serve(async (req) => {
 		)
 		if (credsError) throw credsError
 		const creds = credsData as DiscogsCredentialsRow | null
-		if (creds?.request_token !== oauth_token) {
-			throw new PublicOAuthError(
-				'Discogs callback does not match the pending request. Please restart the Discogs connection.'
-			)
-		}
-		if (!creds.request_secret) {
-			throw new PublicOAuthError(
-				'Discogs request state is missing. Please restart the Discogs connection and try again.'
-			)
-		}
+		const requestSecret = validateDiscogsCallbackCredentials(creds, oauth_token)
 
-		const oauthSignature = `${oauth_consumer_secret}%26${creds.request_secret}`
+		const oauthSignature = `${oauth_consumer_secret}%26${requestSecret}`
 
 		const params = new URLSearchParams()
 		params.append('oauth_consumer_key', oauth_consumer_key)
