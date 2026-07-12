@@ -1,0 +1,12 @@
+{
+	"lsp": {
+		"deno": {
+			"settings": {
+				"deno": {
+					"enable": true,
+					"enablePaths": ["./supabase"]
+				}
+			}
+		}
+	}
+}

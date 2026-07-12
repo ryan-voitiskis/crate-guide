@@ -1,0 +1,38 @@
+{
+	"compilerOptions": {
+		"lib": ["deno.ns", "deno.unstable", "dom", "dom.asynciterable"],
+		"strict": true,
+		"noImplicitAny": true,
+		"noImplicitReturns": true,
+		"noUnusedLocals": false,
+		"noUnusedParameters": false
+	},
+	"imports": {
+		"@supabase/supabase-js": "npm:@supabase/supabase-js@2"
+	},
+	"tasks": {
+		"dev": "supabase functions serve --debug",
+		"deploy": "supabase functions deploy",
+		"deploy-all": "supabase functions deploy --no-verify-jwt",
+		"test": "deno test",
+		"check": "deno check functions/**/*.ts",
+		"lint": "deno lint"
+	},
+	"lint": {
+		"include": ["functions/"],
+		"exclude": ["functions/_shared/node_modules/"],
+		"rules": {
+			"tags": ["recommended"],
+			"exclude": ["no-unused-vars"]
+		}
+	},
+	"test": {
+		"include": ["functions/**/*test.ts", "functions/**/*test.js"],
+		"exclude": ["functions/_shared/node_modules/"]
+	},
+	"exclude": [
+		"functions/_shared/node_modules/",
+		"functions/.temp/",
+		"functions/**/*.log"
+	]
+}

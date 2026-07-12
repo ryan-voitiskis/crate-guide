@@ -1,0 +1,31 @@
+{
+	"analyzerVersion": "essentia.js@0.1.3",
+	"configurationVersion": "center-180s-44k1-v1",
+	"sampleRate": 44100,
+	"maxAnalysisSeconds": 180,
+	"minimumConfidence": {
+		"bpm": 1.5,
+		"keyStrength": 0.8
+	},
+	"rhythmExtractor": {
+		"maximumTempo": 208,
+		"method": "multifeature",
+		"minimumTempo": 40
+	},
+	"keyExtractor": {
+		"averageDetuningCorrection": true,
+		"frameSize": 4096,
+		"hopSize": 4096,
+		"hpcpSize": 12,
+		"maximumFrequency": 3500,
+		"maximumSpectralPeaks": 60,
+		"minimumFrequency": 25,
+		"pcpThreshold": 0.2,
+		"profile": "edma",
+		"sampleRate": 44100,
+		"spectralPeaksThreshold": 0.0001,
+		"tuningFrequency": 440,
+		"weightType": "cosine",
+		"windowType": "hann"
+	}
+}
