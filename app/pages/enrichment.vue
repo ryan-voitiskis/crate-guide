@@ -13,7 +13,7 @@ import {
 	Upload,
 	X
 } from 'lucide-vue-next'
-import type { LocalAudioTrackSource } from '~/types/localAudio'
+import type { LocalAudioReviewSelection } from '~/types/localAudio'
 import { parseRekordboxXml } from '~/utils/rekordboxXml'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
 import {
@@ -58,18 +58,19 @@ const showApplyDialog = ref(false)
 const applyCompleted = ref(0)
 const applyTotal = ref(0)
 const lastApplySummary = ref<ApplySummary | null>(null)
+const workflowView = ref<'source' | 'review'>('source')
 
 const rowsPerPage = 100
 const workflowSteps = [
-	{ number: 1, label: 'Choose source' },
-	{ number: 2, label: 'Review matches' },
-	{ number: 3, label: 'Apply updates' }
+	{ number: 1, label: 'Choose source', shortLabel: 'Source' },
+	{ number: 2, label: 'Review matches', shortLabel: 'Review' },
+	{ number: 3, label: 'Apply updates', shortLabel: 'Apply' }
 ] as const
 
 const currentStep = computed<1 | 2 | 3>(() => {
 	if (showApplyDialog.value || isApplying.value || lastApplySummary.value)
 		return 3
-	return rows.value.length > 0 ? 2 : 1
+	return workflowView.value === 'review' && rows.value.length > 0 ? 2 : 1
 })
 
 const matchedRows = computed(() => rows.value.filter((row) => !!row.track))
@@ -208,6 +209,23 @@ function isStepComplete(step: number): boolean {
 	return currentStep.value > step || (step === 3 && !!lastApplySummary.value)
 }
 
+function canNavigateToStep(step: number): boolean {
+	if (isParsing.value || isApplying.value || showApplyDialog.value) return false
+	if (step === 1) return true
+	return step === 2 && rows.value.length > 0
+}
+
+function navigateToStep(step: number) {
+	if (!canNavigateToStep(step)) return
+	if (step === 1) {
+		workflowView.value = 'source'
+		lastApplySummary.value = null
+		return
+	}
+	workflowView.value = 'review'
+	lastApplySummary.value = null
+}
+
 function openFilePicker() {
 	fileInput.value?.click()
 }
@@ -227,6 +245,7 @@ function handleFileDrop(file: File) {
 
 async function parseFile(file: File) {
 	activeSource.value = 'rekordboxXml'
+	workflowView.value = 'source'
 	isParsing.value = true
 	parseCompleted.value = 0
 	parseTotal.value = 0
@@ -262,6 +281,7 @@ async function parseFile(file: File) {
 		stagedRowIds.value = new Set(
 			nextRows.filter((row) => row.defaultStaged).map((row) => row.id)
 		)
+		workflowView.value = 'review'
 	} catch (error) {
 		const message =
 			error instanceof Error ? error.message : 'Unknown parse error'
@@ -271,7 +291,8 @@ async function parseFile(file: File) {
 	}
 }
 
-async function reviewLocalSources(sources: LocalAudioTrackSource[]) {
+async function reviewLocalSources(selection: LocalAudioReviewSelection) {
+	const { sources } = selection
 	isParsing.value = true
 	parseCompleted.value = 0
 	parseTotal.value = sources.length
@@ -279,7 +300,7 @@ async function reviewLocalSources(sources: LocalAudioTrackSource[]) {
 	parseErrors.value = []
 	rows.value = []
 	stagedRowIds.value = new Set()
-	selectedFileName.value = `${sources.length} local audio files`
+	selectedFileName.value = `${sources.length.toLocaleString()} files with data · ${selection.processedFiles.toLocaleString()} of ${selection.totalFiles.toLocaleString()} scanned`
 	selectedFilter.value = 'ready'
 	currentPage.value = 1
 	lastApplySummary.value = null
@@ -298,6 +319,7 @@ async function reviewLocalSources(sources: LocalAudioTrackSource[]) {
 		stagedRowIds.value = new Set(
 			nextRows.filter((row) => row.defaultStaged).map((row) => row.id)
 		)
+		workflowView.value = 'review'
 	} catch (error) {
 		parseErrors.value = [
 			error instanceof Error ? error.message : 'Unknown matching error'
@@ -307,14 +329,18 @@ async function reviewLocalSources(sources: LocalAudioTrackSource[]) {
 	}
 }
 
-function replaceSource() {
-	if (activeSource.value === 'rekordboxXml') {
-		openFilePicker()
-		return
-	}
+function selectSource(source: 'rekordboxXml' | 'localAudio') {
+	if (activeSource.value === source) return
+	activeSource.value = source
 	rows.value = []
 	stagedRowIds.value = new Set()
 	selectedFileName.value = null
+	lastApplySummary.value = null
+	workflowView.value = 'source'
+}
+
+function returnToSource() {
+	workflowView.value = 'source'
 	lastApplySummary.value = null
 }
 
@@ -323,6 +349,7 @@ function startAnotherSource() {
 	stagedRowIds.value = new Set()
 	selectedFileName.value = null
 	lastApplySummary.value = null
+	workflowView.value = 'source'
 }
 
 function setRowStaged(row: TrackEnrichmentRow, checked: boolean) {
@@ -441,6 +468,7 @@ async function applyStagedRows() {
 
 function returnToReview() {
 	lastApplySummary.value = null
+	workflowView.value = 'review'
 	selectedFilter.value = errorCount.value > 0 ? 'review' : 'done'
 }
 </script>
@@ -471,26 +499,32 @@ function returnToReview() {
 					</div>
 
 					<Button
-						v-if="rows.length > 0 && !lastApplySummary"
+						v-if="currentStep === 2"
 						variant="outline"
-						:loading="isParsing"
-						@click="replaceSource"
+						@click="returnToSource"
 					>
-						<RefreshCw class="mr-2 size-4" />
-						Replace {{ sourceLabel }}
+						<ArrowLeft class="mr-2 size-4" />
+						Back to source
 					</Button>
 				</div>
 
 				<div
 					class="border-border grid grid-cols-3 overflow-hidden rounded-md border"
 				>
-					<div
+					<button
 						v-for="step in workflowSteps"
 						:key="step.number"
+						type="button"
+						:disabled="!canNavigateToStep(step.number)"
 						class="border-border flex min-w-0 items-center gap-2 border-r px-2 py-2.5 last:border-r-0 sm:px-4"
 						:class="
-							currentStep === step.number ? 'bg-muted/60' : 'bg-background'
+							currentStep === step.number
+								? 'bg-muted/60'
+								: canNavigateToStep(step.number)
+									? 'bg-background hover:bg-muted/30'
+									: 'bg-background cursor-default'
 						"
+						@click="navigateToStep(step.number)"
 					>
 						<div
 							class="flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold"
@@ -506,16 +540,17 @@ function returnToReview() {
 							<span v-else>{{ step.number }}</span>
 						</div>
 						<span
-							class="truncate text-xs font-medium sm:text-sm"
+							class="min-w-0 text-xs font-medium sm:text-sm"
 							:class="
 								currentStep === step.number
 									? 'text-foreground'
 									: 'text-muted-foreground'
 							"
 						>
-							{{ step.label }}
+							<span class="sm:hidden">{{ step.shortLabel }}</span>
+							<span class="hidden sm:inline">{{ step.label }}</span>
 						</span>
-					</div>
+					</button>
 				</div>
 
 				<StateLoading
@@ -543,7 +578,7 @@ function returnToReview() {
 					</NoticeWarning>
 
 					<PanelTrackEnrichmentSource
-						v-if="rows.length === 0"
+						v-show="currentStep === 1"
 						:active-source="activeSource"
 						:is-parsing="isParsing"
 						:parse-completed="parseCompleted"
@@ -551,11 +586,11 @@ function returnToReview() {
 						:parse-progress="parseProgress"
 						@select-file="openFilePicker"
 						@drop-file="handleFileDrop"
-						@select-source="activeSource = $event"
+						@select-source="selectSource"
 						@review-local="reviewLocalSources"
 					/>
 
-					<div v-else-if="lastApplySummary" class="py-8 sm:py-12">
+					<div v-if="lastApplySummary" class="py-8 sm:py-12">
 						<div
 							class="mx-auto flex max-w-2xl flex-col items-center text-center"
 						>
@@ -607,7 +642,7 @@ function returnToReview() {
 						</div>
 					</div>
 
-					<template v-else>
+					<template v-else-if="currentStep === 2">
 						<div
 							class="border-border grid grid-cols-2 divide-x divide-y overflow-hidden rounded-md border sm:grid-cols-6 sm:divide-y-0"
 						>

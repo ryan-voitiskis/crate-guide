@@ -5,13 +5,14 @@ import {
 	CheckCircle2,
 	FolderOpen,
 	ListChecks,
+	Play,
 	Square,
 	Tags
 } from 'lucide-vue-next'
-import type { LocalAudioTrackSource } from '~/types/localAudio'
+import type { LocalAudioReviewSelection } from '~/types/localAudio'
 
 const emit = defineEmits<{
-	review: [sources: LocalAudioTrackSource[]]
+	review: [selection: LocalAudioReviewSelection]
 }>()
 
 const fallbackInput = ref<HTMLInputElement | null>(null)
@@ -19,12 +20,17 @@ const {
 	entries,
 	readySources,
 	pendingCount,
+	processedCount,
 	errorCount,
 	cachedCount,
 	analysisCandidateCount,
+	completeDataCount,
+	partialDataCount,
+	noDataCount,
 	visibleEntries,
 	isPickingFolder,
 	isAnalyzing,
+	processingMode,
 	completedInBatch,
 	batchTotal,
 	statusMessage,
@@ -32,14 +38,45 @@ const {
 	setFiles,
 	scanMetadata,
 	analyzeNextBatch,
-	cancelAnalysis
+	cancelProcessing
 } = useLocalAudioAnalysis()
 
-const progress = computed(() =>
-	batchTotal.value === 0
+const progress = computed(() => {
+	if (processingMode.value === 'tags-only') {
+		return entries.value.length === 0
+			? 0
+			: Math.round((processedCount.value / entries.value.length) * 100)
+	}
+	return batchTotal.value === 0
 		? 0
 		: Math.round((completedInBatch.value / batchTotal.value) * 100)
+})
+
+const progressCount = computed(() =>
+	processingMode.value === 'tags-only'
+		? `${formatCount(processedCount.value)} / ${formatCount(entries.value.length)}`
+		: `${formatCount(completedInBatch.value)} / ${formatCount(batchTotal.value)}`
 )
+
+const statusDetail = computed(() => {
+	if (entries.value.length === 0) {
+		return 'Choose a folder to begin with a fast embedded-tag scan.'
+	}
+	if (isAnalyzing.value && processingMode.value === 'tags-only') {
+		return `${formatCount(processedCount.value)} of ${formatCount(entries.value.length)} files scanned`
+	}
+	if (isAnalyzing.value) {
+		return `${formatCount(completedInBatch.value)} of ${formatCount(batchTotal.value)} files analyzed in this batch`
+	}
+	if (pendingCount.value > 0) {
+		return `${formatCount(processedCount.value)} scanned · ${formatCount(pendingCount.value)} still unscanned`
+	}
+	return `${formatCount(processedCount.value)} scanned · ${formatCount(readySources.value.length)} contain usable BPM or key data${errorCount.value ? ` · ${formatCount(errorCount.value)} failed` : ''}`
+})
+
+function formatCount(value: number): string {
+	return value.toLocaleString()
+}
 
 async function chooseFolder() {
 	const result = await pickFolder()
@@ -66,9 +103,17 @@ function entryStatus(entry: (typeof entries.value)[number]) {
 	if (entry.status === 'decoding') return 'Decoding'
 	if (entry.status === 'analyzing') return 'Analyzing'
 	if (entry.status === 'cached') return 'Cached'
-	if (entry.status === 'complete') return 'Ready'
+	if (entry.status === 'complete') return 'Metadata read'
 	if (entry.status === 'error') return 'Error'
 	return 'Queued'
+}
+
+function reviewAvailableData() {
+	emit('review', {
+		sources: readySources.value,
+		totalFiles: entries.value.length,
+		processedFiles: processedCount.value
+	})
 }
 </script>
 
@@ -131,72 +176,100 @@ function entryStatus(entry: (typeof entries.value)[number]) {
 							<h3 class="text-sm font-semibold">{{ statusMessage }}</h3>
 						</div>
 						<p class="text-muted-foreground mt-1 text-xs">
-							Essentia estimates are filtered and require confirmation.
+							{{ statusDetail }}
 						</p>
 					</div>
 
 					<div class="flex shrink-0 flex-wrap gap-2">
 						<Button
+							v-if="(pendingCount > 0 || errorCount > 0) && !isAnalyzing"
+							variant="outline"
+							size="sm"
+							@click="scanMetadata"
+						>
+							<Play class="mr-1.5 size-3.5" />
+							{{
+								pendingCount > 0
+									? 'Resume scan'
+									: `Retry failed (${errorCount})`
+							}}
+						</Button>
+						<Button
 							v-if="isAnalyzing"
 							variant="outline"
 							size="sm"
-							@click="cancelAnalysis"
+							@click="cancelProcessing"
 						>
 							<Square class="mr-1.5 size-3.5" />
-							Stop
+							{{
+								processingMode === 'tags-only' ? 'Stop scan' : 'Stop analysis'
+							}}
 						</Button>
 						<Button
 							v-if="analysisCandidateCount > 0"
 							variant="outline"
 							size="sm"
-							:disabled="isAnalyzing"
+							:disabled="isAnalyzing || pendingCount > 0"
 							@click="analyzeNextBatch(10)"
 						>
 							<AudioWaveform class="mr-1.5 size-3.5" />
-							Analyze next 10
+							Analyze 10 missing
 						</Button>
 						<Button
 							size="sm"
 							:disabled="readySources.length === 0 || isAnalyzing"
-							@click="emit('review', readySources)"
+							@click="reviewAvailableData"
 						>
 							<ListChecks class="mr-1.5 size-3.5" />
-							Review available data
+							Review {{ formatCount(readySources.length) }} files
 						</Button>
 					</div>
 				</div>
 
 				<div
 					v-if="entries.length"
-					class="border-border mt-4 grid grid-cols-2 divide-x divide-y rounded-md border sm:grid-cols-5 sm:divide-y-0"
+					class="border-border mt-4 grid grid-cols-2 divide-x divide-y rounded-md border sm:grid-cols-3 xl:grid-cols-6 xl:divide-y-0"
 				>
 					<div class="px-3 py-2">
 						<div class="text-muted-foreground text-xs">Files</div>
-						<div class="font-semibold tabular-nums">{{ entries.length }}</div>
-					</div>
-					<div class="px-3 py-2">
-						<div class="text-muted-foreground text-xs">Ready</div>
 						<div class="font-semibold tabular-nums">
-							{{ readySources.length }}
+							{{ formatCount(entries.length) }}
 						</div>
 					</div>
 					<div class="px-3 py-2">
-						<div class="text-muted-foreground text-xs">Need analysis</div>
+						<div class="text-muted-foreground text-xs">Scanned</div>
 						<div class="font-semibold tabular-nums">
-							{{ analysisCandidateCount }}
+							{{ formatCount(processedCount) }}
+						</div>
+						<div v-if="cachedCount" class="text-muted-foreground text-[11px]">
+							{{ formatCount(cachedCount) }} cached
 						</div>
 					</div>
 					<div class="px-3 py-2">
-						<div class="text-muted-foreground text-xs">Cached</div>
-						<div class="font-semibold tabular-nums">{{ cachedCount }}</div>
+						<div class="text-muted-foreground text-xs">BPM + key</div>
+						<div class="font-semibold tabular-nums">
+							{{ formatCount(completeDataCount) }}
+						</div>
 					</div>
 					<div class="px-3 py-2">
-						<div class="text-muted-foreground text-xs">Errors</div>
+						<div class="text-muted-foreground text-xs">One value</div>
+						<div class="font-semibold tabular-nums">
+							{{ formatCount(partialDataCount) }}
+						</div>
+					</div>
+					<div class="px-3 py-2">
+						<div class="text-muted-foreground text-xs">No usable data</div>
+						<div class="font-semibold tabular-nums">
+							{{ formatCount(noDataCount) }}
+						</div>
+					</div>
+					<div class="px-3 py-2">
+						<div class="text-muted-foreground text-xs">Failed</div>
 						<div
 							class="font-semibold tabular-nums"
 							:class="errorCount ? 'text-destructive' : ''"
 						>
-							{{ errorCount }}
+							{{ formatCount(errorCount) }}
 						</div>
 					</div>
 				</div>
@@ -206,9 +279,7 @@ function entryStatus(entry: (typeof entries.value)[number]) {
 						class="text-muted-foreground flex items-center justify-between text-xs"
 					>
 						<span>Processing locally</span>
-						<span class="font-mono">
-							{{ completedInBatch }} / {{ batchTotal }}
-						</span>
+						<span class="font-mono">{{ progressCount }}</span>
 					</div>
 					<Progress :model-value="progress" />
 				</div>
@@ -226,19 +297,31 @@ function entryStatus(entry: (typeof entries.value)[number]) {
 							{{ entry.relativePath }}
 						</span>
 						<span
-							class="text-muted-foreground flex items-center gap-1.5"
+							class="text-muted-foreground flex max-w-72 items-center gap-1.5"
 							:class="entry.error ? 'text-destructive' : ''"
+							:title="entry.error || entryStatus(entry)"
 						>
 							<AlertTriangle v-if="entry.error" class="size-3" />
 							<CheckCircle2 v-else class="size-3" />
-							{{ entryStatus(entry) }}
+							<span class="truncate">
+								{{ entry.error || entryStatus(entry) }}
+							</span>
 						</span>
 					</div>
 				</div>
 
-				<p v-if="pendingCount" class="text-muted-foreground mt-3 text-xs">
-					{{ pendingCount }} files are waiting for their metadata scan.
-				</p>
+				<div
+					v-if="pendingCount && !isAnalyzing"
+					class="mt-3 flex items-center justify-between gap-3 text-xs"
+				>
+					<span class="text-amber-700 dark:text-amber-400">
+						{{ formatCount(pendingCount) }} files have not been scanned yet.
+					</span>
+					<span v-if="analysisCandidateCount" class="text-muted-foreground">
+						{{ formatCount(analysisCandidateCount) }} scanned files can be
+						analyzed
+					</span>
+				</div>
 			</div>
 		</div>
 

@@ -50,6 +50,12 @@ export type LocalAudioTrackSource = {
 	requiresManualReview: boolean
 }
 
+export type LocalAudioReviewSelection = {
+	sources: LocalAudioTrackSource[]
+	totalFiles: number
+	processedFiles: number
+}
+
 export type LocalAudioFileStatus =
 	| 'queued'
 	| 'reading-tags'

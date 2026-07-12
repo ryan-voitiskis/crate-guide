@@ -8,6 +8,7 @@ import { isValidBPM } from './track-validation'
 
 export const LOCAL_AUDIO_ANALYZER_VERSION = 'essentia.js@0.1.3'
 export const LOCAL_AUDIO_CONFIGURATION_VERSION = 'center-180s-44k1-v1'
+export const LOCAL_AUDIO_METADATA_VERSION = 'native-tags-v2'
 export const LOCAL_AUDIO_SAMPLE_RATE = 44_100
 export const LOCAL_AUDIO_MAX_ANALYSIS_SECONDS = 180
 export const LOCAL_AUDIO_MIN_BPM_CONFIDENCE = 1.5
@@ -44,6 +45,7 @@ export function getLocalAudioCacheKey(input: {
 	return [
 		LOCAL_AUDIO_ANALYZER_VERSION,
 		LOCAL_AUDIO_CONFIGURATION_VERSION,
+		LOCAL_AUDIO_METADATA_VERSION,
 		input.relativePath,
 		input.size,
 		input.lastModified
@@ -67,11 +69,48 @@ export function getLocalAudioAnalysisWindow(durationSeconds: number): {
 	}
 }
 
+type NativeAudioTag = {
+	id: string
+	value: unknown
+}
+
+export function findNativeAudioTag(
+	nativeTags: Record<string, NativeAudioTag[]>,
+	acceptedIds: string[]
+): string | null {
+	const normalizedIds = new Set(
+		acceptedIds.map((id) => id.toUpperCase().replace(/[^A-Z0-9]/g, ''))
+	)
+	for (const tags of Object.values(nativeTags)) {
+		for (const tag of tags) {
+			const normalizedId = tag.id.toUpperCase().replace(/[^A-Z0-9]/g, '')
+			if (!normalizedIds.has(normalizedId)) continue
+			const value = Array.isArray(tag.value) ? tag.value[0] : tag.value
+			if (typeof value === 'number' && Number.isFinite(value)) {
+				return String(value)
+			}
+			if (typeof value === 'string' && value.trim()) return value.trim()
+		}
+	}
+	return null
+}
+
 export async function readLocalAudioTags(
 	file: File
 ): Promise<LocalAudioTagMetadata> {
 	const { parseBlob } = await import('music-metadata')
-	const metadata = await parseBlob(file, { duration: true, skipCovers: true })
+	const metadata = await parseBlob(file, { duration: false, skipCovers: true })
+	const nativeBpm = findNativeAudioTag(metadata.native, [
+		'BPM',
+		'TBPM',
+		'TEMPO'
+	])
+	const parsedNativeBpm = nativeBpm ? Number.parseFloat(nativeBpm) : null
+	const nativeKey = findNativeAudioTag(metadata.native, [
+		'INITIALKEY',
+		'KEY',
+		'TKEY'
+	])
 
 	return {
 		title: metadata.common.title?.trim() || null,
@@ -85,8 +124,13 @@ export async function readLocalAudioTags(
 			typeof metadata.format.duration === 'number'
 				? metadata.format.duration
 				: null,
-		bpm: typeof metadata.common.bpm === 'number' ? metadata.common.bpm : null,
-		key: metadata.common.key?.trim() || null
+		bpm:
+			typeof metadata.common.bpm === 'number'
+				? metadata.common.bpm
+				: parsedNativeBpm !== null && Number.isFinite(parsedNativeBpm)
+					? parsedNativeBpm
+					: null,
+		key: metadata.common.key?.trim() || nativeKey
 	}
 }
 
@@ -96,7 +140,7 @@ function stripExtension(fileName: string): string {
 
 function deriveArtist(relativePath: string, fileName: string): string | null {
 	const segments = relativePath.split('/').filter(Boolean)
-	if (segments.length >= 3) return segments[0] ?? null
+	if (segments.length >= 3) return segments.at(-3) ?? null
 
 	const nameParts = stripExtension(fileName).split(/\s+-\s+/)
 	return nameParts.length > 1 ? nameParts[0]?.trim() || null : null

@@ -53,8 +53,11 @@ generate compatible XML.
 ## Local Analysis
 
 `useLocalAudioAnalysis` owns folder traversal and the sequential processing
-queue. `music-metadata` reads tags without cover artwork. Audio that still
-needs BPM or key is decoded with the Web Audio API. A continuous center segment
+queue. `music-metadata` reads tags without cover artwork or an exhaustive
+duration scan; duration is optional matching evidence and is recovered if a
+file is later decoded. Large-folder status updates are throttled so processing
+does not repeatedly recount the complete file list. Audio that still needs BPM
+or key is decoded with the Web Audio API. A continuous center segment
 of up to three minutes is mixed to mono, resampled to 44.1 kHz when needed, and
 transferred to `localAudioAnalysis.worker.ts`. Bounding the segment avoids
 renderer memory failures on long uncompressed files while skipping DJ-oriented

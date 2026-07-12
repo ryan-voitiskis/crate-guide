@@ -8,7 +8,7 @@ import {
 	ShieldCheck,
 	Upload
 } from 'lucide-vue-next'
-import type { LocalAudioTrackSource } from '~/types/localAudio'
+import type { LocalAudioReviewSelection } from '~/types/localAudio'
 
 const props = defineProps<{
 	activeSource: 'rekordboxXml' | 'localAudio'
@@ -22,7 +22,7 @@ const emit = defineEmits<{
 	selectSource: [source: 'rekordboxXml' | 'localAudio']
 	selectFile: []
 	dropFile: [file: File]
-	reviewLocal: [sources: LocalAudioTrackSource[]]
+	reviewLocal: [selection: LocalAudioReviewSelection]
 }>()
 
 function handleDrop(event: DragEvent) {

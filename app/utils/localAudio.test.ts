@@ -5,7 +5,9 @@ import type {
 } from '~/types/localAudio'
 import {
 	LOCAL_AUDIO_ANALYZER_VERSION,
+	LOCAL_AUDIO_METADATA_VERSION,
 	createLocalAudioTrackSource,
+	findNativeAudioTag,
 	getLocalAudioAnalysisWindow,
 	getLocalAudioCacheKey,
 	isSupportedAudioFile
@@ -43,14 +45,28 @@ describe('localAudio', () => {
 		expect(isSupportedAudioFile('cover.jpg')).toBe(false)
 	})
 
-	it('versions cache keys by analyzer and configuration', () => {
+	it('versions cache keys by analyzer, configuration, and tag reader', () => {
 		expect(
 			getLocalAudioCacheKey({
 				relativePath: 'Artist/Album/Track.flac',
 				size: 123,
 				lastModified: 456
 			})
-		).toContain(`${LOCAL_AUDIO_ANALYZER_VERSION}|center-180s-44k1-v1|`)
+		).toContain(
+			`${LOCAL_AUDIO_ANALYZER_VERSION}|center-180s-44k1-v1|${LOCAL_AUDIO_METADATA_VERSION}|`
+		)
+	})
+
+	it('reads common BPM and key names from native audio tags', () => {
+		const nativeTags = {
+			vorbis: [
+				{ id: 'INITIALKEY', value: '3A' },
+				{ id: 'BPM', value: '127.45' }
+			]
+		}
+
+		expect(findNativeAudioTag(nativeTags, ['INITIALKEY', 'KEY'])).toBe('3A')
+		expect(findNativeAudioTag(nativeTags, ['BPM', 'TBPM'])).toBe('127.45')
 	})
 
 	it('bounds analysis to a centered three-minute window', () => {
@@ -83,6 +99,24 @@ describe('localAudio', () => {
 			bpmSource: 'embeddedTags',
 			keyModeSource: 'embeddedTags',
 			requiresManualReview: false
+		})
+	})
+
+	it('derives the artist from the directory above the album', () => {
+		const source = createLocalAudioTrackSource({
+			index: 0,
+			fileName: '01 Artist - Track.flac',
+			relativePath: 'collection/Artist/Album/01 Artist - Track.flac',
+			fileSize: 123,
+			lastModified: 456,
+			tags: blankTags,
+			analysis: null
+		})
+
+		expect(source).toMatchObject({
+			artist: 'Artist',
+			album: 'Album',
+			name: 'Track'
 		})
 	})
 

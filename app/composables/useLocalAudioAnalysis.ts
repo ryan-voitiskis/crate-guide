@@ -47,9 +47,10 @@ type PendingWorkerRequest = {
 type ProcessingMode = 'tags-only' | 'missing-analysis' | 'force-analysis'
 
 export function useLocalAudioAnalysis() {
-	const entries = ref<LocalAudioFileEntry[]>([])
+	const entries = shallowRef<LocalAudioFileEntry[]>([])
 	const isPickingFolder = ref(false)
 	const isAnalyzing = ref(false)
+	const processingMode = ref<ProcessingMode | null>(null)
 	const completedInBatch = ref(0)
 	const batchTotal = ref(0)
 	const statusMessage = ref('Select a folder of audio files')
@@ -71,6 +72,12 @@ export function useLocalAudioAnalysis() {
 	const pendingCount = computed(
 		() => entries.value.filter((entry) => entry.status === 'queued').length
 	)
+	const processedCount = computed(
+		() =>
+			entries.value.filter((entry) =>
+				['cached', 'complete', 'error'].includes(entry.status)
+			).length
+	)
 	const errorCount = computed(
 		() => entries.value.filter((entry) => entry.status === 'error').length
 	)
@@ -87,11 +94,43 @@ export function useLocalAudioAnalysis() {
 						entry.source.keyModeSource === null)
 			).length
 	)
+	const completeDataCount = computed(
+		() =>
+			entries.value.filter(
+				(entry) =>
+					entry.source?.averageBpm !== null &&
+					entry.source?.averageBpm !== undefined &&
+					entry.source.parsedKey !== null &&
+					entry.source.parsedMode !== null
+			).length
+	)
+	const partialDataCount = computed(
+		() =>
+			entries.value.filter((entry) => {
+				if (!entry.source) return false
+				const hasBpm = entry.source.averageBpm !== null
+				const hasKey =
+					entry.source.parsedKey !== null && entry.source.parsedMode !== null
+				return hasBpm !== hasKey
+			}).length
+	)
+	const noDataCount = computed(
+		() =>
+			entries.value.filter(
+				(entry) =>
+					entry.source !== null &&
+					entry.source.averageBpm === null &&
+					(entry.source.parsedKey === null || entry.source.parsedMode === null)
+			).length
+	)
 	const visibleEntries = computed(() =>
-		entries.value
-			.filter((entry) => entry.status !== 'queued')
-			.slice(-50)
-			.reverse()
+		[
+			...entries.value.filter((entry) => entry.error).reverse(),
+			...entries.value
+				.filter((entry) => entry.status !== 'queued' && !entry.error)
+				.slice(-50)
+				.reverse()
+		].slice(0, 50)
 	)
 
 	onMounted(() => {
@@ -331,7 +370,10 @@ export function useLocalAudioAnalysis() {
 		}
 
 		entry.status = 'reading-tags'
-		const tags = cached?.tags ?? (await readLocalAudioTags(entry.file))
+		if (mode !== 'tags-only') triggerRef(entries)
+		const tags = {
+			...(cached?.tags ?? (await readLocalAudioTags(entry.file)))
+		}
 		let analysis = cached?.analysis ?? null
 		const shouldAnalyze =
 			mode === 'force-analysis' ||
@@ -339,9 +381,12 @@ export function useLocalAudioAnalysis() {
 				(!hasUsableBpm(tags) || !hasUsableKey(tags)))
 		if (shouldAnalyze) {
 			entry.status = 'decoding'
+			triggerRef(entries)
 			const decoded = await decodeAndResample(entry.file)
+			tags.durationSeconds ??= decoded.durationSeconds
 			if (cancelRequested.value) throw new Error('Analysis cancelled')
 			entry.status = 'analyzing'
+			triggerRef(entries)
 			analysis = await runWorkerAnalysis(
 				decoded.samples,
 				decoded.durationSeconds,
@@ -377,30 +422,48 @@ export function useLocalAudioAnalysis() {
 		if (batch.length === 0) return
 
 		isAnalyzing.value = true
+		processingMode.value = mode
 		cancelRequested.value = false
 		completedInBatch.value = 0
 		batchTotal.value = batch.length
 		statusMessage.value =
 			mode === 'tags-only'
-				? `Reading metadata from ${batch.length} local tracks`
-				: `Analyzing ${batch.length} local tracks`
+				? 'Scanning embedded metadata'
+				: `Analyzing ${batch.length} files locally`
 
 		try {
+			const entryIndexes = new Map(
+				entries.value.map((entry, index) => [entry, index])
+			)
+			let lastUiRefresh = 0
 			for (const entry of batch) {
 				if (cancelRequested.value) break
 				try {
-					await processEntry(entry, entries.value.indexOf(entry), mode)
+					await processEntry(entry, entryIndexes.get(entry) ?? 0, mode)
 				} catch (error) {
 					entry.status = 'error'
 					entry.error = error instanceof Error ? error.message : String(error)
 				}
 				completedInBatch.value += 1
+				const now = performance.now()
+				if (now - lastUiRefresh >= 200) {
+					triggerRef(entries)
+					lastUiRefresh = now
+				}
 			}
+			triggerRef(entries)
 			statusMessage.value = cancelRequested.value
-				? 'Analysis cancelled'
-				: `${readySources.value.length} tracks ready for review`
+				? mode === 'tags-only'
+					? 'Metadata scan stopped'
+					: 'Audio analysis stopped'
+				: mode === 'tags-only'
+					? errorCount.value > 0
+						? 'Metadata scan finished'
+						: 'Metadata scan complete'
+					: 'Analysis batch complete'
 		} finally {
 			isAnalyzing.value = false
+			processingMode.value = null
 		}
 	}
 
@@ -430,21 +493,26 @@ export function useLocalAudioAnalysis() {
 		)
 	}
 
-	function cancelAnalysis() {
+	function cancelProcessing() {
 		cancelRequested.value = true
-		terminateWorker('Analysis cancelled')
+		terminateWorker('Processing stopped')
 	}
 
 	return {
 		entries,
 		readySources,
 		pendingCount,
+		processedCount,
 		errorCount,
 		cachedCount,
 		analysisCandidateCount,
+		completeDataCount,
+		partialDataCount,
+		noDataCount,
 		visibleEntries,
 		isPickingFolder,
 		isAnalyzing,
+		processingMode,
 		completedInBatch,
 		batchTotal,
 		statusMessage,
@@ -453,6 +521,6 @@ export function useLocalAudioAnalysis() {
 		pickFolder,
 		scanMetadata,
 		analyzeNextBatch,
-		cancelAnalysis
+		cancelProcessing
 	}
 }
