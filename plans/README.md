@@ -25,7 +25,7 @@ its status row when done unless a reviewer explicitly owns the index.
 | 010  | [Restore store and domain layering](010-restore-store-and-domain-layering.md)                         | P2       | M      | 008, 009                     | DONE   |
 | 011  | [Consolidate track-editor domain logic](011-consolidate-track-editor-logic.md)                        | P1       | M      | 006, 007                     | DONE   |
 | 012  | [Protect application UI contracts](012-protect-app-ui-contracts.md)                                   | P1       | M      | 006, 007, 011                | DONE   |
-| 013  | [Extract the track-enrichment workflow](013-extract-track-enrichment-workflow.md)                     | P2       | L      | 006, 008, 009, 012           | TODO   |
+| 013  | [Extract the track-enrichment workflow](013-extract-track-enrichment-workflow.md)                     | P2       | L      | 006, 008, 009, 012           | DONE   |
 | 014  | [Centralize audio-analyzer configuration](014-centralize-audio-analyzer-configuration.md)             | P2       | M      | 005, 006                     | DONE   |
 | 015  | [Enforce component and Tailwind conventions](015-enforce-component-and-tailwind-conventions.md)       | P2       | M      | 005, 006, 007, 011, 012, 014 | DONE   |
 | 016  | [Refresh and archive architecture documentation](016-refresh-architecture-documentation.md)           | P3       | S      | 003–015                      | TODO   |

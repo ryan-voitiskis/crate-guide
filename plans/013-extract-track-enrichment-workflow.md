@@ -253,7 +253,10 @@ Using synthetic/local non-sensitive input, browser-check:
 - narrow and wide layouts remain unchanged.
 
 If authenticated local data is unavailable, report the write portion as
-pending; do not create credentials or modify production data.
+pending; do not create credentials or modify production data. If the route is
+unavailable before authentication, report the interactive source, review,
+stage, apply, and reset checks as pending rather than fabricating state; retain
+the controlled composable and rendered wiring evidence for those contracts.
 
 Run `npm run format`, focused tests, `npm run verify`, and `npm run build`.
 
@@ -269,22 +272,69 @@ Run `npm run format`, focused tests, `npm run verify`, and `npm run build`.
 - Assert one batch call and one toast explicitly; avoid timing sleeps by using
   controlled promises/progress callbacks.
 
+## Completion and reconciliation
+
+- Implemented by amended executor commit
+  `fe931d4cf90f0106532932761539385bbb72943c` and integrated as
+  `84d0495d32824949d282259b1e5e42c51e64e882` with the exact four-file scope:
+  the new workflow composable and its tests, the reduced route, and the new
+  rendered page test.
+- `useTrackEnrichmentWorkflow(): TrackEnrichmentWorkflow` is the exact public
+  entry point. It takes no arguments, obtains the record and track stores
+  internally, returns the exact writable/computed/action surface listed in the
+  target boundary, and exposes neither stores nor private lifecycle helpers.
+  `app/pages/enrichment.vue` fell from 912 to 558 lines while retaining only
+  DOM event adaptation, collection/user context, and view wiring.
+- Both XML and local-audio review paths enter the canonical private
+  `initializeReview` helper. Source switching and start-another use the
+  canonical private `resetWorkflow` helper. A private operation generation,
+  advanced and checked through begin/current-operation helpers, makes each
+  asynchronous review lifecycle authoritative only while it remains current.
+- Independent cold review caught a stale-operation race in which superseded XML
+  or local review work could still publish progress, results, errors, or
+  `finally` cleanup over a newer operation. The amended executor commit guards
+  every such mutation; controlled tests prove stale XML progress/results and
+  stale local errors/cleanup cannot override the newer review.
+- Collection fetches now run concurrently. The page becomes ready only for the
+  truthful `[true, true]` result; either exact-false result renders no workflow
+  controls. The failure notice is exactly:
+  `Collection data could not be loaded. Refresh to try again.` No duplicate
+  toast is added.
+- Focused verification passed 13 composable tests, 3 rendered wiring/load
+  tests, and 37 unchanged pure parser/enrichment tests. The main integration
+  worktree reran the focused gates, and an independent cold review approved the
+  amended result.
+- Full verification passed 41 files / 1028 application tests, 2 E2E tests, 4
+  Edge tests, 6 type-generation tests, and 7 audio-configuration tests. The
+  production build was green.
+- Browser QA used the committed local server with deliberately invalid dummy
+  Supabase configuration. `/enrichment` redirected unauthenticated visits to
+  `/login` at 1280×900 and at the narrow viewport, with no console warnings or
+  errors. Interactive source/review/stage/apply/reset behavior and an
+  authenticated write remain explicitly pending under Step 6's allowance
+  rather than fabricated; controlled composable and rendered tests cover those
+  contracts.
+- No Worker, parser, matcher, schema, overall layout, or workflow-copy change
+  exists beyond the exact collection-load failure notice.
+
 ## Done criteria
 
-- [ ] One composable owns all workflow state, transitions, staging, filtering,
+- [x] One composable owns all workflow state, transitions, staging, filtering,
       pagination, parsing/matching orchestration, and apply reconciliation.
-- [ ] Rekordbox/local entry paths share one review initializer and consistent
+- [x] Rekordbox/local entry paths share one review initializer and consistent
       reset contract.
-- [ ] Page script contains only DOM adaptation, initial load/user context, and
+- [x] Page script contains only DOM adaptation, initial load/user context, and
       view wiring.
-- [ ] The workflow renders only after both collection fetches return true; a
+- [x] The workflow renders only after both collection fetches return true; a
       failed fetch shows the exact non-interactive failure state.
-- [ ] Matching, blank-only writes, provenance, order, existing workflow copy,
+- [x] Matching, blank-only writes, provenance, order, existing workflow copy,
       and layout are unchanged; the exact collection-load failure notice is the
       only copy addition.
-- [ ] Composable/rendered/existing/full tests and build pass.
-- [ ] Browser verification has no regressions or console errors.
-- [ ] No Worker/cache/algorithm/schema/out-of-scope change exists.
+- [x] Composable/rendered/existing/full tests and build pass.
+- [x] Available wide/narrow browser verification has no regressions or console
+      errors; interactive and authenticated states are explicitly pending and
+      covered by controlled/rendered tests under Step 6's allowance.
+- [x] No Worker/cache/algorithm/schema/out-of-scope change exists.
 
 ## STOP conditions
 
