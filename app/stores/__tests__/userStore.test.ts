@@ -21,8 +21,8 @@ const mockUseCratesStore = vi.fn()
 const mockUseSessionStore = vi.fn()
 
 const mockSetTheme = vi.fn()
-const mockGetSavedThemePreference = vi.fn().mockReturnValue('light')
-const mockSaveThemePreference = vi.fn()
+const mockGetSavedAnonymousThemePreference = vi.fn().mockReturnValue(null)
+const mockSaveAnonymousThemePreference = vi.fn()
 const mockIsKeyFormat = vi.fn(
 	(value: string | null | undefined) => value === 'key' || value === 'camelot'
 )
@@ -99,8 +99,11 @@ vi.stubGlobal('useTracksStore', mockUseTracksStore)
 vi.stubGlobal('useCratesStore', mockUseCratesStore)
 vi.stubGlobal('useSessionStore', mockUseSessionStore)
 vi.stubGlobal('setTheme', mockSetTheme)
-vi.stubGlobal('getSavedThemePreference', mockGetSavedThemePreference)
-vi.stubGlobal('saveThemePreference', mockSaveThemePreference)
+vi.stubGlobal(
+	'getSavedAnonymousThemePreference',
+	mockGetSavedAnonymousThemePreference
+)
+vi.stubGlobal('saveAnonymousThemePreference', mockSaveAnonymousThemePreference)
 vi.stubGlobal('isKeyFormat', mockIsKeyFormat)
 vi.stubGlobal('isError', isError)
 vi.stubGlobal('watchEffect', vi.fn()) // Disable watchEffect to prevent auto-fetch
@@ -132,7 +135,7 @@ describe('userStore', () => {
 
 		// Reset supaUser
 		mockSupaUser.value = { id: 'test-user-id', email: 'test@example.com' }
-		mockGetSavedThemePreference.mockReturnValue('light')
+		mockGetSavedAnonymousThemePreference.mockReturnValue(null)
 	})
 
 	describe('initial state', () => {
@@ -153,19 +156,19 @@ describe('userStore', () => {
 	})
 
 	describe('currentTheme computed', () => {
-		it('returns light when profile is null', () => {
-			const store = useUserStore()
-			store.profile = null
-
-			expect(store.currentTheme).toBe('light')
-		})
-
-		it('returns saved theme when profile is null', () => {
-			mockGetSavedThemePreference.mockReturnValue('auto')
+		it('returns auto when profile is null and no anonymous preference is saved', () => {
 			const store = useUserStore()
 			store.profile = null
 
 			expect(store.currentTheme).toBe('auto')
+		})
+
+		it('returns the saved anonymous theme when profile is null', () => {
+			mockGetSavedAnonymousThemePreference.mockReturnValue('dark')
+			const store = useUserStore()
+			store.profile = null
+
+			expect(store.currentTheme).toBe('dark')
 		})
 
 		it('returns profile theme when set', () => {
@@ -182,12 +185,12 @@ describe('userStore', () => {
 			expect(store.currentTheme).toBe('auto')
 		})
 
-		it('returns light when profile has no theme', () => {
+		it('returns the anonymous theme when profile has no theme', () => {
 			const store = useUserStore()
 			store.profile = createMockProfile() as unknown as Profile
 			store.profile.ui_theme = null as unknown as Profile['ui_theme']
 
-			expect(store.currentTheme).toBe('light')
+			expect(store.currentTheme).toBe('auto')
 		})
 	})
 
@@ -385,6 +388,16 @@ describe('userStore', () => {
 			await store.signOut()
 
 			expect(store.profile).toBeNull()
+		})
+
+		it('restores the anonymous theme on success', async () => {
+			mockGetSavedAnonymousThemePreference.mockReturnValue('auto')
+			const store = useUserStore()
+			store.profile = createMockProfile({ ui_theme: 'dark' })
+
+			await store.signOut()
+
+			expect(mockSetTheme).toHaveBeenLastCalledWith('auto')
 		})
 
 		it('handles sign out errors', async () => {
@@ -742,7 +755,7 @@ describe('userStore', () => {
 			expect(mockQueryBuilder.update).toHaveBeenCalledWith({ ui_theme: 'dark' })
 		})
 
-		it('saves new theme preference locally', async () => {
+		it('does not overwrite the anonymous preference', async () => {
 			const store = useUserStore()
 			store.profile = createMockProfile({ ui_theme: 'light' })
 			mockQueryBuilder.single.mockResolvedValue({
@@ -752,7 +765,7 @@ describe('userStore', () => {
 
 			await store.updateTheme('dark')
 
-			expect(mockSaveThemePreference).toHaveBeenCalledWith('dark')
+			expect(mockSaveAnonymousThemePreference).not.toHaveBeenCalled()
 		})
 
 		it('persists auto theme preference', async () => {
@@ -930,6 +943,19 @@ describe('userStore', () => {
 			expect(mockUseTracksStore).not.toHaveBeenCalled()
 			expect(mockUseCratesStore).not.toHaveBeenCalled()
 			expect(mockUseSessionStore).not.toHaveBeenCalled()
+		})
+	})
+
+	describe('setLocalTheme', () => {
+		it('persists and applies an explicit anonymous preference', () => {
+			mockSupaUser.value = null
+			const store = useUserStore()
+
+			store.setLocalTheme('dark')
+
+			expect(store.currentTheme).toBe('dark')
+			expect(mockSaveAnonymousThemePreference).toHaveBeenCalledWith('dark')
+			expect(mockSetTheme).toHaveBeenLastCalledWith('dark')
 		})
 	})
 })

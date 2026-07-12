@@ -19,8 +19,8 @@ export const useUserStore = defineStore('user', () => {
 	const userAlreadyRegistered = ref(false)
 	const isUpdatingSettings = ref(false)
 	const localKeyFormatPreference = ref<'key' | 'camelot'>('key')
-	const localThemePreference = ref<ThemeOptions>(
-		getSavedThemePreference() ?? 'light'
+	const anonymousThemePreference = ref<ThemeOptions>(
+		getSavedAnonymousThemePreference() ?? 'auto'
 	)
 	let settingsUpdateQueue: Promise<boolean> = Promise.resolve(true)
 
@@ -53,7 +53,7 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	const currentTheme = computed((): ThemeOptions => {
-		return profile.value?.ui_theme ?? localThemePreference.value
+		return profile.value?.ui_theme ?? anonymousThemePreference.value
 	})
 	const currentKeyFormat = computed((): 'key' | 'camelot' => {
 		const stored = profile.value?.key_format
@@ -125,6 +125,7 @@ export const useUserStore = defineStore('user', () => {
 			const { error } = await supabase.auth.signOut()
 			if (error) throw error
 			profile.value = null
+			setTheme(anonymousThemePreference.value)
 			toast.success('You are now signed out.')
 		} catch (e) {
 			console.error(e)
@@ -178,9 +179,7 @@ export const useUserStore = defineStore('user', () => {
 				.single()
 			if (error) throw error
 			profile.value = data as Profile
-			const theme = profile.value.ui_theme ?? 'light'
-			localThemePreference.value = theme
-			saveThemePreference(theme)
+			const theme = profile.value.ui_theme ?? 'auto'
 			setTheme(theme)
 			const keyFormat = profile.value.key_format
 			localKeyFormatPreference.value = isKeyFormat(keyFormat)
@@ -243,15 +242,13 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	function setLocalTheme(newTheme: ThemeOptions) {
-		localThemePreference.value = newTheme
-		saveThemePreference(newTheme)
+		anonymousThemePreference.value = newTheme
+		saveAnonymousThemePreference(newTheme)
 		setTheme(newTheme)
 	}
 
 	async function updateTheme(newTheme: ThemeOptions) {
 		const previousTheme = currentTheme.value
-		localThemePreference.value = newTheme
-		saveThemePreference(newTheme)
 		setTheme(newTheme)
 		if (!supaUser.value?.id) {
 			try {
@@ -262,8 +259,6 @@ export const useUserStore = defineStore('user', () => {
 		}
 		const didPersist = await updateSettings({ ui_theme: newTheme })
 		if (!didPersist) {
-			localThemePreference.value = previousTheme
-			saveThemePreference(previousTheme)
 			setTheme(previousTheme)
 		}
 	}

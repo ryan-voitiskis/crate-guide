@@ -1,6 +1,8 @@
 import type { ThemeOptions } from '../../shared/types/options'
 
-const THEME_STORAGE_KEY = 'crate-guide:theme'
+// Keep signed-out choices separate from account settings. Authenticated themes
+// are persisted in profiles.ui_theme and must never leak into this fallback.
+const ANONYMOUS_THEME_STORAGE_KEY = 'crate-guide:anonymous-theme'
 let mediaQueryList: MediaQueryList | null = null
 let mediaQueryListener: ((event: MediaQueryListEvent) => void) | null = null
 
@@ -34,14 +36,16 @@ function parseThemeOption(value: string | null): ThemeOptions | null {
 	return null
 }
 
-export function getSavedThemePreference(): ThemeOptions | null {
+export function getSavedAnonymousThemePreference(): ThemeOptions | null {
 	if (typeof window === 'undefined') return null
-	return parseThemeOption(window.localStorage.getItem(THEME_STORAGE_KEY))
+	return parseThemeOption(
+		window.localStorage.getItem(ANONYMOUS_THEME_STORAGE_KEY)
+	)
 }
 
-export function saveThemePreference(theme: ThemeOptions) {
+export function saveAnonymousThemePreference(theme: ThemeOptions) {
 	if (typeof window === 'undefined') return
-	window.localStorage.setItem(THEME_STORAGE_KEY, theme)
+	window.localStorage.setItem(ANONYMOUS_THEME_STORAGE_KEY, theme)
 }
 
 export function setTheme(theme: ThemeOptions) {
