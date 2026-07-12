@@ -1,9 +1,31 @@
+import { defineVitestProject } from '@nuxt/test-utils/config'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
 	test: {
 		projects: [
+			await defineVitestProject({
+				test: {
+					name: 'nuxt',
+					include: ['test/nuxt/**/*.nuxt.test.ts'],
+					environment: 'nuxt',
+					environmentOptions: {
+						nuxt: {
+							rootDir: fileURLToPath(new URL('.', import.meta.url)),
+							domEnvironment: 'happy-dom',
+							mock: { indexedDb: true },
+							overrides: {
+								supabase: {
+									url: 'https://supabase.test.invalid',
+									key: 'test-anon-key',
+									redirect: false
+								}
+							}
+						}
+					}
+				}
+			}),
 			// Unit tests - pure functions, no Nuxt runtime needed
 			{
 				test: {

@@ -15,6 +15,7 @@ import {
 	readLocalAudioTags
 } from '~/utils/localAudio'
 import {
+	type CachedLocalAudioResult,
 	getCachedLocalAudioResult,
 	putCachedLocalAudioResult
 } from '~/utils/localAudioCache'
@@ -39,6 +40,8 @@ type DirectoryPickerWindow = Window & {
 	}) => Promise<DirectoryHandle>
 }
 
+type DirectoryPicker = NonNullable<DirectoryPickerWindow['showDirectoryPicker']>
+
 type PendingWorkerRequest = {
 	resolve: (value: LocalAudioAnalysis) => void
 	reject: (error: Error) => void
@@ -46,7 +49,53 @@ type PendingWorkerRequest = {
 
 type ProcessingMode = 'tags-only' | 'missing-analysis' | 'force-analysis'
 
-export function useLocalAudioAnalysis() {
+export type LocalAudioAnalysisDependencies = {
+	createWorker: () => Worker
+	createRequestId: () => string
+	createAudioContext: () => AudioContext
+	createOfflineAudioContext: (
+		numberOfChannels: number,
+		length: number,
+		sampleRate: number
+	) => OfflineAudioContext
+	readTags: (file: File) => Promise<LocalAudioTagMetadata>
+	getCachedResult: (cacheKey: string) => Promise<CachedLocalAudioResult | null>
+	putCachedResult: (record: CachedLocalAudioResult) => Promise<void>
+	performanceNow: () => number
+	currentTime: () => number
+	getDirectoryPicker: () => DirectoryPicker | undefined
+}
+
+const productionDependencies: LocalAudioAnalysisDependencies = {
+	createWorker: () =>
+		new Worker(
+			new URL('../workers/localAudioAnalysis.worker.ts', import.meta.url),
+			{
+				type: 'module'
+			}
+		),
+	createRequestId: () => crypto.randomUUID(),
+	createAudioContext: () => new AudioContext(),
+	createOfflineAudioContext: (numberOfChannels, length, sampleRate) =>
+		new OfflineAudioContext(numberOfChannels, length, sampleRate),
+	readTags: readLocalAudioTags,
+	getCachedResult: getCachedLocalAudioResult,
+	putCachedResult: putCachedLocalAudioResult,
+	performanceNow: () => performance.now(),
+	currentTime: () => Date.now(),
+	getDirectoryPicker: () => {
+		const picker = (window as DirectoryPickerWindow).showDirectoryPicker
+		return picker?.bind(window)
+	}
+}
+
+export function useLocalAudioAnalysis(
+	dependencyOverrides: Partial<LocalAudioAnalysisDependencies> = {}
+) {
+	const dependencies: LocalAudioAnalysisDependencies = {
+		...productionDependencies,
+		...dependencyOverrides
+	}
 	const entries = shallowRef<LocalAudioFileEntry[]>([])
 	const isPickingFolder = ref(false)
 	const isAnalyzing = ref(false)
@@ -135,11 +184,13 @@ export function useLocalAudioAnalysis() {
 
 	onMounted(() => {
 		supportsDirectoryPicker.value =
-			typeof (window as DirectoryPickerWindow).showDirectoryPicker ===
-			'function'
+			typeof dependencies.getDirectoryPicker() === 'function'
 	})
 
-	onScopeDispose(() => terminateWorker('Analysis view closed'))
+	onScopeDispose(() => {
+		cancelRequested.value = true
+		terminateWorker('Analysis view closed')
+	})
 
 	function createEntry(file: File, relativePath: string): LocalAudioFileEntry {
 		return {
@@ -189,9 +240,10 @@ export function useLocalAudioAnalysis() {
 		statusMessage.value = 'Waiting for folder permission'
 
 		try {
-			const handle = await (
-				window as DirectoryPickerWindow
-			).showDirectoryPicker?.({ mode: 'read', startIn: 'music' })
+			const handle = await dependencies.getDirectoryPicker()?.({
+				mode: 'read',
+				startIn: 'music'
+			})
 			if (!handle) return 'cancelled'
 			const files: LocalAudioFileEntry[] = []
 			await collectFiles(handle, '', files)
@@ -213,10 +265,7 @@ export function useLocalAudioAnalysis() {
 
 	function ensureWorker(): Worker {
 		if (worker) return worker
-		worker = new Worker(
-			new URL('../workers/localAudioAnalysis.worker.ts', import.meta.url),
-			{ type: 'module' }
-		)
+		worker = dependencies.createWorker()
 		worker.onmessage = (event: MessageEvent<LocalAudioWorkerResponse>) => {
 			const response = event.data
 			const pending = pendingWorkerRequests.get(response.id)
@@ -246,7 +295,7 @@ export function useLocalAudioAnalysis() {
 		analyzedDurationSeconds: number,
 		analysisOffsetSeconds: number
 	): Promise<LocalAudioAnalysis> {
-		const id = crypto.randomUUID()
+		const id = dependencies.createRequestId()
 		const request: LocalAudioWorkerRequest = {
 			id,
 			samples: samples.buffer as ArrayBuffer,
@@ -284,7 +333,7 @@ export function useLocalAudioAnalysis() {
 		analyzedDurationSeconds: number
 		analysisOffsetSeconds: number
 	}> {
-		const context = new AudioContext()
+		const context = dependencies.createAudioContext()
 		try {
 			const decoded = await context.decodeAudioData(await file.arrayBuffer())
 			const { analyzedDurationSeconds, analysisOffsetSeconds } =
@@ -309,7 +358,7 @@ export function useLocalAudioAnalysis() {
 			const frameCount = Math.ceil(
 				analyzedDurationSeconds * LOCAL_AUDIO_SAMPLE_RATE
 			)
-			const offline = new OfflineAudioContext(
+			const offline = dependencies.createOfflineAudioContext(
 				1,
 				frameCount,
 				LOCAL_AUDIO_SAMPLE_RATE
@@ -350,7 +399,9 @@ export function useLocalAudioAnalysis() {
 			size: entry.file.size,
 			lastModified: entry.file.lastModified
 		})
-		const cached = await getCachedLocalAudioResult(cacheKey).catch(() => null)
+		const cached = await dependencies
+			.getCachedResult(cacheKey)
+			.catch(() => null)
 		const cachedHasRequiredAnalysis =
 			mode === 'tags-only' ||
 			(mode === 'missing-analysis' && cached?.analysis !== null)
@@ -372,7 +423,7 @@ export function useLocalAudioAnalysis() {
 		entry.status = 'reading-tags'
 		if (mode !== 'tags-only') triggerRef(entries)
 		const tags = {
-			...(cached?.tags ?? (await readLocalAudioTags(entry.file)))
+			...(cached?.tags ?? (await dependencies.readTags(entry.file)))
 		}
 		let analysis = cached?.analysis ?? null
 		const shouldAnalyze =
@@ -405,16 +456,18 @@ export function useLocalAudioAnalysis() {
 			analysis
 		})
 		entry.status = 'complete'
-		await putCachedLocalAudioResult({
-			cacheKey,
-			tags,
-			analysis,
-			updatedAt: Date.now()
-		}).catch((error) => {
-			entry.error = `Cache write failed: ${
-				error instanceof Error ? error.message : String(error)
-			}`
-		})
+		await dependencies
+			.putCachedResult({
+				cacheKey,
+				tags,
+				analysis,
+				updatedAt: dependencies.currentTime()
+			})
+			.catch((error) => {
+				entry.error = `Cache write failed: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			})
 	}
 
 	async function runBatch(batch: LocalAudioFileEntry[], mode: ProcessingMode) {
@@ -445,7 +498,7 @@ export function useLocalAudioAnalysis() {
 					entry.error = error instanceof Error ? error.message : String(error)
 				}
 				completedInBatch.value += 1
-				const now = performance.now()
+				const now = dependencies.performanceNow()
 				if (now - lastUiRefresh >= 200) {
 					triggerRef(entries)
 					lastUiRefresh = now
