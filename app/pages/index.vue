@@ -18,7 +18,7 @@ onMounted(() => {
 
 		<Teleport to="#header-left" defer>
 			<template v-if="isActive && records.hasRecords">
-				<SessionHeaderControls />
+				<HeaderSessionControls />
 			</template>
 		</Teleport>
 
@@ -69,7 +69,7 @@ onMounted(() => {
 						v-if="session.showHistory"
 						class="border-border w-80 shrink-0 border-l"
 					>
-						<HistoryPanel />
+						<PanelSessionHistory />
 					</div>
 				</Transition>
 			</div>

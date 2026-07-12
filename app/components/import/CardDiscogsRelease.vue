@@ -25,96 +25,43 @@ const isSelected = computed({
 </script>
 
 <template>
-	<div class="record overflow-hidden rounded-lg">
-		<div class="cover"></div>
-		<h3 class="title">{{ release.basic_information.title }}</h3>
-		<div class="label">
-			<span class="catno">
+	<div
+		class="bg-card text-card-foreground border-border grid w-full grid-cols-[90px_1fr_40px] grid-rows-[40px_20px_30px] overflow-hidden rounded-lg border"
+	>
+		<div
+			class="z-0 overflow-hidden bg-contain bg-no-repeat [grid-area:1/1/5/2]"
+			:style="{ backgroundImage: coverImg }"
+		/>
+		<h3
+			class="text-card-foreground ml-2.5 truncate leading-[40px] [grid-area:1/2/2/3]"
+		>
+			{{ release.basic_information.title }}
+		</h3>
+		<div
+			class="text-muted-foreground ml-2.5 truncate text-xs leading-5 [grid-area:2/2/3/3]"
+		>
+			<span class="font-semibold">
 				{{ release.basic_information.labels[0]?.catno }}
 			</span>
 			{{ release.basic_information.labels[0]?.name }}
-			<span class="year">{{ release.basic_information.year }}</span>
+			<span class="text-muted-foreground">
+				{{ release.basic_information.year }}
+			</span>
 		</div>
-		<span class="artists">
+		<span
+			class="text-card-foreground ml-2.5 truncate leading-[30px] [grid-area:3/2/4/3]"
+		>
 			{{
 				release.basic_information.artists
 					.map((artist) => artist.name)
 					.join(', ')
 			}}
 		</span>
-		<div v-if="showCheckbox && isFilterableRelease(release)" class="checkbox">
+		<div
+			v-if="showCheckbox && isFilterableRelease(release)"
+			class="flex items-center justify-center [grid-area:1/3/4/4]"
+		>
 			<Checkbox v-model:checked="isSelected" />
 		</div>
 	</div>
 </template>
-
-<style scoped lang="scss">
-.record {
-	background: var(--card);
-	border: 1px solid var(--border);
-	color: var(--card-foreground);
-	display: grid;
-	grid-template-columns: 90px 1fr 40px;
-	grid-template-rows: 40px 20px 30px;
-	width: 100%;
-	.cover {
-		grid-area: 1 / 1 / 5 / 2;
-		background-image: v-bind(coverImg);
-		overflow: hidden;
-		z-index: 0;
-		background-repeat: no-repeat;
-		background-size: contain;
-	}
-	h3.title {
-		color: var(--card-foreground);
-		grid-area: 1 / 2 / 2 / 3;
-		line-height: 40px;
-		margin: 0 0 0 10px;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.label {
-		color: var(--muted-foreground);
-		grid-area: 2 / 2 / 3 / 3;
-		line-height: 20px;
-		font-size: 12px;
-		margin: 0 0 0 10px;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		.catno {
-			font-weight: 600;
-		}
-		.year {
-			color: var(--muted-foreground);
-		}
-	}
-	.artists {
-		color: var(--card-foreground);
-		grid-area: 3 / 2 / 4 / 3;
-		line-height: 30px;
-		margin: 0 0 0 10px;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.controls {
-		grid-area: 1 / 3 / 4 / 4;
-		button {
-			width: 100%;
-			height: 100%;
-			align-items: center;
-			justify-content: center;
-			display: flex;
-			font-size: 12px;
-		}
-	}
-	.checkbox {
-		grid-area: 1 / 3 / 4 / 4;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-}
-</style>

@@ -92,8 +92,8 @@ const deckBackground = computed(() => {
 				<div class="absolute bottom-1 left-1.5 z-10 flex items-end gap-1.5">
 					<TurntableStartStop :deck-index="deckIndex" />
 					<div class="flex gap-0.5">
-						<TurntableRpmSelect :deck-index="deckIndex" :speed="33" />
-						<TurntableRpmSelect :deck-index="deckIndex" :speed="45" />
+						<TurntableSelectRpm :deck-index="deckIndex" :speed="33" />
+						<TurntableSelectRpm :deck-index="deckIndex" :speed="45" />
 					</div>
 				</div>
 			</div>
@@ -118,7 +118,10 @@ const deckBackground = computed(() => {
 
 		<!-- Suggestions list -->
 		<div class="min-h-0 flex-1">
-			<SuggestionList :suggestions="suggestions" :deck-index="deckIndex" />
+			<ListTrackSuggestions
+				:suggestions="suggestions"
+				:deck-index="deckIndex"
+			/>
 		</div>
 
 		<!-- Load track dialog -->

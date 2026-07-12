@@ -29,7 +29,7 @@ const session = useSessionStore()
 
 		<ScrollArea class="flex-1">
 			<div v-if="session.currentSession.length > 0" class="px-3">
-				<HistoryTrackCard
+				<CardSessionHistoryTrack
 					v-for="(entry, index) in session.currentSession"
 					:key="entry.track_id + entry.time_added"
 					:entry="entry"

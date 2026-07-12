@@ -282,7 +282,7 @@ function handleInteractOutside(event: Event) {
 						<div class="flex items-end justify-between gap-4">
 							<div class="space-y-2">
 								<Label>Color</Label>
-								<ColorPicker v-model="colorValue" />
+								<PickerColor v-model="colorValue" />
 							</div>
 							<ButtonLoading
 								:loading="cratesStore.isUpdatingCrate"

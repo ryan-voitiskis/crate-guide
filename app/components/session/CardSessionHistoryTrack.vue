@@ -48,7 +48,7 @@ function handleRatingUpdate(rating: number | null) {
 		<!-- Transition rating (not shown for first track) -->
 		<div v-if="!isFirst" class="mb-1.5 flex items-center gap-1">
 			<span class="text-muted-foreground text-xs">Transition:</span>
-			<HistoryRating
+			<RatingSessionHistory
 				:rating="entry.transition_rating"
 				@update="handleRatingUpdate"
 			/>

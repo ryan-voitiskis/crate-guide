@@ -147,7 +147,7 @@ function handleCancel() {
 
 				<div class="space-y-2">
 					<Label>Color</Label>
-					<ColorPicker v-model="colorValue" />
+					<PickerColor v-model="colorValue" />
 				</div>
 			</div>
 
