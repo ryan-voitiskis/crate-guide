@@ -28,7 +28,7 @@ its status row when done unless a reviewer explicitly owns the index.
 | 013  | [Extract the track-enrichment workflow](013-extract-track-enrichment-workflow.md)                     | P2       | L      | 006, 008, 009, 012           | DONE   |
 | 014  | [Centralize audio-analyzer configuration](014-centralize-audio-analyzer-configuration.md)             | P2       | M      | 005, 006                     | DONE   |
 | 015  | [Enforce component and Tailwind conventions](015-enforce-component-and-tailwind-conventions.md)       | P2       | M      | 005, 006, 007, 011, 012, 014 | DONE   |
-| 016  | [Refresh and archive architecture documentation](016-refresh-architecture-documentation.md)           | P3       | S      | 003–015                      | TODO   |
+| 016  | [Refresh and archive architecture documentation](016-refresh-architecture-documentation.md)           | P3       | S      | 003–015                      | DONE   |
 
 Status values: `TODO` | `IN PROGRESS` | `DONE` | `BLOCKED (<one-line
 reason>)` | `REJECTED (<one-line rationale>)`.

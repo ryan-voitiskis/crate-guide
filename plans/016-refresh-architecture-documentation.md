@@ -228,20 +228,72 @@ matches; full verification remains green.
 - Review archived audit for accidental current-tense instructions and secret
   values without copying any such values into output.
 
+## Completion and reconciliation
+
+- Implemented by amended executor commit
+  `0d3f8d72b0a9f5fc0f2ee7036d501b60b25e1315` and integrated as
+  `f1335ded372133850f538241845d3bdd978041d2`. The implementation scope is
+  documentation-only: `README.md`; byte-identical `AGENTS.md` and `CLAUDE.md`;
+  the Discogs and enrichment guides; and the 91%-similar move from
+  `docs/tmp/supabase-auth-audit.md` to
+  `docs/archive/supabase-auth-audit-2026-04.md`. No source, test, package,
+  lockfile, configuration, migration, or generated file changed.
+- The source-truth audit reopened the live package scripts, Vitest projects,
+  test paths, credential migration/RPCs, Edge handlers, stores, enrichment
+  composable, shared analyzer configuration, Worker/cache code, and benchmark
+  script before updating prose. The README now records Deno 2.x, the currently
+  empty server test project, Nuxt Test Utils E2E backed by `playwright-core`,
+  and the actual maintenance gates without claiming a separate Playwright Test
+  runner or checked-in CI behavior.
+- The Discogs guide distinguishes the normal application/store path and normal
+  authenticated table reads from callable RPC behavior. Those paths select
+  public profile identity and cannot read the private credential table, while
+  an authenticated caller may invoke `get_discogs_credentials`, which is bound
+  internally to `auth.uid()` and accepts no caller-supplied user ID. Edge
+  Functions use the same caller-bound RPC boundary. The guide describes the
+  post-exchange identity fetch and explicitly states that direct Edge handler
+  tests do not currently exist rather than overclaiming coverage.
+- The enrichment guide records `useTrackEnrichmentWorkflow` ownership and the
+  thin rendered route, shared `localAudioAnalysis.json` ownership, deliberate
+  analyzer/configuration/metadata-reader cache versioning, and the `ffprobe`
+  plus `ffmpeg` benchmark prerequisites. Benchmark output is described as
+  selected effective analyzer/config/runtime metadata, not an exhaustive
+  serialization of every setting.
+- The archived audit has an unmistakable historical/completed banner and is no
+  longer an active implementation checklist. Its implementation lines remain
+  distinct from deferred observations and positive findings; the decision trail
+  is preserved without credential values, environment contents, or other
+  secrets.
+- Byte-comparison, archive/source-path, maintained-link/path, positive phrase,
+  and stale-claim checks passed. `AGENTS.md` and `CLAUDE.md` are byte-identical,
+  the archived path exists, the temporary path is absent, and the stale search
+  is empty. Format and convention checks also passed.
+- Focused verification passed 83 Discogs tests, 30 matcher/config tests, 13
+  workflow tests, 15 Nuxt route/Worker/cache tests, and 7 benchmark-config
+  tests.
+- Full verification passed 43 files / 1040 application tests, 2 E2E tests, 4
+  Deno tests, 6 type-generation tests, 7 audio-configuration tests, and 5
+  convention tests. The Cloudflare production build was green.
+- Independent truth audit and cold review initially found wording that blurred
+  normal table-read restrictions with the authenticated caller-bound
+  `get_discogs_credentials` RPC, overstated Edge handler coverage, and treated
+  remediation lines like deferred/positive audit observations. The amended
+  commit narrowed each statement to the live source and was approved.
+
 ## Done criteria
 
-- [ ] README accurately names runners, test locations, prerequisites, and every
+- [x] README accurately names runners, test locations, prerequisites, and every
       final verification/maintenance command.
-- [ ] Discogs docs describe private credential storage/RPC access and explicit
+- [x] Discogs docs describe private credential storage/RPC access and explicit
       endpoint dispatch; no profile-token claim remains.
-- [ ] Enrichment docs describe final workflow/config/test ownership while
+- [x] Enrichment docs describe final workflow/config/test ownership while
       preserving product safety decisions.
-- [ ] Security audit is preserved under `docs/archive` and unmistakably marked
+- [x] Security audit is preserved under `docs/archive` and unmistakably marked
       historical/completed.
-- [ ] Agent guides are byte-identical and contain concise enforceable rules.
-- [ ] Stale-claim search is empty; format, convention, and full verification
+- [x] Agent guides are byte-identical and contain concise enforceable rules.
+- [x] Stale-claim search is empty; format, convention, and full verification
       pass.
-- [ ] No executable/config/package/migration file changed.
+- [x] No executable/config/package/migration file changed.
 
 ## STOP conditions
 
