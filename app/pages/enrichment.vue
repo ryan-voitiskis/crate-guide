@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { toast } from 'vue-sonner'
 import {
 	AlertTriangle,
 	ArrowLeft,
@@ -13,218 +12,84 @@ import {
 	Upload,
 	X
 } from 'lucide-vue-next'
-import type { LocalAudioReviewSelection } from '~/types/localAudio'
-import { parseRekordboxXml } from '~/utils/rekordboxXml'
-import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
-import {
-	buildTrackEnrichmentRowsAsync,
-	buildTrackEnrichmentUpdate,
-	canStageTrackEnrichmentRow
-} from '~/utils/trackEnrichment'
-
-type ReviewFilter =
-	| 'ready'
-	| 'review'
-	| 'staged'
-	| 'matched'
-	| 'unmatched'
-	| 'done'
-type ApplySummary = {
-	total: number
-	succeeded: number
-	failed: number
-	bpm: number
-	keyMode: number
-}
 
 const records = useRecordsStore()
 const tracks = useTracksStore()
 const user = useUserStore()
 
 const fileInput = ref<HTMLInputElement | null>(null)
-const activeSource = ref<'rekordboxXml' | 'localAudio'>('rekordboxXml')
-const selectedFileName = ref<string | null>(null)
-const rows = ref<TrackEnrichmentRow[]>([])
-const stagedRowIds = ref<Set<string>>(new Set())
-const selectedFilter = ref<ReviewFilter>('ready')
-const currentPage = ref(1)
-const parseWarnings = ref<string[]>([])
-const parseErrors = ref<string[]>([])
-const isParsing = ref(false)
-const parseCompleted = ref(0)
-const parseTotal = ref(0)
-const isApplying = ref(false)
-const showApplyDialog = ref(false)
-const applyCompleted = ref(0)
-const applyTotal = ref(0)
-const lastApplySummary = ref<ApplySummary | null>(null)
-const workflowView = ref<'source' | 'review'>('source')
+const collectionLoadState = ref<'loading' | 'ready' | 'failed'>('loading')
+const {
+	activeSource,
+	selectedFileName,
+	rows,
+	stagedRowIds,
+	selectedFilter,
+	currentPage,
+	parseWarnings,
+	parseErrors,
+	isParsing,
+	parseCompleted,
+	parseTotal,
+	isApplying,
+	showApplyDialog,
+	applyCompleted,
+	applyTotal,
+	lastApplySummary,
+	currentStep,
+	matchedRows,
+	readyRows,
+	reviewRows,
+	unmatchedRows,
+	stagedRows,
+	blockedCount,
+	errorCount,
+	matchRate,
+	applyProgress,
+	parseProgress,
+	visibleParseWarnings,
+	sourceLabel,
+	filterOptions,
+	filteredRows,
+	stageableFilteredRows,
+	filteredSelectionState,
+	pageCount,
+	pagedRows,
+	shownStart,
+	shownEnd,
+	stagedBpmCount,
+	stagedKeyModeCount,
+	isStepComplete,
+	canNavigateToStep,
+	navigateToStep,
+	parseFile,
+	reviewLocalSources,
+	selectSource,
+	returnToSource,
+	startAnotherSource,
+	setRowStaged,
+	setFilteredRowsStaged,
+	clearStagedRows,
+	openApplyReview,
+	applyStagedRows,
+	returnToReview
+} = useTrackEnrichmentWorkflow()
 
-const rowsPerPage = 100
 const workflowSteps = [
 	{ number: 1, label: 'Choose source', shortLabel: 'Source' },
 	{ number: 2, label: 'Review matches', shortLabel: 'Review' },
 	{ number: 3, label: 'Apply updates', shortLabel: 'Apply' }
 ] as const
 
-const currentStep = computed<1 | 2 | 3>(() => {
-	if (showApplyDialog.value || isApplying.value || lastApplySummary.value)
-		return 3
-	return workflowView.value === 'review' && rows.value.length > 0 ? 2 : 1
-})
-
-const matchedRows = computed(() => rows.value.filter((row) => !!row.track))
-const readyRows = computed(() =>
-	rows.value.filter((row) => row.defaultStaged && !row.applied)
-)
-const reviewRows = computed(() =>
-	rows.value.filter(
-		(row) =>
-			!!row.track &&
-			!row.applied &&
-			!row.defaultStaged &&
-			(row.canFillBpm || row.canFillKeyMode || !!row.stagingBlockedReason)
-	)
-)
-const unmatchedRows = computed(() => rows.value.filter((row) => !row.track))
-const doneRows = computed(() =>
-	rows.value.filter((row) => row.applied || row.alreadyComplete)
-)
-const stagedRows = computed(() =>
-	rows.value.filter(
-		(row) => stagedRowIds.value.has(row.id) && canStageTrackEnrichmentRow(row)
-	)
-)
-const blockedCount = computed(
-	() => rows.value.filter((row) => !!row.stagingBlockedReason).length
-)
-const rowErrorCount = computed(
-	() => rows.value.filter((row) => !!row.error).length
-)
-const errorCount = computed(
-	() => parseErrors.value.length + rowErrorCount.value
-)
-const matchRate = computed(() => {
-	if (rows.value.length === 0) return '0%'
-	return `${((matchedRows.value.length / rows.value.length) * 100).toFixed(1)}%`
-})
-const applyProgress = computed(() =>
-	applyTotal.value === 0
-		? 0
-		: Math.round((applyCompleted.value / applyTotal.value) * 100)
-)
-const parseProgress = computed(() =>
-	parseTotal.value === 0
-		? 0
-		: Math.round((parseCompleted.value / parseTotal.value) * 100)
-)
-const visibleParseWarnings = computed(() => parseWarnings.value.slice(0, 5))
-const sourceLabel = computed(() =>
-	activeSource.value === 'rekordboxXml' ? 'Rekordbox XML' : 'Local audio'
-)
-
-const filterOptions = computed<
-	{ value: ReviewFilter; label: string; count: number }[]
->(() => [
-	{ value: 'ready', label: 'Ready', count: readyRows.value.length },
-	{ value: 'review', label: 'Needs review', count: reviewRows.value.length },
-	{ value: 'staged', label: 'Staged', count: stagedRows.value.length },
-	{ value: 'matched', label: 'All matches', count: matchedRows.value.length },
-	{
-		value: 'unmatched',
-		label: 'Not in collection',
-		count: unmatchedRows.value.length
-	},
-	{ value: 'done', label: 'Done', count: doneRows.value.length }
-])
-
-const filteredRows = computed(() => {
-	switch (selectedFilter.value) {
-		case 'ready':
-			return readyRows.value
-		case 'review':
-			return reviewRows.value
-		case 'staged':
-			return stagedRows.value
-		case 'matched':
-			return matchedRows.value
-		case 'unmatched':
-			return unmatchedRows.value
-		case 'done':
-			return doneRows.value
-		default:
-			return []
-	}
-})
-const stageableFilteredRows = computed(() =>
-	filteredRows.value.filter(canStageTrackEnrichmentRow)
-)
-const stagedFilteredCount = computed(
-	() =>
-		stageableFilteredRows.value.filter((row) => stagedRowIds.value.has(row.id))
-			.length
-)
-const filteredSelectionState = computed<boolean | 'indeterminate'>(() => {
-	if (stagedFilteredCount.value === 0) return false
-	if (stagedFilteredCount.value === stageableFilteredRows.value.length)
-		return true
-	return 'indeterminate'
-})
-const pageCount = computed(() =>
-	Math.max(1, Math.ceil(filteredRows.value.length / rowsPerPage))
-)
-const pagedRows = computed(() => {
-	const start = (currentPage.value - 1) * rowsPerPage
-	return filteredRows.value.slice(start, start + rowsPerPage)
-})
-const shownStart = computed(() =>
-	filteredRows.value.length === 0
-		? 0
-		: (currentPage.value - 1) * rowsPerPage + 1
-)
-const shownEnd = computed(() =>
-	Math.min(currentPage.value * rowsPerPage, filteredRows.value.length)
-)
-
-const stagedBpmCount = computed(
-	() => stagedRows.value.filter((row) => row.canFillBpm).length
-)
-const stagedKeyModeCount = computed(
-	() => stagedRows.value.filter((row) => row.canFillKeyMode).length
-)
-
-watch(selectedFilter, () => {
-	currentPage.value = 1
-})
-
-watch(pageCount, (nextPageCount) => {
-	if (currentPage.value > nextPageCount) currentPage.value = nextPageCount
-})
-
 onMounted(async () => {
-	await Promise.all([records.fetchAllRecords(), tracks.fetchAllTracks()])
+	const results = await Promise.all([
+		records.fetchAllRecords(),
+		tracks.fetchAllTracks()
+	])
+	collectionLoadState.value = results.every((result) => result)
+		? 'ready'
+		: 'failed'
 })
-
-function isStepComplete(step: number): boolean {
-	return currentStep.value > step || (step === 3 && !!lastApplySummary.value)
-}
-
-function canNavigateToStep(step: number): boolean {
-	if (isParsing.value || isApplying.value || showApplyDialog.value) return false
-	if (step === 1) return true
-	return step === 2 && rows.value.length > 0
-}
-
-function navigateToStep(step: number) {
-	if (!canNavigateToStep(step)) return
-	if (step === 1) {
-		workflowView.value = 'source'
-		lastApplySummary.value = null
-		return
-	}
-	workflowView.value = 'review'
-	lastApplySummary.value = null
-}
 
 function openFilePicker() {
 	fileInput.value?.click()
@@ -241,235 +106,6 @@ async function handleFileInput(event: Event) {
 
 function handleFileDrop(file: File) {
 	void parseFile(file)
-}
-
-async function parseFile(file: File) {
-	activeSource.value = 'rekordboxXml'
-	workflowView.value = 'source'
-	isParsing.value = true
-	parseCompleted.value = 0
-	parseTotal.value = 0
-	parseWarnings.value = []
-	parseErrors.value = []
-	rows.value = []
-	stagedRowIds.value = new Set()
-	selectedFileName.value = file.name
-	selectedFilter.value = 'ready'
-	currentPage.value = 1
-	lastApplySummary.value = null
-
-	try {
-		await nextTick()
-		await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-		const result = parseRekordboxXml(await file.text())
-		parseWarnings.value = result.warnings
-		parseErrors.value = result.errors
-
-		if (result.errors.length > 0) return
-
-		parseTotal.value = result.tracks.length
-		const nextRows = await buildTrackEnrichmentRowsAsync({
-			sources: result.tracks,
-			tracks: tracks.tracks,
-			records: records.records,
-			onProgress: (completed, total) => {
-				parseCompleted.value = completed
-				parseTotal.value = total
-			}
-		})
-		rows.value = nextRows
-		stagedRowIds.value = new Set(
-			nextRows.filter((row) => row.defaultStaged).map((row) => row.id)
-		)
-		workflowView.value = 'review'
-	} catch (error) {
-		const message =
-			error instanceof Error ? error.message : 'Unknown parse error'
-		parseErrors.value = [message]
-	} finally {
-		isParsing.value = false
-	}
-}
-
-async function reviewLocalSources(selection: LocalAudioReviewSelection) {
-	const { sources } = selection
-	isParsing.value = true
-	parseCompleted.value = 0
-	parseTotal.value = sources.length
-	parseWarnings.value = []
-	parseErrors.value = []
-	rows.value = []
-	stagedRowIds.value = new Set()
-	selectedFileName.value = `${sources.length.toLocaleString()} files with data · ${selection.processedFiles.toLocaleString()} of ${selection.totalFiles.toLocaleString()} scanned`
-	selectedFilter.value = 'ready'
-	currentPage.value = 1
-	lastApplySummary.value = null
-
-	try {
-		const nextRows = await buildTrackEnrichmentRowsAsync({
-			sources,
-			tracks: tracks.tracks,
-			records: records.records,
-			onProgress: (completed, total) => {
-				parseCompleted.value = completed
-				parseTotal.value = total
-			}
-		})
-		rows.value = nextRows
-		stagedRowIds.value = new Set(
-			nextRows.filter((row) => row.defaultStaged).map((row) => row.id)
-		)
-		workflowView.value = 'review'
-	} catch (error) {
-		parseErrors.value = [
-			error instanceof Error ? error.message : 'Unknown matching error'
-		]
-	} finally {
-		isParsing.value = false
-	}
-}
-
-function selectSource(source: 'rekordboxXml' | 'localAudio') {
-	if (activeSource.value === source) return
-	activeSource.value = source
-	rows.value = []
-	stagedRowIds.value = new Set()
-	selectedFileName.value = null
-	lastApplySummary.value = null
-	workflowView.value = 'source'
-}
-
-function returnToSource() {
-	workflowView.value = 'source'
-	lastApplySummary.value = null
-}
-
-function startAnotherSource() {
-	rows.value = []
-	stagedRowIds.value = new Set()
-	selectedFileName.value = null
-	lastApplySummary.value = null
-	workflowView.value = 'source'
-}
-
-function setRowStaged(row: TrackEnrichmentRow, checked: boolean) {
-	if (!canStageTrackEnrichmentRow(row)) return
-	const nextStagedIds = new Set(stagedRowIds.value)
-	if (checked) nextStagedIds.add(row.id)
-	else nextStagedIds.delete(row.id)
-	stagedRowIds.value = nextStagedIds
-}
-
-function setFilteredRowsStaged(checked: boolean) {
-	const nextStagedIds = new Set(stagedRowIds.value)
-	for (const row of stageableFilteredRows.value) {
-		if (checked) nextStagedIds.add(row.id)
-		else nextStagedIds.delete(row.id)
-	}
-	stagedRowIds.value = nextStagedIds
-}
-
-function clearStagedRows() {
-	stagedRowIds.value = new Set()
-}
-
-function openApplyReview() {
-	if (stagedRows.value.length === 0) {
-		toast.warning('Stage at least one match to apply.')
-		return
-	}
-	showApplyDialog.value = true
-}
-
-async function applyStagedRows() {
-	const rowsToApply = stagedRows.value
-	const importedAt = new Date().toISOString()
-	const preparedUpdates: {
-		row: TrackEnrichmentRow
-		update: NonNullable<ReturnType<typeof buildTrackEnrichmentUpdate>>
-	}[] = []
-
-	for (const row of rowsToApply) {
-		const update = buildTrackEnrichmentUpdate(
-			row,
-			selectedFileName.value ?? sourceLabel.value,
-			importedAt
-		)
-		if (update) preparedUpdates.push({ row, update })
-	}
-
-	if (preparedUpdates.length === 0) {
-		toast.warning('No staged matches can be applied.')
-		showApplyDialog.value = false
-		return
-	}
-
-	isApplying.value = true
-	applyCompleted.value = 0
-	applyTotal.value = preparedUpdates.length
-	rows.value = rows.value.map((row) =>
-		stagedRowIds.value.has(row.id) ? { ...row, error: null } : row
-	)
-
-	try {
-		const results = await tracks.updateTracksBatch(
-			preparedUpdates.map((entry) => entry.update),
-			{
-				onProgress: (completed) => {
-					applyCompleted.value = completed
-				}
-			}
-		)
-		const resultByRowId = new Map(
-			preparedUpdates.map((entry, index) => [entry.row.id, results[index]])
-		)
-
-		rows.value = rows.value.map((row) => {
-			const result = resultByRowId.get(row.id)
-			if (!result) return row
-
-			return {
-				...row,
-				track: result.track ?? row.track,
-				applied: result.success,
-				error: result.error
-			}
-		})
-
-		const succeeded = results.filter((result) => result.success).length
-		const failed = results.length - succeeded
-		const successfulUpdates = preparedUpdates.filter(
-			(_entry, index) => results[index]?.success
-		)
-		lastApplySummary.value = {
-			total: results.length,
-			succeeded,
-			failed,
-			bpm: successfulUpdates.filter(
-				(entry) => entry.update.updates.bpm !== undefined
-			).length,
-			keyMode: successfulUpdates.filter(
-				(entry) => entry.update.updates.key !== undefined
-			).length
-		}
-
-		if (failed > 0) {
-			toast.error(
-				`Applied ${succeeded} of ${results.length}. ${failed} failed.`
-			)
-		} else {
-			toast.success(`Applied ${succeeded} of ${results.length}.`)
-		}
-	} finally {
-		isApplying.value = false
-		showApplyDialog.value = false
-	}
-}
-
-function returnToReview() {
-	lastApplySummary.value = null
-	workflowView.value = 'review'
-	selectedFilter.value = errorCount.value > 0 ? 'review' : 'done'
 }
 </script>
 
@@ -515,12 +151,15 @@ function returnToReview() {
 						v-for="step in workflowSteps"
 						:key="step.number"
 						type="button"
-						:disabled="!canNavigateToStep(step.number)"
+						:disabled="
+							collectionLoadState !== 'ready' || !canNavigateToStep(step.number)
+						"
 						class="border-border flex min-w-0 items-center gap-2 border-r px-2 py-2.5 last:border-r-0 sm:px-4"
 						:class="
 							currentStep === step.number
 								? 'bg-muted/60'
-								: canNavigateToStep(step.number)
+								: collectionLoadState === 'ready' &&
+									  canNavigateToStep(step.number)
 									? 'bg-background hover:bg-muted/30'
 									: 'bg-background cursor-default'
 						"
@@ -554,9 +193,13 @@ function returnToReview() {
 				</div>
 
 				<StateLoading
-					v-if="records.isLoadingRecords || tracks.isLoadingTracks"
+					v-if="collectionLoadState === 'loading'"
 					message="Loading collection..."
 				/>
+
+				<NoticeError v-else-if="collectionLoadState === 'failed'">
+					Collection data could not be loaded. Refresh to try again.
+				</NoticeError>
 
 				<template v-else>
 					<NoticeError v-if="parseErrors.length" class="items-start">
@@ -845,7 +488,10 @@ function returnToReview() {
 			</div>
 		</div>
 
-		<Dialog v-model:open="showApplyDialog">
+		<Dialog
+			v-if="collectionLoadState === 'ready'"
+			v-model:open="showApplyDialog"
+		>
 			<DialogContent class="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>
