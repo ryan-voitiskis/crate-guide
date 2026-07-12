@@ -123,27 +123,33 @@ describe('tracksStore', () => {
 	})
 
 	describe('fetchAllTracks', () => {
-		it('does nothing when user is not signed in', async () => {
+		it('returns false and preserves tracks when user is not signed in', async () => {
 			mockUserStore.supaUser = null
 			const store = useTracksStore()
+			const existingTrack = createMockTrack({ id: 'existing-track' })
+			store.tracks = [existingTrack]
 
-			await store.fetchAllTracks()
+			const result = await store.fetchAllTracks()
 
+			expect(result).toBe(false)
+			expect(store.tracks).toEqual([existingTrack])
 			expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+			expect(store.isLoadingTracks).toBe(false)
 		})
 
-		it('sets isLoadingTracks during fetch', async () => {
+		it('returns true for a successful empty response and resets loading', async () => {
 			const store = useTracksStore()
 			mockQueryBuilder.order.mockResolvedValue({ data: [], error: null })
 
 			const fetchPromise = store.fetchAllTracks()
 			expect(store.isLoadingTracks).toBe(true)
 
-			await fetchPromise
+			await expect(fetchPromise).resolves.toBe(true)
+			expect(store.tracks).toEqual([])
 			expect(store.isLoadingTracks).toBe(false)
 		})
 
-		it('populates tracks from response', async () => {
+		it('returns true and populates tracks from a non-empty response', async () => {
 			const store = useTracksStore()
 			const mockData = [
 				{
@@ -157,8 +163,9 @@ describe('tracksStore', () => {
 			]
 			mockQueryBuilder.order.mockResolvedValue({ data: mockData, error: null })
 
-			await store.fetchAllTracks()
+			const result = await store.fetchAllTracks()
 
+			expect(result).toBe(true)
 			expect(store.tracks.length).toBe(2)
 			expect(store.tracks[0]!.id).toBe('track-1')
 		})
@@ -196,17 +203,53 @@ describe('tracksStore', () => {
 			expect(store.tracks[0]!.audio_features).toEqual(audioFeatures)
 		})
 
-		it('handles fetch error gracefully', async () => {
+		it('returns false, preserves tracks on query failure, and can retry', async () => {
 			const store = useTracksStore()
-			mockQueryBuilder.order.mockResolvedValue({
-				data: null,
-				error: new Error('Database error')
-			})
+			const existingTrack = createMockTrack({ id: 'existing-track' })
+			store.tracks = [existingTrack]
+			mockQueryBuilder.order
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Database error')
+				})
+				.mockResolvedValueOnce({ data: [], error: null })
 
-			await store.fetchAllTracks()
+			await expect(store.fetchAllTracks()).resolves.toBe(false)
 
-			expect(store.tracks).toEqual([])
+			expect(store.tracks).toEqual([existingTrack])
 			expect(store.isLoadingTracks).toBe(false)
+
+			await expect(store.fetchAllTracks()).resolves.toBe(true)
+			expect(store.tracks).toEqual([])
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
+		})
+
+		it('shares one operation between concurrent callers and starts fresh later', async () => {
+			const store = useTracksStore()
+			let resolveQuery!: (value: { data: Track[]; error: null }) => void
+			const queryResult = new Promise<{ data: Track[]; error: null }>(
+				(resolve) => {
+					resolveQuery = resolve
+				}
+			)
+			mockQueryBuilder.order.mockReturnValue(queryResult)
+
+			const firstFetch = store.fetchAllTracks()
+			const concurrentFetch = store.fetchAllTracks()
+			expect(store.isLoadingTracks).toBe(true)
+
+			resolveQuery({ data: [], error: null })
+			await expect(Promise.all([firstFetch, concurrentFetch])).resolves.toEqual(
+				[true, true]
+			)
+			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledOnce()
+			expect(mockSupabaseClient.from).toHaveBeenCalledOnce()
+			expect(store.isLoadingTracks).toBe(false)
+
+			mockQueryBuilder.order.mockResolvedValue({ data: [], error: null })
+			await expect(store.fetchAllTracks()).resolves.toBe(true)
+			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledTimes(2)
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
 		})
 	})
 

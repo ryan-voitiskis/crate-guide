@@ -121,27 +121,33 @@ describe('cratesStore', () => {
 	})
 
 	describe('fetchAllCrates', () => {
-		it('does nothing when user is not signed in', async () => {
+		it('returns false and preserves crates when user is not signed in', async () => {
 			mockUserStore.supaUser = null
 			const store = useCratesStore()
+			const existingCrate = createMockCrate({ id: 'existing-crate' })
+			store.crates = [existingCrate]
 
-			await store.fetchAllCrates()
+			const result = await store.fetchAllCrates()
 
+			expect(result).toBe(false)
+			expect(store.crates).toEqual([existingCrate])
 			expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+			expect(store.isLoadingCrates).toBe(false)
 		})
 
-		it('sets isLoadingCrates during fetch', async () => {
+		it('returns true for a successful empty response and resets loading', async () => {
 			const store = useCratesStore()
 			mockQueryBuilder.order.mockResolvedValue({ data: [], error: null })
 
 			const fetchPromise = store.fetchAllCrates()
 			expect(store.isLoadingCrates).toBe(true)
 
-			await fetchPromise
+			await expect(fetchPromise).resolves.toBe(true)
+			expect(store.crates).toEqual([])
 			expect(store.isLoadingCrates).toBe(false)
 		})
 
-		it('populates crates from response', async () => {
+		it('returns true and populates crates from a non-empty response', async () => {
 			const store = useCratesStore()
 			const mockData = [
 				createMockCrate({ id: 'crate-1' }),
@@ -149,22 +155,63 @@ describe('cratesStore', () => {
 			]
 			mockQueryBuilder.order.mockResolvedValue({ data: mockData, error: null })
 
-			await store.fetchAllCrates()
+			const result = await store.fetchAllCrates()
 
+			expect(result).toBe(true)
 			expect(store.crates.length).toBe(2)
 		})
 
-		it('handles fetch error gracefully', async () => {
+		it('returns false, preserves crates on query failure, and can retry', async () => {
 			const store = useCratesStore()
-			mockQueryBuilder.order.mockResolvedValue({
-				data: null,
-				error: new Error('Database error')
-			})
+			const existingCrate = createMockCrate({ id: 'existing-crate' })
+			store.crates = [existingCrate]
+			mockQueryBuilder.order
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Database error')
+				})
+				.mockResolvedValueOnce({ data: [], error: null })
 
-			await store.fetchAllCrates()
+			await expect(store.fetchAllCrates()).resolves.toBe(false)
 
-			expect(store.crates).toEqual([])
+			expect(store.crates).toEqual([existingCrate])
 			expect(store.isLoadingCrates).toBe(false)
+
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+			expect(store.crates).toEqual([])
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
+		})
+
+		it('shares one operation between concurrent callers and starts fresh later', async () => {
+			const store = useCratesStore()
+			let resolveQuery!: (value: {
+				data: ReturnType<typeof createMockCrate>[]
+				error: null
+			}) => void
+			const queryResult = new Promise<{
+				data: ReturnType<typeof createMockCrate>[]
+				error: null
+			}>((resolve) => {
+				resolveQuery = resolve
+			})
+			mockQueryBuilder.order.mockReturnValue(queryResult)
+
+			const firstFetch = store.fetchAllCrates()
+			const concurrentFetch = store.fetchAllCrates()
+			expect(store.isLoadingCrates).toBe(true)
+
+			resolveQuery({ data: [], error: null })
+			await expect(Promise.all([firstFetch, concurrentFetch])).resolves.toEqual(
+				[true, true]
+			)
+			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledOnce()
+			expect(mockSupabaseClient.from).toHaveBeenCalledOnce()
+			expect(store.isLoadingCrates).toBe(false)
+
+			mockQueryBuilder.order.mockResolvedValue({ data: [], error: null })
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledTimes(2)
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
 		})
 	})
 

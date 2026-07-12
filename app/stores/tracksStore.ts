@@ -23,6 +23,7 @@ export const useTracksStore = defineStore('tracks', () => {
 	const isLoadingTracks = ref(false)
 	const isCreatingTrack = ref(false)
 	const isUpdatingTrack = ref(false)
+	let fetchPromise: Promise<boolean> | null = null
 
 	const tracksCount = computed(() => tracks.value.length)
 	const hasTracks = computed(() => tracks.value.length > 0)
@@ -116,8 +117,7 @@ export const useTracksStore = defineStore('tracks', () => {
 		return 'Unknown error'
 	}
 
-	async function fetchAllTracks() {
-		if (isLoadingTracks.value) return
+	async function performFetchAllTracks(): Promise<boolean> {
 		isLoadingTracks.value = true
 		try {
 			const userId = await user
@@ -127,7 +127,7 @@ export const useTracksStore = defineStore('tracks', () => {
 					toast.error('Failed to load data')
 					return null as string | null
 				})
-			if (!userId) return
+			if (!userId) return false
 
 			const { data, error } = await supabase
 				.from('tracks')
@@ -161,12 +161,22 @@ export const useTracksStore = defineStore('tracks', () => {
 					created_at: track.created_at,
 					updated_at: track.updated_at
 				})) as Track[]) || []
+			return true
 		} catch (error) {
 			console.error('Failed to fetch tracks:', error)
 			toast.error('Error fetching tracks.')
+			return false
 		} finally {
 			isLoadingTracks.value = false
+			fetchPromise = null
 		}
+	}
+
+	function fetchAllTracks(): Promise<boolean> {
+		if (fetchPromise) return fetchPromise
+
+		fetchPromise = performFetchAllTracks()
+		return fetchPromise
 	}
 
 	async function createTrack(

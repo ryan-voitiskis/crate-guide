@@ -58,6 +58,7 @@ export const useRecordsStore = defineStore('records', () => {
 	const isCreatingRecord = ref(false)
 	const isUpdatingRecord = ref(false)
 	const isDeletingRecord = ref(false)
+	let fetchPromise: Promise<boolean> | null = null
 
 	// Search state
 	const searchQuery = ref('')
@@ -87,8 +88,7 @@ export const useRecordsStore = defineStore('records', () => {
 		}
 	}
 
-	async function fetchAllRecords() {
-		if (isLoadingRecords.value) return
+	async function performFetchAllRecords(): Promise<boolean> {
 		isLoadingRecords.value = true
 		try {
 			const userId = await user
@@ -98,7 +98,7 @@ export const useRecordsStore = defineStore('records', () => {
 					toast.error('Failed to load data')
 					return null as string | null
 				})
-			if (!userId) return
+			if (!userId) return false
 
 			const { data, error } = await supabase
 				.from('records')
@@ -110,12 +110,22 @@ export const useRecordsStore = defineStore('records', () => {
 			// Safe cast: Supabase returns typed rows, and Json fields (artists, labels)
 			// are stored by this app in the expected DiscogsArtistDb/DiscogsLabelDb format
 			records.value = (data as DatabaseRecord[]) || []
+			return true
 		} catch (error) {
 			console.error('Failed to fetch records:', error)
 			toast.error('Error fetching records.')
+			return false
 		} finally {
 			isLoadingRecords.value = false
+			fetchPromise = null
 		}
+	}
+
+	function fetchAllRecords(): Promise<boolean> {
+		if (fetchPromise) return fetchPromise
+
+		fetchPromise = performFetchAllRecords()
+		return fetchPromise
 	}
 
 	async function createRecord(

@@ -9,6 +9,7 @@ export const useCratesStore = defineStore('crates', () => {
 	const isCreatingCrate = ref(false)
 	const isUpdatingCrate = ref(false)
 	const isDeletingCrate = ref(false)
+	let fetchPromise: Promise<boolean> | null = null
 
 	// Dialog state (store-based pattern)
 	const crateToDelete = ref<Crate | null>(null)
@@ -16,8 +17,7 @@ export const useCratesStore = defineStore('crates', () => {
 	const cratesCount = computed(() => crates.value.length)
 	const hasCrates = computed(() => crates.value.length > 0)
 
-	async function fetchAllCrates() {
-		if (isLoadingCrates.value) return
+	async function performFetchAllCrates(): Promise<boolean> {
 		isLoadingCrates.value = true
 		try {
 			const userId = await user
@@ -27,7 +27,7 @@ export const useCratesStore = defineStore('crates', () => {
 					toast.error('Failed to load data')
 					return null as string | null
 				})
-			if (!userId) return
+			if (!userId) return false
 
 			const { data, error } = await supabase
 				.from('crates')
@@ -37,12 +37,22 @@ export const useCratesStore = defineStore('crates', () => {
 
 			if (error) throw error
 			crates.value = (data as Crate[]) || []
+			return true
 		} catch (error) {
 			console.error('Failed to fetch crates:', error)
 			toast.error('Error fetching crates.')
+			return false
 		} finally {
 			isLoadingCrates.value = false
+			fetchPromise = null
 		}
+	}
+
+	function fetchAllCrates(): Promise<boolean> {
+		if (fetchPromise) return fetchPromise
+
+		fetchPromise = performFetchAllCrates()
+		return fetchPromise
 	}
 
 	async function createCrate(

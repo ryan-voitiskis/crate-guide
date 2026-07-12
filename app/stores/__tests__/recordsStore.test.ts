@@ -67,7 +67,7 @@ describe('recordsStore', () => {
 		mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: null })
 		mockCratesStore.crates = []
 		mockTracksStore.tracks = []
-		mockTracksStore.fetchAllTracks.mockResolvedValue(undefined)
+		mockTracksStore.fetchAllTracks.mockResolvedValue(true)
 
 		// Reset user store
 		mockUserStore.supaUser = { id: 'test-user-id' }
@@ -189,27 +189,33 @@ describe('recordsStore', () => {
 	})
 
 	describe('fetchAllRecords', () => {
-		it('does nothing when user is not signed in', async () => {
+		it('returns false and preserves records when user is not signed in', async () => {
 			mockUserStore.supaUser = null
 			const store = useRecordsStore()
+			const existingRecord = createMockRecord({ id: 'existing-record' })
+			store.records = [existingRecord]
 
-			await store.fetchAllRecords()
+			const result = await store.fetchAllRecords()
 
+			expect(result).toBe(false)
+			expect(store.records).toEqual([existingRecord])
 			expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+			expect(store.isLoadingRecords).toBe(false)
 		})
 
-		it('sets isLoadingRecords during fetch', async () => {
+		it('returns true for a successful empty response and resets loading', async () => {
 			const store = useRecordsStore()
 			mockQueryBuilder.order.mockResolvedValue({ data: [], error: null })
 
 			const fetchPromise = store.fetchAllRecords()
 			expect(store.isLoadingRecords).toBe(true)
 
-			await fetchPromise
+			await expect(fetchPromise).resolves.toBe(true)
+			expect(store.records).toEqual([])
 			expect(store.isLoadingRecords).toBe(false)
 		})
 
-		it('populates records from response', async () => {
+		it('returns true and populates records from a non-empty response', async () => {
 			const store = useRecordsStore()
 			const mockData = [
 				createMockRecord({ id: 'record-1' }),
@@ -217,23 +223,63 @@ describe('recordsStore', () => {
 			]
 			mockQueryBuilder.order.mockResolvedValue({ data: mockData, error: null })
 
-			await store.fetchAllRecords()
+			const result = await store.fetchAllRecords()
 
+			expect(result).toBe(true)
 			expect(store.records.length).toBe(2)
 			expect(store.records[0]!.id).toBe('record-1')
 		})
 
-		it('handles fetch error gracefully', async () => {
+		it('returns false, preserves records on query failure, and can retry', async () => {
 			const store = useRecordsStore()
-			mockQueryBuilder.order.mockResolvedValue({
-				data: null,
-				error: new Error('Database error')
-			})
+			const existingRecord = createMockRecord({ id: 'existing-record' })
+			store.records = [existingRecord]
+			mockQueryBuilder.order
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Database error')
+				})
+				.mockResolvedValueOnce({ data: [], error: null })
 
-			await store.fetchAllRecords()
+			await expect(store.fetchAllRecords()).resolves.toBe(false)
 
-			expect(store.records).toEqual([])
+			expect(store.records).toEqual([existingRecord])
 			expect(store.isLoadingRecords).toBe(false)
+
+			await expect(store.fetchAllRecords()).resolves.toBe(true)
+			expect(store.records).toEqual([])
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
+		})
+
+		it('shares one operation between concurrent callers and starts fresh later', async () => {
+			const store = useRecordsStore()
+			let resolveQuery!: (value: {
+				data: DatabaseRecord[]
+				error: null
+			}) => void
+			const queryResult = new Promise<{ data: DatabaseRecord[]; error: null }>(
+				(resolve) => {
+					resolveQuery = resolve
+				}
+			)
+			mockQueryBuilder.order.mockReturnValue(queryResult)
+
+			const firstFetch = store.fetchAllRecords()
+			const concurrentFetch = store.fetchAllRecords()
+			expect(store.isLoadingRecords).toBe(true)
+
+			resolveQuery({ data: [], error: null })
+			await expect(Promise.all([firstFetch, concurrentFetch])).resolves.toEqual(
+				[true, true]
+			)
+			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledOnce()
+			expect(mockSupabaseClient.from).toHaveBeenCalledOnce()
+			expect(store.isLoadingRecords).toBe(false)
+
+			mockQueryBuilder.order.mockResolvedValue({ data: [], error: null })
+			await expect(store.fetchAllRecords()).resolves.toBe(true)
+			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledTimes(2)
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
 		})
 	})
 
