@@ -3,7 +3,14 @@ import type { Page } from 'playwright-core'
 import { describe, expect, it } from 'vitest'
 
 await setup({
-	browser: true
+	browser: true,
+	nuxtConfig: {
+		nitro: { preset: 'node-server' },
+		supabase: {
+			url: 'https://e2e.invalid',
+			key: 'e2e-public-key'
+		}
+	}
 })
 
 async function signInViaForm(page: Page) {
@@ -30,9 +37,6 @@ async function mockAuthenticatedSupabase(page: Page) {
 					}
 				}
 			}
-			payload: {
-				state: Record<string, unknown>
-			}
 		}
 
 		const maybeWindow = window as unknown as {
@@ -51,7 +55,6 @@ async function mockAuthenticatedSupabase(page: Page) {
 		})
 
 		nuxtApp.$supabase.client.auth.signInWithPassword = async () => {
-			nuxtApp.payload.state.supabase_user = claims
 			return {
 				data: { user: { id: 'e2e-user' }, session: { access_token: 'fake' } },
 				error: null
