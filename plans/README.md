@@ -22,7 +22,7 @@ its status row when done unless a reviewer explicitly owns the index.
 | 007  | [Retire disabled ingestion and unused APIs](007-retire-disabled-and-unused-code.md)                   | P2       | M      | 006                          | DONE   |
 | 008  | [Make user-data loading truthful](008-make-user-data-loading-truthful.md)                             | P1       | M      | 007                          | DONE   |
 | 009  | [Validate Supabase JSON boundaries](009-validate-supabase-json-boundaries.md)                         | P2       | L      | 007, 008                     | DONE   |
-| 010  | [Restore store and domain layering](010-restore-store-and-domain-layering.md)                         | P2       | M      | 008, 009                     | TODO   |
+| 010  | [Restore store and domain layering](010-restore-store-and-domain-layering.md)                         | P2       | M      | 008, 009                     | DONE   |
 | 011  | [Consolidate track-editor domain logic](011-consolidate-track-editor-logic.md)                        | P1       | M      | 006, 007                     | DONE   |
 | 012  | [Protect application UI contracts](012-protect-app-ui-contracts.md)                                   | P1       | M      | 006, 007, 011                | DONE   |
 | 013  | [Extract the track-enrichment workflow](013-extract-track-enrichment-workflow.md)                     | P2       | L      | 006, 008, 009, 012           | TODO   |

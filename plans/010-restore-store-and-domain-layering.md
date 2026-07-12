@@ -236,17 +236,44 @@ declared files changed.
 - Rendered dialog tests cover the exact caller-specific close behavior above;
   they do not duplicate database behavior.
 
+## Completion and reconciliation
+
+- Implemented from base `92ab6f0dd28444ffd968f403e5a24910a41321ca`
+  by commit `5cb1582becdf40a1c16c3cba74a292519eda8a64`, integrated
+  as `7a8699c86d72211e746a90104ea6be5c6fcc1841`.
+- The implementation changed exactly 20 files: 3 shared type files, 2 pure
+  utilities, 5 stores, 5 store tests, the coordinator and its test, 2 dialog
+  callers, and 1 rendered dialog test.
+- Focused verification passed 260 coordinator/store tests, 34 suggestion tests,
+  and 4 rendered dialog tests. Full verification passed 40 files / 1018
+  application tests, 2 E2E tests, 4 Edge tests, 6 type-generation tests, and 7
+  audio-configuration tests; the production build was green.
+- Scoped searches for forbidden shared-to-browser/store imports, foreign-store
+  mutable-array assignments, and production callers bypassing
+  `useLibraryMutations` are empty.
+- Existing remove-record and delete-all RPC names, arguments, boolean results,
+  and store-owned toast copy remain unchanged. Crate/set rows and metadata are
+  preserved while their record/played-track arrays are emptied, and unrelated
+  tracks/crates remain intact.
+- Caller-specific close behavior remains asymmetric: record removal always
+  clears the pending target but closes record details only on success;
+  delete-all closes only on success and remains open on false.
+- The two overlapping dialog files combine Plan 010 script blocks and Plan 012
+  templates byte-for-byte. No migration, RPC, schema, grant, or generated type
+  changed. An independent cold review approved the ownership direction,
+  coordinator sequencing, preserved semantics, and exact scope.
+
 ## Done criteria
 
-- [ ] No store directly assigns another store's mutable array.
-- [ ] Cross-domain deletion cleanup is coordinated by
+- [x] No store directly assigns another store's mutable array.
+- [x] Cross-domain deletion cleanup is coordinated by
       `useLibraryMutations` and only occurs after RPC success.
-- [ ] Each store exposes tested actions for its own cleanup invariants.
-- [ ] Shared types no longer import browser utilities; pure utilities no longer
+- [x] Each store exposes tested actions for its own cleanup invariants.
+- [x] Shared types no longer import browser utilities; pure utilities no longer
       import store types.
-- [ ] Delete-all still preserves emptied crates/sets and all current UI/toasts.
-- [ ] Migrations/RPC behavior remains untouched.
-- [ ] Full verification/build pass with no out-of-scope changes.
+- [x] Delete-all still preserves emptied crates/sets and all current UI/toasts.
+- [x] Migrations/RPC behavior remains untouched.
+- [x] Full verification/build pass with no out-of-scope changes.
 
 ## STOP conditions
 
