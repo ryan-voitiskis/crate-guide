@@ -10,6 +10,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Import after mocking
 import { useRecordsStore } from '../recordsStore'
 
+const mockToast = vi.hoisted(() => ({
+	success: vi.fn(),
+	error: vi.fn(),
+	info: vi.fn(),
+	warning: vi.fn()
+}))
+
+vi.mock('vue-sonner', () => ({
+	toast: mockToast
+}))
+
 // Mock dependencies
 const mockUserStore: {
 	supaUser: { id: string } | null
@@ -230,6 +241,64 @@ describe('recordsStore', () => {
 			expect(store.records[0]!.id).toBe('record-1')
 		})
 
+		it('aggregates malformed JSON fallbacks into one redacted warning', async () => {
+			const privateValue = 'SYNTHETIC_PRIVATE_VALUE'
+			const consoleWarn = vi
+				.spyOn(console, 'warn')
+				.mockImplementation(() => undefined)
+			const store = useRecordsStore()
+			mockQueryBuilder.order.mockResolvedValue({
+				data: [
+					createMockRecord({
+						id: 'record-invalid-artists',
+						artists: [
+							{
+								name: privateValue,
+								discogs_id: Infinity
+							}
+						]
+					}),
+					createMockRecord({
+						id: 'record-invalid-labels',
+						labels: [{ name: privateValue, discogs_id: Number.NaN }]
+					})
+				],
+				error: null
+			})
+
+			try {
+				await expect(store.fetchAllRecords()).resolves.toBe(true)
+
+				expect(store.records[0]!.artists).toEqual([])
+				expect(store.records[1]!.labels).toEqual([])
+				expect(consoleWarn).toHaveBeenCalledOnce()
+				expect(consoleWarn).toHaveBeenCalledWith(
+					'Invalid saved data was reset to safe defaults',
+					[
+						{
+							entity: 'record',
+							id: 'record-invalid-artists',
+							field: 'artists'
+						},
+						{
+							entity: 'record',
+							id: 'record-invalid-labels',
+							field: 'labels'
+						}
+					]
+				)
+				expect(JSON.stringify(consoleWarn.mock.calls)).not.toContain(
+					privateValue
+				)
+				expect(mockToast.warning).toHaveBeenCalledOnce()
+				expect(mockToast.warning).toHaveBeenCalledWith(
+					'Some saved data was reset to safe defaults.'
+				)
+			} finally {
+				consoleWarn.mockRestore()
+			}
+		})
+
 		it('returns false, preserves records on query failure, and can retry', async () => {
 			const store = useRecordsStore()
 			const existingRecord = createMockRecord({ id: 'existing-record' })
@@ -319,6 +388,28 @@ describe('recordsStore', () => {
 
 			expect(result?.id).toBe('new-record-id')
 			expect(store.records[0]!.id).toBe('new-record-id')
+		})
+
+		it('decodes the created record response before assignment', async () => {
+			const consoleWarn = vi
+				.spyOn(console, 'warn')
+				.mockImplementation(() => undefined)
+			const store = useRecordsStore()
+			mockQueryBuilder.single.mockResolvedValue({
+				data: { ...createMockRecord({ id: 'new-record-id' }), artists: null },
+				error: null
+			})
+
+			try {
+				const result = await store.createRecord(newRecordData)
+
+				expect(result?.artists).toEqual([])
+				expect(store.records[0]!.artists).toEqual([])
+				expect(consoleWarn).toHaveBeenCalledOnce()
+				expect(mockToast.warning).toHaveBeenCalledOnce()
+			} finally {
+				consoleWarn.mockRestore()
+			}
 		})
 
 		it('sets isCreatingRecord during creation', async () => {
@@ -516,6 +607,31 @@ describe('recordsStore', () => {
 			await store.updateRecord('record-1', { title: 'Updated' })
 
 			expect(store.records[0]!.updated_at).toBe('2024-01-01T00:00:00Z')
+		})
+
+		it('decodes the updated record response before assignment', async () => {
+			const consoleWarn = vi
+				.spyOn(console, 'warn')
+				.mockImplementation(() => undefined)
+			const store = useRecordsStore()
+			store.records = [createMockRecord({ id: 'record-1' })]
+			mockQueryBuilder.single.mockResolvedValue({
+				data: { ...createMockRecord({ id: 'record-1' }), labels: 'invalid' },
+				error: null
+			})
+
+			try {
+				const result = await store.updateRecord('record-1', {
+					title: 'Updated'
+				})
+
+				expect(result?.labels).toEqual([])
+				expect(store.records[0]!.labels).toEqual([])
+				expect(consoleWarn).toHaveBeenCalledOnce()
+				expect(mockToast.warning).toHaveBeenCalledOnce()
+			} finally {
+				consoleWarn.mockRestore()
+			}
 		})
 
 		it('sets isUpdatingRecord during update', async () => {

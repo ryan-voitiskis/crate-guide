@@ -218,7 +218,9 @@ export function isDiscogsLabelDb(obj: unknown): obj is DiscogsLabelDb {
 	const label = obj as Record<string, unknown>
 	return (
 		typeof label.name === 'string' &&
-		(label.discogs_id === undefined || typeof label.discogs_id === 'number') &&
+		(label.discogs_id === undefined ||
+			(typeof label.discogs_id === 'number' &&
+				Number.isFinite(label.discogs_id))) &&
 		(label.catno === undefined || typeof label.catno === 'string') &&
 		(label.entity_type === undefined ||
 			typeof label.entity_type === 'string') &&
@@ -250,7 +252,8 @@ export function isDiscogsArtistDb(obj: unknown): obj is DiscogsArtistDb {
 		typeof artist.name === 'string' &&
 		artist.name.trim() !== '' &&
 		(artist.discogs_id === undefined ||
-			typeof artist.discogs_id === 'number') &&
+			(typeof artist.discogs_id === 'number' &&
+				Number.isFinite(artist.discogs_id))) &&
 		(artist.role === undefined ||
 			artist.role === null ||
 			typeof artist.role === 'string')

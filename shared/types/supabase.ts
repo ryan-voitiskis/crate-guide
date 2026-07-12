@@ -35,4 +35,18 @@ export type Track = Omit<
 	audio_features: TrackAudioFeatures | null
 }
 
+export type PlayedTrackEntry = {
+	track_id: string
+	time_added: number
+	adjusted_bpm: number | null
+	transition_rating: number | null
+}
+
+export type SavedSet = Omit<
+	Database['public']['Tables']['sets']['Row'],
+	'played_tracks'
+> & {
+	played_tracks: PlayedTrackEntry[]
+}
+
 export type Crate = Database['public']['Tables']['crates']['Row']

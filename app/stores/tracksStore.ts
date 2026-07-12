@@ -1,4 +1,9 @@
 import { toast } from 'vue-sonner'
+import {
+	type DecodeIssue,
+	decodeTrackRow,
+	reportDecodeIssues
+} from '~/utils/supabaseRows'
 import type { TrackAudioFeatures } from '~~/shared/types/audioFeatures'
 import type { BeatportTrackData } from '~~/shared/types/beatport'
 import type { Json } from '~~/shared/types/database'
@@ -136,31 +141,13 @@ export const useTracksStore = defineStore('tracks', () => {
 				.order('created_at', { ascending: false })
 
 			if (error) throw error
-			// Map to Track type, stripping the joined records data from the query.
-			// Safe cast: Json fields (artists, extraartists, genres) are stored by this
-			// app in the expected DiscogsArtistDb[] and string[] formats
-			tracks.value =
-				(data?.map((track) => ({
-					id: track.id,
-					record_id: track.record_id,
-					title: track.title,
-					artists: track.artists,
-					extraartists: track.extraartists,
-					position: track.position,
-					duration: track.duration,
-					bpm: track.bpm,
-					rpm: track.rpm,
-					key: track.key,
-					mode: track.mode,
-					genres: track.genres,
-					time_signature_upper: track.time_signature_upper,
-					time_signature_lower: track.time_signature_lower,
-					playable: track.playable,
-					beatport_data: track.beatport_data,
-					audio_features: track.audio_features,
-					created_at: track.created_at,
-					updated_at: track.updated_at
-				})) as Track[]) || []
+			const decodedRows = (data ?? []).map((track) => {
+				const { records: _joinedRecord, ...trackRow } = track
+				return decodeTrackRow(trackRow)
+			})
+			const issues = decodedRows.flatMap((decoded) => decoded.issues)
+			reportDecodeIssues(issues, (message) => toast.warning(message))
+			tracks.value = decodedRows.map((decoded) => decoded.row)
 			return true
 		} catch (error) {
 			console.error('Failed to fetch tracks:', error)
@@ -198,11 +185,9 @@ export const useTracksStore = defineStore('tracks', () => {
 
 			if (error) throw error
 
-			// Add to local state (safe cast - Supabase returns the inserted row with same shape)
-			tracks.value.unshift({
-				...(data as Track),
-				audio_features: (data as Track).audio_features ?? null
-			})
+			const decoded = decodeTrackRow(data)
+			reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
+			tracks.value.unshift(decoded.row)
 			toast.success('Track created successfully.')
 			return tracks.value[0] ?? null
 		} catch (error) {
@@ -222,11 +207,15 @@ export const useTracksStore = defineStore('tracks', () => {
 			suppressErrorToast?: boolean
 			preconditions?: TrackBatchUpdate['preconditions']
 		}
-	): Promise<{ track: Track | null; error: string | null }> {
+	): Promise<{
+		track: Track | null
+		error: string | null
+		issues: DecodeIssue[]
+	}> {
 		const trackIndex = tracks.value.findIndex((t: Track) => t.id === id)
 		if (trackIndex === -1) {
 			if (!options?.suppressErrorToast) toast.error('Track not found.')
-			return { track: null, error: 'Track not found.' }
+			return { track: null, error: 'Track not found.', issues: [] }
 		}
 
 		const originalTrack = tracks.value[trackIndex]
@@ -247,20 +236,21 @@ export const useTracksStore = defineStore('tracks', () => {
 
 			if (error) throw error
 
-			// Update with server response (safe cast - Supabase returns the updated row)
-			tracks.value[trackIndex] = {
-				...(data as Track),
-				audio_features: (data as Track).audio_features ?? null
-			}
+			const decoded = decodeTrackRow(data)
+			tracks.value[trackIndex] = decoded.row
 			if (!options?.suppressSuccessToast)
 				toast.success('Track updated successfully.')
-			return { track: tracks.value[trackIndex] ?? null, error: null }
+			return {
+				track: tracks.value[trackIndex] ?? null,
+				error: null,
+				issues: decoded.issues
+			}
 		} catch (error) {
 			console.error('Failed to update track:', error)
 			// Revert optimistic update (index was validated above, originalTrack is defined)
 			tracks.value[trackIndex] = originalTrack!
 			if (!options?.suppressErrorToast) toast.error('Error updating track.')
-			return { track: null, error: getErrorMessage(error) }
+			return { track: null, error: getErrorMessage(error), issues: [] }
 		}
 	}
 
@@ -276,6 +266,7 @@ export const useTracksStore = defineStore('tracks', () => {
 				suppressSuccessToast: options?.silent,
 				suppressErrorToast: false
 			})
+			reportDecodeIssues(result.issues, (message) => toast.warning(message))
 			return result.track
 		} finally {
 			isUpdatingTrack.value = false
@@ -294,6 +285,7 @@ export const useTracksStore = defineStore('tracks', () => {
 	): Promise<TrackBatchUpdateResult[]> {
 		isUpdatingTrack.value = true
 		const results: TrackBatchUpdateResult[] = []
+		const decodeIssues: DecodeIssue[] = []
 
 		try {
 			for (const batchUpdate of batchUpdates) {
@@ -306,6 +298,7 @@ export const useTracksStore = defineStore('tracks', () => {
 						preconditions: batchUpdate.preconditions
 					}
 				)
+				decodeIssues.push(...result.issues)
 				const batchResult = {
 					id: batchUpdate.id,
 					success: !!result.track,
@@ -315,6 +308,7 @@ export const useTracksStore = defineStore('tracks', () => {
 				results.push(batchResult)
 				options?.onProgress?.(results.length, batchUpdates.length, batchResult)
 			}
+			reportDecodeIssues(decodeIssues, (message) => toast.warning(message))
 			return results
 		} finally {
 			isUpdatingTrack.value = false

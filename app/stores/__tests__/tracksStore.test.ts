@@ -154,6 +154,7 @@ describe('tracksStore', () => {
 			const mockData = [
 				{
 					...createMockTrack({ id: 'track-1' }),
+					future_scalar: 'preserved',
 					records: { user_id: 'test-user-id' }
 				},
 				{
@@ -168,6 +169,63 @@ describe('tracksStore', () => {
 			expect(result).toBe(true)
 			expect(store.tracks.length).toBe(2)
 			expect(store.tracks[0]!.id).toBe('track-1')
+			expect(store.tracks[0]).not.toHaveProperty('records')
+			expect(store.tracks[0]).toHaveProperty('future_scalar', 'preserved')
+		})
+
+		it('aggregates invalid nested JSON into one redacted warning', async () => {
+			const privateValue = 'SYNTHETIC_PRIVATE_VALUE'
+			const consoleWarn = vi
+				.spyOn(console, 'warn')
+				.mockImplementation(() => undefined)
+			const store = useTracksStore()
+			mockQueryBuilder.order.mockResolvedValue({
+				data: [
+					{
+						...createMockTrack({ id: 'track-invalid-json' }),
+						artists: [{ name: privateValue, discogs_id: Infinity }],
+						audio_features: {
+							version: 2,
+							privateValue
+						},
+						records: { user_id: 'test-user-id' }
+					}
+				],
+				error: null
+			})
+
+			try {
+				await expect(store.fetchAllTracks()).resolves.toBe(true)
+
+				expect(store.tracks[0]!.artists).toEqual([])
+				expect(store.tracks[0]!.audio_features).toBeNull()
+				expect(store.tracks[0]).not.toHaveProperty('records')
+				expect(consoleWarn).toHaveBeenCalledOnce()
+				expect(consoleWarn).toHaveBeenCalledWith(
+					'Invalid saved data was reset to safe defaults',
+					[
+						{
+							entity: 'track',
+							id: 'track-invalid-json',
+							field: 'artists'
+						},
+						{
+							entity: 'track',
+							id: 'track-invalid-json',
+							field: 'audio_features'
+						}
+					]
+				)
+				expect(JSON.stringify(consoleWarn.mock.calls)).not.toContain(
+					privateValue
+				)
+				expect(mockToast.warning).toHaveBeenCalledOnce()
+				expect(mockToast.warning).toHaveBeenCalledWith(
+					'Some saved data was reset to safe defaults.'
+				)
+			} finally {
+				consoleWarn.mockRestore()
+			}
 		})
 
 		it('preserves audio_features from response mapping', async () => {
@@ -314,6 +372,47 @@ describe('tracksStore', () => {
 			)
 			expect(result?.id).toBe('new-track-id')
 			expect(store.tracks[0]!.id).toBe('new-track-id')
+		})
+
+		it('decodes the created track response before assignment', async () => {
+			const consoleWarn = vi
+				.spyOn(console, 'warn')
+				.mockImplementation(() => undefined)
+			const store = useTracksStore()
+			mockQueryBuilder.single.mockResolvedValue({
+				data: {
+					...createMockTrack({ id: 'new-track-id' }),
+					genres: ['valid', 7]
+				},
+				error: null
+			})
+
+			try {
+				const result = await store.createTrack({
+					record_id: 'record-1',
+					title: 'New Track',
+					artists: [],
+					extraartists: [],
+					position: 'A1',
+					duration: 0,
+					bpm: 0,
+					rpm: 33,
+					key: 0,
+					mode: 0,
+					genres: [],
+					time_signature_upper: null,
+					time_signature_lower: null,
+					playable: true,
+					beatport_data: null
+				})
+
+				expect(result?.genres).toEqual([])
+				expect(store.tracks[0]!.genres).toEqual([])
+				expect(consoleWarn).toHaveBeenCalledOnce()
+				expect(mockToast.warning).toHaveBeenCalledOnce()
+			} finally {
+				consoleWarn.mockRestore()
+			}
 		})
 
 		it('serializes legacy Beatport data in create payloads', async () => {
@@ -473,6 +572,36 @@ describe('tracksStore', () => {
 			await store.updateTrack('track-1', { title: 'Updated' })
 
 			expect(store.tracks[0]!.updated_at).toBe('2024-01-01T00:00:00Z')
+		})
+
+		it('decodes the updated track response before assignment', async () => {
+			const consoleWarn = vi
+				.spyOn(console, 'warn')
+				.mockImplementation(() => undefined)
+			const store = useTracksStore()
+			store.tracks = [createMockTrack({ id: 'track-1' })]
+			mockQueryBuilder.single.mockResolvedValue({
+				data: {
+					...createMockTrack({ id: 'track-1' }),
+					beatport_data: {
+						searched: false,
+						notFound: true,
+						searchedAt: 0
+					}
+				},
+				error: null
+			})
+
+			try {
+				const result = await store.updateTrack('track-1', { title: 'Updated' })
+
+				expect(result?.beatport_data).toBeNull()
+				expect(store.tracks[0]!.beatport_data).toBeNull()
+				expect(consoleWarn).toHaveBeenCalledOnce()
+				expect(mockToast.warning).toHaveBeenCalledOnce()
+			} finally {
+				consoleWarn.mockRestore()
+			}
 		})
 
 		it('sets isUpdatingTrack during update', async () => {

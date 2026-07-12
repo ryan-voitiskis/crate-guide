@@ -1,5 +1,6 @@
 import { toast } from 'vue-sonner'
 import { validateImportResult } from '~/utils/discogs-validation'
+import { decodeRecordRow, reportDecodeIssues } from '~/utils/supabaseRows'
 
 type ManualRecordTrackInput = {
 	title: string
@@ -107,9 +108,10 @@ export const useRecordsStore = defineStore('records', () => {
 				.order('created_at', { ascending: false })
 
 			if (error) throw error
-			// Safe cast: Supabase returns typed rows, and Json fields (artists, labels)
-			// are stored by this app in the expected DiscogsArtistDb/DiscogsLabelDb format
-			records.value = (data as DatabaseRecord[]) || []
+			const decodedRows = (data ?? []).map(decodeRecordRow)
+			const issues = decodedRows.flatMap((decoded) => decoded.issues)
+			reportDecodeIssues(issues, (message) => toast.warning(message))
+			records.value = decodedRows.map((decoded) => decoded.row)
 			return true
 		} catch (error) {
 			console.error('Failed to fetch records:', error)
@@ -147,10 +149,11 @@ export const useRecordsStore = defineStore('records', () => {
 
 			if (error) throw error
 
-			// Add to local state (safe cast - Supabase returns the inserted row with same shape)
-			records.value.unshift(data as DatabaseRecord)
+			const decoded = decodeRecordRow(data)
+			reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
+			records.value.unshift(decoded.row)
 			toast.success('Record created successfully.')
-			return data as DatabaseRecord
+			return decoded.row
 		} catch (error) {
 			console.error('Failed to create record:', error)
 			toast.error('Error creating record.')
@@ -269,10 +272,11 @@ export const useRecordsStore = defineStore('records', () => {
 
 			if (error) throw error
 
-			// Update with server response (safe cast - Supabase returns the updated row)
-			records.value[recordIndex] = data as DatabaseRecord
+			const decoded = decodeRecordRow(data)
+			reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
+			records.value[recordIndex] = decoded.row
 			toast.success('Record updated successfully.')
-			return data as DatabaseRecord
+			return decoded.row
 		} catch (error) {
 			console.error('Failed to update record:', error)
 			// Revert optimistic update (index was validated above, originalRecord is defined)

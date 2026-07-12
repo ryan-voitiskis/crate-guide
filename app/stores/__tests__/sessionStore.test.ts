@@ -6,8 +6,20 @@ import {
 	resetTrackIdCounter
 } from 'test/mocks/fixtures/tracks'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Database } from '../../../shared/types/database'
 // Import after mocking
 import { useSessionStore } from '../sessionStore'
+
+const mockToast = vi.hoisted(() => ({
+	success: vi.fn(),
+	error: vi.fn(),
+	info: vi.fn(),
+	warning: vi.fn()
+}))
+
+vi.mock('vue-sonner', () => ({
+	toast: mockToast
+}))
 
 // Mock stores and dependencies
 const mockTracksStore = {
@@ -38,6 +50,20 @@ const mockSupabaseClient = {
 	from: vi.fn(() => mockQueryBuilder)
 }
 
+type SavedSetRow = Database['public']['Tables']['sets']['Row']
+
+function createSavedSetRow(overrides: Partial<SavedSetRow> = {}): SavedSetRow {
+	return {
+		id: 'set-synthetic',
+		user_id: 'test-user-id',
+		name: 'Synthetic set',
+		played_tracks: [],
+		created_at: '2026-07-12T00:00:00.000Z',
+		updated_at: '2026-07-12T00:00:00.000Z',
+		...overrides
+	}
+}
+
 // Stub Nuxt composables (these are auto-imported in the store)
 vi.stubGlobal('useTracksStore', () => mockTracksStore)
 vi.stubGlobal('useUserStore', () => mockUserStore)
@@ -55,6 +81,7 @@ describe('sessionStore', () => {
 		mockTracksStore.playableTracks = []
 		mockTracksStore.getTrackById.mockReset()
 		mockUserStore.profile = { turntable_pitch_range: 8 }
+		mockUserStore.supaUser = { id: 'test-user-id' }
 	})
 
 	describe('getAdjustedBpm', () => {
@@ -654,6 +681,153 @@ describe('sessionStore', () => {
 			expect(store.decks[0]!.pitch).toBe(0)
 			expect(store.decks[0]!.isPlaying).toBe(false)
 			expect(store.autoSaveError).toBeNull()
+		})
+	})
+
+	describe('saved-set persistence', () => {
+		const firstEntry = {
+			track_id: 'track-first',
+			time_added: 0,
+			adjusted_bpm: 0,
+			transition_rating: 1
+		}
+		const secondEntry = {
+			track_id: 'track-second',
+			time_added: 1,
+			adjusted_bpm: null,
+			transition_rating: 5
+		}
+
+		it('decodes fetched sets, preserves mixed-entry order, and warns once', async () => {
+			const privateValue = 'SYNTHETIC_PRIVATE_VALUE'
+			const consoleWarn = vi
+				.spyOn(console, 'warn')
+				.mockImplementation(() => undefined)
+			const store = useSessionStore()
+			mockQueryBuilder.order.mockResolvedValue({
+				data: [
+					createSavedSetRow({
+						id: 'set-invalid-array',
+						played_tracks: { privateValue }
+					}),
+					createSavedSetRow({
+						id: 'set-mixed-array',
+						played_tracks: [
+							firstEntry,
+							{
+								track_id: '',
+								time_added: 2,
+								adjusted_bpm: null,
+								transition_rating: null,
+								privateValue
+							},
+							secondEntry
+						]
+					})
+				],
+				error: null
+			})
+
+			try {
+				await store.fetchSavedSets()
+
+				expect(store.savedSets[0]!.played_tracks).toEqual([])
+				expect(store.savedSets[1]!.played_tracks).toEqual([
+					firstEntry,
+					secondEntry
+				])
+				expect(consoleWarn).toHaveBeenCalledOnce()
+				expect(consoleWarn).toHaveBeenCalledWith(
+					'Invalid saved data was reset to safe defaults',
+					[
+						{
+							entity: 'saved-set',
+							id: 'set-invalid-array',
+							field: 'played_tracks'
+						},
+						{
+							entity: 'saved-set',
+							id: 'set-mixed-array',
+							field: 'played_tracks'
+						}
+					]
+				)
+				expect(JSON.stringify(consoleWarn.mock.calls)).not.toContain(
+					privateValue
+				)
+				expect(mockToast.warning).toHaveBeenCalledOnce()
+				expect(mockToast.warning).toHaveBeenCalledWith(
+					'Some saved data was reset to safe defaults.'
+				)
+			} finally {
+				consoleWarn.mockRestore()
+			}
+		})
+
+		it('decodes an updated save response before assignment', async () => {
+			const consoleWarn = vi
+				.spyOn(console, 'warn')
+				.mockImplementation(() => undefined)
+			const store = useSessionStore()
+			store.activeSetId = 'set-update'
+			store.currentSession = [firstEntry]
+			mockQueryBuilder.single.mockResolvedValue({
+				data: createSavedSetRow({
+					id: 'set-update',
+					played_tracks: 'invalid'
+				}),
+				error: null
+			})
+
+			try {
+				const savedSet = await store.saveSession('Updated set')
+
+				expect(savedSet?.played_tracks).toEqual([])
+				expect(store.savedSets[0]!.played_tracks).toEqual([])
+				expect(consoleWarn).toHaveBeenCalledOnce()
+				expect(mockToast.warning).toHaveBeenCalledOnce()
+			} finally {
+				consoleWarn.mockRestore()
+			}
+		})
+
+		it('decodes an inserted save response and retains valid mixed entries', async () => {
+			const consoleWarn = vi
+				.spyOn(console, 'warn')
+				.mockImplementation(() => undefined)
+			const store = useSessionStore()
+			store.currentSession = [firstEntry]
+			mockQueryBuilder.single.mockResolvedValue({
+				data: createSavedSetRow({
+					id: 'set-insert',
+					played_tracks: [
+						firstEntry,
+						{
+							track_id: 'invalid',
+							time_added: -1,
+							adjusted_bpm: null,
+							transition_rating: null
+						},
+						secondEntry
+					]
+				}),
+				error: null
+			})
+
+			try {
+				const savedSet = await store.saveSession('Inserted set')
+
+				expect(savedSet?.played_tracks).toEqual([firstEntry, secondEntry])
+				expect(store.savedSets[0]!.played_tracks).toEqual([
+					firstEntry,
+					secondEntry
+				])
+				expect(store.activeSetId).toBe('set-insert')
+				expect(consoleWarn).toHaveBeenCalledOnce()
+				expect(mockToast.warning).toHaveBeenCalledOnce()
+			} finally {
+				consoleWarn.mockRestore()
+			}
 		})
 	})
 

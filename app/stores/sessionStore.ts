@@ -1,5 +1,6 @@
 import { toast } from 'vue-sonner'
 import { adjustKey } from '~/utils/keyFunctions'
+import { decodeSavedSetRow, reportDecodeIssues } from '~/utils/supabaseRows'
 import { getTrackSuggestions } from '~/utils/trackSuggestions'
 
 export interface Deck {
@@ -9,22 +10,6 @@ export interface Deck {
 	faderPosition: number // Visual position during animation
 	faderSliding: boolean // Animation in progress
 	isPlaying: boolean // Platter spinning
-}
-
-export interface PlayedTrackEntry {
-	track_id: string
-	time_added: number // Unix timestamp ms
-	adjusted_bpm: number | null
-	transition_rating: number | null // 1-5 or null
-}
-
-export interface SavedSet {
-	id: string
-	user_id: string
-	name: string | null
-	played_tracks: PlayedTrackEntry[]
-	created_at: string | null
-	updated_at: string | null
 }
 
 export interface ScoredTrack extends Track {
@@ -379,10 +364,10 @@ export const useSessionStore = defineStore('session', () => {
 				.order('created_at', { ascending: false })
 
 			if (error) throw error
-			// Safe cast: played_tracks is stored as Json in DB but this app always
-			// writes it as PlayedTrackEntry[]. The double cast is needed because
-			// Supabase types played_tracks as Json, not the specific array type.
-			savedSets.value = (data as unknown as SavedSet[]) ?? []
+			const decodedRows = (data ?? []).map(decodeSavedSetRow)
+			const issues = decodedRows.flatMap((decoded) => decoded.issues)
+			reportDecodeIssues(issues, (message) => toast.warning(message))
+			savedSets.value = decodedRows.map((decoded) => decoded.row)
 		} catch (e) {
 			console.error(e)
 			toast.error('Failed to load saved sets')
@@ -411,8 +396,9 @@ export const useSessionStore = defineStore('session', () => {
 					.single()
 
 				if (error) throw error
-				// Safe cast: played_tracks is Json in DB but we write PlayedTrackEntry[]
-				savedSet = data as unknown as SavedSet
+				const decoded = decodeSavedSetRow(data)
+				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
+				savedSet = decoded.row
 
 				// Update in savedSets if already fetched
 				const existingIndex = savedSets.value.findIndex(
@@ -436,8 +422,9 @@ export const useSessionStore = defineStore('session', () => {
 					.single()
 
 				if (error) throw error
-				// Safe cast: played_tracks is Json in DB but we write PlayedTrackEntry[]
-				savedSet = data as unknown as SavedSet
+				const decoded = decodeSavedSetRow(data)
+				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
+				savedSet = decoded.row
 				savedSets.value.unshift(savedSet)
 				activeSetId.value = savedSet.id
 			}
