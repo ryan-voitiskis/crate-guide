@@ -209,16 +209,41 @@ Run `npm run format`, focused tests, `npm run verify`, and `npm run build`.
 - Use existing synthetic track fixtures; no Supabase/network access.
 - Test key/mode zero and millisecond duration explicitly.
 
+## Completion and reconciliation
+
+- Implemented by commit `4e8f375ebb42753b02ad82949d0336b0f34f4ce7`,
+  integrated as `64001e5f6909ccf205855957d9f5966f6c7763c3`.
+- The pure shared API now owns `trackEditorSchema`, fresh initial values,
+  `trackToEditorValues`, `buildTrackEditorPayload`, and
+  `hasTrackEditorChanges`, with shared form/payload types and no Vue, store, or
+  component dependency.
+- Duration payload and equality use milliseconds through `mmssToMs`, removing
+  the seconds-versus-milliseconds false dirty state. Explicit nullish handling
+  preserves valid `key: 0` and `mode: 0`.
+- Both dialogs migrated only their scripts to the shared API; their templates
+  are byte-identical to the approved base. Rendered tests prove identical common
+  update payloads, while add-only `record_id` and legacy `beatport_data: null`
+  remain outside the common payload and each dialog shell stays distinct.
+- Cold review corrected dirty normalization to compare a hydrate → payload
+  baseline against edited payload. Unit cases cover zero and sub-second-remainder
+  durations, padded titles/positions, blank optional fields, invalid artists,
+  and partial key-without-mode or mode-without-key legacy values without hiding
+  a semantic edit.
+- Reviewer gates passed with 33 unit tests and 5 rendered tests, 908 tests in
+  full verification, 2 E2E tests, 4 Edge tests, 6 type-generation tests, 7
+  audio-configuration tests, and green format, typecheck, build, and
+  `git diff --check` results.
+
 ## Done criteria
 
-- [ ] One utility owns schema, defaults, hydration, payload conversion, and
+- [x] One utility owns schema, defaults, hydration, payload conversion, and
       dirty equality for both editors.
-- [ ] An unchanged non-zero duration no longer appears dirty.
-- [ ] Key/mode zero and all optional-field semantics are preserved.
-- [ ] Both dialogs retain their distinct UI/orchestration and current toasts.
-- [ ] Duplicate manual schema/duration/payload logic is absent from dialogs.
-- [ ] Pure/rendered/full tests and build pass.
-- [ ] No store, schema, template redesign, or out-of-scope file changed.
+- [x] An unchanged non-zero duration no longer appears dirty.
+- [x] Key/mode zero and all optional-field semantics are preserved.
+- [x] Both dialogs retain their distinct UI/orchestration and current toasts.
+- [x] Duplicate manual schema/duration/payload logic is absent from dialogs.
+- [x] Pure/rendered/full tests and build pass.
+- [x] No store, schema, template redesign, or out-of-scope file changed.
 
 ## STOP conditions
 
