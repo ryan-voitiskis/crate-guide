@@ -527,6 +527,62 @@ describe('cratesStore', () => {
 		})
 	})
 
+	describe('record cleanup', () => {
+		it('removes a record from every crate while preserving crate metadata', () => {
+			const store = useCratesStore()
+			store.crates = [
+				createMockCrate({
+					id: 'crate-1',
+					name: 'First',
+					description: 'Keep this',
+					records: ['record-1', 'record-2']
+				}),
+				createMockCrate({
+					id: 'crate-2',
+					name: 'Second',
+					records: ['record-2']
+				})
+			]
+			const originalCrates = store.crates
+
+			store.removeRecordFromAllCrates('record-1')
+
+			expect(store.crates).not.toBe(originalCrates)
+			expect(store.crates.map((crate) => crate.records)).toEqual([
+				['record-2'],
+				['record-2']
+			])
+			expect(store.crates[0]).toMatchObject({
+				id: 'crate-1',
+				name: 'First',
+				description: 'Keep this'
+			})
+		})
+
+		it('empties every crate while preserving crate rows and metadata', () => {
+			const store = useCratesStore()
+			store.crates = [
+				createMockCrate({
+					id: 'crate-1',
+					name: 'First',
+					color: '#ffffff',
+					records: ['record-1', 'record-2']
+				}),
+				createMockCrate({ id: 'crate-2', name: 'Second', records: [] })
+			]
+
+			store.clearAllCrateRecords()
+
+			expect(store.crates).toHaveLength(2)
+			expect(store.crates.map((crate) => crate.records)).toEqual([[], []])
+			expect(store.crates[0]).toMatchObject({
+				id: 'crate-1',
+				name: 'First',
+				color: '#ffffff'
+			})
+		})
+	})
+
 	describe('clearCrates', () => {
 		it('empties crates array', () => {
 			const store = useCratesStore()

@@ -51,7 +51,6 @@ function buildLabelPayload(
 export const useRecordsStore = defineStore('records', () => {
 	const supabase = useSupabaseClient<Database>()
 	const user = useUserStore()
-	const cratesStore = useCratesStore()
 	const tracksStore = useTracksStore()
 
 	const records = ref<DatabaseRecord[]>([])
@@ -333,13 +332,6 @@ export const useRecordsStore = defineStore('records', () => {
 			searchResults.value = searchResults.value.filter(
 				(record) => record.id !== id
 			)
-			tracksStore.tracks = tracksStore.tracks.filter(
-				(track) => track.record_id !== id
-			)
-			cratesStore.crates = cratesStore.crates.map((crate) => ({
-				...crate,
-				records: crate.records.filter((recordId) => recordId !== id)
-			}))
 
 			toast.success('Record removed from collection')
 			return true

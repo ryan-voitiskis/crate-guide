@@ -1,4 +1,5 @@
-export type ThemeOptions = 'light' | 'dark' | 'auto'
+import type { ThemeOptions } from '../../shared/types/options'
+
 const THEME_STORAGE_KEY = 'crate-guide:theme'
 let mediaQueryList: MediaQueryList | null = null
 let mediaQueryListener: ((event: MediaQueryListEvent) => void) | null = null

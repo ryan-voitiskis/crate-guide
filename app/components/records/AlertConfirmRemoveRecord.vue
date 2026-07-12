@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const recordDetails = useRecordDetailsStore()
-const recordsStore = useRecordsStore()
 const cratesStore = useCratesStore()
+const { removeRecordFromCollection } = useLibraryMutations()
 
 const record = computed(() => recordDetails.recordToRemove)
 const isOpen = computed(() => !!record.value)
@@ -37,7 +37,7 @@ async function handleRemove() {
 	const recordId = record.value.id
 
 	try {
-		const success = await recordsStore.removeRecordFromCollection(recordId)
+		const success = await removeRecordFromCollection(recordId)
 		if (!success) return
 
 		// Close any open dialogs

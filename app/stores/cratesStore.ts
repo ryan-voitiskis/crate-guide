@@ -220,6 +220,20 @@ export const useCratesStore = defineStore('crates', () => {
 		)
 	}
 
+	function removeRecordFromAllCrates(recordId: string) {
+		crates.value = crates.value.map((crate) => ({
+			...crate,
+			records: crate.records.filter((id) => id !== recordId)
+		}))
+	}
+
+	function clearAllCrateRecords() {
+		crates.value = crates.value.map((crate) => ({
+			...crate,
+			records: []
+		}))
+	}
+
 	// Clear crates when user signs out
 	function clearCrates() {
 		crates.value = []
@@ -242,6 +256,8 @@ export const useCratesStore = defineStore('crates', () => {
 		removeRecordFromCrate,
 		getCrateById,
 		getCratesContainingRecord,
+		removeRecordFromAllCrates,
+		clearAllCrateRecords,
 		clearCrates
 	}
 })

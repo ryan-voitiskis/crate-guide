@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { AlertTriangle } from 'lucide-vue-next'
 
-const user = useUserStore()
 const records = useRecordsStore()
 const tracks = useTracksStore()
+const { deleteAllUserData } = useLibraryMutations()
 
 const showDialog = ref(false)
 const confirmationInput = ref('')
@@ -23,7 +23,7 @@ async function handleDelete() {
 	if (!isConfirmed.value) return
 
 	isDeleting.value = true
-	const success = await user.deleteAllUserData()
+	const success = await deleteAllUserData()
 	isDeleting.value = false
 
 	if (success) {

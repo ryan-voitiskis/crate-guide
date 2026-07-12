@@ -1,5 +1,5 @@
-import type { ScoredTrack } from '~/stores/sessionStore'
 import { adjustKey, scoreHarmony } from '~/utils/keyFunctions'
+import type { ScoredTrack } from '../../shared/types/session'
 
 /**
  * Filters tracks to those reachable within the pitch range from a target BPM.

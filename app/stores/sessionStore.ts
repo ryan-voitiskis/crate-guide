@@ -2,6 +2,7 @@ import { toast } from 'vue-sonner'
 import { adjustKey } from '~/utils/keyFunctions'
 import { decodeSavedSetRow, reportDecodeIssues } from '~/utils/supabaseRows'
 import { getTrackSuggestions } from '~/utils/trackSuggestions'
+import type { ScoredTrack } from '../../shared/types/session'
 
 export interface Deck {
 	loadedTrack: Track | null
@@ -10,14 +11,6 @@ export interface Deck {
 	faderPosition: number // Visual position during animation
 	faderSliding: boolean // Animation in progress
 	isPlaying: boolean // Platter spinning
-}
-
-export interface ScoredTrack extends Track {
-	score: number
-	tempoScore: number
-	harmonyScore: number
-	pitchAdjustment: number // -1 to 1 representing pitch shift needed
-	keyCombination: number // index of keyCombinations or -1
 }
 
 function createEmptyDeck(): Deck {
@@ -460,6 +453,13 @@ export const useSessionStore = defineStore('session', () => {
 		}
 	}
 
+	function clearSavedSetTracks() {
+		savedSets.value = savedSets.value.map((savedSet) => ({
+			...savedSet,
+			played_tracks: []
+		}))
+	}
+
 	// === Getters ===
 	const hasLoadedTrack = computed(() =>
 		decks.value.some((d) => d.loadedTrack !== null)
@@ -510,6 +510,7 @@ export const useSessionStore = defineStore('session', () => {
 		clearSession,
 		fetchSavedSets,
 		saveSession,
-		deleteSet
+		deleteSet,
+		clearSavedSetTracks
 	}
 })

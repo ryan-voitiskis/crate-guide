@@ -983,4 +983,26 @@ describe('tracksStore', () => {
 			expect(store.tracks).toEqual([])
 		})
 	})
+
+	describe('removeTracksByRecordId', () => {
+		it('removes matching tracks and preserves unrelated tracks', () => {
+			const store = useTracksStore()
+			const matchingTrack = createMockTrack({
+				id: 'matching-track',
+				record_id: 'record-1'
+			})
+			const unrelatedTrack = createMockTrack({
+				id: 'unrelated-track',
+				record_id: 'record-2',
+				title: 'Keep me'
+			})
+			store.tracks = [matchingTrack, unrelatedTrack]
+			const originalTracks = store.tracks
+
+			store.removeTracksByRecordId('record-1')
+
+			expect(store.tracks).not.toBe(originalTracks)
+			expect(store.tracks).toEqual([unrelatedTrack])
+		})
+	})
 })

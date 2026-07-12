@@ -345,6 +345,10 @@ export const useTracksStore = defineStore('tracks', () => {
 		return tracks.value.filter((t: Track) => t.record_id === recordId)
 	}
 
+	function removeTracksByRecordId(recordId: string) {
+		tracks.value = tracks.value.filter((track) => track.record_id !== recordId)
+	}
+
 	function searchTracks(query: string): Track[] {
 		if (!query.trim()) return tracks.value
 
@@ -406,6 +410,7 @@ export const useTracksStore = defineStore('tracks', () => {
 		deleteTrack,
 		getTrackById,
 		getTracksByRecordId,
+		removeTracksByRecordId,
 		searchTracks,
 		clearTracks
 	}

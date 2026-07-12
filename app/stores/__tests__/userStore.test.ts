@@ -15,27 +15,10 @@ const mockRouter = {
 	push: vi.fn()
 }
 
-const mockRecordsStore = {
-	clearRecords: vi.fn()
-}
-
-const mockTracksStore = {
-	clearTracks: vi.fn()
-}
-
-const mockCratesStore = {
-	crates: [] as Array<{ id: string; records: string[] }>,
-	fetchAllCrates: vi.fn().mockResolvedValue(undefined)
-}
-
-const mockSessionStore = {
-	savedSets: [] as Array<{
-		id: string
-		played_tracks: Array<{ track_id: string }>
-	}>,
-	clearSession: vi.fn(),
-	fetchSavedSets: vi.fn().mockResolvedValue(undefined)
-}
+const mockUseRecordsStore = vi.fn()
+const mockUseTracksStore = vi.fn()
+const mockUseCratesStore = vi.fn()
+const mockUseSessionStore = vi.fn()
 
 const mockSetTheme = vi.fn()
 const mockGetSavedThemePreference = vi.fn().mockReturnValue('light')
@@ -111,10 +94,10 @@ const isError = (e: unknown): e is Error => e instanceof Error
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
 vi.stubGlobal('useSupabaseUser', () => mockSupaUser)
 vi.stubGlobal('useRouter', () => mockRouter)
-vi.stubGlobal('useRecordsStore', () => mockRecordsStore)
-vi.stubGlobal('useTracksStore', () => mockTracksStore)
-vi.stubGlobal('useCratesStore', () => mockCratesStore)
-vi.stubGlobal('useSessionStore', () => mockSessionStore)
+vi.stubGlobal('useRecordsStore', mockUseRecordsStore)
+vi.stubGlobal('useTracksStore', mockUseTracksStore)
+vi.stubGlobal('useCratesStore', mockUseCratesStore)
+vi.stubGlobal('useSessionStore', mockUseSessionStore)
 vi.stubGlobal('setTheme', mockSetTheme)
 vi.stubGlobal('getSavedThemePreference', mockGetSavedThemePreference)
 vi.stubGlobal('saveThemePreference', mockSaveThemePreference)
@@ -150,15 +133,6 @@ describe('userStore', () => {
 		// Reset supaUser
 		mockSupaUser.value = { id: 'test-user-id', email: 'test@example.com' }
 		mockGetSavedThemePreference.mockReturnValue('light')
-		mockCratesStore.crates = [
-			{ id: 'crate-1', records: ['record-1', 'record-2'] }
-		]
-		mockSessionStore.savedSets = [
-			{
-				id: 'set-1',
-				played_tracks: [{ track_id: 'track-1' }]
-			}
-		]
 	})
 
 	describe('initial state', () => {
@@ -923,21 +897,15 @@ describe('userStore', () => {
 			)
 		})
 
-		it('clears local stores and reconciles related session state on success', async () => {
+		it('does not construct or mutate unrelated stores on success', async () => {
 			const store = useUserStore()
 
 			await store.deleteAllUserData()
 
-			expect(mockRecordsStore.clearRecords).toHaveBeenCalled()
-			expect(mockTracksStore.clearTracks).toHaveBeenCalled()
-			expect(mockSessionStore.clearSession).toHaveBeenCalled()
-			expect(mockCratesStore.crates).toEqual([{ id: 'crate-1', records: [] }])
-			expect(mockSessionStore.savedSets).toEqual([
-				{
-					id: 'set-1',
-					played_tracks: []
-				}
-			])
+			expect(mockUseRecordsStore).not.toHaveBeenCalled()
+			expect(mockUseTracksStore).not.toHaveBeenCalled()
+			expect(mockUseCratesStore).not.toHaveBeenCalled()
+			expect(mockUseSessionStore).not.toHaveBeenCalled()
 		})
 
 		it('returns true on success', async () => {
@@ -958,18 +926,10 @@ describe('userStore', () => {
 			const result = await store.deleteAllUserData()
 
 			expect(result).toBe(false)
-			expect(mockRecordsStore.clearRecords).not.toHaveBeenCalled()
-			expect(mockTracksStore.clearTracks).not.toHaveBeenCalled()
-			expect(mockSessionStore.clearSession).not.toHaveBeenCalled()
-			expect(mockCratesStore.crates).toEqual([
-				{ id: 'crate-1', records: ['record-1', 'record-2'] }
-			])
-			expect(mockSessionStore.savedSets).toEqual([
-				{
-					id: 'set-1',
-					played_tracks: [{ track_id: 'track-1' }]
-				}
-			])
+			expect(mockUseRecordsStore).not.toHaveBeenCalled()
+			expect(mockUseTracksStore).not.toHaveBeenCalled()
+			expect(mockUseCratesStore).not.toHaveBeenCalled()
+			expect(mockUseSessionStore).not.toHaveBeenCalled()
 		})
 	})
 })

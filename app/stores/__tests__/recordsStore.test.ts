@@ -5,7 +5,6 @@ import {
 	createMockRecordWithLabels,
 	resetRecordIdCounter
 } from 'test/mocks/fixtures/records'
-import { createMockTrack } from 'test/mocks/fixtures/tracks'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Import after mocking
 import { useRecordsStore } from '../recordsStore'
@@ -51,19 +50,13 @@ const mockSupabaseClient = {
 	rpc: vi.fn().mockResolvedValue({ data: null, error: null })
 }
 
-const mockCratesStore = {
-	crates: [] as Array<{ id: string; name: string; records: string[] }>
-}
-
 const mockTracksStore = {
-	tracks: [] as ReturnType<typeof createMockTrack>[],
 	fetchAllTracks: vi.fn()
 }
 
 // Stub globals before importing the store
 vi.stubGlobal('useUserStore', () => mockUserStore)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
-vi.stubGlobal('useCratesStore', () => mockCratesStore)
 vi.stubGlobal('useTracksStore', () => mockTracksStore)
 
 describe('recordsStore', () => {
@@ -76,8 +69,6 @@ describe('recordsStore', () => {
 		mockQueryBuilder = createMockQueryBuilder()
 		mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 		mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: null })
-		mockCratesStore.crates = []
-		mockTracksStore.tracks = []
 		mockTracksStore.fetchAllTracks.mockResolvedValue(true)
 
 		// Reset user store
@@ -729,48 +720,24 @@ describe('recordsStore', () => {
 			)
 		})
 
-		it('removes the record from local records, search results, tracks, and crates on success', async () => {
+		it('removes only record-owned local state on success', async () => {
 			const store = useRecordsStore()
 			const record = createMockRecord({ id: 'record-1', title: 'Record One' })
 			store.records = [record, createMockRecord({ id: 'record-2' })]
 			await store.performSearch('Record One')
-			mockTracksStore.tracks = [
-				createMockTrack({ id: 'track-1', record_id: 'record-1' }),
-				createMockTrack({ id: 'track-2', record_id: 'record-2' })
-			]
-			mockCratesStore.crates = [
-				{ id: 'crate-1', name: 'Crate One', records: ['record-1', 'record-2'] },
-				{ id: 'crate-2', name: 'Crate Two', records: ['record-1'] }
-			]
 
 			const result = await store.removeRecordFromCollection('record-1')
 
 			expect(result).toBe(true)
 			expect(store.records.map((item) => item.id)).toEqual(['record-2'])
 			expect(store.searchResults).toEqual([])
-			expect(mockTracksStore.tracks.map((track) => track.id)).toEqual([
-				'track-2'
-			])
-			expect(mockCratesStore.crates[0]?.records).toEqual(['record-2'])
-			expect(mockCratesStore.crates[1]?.records).toEqual([])
 		})
 
 		it('keeps local state unchanged when the RPC fails', async () => {
 			const store = useRecordsStore()
 			const record = createMockRecord({ id: 'record-1' })
-			const crateSnapshot = {
-				id: 'crate-1',
-				name: 'Crate One',
-				records: ['record-1', 'record-2']
-			}
-			const trackSnapshot = createMockTrack({
-				id: 'track-1',
-				record_id: 'record-1'
-			})
 			store.records = [record]
 			await store.performSearch(record.title)
-			mockTracksStore.tracks = [trackSnapshot]
-			mockCratesStore.crates = [crateSnapshot]
 			mockSupabaseClient.rpc.mockResolvedValue({
 				data: null,
 				error: new Error('Cleanup failed')
@@ -781,8 +748,6 @@ describe('recordsStore', () => {
 			expect(result).toBe(false)
 			expect(store.records).toEqual([record])
 			expect(store.searchResults).toEqual([record])
-			expect(mockTracksStore.tracks).toEqual([trackSnapshot])
-			expect(mockCratesStore.crates).toEqual([crateSnapshot])
 		})
 	})
 

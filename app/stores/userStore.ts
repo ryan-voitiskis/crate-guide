@@ -290,24 +290,6 @@ export const useUserStore = defineStore('user', () => {
 
 			if (error) throw error
 
-			// Clear local state in all stores
-			const records = useRecordsStore()
-			const tracks = useTracksStore()
-			const crates = useCratesStore()
-			const session = useSessionStore()
-
-			records.clearRecords()
-			tracks.clearTracks()
-			crates.crates = crates.crates.map((crate) => ({
-				...crate,
-				records: []
-			}))
-			session.savedSets = session.savedSets.map((savedSet) => ({
-				...savedSet,
-				played_tracks: []
-			}))
-			session.clearSession()
-
 			toast.success('All records and tracks have been deleted.')
 			return true
 		} catch (e) {

@@ -1,9 +1,8 @@
-import type { ThemeOptions } from '~/utils/setTheme'
 import type { TrackAudioFeatures } from './audioFeatures.ts'
 import type { BeatportNotFoundMarker, BeatportTrackData } from './beatport.ts'
 import type { Database } from './database.ts'
 import type { DiscogsArtistDb, DiscogsLabelDb } from './discogs.ts'
-import type { TurntableThemeOptions } from './options.ts'
+import type { ThemeOptions, TurntableThemeOptions } from './options.ts'
 
 export type KeyFormat = 'key' | 'camelot'
 

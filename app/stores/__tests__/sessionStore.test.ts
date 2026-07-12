@@ -831,6 +831,40 @@ describe('sessionStore', () => {
 		})
 	})
 
+	describe('clearSavedSetTracks', () => {
+		it('empties played tracks while preserving set rows and metadata', () => {
+			const store = useSessionStore()
+			store.savedSets = [
+				{
+					...createSavedSetRow({ id: 'set-1', name: 'Keep this name' }),
+					played_tracks: [
+						{
+							track_id: 'track-1',
+							time_added: 10,
+							adjusted_bpm: 128,
+							transition_rating: 4
+						}
+					]
+				},
+				{
+					...createSavedSetRow({ id: 'set-2', name: null }),
+					played_tracks: []
+				}
+			]
+			const originalSets = store.savedSets
+
+			store.clearSavedSetTracks()
+
+			expect(store.savedSets).not.toBe(originalSets)
+			expect(store.savedSets).toHaveLength(2)
+			expect(store.savedSets.map((set) => set.played_tracks)).toEqual([[], []])
+			expect(store.savedSets[0]).toMatchObject({
+				id: 'set-1',
+				name: 'Keep this name'
+			})
+		})
+	})
+
 	describe('auto-save failures', () => {
 		it('surfaces create auto-save failures and clears the error after a successful retry', async () => {
 			vi.useFakeTimers()
