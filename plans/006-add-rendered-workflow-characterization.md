@@ -276,6 +276,26 @@ and tracker status if owned by the executor.
 - Do not assert incidental generated markup from reka-ui beyond the custom
   contracts being preserved.
 
+## Execution reconciliation and reviewer evidence
+
+- The Nuxt project uses an inert test-only Supabase override with URL
+  `https://supabase.test.invalid`, key `test-anon-key`, and redirects disabled.
+  It satisfies module initialization without enabling credentials, network
+  access, or authenticated behavior.
+- The Vue Test Utils dependency update is limited to a byte-stable 15-package
+  lock closure. A second lock check produced no additional package or metadata
+  changes.
+- Rendered component tests track every mounted wrapper and explicitly unmount
+  wrappers during cleanup. The scope-disposal test unmounts its wrapper before
+  awaiting the interrupted batch.
+- Reviewer correction preserves lifecycle order: scope disposal sets the
+  cancellation flag before terminating the active Worker. A two-file batch
+  therefore cannot handle the first file's termination and create a replacement
+  Worker for the second file.
+- Reviewer gates passed with 5 Nuxt files / 24 tests, 38 aggregate files / 936
+  tests, 2 E2E tests, 4 Edge tests, 6 type-generation script tests, and a green
+  production build.
+
 ## Done criteria
 
 - [ ] `test:nuxt` exists, runs exactly one Nuxt project, and is included in
@@ -311,5 +331,11 @@ Stop and report if:
   own contract rather than expanding this plan retroactively.
 - Keep injected local-audio dependencies optional and defaulted in one place so
   production callers never construct them.
+- Keep scope-disposal cancellation ahead of Worker termination, and keep
+  explicit wrapper unmounts in rendered tests; both prevent lifecycle work from
+  leaking into a later file or test.
+- When Vue Test Utils changes, review the complete lock closure and confirm a
+  second lock operation is byte-stable rather than accepting unrelated npm
+  metadata normalization.
 - Reviewers should watch for tests coupled to class ordering or implementation
   details instead of observable behavior.
