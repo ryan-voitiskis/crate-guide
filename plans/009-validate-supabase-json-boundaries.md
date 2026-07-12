@@ -241,19 +241,41 @@ files changed.
 - Warnings are aggregated and redacted; assert both count and safe shape.
 - Preserve order for valid arrays and mixed saved-session entries.
 
+## Completion and reconciliation
+
+- Implemented by commit `715e2f965cfc4075e6f0189eec959605b9d1aa38`,
+  integrated as `92ab6f0dd28444ffd968f403e5a24910a41321ca`.
+- The implementation changed exactly 10 files: 2 shared domain-type files, the
+  decoder and its unit test, 3 stores, and their 3 focused store tests. No
+  schema, migration, generated type, or mutation payload changed.
+- Decoder coverage passed 86/86 tests, and affected record/track/session store
+  coverage passed 159/159 tests. Full verification passed 1006 application
+  tests, 2 E2E tests, 4 Edge tests, 6 type-generation tests, and 7
+  audio-configuration tests; the production build was green.
+- Each operation aggregates decode issues into one console warning and one user
+  warning. Console detail contains only entity, ID, and field metadata; raw
+  malformed values remain redacted.
+- Row projection preserves future Supabase scalar columns, and valid version-1
+  audio-feature objects retain future root/configuration/source data. Track
+  fetch explicitly destructures away joined `records` metadata before decoding,
+  so it cannot leak into local `Track` state.
+- An independent cold review approved the fallback, finite-number, legacy
+  Beatport, mixed saved-session, issue-redaction, forward-compatibility, and
+  store-boundary behavior without further changes.
+
 ## Done criteria
 
-- [ ] Every Supabase JSON response entering record, track, or saved-set state
+- [x] Every Supabase JSON response entering record, track, or saved-set state
       passes through one decoder.
-- [ ] Valid data round-trips; malformed optional fields receive documented
+- [x] Valid data round-trips; malformed optional fields receive documented
       fallbacks and one redacted warning.
-- [ ] Joined track metadata cannot leak into `Track` state.
-- [ ] `PlayedTrackEntry`/`SavedSet` are persistence-domain types, not store-local
+- [x] Joined track metadata cannot leak into `Track` state.
+- [x] `PlayedTrackEntry`/`SavedSet` are persistence-domain types, not store-local
       interfaces.
-- [ ] Double/whole-row assertions targeted by this plan are gone.
-- [ ] No schema, migration, generated type, payload format, or stored data
+- [x] Double/whole-row assertions targeted by this plan are gone.
+- [x] No schema, migration, generated type, payload format, or stored data
       changed.
-- [ ] Full verification/build pass with no out-of-scope changes.
+- [x] Full verification/build pass with no out-of-scope changes.
 
 ## STOP conditions
 
@@ -270,6 +292,9 @@ Stop and report if:
 ## Maintenance notes
 
 - Add new JSON columns to this decoder boundary and tests when schema evolves.
+- Keep row spreading for future scalar columns, preserve unknown source/config
+  fields only after required versioned structure validates, and strip joined
+  query metadata before decoding.
 - Reviewers should scrutinize fallback policy and redaction more than syntax.
 - Decoder issues are operational signals; do not silently remove warnings or
   turn them into raw-payload logs.
