@@ -1,6 +1,18 @@
 # Supabase & Auth Security Audit
 
-Status: **verified and decisions recorded — ready for implementation.** Every finding has been cross-checked against current source by a verification subagent. All four items that initially needed user input have been resolved and are documented in the "Decisions recorded" table below.
+> [!IMPORTANT]
+> **Historical/completed audit — original review date: 2026-04-17.** This
+> document preserves the review evidence and decision trail. Remediated findings
+> record outcomes in **Implementation** lines and commit references; deferred or
+> positive observations retain their status, body, and historical sequence. The
+> current architecture lives in the maintained documentation and source. Do not
+> use this archive as an active implementation checklist.
+
+Status: **audit completed, decisions recorded, and implementation outcomes
+archived.** The findings were cross-checked against the source snapshot reviewed
+at the time. Maintained architecture is documented in
+[`docs/discogs-integration.md`](../discogs-integration.md),
+[`docs/track-enrichment.md`](../track-enrichment.md), and the current source.
 
 **Target hosting platform: Cloudflare Pages** (free tier, `cloudflare-pages` Nitro preset). This materially changes H5 — see that finding for details.
 
@@ -13,12 +25,18 @@ Scope reviewed:
 - Auth pages: `app/pages/login.vue`, `signup.vue`, `reset-password.vue`, `update-password.vue`, `auth/**`
 - One authenticated server route: `server/api/beatport/search.get.ts`
 
-How to use this doc:
+How to read this historical record:
 
-1. Work through findings in order of severity, then the implementation order at the bottom.
-2. Each finding has **Evidence**, **Why it matters**, **Proposed fix**, and **Verification** sections.
-3. Before writing code: re-open the cited files, confirm the evidence still holds on the current branch, and flag any deviation.
-4. Three findings are marked **needs user input** — they cannot be resolved from the repo alone. Coordinate with the user before touching those.
+1. Treat **Evidence**, **Why it matters**, and **Proposed fix** as the original
+   review context, not statements about current source.
+2. For a remediated finding, use its **Implementation** line and commit
+   reference to understand the recorded outcome.
+3. For a deferred or positive observation, use its status, body, and the
+   historical sequence at the end of this document.
+4. Re-open current source and maintained docs before making any new security or
+   architecture decision; line numbers and status labels below are historical.
+5. The decisions table records the user input available during the audit. It is
+   not a queue of outstanding approvals.
 
 ---
 
@@ -477,38 +495,40 @@ Every one of these needs to change (narrow to an explicit column list) either as
 
 ---
 
-## Suggested implementation order
+## Historical implementation sequence
 
-Grouped so each PR is focused and reviewable independently.
+This was the proposed sequence used to keep implementation commits focused and
+reviewable. Completed work is recorded in each finding above. Items retained as
+deferred observations are history, not an active checklist.
 
-### Tier 1 — pure-SQL one-liners (do first)
+### Tier 1 — pure-SQL one-liners
 
-1. **H1** — new migration adding `SET search_path` to `handle_new_user`.
-2. **M1** — new migration rewriting `profiles` and `records` policies with explicit `WITH CHECK`.
+1. **H1** — pinned `handle_new_user`'s `search_path` in a new migration.
+2. **M1** — added explicit `WITH CHECK` clauses to the `profiles` and `records` policies.
 
 ### Tier 2 — tiny, isolated code fixes
 
-3. **M3** — guard in `get-discogs-access-token`.
-4. **M4** — fail-closed CORS.
-5. **M5** — one-line middleware change.
-6. **M7** — User-Agent header on avatar fetch.
-7. **L2** — drop the `https://127.0.0.1:3000` line in `config.toml`.
-8. **L3** — column-list narrowing on the four `profiles` selects (acts as interim mitigation for H3).
+3. **M3** — added the callback-token guard in `get-discogs-access-token`.
+4. **M4** — made CORS configuration fail closed.
+5. **M5** — tightened the demo-route middleware exemption.
+6. **M7** — added the User-Agent header to the avatar fetch.
+7. **L2** — replaced the scaffolded loopback redirect entry.
+8. **L3** — narrowed profile select columns before the H3 storage change.
 
 ### Tier 3 — config / platform (all decisions recorded above)
 
-9. **M6** — bump Supabase CLI, add `[auth.password_requirements]` block.
-10. **H2** — set `enable_confirmations = true` in `config.toml`, add `/auth/check-inbox` page, update `signUpWithEmail` to branch on null session, bump `max_frequency` to `60s` (L6 rolls in here).
-11. **H5** — add `nitro.preset = 'cloudflare-pages'`, write `check_rate_limit` RPC + `rate_limits` table migration, swap `beatport/search.get.ts` over to RPC + `cf-connecting-ip` helper.
+9. **M6** — recorded the supported Supabase CLI syntax and configured password requirements.
+10. **H2** — enabled confirmations, added the check-inbox flow, handled a null signup session, and incorporated L6's frequency change.
+11. **H5** — selected the Cloudflare preset and moved rate limiting to the database-backed RPC with the Cloudflare client-IP helper.
 
 ### Tier 4 — design-required, highest blast radius
 
-12. **M2** — doc-only clean-up of the superseded function body in the init migration.
-13. **H4** — per-endpoint Discogs dispatcher + signature base-string fix.
-14. **H3** — move Discogs credentials to a dedicated table with no RLS `SELECT` policy; update all four call sites and the tests enumerated above. Do last: touches the most surface; H4's dispatcher should land first so RPC boundaries are established.
+12. **M2** — documented the superseded function body in the init migration.
+13. **H4** — introduced the per-endpoint Discogs dispatcher and corrected the signature base string.
+14. **H3** — moved credentials to dedicated storage and updated the RPC, Edge, client, and test boundaries after the dispatcher was established.
 
 ### Tier 5 — observations worth deferring
 
-15. **L4** — validation trigger for `crates.records` / `sets.played_tracks` UUIDs.
-16. **L7** — add CSP header via Nitro `routeRules`.
-17. **L8** — audit-log table for destructive RPCs.
+15. **L4** — retained cross-tenant UUID validation as a deferred observation.
+16. **L7** — retained a Content-Security-Policy header as a deferred observation.
+17. **L8** — retained destructive-RPC audit logging as a deferred observation.

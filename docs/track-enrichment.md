@@ -15,9 +15,12 @@ staged changes.
    in explicit batches by an Essentia Web Worker.
 5. `app/utils/trackEnrichment.ts` matches either source to loaded Crate Guide
    tracks and records.
-6. `app/pages/enrichment.vue` presents ready, manual-review, unmatched, staged,
-   and applied views.
-7. Staged updates are confirmed before `updateTracksBatch` persists them.
+6. `useTrackEnrichmentWorkflow` owns source selection, parse/match progress,
+   stale-operation protection, filtering, staging, apply review, and the ordered
+   `updateTracksBatch` write.
+7. The thin `app/pages/enrichment.vue` route loads the collection and binds the
+   composable to the source, review, and result components.
+8. Staged updates are confirmed before the composable persists them.
 
 The product names this destination **BPM & Key** rather than “Enrichment” in
 navigation. The user-facing label describes the outcome; the route and internal
@@ -52,26 +55,54 @@ generate compatible XML.
 
 ## Local Analysis
 
-`useLocalAudioAnalysis` owns folder traversal and the sequential processing
+`useLocalAudioAnalysis` owns folder traversal, cache reads/writes, Web Audio
+decoding, Worker request lifecycles, cancellation, and the sequential processing
 queue. `music-metadata` reads tags without cover artwork or an exhaustive
 duration scan; duration is optional matching evidence and is recovered if a
 file is later decoded. Large-folder status updates are throttled so processing
 does not repeatedly recount the complete file list. Audio that still needs BPM
-or key is decoded with the Web Audio API. A continuous center segment
-of up to three minutes is mixed to mono, resampled to 44.1 kHz when needed, and
-transferred to `localAudioAnalysis.worker.ts`. Bounding the segment avoids
-renderer memory failures on long uncompressed files while skipping DJ-oriented
-intro and outro sections. A private benchmark also found that concatenating
-separate windows could introduce a 2:3 tempo error on a manually verified track;
-the continuous center segment recovered its approximately 156 BPM beatgrid.
+or key is decoded with the Web Audio API. A continuous center segment of up to
+three minutes is mixed to mono, resampled to 44.1 kHz when needed, and
+transferred to `app/workers/localAudioAnalysis.worker.ts`. Bounding the segment
+avoids renderer memory failures on long uncompressed files while skipping
+DJ-oriented intro and outro sections. A private benchmark also found that
+concatenating separate windows could introduce a 2:3 tempo error on a manually
+verified track; the continuous center segment recovered its approximately 156
+BPM beatgrid.
 
 The worker runs `RhythmExtractor2013` and `KeyExtractor` over that segment.
 Results are cached in IndexedDB using the analyzer version, configuration
-version, relative path, file size, and modification time. Changing analysis
-configuration invalidates old cached results without exposing absolute paths.
+version, metadata-reader version, sanitized relative path, file size, and
+modification time. Absolute paths are not part of the key or stored provenance.
 
 Folder access uses the File System Access API where available and falls back to
 `webkitdirectory`. No audio bytes are sent to Crate Guide's server.
+
+## Analyzer Configuration and Cache Maintenance
+
+`shared/config/localAudioAnalysis.json` is the shared owner of production
+analyzer identity, configuration identity, sample/window limits, confidence
+thresholds, and Essentia extractor parameters. `app/utils/localAudio.ts` maps
+those named fields to the positional arguments consumed by the Worker. The
+private benchmark script also starts from the same JSON defaults, then applies
+explicit environment overrides to an immutable effective configuration.
+
+The benchmark writes selected effective settings into `analysisMetadata` on
+every result and on its summary: analyzer/configuration versions, sample rate,
+maximum analysis duration, rhythm-extractor settings, selected key profiles,
+analysis layout, estimate inclusion, and the loaded Essentia runtime version.
+It does not claim to serialize every threshold or key-extractor field, so retain
+the shared JSON and benchmark environment alongside any private research result.
+
+Cache invalidation is manual and deliberate. Any change to production analysis
+behavior or extractor arguments must also change `configurationVersion` in the
+shared JSON. An analyzer implementation/dependency change must update
+`analyzerVersion`; a tag-reader behavior change must update
+`LOCAL_AUDIO_METADATA_VERSION` in `app/utils/localAudio.ts`. These values are
+part of the cache key, so the version bump prevents a new behavior from reusing
+old results. Research-only benchmark overrides do not change production cache
+identity and must not be promoted without updating the shared configuration and
+its version.
 
 ## Matching Policy
 
@@ -100,16 +131,30 @@ Supabase types must be refreshed whenever that schema changes.
 
 ## Validation
 
-Run the standard checks after changing the parser, matcher, persistence, or
-review flow:
+Use the focused suites while changing matcher, workflow, Worker, cache, or
+configuration behavior:
 
 ```bash
-npm run format
-npm run lint
-npm run typecheck
-npm run test:run
+npx vitest run --project unit \
+  app/utils/trackEnrichment.test.ts \
+  app/utils/localAudio.test.ts
+npx vitest run --project stores \
+  app/composables/__tests__/useTrackEnrichmentWorkflow.test.ts
+npx vitest run --project nuxt \
+  test/nuxt/enrichment-page.nuxt.test.ts \
+  test/nuxt/useLocalAudioAnalysis.nuxt.test.ts \
+  test/nuxt/localAudioCache.nuxt.test.ts
+npm run test:audio-config
+npm run verify
 npm run build
 ```
+
+The rendered enrichment-page suite protects the thin route's collection-load
+and workflow bindings. The Nuxt local-audio suite exercises Worker success,
+failure, cancellation, and disposal through a fake Worker boundary.
+`app/utils/localAudio.test.ts` pins the shared config mapping and cache-key
+versions, while `scripts/benchmark-local-audio.test.cjs` pins effective
+benchmark settings and output metadata.
 
 Use a sanitized XML fixture for automated tests. Real collection exports may be
 used for local browser verification but must not be committed.
@@ -120,6 +165,9 @@ For local analyzer research, create a private tab-separated manifest with
 ```bash
 node scripts/benchmark-local-audio.cjs /path/to/private-manifest.tsv
 ```
+
+The benchmark requires `ffprobe` and `ffmpeg` on `PATH` as well as the local
+audio, manifest, and analyzer dependencies.
 
 Set `ESSENTIA_KEY_PROFILES` to a comma-separated profile list and
 `ESSENTIA_ANALYSIS_LAYOUT=distributed` to compare research configurations. Do

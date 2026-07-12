@@ -23,15 +23,15 @@ A DJ-focused vinyl record collection manager with real-time session mixing, harm
 
 ### Tech Stack
 
-| Layer         | Technology                                      |
-| ------------- | ----------------------------------------------- |
-| Frontend      | Nuxt 4 (SPA), Vue 3 Composition API, TypeScript |
-| Styling       | Tailwind CSS v4, shadcn-vue (reka-ui)           |
-| State         | Pinia                                           |
-| Backend       | Supabase (PostgreSQL, Auth, Edge Functions)     |
-| Testing       | Vitest (unit + store), Playwright (e2e)         |
-| External APIs | Discogs                                         |
-| Audio         | Essentia.js, music-metadata, Web Audio API      |
+| Layer         | Technology                                             |
+| ------------- | ------------------------------------------------------ |
+| Frontend      | Nuxt 4 (SPA), Vue 3 Composition API, TypeScript        |
+| Styling       | Tailwind CSS v4, shadcn-vue (reka-ui)                  |
+| State         | Pinia                                                  |
+| Backend       | Supabase (PostgreSQL, Auth, Deno Edge Functions)       |
+| Testing       | Vitest projects, Nuxt Test Utils, `playwright-core`    |
+| External APIs | Discogs                                                |
+| Audio         | Essentia.js, music-metadata, Web Audio API, Web Worker |
 
 ### Project Structure
 
@@ -48,30 +48,34 @@ A DJ-focused vinyl record collection manager with real-time session mixing, harm
 │   │   ├── notices/    # Notice components (auto-prefixed)
 │   │   ├── ui/         # shadcn-vue primitives
 │   │   └── ...
-│   ├── composables/    # Vue composables
+│   ├── composables/    # Vue composables and colocated store-project tests
 │   ├── layouts/        # Nuxt layouts
-│   ├── middleware/      # Route middleware (auth)
+│   ├── middleware/     # Route middleware (auth)
 │   ├── pages/          # Route pages (+ demo/ routes)
-│   ├── stores/         # Pinia stores
-│   └── utils/          # Utility functions
-├── server/api/         # Nitro API endpoints
-├── shared/types/       # TypeScript definitions
-├── test/               # Unit, store, and e2e tests
-├── scripts/            # Dev scripts
+│   ├── stores/         # Pinia stores and colocated store-project tests
+│   └── utils/          # Pure utilities and colocated unit tests
+├── server/             # Nitro routes/utilities; configured server test project
+├── shared/             # Shared types, analyzer config, and unit tests
+├── test/
+│   ├── e2e/            # Nuxt Test Utils browser E2E tests
+│   ├── mocks/          # Shared test doubles and fixtures
+│   └── nuxt/           # Nuxt runtime/component tests
+├── scripts/            # Development and maintenance scripts/tests
 └── supabase/
-    ├── functions/      # Deno Edge Functions
+    ├── functions/      # Deno Edge Functions and Deno tests
     └── migrations/     # PostgreSQL migrations
 ```
 
 ### Data Model
 
-| Entity     | Description                                                    |
-| ---------- | -------------------------------------------------------------- |
-| `profiles` | User preferences, theme, key format, turntable settings, OAuth |
-| `records`  | Vinyl records with metadata (artists, labels, year, cover)     |
-| `tracks`   | Tracks with BPM, key, duration, genres, RPM, Beatport metadata |
-| `crates`   | Color-coded record collections with descriptions               |
-| `sets`     | DJ session history with played tracks and transition ratings   |
+| Entity                | Description                                                       |
+| --------------------- | ----------------------------------------------------------------- |
+| `profiles`            | User preferences, turntable settings, and public Discogs identity |
+| `discogs_credentials` | Private OAuth credentials accessed through identity-bound RPCs    |
+| `records`             | Vinyl records with metadata (artists, labels, year, cover)        |
+| `tracks`              | Tracks with BPM, key, duration, genres, RPM, Beatport metadata    |
+| `crates`              | Color-coded record collections with descriptions                  |
+| `sets`                | DJ session history with played tracks and transition ratings      |
 
 ## Development
 
@@ -79,6 +83,7 @@ A DJ-focused vinyl record collection manager with real-time session mixing, harm
 
 - Node.js 24.12.0
 - npm 11.6.2
+- Deno 2.x (for Edge Function checks and tests)
 - Docker (for Supabase local development)
 - [Supabase CLI](https://supabase.com/docs/guides/cli)
 
@@ -89,6 +94,9 @@ git clone <repository-url>
 cd crate-guide
 npm install
 cp .env.example .env
+
+# One-time browser download for Nuxt Test Utils E2E tests
+npx playwright-core install chromium
 ```
 
 Root `.env` — Supabase connection:
@@ -124,55 +132,82 @@ npm run supa:stop
 
 ### Testing
 
+Vitest is the single application test runner. Its projects separate pure unit
+tests (`app/utils` and `shared`), Pinia/composable/middleware tests, a configured
+Nitro server project (currently with no test files), Nuxt runtime tests
+(`test/nuxt`), and browser E2E tests (`test/e2e`). The E2E project uses Nuxt
+Test Utils backed by `playwright-core`; there is no separate Playwright Test
+suite.
+
 ```bash
-# Unit + store tests (watch mode)
+# Unit + store/composable + server + Nuxt runtime tests (watch mode)
 npm test
 
-# Unit + store tests (single run)
+# The same four projects, once
 npm run test:run
 
-# Unit tests only
+# Pure unit project only
 npm run test:unit
 
-# E2E tests (Playwright)
+# Nuxt runtime project only
+npm run test:nuxt
+
+# Nuxt Test Utils browser E2E project
 npm run test:e2e
+
+# Deno Edge Function type-check, lint, and tests
+npm run check:edge
+npm run lint:edge
+npm run test:edge
 ```
 
 ### Code Quality
 
 ```bash
-npm run format      # Prettier
-npm run lint        # ESLint
-npm run lint:fix    # ESLint with auto-fix
-npm run typecheck   # TypeScript checking
-npm run verify      # Full read-only verification suite
-npm run build       # Production build
+npm run format               # Write Prettier formatting
+npm run format:check         # Check formatting without writes
+npm run lint                 # ESLint
+npm run lint:fix             # ESLint with auto-fix
+npm run typecheck            # Nuxt/TypeScript checking
+npm run check:conventions    # Component naming and Tailwind boundaries
+npm run test:typegen-script  # Failure/rollback tests for genTypes
+npm run test:audio-config    # Shared analyzer/benchmark config tests
+npm run test:conventions     # Convention checker tests
+npm run verify               # Comprehensive read-only verification gate
+npm run build                # Production build (separate from verify)
 ```
+
+`npm run verify` runs formatting, lint, type checking, all application and E2E
+tests, all three Edge gates, and the maintenance/convention tests above. It is
+read-only; run `npm run format` separately when files need formatting. A
+production build is also a separate release check.
 
 ### Database
 
 ```bash
-# Generate TypeScript types from a running local Supabase stack
+# Generate TypeScript types (requires the CLI and a running local Supabase stack)
 npm run genTypes
 
 # Reset local database (applies migrations + seed)
 npm run supa:reset
 ```
 
-`npm run genTypes` validates and formats the generated output before replacing
-both tracked database-type copies. Any failure before replacement leaves both
-files unchanged. If replacement fails, the script restores both prior states
-and reports if restoration cannot complete.
+`npm run genTypes` validates and Prettier-formats generated output before
+replacing the intentional byte-identical copies at `shared/types/database.ts`
+and `supabase/functions/_shared/types/database.ts`. The application and Deno
+Edge Function module trees consume their respective copies. Any failure before
+replacement leaves both files unchanged; a partial replacement restores both
+prior states and reports if restoration cannot complete.
 
 ## Edge Functions
 
 Supabase Edge Functions handle Discogs OAuth flow:
 
-| Function                        | Purpose                            |
-| ------------------------------- | ---------------------------------- |
-| `get-discogs-request-token`     | Initiate OAuth 1.0 flow            |
-| `get-discogs-access-token`      | Exchange verifier for access token |
-| `authenticated-discogs-request` | Proxy authenticated API requests   |
+| Function                        | Purpose                              |
+| ------------------------------- | ------------------------------------ |
+| `get-discogs-request-token`     | Initiate OAuth 1.0 flow              |
+| `get-discogs-access-token`      | Exchange verifier for access token   |
+| `authenticated-discogs-request` | Dispatch allowed authenticated reads |
 
 ## Documentation
 

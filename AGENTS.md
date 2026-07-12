@@ -2,3 +2,6 @@
 - Tailwind utility classes only — no `<style>` blocks, no `@apply`
 - Auto-registered prefixes via nuxt.config: `Icon` (icons), `Notice` (notices), `Turntable` (turntable)
 - Run `npm run format` after changes
+- Run `npm run check:conventions` and `npm run verify` before handoff
+- Put application-specific UI behavior in wrappers outside generated `app/components/ui`
+- Prettier owns Edge Function formatting; do not run `deno fmt`
