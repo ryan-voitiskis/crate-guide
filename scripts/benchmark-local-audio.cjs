@@ -2,20 +2,69 @@
 
 const fs = require('node:fs')
 const { spawnSync } = require('node:child_process')
-const Essentia = require('../node_modules/essentia.js/dist/essentia.js-core.umd.js')
-const EssentiaWASM = require('../node_modules/essentia.js/dist/essentia-wasm.umd.js')
+const sharedConfiguration = require('../shared/config/localAudioAnalysis.json')
 
-const SAMPLE_RATE = 44_100
-const MAX_ANALYSIS_SECONDS = 180
-const MAX_DECODED_BYTES =
-	MAX_ANALYSIS_SECONDS * SAMPLE_RATE * Float32Array.BYTES_PER_ELEMENT + 1024
-const KEY_PROFILES = (process.env.ESSENTIA_KEY_PROFILES || 'edma')
-	.split(',')
-	.map((profile) => profile.trim())
-	.filter(Boolean)
-const ANALYSIS_LAYOUT = process.env.ESSENTIA_ANALYSIS_LAYOUT || 'center'
-const RHYTHM_METHOD = process.env.ESSENTIA_RHYTHM_METHOD || 'multifeature'
-const INCLUDE_ESTIMATES = process.env.ESSENTIA_INCLUDE_ESTIMATES === '1'
+function buildEffectiveConfiguration(environment = {}) {
+	const keyProfiles = (
+		environment.ESSENTIA_KEY_PROFILES ||
+		sharedConfiguration.keyExtractor.profile
+	)
+		.split(',')
+		.map((profile) => profile.trim())
+		.filter(Boolean)
+	const minimumConfidence = Object.freeze({
+		...sharedConfiguration.minimumConfidence
+	})
+	const rhythmExtractor = Object.freeze({
+		...sharedConfiguration.rhythmExtractor,
+		method:
+			environment.ESSENTIA_RHYTHM_METHOD ||
+			sharedConfiguration.rhythmExtractor.method
+	})
+	const keyExtractor = Object.freeze({ ...sharedConfiguration.keyExtractor })
+
+	return Object.freeze({
+		analyzerVersion: sharedConfiguration.analyzerVersion,
+		configurationVersion: sharedConfiguration.configurationVersion,
+		sampleRate: sharedConfiguration.sampleRate,
+		maxAnalysisSeconds: sharedConfiguration.maxAnalysisSeconds,
+		minimumConfidence,
+		rhythmExtractor,
+		keyExtractor,
+		keyProfiles: Object.freeze(keyProfiles),
+		analysisLayout: environment.ESSENTIA_ANALYSIS_LAYOUT || 'center',
+		includeEstimates: environment.ESSENTIA_INCLUDE_ESTIMATES === '1'
+	})
+}
+
+function buildBenchmarkMetadata(
+	effectiveConfiguration,
+	essentiaRuntimeVersion
+) {
+	return Object.freeze({
+		analyzerVersion: effectiveConfiguration.analyzerVersion,
+		configurationVersion: effectiveConfiguration.configurationVersion,
+		sampleRate: effectiveConfiguration.sampleRate,
+		maxAnalysisSeconds: effectiveConfiguration.maxAnalysisSeconds,
+		rhythmExtractor: Object.freeze({
+			...effectiveConfiguration.rhythmExtractor
+		}),
+		keyProfiles: Object.freeze([...effectiveConfiguration.keyProfiles]),
+		analysisLayout: effectiveConfiguration.analysisLayout,
+		includeEstimates: effectiveConfiguration.includeEstimates,
+		essentiaRuntimeVersion
+	})
+}
+
+function buildBenchmarkOutput(results, summary, analysisMetadata) {
+	return {
+		results: results.map((result) => ({
+			...result,
+			analysisMetadata
+		})),
+		summary: { ...summary, analysisMetadata }
+	}
+}
 
 const notePitchClasses = {
 	C: 0,
@@ -80,7 +129,12 @@ function durationSeconds(fileName) {
 	return duration
 }
 
-function decodeWindow(fileName, offset, duration) {
+function decodeWindow(fileName, offset, duration, effectiveConfiguration) {
+	const maxDecodedBytes =
+		effectiveConfiguration.maxAnalysisSeconds *
+			effectiveConfiguration.sampleRate *
+			Float32Array.BYTES_PER_ELEMENT +
+		1024
 	return run(
 		'ffmpeg',
 		[
@@ -96,26 +150,31 @@ function decodeWindow(fileName, offset, duration) {
 			'-ac',
 			'1',
 			'-ar',
-			String(SAMPLE_RATE),
+			String(effectiveConfiguration.sampleRate),
 			'-f',
 			'f32le',
 			'pipe:1'
 		],
-		{ maxBuffer: MAX_DECODED_BYTES }
+		{ maxBuffer: maxDecodedBytes }
 	)
 }
 
-function decodeSegment(fileName, duration) {
-	const analyzedDuration = Math.min(duration, MAX_ANALYSIS_SECONDS)
+function decodeSegment(fileName, duration, effectiveConfiguration) {
+	const analyzedDuration = Math.min(
+		duration,
+		effectiveConfiguration.maxAnalysisSeconds
+	)
 	const windows =
-		ANALYSIS_LAYOUT === 'distributed' && duration > MAX_ANALYSIS_SECONDS
+		effectiveConfiguration.analysisLayout === 'distributed' &&
+		duration > effectiveConfiguration.maxAnalysisSeconds
 			? [0.2, 0.5, 0.8].map((position) => ({
-					duration: MAX_ANALYSIS_SECONDS / 3,
+					duration: effectiveConfiguration.maxAnalysisSeconds / 3,
 					offset: Math.max(
 						0,
 						Math.min(
-							duration - MAX_ANALYSIS_SECONDS / 3,
-							duration * position - MAX_ANALYSIS_SECONDS / 6
+							duration - effectiveConfiguration.maxAnalysisSeconds / 3,
+							duration * position -
+								effectiveConfiguration.maxAnalysisSeconds / 6
 						)
 					)
 				}))
@@ -127,7 +186,12 @@ function decodeSegment(fileName, duration) {
 				]
 	const output = Buffer.concat(
 		windows.map((window) =>
-			decodeWindow(fileName, window.offset, window.duration)
+			decodeWindow(
+				fileName,
+				window.offset,
+				window.duration,
+				effectiveConfiguration
+			)
 		)
 	)
 	return {
@@ -181,29 +245,48 @@ function compareBpm(actual, expected) {
 	return { classification: 'miss', error: directError }
 }
 
-function analyze(essentia, samples) {
+function buildRhythmExtractorArguments(effectiveConfiguration) {
+	const { rhythmExtractor } = effectiveConfiguration
+	return [
+		rhythmExtractor.maximumTempo,
+		rhythmExtractor.method,
+		rhythmExtractor.minimumTempo
+	]
+}
+
+function buildKeyExtractorArguments(effectiveConfiguration, profile) {
+	const { keyExtractor } = effectiveConfiguration
+	return [
+		keyExtractor.averageDetuningCorrection,
+		keyExtractor.frameSize,
+		keyExtractor.hopSize,
+		keyExtractor.hpcpSize,
+		keyExtractor.maximumFrequency,
+		keyExtractor.maximumSpectralPeaks,
+		keyExtractor.minimumFrequency,
+		keyExtractor.pcpThreshold,
+		profile,
+		keyExtractor.sampleRate,
+		keyExtractor.spectralPeaksThreshold,
+		keyExtractor.tuningFrequency,
+		keyExtractor.weightType,
+		keyExtractor.windowType
+	]
+}
+
+function analyze(essentia, samples, effectiveConfiguration) {
 	const signal = essentia.arrayToVector(samples)
 	let rhythm = null
 	try {
-		rhythm = essentia.RhythmExtractor2013(signal, 208, RHYTHM_METHOD, 40)
+		rhythm = essentia.RhythmExtractor2013(
+			signal,
+			...buildRhythmExtractorArguments(effectiveConfiguration)
+		)
 		const keys = Object.fromEntries(
-			KEY_PROFILES.map((profile) => {
+			effectiveConfiguration.keyProfiles.map((profile) => {
 				const key = essentia.KeyExtractor(
 					signal,
-					true,
-					4096,
-					4096,
-					12,
-					3500,
-					60,
-					25,
-					0.2,
-					profile,
-					SAMPLE_RATE,
-					0.0001,
-					440,
-					'cosine',
-					'hann'
+					...buildKeyExtractorArguments(effectiveConfiguration, profile)
 				)
 				return [
 					profile,
@@ -214,7 +297,7 @@ function analyze(essentia, samples) {
 		return {
 			bpm: rhythm.bpm,
 			bpmConfidence: rhythm.confidence,
-			bpmEstimates: INCLUDE_ESTIMATES
+			bpmEstimates: effectiveConfiguration.includeEstimates
 				? Array.from(essentia.vectorToArray(rhythm.estimates))
 				: undefined,
 			keys
@@ -227,92 +310,117 @@ function analyze(essentia, samples) {
 	}
 }
 
-const manifestPath = process.argv[2]
-if (!manifestPath) {
-	fail('Usage: scripts/benchmark-local-audio.cjs <manifest.tsv>')
-}
-if (!fs.existsSync(manifestPath)) fail(`Manifest not found: ${manifestPath}`)
-
-const rows = fs
-	.readFileSync(manifestPath, 'utf8')
-	.trim()
-	.split(/\r?\n/)
-	.map((line) => {
-		const [fileName, bpm, key, artist = '', title = ''] = line.split('\t')
-		return {
-			fileName,
-			expectedBpm: Number.parseFloat(bpm),
-			expectedKey: key,
-			artist,
-			title
-		}
-	})
-
-const essentia = new Essentia(EssentiaWASM)
-const results = []
-
-try {
-	for (const row of rows) {
-		const duration = durationSeconds(row.fileName)
-		const decoded = decodeSegment(row.fileName, duration)
-		const actual = analyze(essentia, decoded.samples)
-		const bpmComparison = compareBpm(actual.bpm, row.expectedBpm)
-		const expectedKey = parseKey(row.expectedKey)
-		const keys = Object.fromEntries(
-			Object.entries(actual.keys).map(([profile, key]) => {
-				const parsed = parseKey(`${key.key}${key.scale === 'minor' ? 'm' : ''}`)
-				return [
-					profile,
-					{
-						value: `${key.key} ${key.scale}`,
-						strength: key.strength,
-						matches:
-							expectedKey !== null &&
-							parsed !== null &&
-							expectedKey.pitchClass === parsed.pitchClass &&
-							expectedKey.mode === parsed.mode
-					}
-				]
-			})
-		)
-		const result = {
-			artist: row.artist,
-			title: row.title,
-			expectedBpm: row.expectedBpm,
-			actualBpm: Math.round(actual.bpm * 100) / 100,
-			bpmClassification: bpmComparison.classification,
-			bpmConfidence: actual.bpmConfidence,
-			bpmEstimates: actual.bpmEstimates,
-			expectedKey: row.expectedKey,
-			keys,
-			analyzedDuration: decoded.analyzedDuration,
-			offsets: decoded.offsets
-		}
-		results.push(result)
-		console.log(JSON.stringify(result))
+function main(argv = process.argv, environment = process.env) {
+	const manifestPath = argv[2]
+	if (!manifestPath) {
+		fail('Usage: scripts/benchmark-local-audio.cjs <manifest.tsv>')
 	}
-} finally {
-	essentia.delete()
-}
+	if (!fs.existsSync(manifestPath)) fail(`Manifest not found: ${manifestPath}`)
 
-const summary = {
-	tracks: results.length,
-	bpmReferenceTracks: results.filter(
-		(result) => result.bpmClassification !== 'unavailable'
-	).length,
-	bpmExact: results.filter((result) => result.bpmClassification === 'exact')
-		.length,
-	bpmHalfDouble: results.filter(
-		(result) => result.bpmClassification === 'half-double'
-	).length,
-	bpmMisses: results.filter((result) => result.bpmClassification === 'miss')
-		.length,
-	keyExactByProfile: Object.fromEntries(
-		KEY_PROFILES.map((profile) => [
-			profile,
-			results.filter((result) => result.keys[profile]?.matches).length
-		])
+	const rows = fs
+		.readFileSync(manifestPath, 'utf8')
+		.trim()
+		.split(/\r?\n/)
+		.map((line) => {
+			const [fileName, bpm, key, artist = '', title = ''] = line.split('\t')
+			return {
+				fileName,
+				expectedBpm: Number.parseFloat(bpm),
+				expectedKey: key,
+				artist,
+				title
+			}
+		})
+	const effectiveConfiguration = buildEffectiveConfiguration(environment)
+	const Essentia = require('../node_modules/essentia.js/dist/essentia.js-core.umd.js')
+	const EssentiaWASM = require('../node_modules/essentia.js/dist/essentia-wasm.umd.js')
+	const essentia = new Essentia(EssentiaWASM)
+	const essentiaRuntimeVersion = essentia.version
+	const results = []
+
+	try {
+		for (const row of rows) {
+			const duration = durationSeconds(row.fileName)
+			const decoded = decodeSegment(
+				row.fileName,
+				duration,
+				effectiveConfiguration
+			)
+			const actual = analyze(essentia, decoded.samples, effectiveConfiguration)
+			const bpmComparison = compareBpm(actual.bpm, row.expectedBpm)
+			const expectedKey = parseKey(row.expectedKey)
+			const keys = Object.fromEntries(
+				Object.entries(actual.keys).map(([profile, key]) => {
+					const parsed = parseKey(
+						`${key.key}${key.scale === 'minor' ? 'm' : ''}`
+					)
+					return [
+						profile,
+						{
+							value: `${key.key} ${key.scale}`,
+							strength: key.strength,
+							matches:
+								expectedKey !== null &&
+								parsed !== null &&
+								expectedKey.pitchClass === parsed.pitchClass &&
+								expectedKey.mode === parsed.mode
+						}
+					]
+				})
+			)
+			results.push({
+				artist: row.artist,
+				title: row.title,
+				expectedBpm: row.expectedBpm,
+				actualBpm: Math.round(actual.bpm * 100) / 100,
+				bpmClassification: bpmComparison.classification,
+				bpmConfidence: actual.bpmConfidence,
+				bpmEstimates: actual.bpmEstimates,
+				expectedKey: row.expectedKey,
+				keys,
+				analyzedDuration: decoded.analyzedDuration,
+				offsets: decoded.offsets
+			})
+		}
+	} finally {
+		essentia.delete()
+	}
+
+	const summary = {
+		tracks: results.length,
+		bpmReferenceTracks: results.filter(
+			(result) => result.bpmClassification !== 'unavailable'
+		).length,
+		bpmExact: results.filter((result) => result.bpmClassification === 'exact')
+			.length,
+		bpmHalfDouble: results.filter(
+			(result) => result.bpmClassification === 'half-double'
+		).length,
+		bpmMisses: results.filter((result) => result.bpmClassification === 'miss')
+			.length,
+		keyExactByProfile: Object.fromEntries(
+			effectiveConfiguration.keyProfiles.map((profile) => [
+				profile,
+				results.filter((result) => result.keys[profile]?.matches).length
+			])
+		)
+	}
+	const analysisMetadata = buildBenchmarkMetadata(
+		effectiveConfiguration,
+		essentiaRuntimeVersion
 	)
+	const output = buildBenchmarkOutput(results, summary, analysisMetadata)
+
+	for (const result of output.results) console.log(JSON.stringify(result))
+	console.log(JSON.stringify({ summary: output.summary }))
 }
 
-console.log(JSON.stringify({ summary }))
+module.exports = {
+	buildBenchmarkMetadata,
+	buildBenchmarkOutput,
+	buildEffectiveConfiguration,
+	buildKeyExtractorArguments,
+	buildRhythmExtractorArguments
+}
+
+if (require.main === module) main()

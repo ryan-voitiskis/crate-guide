@@ -5,7 +5,14 @@ import type {
 } from '~/types/localAudio'
 import {
 	LOCAL_AUDIO_ANALYZER_VERSION,
+	LOCAL_AUDIO_CONFIGURATION_VERSION,
+	LOCAL_AUDIO_KEY_EXTRACTOR_ARGS,
+	LOCAL_AUDIO_MAX_ANALYSIS_SECONDS,
 	LOCAL_AUDIO_METADATA_VERSION,
+	LOCAL_AUDIO_MIN_BPM_CONFIDENCE,
+	LOCAL_AUDIO_MIN_KEY_STRENGTH,
+	LOCAL_AUDIO_RHYTHM_EXTRACTOR_ARGS,
+	LOCAL_AUDIO_SAMPLE_RATE,
 	createLocalAudioTrackSource,
 	findNativeAudioTag,
 	getLocalAudioAnalysisWindow,
@@ -40,6 +47,46 @@ const analysis: LocalAudioAnalysis = {
 }
 
 describe('localAudio', () => {
+	it('preserves the analyzer configuration values', () => {
+		expect({
+			analyzerVersion: LOCAL_AUDIO_ANALYZER_VERSION,
+			configurationVersion: LOCAL_AUDIO_CONFIGURATION_VERSION,
+			metadataVersion: LOCAL_AUDIO_METADATA_VERSION,
+			sampleRate: LOCAL_AUDIO_SAMPLE_RATE,
+			maxAnalysisSeconds: LOCAL_AUDIO_MAX_ANALYSIS_SECONDS,
+			minBpmConfidence: LOCAL_AUDIO_MIN_BPM_CONFIDENCE,
+			minKeyStrength: LOCAL_AUDIO_MIN_KEY_STRENGTH
+		}).toEqual({
+			analyzerVersion: 'essentia.js@0.1.3',
+			configurationVersion: 'center-180s-44k1-v1',
+			metadataVersion: 'native-tags-v2',
+			sampleRate: 44_100,
+			maxAnalysisSeconds: 180,
+			minBpmConfidence: 1.5,
+			minKeyStrength: 0.8
+		})
+	})
+
+	it('preserves Essentia positional argument values and order', () => {
+		expect(LOCAL_AUDIO_RHYTHM_EXTRACTOR_ARGS).toEqual([208, 'multifeature', 40])
+		expect(LOCAL_AUDIO_KEY_EXTRACTOR_ARGS).toEqual([
+			true,
+			4096,
+			4096,
+			12,
+			3500,
+			60,
+			25,
+			0.2,
+			'edma',
+			44_100,
+			0.0001,
+			440,
+			'cosine',
+			'hann'
+		])
+	})
+
 	it('recognizes supported extensions case-insensitively', () => {
 		expect(isSupportedAudioFile('Track.FLAC')).toBe(true)
 		expect(isSupportedAudioFile('cover.jpg')).toBe(false)
@@ -52,8 +99,8 @@ describe('localAudio', () => {
 				size: 123,
 				lastModified: 456
 			})
-		).toContain(
-			`${LOCAL_AUDIO_ANALYZER_VERSION}|center-180s-44k1-v1|${LOCAL_AUDIO_METADATA_VERSION}|`
+		).toBe(
+			'essentia.js@0.1.3|center-180s-44k1-v1|native-tags-v2|Artist/Album/Track.flac|123|456'
 		)
 	})
 
@@ -76,6 +123,10 @@ describe('localAudio', () => {
 		})
 		expect(getLocalAudioAnalysisWindow(90)).toEqual({
 			analyzedDurationSeconds: 90,
+			analysisOffsetSeconds: 0
+		})
+		expect(getLocalAudioAnalysisWindow(-1)).toEqual({
+			analyzedDurationSeconds: 0,
 			analysisOffsetSeconds: 0
 		})
 	})

@@ -6,6 +6,8 @@ import type {
 import {
 	LOCAL_AUDIO_ANALYZER_VERSION,
 	LOCAL_AUDIO_CONFIGURATION_VERSION,
+	LOCAL_AUDIO_KEY_EXTRACTOR_ARGS,
+	LOCAL_AUDIO_RHYTHM_EXTRACTOR_ARGS,
 	LOCAL_AUDIO_SAMPLE_RATE
 } from '~/utils/localAudio'
 
@@ -98,24 +100,11 @@ async function analyze(
 	let rhythm: Record<string, unknown> | null = null
 
 	try {
-		rhythm = essentia.RhythmExtractor2013(signal, 208, 'multifeature', 40)
-		const key = essentia.KeyExtractor(
+		rhythm = essentia.RhythmExtractor2013(
 			signal,
-			true,
-			4096,
-			4096,
-			12,
-			3500,
-			60,
-			25,
-			0.2,
-			'edma',
-			LOCAL_AUDIO_SAMPLE_RATE,
-			0.0001,
-			440,
-			'cosine',
-			'hann'
+			...LOCAL_AUDIO_RHYTHM_EXTRACTOR_ARGS
 		)
+		const key = essentia.KeyExtractor(signal, ...LOCAL_AUDIO_KEY_EXTRACTOR_ARGS)
 
 		const bpm = numberField(rhythm, 'bpm')
 		const warnings: string[] = []

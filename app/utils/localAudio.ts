@@ -3,16 +3,46 @@ import type {
 	LocalAudioTagMetadata,
 	LocalAudioTrackSource
 } from '~/types/localAudio'
+import localAudioAnalysisConfiguration from '../../shared/config/localAudioAnalysis.json'
 import { parseRekordboxTonality } from './rekordboxXml'
 import { isValidBPM } from './track-validation'
 
-export const LOCAL_AUDIO_ANALYZER_VERSION = 'essentia.js@0.1.3'
-export const LOCAL_AUDIO_CONFIGURATION_VERSION = 'center-180s-44k1-v1'
+export const LOCAL_AUDIO_ANALYZER_VERSION =
+	localAudioAnalysisConfiguration.analyzerVersion
+export const LOCAL_AUDIO_CONFIGURATION_VERSION =
+	localAudioAnalysisConfiguration.configurationVersion
 export const LOCAL_AUDIO_METADATA_VERSION = 'native-tags-v2'
-export const LOCAL_AUDIO_SAMPLE_RATE = 44_100
-export const LOCAL_AUDIO_MAX_ANALYSIS_SECONDS = 180
-export const LOCAL_AUDIO_MIN_BPM_CONFIDENCE = 1.5
-export const LOCAL_AUDIO_MIN_KEY_STRENGTH = 0.8
+export const LOCAL_AUDIO_SAMPLE_RATE =
+	localAudioAnalysisConfiguration.sampleRate
+export const LOCAL_AUDIO_MAX_ANALYSIS_SECONDS =
+	localAudioAnalysisConfiguration.maxAnalysisSeconds
+export const LOCAL_AUDIO_MIN_BPM_CONFIDENCE =
+	localAudioAnalysisConfiguration.minimumConfidence.bpm
+export const LOCAL_AUDIO_MIN_KEY_STRENGTH =
+	localAudioAnalysisConfiguration.minimumConfidence.keyStrength
+
+// Tuple order is the Essentia positional API boundary; keep it aligned with the named JSON fields.
+export const LOCAL_AUDIO_RHYTHM_EXTRACTOR_ARGS = [
+	localAudioAnalysisConfiguration.rhythmExtractor.maximumTempo,
+	localAudioAnalysisConfiguration.rhythmExtractor.method,
+	localAudioAnalysisConfiguration.rhythmExtractor.minimumTempo
+] as const
+export const LOCAL_AUDIO_KEY_EXTRACTOR_ARGS = [
+	localAudioAnalysisConfiguration.keyExtractor.averageDetuningCorrection,
+	localAudioAnalysisConfiguration.keyExtractor.frameSize,
+	localAudioAnalysisConfiguration.keyExtractor.hopSize,
+	localAudioAnalysisConfiguration.keyExtractor.hpcpSize,
+	localAudioAnalysisConfiguration.keyExtractor.maximumFrequency,
+	localAudioAnalysisConfiguration.keyExtractor.maximumSpectralPeaks,
+	localAudioAnalysisConfiguration.keyExtractor.minimumFrequency,
+	localAudioAnalysisConfiguration.keyExtractor.pcpThreshold,
+	localAudioAnalysisConfiguration.keyExtractor.profile,
+	localAudioAnalysisConfiguration.keyExtractor.sampleRate,
+	localAudioAnalysisConfiguration.keyExtractor.spectralPeaksThreshold,
+	localAudioAnalysisConfiguration.keyExtractor.tuningFrequency,
+	localAudioAnalysisConfiguration.keyExtractor.weightType,
+	localAudioAnalysisConfiguration.keyExtractor.windowType
+] as const
 
 const AUDIO_EXTENSIONS = new Set([
 	'aac',
