@@ -145,18 +145,24 @@ npm run format      # Prettier
 npm run lint        # ESLint
 npm run lint:fix    # ESLint with auto-fix
 npm run typecheck   # TypeScript checking
+npm run verify      # Full read-only verification suite
 npm run build       # Production build
 ```
 
 ### Database
 
 ```bash
-# Generate TypeScript types from schema
+# Generate TypeScript types from a running local Supabase stack
 npm run genTypes
 
 # Reset local database (applies migrations + seed)
 npm run supa:reset
 ```
+
+`npm run genTypes` validates and formats the generated output before replacing
+both tracked database-type copies. Any failure before replacement leaves both
+files unchanged. If replacement fails, the script restores both prior states
+and reports if restoration cannot complete.
 
 ## Edge Functions
 

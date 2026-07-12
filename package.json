@@ -17,6 +17,7 @@
 		"test:run": "vitest run --project unit --project stores --project server",
 		"test:unit": "vitest --project unit",
 		"test:e2e": "vitest run --project e2e",
+		"test:typegen-script": "node --test scripts/generate-database-types.test.mjs",
 		"check:edge": "cd supabase && deno task check",
 		"lint:edge": "cd supabase && deno task lint",
 		"test:edge": "cd supabase && deno task test",
@@ -29,14 +30,16 @@
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",
 		"typecheck": "nuxt typecheck",
-		"format": "prettier --write '**/*.{ts,js,vue,scss,css,md,json}'",
+		"format": "prettier --write '**/*.{ts,js,mjs,cjs,mts,cts,vue,scss,css,md,json}'",
+		"format:check": "prettier --check '**/*.{ts,js,mjs,cjs,mts,cts,vue,scss,css,md,json}'",
+		"verify": "npm run format:check && npm run lint && npm run typecheck && npm run test:run && npm run test:e2e && npm run check:edge && npm run lint:edge && npm run test:edge && npm run test:typegen-script",
 		"supa:start": "supabase start && supabase functions serve --no-verify-jwt &",
 		"supa:stop": "supabase stop",
 		"supa:restart": "supabase stop && supabase start",
 		"supa:functions": "supabase functions serve --no-verify-jwt",
 		"supa:reset": "supabase db reset",
 		"setStagingSecrets": "npx supabase secrets set --project-ref=$SUPABASE_PROJECT_REF --env-file ./supabase/functions/.env",
-		"genTypes": "supabase gen types --lang=typescript --local > shared/types/database.ts && cp shared/types/database.ts supabase/functions/_shared/types/database.ts"
+		"genTypes": "node scripts/generate-database-types.mjs"
 	},
 	"dependencies": {
 		"@nuxtjs/supabase": "^2.0.4",
