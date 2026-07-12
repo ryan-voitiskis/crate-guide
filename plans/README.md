@@ -19,7 +19,7 @@ its status row when done unless a reviewer explicitly owns the index.
 | 004  | [Integrate Deno Edge runtime verification](004-integrate-edge-runtime-verification.md)                | P1       | M      | —                            | DONE   |
 | 005  | [Make maintenance tooling safe and composable](005-make-maintenance-tooling-trustworthy.md)           | P1       | M      | 003, 004                     | DONE   |
 | 006  | [Add rendered workflow characterization](006-add-rendered-workflow-characterization.md)               | P1       | L      | 003, 005                     | DONE   |
-| 007  | [Retire disabled ingestion and unused APIs](007-retire-disabled-and-unused-code.md)                   | P2       | M      | 006                          | TODO   |
+| 007  | [Retire disabled ingestion and unused APIs](007-retire-disabled-and-unused-code.md)                   | P2       | M      | 006                          | DONE   |
 | 008  | [Make user-data loading truthful](008-make-user-data-loading-truthful.md)                             | P1       | M      | 007                          | TODO   |
 | 009  | [Validate Supabase JSON boundaries](009-validate-supabase-json-boundaries.md)                         | P2       | L      | 007, 008                     | TODO   |
 | 010  | [Restore store and domain layering](010-restore-store-and-domain-layering.md)                         | P2       | M      | 008, 009                     | TODO   |

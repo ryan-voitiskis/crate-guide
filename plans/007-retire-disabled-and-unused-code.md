@@ -233,16 +233,39 @@ declared files changed.
 - Existing crate tests for active actions remain.
 - New rendered crate-form tests cover the only supported create contract.
 
+## Completion and reconciliation
+
+- Implemented by commit `f4b83688caf52b80b414f6a099ec01aa8a748f7e`,
+  integrated as `d451ce0d8b7f2f2b8aef15a996462ab7e8697bef`.
+- Final caller searches return no retired Beatport or caller-free API symbols.
+  `getCratesContainingRecord` remains defined, exported, tested, and used by
+  `DialogAddToCrate.vue` and `AlertConfirmRemoveRecord.vue`. The implementation
+  diff is exactly 20 files: 13 deletions, 6 modified survivors, and 1 new Nuxt
+  test, with no migration or generated-type change.
+- `DialogCrateForm` is create-only and retains the open/close, `saved`,
+  validation, loading, and `createCrate({ records: [] })` contracts. Its
+  optional crate prop, edit copy/state, and `updateCrate` branch are gone.
+- Reviewer diagnosis identified Vee Validate's debounced asynchronous schema
+  validation as the rendered-test timing boundary, not an application defect.
+  The create and validation assertions use `vi.waitFor` instead of relying on a
+  fixed tick/flush sequence.
+- Track-store tests preserve all legacy serialization variants: found Beatport
+  data in create payloads, not-found markers in update payloads, and explicit
+  `null` in new-track payloads.
+- Verification used Node 24.12.0 and npm 11.6.2. Clean install, focused
+  store/crate-form checks, full `npm run verify`, production `npm run build`,
+  caller searches, formatting, and `git diff --check` all passed.
+
 ## Done criteria
 
-- [ ] No active Beatport fetch/store/dialog/server code or tests remain.
-- [ ] Historical Beatport row types, serialization, and detail display remain.
-- [ ] Every listed caller-free API and test-only branch is gone.
-- [ ] `getCratesContainingRecord`, active filters/suggestions, and real crate
+- [x] No active Beatport fetch/store/dialog/server code or tests remain.
+- [x] Historical Beatport row types, serialization, and detail display remain.
+- [x] Every listed caller-free API and test-only branch is gone.
+- [x] `getCratesContainingRecord`, active filters/suggestions, and real crate
       editing remain.
-- [ ] No migration or generated database type changed.
-- [ ] Full verification and production build pass.
-- [ ] No out-of-scope files changed.
+- [x] No migration or generated database type changed.
+- [x] Full verification and production build pass.
+- [x] No out-of-scope files changed.
 
 ## STOP conditions
 
