@@ -104,8 +104,8 @@ so `useUserData` must not add a duplicate aggregate toast.
 
 ## Target contract
 
-Each fetch action must be a non-`async` public function returning the same
-in-flight `Promise<boolean>` object to concurrent callers:
+Each fetch action must be a non-`async` public function backed by one in-flight
+native `Promise<boolean>` operation:
 
 ```ts
 let fetchPromise: Promise<boolean> | null = null
@@ -116,6 +116,13 @@ function fetchAllRecords(): Promise<boolean> {
 	return fetchPromise
 }
 ```
+
+Execution reconciliation: Pinia wraps the native Promise returned by each
+action invocation, so public store callers cannot receive reference-identical
+Promise objects. The observable store contract is one shared authentication and
+query operation with identical boolean outcomes for concurrent callers. The
+plain coordinator is not Pinia-wrapped and does return the exact same in-flight
+Promise reference.
 
 The private async operation returns `true` only after a successful query and
 state assignment, returns `false` after auth/query failure and the existing
@@ -141,7 +148,8 @@ On failure, do not clear or partially replace prior local data.
 
 Auth failure and query failure both return `false`. An empty successful query
 returns `true` and assigns an empty array. Concurrent calls while loading must
-return the same promise and execute exactly one Supabase query.
+share the underlying operation and outcome and execute exactly one Supabase
+query.
 
 **Verify**: focused tests for each store prove success true, auth/query false,
 old state preserved on failure, loading flags reset, and two concurrent calls
@@ -223,16 +231,42 @@ For `useUserData`:
 - already-loaded, no-user, concurrent-load, and refresh-during-load return the
   exact outcomes defined in Target contract.
 
+## Completion and reconciliation
+
+- Implemented by commit `5966b7c4d0bc32cc7341c1b9c310b69df85eb86a`,
+  integrated as `639386fed550158259885a504255f536fbe73741`.
+- Records, tracks, and crates now return truthful booleans, preserve prior state
+  on authentication/query failure, run one underlying auth/query operation for
+  concurrent callers, and reset loading/in-flight state only after settlement.
+- Because Pinia wraps each action result, public store Promise reference
+  identity is impossible. Tests instead prove one shared operation and
+  identical concurrent outcomes. The plain coordinator is reference-identical,
+  including refresh sharing an active load, then creates a fresh Promise after
+  settlement.
+- Ordinary store failures produce no duplicate aggregate toast, and an
+  unchanged user ID does not trigger an automatic retry loop; manual refresh is
+  the explicit retry path.
+- The auth watcher lives in the caller's Vue effect scope and is disposed when
+  that scope stops. Tests stop every scope after draining pending microtasks so
+  watcher work cannot leak between consumers or cases.
+- Authentication generations and loaded-user identity protect sign-out,
+  account switches, persisted-session bootstrap, and late hydration. Stale
+  results are discarded and stores cleared; unexpected failures drain every
+  started store Promise before a replacement-user reload can begin.
+- Verification used Node 24.12.0 and npm 11.6.2. All 156 focused tests, full
+  `npm run verify`, production `npm run build`, formatting, and
+  `git diff --check` passed across the exact eight-file implementation scope.
+
 ## Done criteria
 
-- [ ] All three fetch actions return `Promise<boolean>` with a shared in-flight
+- [x] All three fetch actions return `Promise<boolean>` with a shared in-flight
       promise.
-- [ ] Success/failure semantics are explicit and prior data survives failure.
-- [ ] `hasLoadedData` is true only after three successful loads.
-- [ ] Tests model production boolean failures, not synthetic rejections.
-- [ ] A failed attempt has no automatic retry loop; manual refresh works.
-- [ ] Existing store error feedback and all current callers remain functional.
-- [ ] Full verification/build pass with no out-of-scope changes.
+- [x] Success/failure semantics are explicit and prior data survives failure.
+- [x] `hasLoadedData` is true only after three successful loads.
+- [x] Tests model production boolean failures, not synthetic rejections.
+- [x] A failed attempt has no automatic retry loop; manual refresh works.
+- [x] Existing store error feedback and all current callers remain functional.
+- [x] Full verification/build pass with no out-of-scope changes.
 
 ## STOP conditions
 
