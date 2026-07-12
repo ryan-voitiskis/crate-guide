@@ -160,8 +160,10 @@ Use Tailwind utilities only and no style blocks.
 
 ### `ButtonLoading`
 
-- Accept the standard Button's `variant`, `size`, `as`, `asChild`, class, and
-  disabled behavior plus `loading?: boolean`, defaulting to `false`.
+- Use a native-button-only contract accepting standard `variant`, `size`, class,
+  and disabled behavior plus `loading?: boolean`, defaulting to `false`.
+- Explicitly consume and reject unsupported `as`/`asChild` polymorphism so
+  legacy attributes cannot leak to the DOM.
 - Render the standard Button internally.
 - Disable when either caller-disabled or loading; expose `aria-busy`.
 - Preserve the current spinner overlay and opacity-hidden slot so width does not
@@ -173,12 +175,17 @@ Use Tailwind utilities only and no style blocks.
 - Render standard Checkbox and forward its model/emits/attributes.
 - Apply the existing 40px target and 20px visual-box utility classes in the
   wrapper, not the primitive.
-- Do not forward `largeHitArea` because the wrapper represents that contract.
+- Do not forward `largeHitArea` because the wrapper represents that contract;
+  consume the legacy prop explicitly so it cannot leak.
+- Forward a default slot only when the caller supplies one. Otherwise let the
+  standard Checkbox render its default check icon.
 
 ### `AlertDialogActionLoading`
 
-- Accept and forward the standard AlertDialogAction props, class, attributes,
-  and events plus `loading?: boolean`, defaulting to `false`.
+- Use a native-button-only action contract accepting class, disabled state,
+  attributes, events, and `loading?: boolean`, defaulting to `false`.
+- Explicitly consume and reject unsupported `as`/`asChild` polymorphism so it
+  cannot leak to the DOM.
 - Render the standard AlertDialogAction primitive internally, retain its
   `buttonVariants()` styling, and preserve the current relative container.
 - Disable while loading, render the same centered spinner, and visually hide
@@ -290,18 +297,52 @@ tracker status changed.
 - Existing enrichment staging tests remain green after checkbox replacement.
 - Browser QA covers loading and divider contracts in actual rendered pages.
 
+## Completion and reconciliation
+
+- Implemented by amended commit
+  `6b5633b101cbf1fc84d2f19f25e833c21f6b8c12`, integrated as
+  `5bb1fcb60c82dcaddc41e3fd6c8529b13ebbed4d`. The diff is exactly
+  35 files: 4 first-party wrappers, 3 restored generated primitives, 26
+  mechanically migrated callers, and 2 rendered test files.
+- `ButtonLoading` and `AlertDialogActionLoading` are intentionally
+  native-button-only. Both consume/reject `as` and `asChild`; no current loading
+  caller requires polymorphism. `CheckboxLargeHitArea` conditionally forwards a
+  caller slot and otherwise preserves the standard primitive's default check
+  icon.
+- Rendered contracts explicitly prove that `loading`, `largeHitArea`,
+  `large-hit-area`, `label`, `label-class`, and legacy `span-class` attributes
+  do not leak. Mechanical searches confirm no standard Button/Alert action with
+  `:loading`, no `large-hit-area`, no `span-class`, and no labelled standard
+  Separator caller remains.
+- The executor's 8 rendered application-contract tests passed. Independent cold
+  review approved the implementation, and a separate cold focused run reported
+  all 10 application-plus-primitive contract tests passing.
+- Main verification passed 38 files / 917 application tests, 2 E2E tests, 4
+  Edge tests, 6 type-generation tests, and 7 audio-configuration tests; the
+  production build was green.
+- In-app browser QA against the local app verified `/login` and `/signup` at
+  1280×900 and 390×844. Each page had exactly one visible accessible separator
+  named “OR”, with the centered/card-background mask visually correct and no
+  console warnings or errors.
+- `/enrichment` redirected the unauthenticated browser to `/login`.
+  Authenticated loading-button, checkbox, and dialog states are therefore
+  explicitly pending under Step 5's authenticated-unavailable allowance rather
+  than being fabricated; their contracts are covered by rendered tests.
+
 ## Done criteria
 
-- [ ] Login/signup “OR” labels render visibly and accessibly.
-- [ ] Loading and large-hit-area behavior lives in explicit first-party wrappers
+- [x] Login/signup “OR” labels render visibly and accessibly.
+- [x] Loading and large-hit-area behavior lives in explicit first-party wrappers
       outside `components/ui`.
-- [ ] Generated Button/Checkbox/AlertDialogAction contain no
+- [x] Generated Button/Checkbox/AlertDialogAction contain no
       application-specific props.
-- [ ] No inert `label`, `span-class`, or `large-hit-area` caller remains.
-- [ ] All loading callers use `ButtonLoading` or
+- [x] No inert `label`, `span-class`, or `large-hit-area` caller remains.
+- [x] All loading callers use `ButtonLoading` or
       `AlertDialogActionLoading` without behavior/layout change.
-- [ ] Nuxt/full tests, build, and browser QA pass without console warnings.
-- [ ] No unrelated primitive, UX, or out-of-scope file changed.
+- [x] Nuxt/full tests and build pass; available unauthenticated browser QA has
+      no console warnings, while authenticated states are explicitly pending
+      under Step 5's allowance and covered by rendered tests.
+- [x] No unrelated primitive, UX, or out-of-scope file changed.
 
 ## STOP conditions
 
@@ -319,5 +360,9 @@ Stop and report if:
 
 - Future shadcn refreshes may overwrite `components/ui` but must not touch
   first-party wrappers or their contract tests.
+- Keep loading wrappers native-button-only unless a concrete caller requires a
+  separately designed and tested polymorphic loading contract.
+- Preserve conditional Checkbox slot forwarding so the primitive's default
+  check icon remains available.
 - New application-specific primitive behavior belongs in a named wrapper, not
   the generated file.
