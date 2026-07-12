@@ -341,10 +341,6 @@ export const useTracksStore = defineStore('tracks', () => {
 		return tracks.value.filter((t: Track) => t.record_id === recordId)
 	}
 
-	function getTracksByIds(ids: string[]): Track[] {
-		return tracks.value.filter((t: Track) => ids.includes(t.id))
-	}
-
 	function searchTracks(query: string): Track[] {
 		if (!query.trim()) return tracks.value
 
@@ -386,64 +382,6 @@ export const useTracksStore = defineStore('tracks', () => {
 		})
 	}
 
-	function getTracksByBpmRange(minBpm: number, maxBpm: number): Track[] {
-		return tracks.value.filter(
-			(track: Track) =>
-				track.bpm &&
-				track.bpm >= minBpm &&
-				track.bpm <= maxBpm &&
-				track.playable
-		)
-	}
-
-	function getTracksByKey(key: number): Track[] {
-		return tracks.value.filter(
-			(track: Track) => track.key === key && track.playable
-		)
-	}
-
-	function getTracksByGenre(genre: string): Track[] {
-		const lowercaseGenre = genre.toLowerCase()
-		return tracks.value.filter(
-			(track: Track) =>
-				track.genres.some((g: string) =>
-					g.toLowerCase().includes(lowercaseGenre)
-				) && track.playable
-		)
-	}
-
-	function getCompatibleTracks(
-		currentTrack: Track,
-		bpmTolerance: number = 5
-	): Track[] {
-		// Use == null to check for both null and undefined (key=0 is valid for C Major)
-		if (currentTrack.bpm == null || currentTrack.key == null) return []
-
-		// Capture narrowed values in local const variables for use in filter closure
-		const currentBpm = currentTrack.bpm
-		const currentKey = currentTrack.key
-
-		return tracks.value.filter((track: Track) => {
-			if (track.id === currentTrack.id || !track.playable) return false
-			// Use == null to check for both null and undefined (key=0 is valid for C Major)
-			if (track.bpm == null || track.key == null) return false
-
-			// BPM compatibility
-			const bpmDiff = Math.abs(track.bpm - currentBpm)
-			const bpmCompatible =
-				bpmDiff <= bpmTolerance ||
-				Math.abs(track.bpm - currentBpm * 2) <= bpmTolerance ||
-				Math.abs(track.bpm * 2 - currentBpm) <= bpmTolerance
-
-			// Key compatibility (simplified harmonic mixing)
-			const keyDiff = Math.abs(track.key - currentKey)
-			const keyCompatible =
-				keyDiff === 0 || keyDiff === 1 || keyDiff === 11 || keyDiff === 7
-
-			return bpmCompatible && keyCompatible
-		})
-	}
-
 	// Clear tracks when user signs out
 	function clearTracks() {
 		tracks.value = []
@@ -464,12 +402,7 @@ export const useTracksStore = defineStore('tracks', () => {
 		deleteTrack,
 		getTrackById,
 		getTracksByRecordId,
-		getTracksByIds,
 		searchTracks,
-		getTracksByBpmRange,
-		getTracksByKey,
-		getTracksByGenre,
-		getCompatibleTracks,
 		clearTracks
 	}
 })

@@ -5,7 +5,6 @@ import { crateSchema } from '~/utils/schemas/crate'
 
 const props = defineProps<{
 	open: boolean
-	crate?: Crate | null
 }>()
 
 const emit = defineEmits<{
@@ -14,11 +13,6 @@ const emit = defineEmits<{
 }>()
 
 const cratesStore = useCratesStore()
-
-const isEditing = computed(() => !!props.crate)
-const dialogTitle = computed(() =>
-	isEditing.value ? 'Edit Crate' : 'Create Crate'
-)
 
 const validationSchema = toTypedSchema(crateSchema)
 
@@ -30,7 +24,7 @@ const form = useForm({
 	}
 })
 
-const { handleSubmit, setValues, errors, resetForm } = form
+const { handleSubmit, errors, resetForm } = form
 const [nameValue] = form.defineField('name')
 const [descriptionValue] = form.defineField('description')
 
@@ -44,16 +38,8 @@ watch(
 	() => props.open,
 	(isOpen) => {
 		if (isOpen) {
-			if (props.crate) {
-				setValues({
-					name: props.crate.name,
-					description: props.crate.description || ''
-				})
-				colorValue.value = props.crate.color
-			} else {
-				resetForm()
-				colorValue.value = null
-			}
+			resetForm()
+			colorValue.value = null
 			showValidationErrors.value = false
 		}
 	},
@@ -70,16 +56,10 @@ const submitCrate = handleSubmit(async (values) => {
 			color: colorValue.value
 		}
 
-		let result: Crate | null = null
-
-		if (isEditing.value && props.crate) {
-			result = await cratesStore.updateCrate(props.crate.id, crateData)
-		} else {
-			result = await cratesStore.createCrate({
-				...crateData,
-				records: []
-			})
-		}
+		const result = await cratesStore.createCrate({
+			...crateData,
+			records: []
+		})
 
 		if (result) {
 			emit('saved', result)
@@ -104,13 +84,9 @@ function handleCancel() {
 	<Dialog :open="open" @update:open="emit('update:open', $event)">
 		<DialogContent class="sm:max-w-md">
 			<DialogHeader>
-				<DialogTitle>{{ dialogTitle }}</DialogTitle>
+				<DialogTitle>Create Crate</DialogTitle>
 				<DialogDescription>
-					{{
-						isEditing
-							? 'Update your crate details'
-							: 'Create a new crate to organize records'
-					}}
+					Create a new crate to organize records
 				</DialogDescription>
 			</DialogHeader>
 
@@ -177,9 +153,7 @@ function handleCancel() {
 
 			<DialogFooter class="gap-2">
 				<Button variant="secondary" @click="handleCancel">Cancel</Button>
-				<Button :loading="isSubmitting" @click="saveCrate">
-					{{ isEditing ? 'Save' : 'Create' }}
-				</Button>
+				<Button :loading="isSubmitting" @click="saveCrate">Create</Button>
 			</DialogFooter>
 		</DialogContent>
 	</Dialog>

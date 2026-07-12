@@ -3,7 +3,6 @@ import {
 	createMockTrack,
 	createMockTrackWithArtists,
 	createMockTrackWithBpm,
-	createMockTrackWithKey,
 	resetTrackIdCounter
 } from 'test/mocks/fixtures/tracks'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -267,8 +266,49 @@ describe('tracksStore', () => {
 
 			const result = await store.createTrack(newTrackData)
 
+			expect(mockQueryBuilder.insert).toHaveBeenCalledWith(
+				expect.objectContaining({ beatport_data: null })
+			)
 			expect(result?.id).toBe('new-track-id')
 			expect(store.tracks[0]!.id).toBe('new-track-id')
+		})
+
+		it('serializes legacy Beatport data in create payloads', async () => {
+			const store = useTracksStore()
+			const beatportData = {
+				accessed: 1783832400000,
+				url: 'https://www.beatport.com/track/legacy-track/123',
+				genre: 'Deep House',
+				bpm: 124,
+				key: 'A Minor',
+				img: 'https://example.test/legacy-track.jpg'
+			}
+			mockQueryBuilder.single.mockResolvedValue({
+				data: createMockTrack({ beatport_data: beatportData }),
+				error: null
+			})
+
+			await store.createTrack({
+				record_id: 'record-1',
+				title: 'Legacy Track',
+				artists: [],
+				extraartists: [],
+				position: 'A1',
+				duration: 180000,
+				bpm: 124,
+				rpm: 33,
+				key: 9,
+				mode: 0,
+				genres: ['Deep House'],
+				time_signature_upper: null,
+				time_signature_lower: null,
+				playable: true,
+				beatport_data: beatportData
+			})
+
+			expect(mockQueryBuilder.insert).toHaveBeenCalledWith(
+				expect.objectContaining({ beatport_data: beatportData })
+			)
 		})
 
 		it('sets isCreatingTrack during creation', async () => {
@@ -442,6 +482,31 @@ describe('tracksStore', () => {
 				})
 			)
 		})
+
+		it('serializes legacy Beatport not-found markers in update payloads', async () => {
+			const store = useTracksStore()
+			const beatportNotFound = {
+				searched: true,
+				notFound: true,
+				searchedAt: 1783832400000
+			}
+			store.tracks = [createMockTrack({ id: 'track-1' })]
+			mockQueryBuilder.single.mockResolvedValue({
+				data: createMockTrack({
+					id: 'track-1',
+					beatport_data: beatportNotFound
+				}),
+				error: null
+			})
+
+			await store.updateTrack('track-1', {
+				beatport_data: beatportNotFound
+			})
+
+			expect(mockQueryBuilder.update).toHaveBeenCalledWith(
+				expect.objectContaining({ beatport_data: beatportNotFound })
+			)
+		})
 	})
 
 	describe('updateTracksBatch', () => {
@@ -597,31 +662,6 @@ describe('tracksStore', () => {
 		})
 	})
 
-	describe('getTracksByIds', () => {
-		it('returns empty array when no IDs match', () => {
-			const store = useTracksStore()
-			store.tracks = [createMockTrack({ id: 'track-1' })]
-
-			const result = store.getTracksByIds(['track-2', 'track-3'])
-
-			expect(result).toEqual([])
-		})
-
-		it('returns all matching tracks', () => {
-			const store = useTracksStore()
-			store.tracks = [
-				createMockTrack({ id: 'track-1' }),
-				createMockTrack({ id: 'track-2' }),
-				createMockTrack({ id: 'track-3' })
-			]
-
-			const result = store.getTracksByIds(['track-1', 'track-3'])
-
-			expect(result.length).toBe(2)
-			expect(result.map((t) => t.id)).toEqual(['track-1', 'track-3'])
-		})
-	})
-
 	describe('searchTracks', () => {
 		it('returns all tracks for empty query', () => {
 			const store = useTracksStore()
@@ -758,490 +798,6 @@ describe('tracksStore', () => {
 
 			expect(result.length).toBe(1)
 			expect(result[0]!.id).toBe('with-bpm')
-		})
-	})
-
-	describe('getTracksByBpmRange', () => {
-		it('returns empty array when no tracks in range', () => {
-			const store = useTracksStore()
-			store.tracks = [
-				createMockTrackWithBpm(100, { playable: true }),
-				createMockTrackWithBpm(150, { playable: true })
-			]
-
-			const result = store.getTracksByBpmRange(120, 130)
-
-			expect(result).toEqual([])
-		})
-
-		it('returns tracks within BPM range', () => {
-			const store = useTracksStore()
-			store.tracks = [
-				createMockTrackWithBpm(100, { id: 'too-slow', playable: true }),
-				createMockTrackWithBpm(125, { id: 'in-range-1', playable: true }),
-				createMockTrackWithBpm(128, { id: 'in-range-2', playable: true }),
-				createMockTrackWithBpm(150, { id: 'too-fast', playable: true })
-			]
-
-			const result = store.getTracksByBpmRange(120, 130)
-
-			expect(result.length).toBe(2)
-			expect(result.map((t) => t.id)).toEqual(['in-range-1', 'in-range-2'])
-		})
-
-		it('includes tracks at exact boundaries', () => {
-			const store = useTracksStore()
-			store.tracks = [
-				createMockTrackWithBpm(120, { id: 'min-boundary', playable: true }),
-				createMockTrackWithBpm(130, { id: 'max-boundary', playable: true })
-			]
-
-			const result = store.getTracksByBpmRange(120, 130)
-
-			expect(result.length).toBe(2)
-		})
-
-		it('excludes non-playable tracks', () => {
-			const store = useTracksStore()
-			store.tracks = [
-				createMockTrackWithBpm(125, { id: 'playable', playable: true }),
-				createMockTrackWithBpm(125, { id: 'non-playable', playable: false })
-			]
-
-			const result = store.getTracksByBpmRange(120, 130)
-
-			expect(result.length).toBe(1)
-			expect(result[0]!.id).toBe('playable')
-		})
-
-		it('excludes tracks with null BPM', () => {
-			const store = useTracksStore()
-			store.tracks = [
-				createMockTrackWithBpm(125, { id: 'with-bpm', playable: true }),
-				createMockTrack({ id: 'no-bpm', bpm: null, playable: true })
-			]
-
-			const result = store.getTracksByBpmRange(120, 130)
-
-			expect(result.length).toBe(1)
-			expect(result[0]!.id).toBe('with-bpm')
-		})
-	})
-
-	describe('getTracksByKey', () => {
-		it('returns tracks matching key', () => {
-			const store = useTracksStore()
-			store.tracks = [
-				createMockTrackWithKey(0, 0, { id: 'c-minor', playable: true }), // C minor
-				createMockTrackWithKey(5, 1, { id: 'f-major', playable: true }), // F major
-				createMockTrackWithKey(0, 1, { id: 'c-major', playable: true }) // C major
-			]
-
-			const result = store.getTracksByKey(0)
-
-			expect(result.length).toBe(2)
-			expect(result.map((t) => t.id)).toContain('c-minor')
-			expect(result.map((t) => t.id)).toContain('c-major')
-		})
-
-		it('excludes non-playable tracks', () => {
-			const store = useTracksStore()
-			store.tracks = [
-				createMockTrackWithKey(0, 0, { id: 'playable', playable: true }),
-				createMockTrackWithKey(0, 0, { id: 'non-playable', playable: false })
-			]
-
-			const result = store.getTracksByKey(0)
-
-			expect(result.length).toBe(1)
-			expect(result[0]!.id).toBe('playable')
-		})
-	})
-
-	describe('getTracksByGenre', () => {
-		it('returns tracks matching genre (case-insensitive)', () => {
-			const store = useTracksStore()
-			store.tracks = [
-				createMockTrack({ id: 'house-1', genres: ['House'], playable: true }),
-				createMockTrack({
-					id: 'deep-house',
-					genres: ['Deep House'],
-					playable: true
-				}),
-				createMockTrack({ id: 'techno', genres: ['Techno'], playable: true })
-			]
-
-			const result = store.getTracksByGenre('house')
-
-			expect(result.length).toBe(2)
-			expect(result.map((t) => t.id)).toContain('house-1')
-			expect(result.map((t) => t.id)).toContain('deep-house')
-		})
-
-		it('excludes non-playable tracks', () => {
-			const store = useTracksStore()
-			store.tracks = [
-				createMockTrack({ id: 'playable', genres: ['House'], playable: true }),
-				createMockTrack({
-					id: 'non-playable',
-					genres: ['House'],
-					playable: false
-				})
-			]
-
-			const result = store.getTracksByGenre('house')
-
-			expect(result.length).toBe(1)
-			expect(result[0]!.id).toBe('playable')
-		})
-	})
-
-	describe('getCompatibleTracks', () => {
-		it('includes tracks with key 0 (C Major) in compatibility results', () => {
-			const store = useTracksStore()
-			// Key 0 represents C Major in Camelot wheel - should not be filtered out
-			const currentTrack = createMockTrack({ bpm: 128, key: 0, playable: true })
-			const compatibleTrack = createMockTrack({
-				bpm: 128,
-				key: 0,
-				playable: true
-			})
-			store.tracks = [currentTrack, compatibleTrack]
-
-			const result = store.getCompatibleTracks(currentTrack)
-
-			// Should find the compatible track (same key)
-			expect(result.length).toBe(1)
-			expect(result[0]!.key).toBe(0)
-		})
-
-		it('returns empty array when current track has no BPM', () => {
-			const store = useTracksStore()
-			const currentTrack = createMockTrack({ bpm: null, key: 5 })
-			store.tracks = [createMockTrack({ bpm: 128, key: 5, playable: true })]
-
-			const result = store.getCompatibleTracks(currentTrack)
-
-			expect(result).toEqual([])
-		})
-
-		it('returns empty array when current track has no key', () => {
-			const store = useTracksStore()
-			const currentTrack = createMockTrack({ bpm: 128, key: null })
-			store.tracks = [createMockTrack({ bpm: 128, key: 5, playable: true })]
-
-			const result = store.getCompatibleTracks(currentTrack)
-
-			expect(result).toEqual([])
-		})
-
-		it('excludes the current track itself', () => {
-			const store = useTracksStore()
-			const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 5 })
-			store.tracks = [currentTrack]
-
-			const result = store.getCompatibleTracks(currentTrack)
-
-			expect(result).toEqual([])
-		})
-
-		it('excludes non-playable tracks', () => {
-			const store = useTracksStore()
-			const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 5 })
-			store.tracks = [
-				createMockTrack({ id: 'playable', bpm: 128, key: 5, playable: true }),
-				createMockTrack({
-					id: 'non-playable',
-					bpm: 128,
-					key: 5,
-					playable: false
-				})
-			]
-
-			const result = store.getCompatibleTracks(currentTrack)
-
-			expect(result.length).toBe(1)
-			expect(result[0]!.id).toBe('playable')
-		})
-
-		it('excludes tracks without BPM', () => {
-			const store = useTracksStore()
-			const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 5 })
-			store.tracks = [
-				createMockTrack({ id: 'with-bpm', bpm: 128, key: 5, playable: true }),
-				createMockTrack({ id: 'no-bpm', bpm: null, key: 5, playable: true })
-			]
-
-			const result = store.getCompatibleTracks(currentTrack)
-
-			expect(result.length).toBe(1)
-			expect(result[0]!.id).toBe('with-bpm')
-		})
-
-		it('excludes tracks without key', () => {
-			const store = useTracksStore()
-			const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 5 })
-			store.tracks = [
-				createMockTrack({ id: 'with-key', bpm: 128, key: 5, playable: true }),
-				createMockTrack({ id: 'no-key', bpm: 128, key: null, playable: true })
-			]
-
-			const result = store.getCompatibleTracks(currentTrack)
-
-			expect(result.length).toBe(1)
-			expect(result[0]!.id).toBe('with-key')
-		})
-
-		it('includes key 0 (C Major) tracks when harmonically compatible', () => {
-			// Key 0 is a valid key representing C Major and should not be treated as null
-			const store = useTracksStore()
-			// Key 1 is adjacent to key 0, so they are compatible (keyDiff === 1)
-			const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 1 })
-			store.tracks = [
-				createMockTrack({ id: 'key-zero', bpm: 128, key: 0, playable: true }),
-				createMockTrack({ id: 'key-five', bpm: 128, key: 5, playable: true })
-			]
-
-			const result = store.getCompatibleTracks(currentTrack)
-
-			// Key 0 should be included (adjacent to key 1)
-			expect(result.map((t) => t.id)).toContain('key-zero')
-			// Key 5 is not compatible with key 1 (keyDiff === 4)
-			expect(result.map((t) => t.id)).not.toContain('key-five')
-		})
-
-		describe('BPM compatibility', () => {
-			it('includes tracks within default tolerance (5 BPM)', () => {
-				const store = useTracksStore()
-				const currentTrack = createMockTrack({
-					id: 'current',
-					bpm: 128,
-					key: 5
-				})
-				store.tracks = [
-					createMockTrack({ id: 'same', bpm: 128, key: 5, playable: true }),
-					createMockTrack({
-						id: 'within-tolerance',
-						bpm: 133,
-						key: 5,
-						playable: true
-					}),
-					createMockTrack({
-						id: 'outside-tolerance',
-						bpm: 140,
-						key: 5,
-						playable: true
-					})
-				]
-
-				const result = store.getCompatibleTracks(currentTrack)
-
-				expect(result.map((t) => t.id)).toContain('same')
-				expect(result.map((t) => t.id)).toContain('within-tolerance')
-				expect(result.map((t) => t.id)).not.toContain('outside-tolerance')
-			})
-
-			it('respects custom BPM tolerance', () => {
-				const store = useTracksStore()
-				const currentTrack = createMockTrack({
-					id: 'current',
-					bpm: 128,
-					key: 5
-				})
-				store.tracks = [
-					createMockTrack({
-						id: 'within-10',
-						bpm: 138,
-						key: 5,
-						playable: true
-					}),
-					createMockTrack({
-						id: 'outside-10',
-						bpm: 145,
-						key: 5,
-						playable: true
-					})
-				]
-
-				const result = store.getCompatibleTracks(currentTrack, 10)
-
-				expect(result.map((t) => t.id)).toContain('within-10')
-				expect(result.map((t) => t.id)).not.toContain('outside-10')
-			})
-
-			it('handles octave matching (half tempo)', () => {
-				const store = useTracksStore()
-				const currentTrack = createMockTrack({
-					id: 'current',
-					bpm: 128,
-					key: 5
-				})
-				store.tracks = [
-					// 64 BPM * 2 = 128 BPM (compatible)
-					createMockTrack({ id: 'half-tempo', bpm: 64, key: 5, playable: true })
-				]
-
-				const result = store.getCompatibleTracks(currentTrack)
-
-				expect(result.map((t) => t.id)).toContain('half-tempo')
-			})
-
-			it('handles octave matching (double tempo)', () => {
-				const store = useTracksStore()
-				const currentTrack = createMockTrack({ id: 'current', bpm: 64, key: 5 })
-				store.tracks = [
-					// 128 BPM / 2 = 64 BPM (compatible)
-					createMockTrack({
-						id: 'double-tempo',
-						bpm: 128,
-						key: 5,
-						playable: true
-					})
-				]
-
-				const result = store.getCompatibleTracks(currentTrack)
-
-				expect(result.map((t) => t.id)).toContain('double-tempo')
-			})
-		})
-
-		describe('key compatibility (harmonic mixing)', () => {
-			it('includes same key', () => {
-				const store = useTracksStore()
-				const currentTrack = createMockTrack({
-					id: 'current',
-					bpm: 128,
-					key: 5
-				})
-				store.tracks = [
-					createMockTrack({ id: 'same-key', bpm: 128, key: 5, playable: true })
-				]
-
-				const result = store.getCompatibleTracks(currentTrack)
-
-				expect(result.map((t) => t.id)).toContain('same-key')
-			})
-
-			it('includes adjacent keys (+1 semitone)', () => {
-				const store = useTracksStore()
-				const currentTrack = createMockTrack({
-					id: 'current',
-					bpm: 128,
-					key: 5
-				})
-				store.tracks = [
-					createMockTrack({
-						id: 'key-plus-1',
-						bpm: 128,
-						key: 6,
-						playable: true
-					})
-				]
-
-				const result = store.getCompatibleTracks(currentTrack)
-
-				expect(result.map((t) => t.id)).toContain('key-plus-1')
-			})
-
-			it('includes adjacent keys (-1 semitone)', () => {
-				const store = useTracksStore()
-				const currentTrack = createMockTrack({
-					id: 'current',
-					bpm: 128,
-					key: 5
-				})
-				store.tracks = [
-					createMockTrack({
-						id: 'key-minus-1',
-						bpm: 128,
-						key: 4,
-						playable: true
-					})
-				]
-
-				const result = store.getCompatibleTracks(currentTrack)
-
-				expect(result.map((t) => t.id)).toContain('key-minus-1')
-			})
-
-			it('includes perfect fifth (+7 semitones)', () => {
-				const store = useTracksStore()
-				const currentTrack = createMockTrack({
-					id: 'current',
-					bpm: 128,
-					key: 5
-				})
-				store.tracks = [
-					// Key 5 + 7 = key 12 which wraps to 0, but 0 is falsy
-					// So test with key 2: 2 + 7 = 9
-					createMockTrack({ id: 'fifth', bpm: 128, key: 12, playable: true })
-				]
-
-				const result = store.getCompatibleTracks(currentTrack)
-
-				expect(result.map((t) => t.id)).toContain('fifth')
-			})
-
-			it('handles wraparound for adjacent keys', () => {
-				const store = useTracksStore()
-				// Key 11 + 1 wraps to 0, key 11 - 1 = 10
-				// Test key 1: adjacent is 2 (1+1) or 0 (1-1, but 0 is falsy)
-				const currentTrack = createMockTrack({
-					id: 'current',
-					bpm: 128,
-					key: 1
-				})
-				store.tracks = [
-					createMockTrack({
-						id: 'adjacent-up',
-						bpm: 128,
-						key: 2,
-						playable: true
-					})
-				]
-
-				const result = store.getCompatibleTracks(currentTrack)
-
-				expect(result.map((t) => t.id)).toContain('adjacent-up')
-			})
-
-			it('excludes incompatible keys', () => {
-				const store = useTracksStore()
-				const currentTrack = createMockTrack({
-					id: 'current',
-					bpm: 128,
-					key: 5
-				})
-				store.tracks = [
-					// Key 5 compatible: 5 (same), 4 (5-1), 6 (5+1), 12 (5+7)
-					// Incompatible: anything else
-					createMockTrack({ id: 'key-8', bpm: 128, key: 8, playable: true }),
-					createMockTrack({ id: 'key-10', bpm: 128, key: 10, playable: true })
-				]
-
-				const result = store.getCompatibleTracks(currentTrack)
-
-				expect(result.map((t) => t.id)).not.toContain('key-8')
-				expect(result.map((t) => t.id)).not.toContain('key-10')
-			})
-		})
-
-		it('requires BOTH BPM and key compatibility', () => {
-			const store = useTracksStore()
-			const currentTrack = createMockTrack({ id: 'current', bpm: 128, key: 5 })
-			store.tracks = [
-				// Compatible BPM, incompatible key
-				createMockTrack({ id: 'bpm-only', bpm: 128, key: 10, playable: true }),
-				// Compatible key, incompatible BPM
-				createMockTrack({ id: 'key-only', bpm: 200, key: 5, playable: true }),
-				// Both compatible
-				createMockTrack({ id: 'both', bpm: 128, key: 6, playable: true })
-			]
-
-			const result = store.getCompatibleTracks(currentTrack)
-
-			expect(result.length).toBe(1)
-			expect(result[0]!.id).toBe('both')
 		})
 	})
 

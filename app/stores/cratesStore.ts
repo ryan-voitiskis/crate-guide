@@ -204,59 +204,10 @@ export const useCratesStore = defineStore('crates', () => {
 		return crates.value.find((c: Crate) => c.id === id)
 	}
 
-	function getCratesByIds(ids: string[]): Crate[] {
-		return crates.value.filter((c: Crate) => ids.includes(c.id))
-	}
-
-	function getCrateRecords(crateId: string): string[] {
-		const crate = getCrateById(crateId)
-		return crate?.records || []
-	}
-
 	function getCratesContainingRecord(recordId: string): Crate[] {
 		return crates.value.filter((crate: Crate) =>
 			crate.records.includes(recordId)
 		)
-	}
-
-	function searchCrates(query: string): Crate[] {
-		if (!query.trim()) return crates.value
-
-		const lowercaseQuery = query.toLowerCase()
-		return crates.value.filter((crate: Crate) =>
-			crate.name.toLowerCase().includes(lowercaseQuery)
-		)
-	}
-
-	function getCrateStats(crateId: string): {
-		recordCount: number
-		isEmpty: boolean
-	} {
-		const crate = getCrateById(crateId)
-		const recordCount = crate?.records.length || 0
-		return {
-			recordCount,
-			isEmpty: recordCount === 0
-		}
-	}
-
-	function duplicateCrate(
-		crateId: string,
-		newName?: string
-	): Promise<Crate | null> | null {
-		const originalCrate = getCrateById(crateId)
-		if (!originalCrate) {
-			toast.error('Crate not found.')
-			return null
-		}
-
-		const crateName = newName || `${originalCrate.name} (Copy)`
-		return createCrate({
-			name: crateName,
-			description: originalCrate.description,
-			color: originalCrate.color,
-			records: [...originalCrate.records]
-		})
 	}
 
 	// Clear crates when user signs out
@@ -280,12 +231,7 @@ export const useCratesStore = defineStore('crates', () => {
 		addRecordToCrate,
 		removeRecordFromCrate,
 		getCrateById,
-		getCratesByIds,
-		getCrateRecords,
 		getCratesContainingRecord,
-		searchCrates,
-		getCrateStats,
-		duplicateCrate,
 		clearCrates
 	}
 })
