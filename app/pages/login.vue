@@ -3,6 +3,8 @@ import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import * as z from 'zod'
 
+definePageMeta({ keepalive: false })
+
 const user = useUserStore()
 const router = useRouter()
 
@@ -39,7 +41,7 @@ const onSubmit = form.handleSubmit((values: LoginFormValues) =>
 watch(
 	() => user.supaUser,
 	(newUser) => {
-		if (newUser) router.push('/')
+		if (newUser) void router.replace('/')
 	},
 	{ immediate: true }
 )

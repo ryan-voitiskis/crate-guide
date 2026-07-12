@@ -50,7 +50,10 @@ async function mockAuthenticatedSupabase(page: Page) {
 		const claims = { sub: 'e2e-user', email: 'e2e@example.com' }
 
 		nuxtApp.$supabase.client.auth.getClaims = async () => ({
-			data: { claims },
+			// Supabase returns a fresh claims object on each navigation. This is
+			// important for catching cached auth-page watchers that react to object
+			// identity and redirect an already-authenticated user back home.
+			data: { claims: { ...claims } },
 			error: null
 		})
 
@@ -97,6 +100,20 @@ describe('Login redirects', () => {
 
 		await page.waitForURL(url('/'))
 		expect(new URL(page.url()).pathname).toBe('/')
+
+		await page.close()
+	})
+
+	it('allows navigation after the authentication redirect completes', async () => {
+		const page = await createPage('/login')
+
+		await mockAuthenticatedSupabase(page)
+		await signInViaForm(page)
+
+		await page.getByRole('link', { name: 'Settings' }).click()
+		await page.waitForURL(url('/settings'))
+
+		expect(new URL(page.url()).pathname).toBe('/settings')
 
 		await page.close()
 	})

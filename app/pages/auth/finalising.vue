@@ -1,11 +1,13 @@
 <script setup lang="ts">
+definePageMeta({ keepalive: false })
+
 const user = useUserStore()
 const router = useRouter()
 
 watch(
 	() => user.supaUser,
 	(newUser) => {
-		if (newUser) router.push('/')
+		if (newUser) void router.replace('/')
 	},
 	{ immediate: true }
 )
