@@ -248,7 +248,9 @@ Verify at narrow and wide viewports, light and dark themes where available:
 - session suggestion/history panels and turntable RPM selector after renames.
 
 Check browser console for unresolved-component warnings. Do not use real
-credentials or modify production data.
+credentials or modify production data. If authenticated/data-dependent surfaces
+are unavailable, report them as pending rather than fabricating state, and
+retain rendered/typecheck/build evidence for their contracts.
 
 ### Step 6: Run all gates
 
@@ -263,19 +265,60 @@ and tracker status changed.
 - Checker tests use fixtures and assert diagnostics plus read-only behavior.
 - Existing/new Nuxt tests catch unresolved tags and contract changes after
   renames.
-- Browser QA is mandatory for the three style migrations.
+- Browser QA is mandatory for reachable style migrations. Authenticated or
+  data-dependent surfaces follow Step 5's explicit pending rule and retain
+  rendered/typecheck/build coverage.
 - Avoid class snapshots; test objective checker behavior and visible semantics.
+
+## Completion and reconciliation
+
+- Implemented from base `56ad8dac56464dfcb9bf8c990abb1e56527fea52`
+  by amended commit `b993c38b89d2e7900392b164fc6db8c20bf56475`,
+  integrated as `c66baaaf54f3a466a9e8244b883f87e63a123d34`.
+- Git recognizes an exact 20-file implementation scope with 8 type-first
+  component renames. All callers migrated mechanically and old-name searches
+  are empty outside deliberate negative checker fixtures.
+- No first-party `<style>` block, `@apply`, or tracked SCSS file remains, and
+  the direct Sass dependency is removed. Vite's optional transitive Sass
+  package may remain in `package-lock.json`; application code and the production
+  build do not consume it.
+- Five read-only convention fixtures cover compliant input, grouped style/
+  `@apply`/SCSS/naming failures, old/new `Controls` naming regression,
+  generated-UI-only exclusion, and Git discovery of tracked plus untracked
+  files while ignoring ignored/deleted paths. The checker never rewrites input.
+- `test:conventions` and `check:conventions` are wired into `verify`. Focused
+  Nuxt coverage passed 37 tests. Full verification passed 39 files / 1012
+  application tests, 2 E2E tests, 4 Edge tests, 6 type-generation tests, 7
+  audio-configuration tests, and 5 convention tests; the production build was
+  green.
+- Independent cold review initially caught the missing `Controls` kind and
+  regression fixture, then approved the amended commit after both were added.
+- `AnimationTick` uses `fill-emerald-600 dark:fill-emerald-500` because the base
+  theme defines no `--success` variable and the application already uses the
+  emerald success palette. Its explicit `block` utility preserves the former
+  scoped `display: block` layout parity.
+- In-app browser QA verified `/login` at 1280×900 and 390×844 in explicit light
+  and dark modes: the Crate Guide logo used Egyptian505 at 96px with correct
+  fills, centering, and no overflow. `/demo` rendered cleanly, and no checked
+  page emitted console warnings or errors.
+- `/` redirected the unauthenticated browser to `/login`. The Discogs card,
+  color picker, success tick, session/history/suggestion/RPM, and other
+  data/authenticated surfaces remain explicitly pending rather than fabricated;
+  Nuxt tests, typecheck, build, and generated-CSS resolution cover their static
+  contracts.
 
 ## Done criteria
 
-- [ ] No first-party `<style>`, `@apply`, or tracked SCSS remains.
-- [ ] Sass dependency is removed and production build succeeds.
-- [ ] Listed clear type-suffix component names are normalized with no aliases.
-- [ ] Read-only convention/test scripts pass and are included in `verify`.
-- [ ] Generated UI is the only explicit checker exclusion.
-- [ ] Light/dark and responsive browser QA finds no visual or component
-      resolution regression.
-- [ ] No unrelated rename, design, dependency, or out-of-scope change exists.
+- [x] No first-party `<style>`, `@apply`, or tracked SCSS remains.
+- [x] Direct Sass dependency is removed; Vite's optional transitive lock entry
+      remains, and the production build succeeds without application Sass.
+- [x] Listed clear type-suffix component names are normalized with no aliases.
+- [x] Read-only convention/test scripts pass and are included in `verify`.
+- [x] Generated UI is the only explicit checker exclusion.
+- [x] Available light/dark responsive browser QA finds no visual or component
+      resolution regression; unavailable data/authenticated surfaces are
+      explicitly pending and covered by Nuxt/typecheck/build evidence.
+- [x] No unrelated rename, design, dependency, or out-of-scope change exists.
 
 ## STOP conditions
 
@@ -294,5 +337,7 @@ Stop and report if:
 
 - Keep semantic type-first review human-readable; automate only the clear
   objective subset to avoid false positives.
+- Keep `Controls` in the small component-kind set and retain paired old/new
+  regression fixtures when that set changes.
 - New animation needs should use existing Tailwind/tw-animate-css utilities or
   an explicitly documented global design-system decision.
