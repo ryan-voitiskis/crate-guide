@@ -247,16 +247,38 @@ declared files changed.
 - Tuple tests plus the Worker call-site search guard exact argument order; Plan
   006 composable tests guard Worker lifecycle behavior.
 
+## Completion and reconciliation
+
+- Implemented by commit `e08952fe3331dc6550df7b3ac590543109fdfa52`,
+  integrated as `88ba08174db3915ac083cd18e70e1fd75e22ddbe`.
+- `app/utils/localAudio.ts` deliberately retains the relative JSON import
+  `../../shared/config/localAudioAnalysis.json`; standalone unit Vitest does
+  not resolve Nuxt's `~~` alias.
+- Application coverage asserts exact analyzer/configuration/metadata versions,
+  sample rate, duration, thresholds, and the byte-stable cache-key fixture.
+  Tuple coverage asserts all three rhythm arguments and all fourteen key
+  arguments in positional order, while Worker call-site checks prove one call
+  per extractor spreading those tuples.
+- Benchmark coverage proves shared-default parity, immutable environment
+  overrides, and extractor tuple order. CLI provenance checks prove one call per
+  extractor, effective configuration flowing through decode/analysis, runtime
+  metadata attached to two result rows and the summary, and output serialized
+  only through the tested builder.
+- Verified gates: `npm run format`, `npm run format:check`, `npm run lint`,
+  `npm run typecheck`, the focused application and benchmark configuration
+  tests, `npm run test:nuxt -- useLocalAudioAnalysis`, `npm run verify`,
+  `npm run build`, and `git diff --check` all exited 0.
+
 ## Done criteria
 
-- [ ] One JSON file owns every shared production/benchmark analyzer default.
-- [ ] Worker and benchmark contain no duplicate parameter literals covered by
+- [x] One JSON file owns every shared production/benchmark analyzer default.
+- [x] Worker and benchmark contain no duplicate parameter literals covered by
       the shared config.
-- [ ] Every value, version, threshold, and cache key remains unchanged.
-- [ ] Benchmark output records the effective configuration and runtime version.
-- [ ] Environment overrides remain supported without mutating defaults.
-- [ ] Application, Node, Nuxt, full verification, and build pass.
-- [ ] No private manifest/audio data or out-of-scope change exists.
+- [x] Every value, version, threshold, and cache key remains unchanged.
+- [x] Benchmark output records the effective configuration and runtime version.
+- [x] Environment overrides remain supported without mutating defaults.
+- [x] Application, Node, Nuxt, full verification, and build pass.
+- [x] No private manifest/audio data or out-of-scope change exists.
 
 ## STOP conditions
 
@@ -273,5 +295,7 @@ Stop and report if:
 
 - Any future algorithm parameter change must update the shared configuration
   version and intentionally decide cache invalidation.
+- Keep the relative shared-config import unless the standalone unit Vitest
+  project gains an explicit `~~` alias.
 - Benchmark output is valid evidence only when its effective config metadata
   matches production.
