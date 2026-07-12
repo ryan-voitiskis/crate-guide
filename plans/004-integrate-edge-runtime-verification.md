@@ -10,6 +10,7 @@
 > git diff --stat 004d548..HEAD -- \
 >   package.json \
 >   supabase/deno.json \
+>   supabase/deno.lock \
 >   supabase/functions/get-discogs-access-token/index.ts \
 >   supabase/functions/get-discogs-access-token/validateCredentials.ts \
 >   supabase/functions/get-discogs-access-token/validateCredentials.test.ts
@@ -87,6 +88,7 @@ semicolon-free Prettier style.
 
 - `package.json`
 - `supabase/deno.json`
+- `supabase/deno.lock`
 - `supabase/functions/get-discogs-access-token/index.ts`
 - `supabase/functions/get-discogs-access-token/validateCredentials.ts` (create)
 - `supabase/functions/get-discogs-access-token/validateCredentials.test.ts`
@@ -225,6 +227,9 @@ in-scope files and tracker status if owned by the executor.
       four cases pass without permissions.
 - [ ] Root `check:edge`, `lint:edge`, and `test:edge` work.
 - [ ] Prettier is the only Edge formatter; dead/unused Deno entries are gone.
+- [ ] The deterministic Deno 2 lock graph for the already-imported
+      `oauth-signature` dependency is committed, and a second Edge check leaves
+      `supabase/deno.lock` byte-stable.
 - [ ] OAuth behavior and public response contracts are unchanged.
 - [ ] No secrets, migrations, generated types, or out-of-scope files changed.
 
@@ -247,3 +252,6 @@ Stop and report if:
 - A later handler-architecture plan can address message-prefix HTTP error
   classification; do not hide it inside unrelated maintenance.
 - Reviewers should verify no credential-bearing object is logged by the helper.
+- Keep the deterministic Deno 2 lock graph committed for the already-imported
+  `oauth-signature` dependency. After dependency changes, run the Edge check
+  twice and verify the second run leaves `supabase/deno.lock` byte-stable.

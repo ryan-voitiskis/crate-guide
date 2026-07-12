@@ -16,7 +16,7 @@ its status row when done unless a reviewer explicitly owns the index.
 | 001  | [Redesign the session track picker around physical records](001-record-first-session-track-picker.md) | P1       | M      | —                            | DONE   |
 | 002  | [Attach the load-track dialog hook to real DOM](002-attach-load-track-dialog-hook.md)                 | P1       | S      | 001                          | DONE   |
 | 003  | [Restore the browser E2E baseline](003-restore-browser-e2e-baseline.md)                               | P1       | S      | —                            | TODO   |
-| 004  | [Integrate Deno Edge runtime verification](004-integrate-edge-runtime-verification.md)                | P1       | M      | —                            | TODO   |
+| 004  | [Integrate Deno Edge runtime verification](004-integrate-edge-runtime-verification.md)                | P1       | M      | —                            | DONE   |
 | 005  | [Make maintenance tooling safe and composable](005-make-maintenance-tooling-trustworthy.md)           | P1       | M      | 003, 004                     | TODO   |
 | 006  | [Add rendered workflow characterization](006-add-rendered-workflow-characterization.md)               | P1       | L      | 003, 005                     | TODO   |
 | 007  | [Retire disabled ingestion and unused APIs](007-retire-disabled-and-unused-code.md)                   | P2       | M      | 006                          | TODO   |
@@ -41,6 +41,8 @@ reason>)` | `REJECTED (<one-line rationale>)`.
   output.
 - Plan 004 makes the Deno 2 Edge checker/linter/test task real and fixes the
   proven nullable OAuth credential bug.
+- Plan 004 execution expanded to include the required stable Deno 2 lock
+  refresh for the already-imported `oauth-signature` dependency.
 - These two plans are independent and may run in parallel.
 
 ### Wave B — Compose trustworthy maintenance tooling
