@@ -236,6 +236,14 @@ Expected: both commands exit 0 and the documented behavior matches the script.
 - A successful fake generation must prove the two destinations are identical.
 - `npm run verify` is the integration test for script composition.
 
+## Reviewer evidence
+
+- `npm run format`, `npm run format:check`, `npm run lint`, and
+  `npm run typecheck` exited 0.
+- The application suite passed 912 tests, the browser E2E suite passed 2 tests,
+  the Edge suite passed 4 tests, and the type-generation script suite passed 6
+  tests.
+
 ## Done criteria
 
 - [ ] Failed generation cannot truncate or desynchronize tracked type files.
@@ -268,3 +276,8 @@ Stop and report if:
   because they create artifacts or require infrastructure.
 - Review rollback paths in the type-generation script as carefully as its
   success path.
+- The two-file replacement is rollback-safe during a normal single-writer
+  process. It is not crash-safe and is not a true multi-file filesystem
+  transaction. If rollback cannot fully restore both destinations, the CLI
+  explicitly reports incomplete restoration; reconcile both files manually
+  before retrying.
