@@ -2,43 +2,24 @@
 import { toast } from 'vue-sonner'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
-import { z } from 'zod'
+import {
+	buildTrackEditorPayload,
+	createTrackEditorInitialValues,
+	hasTrackEditorChanges,
+	trackEditorSchema,
+	trackToEditorValues
+} from '~/utils/trackEditor'
 
 const tracks = useTracksStore()
 const trackEdit = useTrackEditStore()
 const recordDetails = useRecordDetailsStore()
 const user = useUserStore()
 
-// Validation schema
-const trackSchema = z.object({
-	title: z.string().min(1, 'Title is required').trim(),
-	position: z.string().refine(isValidTrackPosition, POSITION_ERROR_MESSAGE),
-	duration: z.string().refine(isValidDurationFormat, DURATION_ERROR_MESSAGE),
-	bpm: z.string().refine(isValidBPM, BPM_ERROR_MESSAGE),
-	keyComposite: z.string().refine(isValidKeyComposite, KEY_ERROR_MESSAGE),
-	genres: z.array(z.string()),
-	rpm: z.union([z.number(), z.null()]),
-	playable: z.boolean(),
-	time_signature_upper: z.union([z.number(), z.null()]),
-	time_signature_lower: z.union([z.number(), z.null()])
-})
-
-const validationSchema = toTypedSchema(trackSchema)
+const validationSchema = toTypedSchema(trackEditorSchema)
 
 const form = useForm({
 	validationSchema,
-	initialValues: {
-		title: '',
-		position: '',
-		duration: '',
-		bpm: '',
-		keyComposite: 'none',
-		genres: [] as string[],
-		rpm: null as number | null,
-		playable: true,
-		time_signature_upper: null as number | null,
-		time_signature_lower: null as number | null
-	}
+	initialValues: createTrackEditorInitialValues()
 })
 
 const { handleSubmit, setValues, values, errors, resetForm } = form
@@ -93,18 +74,7 @@ watch(
 	([track, isOpen]) => {
 		if (track && isOpen && isEditing.value && !isFormInitialized.value) {
 			// Editing existing track
-			setValues({
-				title: track.title || '',
-				position: track.position || '',
-				duration: msToMMSS(track.duration),
-				bpm: track.bpm?.toString() || '',
-				keyComposite: createKeyComposite(track.key, track.mode),
-				genres: [...track.genres],
-				rpm: track.rpm,
-				playable: track.playable ?? true,
-				time_signature_upper: track.time_signature_upper,
-				time_signature_lower: track.time_signature_lower
-			})
+			setValues(trackToEditorValues(track))
 			// Set artists independently
 			artists.value = [...track.artists]
 			extraartists.value = [...track.extraartists]
@@ -131,36 +101,11 @@ function hasFormChanges(): boolean {
 	if (!editingTrack.value || !isEditing.value || !isFormInitialized.value)
 		return false
 
-	const current = editingTrack.value
-	const form = values
-
-	// Convert duration back to seconds for comparison
-	let formDurationSeconds: number | null = null
-	if (form.duration) {
-		const timeMatch = form.duration.match(/^(\d{1,2}):([0-5]\d)$/)
-		if (timeMatch) {
-			const minutes = parseInt(timeMatch[1]!, 10)
-			const seconds = parseInt(timeMatch[2]!, 10)
-			formDurationSeconds = minutes * 60 + seconds
-		}
-	}
-
-	return (
-		(current.title || '') !== (form.title || '') ||
-		(current.position || '') !== (form.position || '') ||
-		(current.duration || null) !== formDurationSeconds ||
-		(current.bpm?.toString() || '') !== (form.bpm || '') ||
-		current.rpm !== form.rpm ||
-		createKeyComposite(current.key, current.mode) !== form.keyComposite ||
-		current.time_signature_upper !== form.time_signature_upper ||
-		current.time_signature_lower !== form.time_signature_lower ||
-		(current.playable ?? true) !== form.playable ||
-		JSON.stringify(current.genres || []) !==
-			JSON.stringify(form.genres || []) ||
-		JSON.stringify(current.artists || []) !==
-			JSON.stringify(artists.value || []) ||
-		JSON.stringify(current.extraartists || []) !==
-			JSON.stringify(extraartists.value || [])
+	return hasTrackEditorChanges(
+		editingTrack.value,
+		values,
+		artists.value,
+		extraartists.value
 	)
 }
 
@@ -181,28 +126,15 @@ const submitTrack = handleSubmit(async (values) => {
 	isSubmitting.value = true
 
 	try {
+		const payload = buildTrackEditorPayload(
+			values,
+			artists.value,
+			extraartists.value
+		)
+
 		if (isEditing.value && editingTrack.value) {
 			// Update existing track
-			const keyData = parseKeyComposite(values.keyComposite || 'none')
-			const filteredArtists = artists.value.filter(isDiscogsArtistDb)
-			const filteredExtraartists = extraartists.value.filter(isDiscogsArtistDb)
-			const updates = {
-				title: (values.title || '').trim(),
-				artists: filteredArtists,
-				extraartists: filteredExtraartists,
-				position: (values.position || '').trim() || null,
-				duration: mmssToMs(values.duration || ''),
-				bpm: parseBPM(values.bpm || ''),
-				rpm: values.rpm ?? null,
-				key: keyData.key,
-				mode: keyData.mode,
-				genres: values.genres,
-				time_signature_upper: values.time_signature_upper,
-				time_signature_lower: values.time_signature_lower,
-				playable: values.playable
-			}
-
-			const result = await tracks.updateTrack(editingTrack.value.id, updates)
+			const result = await tracks.updateTrack(editingTrack.value.id, payload)
 			if (result) {
 				toast.success('Track updated successfully')
 				trackEdit.closeTrackDialog()
@@ -210,22 +142,9 @@ const submitTrack = handleSubmit(async (values) => {
 			}
 		} else {
 			// Create new track
-			const keyData = parseKeyComposite(values.keyComposite || 'none')
 			const newTrack = {
 				record_id: selectedRecordId.value,
-				title: (values.title || '').trim(),
-				artists: artists.value,
-				extraartists: extraartists.value,
-				position: (values.position || '').trim() || null,
-				duration: mmssToMs(values.duration || ''),
-				bpm: parseBPM(values.bpm || ''),
-				rpm: values.rpm ?? null,
-				key: keyData.key,
-				mode: keyData.mode,
-				genres: values.genres || [],
-				time_signature_upper: values.time_signature_upper || null,
-				time_signature_lower: values.time_signature_lower || null,
-				playable: values.playable ?? true,
+				...payload,
 				beatport_data: null
 			}
 
