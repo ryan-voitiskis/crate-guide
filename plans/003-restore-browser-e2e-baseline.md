@@ -34,7 +34,12 @@
 test harness builds the application with its production Cloudflare Pages Nitro
 preset, but Nuxt Test Utils starts a Node entry that Cloudflare output does not
 contain. This plan makes the test-only build use `node-server` while proving
-the normal production build remains Cloudflare Pages output.
+the normal production build remains Cloudflare Pages output. Once the
+`node-server` override first let the runner reach the browser, execution
+revealed that the Nuxt Supabase module also required test-only public
+configuration; the fixture now supplies the reserved invalid URL
+`https://e2e.invalid` and dummy key `e2e-public-key` without permitting a
+network request.
 
 ## Current state
 
@@ -63,6 +68,14 @@ the normal production build remains Cloudflare Pages output.
 - `@nuxt/test-utils` accepts `nuxtConfig` in `setup()` and, for a production
   test server, launches `<nitro.output.dir>/server/index.mjs`. A `node-server`
   test preset produces that entry; `cloudflare-pages` produces a worker entry.
+- Once the runner first reached the browser during execution, the Nuxt Supabase
+  module required public URL/key values. The test-only `nuxtConfig.supabase`
+  values are `https://e2e.invalid` and `e2e-public-key`; authentication remains
+  locally mocked and must never request the reserved invalid URL.
+- The fixture previously assigned claims directly to
+  `nuxtApp.payload.state.supabase_user`. That mutation was ineffective; the
+  mocked Supabase auth methods provide the behavior the tests exercise, so the
+  direct payload-state mutation is removed.
 - `package.json:19` defines `test:e2e` as the Vitest `e2e` project.
 - `@playwright/test` is a direct dev dependency but has no repository import.
   `playwright-core` is imported for the `Page` type and must remain.
@@ -119,13 +132,21 @@ In `test/e2e/login-redirect.e2e.test.ts`, extend the existing `setup()` call:
 await setup({
 	browser: true,
 	nuxtConfig: {
-		nitro: { preset: 'node-server' }
+		nitro: { preset: 'node-server' },
+		supabase: {
+			url: 'https://e2e.invalid',
+			key: 'e2e-public-key'
+		}
 	}
 })
 ```
 
 Do not set `dev: true`; the suite must exercise a built test artifact. Do not
-edit `nuxt.config.ts`.
+edit `nuxt.config.ts`. The Supabase values are test-only public placeholders
+discovered after the runner first reached the browser. Keep Supabase behavior
+locally mocked, and remove the ineffective direct assignment to
+`nuxtApp.payload.state.supabase_user` rather than treating payload mutation as
+authentication state.
 
 Install the compatible browser binary once with
 `npx playwright-core install chromium`; the current machine does not have the
@@ -191,6 +212,11 @@ it.
 - [ ] `npm run test:e2e` exits 0 with two passing tests.
 - [ ] The E2E fixture supplies `nitro.preset = 'node-server'` only via
       `setup({ nuxtConfig })`.
+- [ ] The same test-only `nuxtConfig` supplies Supabase URL
+      `https://e2e.invalid` and key `e2e-public-key`, while both tests remain
+      locally mocked and make no request to the reserved invalid URL.
+- [ ] The ineffective direct `nuxtApp.payload.state.supabase_user` mutation is
+      removed; the fixture relies on its mocked Supabase auth methods.
 - [ ] `nuxt.config.ts` remains unchanged and `npm run build` emits Cloudflare
       worker output.
 - [ ] `@playwright/test` is absent; `playwright-core` remains.
@@ -205,6 +231,8 @@ Stop and report if:
   produces `server/index.mjs` with the installed Nuxt Test Utils version.
 - The tests reach the browser but fail on an application assertion; capture
   that separate failure rather than changing auth behavior in this plan.
+- The browser begins requesting `https://e2e.invalid` instead of remaining
+  fully contained by the local Supabase mocks.
 - Fixing the harness appears to require editing production `nuxt.config.ts`.
 - Chromium cannot be installed or launched in the executor environment.
 - Removing `@playwright/test` breaks a caller that repository search missed.
