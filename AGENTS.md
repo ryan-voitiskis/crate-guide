@@ -5,3 +5,4 @@
 - Run `npm run check:conventions` and `npm run verify` before handoff
 - Put application-specific UI behavior in wrappers outside generated `app/components/ui`
 - Prettier owns Edge Function formatting; do not run `deno fmt`
+- Local Supabase reserves ports `42820-42829`; keep config, env examples, scripts, and README references aligned

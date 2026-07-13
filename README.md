@@ -102,7 +102,7 @@ npx playwright-core install chromium
 Root `.env` — Supabase connection:
 
 ```
-SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_URL=http://127.0.0.1:42821
 SUPABASE_ANON_KEY=
 SITE_URL=http://localhost:3000
 ```
@@ -134,6 +134,21 @@ hosted project; it is not a verification command and should be run only as an
 intentional remote configuration change.
 
 ### Running Locally
+
+Crate Guide reserves the uncommon `42820-42829` range for its local Supabase
+stack so it can run alongside projects using Supabase's default `54320-54329`
+ports. The main local endpoints are:
+
+| Service         | URL / port                             |
+| --------------- | -------------------------------------- |
+| API + Functions | `http://127.0.0.1:42821`               |
+| PostgreSQL      | `127.0.0.1:42822`                      |
+| Studio          | `http://127.0.0.1:42823`               |
+| Email testing   | `http://127.0.0.1:42824`               |
+| Shadow database | `127.0.0.1:42820`                      |
+| Analytics       | `127.0.0.1:42827`                      |
+| Edge inspector  | `127.0.0.1:42828`                      |
+| Pooler          | `127.0.0.1:42829` (currently disabled) |
 
 ```bash
 # Full environment (Nuxt + Supabase local stack)
