@@ -22,7 +22,32 @@ export const useUserStore = defineStore('user', () => {
 	const anonymousThemePreference = ref<ThemeOptions>(
 		getSavedAnonymousThemePreference() ?? 'auto'
 	)
+	let profileOwnerId: string | null = null
+	let authenticationGeneration = 0
 	let settingsUpdateQueue: Promise<boolean> = Promise.resolve(true)
+
+	type AuthenticatedWork = {
+		userId: string
+		generation: number
+	}
+	type SettingsUpdateOutcome = {
+		didPersist: boolean
+		work: AuthenticatedWork | null
+	}
+
+	function isCurrentWork({ userId, generation }: AuthenticatedWork): boolean {
+		return generation === authenticationGeneration && profileOwnerId === userId
+	}
+
+	function invalidateIdentity(nextUserId: string | null): number {
+		authenticationGeneration += 1
+		profileOwnerId = nextUserId
+		profile.value = null
+		isUpdatingSettings.value = false
+		settingsUpdateQueue = Promise.resolve(true)
+		setTheme(anonymousThemePreference.value)
+		return authenticationGeneration
+	}
 
 	function getSiteUrl(): string {
 		if (typeof window !== 'undefined' && window.location.origin) {
@@ -124,8 +149,7 @@ export const useUserStore = defineStore('user', () => {
 		try {
 			const { error } = await supabase.auth.signOut()
 			if (error) throw error
-			profile.value = null
-			setTheme(anonymousThemePreference.value)
+			invalidateIdentity(null)
 			toast.success('You are now signed out.')
 		} catch (e) {
 			console.error(e)
@@ -174,14 +198,17 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
-	async function fetchProfile(): Promise<boolean> {
+	async function fetchProfileForWork(
+		work: AuthenticatedWork
+	): Promise<boolean> {
+		if (!isCurrentWork(work)) return false
 		try {
-			const userId = await resolveAuthenticatedUserId()
 			const { data, error } = await supabase
 				.from('profiles')
 				.select(PROFILE_SAFE_COLUMNS)
-				.eq('id', userId)
+				.eq('id', work.userId)
 				.single()
+			if (!isCurrentWork(work)) return false
 			if (error) throw error
 			profile.value = data as Profile
 			const theme = profile.value.ui_theme ?? 'auto'
@@ -192,38 +219,100 @@ export const useUserStore = defineStore('user', () => {
 				: 'key'
 			return true
 		} catch (e) {
+			if (!isCurrentWork(work)) return false
 			console.error(e)
 			toast.error(`Error getting your profile.`, { duration: 30000 })
 			return false
 		}
 	}
 
-	async function updateSettings(settingsPartial: Partial<Profile>) {
-		// optimistically update the local state
-		if (profile.value) profile.value = { ...profile.value, ...settingsPartial }
-		const runUpdate = async (): Promise<boolean> => {
-			isUpdatingSettings.value = true
+	async function fetchProfile(): Promise<boolean> {
+		const resolutionGeneration = authenticationGeneration
+		try {
+			const userId = await resolveAuthenticatedUserId()
+			if (resolutionGeneration !== authenticationGeneration) return false
+			const reactiveUserId = supaUser.value?.id ?? null
+			if (reactiveUserId && reactiveUserId !== userId) return false
+			if (profileOwnerId !== userId) {
+				if (profileOwnerId !== null) return false
+				invalidateIdentity(userId)
+			}
+			return fetchProfileForWork({
+				userId,
+				generation: authenticationGeneration
+			})
+		} catch (e) {
+			if (resolutionGeneration !== authenticationGeneration) return false
+			console.error(e)
+			toast.error(`Error getting your profile.`, { duration: 30000 })
+			return false
+		}
+	}
+
+	async function updateSettingsWithWork(
+		settingsPartial: Partial<Profile>
+	): Promise<SettingsUpdateOutcome> {
+		const capturedUserId = supaUser.value?.id ?? profileOwnerId
+		let work = capturedUserId
+			? { userId: capturedUserId, generation: authenticationGeneration }
+			: null
+		if (work && !isCurrentWork(work)) return { didPersist: false, work }
+		if (!work) {
+			const resolutionGeneration = authenticationGeneration
 			try {
 				const userId = await resolveAuthenticatedUserId()
+				if (resolutionGeneration !== authenticationGeneration)
+					return { didPersist: false, work: null }
+				const reactiveUserId = supaUser.value?.id ?? null
+				if (reactiveUserId && reactiveUserId !== userId)
+					return { didPersist: false, work: null }
+				if (profileOwnerId !== userId) {
+					if (profileOwnerId !== null) return { didPersist: false, work: null }
+					invalidateIdentity(userId)
+				}
+				work = {
+					userId,
+					generation: authenticationGeneration
+				}
+			} catch (e) {
+				if (resolutionGeneration !== authenticationGeneration)
+					return { didPersist: false, work: null }
+				console.error(e)
+				toast.error(`Error updating your settings.`, { duration: 30000 })
+				return { didPersist: false, work: null }
+			}
+		}
+		if (!isCurrentWork(work)) return { didPersist: false, work }
+
+		// Optimistically update only state owned by the captured identity.
+		if (profile.value) profile.value = { ...profile.value, ...settingsPartial }
+		const runUpdate = async (): Promise<boolean> => {
+			if (!isCurrentWork(work)) return false
+			isUpdatingSettings.value = true
+			try {
+				if (!isCurrentWork(work)) return false
 				const { data, error } = await supabase
 					.from('profiles')
 					.update(settingsPartial)
-					.eq('id', userId)
+					.eq('id', work.userId)
 					.select(PROFILE_SAFE_COLUMNS)
 					.single()
+				if (!isCurrentWork(work)) return false
 				if (!data) {
 					if (error && error.code !== 'PGRST116') throw error
+					if (!isCurrentWork(work)) return false
 					const { data: upsertedData, error: upsertError } = await supabase
 						.from('profiles')
 						.upsert(
 							{
-								id: userId,
+								id: work.userId,
 								...settingsPartial
 							},
 							{ onConflict: 'id' }
 						)
 						.select(PROFILE_SAFE_COLUMNS)
 						.single()
+					if (!isCurrentWork(work)) return false
 					if (upsertError || !upsertedData) throw upsertError
 					profile.value = upsertedData as Profile
 					return true
@@ -233,17 +322,27 @@ export const useUserStore = defineStore('user', () => {
 				profile.value = data as Profile
 				return true
 			} catch (e) {
+				if (!isCurrentWork(work)) return false
 				console.error(e)
-				await fetchProfile()
+				await fetchProfileForWork(work)
+				if (!isCurrentWork(work)) return false
 				toast.error(`Error updating your settings.`, { duration: 30000 })
 				return false
 			} finally {
-				isUpdatingSettings.value = false
+				if (isCurrentWork(work)) isUpdatingSettings.value = false
 			}
 		}
 
 		settingsUpdateQueue = settingsUpdateQueue.then(runUpdate, runUpdate)
-		return settingsUpdateQueue
+		const didPersist = await settingsUpdateQueue
+		return { didPersist, work }
+	}
+
+	async function updateSettings(
+		settingsPartial: Partial<Profile>
+	): Promise<boolean> {
+		const { didPersist } = await updateSettingsWithWork(settingsPartial)
+		return didPersist
 	}
 
 	function setLocalTheme(newTheme: ThemeOptions) {
@@ -255,32 +354,22 @@ export const useUserStore = defineStore('user', () => {
 	async function updateTheme(newTheme: ThemeOptions) {
 		const previousTheme = currentTheme.value
 		setTheme(newTheme)
-		if (!supaUser.value?.id) {
-			try {
-				await resolveAuthenticatedUserId()
-			} catch {
-				return
-			}
-		}
-		const didPersist = await updateSettings({ ui_theme: newTheme })
-		if (!didPersist) {
-			setTheme(previousTheme)
-		}
+		const { didPersist, work } = await updateSettingsWithWork({
+			ui_theme: newTheme
+		})
+		if (!work || !isCurrentWork(work)) return
+		setTheme(didPersist ? newTheme : previousTheme)
 	}
 
 	async function updateKeyFormat(newKeyFormat: 'key' | 'camelot') {
 		if (newKeyFormat === currentKeyFormat.value) return
 		const previousKeyFormat = currentKeyFormat.value
 		localKeyFormatPreference.value = newKeyFormat
-		if (!supaUser.value?.id) {
-			try {
-				await resolveAuthenticatedUserId()
-			} catch {
-				return
-			}
-		}
-		const didPersist = await updateSettings({ key_format: newKeyFormat })
-		if (!didPersist) localKeyFormatPreference.value = previousKeyFormat
+		const { didPersist, work } = await updateSettingsWithWork({
+			key_format: newKeyFormat
+		})
+		if (!didPersist && work && isCurrentWork(work))
+			localKeyFormatPreference.value = previousKeyFormat
 	}
 
 	async function deleteAllUserData(): Promise<boolean> {
@@ -298,20 +387,37 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
-	watchEffect(() => {
-		if (profile.value) return
-		if (supaUser.value?.id) {
-			void fetchProfile()
-			return
-		}
-		void (async () => {
-			const { data: sessionData, error: sessionError } =
-				await supabase.auth.getSession()
-			if (sessionError) return
-			if (!sessionData.session?.user?.id) return
-			await fetchProfile()
-		})()
-	})
+	watch(
+		() => supaUser.value?.id ?? null,
+		(userId, previousUserId) => {
+			if (userId === profileOwnerId) {
+				if (userId !== null || previousUserId !== undefined) return
+				void (async () => {
+					const bootstrapGeneration = authenticationGeneration
+					const { data: sessionData, error: sessionError } =
+						await supabase.auth.getSession()
+					const sessionUserId = sessionData.session?.user?.id ?? null
+					if (sessionError || !sessionUserId) return
+					if (
+						bootstrapGeneration !== authenticationGeneration ||
+						profileOwnerId !== null ||
+						supaUser.value?.id
+					)
+						return
+					const generation = invalidateIdentity(sessionUserId)
+					await fetchProfileForWork({ userId: sessionUserId, generation })
+				})()
+				return
+			}
+			if (userId) {
+				const generation = invalidateIdentity(userId)
+				void fetchProfileForWork({ userId, generation })
+				return
+			}
+			invalidateIdentity(null)
+		},
+		{ flush: 'sync', immediate: true }
+	)
 
 	return {
 		supaUser,

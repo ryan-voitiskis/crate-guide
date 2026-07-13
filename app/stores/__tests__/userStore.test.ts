@@ -1,15 +1,37 @@
+import {
+	type EffectScope,
+	computed,
+	effectScope,
+	nextTick,
+	ref,
+	watch
+} from 'vue'
+import { toast } from 'vue-sonner'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Profile } from '~/../../shared/types/supabase'
 // Import after mocking
-import { useUserStore } from '../userStore'
+import { useUserStore as createPiniaUserStore } from '../userStore'
+
+vi.mock('vue-sonner', () => ({
+	toast: {
+		error: vi.fn(),
+		success: vi.fn(),
+		warning: vi.fn()
+	}
+}))
+
+const mockToast = toast as unknown as {
+	error: ReturnType<typeof vi.fn>
+	success: ReturnType<typeof vi.fn>
+	warning: ReturnType<typeof vi.fn>
+}
 
 // Mock dependencies
-const mockSupaUser: {
-	value: { id: string; email: string } | null
-} = {
-	value: { id: 'test-user-id', email: 'test@example.com' }
-}
+const mockSupaUser = ref<{ id: string; email: string } | null>({
+	id: 'test-user-id',
+	email: 'test@example.com'
+})
 
 const mockRouter = {
 	push: vi.fn()
@@ -53,7 +75,7 @@ function createMockQueryBuilder() {
 		upsert: vi.fn().mockReturnThis(),
 		delete: vi.fn().mockReturnThis(),
 		eq: vi.fn().mockReturnThis(),
-		single: vi.fn().mockResolvedValue({ data: null, error: null })
+		single: vi.fn().mockReturnValue(new Promise(() => {}))
 	}
 	return builder
 }
@@ -106,15 +128,62 @@ vi.stubGlobal(
 vi.stubGlobal('saveAnonymousThemePreference', mockSaveAnonymousThemePreference)
 vi.stubGlobal('isKeyFormat', mockIsKeyFormat)
 vi.stubGlobal('isError', isError)
-vi.stubGlobal('watchEffect', vi.fn()) // Disable watchEffect to prevent auto-fetch
+vi.stubGlobal('ref', ref)
+vi.stubGlobal('computed', computed)
+vi.stubGlobal('watch', watch)
 
 // Mock process.env
 vi.stubGlobal('process', { env: { SITE_URL: 'https://example.com' } })
+
+const activeScopes: EffectScope[] = []
+const activeStores: ReturnType<typeof createPiniaUserStore>[] = []
+
+function clearQueryBuilderCalls() {
+	for (const queryMethod of Object.values(mockQueryBuilder)) {
+		queryMethod.mockClear()
+	}
+	mockSupabaseClient.from.mockClear()
+}
+
+function createUserStore(options: { preserveLifecycleCalls?: boolean } = {}) {
+	const scope = effectScope()
+	const store = scope.run(() => createPiniaUserStore())
+	if (!store) throw new Error('Failed to create user store scope')
+	activeScopes.push(scope)
+	activeStores.push(store)
+	if (!options.preserveLifecycleCalls) clearQueryBuilderCalls()
+	return store
+}
+
+function useUserStore() {
+	return createUserStore()
+}
+
+function createDeferred<T>() {
+	let resolve!: (value: T | PromiseLike<T>) => void
+	let reject!: (reason?: unknown) => void
+	const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+		resolve = resolvePromise
+		reject = rejectPromise
+	})
+	return { promise, reject, resolve }
+}
+
+async function drainLifecycleTasks() {
+	await Promise.resolve()
+	await Promise.resolve()
+	await nextTick()
+	await Promise.resolve()
+}
 
 describe('userStore', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
 		setActivePinia(createPinia())
+		mockSupaUser.value = {
+			id: 'test-user-id',
+			email: 'test@example.com'
+		}
 
 		// Reset mock query builder
 		mockQueryBuilder = createMockQueryBuilder()
@@ -132,10 +201,14 @@ describe('userStore', () => {
 			},
 			error: null
 		}))
+		mockSupabaseClient.auth.signOut.mockResolvedValue({ error: null })
 
-		// Reset supaUser
-		mockSupaUser.value = { id: 'test-user-id', email: 'test@example.com' }
 		mockGetSavedAnonymousThemePreference.mockReturnValue(null)
+	})
+
+	afterEach(() => {
+		for (const store of activeStores.splice(0)) store.$dispose()
+		for (const scope of activeScopes.splice(0)) scope.stop()
 	})
 
 	describe('initial state', () => {
@@ -511,6 +584,111 @@ describe('userStore', () => {
 		})
 	})
 
+	describe('authentication lifecycle', () => {
+		it('clears profile and ignores a stale profile response after sign-out', async () => {
+			const profileRequest = createDeferred<{
+				data: Profile
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValueOnce(profileRequest.promise)
+			const store = createUserStore({ preserveLifecycleCalls: true })
+
+			expect(mockQueryBuilder.eq).toHaveBeenCalledWith('id', 'test-user-id')
+			mockSupaUser.value = null
+
+			expect(store.profile).toBeNull()
+			expect(mockSetTheme).toHaveBeenLastCalledWith('auto')
+
+			profileRequest.resolve({
+				data: createMockProfile({ id: 'test-user-id', ui_theme: 'dark' }),
+				error: null
+			})
+			await drainLifecycleTasks()
+
+			expect(store.profile).toBeNull()
+			expect(mockSetTheme).not.toHaveBeenCalledWith('dark')
+			expect(mockSetTheme).toHaveBeenLastCalledWith('auto')
+			expect(mockToast.error).not.toHaveBeenCalled()
+		})
+
+		it('loads a replacement identity once and ignores the stale prior response', async () => {
+			const firstProfileRequest = createDeferred<{
+				data: Profile
+				error: null
+			}>()
+			const replacementProfile = createMockProfile({
+				id: 'replacement-user-id',
+				key_format: 'key',
+				ui_theme: 'light'
+			})
+			mockQueryBuilder.single
+				.mockReturnValueOnce(firstProfileRequest.promise)
+				.mockResolvedValueOnce({ data: replacementProfile, error: null })
+			const store = createUserStore({ preserveLifecycleCalls: true })
+
+			mockSupaUser.value = {
+				id: 'replacement-user-id',
+				email: 'replacement@example.com'
+			}
+			await drainLifecycleTasks()
+
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				1,
+				'id',
+				'test-user-id'
+			)
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				2,
+				'id',
+				'replacement-user-id'
+			)
+			expect(store.profile).toEqual(replacementProfile)
+			expect(mockSetTheme).toHaveBeenLastCalledWith('light')
+
+			firstProfileRequest.resolve({
+				data: createMockProfile({ id: 'test-user-id', ui_theme: 'dark' }),
+				error: null
+			})
+			await drainLifecycleTasks()
+
+			expect(store.profile).toEqual(replacementProfile)
+			expect(mockSetTheme).toHaveBeenLastCalledWith('light')
+			expect(mockToast.error).not.toHaveBeenCalled()
+		})
+
+		it('hydrates one persisted-session profile without a duplicate reactive load', async () => {
+			mockSupaUser.value = null
+			mockSupabaseClient.auth.getSession.mockResolvedValue({
+				data: { session: { user: { id: 'session-user-id' } } },
+				error: null
+			})
+			const sessionProfile = createMockProfile({
+				id: 'session-user-id',
+				ui_theme: 'dark'
+			})
+			mockQueryBuilder.single.mockResolvedValueOnce({
+				data: sessionProfile,
+				error: null
+			})
+			const store = createUserStore({ preserveLifecycleCalls: true })
+			await drainLifecycleTasks()
+
+			expect(mockSupabaseClient.auth.getSession).toHaveBeenCalledTimes(1)
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(1)
+			expect(store.profile).toEqual(sessionProfile)
+
+			mockSupaUser.value = {
+				id: 'session-user-id',
+				email: 'session@example.com'
+			}
+			await drainLifecycleTasks()
+
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(1)
+			expect(mockQueryBuilder.eq).toHaveBeenCalledWith('id', 'session-user-id')
+		})
+	})
+
 	describe('fetchProfile', () => {
 		it('returns false when user is not logged in', async () => {
 			const store = useUserStore()
@@ -702,6 +880,85 @@ describe('userStore', () => {
 			expect(mockQueryBuilder.update).toHaveBeenNthCalledWith(2, {
 				key_format: 'camelot'
 			})
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				1,
+				'id',
+				'test-user-id'
+			)
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				2,
+				'id',
+				'test-user-id'
+			)
+		})
+
+		it('drops queued and settling updates when the identity changes', async () => {
+			const firstUpdateRequest = createDeferred<{
+				data: Profile
+				error: null
+			}>()
+			const replacementProfile = createMockProfile({
+				id: 'replacement-user-id',
+				key_format: 'key',
+				turntable_pitch_range: 8,
+				ui_theme: 'light'
+			})
+			const store = useUserStore()
+			store.profile = createMockProfile({
+				id: 'test-user-id',
+				key_format: 'key',
+				turntable_pitch_range: 8
+			})
+			mockQueryBuilder.single
+				.mockReturnValueOnce(firstUpdateRequest.promise)
+				.mockResolvedValueOnce({ data: replacementProfile, error: null })
+
+			const settlingUpdate = store.updateSettings({
+				turntable_pitch_range: 16
+			})
+			await drainLifecycleTasks()
+			expect(mockQueryBuilder.update).toHaveBeenCalledTimes(1)
+
+			const queuedUpdate = store.updateSettings({ key_format: 'camelot' })
+			expect(store.profile?.key_format).toBe('camelot')
+
+			mockSupaUser.value = {
+				id: 'replacement-user-id',
+				email: 'replacement@example.com'
+			}
+			await drainLifecycleTasks()
+
+			expect(store.profile).toEqual(replacementProfile)
+			expect(store.isUpdatingSettings).toBe(false)
+
+			firstUpdateRequest.resolve({
+				data: createMockProfile({
+					id: 'test-user-id',
+					turntable_pitch_range: 16
+				}),
+				error: null
+			})
+
+			await expect(
+				Promise.all([settlingUpdate, queuedUpdate])
+			).resolves.toEqual([false, false])
+			expect(mockQueryBuilder.update).toHaveBeenCalledTimes(1)
+			expect(mockQueryBuilder.update).toHaveBeenCalledWith({
+				turntable_pitch_range: 16
+			})
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				1,
+				'id',
+				'test-user-id'
+			)
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				2,
+				'id',
+				'replacement-user-id'
+			)
+			expect(store.profile).toEqual(replacementProfile)
+			expect(mockSetTheme).toHaveBeenLastCalledWith('light')
+			expect(mockToast.error).not.toHaveBeenCalled()
 		})
 
 		it('refetches profile on error', async () => {
@@ -725,8 +982,25 @@ describe('userStore', () => {
 
 			await store.updateSettings({ turntable_pitch_range: 16 })
 
-			// Should still try to update optimistically then fail
+			// The unauthenticated call settles without leaving loading state behind.
 			expect(store.isUpdatingSettings).toBe(false)
+		})
+
+		it('does not re-resolve a conflicting reactive identity after invalidation', async () => {
+			const store = useUserStore()
+			store.profile = createMockProfile({ id: 'test-user-id' })
+
+			await store.signOut()
+			mockSupabaseClient.auth.getSession.mockClear()
+			mockSupabaseClient.auth.getUser.mockClear()
+
+			await expect(
+				store.updateSettings({ turntable_pitch_range: 16 })
+			).resolves.toBe(false)
+			expect(mockSupabaseClient.auth.getSession).not.toHaveBeenCalled()
+			expect(mockSupabaseClient.auth.getUser).not.toHaveBeenCalled()
+			expect(mockQueryBuilder.update).not.toHaveBeenCalled()
+			expect(store.profile).toBeNull()
 		})
 	})
 
@@ -802,6 +1076,89 @@ describe('userStore', () => {
 			expect(mockQueryBuilder.eq).toHaveBeenCalledWith('id', 'session-user-id')
 			expect(mockQueryBuilder.update).toHaveBeenCalledWith({ ui_theme: 'dark' })
 		})
+
+		it('rolls back after an adopted session setting fails', async () => {
+			mockGetSavedAnonymousThemePreference.mockReturnValue('light')
+			const store = useUserStore()
+			mockSupaUser.value = null
+			mockSupabaseClient.auth.getSession.mockResolvedValue({
+				data: { session: { user: { id: 'session-user-id' } } },
+				error: null
+			})
+			mockQueryBuilder.single
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Update failed')
+				})
+				.mockResolvedValueOnce({
+					data: createMockProfile({
+						id: 'session-user-id',
+						ui_theme: 'auto'
+					}),
+					error: null
+				})
+
+			await store.updateTheme('dark')
+
+			expect(mockQueryBuilder.update).toHaveBeenCalledWith({ ui_theme: 'dark' })
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				1,
+				'id',
+				'session-user-id'
+			)
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				2,
+				'id',
+				'session-user-id'
+			)
+			expect(mockSetTheme).toHaveBeenLastCalledWith('light')
+		})
+
+		it('does not roll an adopted session theme into a replacement identity', async () => {
+			mockGetSavedAnonymousThemePreference.mockReturnValue('light')
+			const store = useUserStore()
+			mockSupaUser.value = null
+			mockSupabaseClient.auth.getSession.mockResolvedValue({
+				data: { session: { user: { id: 'session-user-id' } } },
+				error: null
+			})
+			const updateRequest = createDeferred<{
+				data: null
+				error: Error
+			}>()
+			const replacementProfile = createMockProfile({
+				id: 'replacement-user-id',
+				ui_theme: 'dark'
+			})
+			mockQueryBuilder.single
+				.mockReturnValueOnce(updateRequest.promise)
+				.mockResolvedValueOnce({ data: replacementProfile, error: null })
+
+			const updatePromise = store.updateTheme('dark')
+			await drainLifecycleTasks()
+			mockSupaUser.value = {
+				id: 'replacement-user-id',
+				email: 'replacement@example.com'
+			}
+			await drainLifecycleTasks()
+			updateRequest.resolve({ data: null, error: new Error('Update failed') })
+			await updatePromise
+
+			expect(store.profile).toEqual(replacementProfile)
+			expect(mockQueryBuilder.update).toHaveBeenCalledTimes(1)
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				1,
+				'id',
+				'session-user-id'
+			)
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				2,
+				'id',
+				'replacement-user-id'
+			)
+			expect(mockSetTheme).toHaveBeenLastCalledWith('dark')
+			expect(mockToast.error).not.toHaveBeenCalled()
+		})
 	})
 
 	describe('updateKeyFormat', () => {
@@ -840,6 +1197,90 @@ describe('userStore', () => {
 			expect(mockQueryBuilder.update).toHaveBeenCalledWith({
 				key_format: 'camelot'
 			})
+		})
+
+		it('rolls back after an adopted session key format fails', async () => {
+			const store = useUserStore()
+			mockSupaUser.value = null
+			mockSupabaseClient.auth.getSession.mockResolvedValue({
+				data: { session: { user: { id: 'session-user-id' } } },
+				error: null
+			})
+			mockQueryBuilder.single
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Update failed')
+				})
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Refetch failed')
+				})
+
+			await store.updateKeyFormat('camelot')
+
+			expect(mockQueryBuilder.update).toHaveBeenCalledWith({
+				key_format: 'camelot'
+			})
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				1,
+				'id',
+				'session-user-id'
+			)
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				2,
+				'id',
+				'session-user-id'
+			)
+			expect(store.currentKeyFormat).toBe('key')
+		})
+
+		it('does not roll an adopted key format into a replacement identity', async () => {
+			const store = useUserStore()
+			mockSupaUser.value = null
+			mockSupabaseClient.auth.getSession.mockResolvedValue({
+				data: { session: { user: { id: 'session-user-id' } } },
+				error: null
+			})
+			const updateRequest = createDeferred<{
+				data: null
+				error: Error
+			}>()
+			const replacementProfile = createMockProfile({
+				id: 'replacement-user-id',
+				key_format: 'camelot'
+			})
+			mockQueryBuilder.single
+				.mockReturnValueOnce(updateRequest.promise)
+				.mockResolvedValueOnce({ data: replacementProfile, error: null })
+
+			const updatePromise = store.updateKeyFormat('camelot')
+			await drainLifecycleTasks()
+			mockSupaUser.value = {
+				id: 'replacement-user-id',
+				email: 'replacement@example.com'
+			}
+			await drainLifecycleTasks()
+			updateRequest.resolve({ data: null, error: new Error('Update failed') })
+			await updatePromise
+
+			expect(store.profile).toEqual(replacementProfile)
+			expect(mockQueryBuilder.update).toHaveBeenCalledTimes(1)
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				1,
+				'id',
+				'session-user-id'
+			)
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				2,
+				'id',
+				'replacement-user-id'
+			)
+			store.profile = createMockProfile({
+				id: 'replacement-user-id',
+				key_format: 'invalid' as unknown as Profile['key_format']
+			})
+			expect(store.currentKeyFormat).toBe('camelot')
+			expect(mockToast.error).not.toHaveBeenCalled()
 		})
 
 		it('keeps local preference and skips db update when unauthenticated', async () => {
