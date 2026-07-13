@@ -13,11 +13,11 @@ await setup({
 	}
 })
 
-async function signInViaForm(page: Page) {
+async function signInViaForm(page: Page, expectedPath = '/') {
 	await page.locator('input[name="email"]').fill('e2e@example.com')
 	await page.locator('input[name="password"]').fill('password123')
 	await page.locator('button[type="submit"]').click()
-	await page.waitForURL(url('/'))
+	await page.waitForURL(url(expectedPath))
 }
 
 async function mockAuthenticatedSupabase(page: Page) {
@@ -84,6 +84,26 @@ async function mockAuthenticatedSupabase(page: Page) {
 }
 
 describe('Login redirects', () => {
+	it('returns a signed-out protected deep link after email login', async () => {
+		const page = await createPage('/records')
+
+		await page.waitForURL(
+			(currentUrl) =>
+				currentUrl.pathname === '/login' &&
+				currentUrl.searchParams.get('redirect') === '/records'
+		)
+		const loginUrl = new URL(page.url())
+		expect(loginUrl.pathname).toBe('/login')
+		expect(loginUrl.searchParams.get('redirect')).toBe('/records')
+
+		await mockAuthenticatedSupabase(page)
+		await signInViaForm(page, '/records')
+
+		expect(new URL(page.url()).pathname).toBe('/records')
+
+		await page.close()
+	})
+
 	it('redirects to home after successful email login', async () => {
 		const page = await createPage('/login')
 

@@ -1,6 +1,7 @@
 import { toast } from 'vue-sonner'
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { defineStore } from 'pinia'
+import { sanitizeAuthReturnPath } from '../utils/authRoutes'
 
 // Explicit column list for client-side profile reads. The Discogs OAuth
 // secret columns were moved to public.discogs_credentials (no SELECT RLS) so
@@ -132,12 +133,16 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	async function signInWithProvider(
-		provider: 'github' | 'google'
+		provider: 'github' | 'google',
+		returnPath: unknown = '/'
 	): Promise<boolean> {
 		try {
+			const redirect = encodeURIComponent(sanitizeAuthReturnPath(returnPath))
 			const { error } = await supabase.auth.signInWithOAuth({
 				provider,
-				options: { redirectTo: `${getSiteUrl()}/auth/finalising` }
+				options: {
+					redirectTo: `${getSiteUrl()}/auth/finalising?redirect=${redirect}`
+				}
 			})
 			if (error) throw error
 			return true

@@ -21,6 +21,20 @@ const mockCreateError = vi.fn(
 	}
 )
 
+type MockRoute = {
+	fullPath: string
+	path: string
+	query: Record<string, unknown>
+}
+
+function createRoute(
+	path: string,
+	fullPath = path,
+	query: Record<string, unknown> = {}
+): MockRoute {
+	return { fullPath, path, query }
+}
+
 vi.stubGlobal('defineNuxtRouteMiddleware', (handler: unknown) => handler)
 vi.stubGlobal('useSupabaseUser', () => mockSupabaseUser)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
@@ -30,8 +44,8 @@ vi.stubGlobal('createError', mockCreateError)
 describe('auth.global middleware', () => {
 	async function loadMiddleware() {
 		return (await import('../auth.global')).default as (
-			to: { path: string },
-			from: { path: string }
+			to: MockRoute,
+			from: MockRoute
 		) => Promise<unknown>
 	}
 
@@ -44,16 +58,37 @@ describe('auth.global middleware', () => {
 	it('redirects unauthenticated users on protected routes', async () => {
 		const middleware = await loadMiddleware()
 
-		const result = await middleware({ path: '/tracks' }, { path: '/login' })
+		const result = await middleware(
+			createRoute('/tracks'),
+			createRoute('/login')
+		)
 
-		expect(mockNavigateTo).toHaveBeenCalledWith('/login')
-		expect(result).toEqual({ path: '/login' })
+		expect(mockNavigateTo).toHaveBeenCalledWith('/login?redirect=%2Ftracks')
+		expect(result).toEqual({ path: '/login?redirect=%2Ftracks' })
+	})
+
+	it('preserves the full protected destination in the login redirect', async () => {
+		const middleware = await loadMiddleware()
+		const fullPath = '/records?crate=house&sort=year#release-1'
+
+		const result = await middleware(
+			createRoute('/records', fullPath),
+			createRoute('/login')
+		)
+
+		expect(mockNavigateTo).toHaveBeenCalledWith(
+			'/login?redirect=%2Frecords%3Fcrate%3Dhouse%26sort%3Dyear%23release-1'
+		)
+		expect(result).toEqual({
+			path: '/login?redirect=%2Frecords%3Fcrate%3Dhouse%26sort%3Dyear%23release-1'
+		})
 	})
 
 	it.each([
 		'/login',
 		'/signup',
 		'/reset-password',
+		'/update-password',
 		'/auth/check-inbox',
 		'/auth/confirm',
 		'/auth/finalising',
@@ -62,9 +97,10 @@ describe('auth.global middleware', () => {
 	])('allows unauthenticated users on public route %s', async (path) => {
 		const middleware = await loadMiddleware()
 
-		const result = await middleware({ path }, { path: '/login' })
+		const result = await middleware(createRoute(path), createRoute('/login'))
 
 		expect(mockNavigateTo).not.toHaveBeenCalled()
+		expect(mockGetSession).not.toHaveBeenCalled()
 		expect(result).toBeUndefined()
 	})
 
@@ -73,10 +109,11 @@ describe('auth.global middleware', () => {
 		async (path) => {
 			const middleware = await loadMiddleware()
 
-			const result = await middleware({ path }, { path: '/login' })
+			const result = await middleware(createRoute(path), createRoute('/login'))
 
-			expect(mockNavigateTo).toHaveBeenCalledWith('/login')
-			expect(result).toEqual({ path: '/login' })
+			const expected = `/login?redirect=${encodeURIComponent(path)}`
+			expect(mockNavigateTo).toHaveBeenCalledWith(expected)
+			expect(result).toEqual({ path: expected })
 		}
 	)
 
@@ -84,7 +121,44 @@ describe('auth.global middleware', () => {
 		mockSupabaseUser.value = { id: 'user-1' }
 		const middleware = await loadMiddleware()
 
-		const result = await middleware({ path: '/login' }, { path: '/tracks' })
+		const result = await middleware(
+			createRoute('/login'),
+			createRoute('/tracks')
+		)
+
+		expect(mockNavigateTo).toHaveBeenCalledWith('/')
+		expect(result).toEqual({ path: '/' })
+	})
+
+	it('returns authenticated users to a safe requested destination', async () => {
+		mockSupabaseUser.value = { id: 'user-1' }
+		const middleware = await loadMiddleware()
+
+		const result = await middleware(
+			createRoute(
+				'/login',
+				'/login?redirect=%2Frecords%3Fcrate%3Dhouse%23release-1',
+				{ redirect: '/records?crate=house#release-1' }
+			),
+			createRoute('/records')
+		)
+
+		expect(mockNavigateTo).toHaveBeenCalledWith(
+			'/records?crate=house#release-1'
+		)
+		expect(result).toEqual({ path: '/records?crate=house#release-1' })
+	})
+
+	it('falls back to home for an unsafe authenticated return target', async () => {
+		mockSupabaseUser.value = { id: 'user-1' }
+		const middleware = await loadMiddleware()
+
+		const result = await middleware(
+			createRoute('/login', '/login?redirect=https://evil.example', {
+				redirect: 'https://evil.example'
+			}),
+			createRoute('/records')
+		)
 
 		expect(mockNavigateTo).toHaveBeenCalledWith('/')
 		expect(result).toEqual({ path: '/' })
@@ -94,7 +168,10 @@ describe('auth.global middleware', () => {
 		mockSupabaseUser.value = { id: 'user-1' }
 		const middleware = await loadMiddleware()
 
-		const result = await middleware({ path: '/tracks' }, { path: '/login' })
+		const result = await middleware(
+			createRoute('/tracks'),
+			createRoute('/login')
+		)
 
 		expect(mockNavigateTo).not.toHaveBeenCalled()
 		expect(result).toBeUndefined()
@@ -106,7 +183,7 @@ describe('auth.global middleware', () => {
 		})
 		const middleware = await loadMiddleware()
 
-		const result = await middleware({ path: '/tracks' }, { path: '/' })
+		const result = await middleware(createRoute('/tracks'), createRoute('/'))
 
 		expect(mockNavigateTo).not.toHaveBeenCalled()
 		expect(result).toBeUndefined()
@@ -120,7 +197,7 @@ describe('auth.global middleware', () => {
 		const middleware = await loadMiddleware()
 
 		await expect(
-			middleware({ path: '/tracks' }, { path: '/' })
+			middleware(createRoute('/tracks'), createRoute('/'))
 		).rejects.toMatchObject({
 			statusCode: 503,
 			message: 'Failed to verify session'

@@ -2,11 +2,14 @@
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import * as z from 'zod'
+import { sanitizeAuthReturnPath } from '../utils/authRoutes'
 
 definePageMeta({ keepalive: false })
 
 const user = useUserStore()
 const router = useRouter()
+const route = useRoute()
+const returnPath = computed(() => sanitizeAuthReturnPath(route.query.redirect))
 
 const signingInWithGithub = ref(false)
 const signingInWithGoogle = ref(false)
@@ -22,28 +25,24 @@ const form = useForm({ validationSchema: toTypedSchema(schema) })
 
 async function signInWithGithub() {
 	signingInWithGithub.value = true
-	const started = await user.signInWithProvider('github')
+	const started = await user.signInWithProvider('github', returnPath.value)
 	if (!started) signingInWithGithub.value = false
 }
 
 async function signInWithGoogle() {
 	signingInWithGoogle.value = true
-	const started = await user.signInWithProvider('google')
+	const started = await user.signInWithProvider('google', returnPath.value)
 	if (!started) signingInWithGoogle.value = false
 }
 
 const onSubmit = form.handleSubmit((values: LoginFormValues) =>
 	user.signInWithEmail(values.email, values.password).then((success) => {
-		if (success) router.push('/auth/finalising')
+		if (success)
+			router.push({
+				path: '/auth/finalising',
+				query: { redirect: returnPath.value }
+			})
 	})
-)
-
-watch(
-	() => user.supaUser,
-	(newUser) => {
-		if (newUser) void router.replace('/')
-	},
-	{ immediate: true }
 )
 </script>
 

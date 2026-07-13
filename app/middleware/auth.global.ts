@@ -1,11 +1,16 @@
-import { isPublicRoute, isSignedOutOnlyRoute } from '../utils/authRoutes'
+import {
+	buildLoginRedirectPath,
+	isPublicRoute,
+	isSignedOutOnlyRoute,
+	sanitizeAuthReturnPath
+} from '../utils/authRoutes'
 
 export default defineNuxtRouteMiddleware(async (to) => {
 	const user = useSupabaseUser()
 	const supabase = useSupabaseClient()
 
 	if (user.value && isSignedOutOnlyRoute(to.path)) {
-		return navigateTo('/')
+		return navigateTo(sanitizeAuthReturnPath(to.query.redirect))
 	}
 
 	if (!user.value && !isPublicRoute(to.path)) {
@@ -18,6 +23,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
 			})
 		}
 		if (data.session?.user) return
-		return navigateTo('/login')
+		return navigateTo(buildLoginRedirectPath(to.fullPath))
 	}
 })

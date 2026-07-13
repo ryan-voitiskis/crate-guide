@@ -431,7 +431,9 @@ describe('userStore', () => {
 			expect(result).toBe(true)
 			expect(mockSupabaseClient.auth.signInWithOAuth).toHaveBeenCalledWith({
 				provider: 'github',
-				options: { redirectTo: 'https://example.com/auth/finalising' }
+				options: {
+					redirectTo: 'https://example.com/auth/finalising?redirect=%2F'
+				}
 			})
 		})
 
@@ -442,12 +444,39 @@ describe('userStore', () => {
 				error: null
 			})
 
-			const result = await store.signInWithProvider('google')
+			const result = await store.signInWithProvider(
+				'google',
+				'/records?crate=house#release-1'
+			)
 
 			expect(result).toBe(true)
 			expect(mockSupabaseClient.auth.signInWithOAuth).toHaveBeenCalledWith({
 				provider: 'google',
-				options: { redirectTo: 'https://example.com/auth/finalising' }
+				options: {
+					redirectTo:
+						'https://example.com/auth/finalising?redirect=%2Frecords%3Fcrate%3Dhouse%23release-1'
+				}
+			})
+		})
+
+		it('falls back to home for an unsafe OAuth return target', async () => {
+			const store = useUserStore()
+			mockSupabaseClient.auth.signInWithOAuth.mockResolvedValue({
+				data: {},
+				error: null
+			})
+
+			const result = await store.signInWithProvider(
+				'github',
+				'https://evil.example/records'
+			)
+
+			expect(result).toBe(true)
+			expect(mockSupabaseClient.auth.signInWithOAuth).toHaveBeenCalledWith({
+				provider: 'github',
+				options: {
+					redirectTo: 'https://example.com/auth/finalising?redirect=%2F'
+				}
 			})
 		})
 
