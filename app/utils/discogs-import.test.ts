@@ -335,4 +335,33 @@ describe('importFetchedReleases', () => {
 			userId
 		)
 	})
+
+	it('stops before the next write when cancelled during an in-flight import', async () => {
+		let resolveFirstImport!: () => void
+		const firstImport = new Promise<void>((resolve) => {
+			resolveFirstImport = resolve
+		})
+		mockImportRecordWithTracks
+			.mockReturnValueOnce(firstImport)
+			.mockResolvedValueOnce(undefined)
+		const releases = [
+			createMockDiscogsReleaseFull({ id: 1 }),
+			createMockDiscogsReleaseFull({ id: 2 })
+		]
+		let cancelled = false
+
+		const importPromise = importFetchedReleases(
+			releases,
+			userId,
+			() => cancelled
+		)
+		expect(mockImportRecordWithTracks).toHaveBeenCalledTimes(1)
+
+		cancelled = true
+		resolveFirstImport()
+		const result = await importPromise
+
+		expect(mockImportRecordWithTracks).toHaveBeenCalledTimes(1)
+		expect(result).toEqual({ successful: 1, failed: [] })
+	})
 })

@@ -76,12 +76,14 @@ export async function fetchReleaseDetails(
 // Step 3: Import fetched releases to database
 export async function importFetchedReleases(
 	releases: DiscogsReleaseFull[],
-	userId: string
+	userId: string,
+	shouldCancel: () => boolean = () => false
 ): Promise<ImportResult> {
 	let successful = 0
 	const failed: Array<{ label: string; error: string }> = []
 
 	for (const release of releases) {
+		if (shouldCancel()) break
 		try {
 			if (!isDiscogsReleaseFull(release))
 				throw new Error('Invalid release data structure from Discogs API')

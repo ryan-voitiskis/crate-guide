@@ -8,8 +8,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Import after mocking
 import { useDiscogsStore } from '../discogsStore'
 
+const mockToast = vi.hoisted(() => ({
+	error: vi.fn(),
+	info: vi.fn(),
+	success: vi.fn()
+}))
+
+vi.mock('vue-sonner', () => ({ toast: mockToast }))
+
 // Mock dependencies
 const mockUserStore = {
+	supaUser: { id: 'test-user-id' } as { id: string } | null,
 	profile: { id: 'test-user-id', discogs_username: 'testuser' } as {
 		id: string
 		discogs_username: string | null
@@ -48,6 +57,16 @@ function createMockFolder(
 		resource_url: 'https://api.discogs.com/users/testuser/collection/folders/1',
 		...overrides
 	}
+}
+
+function createDeferred<T>() {
+	let resolve!: (value: T) => void
+	let reject!: (reason?: unknown) => void
+	const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+		resolve = resolvePromise
+		reject = rejectPromise
+	})
+	return { promise, reject, resolve }
 }
 
 // Create a chainable mock query builder
@@ -106,6 +125,7 @@ describe('discogsStore', () => {
 		mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 
 		// Reset user store
+		mockUserStore.supaUser = { id: 'test-user-id' }
 		mockUserStore.profile = { id: 'test-user-id', discogs_username: 'testuser' }
 		mockUserStore.fetchProfile.mockResolvedValue(true)
 
@@ -156,6 +176,52 @@ describe('discogsStore', () => {
 
 		it('starts with empty import results', () => {
 			const store = useDiscogsStore()
+			expect(store.importResults).toEqual({
+				successful: 0,
+				skipped: [],
+				failed: []
+			})
+		})
+	})
+
+	describe('resetAccountState', () => {
+		it('restores every account-owned field to its initial state', () => {
+			const store = useDiscogsStore()
+			const release = { ...createMockDiscogsRelease(), selected: true }
+			store.folders = [createMockFolder()]
+			store.selectedFolder = 'House'
+			store.releasesToImport = [release]
+			store.releaseBeingImported = release
+			store.isLoadingFolders = true
+			store.isLoadingSelectedFolder = true
+			store.isDisconnecting = true
+			store.showFilterDialog = true
+			store.showImportProgressDialog = true
+			store.showGetFoldersDialog = true
+			store.importProgress = 65
+			store.isImporting = true
+			store.importPhase = 'saving'
+			store.importResults = {
+				successful: 2,
+				skipped: [{ label: 'Skipped' }],
+				failed: [{ label: 'Failed', error: 'Old account error' }]
+			}
+
+			store.resetAccountState()
+
+			expect(store.folders).toEqual([])
+			expect(store.selectedFolder).toBeUndefined()
+			expect(store.releasesToImport).toEqual([])
+			expect(store.releaseBeingImported).toBeNull()
+			expect(store.isLoadingFolders).toBe(false)
+			expect(store.isLoadingSelectedFolder).toBe(false)
+			expect(store.isDisconnecting).toBe(false)
+			expect(store.showFilterDialog).toBe(false)
+			expect(store.showImportProgressDialog).toBe(false)
+			expect(store.showGetFoldersDialog).toBe(false)
+			expect(store.importProgress).toBe(0)
+			expect(store.isImporting).toBe(false)
+			expect(store.importPhase).toBeNull()
 			expect(store.importResults).toEqual({
 				successful: 0,
 				skipped: [],
@@ -219,6 +285,54 @@ describe('discogsStore', () => {
 
 			expect(store.folders).toEqual([])
 			expect(store.isLoadingFolders).toBe(false)
+		})
+
+		it('uses the owned profile identity during initial auth hydration', async () => {
+			mockUserStore.supaUser = null
+			const store = useDiscogsStore()
+			mockDiscogsApi.getFolders.mockResolvedValue({
+				folders: [createMockFolder()]
+			})
+
+			await store.getFolders()
+
+			expect(mockDiscogsApi.getFolders).toHaveBeenCalledOnce()
+			expect(store.folders).toHaveLength(1)
+		})
+
+		it('keeps newer account folders and loading state when old work settles', async () => {
+			const oldFetch = createDeferred<{ folders: MockDiscogsFolder[] }>()
+			const newFetch = createDeferred<{ folders: MockDiscogsFolder[] }>()
+			mockDiscogsApi.getFolders
+				.mockReturnValueOnce(oldFetch.promise)
+				.mockReturnValueOnce(newFetch.promise)
+			const store = useDiscogsStore()
+
+			const oldPromise = store.getFolders()
+			store.resetAccountState()
+			mockUserStore.supaUser = { id: 'new-user-id' }
+			mockUserStore.profile = {
+				id: 'new-user-id',
+				discogs_username: 'newuser'
+			}
+			const newPromise = store.getFolders()
+
+			oldFetch.resolve({
+				folders: [createMockFolder({ id: 1, name: 'Old account' })]
+			})
+			await oldPromise
+			expect(store.folders).toEqual([])
+			expect(store.isLoadingFolders).toBe(true)
+
+			newFetch.resolve({
+				folders: [createMockFolder({ id: 2, name: 'New account' })]
+			})
+			await newPromise
+			expect(store.folders).toEqual([
+				createMockFolder({ id: 2, name: 'New account' })
+			])
+			expect(store.isLoadingFolders).toBe(false)
+			expect(mockToast.error).not.toHaveBeenCalled()
 		})
 	})
 
@@ -366,6 +480,53 @@ describe('discogsStore', () => {
 			await store.fetchFolderReleases()
 
 			expect(store.isLoadingSelectedFolder).toBe(false)
+		})
+
+		it('keeps newer account releases and loading state when old work settles', async () => {
+			const oldFetch = createDeferred<{
+				releases: ReturnType<typeof createMockDiscogsRelease>[]
+				pagination: { pages: number }
+			}>()
+			const newFetch = createDeferred<{
+				releases: ReturnType<typeof createMockDiscogsRelease>[]
+				pagination: { pages: number }
+			}>()
+			mockDiscogsApi.getFolderReleases
+				.mockReturnValueOnce(oldFetch.promise)
+				.mockReturnValueOnce(newFetch.promise)
+			const store = useDiscogsStore()
+			store.folders = [createMockFolder({ id: 1, name: 'Old folder' })]
+			store.selectedFolder = 'Old folder'
+
+			const oldPromise = store.fetchFolderReleases()
+			store.resetAccountState()
+			mockUserStore.supaUser = { id: 'new-user-id' }
+			mockUserStore.profile = {
+				id: 'new-user-id',
+				discogs_username: 'newuser'
+			}
+			store.folders = [createMockFolder({ id: 2, name: 'New folder' })]
+			store.selectedFolder = 'New folder'
+			const newPromise = store.fetchFolderReleases()
+
+			oldFetch.resolve({
+				releases: [createMockDiscogsRelease({ id: 1 })],
+				pagination: { pages: 1 }
+			})
+			await oldPromise
+			expect(store.releasesToImport).toEqual([])
+			expect(store.isLoadingSelectedFolder).toBe(true)
+
+			newFetch.resolve({
+				releases: [createMockDiscogsRelease({ id: 2 })],
+				pagination: { pages: 1 }
+			})
+			await newPromise
+			expect(store.releasesToImport).toHaveLength(1)
+			expect(store.releasesToImport[0]?.id).toBe(2)
+			expect(store.isLoadingSelectedFolder).toBe(false)
+			expect(store.showFilterDialog).toBe(true)
+			expect(mockToast.error).not.toHaveBeenCalled()
 		})
 	})
 
@@ -649,6 +810,11 @@ describe('discogsStore', () => {
 
 			await store.importSelectedReleases()
 
+			expect(mockImportFetchedReleases).toHaveBeenCalledWith(
+				expect.any(Array),
+				'test-user-id',
+				expect.any(Function)
+			)
 			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalled()
 			expect(mockTracksStore.fetchAllTracks).toHaveBeenCalled()
 		})
@@ -741,6 +907,67 @@ describe('discogsStore', () => {
 			expect(store.importProgress).toBe(0)
 			expect(store.importPhase).toBeNull()
 			expect(store.releaseBeingImported).toBeNull()
+		})
+
+		it('does not persist or present an import invalidated by account reset', async () => {
+			const detailsFetch = createDeferred<{
+				releases: { id: number; title: string }[]
+				failed: { label: string; error: string }[]
+				cancelled: boolean
+			}>()
+			let isCancelled: (() => boolean) | undefined
+			mockFilterOutExistingReleases.mockResolvedValue({
+				releasesToFetch: [{ ...createMockDiscogsRelease(), selected: true }],
+				skipped: []
+			})
+			mockFetchReleaseDetails.mockImplementation(
+				(
+					_releases: unknown[],
+					_onProgress: unknown,
+					shouldCancel: () => boolean
+				) => {
+					isCancelled = shouldCancel
+					return detailsFetch.promise
+				}
+			)
+			const store = useDiscogsStore()
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease(), selected: true }
+			]
+
+			const importPromise = store.importSelectedReleases()
+			await vi.waitFor(() => {
+				expect(mockFetchReleaseDetails).toHaveBeenCalledOnce()
+			})
+			store.resetAccountState()
+			mockUserStore.supaUser = { id: 'new-user-id' }
+			mockUserStore.profile = {
+				id: 'new-user-id',
+				discogs_username: 'newuser'
+			}
+			expect(isCancelled?.()).toBe(true)
+
+			detailsFetch.resolve({
+				releases: [{ id: 1, title: 'Old account release' }],
+				failed: [],
+				cancelled: false
+			})
+			await importPromise
+
+			expect(mockImportFetchedReleases).not.toHaveBeenCalled()
+			expect(mockRecordsStore.fetchAllRecords).not.toHaveBeenCalled()
+			expect(mockTracksStore.fetchAllTracks).not.toHaveBeenCalled()
+			expect(store.importResults).toEqual({
+				successful: 0,
+				skipped: [],
+				failed: []
+			})
+			expect(store.showImportProgressDialog).toBe(false)
+			expect(store.isImporting).toBe(false)
+			expect(store.releaseBeingImported).toBeNull()
+			expect(mockToast.error).not.toHaveBeenCalled()
+			expect(mockToast.info).not.toHaveBeenCalled()
+			expect(mockToast.success).not.toHaveBeenCalled()
 		})
 	})
 
