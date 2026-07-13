@@ -19,7 +19,7 @@ function cycle() {
 	// On unauthenticated auth pages skip the DB write path — otherwise a
 	// stale/partial session could surface profile-update error toasts
 	// unrelated to what the user was doing.
-	if (user.supaUser?.id) user.updateTheme(next)
+	if (user.supaUserId) user.updateTheme(next)
 	else user.setLocalTheme(next)
 }
 </script>

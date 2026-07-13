@@ -22,9 +22,17 @@ async function signInViaForm(page: Page, expectedPath = '/') {
 
 async function mockAuthenticatedSupabase(page: Page) {
 	await page.evaluate(() => {
+		type QueryResult = { data: unknown; error: null }
+		type QueryBuilder = PromiseLike<QueryResult> & {
+			eq: () => QueryBuilder
+			order: () => QueryBuilder
+			select: () => QueryBuilder
+			single: () => Promise<QueryResult>
+		}
 		type NuxtAppLike = {
 			$supabase?: {
 				client?: {
+					from?: (table: string) => QueryBuilder
 					auth?: {
 						getClaims?: () => Promise<{
 							data: { claims: Record<string, unknown> }
@@ -46,16 +54,18 @@ async function mockAuthenticatedSupabase(page: Page) {
 		}
 
 		const maybeWindow = window as unknown as {
+			__e2eFromCalls?: string[]
 			useNuxtApp?: () => NuxtAppLike
 		}
 		const nuxtApp = maybeWindow.useNuxtApp?.()
-		if (!nuxtApp?.$supabase?.client?.auth) {
+		const client = nuxtApp?.$supabase?.client
+		if (!client?.auth) {
 			throw new Error('Supabase client not available in test runtime')
 		}
 
 		const claims = { sub: 'e2e-user', email: 'e2e@example.com' }
 
-		nuxtApp.$supabase.client.auth.getClaims = async () => ({
+		client.auth.getClaims = async () => ({
 			// Supabase returns a fresh claims object on each navigation. This is
 			// important for catching cached auth-page watchers that react to object
 			// identity and redirect an already-authenticated user back home.
@@ -63,14 +73,14 @@ async function mockAuthenticatedSupabase(page: Page) {
 			error: null
 		})
 
-		nuxtApp.$supabase.client.auth.signInWithPassword = async () => {
+		client.auth.signInWithPassword = async () => {
 			return {
 				data: { user: { id: 'e2e-user' }, session: { access_token: 'fake' } },
 				error: null
 			}
 		}
 
-		nuxtApp.$supabase.client.auth.signOut = async (options) => {
+		client.auth.signOut = async (options) => {
 			if (options.scope !== 'local') {
 				throw new Error('Expected session-only logout')
 			}
@@ -80,10 +90,62 @@ async function mockAuthenticatedSupabase(page: Page) {
 			nuxtApp.payload.state.$ssupabase_user = null
 			return { error: null }
 		}
+
+		maybeWindow.__e2eFromCalls = []
+		client.from = (table: string) => {
+			maybeWindow.__e2eFromCalls?.push(table)
+			const result: QueryResult = {
+				data:
+					table === 'profiles'
+						? {
+								id: 'e2e-user',
+								key_format: 'key',
+								ui_theme: 'auto'
+							}
+						: [],
+				error: null
+			}
+			const builder = {
+				eq: () => builder,
+				order: () => builder,
+				select: () => builder,
+				single: async () => result,
+				then: (
+					resolve: (value: QueryResult) => unknown,
+					reject?: (reason: unknown) => unknown
+				) => Promise.resolve(result).then(resolve, reject)
+			} as QueryBuilder
+			return builder
+		}
 	})
 }
 
 describe('Login redirects', () => {
+	it('loads account data after email login without a page refresh', async () => {
+		const page = await createPage('/login')
+
+		await mockAuthenticatedSupabase(page)
+		await signInViaForm(page)
+		await page.waitForFunction(() => {
+			const calls = (window as unknown as { __e2eFromCalls?: string[] })
+				.__e2eFromCalls
+			return ['records', 'tracks', 'crates'].every((table) =>
+				calls?.includes(table)
+			)
+		})
+
+		const calls = await page.evaluate(
+			() =>
+				(window as unknown as { __e2eFromCalls?: string[] }).__e2eFromCalls ??
+				[]
+		)
+		expect(calls).toEqual(
+			expect.arrayContaining(['profiles', 'records', 'tracks', 'crates'])
+		)
+
+		await page.close()
+	})
+
 	it('returns a signed-out protected deep link after email login', async () => {
 		const page = await createPage('/records')
 

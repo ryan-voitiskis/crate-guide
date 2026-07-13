@@ -27,6 +27,9 @@ const mockUserStore = {
 	get supaUser() {
 		return mockSupaUser.value
 	},
+	get supaUserId() {
+		return mockSupaUser.value?.id ?? null
+	},
 	get isSigningOut() {
 		return mockIsSigningOut.value
 	},

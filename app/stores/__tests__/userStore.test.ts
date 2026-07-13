@@ -29,7 +29,7 @@ const mockToast = toast as unknown as {
 }
 
 // Mock dependencies
-const mockSupaUser = ref<{ id: string; email: string } | null>({
+const mockSupaUser = ref<{ email: string; id?: string; sub?: string } | null>({
 	id: 'test-user-id',
 	email: 'test@example.com'
 })
@@ -96,7 +96,7 @@ const mockSupabaseClient = {
 		getSession: vi.fn().mockImplementation(async () => ({
 			data: {
 				session: mockSupaUser.value
-					? { user: { id: mockSupaUser.value.id } }
+					? { user: { id: mockSupaUser.value.id ?? mockSupaUser.value.sub } }
 					: null
 			},
 			error: null
@@ -205,7 +205,7 @@ describe('userStore', () => {
 		mockSupabaseClient.auth.getSession.mockImplementation(async () => ({
 			data: {
 				session: mockSupaUser.value
-					? { user: { id: mockSupaUser.value.id } }
+					? { user: { id: mockSupaUser.value.id ?? mockSupaUser.value.sub } }
 					: null
 			},
 			error: null
@@ -222,6 +222,18 @@ describe('userStore', () => {
 	})
 
 	describe('initial state', () => {
+		it('derives the reactive user ID from JWT subject claims', () => {
+			mockSupaUser.value = {
+				sub: 'claims-user-id',
+				email: 'claims@example.com'
+			}
+
+			const store = createUserStore({ preserveLifecycleCalls: true })
+
+			expect(store.supaUserId).toBe('claims-user-id')
+			expect(mockQueryBuilder.eq).toHaveBeenCalledWith('id', 'claims-user-id')
+		})
+
 		it('starts with null profile', () => {
 			const store = useUserStore()
 			expect(store.profile).toBeNull()

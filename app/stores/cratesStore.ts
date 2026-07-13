@@ -58,7 +58,8 @@ export const useCratesStore = defineStore('crates', () => {
 	async function createCrate(
 		crateData: Omit<Crate, 'id' | 'user_id' | 'created_at' | 'updated_at'>
 	): Promise<Crate | null> {
-		if (!user.supaUser?.id) {
+		const userId = user.supaUserId
+		if (!userId) {
 			toast.error('You must be signed in to create crates.')
 			return null
 		}
@@ -69,7 +70,7 @@ export const useCratesStore = defineStore('crates', () => {
 				.from('crates')
 				.insert({
 					...crateData,
-					user_id: user.supaUser.id
+					user_id: userId
 				})
 				.select()
 				.single()

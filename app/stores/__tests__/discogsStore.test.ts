@@ -19,6 +19,9 @@ vi.mock('vue-sonner', () => ({ toast: mockToast }))
 // Mock dependencies
 const mockUserStore = {
 	supaUser: { id: 'test-user-id' } as { id: string } | null,
+	get supaUserId() {
+		return this.supaUser?.id ?? null
+	},
 	profile: { id: 'test-user-id', discogs_username: 'testuser' } as {
 		id: string
 		discogs_username: string | null

@@ -25,6 +25,15 @@ export const useUserStore = defineStore('user', () => {
 	const anonymousThemePreference = ref<ThemeOptions>(
 		getSavedAnonymousThemePreference() ?? 'auto'
 	)
+	const supaUserId = computed(() => {
+		const subject = supaUser.value?.sub
+		if (typeof subject === 'string' && subject) return subject
+
+		// Keep compatibility with the User-shaped value exposed by earlier
+		// @nuxtjs/supabase releases while current releases expose JWT claims.
+		const legacyId = (supaUser.value as { id?: unknown } | null)?.id
+		return typeof legacyId === 'string' && legacyId ? legacyId : null
+	})
 	let profileOwnerId: string | null = null
 	let authenticationGeneration = 0
 	let settingsUpdateQueue: Promise<boolean> = Promise.resolve(true)
@@ -66,7 +75,7 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	async function resolveAuthenticatedUserId(): Promise<string> {
-		const reactiveUserId = supaUser.value?.id
+		const reactiveUserId = supaUserId.value
 		if (reactiveUserId) return reactiveUserId
 
 		const { data: sessionData, error: sessionError } =
@@ -272,7 +281,7 @@ export const useUserStore = defineStore('user', () => {
 		try {
 			const userId = await resolveAuthenticatedUserId()
 			if (resolutionGeneration !== authenticationGeneration) return false
-			const reactiveUserId = supaUser.value?.id ?? null
+			const reactiveUserId = supaUserId.value
 			if (reactiveUserId && reactiveUserId !== userId) return false
 			if (profileOwnerId !== userId) {
 				if (profileOwnerId !== null) return false
@@ -293,7 +302,7 @@ export const useUserStore = defineStore('user', () => {
 	async function updateSettingsWithWork(
 		settingsPartial: Partial<Profile>
 	): Promise<SettingsUpdateOutcome> {
-		const capturedUserId = supaUser.value?.id ?? profileOwnerId
+		const capturedUserId = supaUserId.value ?? profileOwnerId
 		let work = capturedUserId
 			? { userId: capturedUserId, generation: authenticationGeneration }
 			: null
@@ -304,7 +313,7 @@ export const useUserStore = defineStore('user', () => {
 				const userId = await resolveAuthenticatedUserId()
 				if (resolutionGeneration !== authenticationGeneration)
 					return { didPersist: false, work: null }
-				const reactiveUserId = supaUser.value?.id ?? null
+				const reactiveUserId = supaUserId.value
 				if (reactiveUserId && reactiveUserId !== userId)
 					return { didPersist: false, work: null }
 				if (profileOwnerId !== userId) {
@@ -429,7 +438,7 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	watch(
-		() => supaUser.value?.id ?? null,
+		() => supaUserId.value,
 		(userId, previousUserId) => {
 			if (userId === profileOwnerId) {
 				if (userId !== null || previousUserId !== undefined) return
@@ -442,7 +451,7 @@ export const useUserStore = defineStore('user', () => {
 					if (
 						bootstrapGeneration !== authenticationGeneration ||
 						profileOwnerId !== null ||
-						supaUser.value?.id
+						supaUserId.value
 					)
 						return
 					const generation = invalidateIdentity(sessionUserId)
@@ -462,6 +471,7 @@ export const useUserStore = defineStore('user', () => {
 
 	return {
 		supaUser,
+		supaUserId,
 		profile,
 		currentTheme,
 		currentKeyFormat,

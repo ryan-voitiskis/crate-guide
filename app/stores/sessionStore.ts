@@ -293,14 +293,14 @@ export const useSessionStore = defineStore('session', () => {
 
 	// === Actions: Auto-Save ===
 	function captureAccountContext(): AccountOperationContext | null {
-		const userId = user.supaUser?.id
+		const userId = user.supaUserId
 		return userId ? { generation: accountGeneration, userId } : null
 	}
 
 	function isCurrentAccountContext(context: AccountOperationContext): boolean {
 		return (
 			context.generation === accountGeneration &&
-			user.supaUser?.id === context.userId
+			user.supaUserId === context.userId
 		)
 	}
 

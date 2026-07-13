@@ -30,7 +30,10 @@ const mockTracksStore = {
 
 const mockUserStore = {
 	profile: { turntable_pitch_range: 8 },
-	supaUser: { id: 'test-user-id' }
+	supaUser: { id: 'test-user-id' } as { id: string } | null,
+	get supaUserId() {
+		return this.supaUser?.id ?? null
+	}
 }
 
 function createMockQueryBuilder() {

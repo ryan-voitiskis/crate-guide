@@ -34,7 +34,7 @@ export function useUserData() {
 		resolvedUserId: string,
 		loadGeneration: number
 	): { replacementUserId: string | null } | null {
-		const reactiveUserId = user.supaUser?.id ?? null
+		const reactiveUserId = user.supaUserId
 		const didAuthenticationChange = loadGeneration !== authenticationGeneration
 		const didUserIdentityChange =
 			reactiveUserId !== null && reactiveUserId !== resolvedUserId
@@ -105,7 +105,7 @@ export function useUserData() {
 				const expectedUserId = reloadUserId
 				void Promise.resolve().then(() => {
 					if (
-						user.supaUser?.id === expectedUserId &&
+						user.supaUserId === expectedUserId &&
 						!hasLoadedData.value &&
 						!loadPromise
 					)
@@ -124,7 +124,7 @@ export function useUserData() {
 	}
 
 	async function bootstrapLoadFromSession() {
-		if (user.supaUser?.id || hasLoadedData.value || isLoadingUserData.value)
+		if (user.supaUserId || hasLoadedData.value || isLoadingUserData.value)
 			return
 		const userId = await user
 			.resolveAuthenticatedUserId()
@@ -167,7 +167,7 @@ export function useUserData() {
 	watch(
 		() => ({
 			isSigningOut: user.isSigningOut,
-			userId: user.supaUser?.id ?? null
+			userId: user.supaUserId
 		}),
 		({ isSigningOut, userId }, previousState) => {
 			const previousUserId = previousState?.userId ?? null
@@ -200,7 +200,7 @@ export function useUserData() {
 
 	// Attempt initial load on app bootstrap only when a persisted session exists
 	// but the reactive Supabase user hasn't hydrated yet.
-	if (!user.supaUser?.id) void bootstrapLoadFromSession()
+	if (!user.supaUserId) void bootstrapLoadFromSession()
 
 	return {
 		isLoadingUserData,

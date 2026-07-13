@@ -169,7 +169,7 @@ export const useTracksStore = defineStore('tracks', () => {
 	async function createTrack(
 		trackData: TrackCreateInput
 	): Promise<Track | null> {
-		if (!user.supaUser?.id) {
+		if (!user.supaUserId) {
 			toast.error('You must be signed in to create tracks.')
 			return null
 		}

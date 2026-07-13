@@ -6,9 +6,13 @@ import { useCratesStore } from '../cratesStore'
 // Mock dependencies
 const mockUserStore: {
 	supaUser: { id: string } | null
+	readonly supaUserId: string | null
 	resolveAuthenticatedUserId: ReturnType<typeof vi.fn>
 } = {
 	supaUser: { id: 'test-user-id' },
+	get supaUserId() {
+		return this.supaUser?.id ?? null
+	},
 	resolveAuthenticatedUserId: vi.fn()
 }
 

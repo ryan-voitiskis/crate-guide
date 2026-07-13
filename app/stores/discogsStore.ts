@@ -33,7 +33,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	}
 
 	function currentUserId(): string | null {
-		return user.supaUser?.id ?? user.profile?.id ?? null
+		return user.supaUserId ?? user.profile?.id ?? null
 	}
 
 	function captureAccountContext(): AccountOperationContext | null {
