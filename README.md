@@ -116,6 +116,23 @@ DISCOGS_USER_AGENT=CrateGuide/2.0
 SITE_URL=http://localhost:3000
 ```
 
+#### Auth Redirect URLs
+
+The repository's `supabase/config.toml` configures only the local Supabase
+stack. For every hosted environment, verify the actual Supabase Auth URL
+Configuration and explicitly add these Redirect URLs using that environment's
+real `SITE_URL`:
+
+- `${SITE_URL}/update-password`
+- `${SITE_URL}/auth/finalising?redirect=**` (or an equivalently narrow pattern
+  supported by Supabase)
+
+The finalising callback needs a query-aware pattern because its encoded
+`redirect` value is dynamic. Confirm the hosted values before relying on OAuth
+deep links or password recovery. `supabase config push` mutates the linked
+hosted project; it is not a verification command and should be run only as an
+intentional remote configuration change.
+
 ### Running Locally
 
 ```bash
