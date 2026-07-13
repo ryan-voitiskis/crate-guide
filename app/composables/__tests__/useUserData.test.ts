@@ -22,9 +22,13 @@ const mockToast = toast as unknown as {
 }
 
 const mockSupaUser = ref<{ id: string } | null>(null)
+const mockIsSigningOut = ref(false)
 const mockUserStore = {
 	get supaUser() {
 		return mockSupaUser.value
+	},
+	get isSigningOut() {
+		return mockIsSigningOut.value
 	},
 	resolveAuthenticatedUserId: vi.fn()
 }
@@ -50,6 +54,19 @@ const mockCratesStore = {
 	clearCrates: vi.fn()
 }
 
+const mockSessionStore = {
+	resetAccountState: vi.fn()
+}
+
+const mockDiscogsStore = {
+	resetAccountState: vi.fn()
+}
+
+const mockRoute = { path: '/settings' }
+const mockRouter = {
+	replace: vi.fn().mockResolvedValue(undefined)
+}
+
 vi.stubGlobal('ref', ref)
 vi.stubGlobal('computed', computed)
 vi.stubGlobal('watch', watch)
@@ -57,6 +74,10 @@ vi.stubGlobal('useUserStore', () => mockUserStore)
 vi.stubGlobal('useRecordsStore', () => mockRecordsStore)
 vi.stubGlobal('useTracksStore', () => mockTracksStore)
 vi.stubGlobal('useCratesStore', () => mockCratesStore)
+vi.stubGlobal('useSessionStore', () => mockSessionStore)
+vi.stubGlobal('useDiscogsStore', () => mockDiscogsStore)
+vi.stubGlobal('useRoute', () => mockRoute)
+vi.stubGlobal('useRouter', () => mockRouter)
 
 const { useUserData } = await import('../useUserData')
 
@@ -78,6 +99,15 @@ function createDeferred<T>() {
 		reject = rejectPromise
 	})
 	return { promise, reject, resolve }
+}
+
+function invocationOrder(
+	mock: { mock: { invocationCallOrder: number[] } },
+	index = 0
+): number {
+	const order = mock.mock.invocationCallOrder[index]
+	if (order === undefined) throw new Error('Expected mock invocation')
+	return order
 }
 
 function deferNextStoreLoads(
@@ -119,6 +149,9 @@ describe('useUserData', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
 		mockSupaUser.value = null
+		mockIsSigningOut.value = false
+		mockRoute.path = '/settings'
+		mockRouter.replace.mockResolvedValue(undefined)
 		mockUserStore.resolveAuthenticatedUserId.mockImplementation(async () => {
 			if (!mockSupaUser.value?.id) throw new Error('User not logged in.')
 			return mockSupaUser.value.id
@@ -141,6 +174,8 @@ describe('useUserData', () => {
 		mockCratesStore.clearCrates.mockImplementation(() => {
 			mockCratesStore.hasCrates = false
 		})
+		mockSessionStore.resetAccountState.mockImplementation(() => undefined)
+		mockDiscogsStore.resetAccountState.mockImplementation(() => undefined)
 	})
 
 	afterEach(async () => {
@@ -301,6 +336,9 @@ describe('useUserData', () => {
 			expect(mockRecordsStore.clearRecords).not.toHaveBeenCalled()
 			expect(mockTracksStore.clearTracks).not.toHaveBeenCalled()
 			expect(mockCratesStore.clearCrates).not.toHaveBeenCalled()
+			expect(mockSessionStore.resetAccountState).not.toHaveBeenCalled()
+			expect(mockDiscogsStore.resetAccountState).not.toHaveBeenCalled()
+			expect(mockRouter.replace).not.toHaveBeenCalled()
 		})
 
 		it('does not automatically retry a failed load while the user ID is unchanged', async () => {
@@ -315,7 +353,7 @@ describe('useUserData', () => {
 			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledOnce()
 		})
 
-		it('clears all stores on transition from a user ID to no user', async () => {
+		it('clears all account state before leaving Settings on user nullification', async () => {
 			mockSupaUser.value = { id: 'user-123' }
 			const { loadAllUserData, hasLoadedData } = createUserData()
 			await loadAllUserData()
@@ -327,7 +365,126 @@ describe('useUserData', () => {
 			expect(mockRecordsStore.clearRecords).toHaveBeenCalledOnce()
 			expect(mockTracksStore.clearTracks).toHaveBeenCalledOnce()
 			expect(mockCratesStore.clearCrates).toHaveBeenCalledOnce()
+			expect(mockSessionStore.resetAccountState).toHaveBeenCalledOnce()
+			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledOnce()
+			expect(mockRouter.replace).toHaveBeenCalledOnce()
+			expect(mockRouter.replace).toHaveBeenCalledWith('/login')
+			const replaceOrder = invocationOrder(mockRouter.replace)
+			for (const reset of [
+				mockRecordsStore.clearRecords,
+				mockTracksStore.clearTracks,
+				mockCratesStore.clearCrates,
+				mockSessionStore.resetAccountState,
+				mockDiscogsStore.resetAccountState
+			]) {
+				expect(invocationOrder(reset)).toBeLessThan(replaceOrder)
+			}
 			expect(hasLoadedData.value).toBe(false)
+
+			mockSupaUser.value = null
+			await nextTick()
+			expect(mockRouter.replace).toHaveBeenCalledOnce()
+		})
+
+		it('clears account state without redirecting away from a public route', async () => {
+			mockRoute.path = '/auth/finalising'
+			mockSupaUser.value = { id: 'user-123' }
+			const { loadAllUserData } = createUserData()
+			await loadAllUserData()
+			vi.clearAllMocks()
+
+			mockSupaUser.value = null
+			await nextTick()
+
+			expect(mockRecordsStore.clearRecords).toHaveBeenCalledOnce()
+			expect(mockTracksStore.clearTracks).toHaveBeenCalledOnce()
+			expect(mockCratesStore.clearCrates).toHaveBeenCalledOnce()
+			expect(mockSessionStore.resetAccountState).toHaveBeenCalledOnce()
+			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledOnce()
+			expect(mockRouter.replace).not.toHaveBeenCalled()
+		})
+
+		it('leaves explicit sign-out navigation to the user store', async () => {
+			mockSupaUser.value = { id: 'user-123' }
+			const { loadAllUserData } = createUserData()
+			await loadAllUserData()
+			vi.clearAllMocks()
+
+			mockIsSigningOut.value = true
+			mockSupaUser.value = null
+			await nextTick()
+
+			expect(mockRecordsStore.clearRecords).toHaveBeenCalledOnce()
+			expect(mockTracksStore.clearTracks).toHaveBeenCalledOnce()
+			expect(mockCratesStore.clearCrates).toHaveBeenCalledOnce()
+			expect(mockSessionStore.resetAccountState).toHaveBeenCalledOnce()
+			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledOnce()
+			expect(mockRouter.replace).not.toHaveBeenCalled()
+
+			await mockRouter.replace('/login')
+			mockRoute.path = '/login'
+			mockIsSigningOut.value = false
+			expect(mockRouter.replace).toHaveBeenCalledOnce()
+			expect(mockRouter.replace).toHaveBeenCalledWith('/login')
+		})
+
+		it('falls back to coordinator navigation when explicit replacement fails', async () => {
+			mockSupaUser.value = { id: 'user-123' }
+			const { loadAllUserData } = createUserData()
+			await loadAllUserData()
+			vi.clearAllMocks()
+			mockRouter.replace
+				.mockRejectedValueOnce(new Error('Store navigation failed'))
+				.mockResolvedValueOnce(undefined)
+
+			mockIsSigningOut.value = true
+			mockSupaUser.value = null
+			await nextTick()
+			expect(mockRouter.replace).not.toHaveBeenCalled()
+
+			await expect(mockRouter.replace('/login')).rejects.toThrow(
+				'Store navigation failed'
+			)
+			mockIsSigningOut.value = false
+			await nextTick()
+
+			expect(mockRouter.replace).toHaveBeenCalledTimes(2)
+			expect(mockRouter.replace).toHaveBeenNthCalledWith(1, '/login')
+			expect(mockRouter.replace).toHaveBeenNthCalledWith(2, '/login')
+		})
+
+		it('resets every account store once before loading a replacement user', async () => {
+			mockSupaUser.value = { id: 'user-a' }
+			const { loadAllUserData, hasLoadedData } = createUserData()
+			await loadAllUserData()
+			vi.clearAllMocks()
+
+			mockSupaUser.value = { id: 'user-b' }
+			await vi.waitFor(() => {
+				expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledOnce()
+				expect(mockTracksStore.fetchAllTracks).toHaveBeenCalledOnce()
+				expect(mockCratesStore.fetchAllCrates).toHaveBeenCalledOnce()
+				expect(hasLoadedData.value).toBe(true)
+			})
+
+			expect(mockRecordsStore.clearRecords).toHaveBeenCalledOnce()
+			expect(mockTracksStore.clearTracks).toHaveBeenCalledOnce()
+			expect(mockCratesStore.clearCrates).toHaveBeenCalledOnce()
+			expect(mockSessionStore.resetAccountState).toHaveBeenCalledOnce()
+			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledOnce()
+			expect(mockRouter.replace).not.toHaveBeenCalled()
+			const replacementFetchOrder = invocationOrder(
+				mockRecordsStore.fetchAllRecords
+			)
+			for (const reset of [
+				mockRecordsStore.clearRecords,
+				mockTracksStore.clearTracks,
+				mockCratesStore.clearCrates,
+				mockSessionStore.resetAccountState,
+				mockDiscogsStore.resetAccountState
+			]) {
+				expect(invocationOrder(reset)).toBeLessThan(replacementFetchOrder)
+			}
 		})
 
 		it('discards store results that settle after sign-out', async () => {
@@ -350,6 +507,8 @@ describe('useUserData', () => {
 			expect(mockRecordsStore.clearRecords).toHaveBeenCalledTimes(2)
 			expect(mockTracksStore.clearTracks).toHaveBeenCalledTimes(2)
 			expect(mockCratesStore.clearCrates).toHaveBeenCalledTimes(2)
+			expect(mockSessionStore.resetAccountState).toHaveBeenCalledOnce()
+			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledOnce()
 			expect(hasLoadedData.value).toBe(false)
 			expect(hasAnyData.value).toBe(false)
 		})
@@ -377,6 +536,8 @@ describe('useUserData', () => {
 				expect(hasLoadedData.value).toBe(true)
 			})
 			expect(hasAnyData.value).toBe(true)
+			expect(mockSessionStore.resetAccountState).toHaveBeenCalledOnce()
+			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledOnce()
 			await expect(loadAllUserData()).resolves.toBe(true)
 			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledTimes(2)
 		})
@@ -484,6 +645,21 @@ describe('useUserData', () => {
 			expect(mockRecordsStore.clearRecords).toHaveBeenCalledOnce()
 			expect(mockTracksStore.clearTracks).toHaveBeenCalledOnce()
 			expect(mockCratesStore.clearCrates).toHaveBeenCalledOnce()
+			expect(mockSessionStore.resetAccountState).toHaveBeenCalledOnce()
+			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledOnce()
+			const replacementFetchOrder = invocationOrder(
+				mockRecordsStore.fetchAllRecords,
+				1
+			)
+			for (const reset of [
+				mockRecordsStore.clearRecords,
+				mockTracksStore.clearTracks,
+				mockCratesStore.clearCrates,
+				mockSessionStore.resetAccountState,
+				mockDiscogsStore.resetAccountState
+			]) {
+				expect(invocationOrder(reset)).toBeLessThan(replacementFetchOrder)
+			}
 		})
 
 		it('does not duplicate store loads when bootstrap and sign-in race', async () => {
@@ -513,6 +689,8 @@ describe('useUserData', () => {
 			expect(mockRecordsStore.clearRecords).toHaveBeenCalledOnce()
 			expect(mockTracksStore.clearTracks).toHaveBeenCalledOnce()
 			expect(mockCratesStore.clearCrates).toHaveBeenCalledOnce()
+			expect(mockSessionStore.resetAccountState).toHaveBeenCalledOnce()
+			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledOnce()
 			expect(hasLoadedData.value).toBe(false)
 		})
 	})

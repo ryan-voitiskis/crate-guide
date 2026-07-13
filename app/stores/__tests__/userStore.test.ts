@@ -3,6 +3,7 @@ import {
 	computed,
 	effectScope,
 	nextTick,
+	readonly,
 	ref,
 	watch
 } from 'vue'
@@ -34,7 +35,8 @@ const mockSupaUser = ref<{ id: string; email: string } | null>({
 })
 
 const mockRouter = {
-	push: vi.fn()
+	push: vi.fn(),
+	replace: vi.fn().mockResolvedValue(undefined)
 }
 
 const mockUseRecordsStore = vi.fn()
@@ -130,6 +132,7 @@ vi.stubGlobal('isKeyFormat', mockIsKeyFormat)
 vi.stubGlobal('isError', isError)
 vi.stubGlobal('ref', ref)
 vi.stubGlobal('computed', computed)
+vi.stubGlobal('readonly', readonly)
 vi.stubGlobal('watch', watch)
 
 // Mock process.env
@@ -202,6 +205,7 @@ describe('userStore', () => {
 			error: null
 		}))
 		mockSupabaseClient.auth.signOut.mockResolvedValue({ error: null })
+		mockRouter.replace.mockResolvedValue(undefined)
 
 		mockGetSavedAnonymousThemePreference.mockReturnValue(null)
 	})
@@ -453,14 +457,31 @@ describe('userStore', () => {
 	})
 
 	describe('signOut', () => {
-		it('clears profile on success', async () => {
+		it('uses local scope, clears profile, replaces the route, and returns true', async () => {
 			const store = useUserStore()
 			store.profile = createMockProfile()
-			mockSupabaseClient.auth.signOut.mockResolvedValue({ error: null })
+			const routeReplacement = createDeferred<undefined>()
+			mockRouter.replace.mockReturnValueOnce(routeReplacement.promise)
+			mockSupabaseClient.auth.signOut.mockImplementationOnce(async () => {
+				expect(store.isSigningOut).toBe(true)
+				mockSupaUser.value = null
+				return { error: null }
+			})
 
-			await store.signOut()
+			const signOutPromise = store.signOut()
+			await drainLifecycleTasks()
 
+			expect(store.isSigningOut).toBe(true)
+			expect(mockSupabaseClient.auth.signOut).toHaveBeenCalledWith({
+				scope: 'local'
+			})
 			expect(store.profile).toBeNull()
+			expect(mockRouter.replace).toHaveBeenCalledOnce()
+			expect(mockRouter.replace).toHaveBeenCalledWith('/login')
+
+			routeReplacement.resolve(undefined)
+			await expect(signOutPromise).resolves.toBe(true)
+			expect(store.isSigningOut).toBe(false)
 		})
 
 		it('restores the anonymous theme on success', async () => {
@@ -480,11 +501,37 @@ describe('userStore', () => {
 				error: new Error('Sign out failed')
 			})
 
-			await store.signOut()
+			const result = await store.signOut()
 
+			expect(result).toBe(false)
+			expect(mockSupabaseClient.auth.signOut).toHaveBeenCalledWith({
+				scope: 'local'
+			})
 			// Profile should not be cleared on error
 			expect(store.profile).not.toBeNull()
 			expect(store.profile?.id).toBe('test')
+			expect(mockRouter.replace).not.toHaveBeenCalled()
+			expect(store.isSigningOut).toBe(false)
+		})
+
+		it('reports route failure separately after a truthful sign out', async () => {
+			const store = useUserStore()
+			store.profile = createMockProfile()
+			mockRouter.replace.mockRejectedValueOnce(
+				new Error('Navigation unavailable')
+			)
+
+			await expect(store.signOut()).resolves.toBe(true)
+
+			expect(store.profile).toBeNull()
+			expect(store.isSigningOut).toBe(false)
+			expect(mockToast.success).not.toHaveBeenCalledWith(
+				'You are now signed out.'
+			)
+			expect(mockToast.error).toHaveBeenCalledWith(
+				'You are signed out, but the login page could not open.',
+				{ duration: 30000 }
+			)
 		})
 	})
 

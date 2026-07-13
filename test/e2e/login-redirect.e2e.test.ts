@@ -34,7 +34,13 @@ async function mockAuthenticatedSupabase(page: Page) {
 							data: Record<string, unknown>
 							error: null
 						}>
+						signOut?: (options: { scope: string }) => Promise<{
+							error: null
+						}>
 					}
+				}
+				payload?: {
+					state?: Record<string, unknown>
 				}
 			}
 		}
@@ -62,6 +68,17 @@ async function mockAuthenticatedSupabase(page: Page) {
 				data: { user: { id: 'e2e-user' }, session: { access_token: 'fake' } },
 				error: null
 			}
+		}
+
+		nuxtApp.$supabase.client.auth.signOut = async (options) => {
+			if (options.scope !== 'local') {
+				throw new Error('Expected session-only logout')
+			}
+			if (!nuxtApp.payload?.state) {
+				throw new Error('Nuxt reactive state not available')
+			}
+			nuxtApp.payload.state.$ssupabase_user = null
+			return { error: null }
 		}
 	})
 }
@@ -114,6 +131,35 @@ describe('Login redirects', () => {
 		await page.waitForURL(url('/settings'))
 
 		expect(new URL(page.url()).pathname).toBe('/settings')
+
+		await page.close()
+	})
+
+	it('replaces rendered Settings content after local logout', async () => {
+		const page = await createPage('/login')
+
+		await mockAuthenticatedSupabase(page)
+		await signInViaForm(page)
+		await page.getByRole('link', { name: 'Settings' }).click()
+		await page.waitForURL(url('/settings'))
+
+		await expect(
+			page.getByRole('heading', { name: 'Settings', exact: true }).count()
+		).resolves.toBe(1)
+		await expect(
+			page.getByRole('heading', { name: 'Account', exact: true }).count()
+		).resolves.toBe(1)
+
+		await page.getByRole('button', { name: 'Log out' }).click()
+		await page.waitForURL(url('/login'))
+
+		expect(new URL(page.url()).pathname).toBe('/login')
+		await expect(
+			page.getByRole('heading', { name: 'Settings', exact: true }).count()
+		).resolves.toBe(0)
+		await expect(
+			page.getByRole('heading', { name: 'Account', exact: true }).count()
+		).resolves.toBe(0)
 
 		await page.close()
 	})

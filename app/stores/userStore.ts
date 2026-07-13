@@ -18,6 +18,7 @@ export const useUserStore = defineStore('user', () => {
 	const profile = ref<Profile | null>(null)
 	const userAlreadyRegistered = ref(false)
 	const isUpdatingSettings = ref(false)
+	const isSigningOut = ref(false)
 	const localKeyFormatPreference = ref<'key' | 'camelot'>('key')
 	const anonymousThemePreference = ref<ThemeOptions>(
 		getSavedAnonymousThemePreference() ?? 'auto'
@@ -145,15 +146,29 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
-	async function signOut() {
+	async function signOut(): Promise<boolean> {
+		let didSignOut = false
+		isSigningOut.value = true
 		try {
-			const { error } = await supabase.auth.signOut()
+			const { error } = await supabase.auth.signOut({ scope: 'local' })
 			if (error) throw error
+			didSignOut = true
 			invalidateIdentity(null)
+			await router.replace('/login')
 			toast.success('You are now signed out.')
+			return true
 		} catch (e) {
 			console.error(e)
+			if (didSignOut) {
+				toast.error(`You are signed out, but the login page could not open.`, {
+					duration: 30000
+				})
+				return true
+			}
 			toast.error(`Error signing out.`, { duration: 30000 })
+			return false
+		} finally {
+			isSigningOut.value = false
 		}
 	}
 
@@ -426,6 +441,7 @@ export const useUserStore = defineStore('user', () => {
 		currentKeyFormat,
 		userAlreadyRegistered,
 		isUpdatingSettings,
+		isSigningOut: readonly(isSigningOut),
 		resolveAuthenticatedUserId,
 		signUpWithEmail,
 		signInWithEmail,

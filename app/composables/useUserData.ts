@@ -1,16 +1,22 @@
 import { toast } from 'vue-sonner'
+import { isPublicRoute } from '../utils/authRoutes'
 
 export function useUserData() {
 	const user = useUserStore()
 	const records = useRecordsStore()
 	const tracks = useTracksStore()
 	const crates = useCratesStore()
+	const session = useSessionStore()
+	const discogs = useDiscogsStore()
+	const route = useRoute()
+	const router = useRouter()
 
 	const isLoadingUserData = ref(false)
 	const hasLoadedData = ref(false)
 	let loadPromise: Promise<boolean> | null = null
 	let authenticationGeneration = 0
 	let dataUserId: string | null = null
+	let isReplacingProtectedRoute = false
 
 	const isLoadingAny = computed(
 		() =>
@@ -56,7 +62,7 @@ export function useUserData() {
 			)
 			if (transitionBeforeFetch) {
 				reloadUserId = transitionBeforeFetch.replacementUserId
-				clearAllUserData()
+				clearLibraryData()
 				return false
 			}
 
@@ -72,7 +78,7 @@ export function useUserData() {
 			)
 			if (transitionAfterFetch) {
 				reloadUserId = transitionAfterFetch.replacementUserId
-				clearAllUserData()
+				clearLibraryData()
 				return false
 			}
 			const didLoadAllData = results.every(Boolean)
@@ -86,7 +92,7 @@ export function useUserData() {
 				: null
 			if (staleTransition) {
 				reloadUserId = staleTransition.replacementUserId
-				clearAllUserData()
+				clearLibraryData()
 				return false
 			}
 			console.error('Failed to load user data:', error)
@@ -132,7 +138,7 @@ export function useUserData() {
 		return loadAllUserData()
 	}
 
-	function clearAllUserData() {
+	function clearLibraryData() {
 		records.clearRecords()
 		tracks.clearTracks()
 		crates.clearCrates()
@@ -140,16 +146,44 @@ export function useUserData() {
 		dataUserId = null
 	}
 
+	function clearAllUserData() {
+		clearLibraryData()
+		session.resetAccountState()
+		discogs.resetAccountState()
+	}
+
+	async function leaveProtectedRoute() {
+		if (isPublicRoute(route.path) || isReplacingProtectedRoute) return
+		isReplacingProtectedRoute = true
+		try {
+			await router.replace('/login')
+		} catch (error) {
+			console.error('Failed to leave protected route:', error)
+		} finally {
+			isReplacingProtectedRoute = false
+		}
+	}
+
 	watch(
-		() => user.supaUser?.id,
-		(userId, previousUserId) => {
+		() => ({
+			isSigningOut: user.isSigningOut,
+			userId: user.supaUser?.id ?? null
+		}),
+		({ isSigningOut, userId }, previousState) => {
+			const previousUserId = previousState?.userId ?? null
+			const didUserIdChange = userId !== previousUserId
+			if (!didUserIdChange) {
+				if (!userId && previousState?.isSigningOut && !isSigningOut)
+					void leaveProtectedRoute()
+				return
+			}
 			if (userId) {
-				const didUserIdChange = Boolean(
+				const didAuthenticatedUserChange = Boolean(
 					previousUserId && previousUserId !== userId
 				)
 				const hasDataForDifferentUser =
 					dataUserId !== null && dataUserId !== userId
-				if (didUserIdChange || hasDataForDifferentUser) {
+				if (didAuthenticatedUserChange || hasDataForDifferentUser) {
 					authenticationGeneration += 1
 					clearAllUserData()
 				}
@@ -158,9 +192,10 @@ export function useUserData() {
 			} else if (previousUserId) {
 				authenticationGeneration += 1
 				clearAllUserData()
+				if (!isSigningOut) void leaveProtectedRoute()
 			}
 		},
-		{ immediate: true }
+		{ flush: 'sync', immediate: true }
 	)
 
 	// Attempt initial load on app bootstrap only when a persisted session exists

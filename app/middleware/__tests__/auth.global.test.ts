@@ -50,14 +50,35 @@ describe('auth.global middleware', () => {
 		expect(result).toEqual({ path: '/login' })
 	})
 
-	it('allows unauthenticated users on public routes', async () => {
+	it.each([
+		'/login',
+		'/signup',
+		'/reset-password',
+		'/auth/check-inbox',
+		'/auth/confirm',
+		'/auth/finalising',
+		'/demo',
+		'/demo/records'
+	])('allows unauthenticated users on public route %s', async (path) => {
 		const middleware = await loadMiddleware()
 
-		const result = await middleware({ path: '/login' }, { path: '/login' })
+		const result = await middleware({ path }, { path: '/login' })
 
 		expect(mockNavigateTo).not.toHaveBeenCalled()
 		expect(result).toBeUndefined()
 	})
+
+	it.each(['/auth/discogs/capture-verifier', '/auth/future-callback'])(
+		'redirects unauthenticated users from protected auth route %s',
+		async (path) => {
+			const middleware = await loadMiddleware()
+
+			const result = await middleware({ path }, { path: '/login' })
+
+			expect(mockNavigateTo).toHaveBeenCalledWith('/login')
+			expect(result).toEqual({ path: '/login' })
+		}
+	)
 
 	it('redirects authenticated users away from auth pages', async () => {
 		mockSupabaseUser.value = { id: 'user-1' }
