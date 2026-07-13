@@ -1,3 +1,4 @@
+import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import {
 	createMockTrack,
@@ -62,6 +63,20 @@ function createSavedSetRow(overrides: Partial<SavedSetRow> = {}): SavedSetRow {
 		updated_at: '2026-07-12T00:00:00.000Z',
 		...overrides
 	}
+}
+
+function createSavedSet(overrides: Partial<SavedSetRow> = {}) {
+	return { ...createSavedSetRow(overrides), played_tracks: [] }
+}
+
+function createDeferred<T>() {
+	let resolve!: (value: T | PromiseLike<T>) => void
+	let reject!: (reason?: unknown) => void
+	const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+		resolve = resolvePromise
+		reject = rejectPromise
+	})
+	return { promise, reject, resolve }
 }
 
 // Stub Nuxt composables (these are auto-imported in the store)
@@ -681,6 +696,274 @@ describe('sessionStore', () => {
 			expect(store.decks[0]!.pitch).toBe(0)
 			expect(store.decks[0]!.isPlaying).toBe(false)
 			expect(store.autoSaveError).toBeNull()
+		})
+
+		it('preserves saved-set selections and dialogs', () => {
+			const store = useSessionStore()
+			store.savedSets = [createSavedSet({ id: 'set-1' })]
+			store.selectedSetId = 'set-1'
+			store.showSetManager = true
+			store.showSaveDialog = true
+
+			store.clearSession()
+
+			expect(store.savedSets).toHaveLength(1)
+			expect(store.selectedSetId).toBe('set-1')
+			expect(store.showSetManager).toBe(true)
+			expect(store.showSaveDialog).toBe(true)
+		})
+	})
+
+	describe('resetAccountState', () => {
+		const playedEntry = {
+			track_id: 'track-a',
+			time_added: 1,
+			adjusted_bpm: 128,
+			transition_rating: 4
+		}
+
+		it('clears all account data while preserving device and panel preferences', () => {
+			const store = useSessionStore()
+			store.initializeDecks(3)
+			store.showTurntableSim = false
+			store.showHistory = false
+			store.decks[0] = {
+				loadedTrack: createMockTrack({ id: 'track-a' }),
+				rpm: 45,
+				pitch: 50,
+				faderPosition: 50,
+				faderSliding: true,
+				isPlaying: true
+			}
+			store.currentSession = [playedEntry]
+			store.savedSets = [createSavedSet({ id: 'set-a' })]
+			store.activeSetId = 'set-a'
+			store.selectedSetId = 'set-a'
+			store.loadTrackCrateId = 'crate-a'
+			store.deckSelectDialog = {
+				open: true,
+				trackId: 'track-a',
+				sourceDeck: 0
+			}
+			store.showSetManager = true
+			store.showSaveDialog = true
+			store.isLoadingSets = true
+			store.isSavingSession = true
+			store.isAutoSaving = true
+			store.autoSaveError = 'Old account error'
+
+			store.resetAccountState()
+
+			expect(store.currentSession).toEqual([])
+			expect(store.savedSets).toEqual([])
+			expect(store.activeSetId).toBeNull()
+			expect(store.selectedSetId).toBeNull()
+			expect(store.loadTrackCrateId).toBeNull()
+			expect(store.deckSelectDialog).toEqual({
+				open: false,
+				trackId: '',
+				sourceDeck: -1
+			})
+			expect(store.showSetManager).toBe(false)
+			expect(store.showSaveDialog).toBe(false)
+			expect(store.isLoadingSets).toBe(false)
+			expect(store.isSavingSession).toBe(false)
+			expect(store.isAutoSaving).toBe(false)
+			expect(store.autoSaveError).toBeNull()
+			expect(store.decks).toEqual([
+				{
+					loadedTrack: null,
+					rpm: 33,
+					pitch: 0,
+					faderPosition: 0,
+					faderSliding: false,
+					isPlaying: false
+				},
+				{
+					loadedTrack: null,
+					rpm: 33,
+					pitch: 0,
+					faderPosition: 0,
+					faderSliding: false,
+					isPlaying: false
+				},
+				{
+					loadedTrack: null,
+					rpm: 33,
+					pitch: 0,
+					faderPosition: 0,
+					faderSliding: false,
+					isPlaying: false
+				}
+			])
+			expect(store.deckCount).toBe(3)
+			expect(store.showTurntableSim).toBe(false)
+			expect(store.showHistory).toBe(false)
+		})
+
+		it('cancels a scheduled auto-save before it can write', async () => {
+			vi.useFakeTimers()
+			const store = useSessionStore()
+
+			try {
+				store.currentSession = [playedEntry]
+				await nextTick()
+				expect(vi.getTimerCount()).toBe(1)
+
+				store.resetAccountState()
+				await vi.advanceTimersByTimeAsync(2000)
+
+				expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+				expect(mockQueryBuilder.insert).not.toHaveBeenCalled()
+				expect(mockQueryBuilder.update).not.toHaveBeenCalled()
+				expect(mockToast.error).not.toHaveBeenCalled()
+				expect(mockToast.success).not.toHaveBeenCalled()
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
+		it('keeps the new account fetch when an old fetch settles last', async () => {
+			const oldFetch = createDeferred<{
+				data: SavedSetRow[]
+				error: null
+			}>()
+			const newFetch = createDeferred<{
+				data: SavedSetRow[]
+				error: null
+			}>()
+			mockQueryBuilder.order
+				.mockReturnValueOnce(oldFetch.promise)
+				.mockReturnValueOnce(newFetch.promise)
+			const store = useSessionStore()
+
+			const oldPromise = store.fetchSavedSets()
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				1,
+				'user_id',
+				'test-user-id'
+			)
+
+			store.resetAccountState()
+			mockUserStore.supaUser = { id: 'user-b' }
+			const newPromise = store.fetchSavedSets()
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				2,
+				'user_id',
+				'user-b'
+			)
+
+			newFetch.resolve({
+				data: [createSavedSetRow({ id: 'set-b', user_id: 'user-b' })],
+				error: null
+			})
+			await newPromise
+			expect(store.savedSets.map((set) => set.id)).toEqual(['set-b'])
+
+			oldFetch.resolve({
+				data: [createSavedSetRow({ id: 'set-a' })],
+				error: null
+			})
+			await oldPromise
+
+			expect(store.savedSets.map((set) => set.id)).toEqual(['set-b'])
+			expect(store.isLoadingSets).toBe(false)
+			expect(mockToast.error).not.toHaveBeenCalled()
+			expect(mockToast.warning).not.toHaveBeenCalled()
+		})
+
+		it('ignores a late auto-save response from the reset account', async () => {
+			vi.useFakeTimers()
+			const autoSave = createDeferred<{
+				data: { id: string }
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValueOnce(autoSave.promise)
+			const store = useSessionStore()
+
+			try {
+				store.currentSession = [playedEntry]
+				await nextTick()
+				await vi.advanceTimersByTimeAsync(2000)
+				expect(mockQueryBuilder.insert).toHaveBeenCalledWith({
+					user_id: 'test-user-id',
+					name: null,
+					played_tracks: [playedEntry]
+				})
+
+				store.resetAccountState()
+				mockUserStore.supaUser = { id: 'user-b' }
+				store.activeSetId = 'set-b'
+				autoSave.resolve({ data: { id: 'set-a' }, error: null })
+				await Promise.resolve()
+				await Promise.resolve()
+
+				expect(store.activeSetId).toBe('set-b')
+				expect(store.isAutoSaving).toBe(false)
+				expect(store.autoSaveError).toBeNull()
+				expect(mockToast.error).not.toHaveBeenCalled()
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
+		it('ignores a late manual save from the reset account', async () => {
+			const oldSave = createDeferred<{
+				data: SavedSetRow
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValueOnce(oldSave.promise)
+			const store = useSessionStore()
+			store.currentSession = [playedEntry]
+			store.activeSetId = 'set-a'
+			store.showSaveDialog = true
+
+			const savePromise = store.saveSession('Old account set')
+			expect(mockQueryBuilder.eq).toHaveBeenCalledWith('id', 'set-a')
+			store.resetAccountState()
+			mockUserStore.supaUser = { id: 'user-b' }
+			store.savedSets = [createSavedSet({ id: 'set-b', user_id: 'user-b' })]
+			store.activeSetId = 'set-b'
+			store.showSaveDialog = true
+			store.isSavingSession = true
+
+			oldSave.resolve({
+				data: createSavedSetRow({ id: 'set-a' }),
+				error: null
+			})
+
+			await expect(savePromise).resolves.toBeNull()
+			expect(store.savedSets.map((set) => set.id)).toEqual(['set-b'])
+			expect(store.activeSetId).toBe('set-b')
+			expect(store.showSaveDialog).toBe(true)
+			expect(store.isSavingSession).toBe(true)
+			expect(mockToast.success).not.toHaveBeenCalled()
+			expect(mockToast.error).not.toHaveBeenCalled()
+			expect(mockToast.warning).not.toHaveBeenCalled()
+		})
+
+		it('ignores a late delete from the reset account', async () => {
+			const oldDelete = createDeferred<{ data: null; error: null }>()
+			mockQueryBuilder.eq.mockReturnValueOnce(oldDelete.promise)
+			const store = useSessionStore()
+			store.savedSets = [createSavedSet({ id: 'set-a' })]
+			store.activeSetId = 'set-a'
+			store.selectedSetId = 'set-a'
+
+			const deletePromise = store.deleteSet('set-a')
+			store.resetAccountState()
+			mockUserStore.supaUser = { id: 'user-b' }
+			store.savedSets = [createSavedSet({ id: 'set-b', user_id: 'user-b' })]
+			store.activeSetId = 'set-b'
+			store.selectedSetId = 'set-b'
+			oldDelete.resolve({ data: null, error: null })
+			await deletePromise
+
+			expect(store.savedSets.map((set) => set.id)).toEqual(['set-b'])
+			expect(store.activeSetId).toBe('set-b')
+			expect(store.selectedSetId).toBe('set-b')
+			expect(mockToast.success).not.toHaveBeenCalled()
+			expect(mockToast.error).not.toHaveBeenCalled()
 		})
 	})
 

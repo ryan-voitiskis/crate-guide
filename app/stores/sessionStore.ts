@@ -13,6 +13,11 @@ export interface Deck {
 	isPlaying: boolean // Platter spinning
 }
 
+interface AccountOperationContext {
+	generation: number
+	userId: string
+}
+
 function createEmptyDeck(): Deck {
 	return {
 		loadedTrack: null,
@@ -41,6 +46,8 @@ export const useSessionStore = defineStore('session', () => {
 	const isSavingSession = ref(false)
 	const isAutoSaving = ref(false)
 	const autoSaveError = ref<string | null>(null)
+	const autoSaveTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
+	let accountGeneration = 0
 
 	// === UI State ===
 	const showTurntableSim = ref(true)
@@ -262,75 +269,130 @@ export const useSessionStore = defineStore('session', () => {
 		})
 	}
 
+	function resetAccountState() {
+		accountGeneration += 1
+		if (autoSaveTimeout.value) {
+			clearTimeout(autoSaveTimeout.value)
+			autoSaveTimeout.value = null
+		}
+
+		currentSession.value = []
+		savedSets.value = []
+		activeSetId.value = null
+		selectedSetId.value = null
+		loadTrackCrateId.value = null
+		decks.value = Array.from({ length: deckCount.value }, createEmptyDeck)
+		deckSelectDialog.value = { open: false, trackId: '', sourceDeck: -1 }
+		showSetManager.value = false
+		showSaveDialog.value = false
+		isLoadingSets.value = false
+		isSavingSession.value = false
+		isAutoSaving.value = false
+		autoSaveError.value = null
+	}
+
 	// === Actions: Auto-Save ===
-	const autoSaveTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
+	function captureAccountContext(): AccountOperationContext | null {
+		const userId = user.supaUser?.id
+		return userId ? { generation: accountGeneration, userId } : null
+	}
 
-	async function createActiveSet(): Promise<string | null> {
-		if (!user.supaUser?.id || currentSession.value.length === 0) return null
+	function isCurrentAccountContext(context: AccountOperationContext): boolean {
+		return (
+			context.generation === accountGeneration &&
+			user.supaUser?.id === context.userId
+		)
+	}
 
+	async function createActiveSet(
+		context: AccountOperationContext
+	): Promise<string | null> {
+		if (!isCurrentAccountContext(context) || currentSession.value.length === 0)
+			return null
+
+		const playedTracks = currentSession.value.map((entry) => ({ ...entry }))
 		isAutoSaving.value = true
 		try {
 			const { data, error } = await supabase
 				.from('sets')
 				.insert({
-					user_id: user.supaUser.id,
+					user_id: context.userId,
 					name: null,
-					played_tracks: currentSession.value
+					played_tracks: playedTracks
 				})
 				.select('id')
 				.single()
 
+			if (!isCurrentAccountContext(context)) return null
 			if (error) throw error
 			autoSaveError.value = null
 			return data.id
 		} catch (e) {
+			if (!isCurrentAccountContext(context)) return null
 			console.error('Failed to create active set:', e)
 			autoSaveError.value =
 				'Auto-save failed. Your current session is not saved yet.'
 			toast.error(autoSaveError.value)
 			return null
 		} finally {
-			isAutoSaving.value = false
+			if (isCurrentAccountContext(context)) isAutoSaving.value = false
 		}
 	}
 
-	async function updateActiveSet() {
-		if (!activeSetId.value || currentSession.value.length === 0) return
+	async function updateActiveSet(
+		context: AccountOperationContext,
+		setId: string
+	) {
+		if (!isCurrentAccountContext(context) || currentSession.value.length === 0)
+			return
 
+		const playedTracks = currentSession.value.map((entry) => ({ ...entry }))
 		isAutoSaving.value = true
 		try {
 			const { error } = await supabase
 				.from('sets')
-				.update({ played_tracks: currentSession.value })
-				.eq('id', activeSetId.value)
+				.update({ played_tracks: playedTracks })
+				.eq('id', setId)
 
+			if (!isCurrentAccountContext(context)) return
 			if (error) throw error
 			autoSaveError.value = null
 		} catch (e) {
+			if (!isCurrentAccountContext(context)) return
 			console.error('Auto-save failed:', e)
 			autoSaveError.value =
 				'Auto-save failed. Your current session is not saved yet.'
 			toast.error(autoSaveError.value)
 		} finally {
-			isAutoSaving.value = false
+			if (isCurrentAccountContext(context)) isAutoSaving.value = false
 		}
 	}
 
 	function scheduleAutoSave() {
-		if (!user.supaUser?.id) return
+		const context = captureAccountContext()
+		if (!context || currentSession.value.length === 0) return
 
 		if (autoSaveTimeout.value) {
 			clearTimeout(autoSaveTimeout.value)
 		}
 
 		autoSaveTimeout.value = setTimeout(async () => {
-			if (currentSession.value.length === 0) return
+			autoSaveTimeout.value = null
+			if (
+				!isCurrentAccountContext(context) ||
+				currentSession.value.length === 0
+			)
+				return
 
 			// Create set if none exists
-			if (!activeSetId.value) {
-				activeSetId.value = await createActiveSet()
+			const setId = activeSetId.value
+			if (!setId) {
+				const createdSetId = await createActiveSet(context)
+				if (isCurrentAccountContext(context)) {
+					activeSetId.value = createdSetId
+				}
 			} else {
-				await updateActiveSet()
+				await updateActiveSet(context, setId)
 			}
 		}, 2000) // Debounce 2 seconds
 	}
@@ -346,48 +408,56 @@ export const useSessionStore = defineStore('session', () => {
 
 	// === Actions: Set Persistence ===
 	async function fetchSavedSets() {
-		if (!user.supaUser?.id) return
+		const context = captureAccountContext()
+		if (!context) return
 
 		isLoadingSets.value = true
 		try {
 			const { data, error } = await supabase
 				.from('sets')
 				.select('*')
-				.eq('user_id', user.supaUser.id)
+				.eq('user_id', context.userId)
 				.order('created_at', { ascending: false })
 
+			if (!isCurrentAccountContext(context)) return
 			if (error) throw error
 			const decodedRows = (data ?? []).map(decodeSavedSetRow)
 			const issues = decodedRows.flatMap((decoded) => decoded.issues)
 			reportDecodeIssues(issues, (message) => toast.warning(message))
 			savedSets.value = decodedRows.map((decoded) => decoded.row)
 		} catch (e) {
+			if (!isCurrentAccountContext(context)) return
 			console.error(e)
 			toast.error('Failed to load saved sets')
 		} finally {
-			isLoadingSets.value = false
+			if (isCurrentAccountContext(context)) isLoadingSets.value = false
 		}
 	}
 
 	async function saveSession(name?: string): Promise<SavedSet | null> {
-		if (!user.supaUser?.id || currentSession.value.length === 0) return null
+		const context = captureAccountContext()
+		if (!context || currentSession.value.length === 0) return null
 
+		const activeSetIdAtStart = activeSetId.value
+		const playedTracks = currentSession.value.map((entry) => ({ ...entry }))
 		isSavingSession.value = true
 		try {
 			let savedSet: SavedSet
 
-			if (activeSetId.value) {
+			if (!isCurrentAccountContext(context)) return null
+			if (activeSetIdAtStart) {
 				// Update existing auto-saved set with name
 				const { data, error } = await supabase
 					.from('sets')
 					.update({
 						name: name || null,
-						played_tracks: currentSession.value
+						played_tracks: playedTracks
 					})
-					.eq('id', activeSetId.value)
+					.eq('id', activeSetIdAtStart)
 					.select()
 					.single()
 
+				if (!isCurrentAccountContext(context)) return null
 				if (error) throw error
 				const decoded = decodeSavedSetRow(data)
 				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
@@ -395,7 +465,7 @@ export const useSessionStore = defineStore('session', () => {
 
 				// Update in savedSets if already fetched
 				const existingIndex = savedSets.value.findIndex(
-					(s) => s.id === activeSetId.value
+					(s) => s.id === activeSetIdAtStart
 				)
 				if (existingIndex !== -1) {
 					savedSets.value[existingIndex] = savedSet
@@ -407,13 +477,14 @@ export const useSessionStore = defineStore('session', () => {
 				const { data, error } = await supabase
 					.from('sets')
 					.insert({
-						user_id: user.supaUser.id,
+						user_id: context.userId,
 						name: name || null,
-						played_tracks: currentSession.value
+						played_tracks: playedTracks
 					})
 					.select()
 					.single()
 
+				if (!isCurrentAccountContext(context)) return null
 				if (error) throw error
 				const decoded = decodeSavedSetRow(data)
 				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
@@ -427,17 +498,22 @@ export const useSessionStore = defineStore('session', () => {
 			autoSaveError.value = null
 			return savedSet
 		} catch (e) {
+			if (!isCurrentAccountContext(context)) return null
 			console.error('Failed to save session:', e)
 			toast.error('Failed to save session')
 			return null
 		} finally {
-			isSavingSession.value = false
+			if (isCurrentAccountContext(context)) isSavingSession.value = false
 		}
 	}
 
 	async function deleteSet(setId: string) {
+		const context = captureAccountContext()
+		if (!context || !isCurrentAccountContext(context)) return
+
 		try {
 			const { error } = await supabase.from('sets').delete().eq('id', setId)
+			if (!isCurrentAccountContext(context)) return
 			if (error) throw error
 			savedSets.value = savedSets.value.filter((s) => s.id !== setId)
 			if (activeSetId.value === setId) {
@@ -448,6 +524,7 @@ export const useSessionStore = defineStore('session', () => {
 			}
 			toast.success('Set deleted')
 		} catch (e) {
+			if (!isCurrentAccountContext(context)) return
 			console.error(e)
 			toast.error('Failed to delete set')
 		}
@@ -508,6 +585,7 @@ export const useSessionStore = defineStore('session', () => {
 		closeDeckSelectDialog,
 		rateTransition,
 		clearSession,
+		resetAccountState,
 		fetchSavedSets,
 		saveSession,
 		deleteSet,
