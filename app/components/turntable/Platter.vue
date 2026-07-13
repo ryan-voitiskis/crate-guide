@@ -173,29 +173,35 @@ onUnmounted(() => {
 			<!-- Slipmat (when no track loaded) -->
 			<g v-else>
 				<circle r="164" fill="#222" />
-				<circle r="146" stroke-width="10" stroke="#8c4394" fill="transparent" />
+				<circle r="154" stroke-width="6" stroke="#8c4394" fill="transparent" />
 				<text
-					y="-23"
-					fill="#8c4394"
-					class="select-none"
-					font-size="80"
-					font-weight="600"
-					letter-spacing="0.1em"
+					y="-12"
+					fill="#e8e7e2"
+					class="font-[Egyptian505,serif] select-none"
+					font-size="92"
+					font-weight="700"
+					letter-spacing="0.1rem"
+					length-adjust="spacingAndGlyphs"
+					stroke="#e8e7e2"
+					stroke-width="0.8"
 					text-anchor="middle"
-					font-family="serif"
+					text-length="255"
 					:transform="deckIndex % 2 === 1 ? 'rotate(180)' : ''"
 				>
 					Crate
 				</text>
 				<text
-					y="-23"
-					fill="#b9adda"
-					class="select-none"
-					font-size="80"
-					font-weight="600"
-					letter-spacing="0.1em"
+					y="-12"
+					fill="#8c4394"
+					class="font-[Egyptian505,serif] select-none"
+					font-size="92"
+					font-weight="700"
+					letter-spacing="0.1rem"
+					length-adjust="spacingAndGlyphs"
+					stroke="#8c4394"
+					stroke-width="0.8"
 					text-anchor="middle"
-					font-family="serif"
+					text-length="255"
 					:transform="deckIndex % 2 === 0 ? 'rotate(180)' : ''"
 				>
 					Guide

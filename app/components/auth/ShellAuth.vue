@@ -16,8 +16,6 @@ const props = withDefaults(defineProps<Props>(), {
 	logoTo: '/demo'
 })
 
-const grooveRadii = [96, 86, 76, 66]
-
 // Map each title character to a peak amplitude (% mix into primary) shaped
 // like a kick drum's frequency spectrum: strong low-end, fast decay into the
 // mids, with a small transient "click" resurgence near the tail.
@@ -75,26 +73,9 @@ const titleChars = computed(() => {
 			<Card
 				class="border-border/70 bg-card/95 relative rounded-lg p-0 shadow-xl backdrop-blur-sm"
 			>
-				<!-- Logo + groove halo -->
+				<!-- Slipmat logo -->
 				<div class="relative px-6 pt-8 pb-2 sm:px-8">
-					<div class="relative mx-auto size-28">
-						<!-- Concentric groove rings -->
-						<svg
-							aria-hidden="true"
-							viewBox="0 0 200 200"
-							class="text-foreground/15 absolute inset-0 -m-6 size-[calc(100%+3rem)]"
-							fill="none"
-						>
-							<g stroke="currentColor" stroke-width="0.5">
-								<circle
-									v-for="r in grooveRadii"
-									:key="r"
-									cx="100"
-									cy="100"
-									:r="r"
-								/>
-							</g>
-						</svg>
+					<div class="mx-auto size-36">
 						<NuxtLink
 							:to="logoTo"
 							class="focus-visible:ring-ring relative block size-full rounded-full focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
