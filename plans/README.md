@@ -3,7 +3,8 @@
 Generated and reconciled by the improve skill on 2026-07-12. Plans 001–002 are
 completed history. Plans 003–016 are the implementation portfolio from the
 deep code-quality, readability, organization, and conventions audit at commit
-`004d548`.
+`004d548`. Plan 018 and Plans 025–032 are the login/logout and
+account-lifecycle portfolio planned at commit `d78d42a`.
 
 Execute in dependency order, not merely numeric order. Every executor must read
 its selected plan fully, run the drift check, honor STOP conditions, and update
@@ -11,24 +12,33 @@ its status row when done unless a reviewer explicitly owns the index.
 
 ## Execution order and status
 
-| Plan | Title                                                                                                 | Priority | Effort | Depends on                   | Status |
-| ---- | ----------------------------------------------------------------------------------------------------- | -------- | ------ | ---------------------------- | ------ |
-| 001  | [Redesign the session track picker around physical records](001-record-first-session-track-picker.md) | P1       | M      | —                            | DONE   |
-| 002  | [Attach the load-track dialog hook to real DOM](002-attach-load-track-dialog-hook.md)                 | P1       | S      | 001                          | DONE   |
-| 003  | [Restore the browser E2E baseline](003-restore-browser-e2e-baseline.md)                               | P1       | S      | —                            | DONE   |
-| 004  | [Integrate Deno Edge runtime verification](004-integrate-edge-runtime-verification.md)                | P1       | M      | —                            | DONE   |
-| 005  | [Make maintenance tooling safe and composable](005-make-maintenance-tooling-trustworthy.md)           | P1       | M      | 003, 004                     | DONE   |
-| 006  | [Add rendered workflow characterization](006-add-rendered-workflow-characterization.md)               | P1       | L      | 003, 005                     | DONE   |
-| 007  | [Retire disabled ingestion and unused APIs](007-retire-disabled-and-unused-code.md)                   | P2       | M      | 006                          | DONE   |
-| 008  | [Make user-data loading truthful](008-make-user-data-loading-truthful.md)                             | P1       | M      | 007                          | DONE   |
-| 009  | [Validate Supabase JSON boundaries](009-validate-supabase-json-boundaries.md)                         | P2       | L      | 007, 008                     | DONE   |
-| 010  | [Restore store and domain layering](010-restore-store-and-domain-layering.md)                         | P2       | M      | 008, 009                     | DONE   |
-| 011  | [Consolidate track-editor domain logic](011-consolidate-track-editor-logic.md)                        | P1       | M      | 006, 007                     | DONE   |
-| 012  | [Protect application UI contracts](012-protect-app-ui-contracts.md)                                   | P1       | M      | 006, 007, 011                | DONE   |
-| 013  | [Extract the track-enrichment workflow](013-extract-track-enrichment-workflow.md)                     | P2       | L      | 006, 008, 009, 012           | DONE   |
-| 014  | [Centralize audio-analyzer configuration](014-centralize-audio-analyzer-configuration.md)             | P2       | M      | 005, 006                     | DONE   |
-| 015  | [Enforce component and Tailwind conventions](015-enforce-component-and-tailwind-conventions.md)       | P2       | M      | 005, 006, 007, 011, 012, 014 | DONE   |
-| 016  | [Refresh and archive architecture documentation](016-refresh-architecture-documentation.md)           | P3       | S      | 003–015                      | DONE   |
+| Plan | Title                                                                                                               | Priority | Effort | Depends on                   | Status |
+| ---- | ------------------------------------------------------------------------------------------------------------------- | -------- | ------ | ---------------------------- | ------ |
+| 001  | [Redesign the session track picker around physical records](001-record-first-session-track-picker.md)               | P1       | M      | —                            | DONE   |
+| 002  | [Attach the load-track dialog hook to real DOM](002-attach-load-track-dialog-hook.md)                               | P1       | S      | 001                          | DONE   |
+| 003  | [Restore the browser E2E baseline](003-restore-browser-e2e-baseline.md)                                             | P1       | S      | —                            | DONE   |
+| 004  | [Integrate Deno Edge runtime verification](004-integrate-edge-runtime-verification.md)                              | P1       | M      | —                            | DONE   |
+| 005  | [Make maintenance tooling safe and composable](005-make-maintenance-tooling-trustworthy.md)                         | P1       | M      | 003, 004                     | DONE   |
+| 006  | [Add rendered workflow characterization](006-add-rendered-workflow-characterization.md)                             | P1       | L      | 003, 005                     | DONE   |
+| 007  | [Retire disabled ingestion and unused APIs](007-retire-disabled-and-unused-code.md)                                 | P2       | M      | 006                          | DONE   |
+| 008  | [Make user-data loading truthful](008-make-user-data-loading-truthful.md)                                           | P1       | M      | 007                          | DONE   |
+| 009  | [Validate Supabase JSON boundaries](009-validate-supabase-json-boundaries.md)                                       | P2       | L      | 007, 008                     | DONE   |
+| 010  | [Restore store and domain layering](010-restore-store-and-domain-layering.md)                                       | P2       | M      | 008, 009                     | DONE   |
+| 011  | [Consolidate track-editor domain logic](011-consolidate-track-editor-logic.md)                                      | P1       | M      | 006, 007                     | DONE   |
+| 012  | [Protect application UI contracts](012-protect-app-ui-contracts.md)                                                 | P1       | M      | 006, 007, 011                | DONE   |
+| 013  | [Extract the track-enrichment workflow](013-extract-track-enrichment-workflow.md)                                   | P2       | L      | 006, 008, 009, 012           | DONE   |
+| 014  | [Centralize audio-analyzer configuration](014-centralize-audio-analyzer-configuration.md)                           | P2       | M      | 005, 006                     | DONE   |
+| 015  | [Enforce component and Tailwind conventions](015-enforce-component-and-tailwind-conventions.md)                     | P2       | M      | 005, 006, 007, 011, 012, 014 | DONE   |
+| 016  | [Refresh and archive architecture documentation](016-refresh-architecture-documentation.md)                         | P3       | S      | 003–015                      | DONE   |
+| 018  | [Keep email-confirmation failures visible and actionable](018-persist-auth-confirmation-failures.md)                | P1       | S      | —                            | DONE   |
+| 025  | [Bind profile and settings work to one authenticated identity](025-bind-profile-work-to-auth-identity.md)           | P1       | M      | 018                          | DONE   |
+| 026  | [Make DJ session state safe to reset between accounts](026-reset-session-state-on-account-change.md)                | P1       | M      | —                            | DONE   |
+| 027  | [Make Discogs import state safe to reset between accounts](027-reset-discogs-state-on-account-change.md)            | P1       | M      | —                            | DONE   |
+| 028  | [Enforce one account lifecycle across logout and route protection](028-enforce-account-lifecycle-and-logout.md)     | P1       | L      | 025, 026, 027                | DONE   |
+| 029  | [Gate password reset behind a recovery auth event](029-gate-password-recovery-flow.md)                              | P1       | M      | 028                          | DONE   |
+| 030  | [Make login destinations and auth callbacks deterministic](030-make-auth-routing-and-callbacks-deterministic.md)    | P1       | M      | 028                          | DONE   |
+| 031  | [Align credential forms with password policy and browser semantics](031-harden-auth-credential-forms.md)            | P2       | M      | 029, 030                     | DONE   |
+| 032  | [Align Supabase redirect allowlists with auth callback destinations](032-align-supabase-auth-redirect-allowlist.md) | P1       | S      | 030                          | DONE   |
 
 Status values: `TODO` | `IN PROGRESS` | `DONE` | `BLOCKED (<one-line
 reason>)` | `REJECTED (<one-line rationale>)`.
@@ -97,6 +107,19 @@ reason>)` | `REJECTED (<one-line rationale>)`.
 - Plan 016 runs last. It updates README/agent/architecture docs and archives the
   completed security audit based on live final source and commands.
 
+## Auth lifecycle portfolio orchestration
+
+- Plan 018 establishes truthful OTP outcomes and persistent confirmation errors.
+- Plans 025–027 make profile, session, and Discogs state identity-safe.
+- Plan 028 integrates those reset contracts into logout and route protection.
+- Plans 029–030 gate password recovery and preserve safe callback destinations.
+- Plan 031 aligns credential forms with the final recovery and routing behavior.
+- Plan 032 records the local and hosted callback allowlist contract.
+
+The portfolio was executed in one isolated integration worktree, reviewed one
+commit at a time, and closed with the full verification gate, production build,
+and a real-browser logout/deep-link regression walkthrough.
+
 ## Audit finding coverage
 
 | Audit finding                                                         | Covered by |
@@ -117,6 +140,18 @@ reason>)` | `REJECTED (<one-line rationale>)`.
 | Production and benchmark analyzer defaults can drift                  | 014        |
 | Destructive database type-generation command / incomplete format gate | 005        |
 | Stale Discogs/security/testing/enrichment documentation               | 016        |
+| Confirmation failure leaves a blank page                              | 018        |
+| Profile fetch/settings queue can cross authentication identities      | 025        |
+| DJ session/saved-set state survives account transitions               | 026, 028   |
+| Discogs folder/import state survives account transitions              | 027, 028   |
+| Protected UI remains rendered after logout/session loss               | 028        |
+| Blanket `/auth/*` exemption exposes authenticated callback routes     | 028        |
+| Logout scope conflicts with current-session copy                      | 028        |
+| Password update page accepts an ordinary logged-in session            | 029        |
+| OAuth denial and hydration failure spin forever                       | 030        |
+| Protected deep-link destination is lost through login                 | 030        |
+| Credential forms drift from password and browser semantics            | 031        |
+| Redirect allowlist omits emitted callback destinations                | 032        |
 
 ## Findings considered and rejected or deferred
 
@@ -143,6 +178,12 @@ reason>)` | `REJECTED (<one-line rationale>)`.
 - Encode semantic type-first naming with an exhaustive prefix allowlist:
   rejected. Plan 015 automates only mechanically defensible cases and keeps
   ambiguous domain naming under human review.
+- Add a global logout button now: deferred. Existing Settings copy promises the
+  current session, so Plan 028 uses local scope. An all-devices action needs
+  separate product copy and confirmation.
+- Claim the client recovery gate enables Supabase Secure password change:
+  rejected. That is a hosted setting; Plan 029 fixes the application state
+  machine only.
 
 ## Tracker maintenance
 
