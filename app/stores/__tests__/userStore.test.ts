@@ -39,6 +39,11 @@ const mockRouter = {
 	replace: vi.fn().mockResolvedValue(undefined)
 }
 
+const mockPasswordRecovery = {
+	activate: vi.fn(),
+	consume: vi.fn()
+}
+
 const mockUseRecordsStore = vi.fn()
 const mockUseTracksStore = vi.fn()
 const mockUseCratesStore = vi.fn()
@@ -118,6 +123,7 @@ const isError = (e: unknown): e is Error => e instanceof Error
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
 vi.stubGlobal('useSupabaseUser', () => mockSupaUser)
 vi.stubGlobal('useRouter', () => mockRouter)
+vi.stubGlobal('usePasswordRecovery', () => mockPasswordRecovery)
 vi.stubGlobal('useRecordsStore', mockUseRecordsStore)
 vi.stubGlobal('useTracksStore', mockUseTracksStore)
 vi.stubGlobal('useCratesStore', mockUseCratesStore)
@@ -578,28 +584,60 @@ describe('userStore', () => {
 	})
 
 	describe('resetPassword', () => {
-		it('navigates to home on success', async () => {
+		it('returns true, navigates home, and consumes recovery on success', async () => {
 			const store = useUserStore()
 			mockSupabaseClient.auth.updateUser.mockResolvedValue({
 				data: {},
 				error: null
 			})
 
-			await store.resetPassword('newPassword123')
+			const result = await store.resetPassword('newPassword123')
 
+			expect(result).toBe(true)
 			expect(mockRouter.push).toHaveBeenCalledWith('/')
+			expect(mockPasswordRecovery.consume).toHaveBeenCalledOnce()
 		})
 
-		it('handles update errors', async () => {
+		it('returns false and keeps recovery active on update errors', async () => {
 			const store = useUserStore()
 			mockSupabaseClient.auth.updateUser.mockResolvedValue({
 				data: null,
 				error: { message: 'Password too weak' }
 			})
 
-			await store.resetPassword('weak')
+			const result = await store.resetPassword('weak')
 
+			expect(result).toBe(false)
 			expect(mockRouter.push).not.toHaveBeenCalled()
+			expect(mockPasswordRecovery.consume).not.toHaveBeenCalled()
+		})
+
+		it('returns true and consumes recovery when navigation fails after update', async () => {
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined)
+			const store = useUserStore()
+			mockSupabaseClient.auth.updateUser.mockResolvedValue({
+				data: {},
+				error: null
+			})
+			mockRouter.push.mockRejectedValueOnce(new Error('Navigation unavailable'))
+
+			try {
+				const result = await store.resetPassword('newPassword123')
+
+				expect(result).toBe(true)
+				expect(mockPasswordRecovery.consume).toHaveBeenCalledOnce()
+				expect(mockToast.success).not.toHaveBeenCalledWith(
+					'Password reset successful!'
+				)
+				expect(mockToast.error).toHaveBeenCalledWith(
+					'Your password was reset, but the home page could not open.',
+					{ duration: 30000 }
+				)
+			} finally {
+				consoleError.mockRestore()
+			}
 		})
 	})
 
@@ -615,6 +653,27 @@ describe('userStore', () => {
 
 			expect(result).toBe(true)
 			expect(mockRouter.push).toHaveBeenCalledWith('/')
+			expect(mockPasswordRecovery.activate).not.toHaveBeenCalled()
+		})
+
+		it('activates recovery and navigates to password update for recovery OTPs', async () => {
+			const store = useUserStore()
+			mockSupabaseClient.auth.verifyOtp.mockResolvedValue({
+				data: {},
+				error: null
+			})
+
+			const result = await store.verifyOtp('recovery-token-hash', 'recovery')
+
+			expect(result).toBe(true)
+			expect(mockSupabaseClient.auth.verifyOtp).toHaveBeenCalledWith({
+				token_hash: 'recovery-token-hash',
+				type: 'recovery'
+			})
+			expect(mockPasswordRecovery.activate).toHaveBeenCalledOnce()
+			expect(mockRouter.push).toHaveBeenCalledWith('/update-password')
+			expect(mockRouter.push).not.toHaveBeenCalledWith('/')
+			expect(mockToast.success).toHaveBeenCalledWith('Recovery link verified!')
 		})
 
 		it('handles verification errors', async () => {

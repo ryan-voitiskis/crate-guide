@@ -14,6 +14,7 @@ export const useUserStore = defineStore('user', () => {
 	const supabase = useSupabaseClient<Database>()
 	const supaUser = useSupabaseUser()
 	const router = useRouter()
+	const passwordRecovery = usePasswordRecovery()
 
 	const profile = ref<Profile | null>(null)
 	const userAlreadyRegistered = ref(false)
@@ -186,15 +187,29 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
-	async function resetPassword(password: string) {
+	async function resetPassword(password: string): Promise<boolean> {
 		try {
 			const { error } = await supabase.auth.updateUser({ password })
 			if (error) throw error
-			router.push('/')
-			toast.success('Password reset successful!')
 		} catch (e) {
 			toast.error(isError(e) ? e.message : 'Error resetting password.')
+			return false
 		}
+
+		passwordRecovery.consume()
+		try {
+			await router.push('/')
+			toast.success('Password reset successful!')
+		} catch (e) {
+			console.error(e)
+			toast.error(
+				`Your password was reset, but the home page could not open.`,
+				{
+					duration: 30000
+				}
+			)
+		}
+		return true
 	}
 
 	async function verifyOtp(
@@ -204,6 +219,12 @@ export const useUserStore = defineStore('user', () => {
 		try {
 			const { error } = await supabase.auth.verifyOtp({ token_hash, type })
 			if (error) throw error
+			if (type === 'recovery') {
+				passwordRecovery.activate()
+				router.push('/update-password')
+				toast.success('Recovery link verified!')
+				return true
+			}
 			router.push('/')
 			toast.success('Sign in successful!')
 			return true
