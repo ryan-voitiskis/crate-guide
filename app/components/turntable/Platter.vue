@@ -93,8 +93,9 @@ onUnmounted(() => {
 <template>
 	<svg
 		ref="platter"
-		width="208"
-		height="208"
+		:data-testid="`deck-${deckIndex}-platter`"
+		width="224"
+		height="224"
 		viewBox="0 0 366 366"
 		class="shrink-0 will-change-transform"
 	>

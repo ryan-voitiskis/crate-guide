@@ -4,6 +4,8 @@ const props = defineProps<{
 }>()
 
 const session = useSessionStore()
+const deck = computed(() => session.decks[props.deckIndex])
+const isPlaying = computed(() => deck.value?.isPlaying ?? false)
 
 function toggle() {
 	session.togglePlaying(props.deckIndex)
@@ -11,14 +13,17 @@ function toggle() {
 </script>
 
 <template>
-	<button
-		class="flex h-[38px] w-16 items-center justify-center rounded-[1px] border-2 border-black/75 bg-[#e7e2d6] p-0 shadow-[0_1px_0_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.86)] transition-[filter] hover:brightness-105 active:brightness-95"
+	<TurntableButtonMetal
+		variant="start-stop"
+		:data-testid="`deck-${deckIndex}-start-stop`"
+		:aria-label="isPlaying ? 'Stop turntable' : 'Start turntable'"
+		:aria-pressed="isPlaying"
 		@click="toggle"
 	>
 		<span
-			class="text-[6px] leading-none font-medium tracking-wide whitespace-nowrap text-[#3f3b34] select-none [text-shadow:0_1px_0_rgba(255,255,255,0.55)]"
+			class="text-[7px] leading-none font-medium tracking-[0.04em] whitespace-nowrap text-[#33312d] select-none [text-shadow:0_1px_0_rgba(255,255,255,0.65)]"
 		>
-			START &bull; STOP
+			start &bull; stop
 		</span>
-	</button>
+	</TurntableButtonMetal>
 </template>

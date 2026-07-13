@@ -56,7 +56,7 @@ const deckBackground = computed(() => {
 <template>
 	<div class="flex h-full w-[380px] shrink-0 flex-col gap-2">
 		<!-- Deck header -->
-		<div class="flex items-center justify-between px-1">
+		<div class="flex h-6 items-center justify-between px-1">
 			<span class="text-muted-foreground text-sm font-medium">
 				Deck {{ deckIndex + 1 }}
 			</span>
@@ -91,7 +91,10 @@ const deckBackground = computed(() => {
 				<!-- Bottom controls: start/stop + RPM -->
 				<div class="absolute bottom-1 left-1.5 z-10 flex items-end gap-1.5">
 					<TurntableStartStop :deck-index="deckIndex" />
-					<div class="flex gap-0.5">
+					<div
+						:data-testid="`deck-${deckIndex}-rpm-housing`"
+						class="flex h-4 items-center gap-px overflow-hidden rounded-[2px] border-[0.5px] border-[#11110f] bg-[#292824] p-[0.5px]"
+					>
 						<TurntableSelectRpm :deck-index="deckIndex" :speed="33" />
 						<TurntableSelectRpm :deck-index="deckIndex" :speed="45" />
 					</div>

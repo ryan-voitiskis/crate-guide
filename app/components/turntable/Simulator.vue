@@ -6,7 +6,7 @@ defineProps<{
 </script>
 
 <template>
-	<div class="relative h-56 w-56 shrink-0 overflow-visible">
+	<div class="relative h-[230px] w-[230px] shrink-0 overflow-visible">
 		<!-- Tonearm base (below platter) -->
 		<TurntableTonearm :is-playing="deck.isPlaying" layer="base" />
 
