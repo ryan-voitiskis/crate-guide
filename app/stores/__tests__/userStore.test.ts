@@ -491,8 +491,9 @@ describe('userStore', () => {
 				error: null
 			})
 
-			await store.verifyOtp('token-hash', 'email')
+			const result = await store.verifyOtp('token-hash', 'email')
 
+			expect(result).toBe(true)
 			expect(mockRouter.push).toHaveBeenCalledWith('/')
 		})
 
@@ -503,8 +504,9 @@ describe('userStore', () => {
 				error: { message: 'Invalid OTP' }
 			})
 
-			await store.verifyOtp('invalid', 'email')
+			const result = await store.verifyOtp('invalid', 'email')
 
+			expect(result).toBe(false)
 			expect(mockRouter.push).not.toHaveBeenCalled()
 		})
 	})

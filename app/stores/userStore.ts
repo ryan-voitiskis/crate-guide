@@ -158,14 +158,19 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
-	async function verifyOtp(token_hash: string, type: EmailOtpType) {
+	async function verifyOtp(
+		token_hash: string,
+		type: EmailOtpType
+	): Promise<boolean> {
 		try {
 			const { error } = await supabase.auth.verifyOtp({ token_hash, type })
 			if (error) throw error
 			router.push('/')
 			toast.success('Sign in successful!')
+			return true
 		} catch (e) {
 			toast.error(isError(e) ? e.message : 'Error verifying OTP.')
+			return false
 		}
 	}
 
