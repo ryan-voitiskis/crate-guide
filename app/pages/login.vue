@@ -3,6 +3,7 @@ import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import * as z from 'zod'
 import { sanitizeAuthReturnPath } from '../utils/authRoutes'
+import { emailSchema } from '../utils/authValidation'
 
 definePageMeta({ keepalive: false })
 
@@ -15,8 +16,11 @@ const signingInWithGithub = ref(false)
 const signingInWithGoogle = ref(false)
 
 const schema = z.object({
-	email: z.string().trim().email().max(254),
-	password: z.string().max(64, 'Password cannot exceed 64 characters')
+	email: emailSchema,
+	password: z
+		.string()
+		.min(1, 'Password is required')
+		.max(64, 'Password cannot exceed 64 characters')
 })
 
 type LoginFormValues = z.infer<typeof schema>
@@ -86,7 +90,14 @@ const onSubmit = form.handleSubmit((values: LoginFormValues) =>
 					<FormItem>
 						<FormLabel>Email</FormLabel>
 						<FormControl>
-							<Input placeholder="user@domain.com" v-bind="componentField" />
+							<Input
+								type="email"
+								autocomplete="email"
+								inputmode="email"
+								autocapitalize="none"
+								placeholder="user@domain.com"
+								v-bind="componentField"
+							/>
 						</FormControl>
 						<FormMessage />
 					</FormItem>
@@ -96,7 +107,10 @@ const onSubmit = form.handleSubmit((values: LoginFormValues) =>
 					<FormItem>
 						<FormLabel>Password</FormLabel>
 						<FormControl>
-							<InputPassword v-bind="componentField" />
+							<InputPassword
+								autocomplete="current-password"
+								v-bind="componentField"
+							/>
 						</FormControl>
 						<FormMessage />
 					</FormItem>

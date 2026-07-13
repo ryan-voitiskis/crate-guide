@@ -333,7 +333,7 @@ describe('userStore', () => {
 
 			const result = await store.signUpWithEmail(
 				'test@example.com',
-				'password123'
+				'Password123'
 			)
 
 			expect(result).toBe(true)
@@ -349,7 +349,7 @@ describe('userStore', () => {
 
 			const result = await store.signUpWithEmail(
 				'test@example.com',
-				'password123'
+				'Password123'
 			)
 
 			expect(result).toBe(true)
@@ -365,7 +365,7 @@ describe('userStore', () => {
 
 			const result = await store.signUpWithEmail(
 				'test@example.com',
-				'password123'
+				'Password123'
 			)
 
 			expect(result).toBe(false)
@@ -397,7 +397,7 @@ describe('userStore', () => {
 
 			const result = await store.signInWithEmail(
 				'test@example.com',
-				'password123'
+				'Password123'
 			)
 
 			expect(result).toBe(true)
@@ -620,7 +620,7 @@ describe('userStore', () => {
 				error: null
 			})
 
-			const result = await store.resetPassword('newPassword123')
+			const result = await store.resetPassword('Password123')
 
 			expect(result).toBe(true)
 			expect(mockRouter.push).toHaveBeenCalledWith('/')
@@ -653,7 +653,7 @@ describe('userStore', () => {
 			mockRouter.push.mockRejectedValueOnce(new Error('Navigation unavailable'))
 
 			try {
-				const result = await store.resetPassword('newPassword123')
+				const result = await store.resetPassword('Password123')
 
 				expect(result).toBe(true)
 				expect(mockPasswordRecovery.consume).toHaveBeenCalledOnce()

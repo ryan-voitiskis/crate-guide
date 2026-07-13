@@ -2,6 +2,9 @@
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import * as z from 'zod'
+import { emailSchema, newPasswordSchema } from '../utils/authValidation'
+
+definePageMeta({ keepalive: false })
 
 const user = useUserStore()
 
@@ -9,11 +12,8 @@ const signingInWithGithub = ref(false)
 const signingInWithGoogle = ref(false)
 
 const schema = z.object({
-	email: z.string().trim().email().max(254),
-	password: z
-		.string()
-		.min(8, 'Password must be at least 8 characters')
-		.max(64, 'Password cannot exceed 64 characters')
+	email: emailSchema,
+	password: newPasswordSchema
 })
 
 type SignupFormValues = z.infer<typeof schema>
@@ -21,7 +21,8 @@ type SignupFormValues = z.infer<typeof schema>
 const form = useForm({ validationSchema: toTypedSchema(schema) })
 
 const onSubmit = form.handleSubmit(async (values: SignupFormValues) => {
-	await user.signUpWithEmail(values.email, values.password)
+	const didSignUp = await user.signUpWithEmail(values.email, values.password)
+	if (didSignUp) form.resetForm()
 })
 
 async function signInWithGithub() {
@@ -72,7 +73,14 @@ async function signInWithGoogle() {
 					<FormItem>
 						<FormLabel>Email</FormLabel>
 						<FormControl>
-							<Input placeholder="user@domain.com" v-bind="componentField" />
+							<Input
+								type="email"
+								autocomplete="email"
+								inputmode="email"
+								autocapitalize="none"
+								placeholder="user@domain.com"
+								v-bind="componentField"
+							/>
 						</FormControl>
 						<FormMessage />
 					</FormItem>
@@ -82,7 +90,10 @@ async function signInWithGoogle() {
 					<FormItem>
 						<FormLabel>Password</FormLabel>
 						<FormControl>
-							<InputPassword v-bind="componentField" />
+							<InputPassword
+								autocomplete="new-password"
+								v-bind="componentField"
+							/>
 						</FormControl>
 						<FormMessage />
 					</FormItem>

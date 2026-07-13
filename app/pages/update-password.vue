@@ -2,15 +2,15 @@
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import * as z from 'zod'
+import { newPasswordSchema } from '../utils/authValidation'
+
+definePageMeta({ keepalive: false })
 
 const user = useUserStore()
 const recovery = usePasswordRecovery()
 
 const schema = z.object({
-	password: z
-		.string()
-		.min(8, 'Password must be at least 8 characters')
-		.max(64, 'Password cannot exceed 64 characters')
+	password: newPasswordSchema
 })
 
 type UpdatePasswordFormValues = z.infer<typeof schema>
@@ -40,7 +40,10 @@ const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
 					<FormItem>
 						<FormLabel>New password</FormLabel>
 						<FormControl>
-							<InputPassword v-bind="componentField" />
+							<InputPassword
+								autocomplete="new-password"
+								v-bind="componentField"
+							/>
 						</FormControl>
 						<FormMessage />
 					</FormItem>

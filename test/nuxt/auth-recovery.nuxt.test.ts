@@ -215,31 +215,57 @@ describe('password recovery auth lifecycle', () => {
 		recovery.activate()
 		resetPassword.mockResolvedValue(false)
 		const wrapper = await mountPage()
-		const input = await enterPassword(wrapper, 'new-password')
+		const input = await enterPassword(wrapper, 'Password123')
+		expect(input.attributes()).toMatchObject({
+			type: 'password',
+			name: 'password',
+			autocomplete: 'new-password'
+		})
+		expect(
+			wrapper.get('button[aria-label="Show password"]').attributes('type')
+		).toBe('button')
+		expect(wrapper.vm.$router.resolve('/update-password').meta.keepalive).toBe(
+			false
+		)
 
 		await wrapper.get('form').trigger('submit.prevent')
 		await flushPromises()
 		await nextTick()
 
 		await vi.waitFor(() => {
-			expect(resetPassword).toHaveBeenCalledWith('new-password')
+			expect(resetPassword).toHaveBeenCalledWith('Password123')
 		})
-		expect((input.element as HTMLInputElement).value).toBe('new-password')
+		expect((input.element as HTMLInputElement).value).toBe('Password123')
 	})
 
 	it('clears the form only after a successful reset', async () => {
 		recovery.activate()
 		resetPassword.mockResolvedValue(true)
 		const wrapper = await mountPage()
-		const input = await enterPassword(wrapper, 'new-password')
+		const input = await enterPassword(wrapper, 'Password123')
 
 		await wrapper.get('form').trigger('submit.prevent')
 		await flushPromises()
 		await nextTick()
 
 		await vi.waitFor(() => {
-			expect(resetPassword).toHaveBeenCalledWith('new-password')
+			expect(resetPassword).toHaveBeenCalledWith('Password123')
 		})
 		expect((input.element as HTMLInputElement).value).toBe('')
+	})
+
+	it('starts password update empty after a remount', async () => {
+		recovery.activate()
+		const first = await mountPage()
+		await enterPassword(first, 'Password123')
+		first.unmount()
+		wrappers.delete(first)
+
+		const remounted = await mountPage()
+
+		expect(
+			(remounted.get('input[name="password"]').element as HTMLInputElement)
+				.value
+		).toBe('')
 	})
 })

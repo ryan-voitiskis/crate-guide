@@ -2,6 +2,7 @@
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import * as z from 'zod'
+import { emailSchema } from '../utils/authValidation'
 
 definePageMeta({ keepalive: false })
 
@@ -9,7 +10,7 @@ const user = useUserStore()
 const linkSent = ref(false)
 
 const schema = z.object({
-	email: z.string().trim().email().max(254)
+	email: emailSchema
 })
 
 type ResetPasswordFormValues = z.infer<typeof schema>
@@ -17,8 +18,11 @@ type ResetPasswordFormValues = z.infer<typeof schema>
 const form = useForm({ validationSchema: toTypedSchema(schema) })
 
 const onSubmit = form.handleSubmit(async (values: ResetPasswordFormValues) => {
-	linkSent.value = await user.sendPasswordResetEmail(values.email)
-	form.resetForm()
+	const didSend = await user.sendPasswordResetEmail(values.email)
+	if (didSend) {
+		linkSent.value = true
+		form.resetForm()
+	}
 })
 </script>
 
@@ -39,7 +43,14 @@ const onSubmit = form.handleSubmit(async (values: ResetPasswordFormValues) => {
 					<FormItem>
 						<FormLabel>Email</FormLabel>
 						<FormControl>
-							<Input placeholder="user@domain.com" v-bind="componentField" />
+							<Input
+								type="email"
+								autocomplete="email"
+								inputmode="email"
+								autocapitalize="none"
+								placeholder="user@domain.com"
+								v-bind="componentField"
+							/>
 						</FormControl>
 						<FormMessage />
 					</FormItem>

@@ -15,7 +15,7 @@ await setup({
 
 async function signInViaForm(page: Page, expectedPath = '/') {
 	await page.locator('input[name="email"]').fill('e2e@example.com')
-	await page.locator('input[name="password"]').fill('password123')
+	await page.locator('input[name="password"]').fill('Password123')
 	await page.locator('button[type="submit"]').click()
 	await page.waitForURL(url(expectedPath))
 }
