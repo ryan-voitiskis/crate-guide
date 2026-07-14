@@ -64,9 +64,13 @@ function getRowClasses(row: TrackEnrichmentRow): string {
 </script>
 
 <template>
-	<div class="border-border overflow-x-auto rounded-md border">
+	<div
+		class="border-border overflow-x-auto rounded-sm border lg:max-h-[calc(100dvh-22rem)] lg:overflow-auto"
+	>
 		<Table class="min-w-[1160px] table-fixed">
-			<TableHeader>
+			<TableHeader
+				class="bg-background sticky top-0 z-10 shadow-[0_1px_0_var(--border)] [&_th]:h-8 [&_th]:font-mono [&_th]:text-[10px] [&_th]:tracking-wide [&_th]:uppercase"
+			>
 				<TableRow>
 					<TableHead class="w-32">
 						<div class="flex items-center gap-2">

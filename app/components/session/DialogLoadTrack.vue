@@ -177,12 +177,19 @@ function toggleExpanded(recordId: string) {
 <template>
 	<Dialog :open="open" @update:open="handleOpenChange">
 		<DialogContent
-			class="max-h-[80dvh] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0 sm:max-w-4xl"
+			class="max-h-[88dvh] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-sm p-0 sm:max-w-4xl"
 		>
 			<div data-testid="load-track-dialog" class="contents">
-				<div class="space-y-4 px-6 pt-6 pr-12 pb-4">
+				<div class="space-y-3 px-4 pt-4 pr-11 pb-3 sm:px-5 sm:pt-5 sm:pr-12">
+					<div
+						class="text-muted-foreground font-mono text-[9px] tracking-[0.18em] uppercase"
+					>
+						Deck {{ String(deckIndex + 1).padStart(2, '0') }} / Source browser
+					</div>
 					<DialogHeader>
-						<DialogTitle>Load Track to Deck {{ deckIndex + 1 }}</DialogTitle>
+						<DialogTitle class="text-base tracking-tight">
+							Load a physical track
+						</DialogTitle>
 						<DialogDescription>
 							Find a physical record, then choose the track you are loading.
 						</DialogDescription>
@@ -197,7 +204,7 @@ function toggleExpanded(recordId: string) {
 								v-model="searchQuery"
 								data-testid="load-track-search"
 								placeholder="Search records, tracks, artists, labels or cat. no."
-								class="w-full pl-9"
+								class="w-full rounded-sm pl-9"
 								@keydown.down.prevent="focusFirstTrack"
 							/>
 						</div>
@@ -220,12 +227,15 @@ function toggleExpanded(recordId: string) {
 					</div>
 				</div>
 
-				<ScrollArea data-testid="load-track-results" class="min-h-0 border-t">
-					<div ref="resultsContentRef" class="p-4 sm:p-6">
+				<ScrollArea
+					data-testid="load-track-results"
+					class="bg-workbench-inset min-h-0 border-t"
+				>
+					<div ref="resultsContentRef" class="p-3 sm:p-4">
 						<template v-if="hasQuery">
 							<div
 								v-if="allResults.length"
-								class="text-muted-foreground mb-3 text-xs"
+								class="text-muted-foreground mb-2 font-mono text-[10px] tracking-wide uppercase"
 							>
 								{{ allResults.length }}
 								{{ allResults.length === 1 ? 'record' : 'records' }} found

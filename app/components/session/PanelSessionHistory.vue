@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import { ListX } from 'lucide-vue-next'
+import { ListX, X } from 'lucide-vue-next'
 
 const session = useSessionStore()
 </script>
 
 <template>
 	<div class="flex h-full flex-col">
-		<div class="flex items-center justify-between px-3 py-2">
-			<span class="font-medium">Session History</span>
+		<div class="flex min-h-11 items-center justify-between px-3 py-2">
+			<div>
+				<div
+					class="text-muted-foreground font-mono text-[9px] tracking-[0.14em] uppercase"
+				>
+					Live log
+				</div>
+				<span class="text-sm font-semibold">Session history</span>
+			</div>
 			<div class="flex items-center gap-2">
-				<span class="text-muted-foreground text-sm">
+				<span class="text-muted-foreground font-mono text-[10px] tabular-nums">
 					{{ session.sessionTrackCount }} tracks
 				</span>
 				<Button
@@ -21,6 +28,15 @@ const session = useSessionStore()
 					@click="session.clearSession()"
 				>
 					<ListX class="h-4 w-4" />
+				</Button>
+				<Button
+					variant="ghost"
+					size="icon"
+					class="size-7 xl:hidden"
+					aria-label="Close session history"
+					@click="session.showHistory = false"
+				>
+					<X class="size-4" />
 				</Button>
 			</div>
 		</div>

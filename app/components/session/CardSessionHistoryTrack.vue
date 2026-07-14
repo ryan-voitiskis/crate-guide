@@ -57,6 +57,11 @@ function handleRatingUpdate(rating: number | null) {
 		<!-- Track info -->
 		<div v-if="track" class="space-y-0.5">
 			<div class="flex items-start justify-between gap-2">
+				<span
+					class="text-muted-foreground/70 mt-0.5 w-5 shrink-0 font-mono text-[9px] tabular-nums"
+				>
+					{{ String(index + 1).padStart(2, '0') }}
+				</span>
 				<div class="min-w-0 flex-1">
 					<div class="truncate text-sm leading-tight font-medium">
 						{{ track.title }}
@@ -65,13 +70,15 @@ function handleRatingUpdate(rating: number | null) {
 						{{ artistNames }}
 					</div>
 				</div>
-				<span class="text-muted-foreground shrink-0 text-xs">
+				<span
+					class="text-muted-foreground shrink-0 font-mono text-[10px] tabular-nums"
+				>
 					{{ timeFormatted }}
 				</span>
 			</div>
 
 			<!-- Metadata row -->
-			<div class="flex items-center gap-2 text-xs">
+			<div class="ml-5 flex items-center gap-2 font-mono text-[10px]">
 				<!-- Adjusted BPM -->
 				<span v-if="entry.adjusted_bpm" class="text-muted-foreground">
 					{{ entry.adjusted_bpm.toFixed(1) }} BPM

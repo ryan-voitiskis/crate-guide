@@ -93,7 +93,7 @@ export function createMockDiscogsRelease(
 			formats: [createMockDiscogsFormat()],
 			labels: [createMockDiscogsLabel()],
 			artists: [createMockDiscogsArtist()],
-			genre: ['Electronic'],
+			genres: ['Electronic'],
 			styles: ['House'],
 			...overrides?.basic_information
 		},

@@ -81,7 +81,7 @@ export type DiscogsRelease = {
 		formats: DiscogsFormat[]
 		labels: DiscogsLabel[]
 		artists: DiscogsArtist[]
-		genre: string[]
+		genres: string[]
 		styles: string[]
 	}
 }
@@ -314,8 +314,8 @@ export function isDiscogsRelease(obj: unknown): obj is DiscogsRelease {
 		basicInfo.labels.every(isDiscogsLabel) &&
 		Array.isArray(basicInfo.artists) &&
 		basicInfo.artists.every(isDiscogsArtist) &&
-		Array.isArray(basicInfo.genre) &&
-		basicInfo.genre.every((genre: unknown) => typeof genre === 'string') &&
+		Array.isArray(basicInfo.genres) &&
+		basicInfo.genres.every((genre: unknown) => typeof genre === 'string') &&
 		Array.isArray(basicInfo.styles) &&
 		basicInfo.styles.every((style: unknown) => typeof style === 'string')
 	)

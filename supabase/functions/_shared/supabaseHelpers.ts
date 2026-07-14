@@ -5,22 +5,34 @@ import {
 } from '@supabase/supabase-js'
 import type { Profile } from './types/supabase.ts'
 
-/**
- * Creates an authenticated Supabase client for a single request.
- * A fresh client is created per invocation to prevent data leakage
- * between serverless invocations.
- */
+export function requireEnv(name: string): string {
+	const value = Deno.env.get(name)?.trim()
+	if (!value)
+		throw new Error(`Server configuration error: ${name} is required.`)
+	return value
+}
+
 export function createAuthedSupabaseClient(authHeader: string): SupabaseClient {
 	return createClient(
-		Deno.env.get('SUPABASE_URL') ?? '',
-		Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+		requireEnv('SUPABASE_URL'),
+		requireEnv('SUPABASE_ANON_KEY'),
 		{ global: { headers: { Authorization: authHeader } } }
 	)
 }
 
-/**
- * Gets the authenticated user from the provided Supabase client.
- */
+export function createServiceRoleSupabaseClient(): SupabaseClient {
+	return createClient(
+		requireEnv('SUPABASE_URL'),
+		requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
+		{
+			auth: {
+				autoRefreshToken: false,
+				persistSession: false
+			}
+		}
+	)
+}
+
 export async function getUser(supabase: SupabaseClient): Promise<User> {
 	const { data, error } = await supabase.auth.getUser()
 	if (error) throw error
@@ -29,9 +41,6 @@ export async function getUser(supabase: SupabaseClient): Promise<User> {
 	return user
 }
 
-/**
- * Gets the user profile for the authenticated user.
- */
 export async function getUserProfile(
 	supabase: SupabaseClient,
 	user: User

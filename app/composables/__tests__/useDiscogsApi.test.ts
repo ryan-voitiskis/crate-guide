@@ -1,3 +1,7 @@
+import {
+	createMockDiscogsRelease,
+	createMockDiscogsReleaseFull
+} from 'test/mocks/fixtures/discogs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock supabase client
@@ -19,6 +23,11 @@ const mockUserStore: {
 	profile: {
 		discogs_username: 'testuser'
 	}
+}
+
+const validFolderReleasesResponse = {
+	pagination: { page: 1, pages: 1, per_page: 100, items: 0 },
+	releases: []
 }
 
 // Stub globals before importing composable
@@ -96,12 +105,25 @@ describe('useDiscogsApi', () => {
 
 			await expect(getFolders()).rejects.toThrow('Network down')
 		})
+
+		it('rejects malformed folder responses', async () => {
+			mockInvoke.mockResolvedValue({
+				data: { folders: [{ id: 1 }] },
+				error: null
+			})
+
+			const { getFolders } = useDiscogsApi()
+
+			await expect(getFolders()).rejects.toThrow(
+				'Discogs returned an invalid folders response.'
+			)
+		})
 	})
 
 	describe('getFolderReleases', () => {
 		it('invokes dispatcher with folder id and default pagination', async () => {
 			mockInvoke.mockResolvedValue({
-				data: { releases: [] },
+				data: validFolderReleasesResponse,
 				error: null
 			})
 
@@ -120,7 +142,7 @@ describe('useDiscogsApi', () => {
 
 		it('invokes dispatcher with custom pagination', async () => {
 			mockInvoke.mockResolvedValue({
-				data: { releases: [] },
+				data: validFolderReleasesResponse,
 				error: null
 			})
 
@@ -137,6 +159,18 @@ describe('useDiscogsApi', () => {
 			})
 		})
 
+		it('accepts the plural genres field returned by Discogs', async () => {
+			const response = {
+				pagination: { page: 1, pages: 1, per_page: 100, items: 1 },
+				releases: [createMockDiscogsRelease()]
+			}
+			mockInvoke.mockResolvedValue({ data: response, error: null })
+
+			const { getFolderReleases } = useDiscogsApi()
+
+			await expect(getFolderReleases(0)).resolves.toEqual(response)
+		})
+
 		it('throws when no discogs username', async () => {
 			mockUserStore.profile = { discogs_username: '' }
 
@@ -147,11 +181,27 @@ describe('useDiscogsApi', () => {
 			)
 			expect(mockInvoke).not.toHaveBeenCalled()
 		})
+
+		it('rejects malformed folder release responses', async () => {
+			mockInvoke.mockResolvedValue({
+				data: { releases: [] },
+				error: null
+			})
+
+			const { getFolderReleases } = useDiscogsApi()
+
+			await expect(getFolderReleases(0)).rejects.toThrow(
+				'Discogs returned an invalid folder releases response.'
+			)
+		})
 	})
 
 	describe('getRelease', () => {
 		it('invokes dispatcher with release id', async () => {
-			const mockRelease = { id: 12345, title: 'Test Album' }
+			const mockRelease = createMockDiscogsReleaseFull({
+				id: 12345,
+				title: 'Test Album'
+			})
 			mockInvoke.mockResolvedValue({
 				data: mockRelease,
 				error: null
@@ -168,15 +218,29 @@ describe('useDiscogsApi', () => {
 
 		it('does not require discogs username', async () => {
 			mockUserStore.profile = { discogs_username: null }
+			const mockRelease = createMockDiscogsReleaseFull({ id: 12345 })
 			mockInvoke.mockResolvedValue({
-				data: { id: 12345 },
+				data: mockRelease,
 				error: null
 			})
 
 			const { getRelease } = useDiscogsApi()
 			const result = await getRelease(12345)
 
-			expect(result).toEqual({ id: 12345 })
+			expect(result).toEqual(mockRelease)
+		})
+
+		it('rejects malformed release responses', async () => {
+			mockInvoke.mockResolvedValue({
+				data: { id: 12345, title: 'Incomplete release' },
+				error: null
+			})
+
+			const { getRelease } = useDiscogsApi()
+
+			await expect(getRelease(12345)).rejects.toThrow(
+				'Discogs returned an invalid release response.'
+			)
 		})
 	})
 })

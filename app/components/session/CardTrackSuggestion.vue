@@ -16,6 +16,10 @@ const user = useUserStore()
 
 const record = computed(() => records.getRecordById(props.track.record_id))
 const coverUrl = computed(() => record.value?.cover ?? null)
+const catalogReference = computed(() => {
+	const label = record.value?.labels?.[0]
+	return [label?.name, label?.catno].filter(Boolean).join(' · ')
+})
 
 const keyDisplay = computed(() => {
 	if (props.track.key === null || props.track.mode === null) return null
@@ -65,12 +69,15 @@ function handleClick() {
 
 <template>
 	<button
-		class="bg-card hover:bg-muted/50 w-full overflow-hidden rounded-none border text-left transition-colors"
+		class="bg-card hover:bg-muted/50 focus-visible:ring-signal w-full overflow-hidden rounded-none border text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
+		:aria-label="`Load ${track.title} to deck ${deckIndex + 1}`"
 		@click="handleClick"
 	>
 		<div class="flex h-16 items-center">
 			<!-- Cover art -->
-			<div class="aspect-square h-full shrink-0 overflow-hidden">
+			<div
+				class="border-border aspect-square h-full shrink-0 overflow-hidden border-r"
+			>
 				<img
 					v-if="coverUrl"
 					:src="coverUrl"
@@ -92,6 +99,12 @@ function handleClick() {
 				</div>
 				<div class="text-muted-foreground truncate text-xs">
 					{{ artistNames }}
+				</div>
+				<div
+					v-if="catalogReference"
+					class="text-muted-foreground/75 truncate font-mono text-[9px] tracking-wide uppercase"
+				>
+					{{ catalogReference }}
 				</div>
 
 				<!-- Metadata row -->
@@ -122,7 +135,7 @@ function handleClick() {
 
 			<!-- Score indicator -->
 			<div
-				class="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors"
+				class="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-[2px] border font-mono text-[10px] font-semibold tabular-nums transition-colors"
 				:style="scoreBadgeStyle"
 			>
 				{{ scorePercent }}

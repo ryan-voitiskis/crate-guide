@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ImageOff } from 'lucide-vue-next'
+
 const props = defineProps<{
 	release: DiscogsReleaseToFilter | DiscogsRelease
 	showCheckbox?: boolean
@@ -7,10 +9,6 @@ const props = defineProps<{
 const emit = defineEmits<{
 	'update:selected': [value: boolean]
 }>()
-
-const coverImg = computed(
-	() => `url("${props.release.basic_information.cover_image}")`
-)
 
 const isFilterableRelease = (
 	release: DiscogsReleaseToFilter | DiscogsRelease
@@ -26,40 +24,61 @@ const isSelected = computed({
 
 <template>
 	<div
-		class="bg-card text-card-foreground border-border grid w-full grid-cols-[90px_1fr_40px] grid-rows-[40px_20px_30px] overflow-hidden rounded-lg border"
+		class="bg-card text-card-foreground border-border grid min-h-16 w-full overflow-hidden rounded-sm border shadow-xs"
+		:class="
+			showCheckbox && isFilterableRelease(release)
+				? 'grid-cols-[64px_minmax(0,1fr)_36px]'
+				: 'grid-cols-[64px_minmax(0,1fr)]'
+		"
 	>
 		<div
-			class="z-0 overflow-hidden bg-contain bg-no-repeat [grid-area:1/1/5/2]"
-			:style="{ backgroundImage: coverImg }"
-		/>
-		<h3
-			class="text-card-foreground ml-2.5 truncate leading-[40px] [grid-area:1/2/2/3]"
+			class="bg-muted border-border flex size-16 items-center justify-center overflow-hidden border-r"
 		>
-			{{ release.basic_information.title }}
-		</h3>
-		<div
-			class="text-muted-foreground ml-2.5 truncate text-xs leading-5 [grid-area:2/2/3/3]"
-		>
-			<span class="font-semibold">
-				{{ release.basic_information.labels[0]?.catno }}
-			</span>
-			{{ release.basic_information.labels[0]?.name }}
-			<span class="text-muted-foreground">
-				{{ release.basic_information.year }}
-			</span>
+			<img
+				v-if="release.basic_information.cover_image"
+				:src="release.basic_information.cover_image"
+				:alt="`${release.basic_information.title} cover`"
+				class="size-full object-cover"
+			/>
+			<ImageOff v-else class="text-muted-foreground size-5" />
 		</div>
-		<span
-			class="text-card-foreground ml-2.5 truncate leading-[30px] [grid-area:3/2/4/3]"
-		>
-			{{
-				release.basic_information.artists
-					.map((artist) => artist.name)
-					.join(', ')
-			}}
-		</span>
+		<div class="flex min-w-0 flex-col justify-center px-2.5 py-1.5">
+			<h3
+				class="truncate text-xs font-semibold"
+				:title="release.basic_information.title"
+			>
+				{{ release.basic_information.title }}
+			</h3>
+			<p class="text-muted-foreground truncate text-[11px]">
+				{{
+					release.basic_information.artists
+						.map((artist) => artist.name)
+						.join(', ')
+				}}
+			</p>
+			<p
+				class="text-muted-foreground mt-1 flex min-w-0 items-center gap-2 font-mono text-[9px] tracking-wide uppercase"
+			>
+				<span
+					v-if="release.basic_information.labels[0]?.catno"
+					class="text-foreground truncate font-semibold"
+				>
+					{{ release.basic_information.labels[0]?.catno }}
+				</span>
+				<span class="truncate">
+					{{ release.basic_information.labels[0]?.name }}
+				</span>
+				<span
+					v-if="release.basic_information.year"
+					class="ml-auto shrink-0 tabular-nums"
+				>
+					{{ release.basic_information.year }}
+				</span>
+			</p>
+		</div>
 		<div
 			v-if="showCheckbox && isFilterableRelease(release)"
-			class="flex items-center justify-center [grid-area:1/3/4/4]"
+			class="border-border flex items-center justify-center border-l"
 		>
 			<Checkbox v-model:checked="isSelected" />
 		</div>

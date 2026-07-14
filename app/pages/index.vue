@@ -22,7 +22,7 @@ onMounted(() => {
 			</template>
 		</Teleport>
 
-		<Separator />
+		<Separator class="opacity-70" />
 
 		<div class="relative min-h-0 flex-1">
 			<StateLoading
@@ -47,9 +47,12 @@ onMounted(() => {
 				</p>
 			</div>
 
-			<div v-else class="flex h-full">
+			<div
+				v-else
+				class="flex h-full bg-[radial-gradient(circle_at_center,var(--muted),transparent_65%)]"
+			>
 				<ScrollArea class="flex-1" orientation="horizontal">
-					<div class="flex h-full gap-4 p-2">
+					<div class="flex h-full gap-3 p-2 sm:p-3">
 						<DeckColumn
 							v-for="(deck, index) in session.decks"
 							:key="index"
@@ -67,7 +70,7 @@ onMounted(() => {
 				>
 					<div
 						v-if="session.showHistory"
-						class="border-border w-80 shrink-0 border-l"
+						class="border-border bg-background/95 absolute inset-y-0 right-0 z-30 w-full shrink-0 border-l shadow-2xl backdrop-blur-sm sm:w-80 xl:relative xl:z-auto xl:shadow-none"
 					>
 						<PanelSessionHistory />
 					</div>

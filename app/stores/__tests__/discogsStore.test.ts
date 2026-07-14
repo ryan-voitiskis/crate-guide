@@ -185,6 +185,12 @@ describe('discogsStore', () => {
 				failed: []
 			})
 		})
+
+		it('starts without transfer activity', () => {
+			const store = useDiscogsStore()
+			expect(store.transferStatus).toBe('idle')
+			expect(store.hasTransferActivity).toBe(false)
+		})
 	})
 
 	describe('resetAccountState', () => {
@@ -204,6 +210,7 @@ describe('discogsStore', () => {
 			store.importProgress = 65
 			store.isImporting = true
 			store.importPhase = 'saving'
+			store.transferStatus = 'completed'
 			store.importResults = {
 				successful: 2,
 				skipped: [{ label: 'Skipped' }],
@@ -225,11 +232,62 @@ describe('discogsStore', () => {
 			expect(store.importProgress).toBe(0)
 			expect(store.isImporting).toBe(false)
 			expect(store.importPhase).toBeNull()
+			expect(store.transferStatus).toBe('idle')
+			expect(store.hasTransferActivity).toBe(false)
 			expect(store.importResults).toEqual({
 				successful: 0,
 				skipped: [],
 				failed: []
 			})
+		})
+	})
+
+	describe('transfer monitor', () => {
+		it('minimizes and reopens an active transfer without clearing it', () => {
+			const store = useDiscogsStore()
+			store.transferStatus = 'running'
+			store.isImporting = true
+			store.importPhase = 'fetching'
+			store.importProgress = 42
+			store.showImportProgressDialog = true
+
+			store.minimizeTransferMonitor()
+
+			expect(store.showImportProgressDialog).toBe(false)
+			expect(store.isImporting).toBe(true)
+			expect(store.hasTransferActivity).toBe(true)
+			expect(store.transferLabel).toBe('Discogs · Fetching · 42%')
+
+			store.openTransferMonitor()
+
+			expect(store.showImportProgressDialog).toBe(true)
+		})
+
+		it('keeps active transfer status when dismissal is attempted', () => {
+			const store = useDiscogsStore()
+			store.transferStatus = 'running'
+			store.isImporting = true
+			store.showImportProgressDialog = true
+
+			store.dismissTransferMonitor()
+
+			expect(store.showImportProgressDialog).toBe(false)
+			expect(store.transferStatus).toBe('running')
+			expect(store.hasTransferActivity).toBe(true)
+		})
+
+		it('dismisses a finished transfer from the workspace', () => {
+			const store = useDiscogsStore()
+			store.transferStatus = 'completed'
+			store.importResults = { successful: 7, skipped: [], failed: [] }
+
+			expect(store.transferTone).toBe('success')
+			expect(store.transferLabel).toBe('Discogs · 7 imported')
+
+			store.dismissTransferMonitor()
+
+			expect(store.transferStatus).toBe('idle')
+			expect(store.hasTransferActivity).toBe(false)
 		})
 	})
 
@@ -789,7 +847,13 @@ describe('discogsStore', () => {
 			await store.importSelectedReleases()
 
 			expect(store.showImportProgressDialog).toBe(false)
+			expect(store.transferStatus).toBe('cancelled')
+			expect(store.transferTone).toBe('warning')
+			expect(store.hasTransferActivity).toBe(true)
 			expect(mockImportFetchedReleases).not.toHaveBeenCalled()
+
+			store.openTransferMonitor()
+			expect(store.showImportProgressDialog).toBe(true)
 		})
 
 		it('refreshes stores after successful import', async () => {
@@ -859,6 +923,8 @@ describe('discogsStore', () => {
 				label: 'Failed Release',
 				error: 'API timeout'
 			})
+			expect(store.transferStatus).toBe('completed')
+			expect(store.transferTone).toBe('warning')
 		})
 
 		it('accumulates failures from both fetch and import phases', async () => {
@@ -900,16 +966,21 @@ describe('discogsStore', () => {
 			]
 			mockFilterOutExistingReleases.mockRejectedValue(new Error('Unexpected'))
 
-			try {
-				await store.importSelectedReleases()
-			} catch {
-				// Ignore error
-			}
+			await store.importSelectedReleases()
 
 			expect(store.isImporting).toBe(false)
 			expect(store.importProgress).toBe(0)
 			expect(store.importPhase).toBeNull()
 			expect(store.releaseBeingImported).toBeNull()
+			expect(store.transferStatus).toBe('failed')
+			expect(store.hasTransferActivity).toBe(true)
+			expect(store.importResults.failed).toContainEqual({
+				label: 'Discogs import',
+				error: 'The transfer stopped unexpectedly. Please try again.'
+			})
+			expect(mockToast.error).toHaveBeenCalledWith(
+				'Discogs import failed. Open Transfers for details.'
+			)
 		})
 
 		it('does not persist or present an import invalidated by account reset', async () => {

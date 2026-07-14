@@ -142,24 +142,6 @@ export type Database = {
 				}
 				Relationships: []
 			}
-			rate_limits: {
-				Row: {
-					count: number
-					key: string
-					reset_at: string
-				}
-				Insert: {
-					count: number
-					key: string
-					reset_at: string
-				}
-				Update: {
-					count?: number
-					key?: string
-					reset_at?: string
-				}
-				Relationships: []
-			}
 			records: {
 				Row: {
 					artists: Json
@@ -308,13 +290,8 @@ export type Database = {
 			[_ in never]: never
 		}
 		Functions: {
-			check_rate_limit: {
-				Args: { max_requests: number; rate_keys: string[]; window_ms: number }
-				Returns: boolean
-			}
 			delete_all_user_data: { Args: never; Returns: Json }
 			disconnect_discogs: { Args: never; Returns: undefined }
-			get_discogs_credentials: { Args: never; Returns: Json }
 			import_record_with_tracks: {
 				Args: { record: Json; tracks?: Json }
 				Returns: Json
@@ -322,14 +299,6 @@ export type Database = {
 			remove_record_from_collection: {
 				Args: { target_record_id: string }
 				Returns: Json
-			}
-			set_discogs_access_credentials: {
-				Args: { p_secret: string; p_token: string }
-				Returns: undefined
-			}
-			set_discogs_request_credentials: {
-				Args: { p_secret: string; p_token: string }
-				Returns: undefined
 			}
 		}
 		Enums: {

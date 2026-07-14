@@ -20,12 +20,52 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	const importProgress = ref(0)
 	const isImporting = ref(false)
 	const importPhase = ref<'fetching' | 'saving' | null>(null)
+	const transferStatus = ref<
+		'idle' | 'running' | 'completed' | 'cancelled' | 'failed'
+	>('idle')
 	const shouldCancelImport = ref(false)
 	const importResults = ref<{
 		successful: number
 		skipped: { label: string }[]
 		failed: { label: string; error: string }[]
 	}>({ successful: 0, skipped: [], failed: [] })
+
+	const hasTransferActivity = computed(() => transferStatus.value !== 'idle')
+	const transferTone = computed<'active' | 'success' | 'warning'>(() => {
+		if (transferStatus.value === 'running') return 'active'
+		if (
+			transferStatus.value === 'completed' &&
+			importResults.value.failed.length === 0
+		)
+			return 'success'
+		return 'warning'
+	})
+	const transferLabel = computed(() => {
+		if (transferStatus.value === 'running') {
+			return importPhase.value === 'saving'
+				? 'Discogs · Writing library'
+				: `Discogs · Fetching · ${importProgress.value}%`
+		}
+		if (transferStatus.value === 'cancelled')
+			return 'Discogs · Import cancelled'
+		if (transferStatus.value === 'failed') return 'Discogs · Import failed'
+
+		const resultParts = [
+			importResults.value.successful > 0
+				? `${importResults.value.successful} imported`
+				: null,
+			importResults.value.skipped.length > 0
+				? `${importResults.value.skipped.length} skipped`
+				: null,
+			importResults.value.failed.length > 0
+				? `${importResults.value.failed.length} failed`
+				: null
+		].filter((part): part is string => Boolean(part))
+
+		return resultParts.length > 0
+			? `Discogs · ${resultParts.join(' · ')}`
+			: 'Discogs · Import complete'
+	})
 
 	type AccountOperationContext = {
 		generation: number
@@ -64,7 +104,22 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		importProgress.value = 0
 		isImporting.value = false
 		importPhase.value = null
+		transferStatus.value = 'idle'
 		importResults.value = { successful: 0, skipped: [], failed: [] }
+	}
+
+	function openTransferMonitor() {
+		if (hasTransferActivity.value) showImportProgressDialog.value = true
+	}
+
+	function minimizeTransferMonitor() {
+		showImportProgressDialog.value = false
+	}
+
+	function dismissTransferMonitor() {
+		showImportProgressDialog.value = false
+		if (isImporting.value) return
+		transferStatus.value = 'idle'
 	}
 
 	async function getFolders() {
@@ -167,6 +222,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		showImportProgressDialog.value = true
 
 		isImporting.value = true
+		transferStatus.value = 'running'
 		shouldCancelImport.value = false
 		importProgress.value = 0
 		importPhase.value = 'fetching'
@@ -197,6 +253,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			importResults.value.failed.push(...fetchFailed)
 
 			if (cancelled) {
+				transferStatus.value = 'cancelled'
 				toast.info('Import of Discogs records cancelled')
 				showImportProgressDialog.value = false
 				return
@@ -224,6 +281,15 @@ export const useDiscogsStore = defineStore('discogs', () => {
 				])
 				if (!isCurrentAccountContext(context)) return
 			}
+			transferStatus.value = 'completed'
+		} catch {
+			if (!isCurrentAccountContext(context)) return
+			transferStatus.value = 'failed'
+			importResults.value.failed.push({
+				label: 'Discogs import',
+				error: 'The transfer stopped unexpectedly. Please try again.'
+			})
+			toast.error('Discogs import failed. Open Transfers for details.')
 		} finally {
 			if (isCurrentAccountContext(context)) {
 				isImporting.value = false
@@ -249,11 +315,18 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		importProgress,
 		isImporting,
 		importPhase,
+		transferStatus,
+		hasTransferActivity,
+		transferTone,
+		transferLabel,
 		importResults,
 		getFolders,
 		fetchFolderReleases,
 		importSelectedReleases,
 		cancelImport,
+		openTransferMonitor,
+		minimizeTransferMonitor,
+		dismissTransferMonitor,
 		resetAccountState,
 		disconnectDiscogs,
 		showImportProgressDialog,

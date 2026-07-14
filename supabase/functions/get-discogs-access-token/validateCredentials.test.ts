@@ -1,9 +1,7 @@
 import assert from 'node:assert/strict'
+import type { DiscogsCredentialsRow } from '../_shared/discogs/credentials.ts'
 import { PublicOAuthError } from '../_shared/discogs/oauthErrors.ts'
-import {
-	type DiscogsCredentialsRow,
-	validateDiscogsCallbackCredentials
-} from './validateCredentials.ts'
+import { validateDiscogsCallbackCredentials } from './validateCredentials.ts'
 
 const mismatchMessage =
 	'Discogs callback does not match the pending request. Please restart the Discogs connection.'

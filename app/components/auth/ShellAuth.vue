@@ -37,7 +37,7 @@ const titleChars = computed(() => {
 
 <template>
 	<div
-		class="bg-background relative flex min-h-svh items-center justify-center overflow-hidden px-4 py-10"
+		class="bg-background relative flex min-h-full items-center justify-center overflow-x-clip px-4 py-6 sm:py-10"
 	>
 		<!-- Ambient backdrop: faint radial wash that adapts to theme via tokens -->
 		<div
@@ -46,12 +46,12 @@ const titleChars = computed(() => {
 		/>
 
 		<!-- Floating theme toggle -->
-		<div class="absolute top-4 right-4 z-20 sm:top-6 sm:right-6">
+		<div class="absolute top-3 right-3 z-20 sm:top-6 sm:right-6">
 			<ToggleTheme />
 		</div>
 
 		<!-- Card frame -->
-		<div class="relative z-10 w-full max-w-md">
+		<div class="relative z-10 my-auto w-full max-w-md">
 			<!-- Corner tick marks (decorative) -->
 			<span
 				aria-hidden="true"
@@ -74,8 +74,8 @@ const titleChars = computed(() => {
 				class="border-border/70 bg-card/95 relative rounded-lg p-0 shadow-xl backdrop-blur-sm"
 			>
 				<!-- Slipmat logo -->
-				<div class="relative px-6 pt-8 pb-2 sm:px-8">
-					<div class="mx-auto size-36">
+				<div class="relative px-6 pt-6 pb-1 sm:px-8 sm:pt-8 sm:pb-2">
+					<div class="mx-auto size-28 sm:size-36">
 						<NuxtLink
 							:to="logoTo"
 							class="focus-visible:ring-ring relative block size-full rounded-full focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
@@ -87,7 +87,9 @@ const titleChars = computed(() => {
 				</div>
 
 				<!-- Header: chip + title + subtitle -->
-				<header class="space-y-3 px-6 pt-4 pb-2 sm:px-8">
+				<header
+					class="space-y-2.5 px-6 pt-3 pb-1 sm:space-y-3 sm:px-8 sm:pt-4 sm:pb-2"
+				>
 					<div
 						v-if="chip"
 						class="text-foreground/35 flex items-center gap-2 font-mono text-[0.7rem] tracking-[0.2em] uppercase"
@@ -116,7 +118,7 @@ const titleChars = computed(() => {
 				</header>
 
 				<!-- Body slot -->
-				<div class="px-6 pt-4 pb-6 sm:px-8 sm:pb-8">
+				<div class="px-6 pt-3 pb-5 sm:px-8 sm:pt-4 sm:pb-8">
 					<slot />
 				</div>
 

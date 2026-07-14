@@ -1,91 +1,104 @@
 <script setup lang="ts">
 import type { AcceptableValue } from 'reka-ui'
 
+const props = defineProps<{
+	localOnly?: boolean
+}>()
+
 const user = useUserStore()
+const localTheme = ref<ThemeOptions>(user.currentTheme)
+
+const selectedTheme = computed(() =>
+	props.localOnly ? localTheme.value : user.currentTheme
+)
 
 function handleThemeChange(value: AcceptableValue) {
-	if (typeof value === 'string') user.updateTheme(value as ThemeOptions)
+	if (typeof value !== 'string') return
+	const theme = value as ThemeOptions
+	if (props.localOnly) {
+		localTheme.value = theme
+		user.setLocalTheme(theme)
+		return
+	}
+	void user.updateTheme(theme)
 }
 </script>
 
 <template>
-	<Label>Theme</Label>
-	<RadioGroup
-		:model-value="user.currentTheme"
-		class="grid max-w-3xl grid-cols-3 gap-4 pt-2"
-		@update:model-value="handleThemeChange"
-	>
-		<Label class="[&:has([data-state=checked])>div]:border-primary flex-col">
-			<RadioGroupItem value="auto" class="sr-only" />
-			<div
-				class="border-muted hover:border-accent items-center rounded-xl border-2 p-1"
+	<div class="space-y-3">
+		<div class="space-y-1">
+			<Label>Theme</Label>
+			<p class="text-muted-foreground text-xs">
+				Follow your system or lock the workspace to one environment.
+			</p>
+		</div>
+		<RadioGroup
+			:model-value="selectedTheme"
+			class="grid grid-cols-1 gap-2 sm:grid-cols-3"
+			@update:model-value="handleThemeChange"
+		>
+			<Label
+				class="border-border hover:bg-muted/40 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5 flex cursor-pointer items-center gap-3 rounded-sm border p-2 transition-colors sm:flex-col sm:items-stretch sm:gap-2"
 			>
+				<RadioGroupItem value="auto" class="sr-only" />
 				<div
-					class="space-y-2 rounded-md bg-[linear-gradient(to_right,#ecedef_50%,#020617_50%)] p-2"
+					class="grid h-10 w-20 shrink-0 grid-cols-2 overflow-hidden rounded-[2px] border sm:h-14 sm:w-full"
+					aria-hidden="true"
+				>
+					<div class="bg-[#f0eee8] p-1.5">
+						<div class="h-full border border-[#d4d0c5] bg-white" />
+					</div>
+					<div class="bg-[#11110f] p-1.5">
+						<div class="h-full border border-[#373632] bg-[#22211e]" />
+					</div>
+				</div>
+				<div class="min-w-0 sm:text-center">
+					<span class="block text-xs font-medium">Auto</span>
+					<span class="text-muted-foreground font-mono text-[10px]">
+						SYSTEM
+					</span>
+				</div>
+			</Label>
+
+			<Label
+				class="border-border hover:bg-muted/40 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5 flex cursor-pointer items-center gap-3 rounded-sm border p-2 transition-colors sm:flex-col sm:items-stretch sm:gap-2"
+			>
+				<RadioGroupItem value="light" class="sr-only" />
+				<div
+					class="h-10 w-20 shrink-0 overflow-hidden rounded-[2px] border bg-[#f0eee8] p-1.5 sm:h-14 sm:w-full"
+					aria-hidden="true"
+				>
+					<div class="flex h-full gap-1 border border-[#d4d0c5] bg-white p-1">
+						<div class="w-1/4 bg-[#e2ded4]" />
+						<div class="flex-1 border-y border-[#e2ded4]" />
+					</div>
+				</div>
+				<div class="min-w-0 sm:text-center">
+					<span class="block text-xs font-medium">Light</span>
+					<span class="text-muted-foreground font-mono text-[10px]">PAPER</span>
+				</div>
+			</Label>
+
+			<Label
+				class="border-border hover:bg-muted/40 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5 flex cursor-pointer items-center gap-3 rounded-sm border p-2 transition-colors sm:flex-col sm:items-stretch sm:gap-2"
+			>
+				<RadioGroupItem value="dark" class="sr-only" />
+				<div
+					class="h-10 w-20 shrink-0 overflow-hidden rounded-[2px] border border-[#383733] bg-[#11110f] p-1.5 sm:h-14 sm:w-full"
+					aria-hidden="true"
 				>
 					<div
-						class="flex items-center space-x-2 rounded-md bg-[linear-gradient(to_right,#ffffff_50%,#1e293b_50%)] p-2 shadow-xs"
+						class="flex h-full gap-1 border border-[#373632] bg-[#22211e] p-1"
 					>
-						<div
-							class="h-4 w-4 rounded-full bg-[linear-gradient(to_right,#ecedef_50%,#94a3b8_50%)]"
-						/>
-						<div
-							class="h-2 w-[100px] rounded-lg bg-[linear-gradient(to_right,#ecedef_50%,#94a3b8_50%)]"
-						/>
-					</div>
-					<div
-						class="space-y-2 rounded-md bg-[linear-gradient(to_right,#ffffff_50%,#1e293b_50%)] p-2 shadow-xs"
-					>
-						<div
-							class="h-2 w-20 rounded-lg bg-[linear-gradient(to_right,#ecedef_50%,#94a3b8_50%)]"
-						/>
-						<div
-							class="h-2 w-[100px] rounded-lg bg-[linear-gradient(to_right,#ecedef_50%,#94a3b8_50%)]"
-						/>
+						<div class="w-1/4 bg-[#393834]" />
+						<div class="flex-1 border-y border-[#393834]" />
 					</div>
 				</div>
-			</div>
-			<span class="block w-full p-2 text-center font-normal">Auto</span>
-		</Label>
-		<Label class="[&:has([data-state=checked])>div]:border-primary flex-col">
-			<RadioGroupItem value="light" class="sr-only" />
-			<div
-				class="border-muted hover:border-accent items-center rounded-xl border-2 p-1"
-			>
-				<div class="space-y-2 rounded-md bg-[#ecedef] p-2">
-					<div
-						class="flex items-center space-x-2 rounded-md bg-white p-2 shadow-xs"
-					>
-						<div class="h-4 w-4 rounded-full bg-[#ecedef]" />
-						<div class="h-2 w-[100px] rounded-lg bg-[#ecedef]" />
-					</div>
-					<div class="space-y-2 rounded-md bg-white p-2 shadow-xs">
-						<div class="h-2 w-20 rounded-lg bg-[#ecedef]" />
-						<div class="h-2 w-[100px] rounded-lg bg-[#ecedef]" />
-					</div>
+				<div class="min-w-0 sm:text-center">
+					<span class="block text-xs font-medium">Dark</span>
+					<span class="text-muted-foreground font-mono text-[10px]">BOOTH</span>
 				</div>
-			</div>
-			<span class="block w-full p-2 text-center font-normal">Light</span>
-		</Label>
-		<Label class="[&:has([data-state=checked])>div]:border-primary flex-col">
-			<RadioGroupItem value="dark" class="sr-only" />
-			<div
-				class="border-muted bg-popover hover:bg-accent hover:text-accent-foreground items-center rounded-xl border-2 p-1"
-			>
-				<div class="space-y-2 rounded-md bg-slate-950 p-2">
-					<div
-						class="flex items-center space-x-2 rounded-md bg-slate-800 p-2 shadow-xs"
-					>
-						<div class="h-4 w-4 rounded-full bg-slate-400" />
-						<div class="h-2 w-[100px] rounded-lg bg-slate-400" />
-					</div>
-					<div class="space-y-2 rounded-md bg-slate-800 p-2 shadow-xs">
-						<div class="h-2 w-20 rounded-lg bg-slate-400" />
-						<div class="h-2 w-[100px] rounded-lg bg-slate-400" />
-					</div>
-				</div>
-			</div>
-			<span class="block w-full p-2 text-center font-normal">Dark</span>
-		</Label>
-	</RadioGroup>
+			</Label>
+		</RadioGroup>
+	</div>
 </template>

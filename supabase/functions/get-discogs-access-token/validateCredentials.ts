@@ -1,11 +1,5 @@
+import type { DiscogsCredentialsRow } from '../_shared/discogs/credentials.ts'
 import { PublicOAuthError } from '../_shared/discogs/oauthErrors.ts'
-
-export interface DiscogsCredentialsRow {
-	request_token: string | null
-	request_secret: string | null
-	access_token: string | null
-	access_secret: string | null
-}
 
 export function validateDiscogsCallbackCredentials(
 	creds: DiscogsCredentialsRow | null,

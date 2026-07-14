@@ -1,17 +1,7 @@
 import oauthSignature from 'npm:oauth-signature@1.5.0'
 import { generateToken } from '../generateToken.ts'
-import { createAuthedSupabaseClient } from '../supabaseHelpers.ts'
-
-const oauth_consumer_key = Deno.env.get('DISCOGS_CONSUMER_KEY') || ''
-const oauth_consumer_secret = Deno.env.get('DISCOGS_CONSUMER_SECRET') || ''
-const userAgent = Deno.env.get('DISCOGS_USER_AGENT') || ''
-
-interface DiscogsCredentialsRow {
-	request_token: string | null
-	request_secret: string | null
-	access_token: string | null
-	access_secret: string | null
-}
+import { getDiscogsConfig } from './config.ts'
+import type { DiscogsCredentialRepository } from './credentials.ts'
 
 /**
  * Make an authenticated Discogs GET request on behalf of the calling user.
@@ -23,20 +13,14 @@ interface DiscogsCredentialsRow {
  *
  * POST is intentionally not supported — no UI feature needs it, and removing
  * it keeps the blast radius of a coerced-client attack scoped to reads.
- *
- * Credentials are fetched via the `get_discogs_credentials` RPC (H3) — the
- * underlying rows are not readable via the authenticated role's RLS.
  */
 export async function makeAuthenticatedRequest(
 	url: string,
-	authHeader: string
+	credentials: DiscogsCredentialRepository,
+	fetcher: typeof fetch = fetch
 ): Promise<Response> {
-	const supabase = createAuthedSupabaseClient(authHeader)
-	const { data: credsData, error } = await supabase.rpc(
-		'get_discogs_credentials'
-	)
-	if (error) throw error
-	const creds = credsData as DiscogsCredentialsRow | null
+	const config = getDiscogsConfig()
+	const creds = await credentials.getCredentials()
 	if (!creds?.access_token) throw new Error('Missing Discogs access token.')
 	if (!creds.access_secret)
 		throw new Error('Missing Discogs access token secret.')
@@ -51,7 +35,7 @@ export async function makeAuthenticatedRequest(
 	// URL. oauthSignature.generate encodes and sorts keys per the spec; we just
 	// need to hand it the complete param set.
 	const signatureParams: Record<string, string> = {
-		oauth_consumer_key,
+		oauth_consumer_key: config.consumerKey,
 		oauth_token: creds.access_token,
 		oauth_nonce,
 		oauth_timestamp,
@@ -66,7 +50,7 @@ export async function makeAuthenticatedRequest(
 		'GET',
 		baseUrl,
 		signatureParams,
-		oauth_consumer_secret,
+		config.consumerSecret,
 		creds.access_secret
 	)
 
@@ -76,8 +60,8 @@ export async function makeAuthenticatedRequest(
 	}
 	finalParams.append('oauth_signature', encodedSignature)
 
-	return await fetch(`${baseUrl}?${finalParams}`, {
+	return await fetcher(`${baseUrl}?${finalParams}`, {
 		method: 'GET',
-		headers: { 'User-Agent': userAgent }
+		headers: { 'User-Agent': config.userAgent }
 	})
 }

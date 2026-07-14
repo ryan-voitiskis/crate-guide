@@ -1,4 +1,8 @@
 <script setup lang="ts">
+const props = defineProps<{
+	localOnly?: boolean
+}>()
+
 const user = useUserStore()
 
 const silverDeckBackground = `linear-gradient(
@@ -56,39 +60,51 @@ const turntableTheme = ref<TurntableThemeOptions>(
 )
 
 watch(turntableTheme, (theme) => {
-	user.updateSettings({ turntable_theme: theme })
+	if (!props.localOnly) void user.updateSettings({ turntable_theme: theme })
 })
 </script>
 
 <template>
-	<Label>Turntable colour</Label>
-	<RadioGroup
-		v-model="turntableTheme"
-		class="grid max-w-md grid-cols-2 gap-4 pt-2"
-	>
-		<Label class="[&:has([data-state=checked])>div]:border-primary flex-col">
-			<RadioGroupItem value="silver" class="sr-only" />
-			<div
-				class="border-muted hover:border-accent w-full items-center rounded-xl border-2 p-1"
+	<div class="space-y-3">
+		<div class="space-y-1">
+			<Label>Turntable finish</Label>
+			<p class="text-muted-foreground text-xs">
+				Choose the hardware finish used by the deck simulator.
+			</p>
+		</div>
+		<RadioGroup v-model="turntableTheme" class="grid grid-cols-2 gap-2">
+			<Label
+				class="[&:has([data-state=checked])>div]:border-primary cursor-pointer flex-col"
 			>
+				<RadioGroupItem value="silver" class="sr-only" />
 				<div
-					class="h-24 w-full rounded-md"
-					:style="`background: ${silverDeckMaterial}`"
-				/>
-			</div>
-			<span class="block w-full p-2 text-center font-normal">Silver</span>
-		</Label>
-		<Label class="[&:has([data-state=checked])>div]:border-primary flex-col">
-			<RadioGroupItem value="black" class="sr-only" />
-			<div
-				class="border-muted hover:border-accent w-full items-center rounded-xl border-2 p-1"
+					class="border-border hover:bg-muted/40 w-full items-center rounded-sm border p-1.5 transition-colors"
+				>
+					<div
+						class="h-12 w-full rounded-[2px] sm:h-16"
+						:style="`background: ${silverDeckMaterial}`"
+					/>
+				</div>
+				<span class="block w-full pt-2 text-center text-xs font-medium">
+					Silver
+				</span>
+			</Label>
+			<Label
+				class="[&:has([data-state=checked])>div]:border-primary cursor-pointer flex-col"
 			>
+				<RadioGroupItem value="black" class="sr-only" />
 				<div
-					class="h-24 w-full rounded-md"
-					:style="`background: ${blackDeckBackground}`"
-				/>
-			</div>
-			<span class="block w-full p-2 text-center font-normal">Black</span>
-		</Label>
-	</RadioGroup>
+					class="border-border hover:bg-muted/40 w-full items-center rounded-sm border p-1.5 transition-colors"
+				>
+					<div
+						class="h-12 w-full rounded-[2px] sm:h-16"
+						:style="`background: ${blackDeckBackground}`"
+					/>
+				</div>
+				<span class="block w-full pt-2 text-center text-xs font-medium">
+					Black
+				</span>
+			</Label>
+		</RadioGroup>
+	</div>
 </template>

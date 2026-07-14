@@ -1,121 +1,203 @@
 <script setup lang="ts">
-import { ExternalLink } from 'lucide-vue-next'
+import {
+	Disc3,
+	ExternalLink,
+	Palette,
+	Plug,
+	ShieldAlert,
+	SlidersHorizontal,
+	UserRound
+} from 'lucide-vue-next'
 
 const user = useUserStore()
+
+const settingsSections = computed(() => [
+	{ id: 'integration', label: 'Integration', icon: Plug },
+	{ id: 'appearance', label: 'Appearance', icon: Palette },
+	{ id: 'deck', label: 'Deck controls', icon: SlidersHorizontal },
+	...(user.supaUser
+		? [
+				{ id: 'account', label: 'Account', icon: UserRound },
+				{ id: 'danger', label: 'Data controls', icon: ShieldAlert }
+			]
+		: [])
+])
 </script>
 
 <template>
 	<div class="scrollbar-hidden flex-1 overflow-y-auto">
-		<div class="mx-auto w-full max-w-2xl px-6 pt-6 pb-14">
-			<div class="space-y-8">
-				<div class="space-y-2">
-					<h1 class="text-2xl font-semibold">Settings</h1>
-					<p v-if="user.supaUser" class="text-muted-foreground">
-						Welcome back,
-						{{ user.supaUser.user_metadata?.full_name || user.supaUser.email }}
+		<div class="mx-auto w-full max-w-6xl px-3 py-4 sm:px-5 sm:py-6">
+			<header class="mb-5 flex items-end justify-between gap-4">
+				<div>
+					<div
+						class="text-muted-foreground mb-1 font-mono text-[10px] tracking-[0.18em] uppercase"
+					>
+						System / Preferences
+					</div>
+					<h1 class="text-2xl font-semibold tracking-tight">Settings</h1>
+					<p class="text-muted-foreground mt-1 max-w-xl text-sm">
+						Tune your library, notation and playback workspace.
 					</p>
 				</div>
+				<div
+					class="border-border bg-muted/30 hidden items-center gap-2 rounded-sm border px-2.5 py-1.5 font-mono text-[10px] tracking-wide uppercase lg:flex"
+				>
+					<span class="size-1.5 rounded-full bg-emerald-500" />
+					Preferences local
+				</div>
+			</header>
 
-				<Card class="gap-4">
-					<CardHeader class="pb-0">
-						<CardTitle>Discogs Integration</CardTitle>
-						<CardDescription>
-							Connect your Discogs account to import and sync collection data.
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<DetailsDiscogsAuth :show-heading="false" />
-					</CardContent>
-				</Card>
+			<div class="grid items-start gap-5 lg:grid-cols-[180px_minmax(0,1fr)]">
+				<nav
+					class="border-border bg-card/60 sticky top-3 hidden overflow-hidden rounded-sm border lg:block"
+					aria-label="Settings sections"
+				>
+					<div
+						class="border-border text-muted-foreground border-b px-3 py-2 font-mono text-[10px] tracking-[0.16em] uppercase"
+					>
+						Sections
+					</div>
+					<a
+						v-for="section in settingsSections"
+						:key="section.id"
+						:href="`#${section.id}`"
+						class="border-border/70 hover:bg-muted/60 flex items-center gap-2 border-b px-3 py-2.5 text-xs transition-colors last:border-b-0"
+					>
+						<component
+							:is="section.icon"
+							class="text-muted-foreground size-3.5"
+						/>
+						{{ section.label }}
+					</a>
+				</nav>
 
-				<Card class="gap-4">
-					<CardHeader class="pb-0">
-						<CardTitle>Appearance</CardTitle>
-						<CardDescription>
-							Choose a theme and turntable color for the interface.
-						</CardDescription>
-					</CardHeader>
-					<CardContent class="space-y-6">
-						<SelectorTheme />
-						<Separator />
-						<SelectorKeyFormat />
-						<Separator />
-						<SelectorTurntableColor />
-					</CardContent>
-				</Card>
+				<div
+					class="border-border bg-card/65 divide-border divide-y overflow-hidden rounded-sm border shadow-xs"
+				>
+					<section id="integration" class="scroll-mt-3 p-4 sm:p-5">
+						<div
+							class="grid gap-4 md:grid-cols-[minmax(0,0.8fr)_minmax(260px,1.2fr)]"
+						>
+							<div>
+								<div class="flex items-center gap-2">
+									<Plug class="text-primary size-4" />
+									<h2 class="text-sm font-semibold">Discogs integration</h2>
+								</div>
+								<p class="text-muted-foreground mt-1 text-xs leading-relaxed">
+									Connect your account to import and keep collection metadata in
+									sync.
+								</p>
+							</div>
+							<DetailsDiscogsAuth :show-heading="false" />
+						</div>
+					</section>
 
-				<Card class="gap-4">
-					<CardHeader class="pb-0">
-						<CardTitle>Turntable Settings</CardTitle>
-						<CardDescription>
-							Control playback behavior for deck simulation.
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<SelectPitchRange />
-					</CardContent>
-				</Card>
+					<section id="appearance" class="scroll-mt-3 p-4 sm:p-5">
+						<div class="mb-5 flex items-center gap-2">
+							<Palette class="text-primary size-4" />
+							<div>
+								<h2 class="text-sm font-semibold">Appearance &amp; notation</h2>
+								<p class="text-muted-foreground text-xs">
+									Choose the visual environment and how musical data is shown.
+								</p>
+							</div>
+						</div>
+						<div class="space-y-5">
+							<SelectorTheme />
+							<Separator />
+							<SelectorKeyFormat />
+							<Separator />
+							<SelectorTurntableColor />
+						</div>
+					</section>
 
-				<Card v-if="user.supaUser" class="gap-4">
-					<CardHeader class="pb-0">
-						<CardTitle>Account</CardTitle>
-						<CardDescription>
-							Manage your current authenticated session.
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
+					<section id="deck" class="scroll-mt-3 p-4 sm:p-5">
+						<div
+							class="grid gap-4 md:grid-cols-[minmax(0,0.8fr)_minmax(260px,1.2fr)] md:items-center"
+						>
+							<div>
+								<div class="flex items-center gap-2">
+									<Disc3 class="text-primary size-4" />
+									<h2 class="text-sm font-semibold">Deck controls</h2>
+								</div>
+								<p class="text-muted-foreground mt-1 text-xs leading-relaxed">
+									Set the control range used by the turntable simulation.
+								</p>
+							</div>
+							<SelectPitchRange />
+						</div>
+					</section>
+
+					<section
+						v-if="user.supaUser"
+						id="account"
+						class="scroll-mt-3 p-4 sm:p-5"
+					>
+						<h2 class="mb-3 text-sm font-semibold">Account</h2>
 						<div
 							class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
 						>
-							<div class="space-y-1">
-								<p class="text-sm font-medium">
-									{{
-										user.supaUser.user_metadata?.full_name || 'Signed in user'
-									}}
-								</p>
-								<p class="text-muted-foreground text-sm">
-									{{ user.supaUser.email }}
-								</p>
+							<div class="flex min-w-0 items-center gap-3">
+								<div
+									class="bg-muted flex size-9 shrink-0 items-center justify-center rounded-sm border"
+								>
+									<UserRound class="size-4" />
+								</div>
+								<div class="min-w-0">
+									<p class="truncate text-sm font-medium">
+										{{
+											user.supaUser.user_metadata?.full_name || 'Signed in user'
+										}}
+									</p>
+									<p class="text-muted-foreground truncate font-mono text-xs">
+										{{ user.supaUser.email }}
+									</p>
+								</div>
 							</div>
-							<Button variant="outline" @click="user.signOut">Log out</Button>
+							<Button variant="outline" size="sm" @click="user.signOut">
+								Log out
+							</Button>
 						</div>
-					</CardContent>
-				</Card>
+					</section>
 
-				<Card v-if="user.supaUser" class="border-destructive/50 gap-4">
-					<CardHeader class="pb-0">
-						<CardTitle class="text-destructive">Danger Zone</CardTitle>
-						<CardDescription>
-							Permanent actions that remove collection data.
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
+					<section
+						v-if="user.supaUser"
+						id="danger"
+						class="scroll-mt-3 p-4 sm:p-5"
+					>
 						<div
-							class="bg-destructive/5 border-destructive/20 flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+							class="border-destructive/25 bg-destructive/5 flex flex-col gap-4 rounded-sm border p-3 sm:flex-row sm:items-center sm:justify-between"
 						>
-							<div class="space-y-1">
-								<p class="text-sm font-medium">Clear all data</p>
-								<p class="text-muted-foreground text-sm">
-									Permanently delete all your records and tracks. This cannot be
-									undone.
-								</p>
+							<div class="flex items-start gap-3">
+								<ShieldAlert class="text-destructive mt-0.5 size-4 shrink-0" />
+								<div>
+									<p class="text-destructive text-sm font-medium">
+										Clear all library data
+									</p>
+									<p
+										class="text-muted-foreground mt-0.5 max-w-xl text-xs leading-relaxed"
+									>
+										Permanently delete every record and track. This cannot be
+										undone.
+									</p>
+								</div>
 							</div>
 							<DialogClearAllData />
 						</div>
-					</CardContent>
-				</Card>
-
-				<a
-					href="https://github.com/ryan-voitiskis/crate-guide"
-					target="_blank"
-					rel="noopener noreferrer"
-					class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-sm transition-colors"
-				>
-					<IconGithub class="size-4" />
-					Source code · AGPL-3.0
-					<ExternalLink class="size-3.5" />
-				</a>
+					</section>
+				</div>
 			</div>
+
+			<a
+				href="https://github.com/ryan-voitiskis/crate-guide"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="text-muted-foreground hover:text-foreground mt-5 inline-flex items-center gap-2 font-mono text-[11px] transition-colors"
+			>
+				<IconGithub class="size-3.5" />
+				Source / AGPL-3.0
+				<ExternalLink class="size-3" />
+			</a>
 		</div>
 	</div>
 </template>

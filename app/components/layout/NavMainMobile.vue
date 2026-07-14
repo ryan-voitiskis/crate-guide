@@ -11,21 +11,28 @@ function handleNavigate() {
 </script>
 
 <template>
-	<nav class="flex flex-col gap-1">
+	<nav class="flex flex-col gap-0.5" aria-label="Library navigation">
 		<NuxtLink
-			v-for="item in visibleNavItems"
+			v-for="(item, index) in visibleNavItems"
 			:key="item.path"
 			:to="getHref(item.path)"
-			class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors"
+			class="focus-visible:ring-ring flex h-10 items-center gap-3 rounded-sm border border-transparent px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
 			:class="
 				isActive(item.path)
-					? 'bg-accent text-accent-foreground'
-					: 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+					? 'border-border bg-background text-foreground shadow-xs'
+					: 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
 			"
 			@click="handleNavigate"
 		>
-			<component :is="item.icon" class="size-4" />
-			{{ item.label }}
+			<component
+				:is="item.icon"
+				class="size-4"
+				:class="isActive(item.path) ? 'text-primary' : ''"
+			/>
+			<span class="flex-1">{{ item.label }}</span>
+			<span class="font-mono text-[0.6rem] text-current/35 tabular-nums">
+				{{ String(index + 1).padStart(2, '0') }}
+			</span>
 		</NuxtLink>
 	</nav>
 </template>

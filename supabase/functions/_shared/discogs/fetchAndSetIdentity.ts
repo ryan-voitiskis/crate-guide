@@ -1,9 +1,7 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
-import { getUser } from '../supabaseHelpers.ts'
+import { getDiscogsConfig } from './config.ts'
+import type { DiscogsCredentialRepository } from './credentials.ts'
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest.ts'
 import { PublicOAuthError, buildDiscogsOAuthHttpError } from './oauthErrors.ts'
-
-const userAgent = Deno.env.get('DISCOGS_USER_AGENT') || ''
 
 function isTrustedDiscogsResourceUrl(
 	resourceUrl: unknown
@@ -26,18 +24,18 @@ function isTrustedDiscogsResourceUrl(
 }
 
 export async function fetchAndSetIdentity(
-	supabase: SupabaseClient,
-	authHeader: string
+	credentials: DiscogsCredentialRepository,
+	fetcher: typeof fetch = fetch
 ) {
+	const config = getDiscogsConfig()
 	const identityResponse = await makeAuthenticatedRequest(
 		'https://api.discogs.com/oauth/identity',
-		authHeader
+		credentials,
+		fetcher
 	)
 	if (!identityResponse.ok) {
-		const responseText = await identityResponse.text()
 		console.error('Discogs identity error response:', {
-			status: identityResponse.status,
-			body: responseText
+			status: identityResponse.status
 		})
 		throw buildDiscogsOAuthHttpError('identity', identityResponse.status)
 	}
@@ -51,27 +49,26 @@ export async function fetchAndSetIdentity(
 	let discogs_avatar_url = null
 	if (isTrustedDiscogsResourceUrl(identity.resource_url)) {
 		try {
-			const discogsUserResponse = await fetch(identity.resource_url, {
-				headers: { 'User-Agent': userAgent }
+			const discogsUserResponse = await fetcher(identity.resource_url, {
+				headers: { 'User-Agent': config.userAgent }
 			})
 			if (discogsUserResponse.ok) {
 				const discogsUser = await discogsUserResponse.json()
 				discogs_avatar_url = discogsUser.avatar_url
 			}
-		} catch (e) {
-			console.warn('Failed to fetch Discogs avatar URL:', e)
+		} catch {
+			console.warn('Failed to fetch Discogs avatar URL')
 		}
 	} else if (identity.resource_url) {
 		console.warn('Skipping unexpected Discogs resource URL host')
 	}
 
-	const user = await getUser(supabase)
-	const { error } = await supabase
+	const { error } = await credentials.callerClient
 		.from('profiles')
 		.update({
 			discogs_username: identity.username,
 			discogs_avatar_url
 		})
-		.eq('id', user.id)
+		.eq('id', credentials.user.id)
 	if (error) throw error
 }

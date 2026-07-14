@@ -56,10 +56,10 @@ function getTrackKeyColor(track: Track): string | null {
 </script>
 
 <template>
-	<article class="overflow-hidden rounded-lg border">
-		<div class="flex flex-col gap-4 p-3 sm:flex-row">
+	<article class="bg-card overflow-hidden rounded-sm border shadow-xs">
+		<div class="flex flex-col gap-3 p-2.5 sm:flex-row">
 			<div
-				class="bg-muted flex aspect-square w-full shrink-0 items-center justify-center overflow-hidden rounded-none sm:size-36"
+				class="bg-muted border-border flex aspect-square w-full shrink-0 items-center justify-center overflow-hidden rounded-none border sm:size-28"
 			>
 				<img
 					v-if="result.record.cover"
@@ -94,7 +94,9 @@ function getTrackKeyColor(track: Track): string | null {
 					</p>
 				</header>
 
-				<div class="space-y-1">
+				<div
+					class="border-border divide-border divide-y overflow-hidden rounded-sm border"
+				>
 					<button
 						v-for="track in displayedTracks"
 						:key="track.id"
@@ -106,7 +108,7 @@ function getTrackKeyColor(track: Track): string | null {
 							matchedTrackIds.has(track.id)
 								? 'border-primary/40 bg-primary/10 hover:bg-primary/15'
 								: 'hover:bg-accent border-transparent',
-							'focus-visible:ring-ring flex min-h-8 w-full items-start gap-2 rounded-md border px-2 py-1.5 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none'
+							'focus-visible:ring-ring flex min-h-8 w-full items-start gap-2 border-x-0 border-y-0 px-2 py-1.5 text-left text-xs transition-colors focus-visible:z-10 focus-visible:ring-2 focus-visible:outline-none'
 						]"
 						@click="$emit('selectTrack', track.id)"
 					>

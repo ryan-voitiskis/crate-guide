@@ -1,9 +1,11 @@
-// Thin client over the authenticated-discogs-request edge function.
-//
-// The edge function is a per-endpoint dispatcher (H4): callers pick a named
-// endpoint and pass structured params. The server resolves the Discogs URL
-// (including the user's discogs_username) so the client cannot point the
-// proxy at arbitrary paths, and cannot issue writes the UI doesn't expose.
+import {
+	type DiscogsFolderResponse,
+	type DiscogsFoldersResponse,
+	type DiscogsReleaseFull,
+	isDiscogsFolderResponse,
+	isDiscogsFoldersResponse,
+	isDiscogsReleaseFull
+} from '../../shared/types/discogs'
 
 type DispatchBody =
 	| { endpoint: 'folders' }
@@ -19,7 +21,7 @@ export function useDiscogsApi() {
 	const supabase = getSupabase()
 	const user = useUserStore()
 
-	const invokeDispatcher = async <T>(body: DispatchBody): Promise<T> => {
+	const invokeDispatcher = async (body: DispatchBody): Promise<unknown> => {
 		const { data, error } = await supabase.functions.invoke(
 			'authenticated-discogs-request',
 			{ body: JSON.stringify(body) }
@@ -31,11 +33,26 @@ export function useDiscogsApi() {
 		return data
 	}
 
+	const decodeResponse = <T>(
+		data: unknown,
+		isExpectedResponse: (value: unknown) => value is T,
+		endpoint: string
+	): T => {
+		if (!isExpectedResponse(data)) {
+			throw new Error(`Discogs returned an invalid ${endpoint} response.`)
+		}
+		return data
+	}
+
 	const getFolders = async (): Promise<DiscogsFoldersResponse> => {
 		if (!user.profile?.discogs_username) {
 			throw new Error('Discogs username required.')
 		}
-		return invokeDispatcher<DiscogsFoldersResponse>({ endpoint: 'folders' })
+		return decodeResponse(
+			await invokeDispatcher({ endpoint: 'folders' }),
+			isDiscogsFoldersResponse,
+			'folders'
+		)
 	}
 
 	const getFolderReleases = async (
@@ -46,19 +63,27 @@ export function useDiscogsApi() {
 		if (!user.profile?.discogs_username) {
 			throw new Error('Discogs username required.')
 		}
-		return invokeDispatcher<DiscogsFolderResponse>({
-			endpoint: 'folder_releases',
-			folder_id: folderId,
-			page,
-			per_page: perPage
-		})
+		return decodeResponse(
+			await invokeDispatcher({
+				endpoint: 'folder_releases',
+				folder_id: folderId,
+				page,
+				per_page: perPage
+			}),
+			isDiscogsFolderResponse,
+			'folder releases'
+		)
 	}
 
 	const getRelease = async (releaseId: number): Promise<DiscogsReleaseFull> => {
-		return invokeDispatcher<DiscogsReleaseFull>({
-			endpoint: 'release',
-			release_id: releaseId
-		})
+		return decodeResponse(
+			await invokeDispatcher({
+				endpoint: 'release',
+				release_id: releaseId
+			}),
+			isDiscogsReleaseFull,
+			'release'
+		)
 	}
 
 	return {

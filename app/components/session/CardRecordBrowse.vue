@@ -23,7 +23,7 @@ const catalogueNumber = computed(() =>
 		type="button"
 		data-testid="load-track-record-tile"
 		:data-record-id="record.id"
-		class="hover:bg-accent focus-visible:ring-ring group w-full rounded-lg border p-2 text-left transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+		class="bg-card hover:bg-accent focus-visible:ring-ring group w-full rounded-sm border p-1.5 text-left shadow-xs transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 		@click="$emit('select')"
 	>
 		<div

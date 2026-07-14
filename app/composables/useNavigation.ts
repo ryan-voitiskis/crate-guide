@@ -8,12 +8,49 @@ import {
 } from 'lucide-vue-next'
 
 export const navItems = [
-	{ path: '', label: 'Session', icon: Radio },
-	{ path: '/tracks', label: 'Tracks', icon: Music },
-	{ path: '/records', label: 'Records', icon: Disc },
-	{ path: '/crates', label: 'Crates', icon: FolderOpen },
-	{ path: '/enrichment', label: 'BPM & Key', icon: WandSparkles, demo: false },
-	{ path: '/settings', label: 'Settings', icon: Settings }
+	{
+		path: '',
+		label: 'Session',
+		description: 'Build and rehearse a set across virtual decks',
+		shortcut: 'G S',
+		icon: Radio
+	},
+	{
+		path: '/tracks',
+		label: 'Tracks',
+		description: 'Search, sort and inspect the full track library',
+		shortcut: 'G T',
+		icon: Music
+	},
+	{
+		path: '/records',
+		label: 'Records',
+		description: 'Browse releases, labels and catalog numbers',
+		shortcut: 'G R',
+		icon: Disc
+	},
+	{
+		path: '/crates',
+		label: 'Crates',
+		description: 'Organise records into gig-ready collections',
+		shortcut: 'G C',
+		icon: FolderOpen
+	},
+	{
+		path: '/enrichment',
+		label: 'BPM & Key',
+		description: 'Review and apply local track analysis',
+		shortcut: 'G E',
+		icon: WandSparkles,
+		demo: false
+	},
+	{
+		path: '/settings',
+		label: 'Settings',
+		description: 'Appearance, accounts and integrations',
+		shortcut: 'G ,',
+		icon: Settings
+	}
 ] as const
 
 export function useNavigation() {

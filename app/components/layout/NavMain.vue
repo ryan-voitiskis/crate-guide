@@ -1,32 +1,59 @@
 <script setup lang="ts">
 const { isActive, getHref, visibleNavItems } = useNavigation()
-
-// Classes extracted from TabsTrigger
-const baseClasses = `inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4`
-
-const focusClasses = `focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring`
-
-const activeClasses = `bg-background text-foreground dark:border-input dark:bg-input/30 shadow-sm`
-
-const inactiveClasses = `text-foreground dark:text-muted-foreground`
 </script>
 
 <template>
-	<nav
-		class="bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]"
-	>
-		<NuxtLink
-			v-for="item in visibleNavItems"
-			:key="item.path"
-			:to="getHref(item.path)"
-			:class="[
-				baseClasses,
-				focusClasses,
-				isActive(item.path) ? activeClasses : inactiveClasses
-			]"
+	<nav class="flex min-h-0 flex-1 flex-col p-2" aria-label="Library navigation">
+		<div
+			class="text-muted-foreground flex items-center justify-between px-2 pt-2 pb-2 font-mono text-[0.58rem] tracking-[0.18em] uppercase"
 		>
-			<component :is="item.icon" class="size-4" />
-			{{ item.label }}
-		</NuxtLink>
+			<span>Workspace</span>
+			<span>CG-01</span>
+		</div>
+
+		<div class="space-y-0.5">
+			<NuxtLink
+				v-for="(item, index) in visibleNavItems"
+				:key="item.path"
+				:to="getHref(item.path)"
+				class="group focus-visible:ring-ring relative flex h-9 items-center gap-2.5 rounded-sm border border-transparent px-2 text-[0.8rem] font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
+				:class="
+					isActive(item.path)
+						? 'border-border bg-background text-foreground shadow-xs'
+						: 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+				"
+			>
+				<span
+					v-if="isActive(item.path)"
+					aria-hidden="true"
+					class="bg-primary absolute top-1/2 -left-2 h-5 w-0.5 -translate-y-1/2"
+				/>
+				<component
+					:is="item.icon"
+					class="size-3.5 shrink-0"
+					:class="isActive(item.path) ? 'text-primary' : ''"
+				/>
+				<span class="min-w-0 flex-1 truncate">{{ item.label }}</span>
+				<span class="font-mono text-[0.55rem] text-current/30 tabular-nums">
+					{{ String(index + 1).padStart(2, '0') }}
+				</span>
+			</NuxtLink>
+		</div>
+
+		<div class="mt-auto px-2 pt-6 pb-2">
+			<div class="border-border/70 border-t pt-3">
+				<div
+					class="text-muted-foreground flex items-center gap-2 font-mono text-[0.58rem] tracking-[0.12em] uppercase"
+				>
+					<span
+						class="bg-led size-1.5 rounded-full shadow-[0_0_6px_var(--led)]"
+					/>
+					<span>Library online</span>
+				</div>
+				<p class="text-muted-foreground/65 mt-2 text-[0.65rem] leading-relaxed">
+					Private collection data, organised for the booth.
+				</p>
+			</div>
+		</div>
 	</nav>
 </template>

@@ -1,88 +1,55 @@
 <script setup lang="ts">
-import { Disc3, ImageOff } from 'lucide-vue-next'
+import { ChevronRight, Disc3 } from 'lucide-vue-next'
 
-const props = defineProps<{ crate: Crate }>()
+const props = withDefaults(
+	defineProps<{
+		crate: Crate
+		active?: boolean
+	}>(),
+	{ active: false }
+)
+
 const emit = defineEmits<{ select: [crate: Crate] }>()
 
 const records = useRecordsStore()
 
-const crateRecords = computed(() => {
-	const ids = props.crate.records.slice(0, 4)
-	return records.getRecordsByIds(ids)
-})
-
-const recordCount = computed(() => props.crate.records.length)
+const previewRecords = computed(() =>
+	records.getRecordsByIds(props.crate.records.slice(0, 3))
+)
 </script>
 
 <template>
-	<Card
-		class="group relative h-32 cursor-pointer overflow-hidden p-0 transition-all hover:shadow-md"
+	<button
+		type="button"
+		class="group relative flex w-full items-center gap-2.5 border-b px-3 py-2.5 text-left transition-colors last:border-b-0"
+		:class="
+			active
+				? 'bg-primary/8 text-foreground'
+				: 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+		"
+		:aria-current="active ? 'true' : undefined"
 		@click="emit('select', crate)"
 	>
-		<CardContent class="flex h-full p-0">
-			<!-- Left side: Crate info -->
-			<div class="flex min-w-0 flex-1 flex-col justify-between p-3">
-				<div class="min-w-0">
-					<div class="flex items-center gap-2">
-						<div
-							v-if="crate.color"
-							class="size-3 shrink-0 rounded-full"
-							:style="{ backgroundColor: crate.color }"
-						/>
-						<h3 class="text-foreground truncate text-sm font-semibold">
-							{{ crate.name }}
-						</h3>
-					</div>
-					<p class="text-muted-foreground mt-1 line-clamp-2 text-xs">
-						{{ crate.description || 'No description' }}
-					</p>
-				</div>
-				<Badge variant="secondary" class="w-fit">
-					<Disc3 class="mr-1 size-3" />
-					{{ recordCount }} {{ recordCount === 1 ? 'record' : 'records' }}
-				</Badge>
-			</div>
+		<span
+			class="h-8 w-1 shrink-0 rounded-full"
+			:class="!crate.color && 'bg-border'"
+			:style="crate.color ? { backgroundColor: crate.color } : undefined"
+		/>
 
-			<!-- Right side: Record previews -->
-			<div class="flex shrink-0 items-center gap-1 p-2">
-				<template v-if="crateRecords.length > 0">
-					<div
-						v-for="record in crateRecords"
-						:key="record.id"
-						class="bg-muted flex size-[72px] shrink-0 flex-col overflow-hidden rounded"
-					>
-						<div
-							class="bg-muted h-10 w-full bg-cover bg-center"
-							:style="
-								record.cover
-									? { backgroundImage: `url('${record.cover}')` }
-									: {}
-							"
-						>
-							<div
-								v-if="!record.cover"
-								class="flex h-full items-center justify-center"
-							>
-								<ImageOff class="text-muted-foreground size-4" />
-							</div>
-						</div>
-						<div class="flex min-w-0 flex-1 flex-col justify-center px-1">
-							<span class="text-muted-foreground truncate text-[10px]">
-								{{ record.labels[0]?.catno || record.title }}
-							</span>
-							<span class="text-muted-foreground/70 truncate text-[9px]">
-								{{ record.year || '' }}
-							</span>
-						</div>
-					</div>
-				</template>
-				<div
-					v-else
-					class="bg-muted/50 text-muted-foreground flex h-[72px] w-24 items-center justify-center rounded text-xs"
-				>
-					Empty
-				</div>
-			</div>
-		</CardContent>
-	</Card>
+		<span class="min-w-0 flex-1">
+			<span class="block truncate text-sm font-medium">{{ crate.name }}</span>
+			<span class="mt-0.5 flex items-center gap-1.5 text-[11px] tabular-nums">
+				<Disc3 class="size-3" />
+				{{ crate.records.length }}
+				<span v-if="previewRecords.length" class="truncate">
+					· {{ previewRecords.map((record) => record.title).join(', ') }}
+				</span>
+			</span>
+		</span>
+
+		<ChevronRight
+			class="size-3.5 shrink-0 transition-transform group-hover:translate-x-0.5"
+			:class="active ? 'text-primary' : 'opacity-45'"
+		/>
+	</button>
 </template>

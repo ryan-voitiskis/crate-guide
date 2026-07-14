@@ -112,7 +112,9 @@ function handleFileDrop(file: File) {
 <template>
 	<div class="flex min-h-0 flex-1 flex-col">
 		<div class="scrollbar-hidden flex-1 overflow-y-auto">
-			<div class="mx-auto flex max-w-[1600px] flex-col gap-4 p-2 pb-0">
+			<div
+				class="mx-auto flex max-w-[1600px] flex-col gap-3 p-3 pb-0 sm:p-4 sm:pb-0"
+			>
 				<input
 					ref="fileInput"
 					type="file"
@@ -122,10 +124,15 @@ function handleFileDrop(file: File) {
 				/>
 
 				<div
-					class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+					class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between"
 				>
 					<div class="min-w-0">
-						<h1 class="text-xl font-semibold">BPM &amp; Key</h1>
+						<div
+							class="text-muted-foreground mb-1 font-mono text-[10px] tracking-[0.18em] uppercase"
+						>
+							Analysis / Metadata repair
+						</div>
+						<h1 class="text-xl font-semibold tracking-tight">BPM &amp; Key</h1>
 						<p class="text-muted-foreground truncate text-sm">
 							{{
 								selectedFileName ||
@@ -134,18 +141,36 @@ function handleFileDrop(file: File) {
 						</p>
 					</div>
 
-					<Button
-						v-if="currentStep === 2"
-						variant="outline"
-						@click="returnToSource"
-					>
-						<ArrowLeft class="mr-2 size-4" />
-						Back to source
-					</Button>
+					<div class="flex items-center gap-2">
+						<div
+							class="border-border bg-muted/30 hidden items-center gap-2 rounded-sm border px-2.5 py-1.5 font-mono text-[10px] tracking-wide uppercase sm:flex"
+						>
+							<span
+								class="size-1.5 rounded-full"
+								:class="
+									collectionLoadState === 'ready'
+										? 'bg-emerald-500'
+										: 'bg-amber-500'
+								"
+							/>
+							{{
+								collectionLoadState === 'ready' ? 'Library ready' : 'Indexing'
+							}}
+						</div>
+						<Button
+							v-if="currentStep === 2"
+							variant="outline"
+							size="sm"
+							@click="returnToSource"
+						>
+							<ArrowLeft class="mr-2 size-4" />
+							Back to source
+						</Button>
+					</div>
 				</div>
 
 				<div
-					class="border-border grid grid-cols-3 overflow-hidden rounded-md border"
+					class="border-border bg-card/60 grid grid-cols-3 overflow-hidden rounded-sm border shadow-xs"
 				>
 					<button
 						v-for="step in workflowSteps"
@@ -154,7 +179,7 @@ function handleFileDrop(file: File) {
 						:disabled="
 							collectionLoadState !== 'ready' || !canNavigateToStep(step.number)
 						"
-						class="border-border flex min-w-0 items-center gap-2 border-r px-2 py-2.5 last:border-r-0 sm:px-4"
+						class="border-border flex min-w-0 items-center gap-2 border-r px-2 py-2 last:border-r-0 sm:px-4"
 						:class="
 							currentStep === step.number
 								? 'bg-muted/60'
@@ -166,7 +191,7 @@ function handleFileDrop(file: File) {
 						@click="navigateToStep(step.number)"
 					>
 						<div
-							class="flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold"
+							class="flex size-5 shrink-0 items-center justify-center rounded-[2px] border font-mono text-[10px] font-semibold"
 							:class="
 								isStepComplete(step.number)
 									? 'border-primary bg-primary text-primary-foreground'

@@ -1,5 +1,24 @@
 <script setup lang="ts">
-import { Disc, Gauge, KeyRound, Search, WandSparkles } from 'lucide-vue-next'
+import {
+	Disc3,
+	Gauge,
+	KeyRound,
+	Search,
+	ShieldAlert,
+	WandSparkles
+} from 'lucide-vue-next'
+
+type TrackSortKey =
+	| 'position'
+	| 'title'
+	| 'artist'
+	| 'release'
+	| 'duration'
+	| 'bpm'
+	| 'key'
+	| 'genre'
+type SortDirection = 'asc' | 'desc'
+type Density = 'compact' | 'comfortable'
 
 const records = useRecordsStore()
 const tracks = useTracksStore()
@@ -7,24 +26,23 @@ const trackFilters = useTrackFiltersStore()
 const user = useUserStore()
 
 const isActive = usePageActive()
+const isMobile = useMediaQuery('(max-width: 1279px)')
 
 const selectedTrackId = ref<string | null>(null)
+const editingTrackId = ref<string | null>(null)
+const mobileInspectorOpen = ref(false)
+const density = useState<Density>('workbench-density', () => 'compact')
+const sortKey = ref<TrackSortKey>('artist')
+const sortDirection = ref<SortDirection>('asc')
 
-function openTrackDetails(trackId: string) {
-	selectedTrackId.value = trackId
-}
+const selectedTrack = computed(() =>
+	selectedTrackId.value ? tracks.getTrackById(selectedTrackId.value) : null
+)
 
-function getRecordForTrack(trackId: string) {
-	const track = tracks.getTrackById(trackId)
-	if (!track) return null
-	return records.getRecordById(track.record_id)
-}
-
-const tracksWithRecords = computed(() =>
-	trackFilters.filteredTracks.map((track) => ({
-		track,
-		record: getRecordForTrack(track.id)
-	}))
+const selectedRecord = computed(() =>
+	selectedTrack.value
+		? (records.getRecordById(selectedTrack.value.record_id) ?? null)
+		: null
 )
 
 const missingBpmCount = computed(
@@ -42,36 +60,18 @@ const missingAnalysisCount = computed(
 		).length
 )
 
-function getCoverStyle(cover: string | null | undefined) {
-	return cover ? { backgroundImage: `url('${cover}')` } : {}
+function getRecordForTrack(track: Track) {
+	return records.getRecordById(track.record_id)
 }
 
-function getKeyStyle(track: Track) {
-	if (track.key !== null && track.mode !== null) {
-		return { color: getKeyColour(track.key, track.mode) }
-	}
-	return {}
-}
-
-function formatArtists(
-	artists: DiscogsArtistDb[],
-	extraartists: DiscogsArtistDb[]
-) {
-	const artistNames = artists.map((a) => a.name)
-	const hasExtraArtists = extraartists.length > 0
-
-	if (hasExtraArtists) {
-		const extraNames = extraartists.map((a) =>
-			a.role ? `${a.name} (${a.role})` : a.name
-		)
-		return [...artistNames, ...extraNames].join(', ')
-	}
-
-	return artistNames.join(', ')
+function formatArtists(track: Track) {
+	return [...track.artists, ...track.extraartists]
+		.map((artist) => artist.name)
+		.join(', ')
 }
 
 function formatKey(track: Track): string {
-	if (track.key === null || track.mode === null) return '–'
+	if (track.key === null || track.mode === null) return '—'
 	return getFormattedKeyString(
 		track.key,
 		track.mode,
@@ -79,13 +79,100 @@ function formatKey(track: Track): string {
 		'short'
 	)
 }
+
+function keyStyle(track: Track) {
+	if (track.key === null || track.mode === null) return {}
+	return { color: getKeyColour(track.key, track.mode) }
+}
+
+const sortedTracks = computed(() => {
+	const collator = new Intl.Collator(undefined, {
+		numeric: true,
+		sensitivity: 'base'
+	})
+	const direction = sortDirection.value === 'asc' ? 1 : -1
+
+	return [...trackFilters.filteredTracks].sort((a, b) => {
+		const aRecord = getRecordForTrack(a)
+		const bRecord = getRecordForTrack(b)
+		let aValue: string | number = ''
+		let bValue: string | number = ''
+
+		switch (sortKey.value) {
+			case 'position':
+				aValue = a.position || ''
+				bValue = b.position || ''
+				break
+			case 'title':
+				aValue = a.title
+				bValue = b.title
+				break
+			case 'artist':
+				aValue = a.artists[0]?.name || ''
+				bValue = b.artists[0]?.name || ''
+				break
+			case 'release':
+				aValue = aRecord?.title || ''
+				bValue = bRecord?.title || ''
+				break
+			case 'duration':
+				aValue = a.duration || 0
+				bValue = b.duration || 0
+				break
+			case 'bpm':
+				aValue = a.bpm || 0
+				bValue = b.bpm || 0
+				break
+			case 'key':
+				aValue = a.key === null ? -1 : a.key
+				bValue = b.key === null ? -1 : b.key
+				break
+			case 'genre':
+				aValue = a.genres[0] || ''
+				bValue = b.genres[0] || ''
+				break
+		}
+
+		return collator.compare(String(aValue), String(bValue)) * direction
+	})
+})
+
+function setSort(key: TrackSortKey) {
+	if (sortKey.value === key)
+		sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+	else {
+		sortKey.value = key
+		sortDirection.value = 'asc'
+	}
+}
+
+function selectTrack(trackId: string) {
+	selectedTrackId.value = trackId
+	if (isMobile.value) mobileInspectorOpen.value = true
+}
+
+function editTrack(trackId: string) {
+	editingTrackId.value = trackId
+	mobileInspectorOpen.value = false
+}
+
+watch(
+	() => trackFilters.filteredTracks,
+	(filtered) => {
+		if (
+			selectedTrackId.value &&
+			!filtered.some((track) => track.id === selectedTrackId.value)
+		)
+			selectedTrackId.value = null
+	}
+)
 </script>
 
 <template>
-	<div class="flex h-full flex-col">
+	<div class="flex h-full min-h-0 flex-col">
 		<DialogTrackDetails
-			:track-id="selectedTrackId"
-			@close="selectedTrackId = null"
+			:track-id="editingTrackId"
+			@close="editingTrackId = null"
 		/>
 
 		<Teleport to="#header-left" defer>
@@ -97,7 +184,7 @@ function formatKey(track: Track): string {
 					<Input
 						v-model="trackFilters.searchQuery"
 						name="search"
-						placeholder="Search"
+						placeholder="Search tracks, artists or genres"
 						class="bg-background pr-3 pl-10"
 					/>
 				</div>
@@ -105,179 +192,337 @@ function formatKey(track: Track): string {
 			</template>
 		</Teleport>
 
-		<div class="scrollbar-hidden flex-1 overflow-y-auto">
-			<div class="mx-auto max-w-[1600px] space-y-4 p-2">
-				<StateLoading
-					v-if="records.isLoadingRecords || tracks.isLoadingTracks"
-					message="Loading tracks..."
-				/>
+		<StateLoading
+			v-if="records.isLoadingRecords || tracks.isLoadingTracks"
+			message="Loading tracks..."
+		/>
 
-				<StateEmptyCollection
-					v-else-if="!records.hasRecords"
-					icon="tracks"
-					title="Add records to build your track list"
-					description="Tracks appear automatically from imported or manually added records."
-				/>
+		<StateEmptyCollection
+			v-else-if="!records.hasRecords"
+			icon="tracks"
+			title="Add records to build your track list"
+			description="Tracks appear automatically from imported or manually added records."
+		/>
 
-				<div v-else-if="tracks.hasTracks" class="flex flex-col gap-4">
-					<div
-						v-if="missingAnalysisCount > 0"
-						class="border-border bg-muted/30 flex flex-col gap-3 rounded-md border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-					>
-						<div class="flex min-w-0 items-start gap-3 sm:items-center">
-							<div
-								class="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-md"
-							>
-								<WandSparkles class="size-4" />
-							</div>
-							<div class="min-w-0">
-								<div class="text-sm font-semibold">
-									Complete your track data
-								</div>
-								<div class="text-muted-foreground text-xs">
-									{{ missingAnalysisCount }} tracks are missing BPM or key. Add
-									them to improve tempo and harmonic suggestions.
-								</div>
-							</div>
-						</div>
-						<div class="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-							<span
-								class="border-border bg-background inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs tabular-nums"
-							>
-								<Gauge class="text-muted-foreground size-3.5" />
-								{{ missingBpmCount }} BPM
-							</span>
-							<span
-								class="border-border bg-background inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs tabular-nums"
-							>
-								<KeyRound class="text-muted-foreground size-3.5" />
-								{{ missingKeyCount }} key
-							</span>
-							<Button size="sm" @click="navigateTo('/enrichment')">
-								Use Rekordbox data
-							</Button>
-						</div>
-					</div>
-
-					<div class="flex items-center justify-between">
-						<div class="text-muted-foreground text-sm">
-							{{ trackFilters.filteredTracks.length }} of
-							{{ tracks.tracksCount }} tracks
-							<span v-if="trackFilters.hasActiveFilters">(filtered)</span>
-						</div>
-					</div>
-
-					<div class="flex flex-col gap-2">
-						<Card
-							v-for="{ track, record } in tracksWithRecords"
-							:key="track.id"
-							class="hover:bg-popover cursor-pointer overflow-hidden p-0 transition-all"
-							@click="openTrackDetails(track.id)"
+		<div v-else-if="tracks.hasTracks" class="flex min-h-0 flex-1">
+			<section class="flex min-w-0 flex-1 flex-col">
+				<div
+					v-if="missingAnalysisCount > 0"
+					class="border-border bg-muted/25 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2"
+				>
+					<div class="flex min-w-0 items-center gap-2.5">
+						<div
+							class="bg-primary/10 text-primary flex size-7 shrink-0 items-center justify-center rounded-sm"
 						>
-							<CardContent class="p-0">
-								<div class="flex items-center gap-3">
-									<div
-										class="bg-muted relative size-14 shrink-0 overflow-hidden rounded bg-cover bg-center bg-no-repeat"
-										:style="getCoverStyle(record?.cover)"
-									>
-										<div
-											v-if="!record?.cover"
-											class="flex h-full items-center justify-center"
-										>
-											<Disc class="text-muted-foreground size-6" />
-										</div>
-									</div>
-
-									<div class="flex min-w-0 flex-1 items-center gap-6">
-										<div class="min-w-0 flex-1">
-											<div class="flex items-baseline gap-2">
-												<h3 class="truncate text-sm font-medium">
-													{{ track.title }}
-												</h3>
-												<span
-													v-if="track.position"
-													class="text-muted-foreground shrink-0 font-mono text-xs"
-												>
-													{{ track.position }}
-												</span>
-											</div>
-											<div class="text-muted-foreground truncate text-xs">
-												{{ formatArtists(track.artists, track.extraartists) }}
-											</div>
-											<div
-												v-if="track.genres.length > 0"
-												class="text-muted-foreground mt-0.5 truncate text-xs"
-											>
-												{{ track.genres.join(', ') }}
-											</div>
-										</div>
-
-										<div
-											class="text-muted-foreground flex shrink-0 items-center gap-4 text-sm"
-										>
-											<span
-												v-if="record?.labels?.[0]?.catno"
-												class="hidden text-xs font-medium sm:block"
-											>
-												{{ record.labels[0].catno }}
-											</span>
-											<span class="w-10 text-center font-mono text-xs">
-												{{ msToMMSS(track.duration) || '–' }}
-											</span>
-											<span class="w-10 text-center text-xs">
-												{{ track.bpm ? Math.round(track.bpm) : '–' }}
-											</span>
-											<span
-												class="w-10 text-center text-xs font-medium"
-												:style="getKeyStyle(track)"
-											>
-												{{ formatKey(track) }}
-											</span>
-											<span
-												v-if="!track.playable"
-												class="text-destructive-foreground bg-destructive/10 rounded px-1.5 py-0.5 text-xs"
-											>
-												Unplayable
-											</span>
-										</div>
-									</div>
-								</div>
-							</CardContent>
-						</Card>
-					</div>
-
-					<div
-						v-if="!trackFilters.filteredTracks.length"
-						class="flex flex-col items-center justify-center py-16 text-center"
-					>
-						<div class="bg-muted mb-4 rounded-full p-6">
-							<div class="text-muted-foreground text-4xl">🔍</div>
+							<WandSparkles class="size-3.5" />
 						</div>
-						<h3 class="text-lg font-semibold">No tracks found</h3>
-						<p class="text-muted-foreground mb-4 max-w-md">
-							No tracks match your current filters. Try adjusting your search or
-							filters.
-						</p>
-						<Button
-							v-if="trackFilters.searchQuery"
+						<div class="min-w-0">
+							<p class="text-xs font-semibold">Analysis data incomplete</p>
+							<p class="text-muted-foreground hidden text-[11px] sm:block">
+								Enrich missing tempo and key data from your Rekordbox library.
+							</p>
+						</div>
+					</div>
+					<div class="flex items-center gap-1.5">
+						<Badge
 							variant="outline"
-							@click="trackFilters.clearSearchQuery()"
+							class="h-6 gap-1 rounded-sm font-mono text-[9px]"
 						>
-							Clear Search
+							<Gauge class="size-3" />
+							{{ missingBpmCount }} BPM
+						</Badge>
+						<Badge
+							variant="outline"
+							class="h-6 gap-1 rounded-sm font-mono text-[9px]"
+						>
+							<KeyRound class="size-3" />
+							{{ missingKeyCount }} KEY
+						</Badge>
+						<Button
+							size="sm"
+							class="h-7 text-xs"
+							@click="navigateTo('/enrichment')"
+						>
+							Enrich
 						</Button>
 					</div>
 				</div>
 
 				<div
-					v-else
-					class="mx-auto flex max-w-sm flex-col items-center justify-center py-16 text-center"
+					class="border-border flex min-h-11 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-1.5"
 				>
-					<h3 class="mb-2 text-lg font-semibold">No tracks yet</h3>
-					<p class="text-muted-foreground max-w-sm">
-						Add tracks to your records to see them here.
+					<div class="flex items-center gap-3 text-sm">
+						<span class="text-muted-foreground">
+							{{ trackFilters.filteredTracks.length }} of
+							{{ tracks.tracksCount }} tracks
+							<span v-if="trackFilters.hasActiveFilters">(filtered)</span>
+						</span>
+						<span class="text-border hidden sm:inline">/</span>
+						<span
+							class="text-muted-foreground hidden font-mono text-[10px] tracking-wide uppercase sm:inline"
+						>
+							Sorted by {{ sortKey }}
+						</span>
+					</div>
+					<ControlLibraryDensity v-model="density" />
+				</div>
+
+				<div v-if="sortedTracks.length" class="min-h-0 flex-1 overflow-auto">
+					<div
+						class="border-border bg-muted/70 sticky top-0 z-10 hidden min-w-[1080px] grid-cols-[36px_42px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_66px_64px_58px_minmax(110px,0.7fr)_30px] items-center gap-2 border-b px-2 backdrop-blur-md md:grid"
+						:class="density === 'compact' ? 'h-8' : 'h-10'"
+					>
+						<span class="text-muted-foreground font-mono text-[9px]">ST</span>
+						<span class="text-muted-foreground font-mono text-[9px]">ART</span>
+						<ButtonLibrarySort
+							label="Pos"
+							:active="sortKey === 'position'"
+							:direction="sortDirection"
+							@click="setSort('position')"
+						/>
+						<ButtonLibrarySort
+							label="Title"
+							:active="sortKey === 'title'"
+							:direction="sortDirection"
+							@click="setSort('title')"
+						/>
+						<ButtonLibrarySort
+							label="Artist"
+							:active="sortKey === 'artist'"
+							:direction="sortDirection"
+							@click="setSort('artist')"
+						/>
+						<ButtonLibrarySort
+							label="Release"
+							:active="sortKey === 'release'"
+							:direction="sortDirection"
+							@click="setSort('release')"
+						/>
+						<ButtonLibrarySort
+							label="Time"
+							align="right"
+							:active="sortKey === 'duration'"
+							:direction="sortDirection"
+							@click="setSort('duration')"
+						/>
+						<ButtonLibrarySort
+							label="BPM"
+							align="right"
+							:active="sortKey === 'bpm'"
+							:direction="sortDirection"
+							@click="setSort('bpm')"
+						/>
+						<ButtonLibrarySort
+							label="Key"
+							align="center"
+							:active="sortKey === 'key'"
+							:direction="sortDirection"
+							@click="setSort('key')"
+						/>
+						<ButtonLibrarySort
+							label="Genre"
+							:active="sortKey === 'genre'"
+							:direction="sortDirection"
+							@click="setSort('genre')"
+						/>
+						<span />
+					</div>
+
+					<div class="hidden min-w-[1080px] md:block">
+						<div
+							v-for="track in sortedTracks"
+							:key="track.id"
+							role="button"
+							tabindex="0"
+							class="border-border hover:bg-accent/50 focus-visible:ring-ring grid w-full grid-cols-[36px_42px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_66px_64px_58px_minmax(110px,0.7fr)_30px] items-center gap-2 border-b px-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
+							:class="[
+								density === 'compact' ? 'h-10' : 'h-14',
+								selectedTrackId === track.id && 'bg-accent'
+							]"
+							@click="selectTrack(track.id)"
+							@dblclick="editTrack(track.id)"
+							@keydown.enter="selectTrack(track.id)"
+						>
+							<div class="flex items-center justify-center">
+								<span
+									class="size-1.5 rounded-full"
+									:class="track.playable ? 'bg-emerald-500' : 'bg-destructive'"
+									title="Playable status"
+								/>
+							</div>
+							<div class="bg-muted size-7 overflow-hidden rounded-sm border">
+								<img
+									v-if="getRecordForTrack(track)?.cover"
+									:src="getRecordForTrack(track)?.cover || undefined"
+									:alt="`${getRecordForTrack(track)?.title} cover`"
+									class="h-full w-full object-cover"
+								/>
+								<Disc3
+									v-else
+									class="text-muted-foreground m-auto mt-1 size-4"
+								/>
+							</div>
+							<span class="font-mono text-[10px]">
+								{{ track.position || '—' }}
+							</span>
+							<span class="truncate font-semibold">{{ track.title }}</span>
+							<span class="text-muted-foreground truncate">
+								{{ formatArtists(track) || 'Unknown artist' }}
+							</span>
+							<span class="text-muted-foreground truncate">
+								{{ getRecordForTrack(track)?.title || 'Unknown release' }}
+							</span>
+							<span class="text-right font-mono tabular-nums">
+								{{ msToMMSS(track.duration) || '—' }}
+							</span>
+							<span class="text-right font-mono font-semibold tabular-nums">
+								{{ track.bpm ? track.bpm.toFixed(1) : '—' }}
+							</span>
+							<span
+								class="text-center font-mono font-semibold"
+								:style="keyStyle(track)"
+							>
+								{{ formatKey(track) }}
+							</span>
+							<span class="text-muted-foreground truncate">
+								{{ track.genres.join(' · ') || '—' }}
+							</span>
+							<ShieldAlert
+								v-if="!track.playable"
+								class="text-destructive size-3.5"
+							/>
+						</div>
+					</div>
+
+					<div class="divide-border divide-y md:hidden">
+						<button
+							v-for="track in sortedTracks"
+							:key="track.id"
+							type="button"
+							class="hover:bg-accent/50 flex w-full items-center gap-3 px-3 py-2.5 text-left"
+							@click="selectTrack(track.id)"
+						>
+							<div
+								class="bg-muted size-10 shrink-0 overflow-hidden rounded-sm border"
+							>
+								<img
+									v-if="getRecordForTrack(track)?.cover"
+									:src="getRecordForTrack(track)?.cover || undefined"
+									:alt="`${getRecordForTrack(track)?.title} cover`"
+									class="h-full w-full object-cover"
+								/>
+								<Disc3
+									v-else
+									class="text-muted-foreground m-auto mt-2 size-5"
+								/>
+							</div>
+							<div class="min-w-0 flex-1">
+								<div class="flex items-baseline gap-2">
+									<p class="truncate text-sm font-medium">{{ track.title }}</p>
+									<span
+										class="text-muted-foreground shrink-0 font-mono text-[10px]"
+									>
+										{{ track.position || '—' }}
+									</span>
+								</div>
+								<p class="text-muted-foreground truncate text-xs">
+									{{ formatArtists(track) || 'Unknown artist' }}
+								</p>
+								<div class="mt-1 flex items-center gap-2 font-mono text-[10px]">
+									<span>{{ track.bpm ? track.bpm.toFixed(1) : '—' }} BPM</span>
+									<span :style="keyStyle(track)">{{ formatKey(track) }}</span>
+									<span class="text-muted-foreground">
+										{{ msToMMSS(track.duration) || '—' }}
+									</span>
+								</div>
+							</div>
+							<span
+								class="size-1.5 shrink-0 rounded-full"
+								:class="track.playable ? 'bg-emerald-500' : 'bg-destructive'"
+							/>
+						</button>
+					</div>
+				</div>
+
+				<div
+					v-else
+					class="flex min-h-0 flex-1 flex-col items-center justify-center p-8 text-center"
+				>
+					<Search class="text-muted-foreground/40 mb-3 size-9 stroke-1" />
+					<h3 class="text-sm font-semibold">No tracks match this view</h3>
+					<p class="text-muted-foreground mt-1 max-w-sm text-xs">
+						Adjust your search, tempo, key or genre filters to widen the result
+						set.
+					</p>
+					<Button
+						v-if="trackFilters.hasActiveFilters"
+						variant="outline"
+						size="sm"
+						class="mt-4"
+						@click="trackFilters.resetAllFilters"
+					>
+						Clear filters
+					</Button>
+				</div>
+			</section>
+
+			<aside
+				class="border-border bg-background/70 hidden w-[300px] shrink-0 border-l xl:block"
+			>
+				<InspectorTrack
+					v-if="selectedTrack"
+					:track="selectedTrack"
+					:record="selectedRecord"
+					show-close
+					@close="selectedTrackId = null"
+					@edit="editTrack(selectedTrack.id)"
+				/>
+				<div
+					v-else
+					class="flex h-full flex-col items-center justify-center px-8 text-center"
+				>
+					<Disc3 class="text-muted-foreground/40 mb-3 size-9 stroke-1" />
+					<p
+						class="font-mono text-[10px] font-semibold tracking-wider uppercase"
+					>
+						No track selected
+					</p>
+					<p class="text-muted-foreground mt-2 text-xs">
+						Select a track to inspect tempo, key, condition and release context.
 					</p>
 				</div>
-			</div>
+			</aside>
 		</div>
+
+		<div
+			v-else
+			class="flex flex-1 flex-col items-center justify-center p-8 text-center"
+		>
+			<Disc3 class="text-muted-foreground/40 mb-3 size-9 stroke-1" />
+			<h3 class="text-sm font-semibold">No tracks yet</h3>
+			<p class="text-muted-foreground mt-1 text-xs">
+				Add tracks to your records to build the library view.
+			</p>
+		</div>
+
+		<Sheet v-model:open="mobileInspectorOpen">
+			<SheetContent
+				side="right"
+				class="w-[min(92vw,360px)] p-0 sm:max-w-[360px]"
+			>
+				<SheetHeader class="sr-only">
+					<SheetTitle>Track inspector</SheetTitle>
+					<SheetDescription>
+						Selected track details and edit action.
+					</SheetDescription>
+				</SheetHeader>
+				<InspectorTrack
+					v-if="selectedTrack"
+					:track="selectedTrack"
+					:record="selectedRecord"
+					@edit="editTrack(selectedTrack.id)"
+				/>
+			</SheetContent>
+		</Sheet>
 	</div>
 </template>

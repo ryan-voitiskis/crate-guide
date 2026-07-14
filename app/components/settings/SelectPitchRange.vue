@@ -1,4 +1,8 @@
 <script setup lang="ts">
+const props = defineProps<{
+	localOnly?: boolean
+}>()
+
 const user = useUserStore()
 
 const turntablePitchRange = ref(
@@ -13,7 +17,8 @@ const turntablePitchOptions = [
 ]
 
 watch(turntablePitchRange, (value) => {
-	user.updateSettings({ turntable_pitch_range: parseInt(value) })
+	if (!props.localOnly)
+		void user.updateSettings({ turntable_pitch_range: parseInt(value) })
 })
 </script>
 

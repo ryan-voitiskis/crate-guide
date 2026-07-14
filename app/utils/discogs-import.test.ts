@@ -105,7 +105,7 @@ describe('filterOutExistingReleases', () => {
 						}
 					],
 					artists: [],
-					genre: [],
+					genres: [],
 					styles: []
 				}
 			})

@@ -18,12 +18,17 @@ function handleDeckCountChange(value: unknown) {
 
 <template>
 	<!-- Left: Deck count selector -->
-	<div class="flex items-center gap-2">
-		<span class="text-muted-foreground text-sm">Decks</span>
+	<div class="flex items-center gap-1.5">
+		<span
+			class="text-muted-foreground hidden font-mono text-[10px] tracking-wide uppercase xl:inline"
+		>
+			Decks
+		</span>
 		<ToggleGroup
 			type="single"
 			variant="outline"
 			:model-value="String(session.deckCount)"
+			aria-label="Number of decks"
 			@update:model-value="handleDeckCountChange"
 		>
 			<ToggleGroupItem
@@ -39,15 +44,15 @@ function handleDeckCountChange(value: unknown) {
 	</div>
 
 	<!-- Center: Toggles -->
-	<div class="flex items-center gap-2">
+	<div class="flex items-center gap-1">
 		<Toggle
 			:pressed="session.showTurntableSim"
 			aria-label="Toggle turntable"
 			class="gap-0"
 			@click="session.showTurntableSim = !session.showTurntableSim"
 		>
-			<Disc3 class="mr-1.5 h-4 w-4" />
-			Turntable
+			<Disc3 class="size-4 sm:mr-1.5" />
+			<span class="hidden sm:inline">Turntable</span>
 		</Toggle>
 
 		<Toggle
@@ -56,13 +61,13 @@ function handleDeckCountChange(value: unknown) {
 			class="gap-0"
 			@click="session.showHistory = !session.showHistory"
 		>
-			<History class="mr-1.5 h-4 w-4" />
-			History
+			<History class="size-4 sm:mr-1.5" />
+			<span class="hidden sm:inline">History</span>
 		</Toggle>
 	</div>
 
 	<!-- Right: Session actions -->
-	<div class="flex items-center gap-2">
+	<div class="flex items-center gap-1">
 		<div
 			v-if="session.autoSaveError"
 			class="text-destructive border-destructive/30 bg-destructive/10 flex items-center gap-1 rounded-md border px-2 py-1 text-xs"
@@ -78,21 +83,24 @@ function handleDeckCountChange(value: unknown) {
 			variant="outline"
 			size="sm"
 			:disabled="session.isLoadingSets"
+			aria-label="Open saved sets"
+			title="Saved sets"
 			@click="session.showSetManager = true"
 		>
-			<FolderOpen class="mr-1.5 h-4 w-4" />
-			Sets
+			<FolderOpen class="size-4 lg:mr-1.5" />
+			<span class="hidden lg:inline">Sets</span>
 		</Button>
 
 		<Button
 			variant="outline"
 			size="sm"
 			:disabled="session.currentSession.length === 0"
-			:title="session.autoSaveError ?? undefined"
+			aria-label="Save current set"
+			:title="session.autoSaveError ?? 'Save current set'"
 			@click="session.showSaveDialog = true"
 		>
-			<Save class="mr-1.5 h-4 w-4" />
-			Save
+			<Save class="size-4 lg:mr-1.5" />
+			<span class="hidden lg:inline">Save</span>
 		</Button>
 	</div>
 </template>
