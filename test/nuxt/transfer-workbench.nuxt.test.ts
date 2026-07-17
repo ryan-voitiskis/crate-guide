@@ -104,6 +104,20 @@ describe('transfer workbench control', () => {
 		expect(dismissTransferMonitor).toHaveBeenCalledOnce()
 	})
 
+	it('surfaces retry progress in the persistent status strip', async () => {
+		mockTransfer({
+			importProgress: 50,
+			transferLabel: 'Discogs · Retrying · 50%'
+		})
+		const wrapper = await mountSuspended(ControlTransferWorkbench)
+		wrappers.add(wrapper)
+
+		expect(wrapper.text()).toContain('Discogs · Retrying · 50%')
+		expect(wrapper.get('button').attributes('aria-label')).toContain(
+			'Discogs · Retrying · 50%'
+		)
+	})
+
 	it('does not expose account transfer state in demos or signed-out shells', async () => {
 		factories.route.mockReturnValue({ path: '/demo/records' })
 		const demoWrapper = await mountSuspended(ControlTransferWorkbench)

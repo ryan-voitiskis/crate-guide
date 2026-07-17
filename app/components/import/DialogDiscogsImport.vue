@@ -4,12 +4,14 @@ import {
 	ChevronDown,
 	Info,
 	Minimize2,
+	RotateCcw,
 	XCircle
 } from 'lucide-vue-next'
 
 const discogs = useDiscogsStore()
 
 const showSkipped = ref(false)
+const showFailures = ref(true)
 
 const hasResults = computed(() => {
 	const results = discogs.importResults
@@ -21,9 +23,24 @@ const hasResults = computed(() => {
 })
 
 const monitorTitle = computed(() => {
-	if (discogs.transferStatus === 'cancelled') return 'Import cancelled'
-	if (discogs.transferStatus === 'failed') return 'Import interrupted'
-	if (discogs.transferStatus === 'completed') return 'Import results'
+	if (discogs.transferStatus === 'cancelled') {
+		return discogs.transferMode === 'retry'
+			? 'Retry cancelled'
+			: 'Import cancelled'
+	}
+	if (discogs.transferStatus === 'failed') {
+		return discogs.transferMode === 'retry'
+			? 'Retry interrupted'
+			: 'Import interrupted'
+	}
+	if (discogs.transferStatus === 'completed') {
+		if (discogs.transferMode === 'retry') return 'Retry results'
+		if (discogs.importResults.failed.length > 0) {
+			return 'Import completed with issues'
+		}
+		return 'Import results'
+	}
+	if (discogs.transferMode === 'retry') return 'Retrying failed records…'
 	return discogs.importPhase === 'saving'
 		? 'Writing records…'
 		: 'Importing records…'
@@ -31,18 +48,40 @@ const monitorTitle = computed(() => {
 
 const monitorDescription = computed(() => {
 	if (discogs.transferStatus === 'cancelled') {
-		return 'The transfer stopped before the remaining records were imported.'
+		return discogs.transferMode === 'retry'
+			? 'The retry stopped before every failed record could be checked.'
+			: 'The transfer stopped before the remaining records were imported.'
 	}
 	if (discogs.transferStatus === 'failed') {
-		return 'The transfer could not finish. Review the details before trying again.'
+		return discogs.transferMode === 'retry'
+			? 'The retry could not finish. Your previous transfer results are preserved.'
+			: 'The transfer could not finish. Review the details before trying again.'
 	}
 	if (discogs.transferStatus === 'completed') {
-		return 'Review the completed Discogs transfer.'
+		if (discogs.retrySummary) {
+			return discogs.retrySummary.remaining === 0
+				? 'Every failed record recovered successfully.'
+				: 'Review the records that still need attention.'
+		}
+		return discogs.importResults.failed.length > 0
+			? 'Most records imported successfully. Review or retry the remaining issues.'
+			: 'Review the completed Discogs transfer.'
+	}
+	if (discogs.transferMode === 'retry') {
+		return discogs.importPhase === 'saving'
+			? 'Writing recovered records and tracks to your library.'
+			: 'Refetching only the records that previously failed.'
 	}
 	return discogs.importPhase === 'saving'
 		? 'Writing fetched releases and tracks to your library.'
 		: 'Fetching release metadata from Discogs.'
 })
+
+function failureStageLabel(stage: 'fetch' | 'pipeline' | 'save') {
+	if (stage === 'fetch') return 'Discogs fetch'
+	if (stage === 'save') return 'Library write'
+	return 'Transfer'
+}
 
 function handleOpenChange(open: boolean) {
 	if (open) {
@@ -80,7 +119,32 @@ function handleOpenChange(open: boolean) {
 			</DialogHeader>
 			<ProgressDiscogsImport />
 
-			<ScrollArea class="max-h-80">
+			<ScrollArea class="max-h-80" aria-live="polite">
+				<div
+					v-if="!discogs.isImporting && discogs.retrySummary"
+					class="border-signal/25 bg-signal/5 mb-2 rounded-sm border p-3"
+				>
+					<div class="flex items-start gap-2">
+						<RotateCcw class="text-signal mt-0.5 size-4 shrink-0" />
+						<p class="text-sm">
+							Recovered
+							<strong class="font-mono tabular-nums">
+								{{ discogs.retrySummary.recovered }}
+							</strong>
+							of
+							<strong class="font-mono tabular-nums">
+								{{ discogs.retrySummary.attempted }}
+							</strong>
+							failed
+							{{ discogs.retrySummary.attempted === 1 ? 'record' : 'records' }}.
+							<template v-if="discogs.retrySummary.remaining > 0">
+								{{ discogs.retrySummary.remaining }} still
+								{{ discogs.retrySummary.remaining === 1 ? 'needs' : 'need' }}
+								attention.
+							</template>
+						</p>
+					</div>
+				</div>
 				<div
 					v-if="!discogs.isImporting && discogs.transferStatus === 'cancelled'"
 					class="border-border bg-workbench-inset mb-2 flex items-start gap-2 rounded-sm border p-3"
@@ -187,27 +251,52 @@ function handleOpenChange(open: boolean) {
 											: 'records'
 									}}
 								</p>
-								<details class="text-sm">
-									<summary
-										class="text-destructive cursor-pointer text-xs hover:underline"
-									>
-										Show details
-									</summary>
-									<ul class="mt-2 space-y-2">
-										<li
-											v-for="(record, index) in discogs.importResults.failed"
-											:key="`failed-${index}`"
-											class="text-gray-600 dark:text-gray-400"
+								<Collapsible v-model:open="showFailures" class="space-y-2">
+									<CollapsibleTrigger as-child>
+										<Button
+											variant="blank"
+											class="text-destructive hover:text-destructive h-auto p-0 text-xs"
 										>
-											<div class="font-medium">
-												{{ record.label }}
-											</div>
-											<div class="text-xs text-red-600 dark:text-red-400">
-												Error: {{ record.error }}
-											</div>
-										</li>
-									</ul>
-								</details>
+											{{ showFailures ? 'Hide details' : 'Show details' }}
+											<ChevronDown
+												class="transition-all"
+												:class="{ 'scale-y-[-1]': showFailures }"
+											/>
+										</Button>
+									</CollapsibleTrigger>
+									<CollapsibleContent as-child>
+										<ul class="space-y-2">
+											<li
+												v-for="(record, index) in discogs.importResults.failed"
+												:key="`failed-${record.releaseId ?? 'transfer'}-${index}`"
+												class="border-destructive/15 border-t pt-2 text-gray-600 first:border-t-0 first:pt-0 dark:text-gray-400"
+											>
+												<div class="flex items-start justify-between gap-3">
+													<div class="font-medium">
+														{{ record.label }}
+													</div>
+													<span
+														class="border-border bg-workbench-inset shrink-0 rounded-sm border px-1.5 py-0.5 font-mono text-[9px] tracking-wide uppercase"
+													>
+														{{ failureStageLabel(record.stage) }}
+													</span>
+												</div>
+												<div class="text-xs text-red-600 dark:text-red-400">
+													{{ record.error }}
+												</div>
+												<div
+													class="text-muted-foreground mt-1 font-mono text-[9px] uppercase"
+												>
+													{{ record.attempts }}
+													{{ record.attempts === 1 ? 'attempt' : 'attempts' }}
+													<span v-if="!record.retryable">
+														· New import required
+													</span>
+												</div>
+											</li>
+										</ul>
+									</CollapsibleContent>
+								</Collapsible>
 							</div>
 						</div>
 					</div>
@@ -223,7 +312,11 @@ function handleOpenChange(open: boolean) {
 						variant="destructive"
 						@click="discogs.cancelImport()"
 					>
-						Cancel import
+						{{
+							discogs.transferMode === 'retry'
+								? 'Cancel retry'
+								: 'Cancel import'
+						}}
 					</Button>
 					<Button
 						v-if="discogs.isImporting"
@@ -239,6 +332,15 @@ function handleOpenChange(open: boolean) {
 						@click="discogs.dismissTransferMonitor()"
 					>
 						Close
+					</Button>
+					<Button
+						v-if="discogs.canRetryFailed"
+						data-testid="retry-failed-records"
+						@click="discogs.retryFailedReleases()"
+					>
+						<RotateCcw />
+						Retry {{ discogs.retryableFailures.length }} failed
+						{{ discogs.retryableFailures.length === 1 ? 'record' : 'records' }}
 					</Button>
 				</div>
 			</DialogFooter>

@@ -100,6 +100,59 @@ export type DiscogsFolderResponse = {
 	releases: DiscogsRelease[]
 }
 
+export type DiscogsErrorCode =
+	| 'database_write_failed'
+	| 'discogs_connection_required'
+	| 'discogs_not_found'
+	| 'discogs_rate_limited'
+	| 'discogs_request_rejected'
+	| 'discogs_timeout'
+	| 'discogs_transport'
+	| 'discogs_unavailable'
+	| 'internal_error'
+	| 'invalid_request'
+	| 'invalid_upstream_response'
+	| 'unknown_error'
+
+export type DiscogsFailureStage = 'fetch' | 'pipeline' | 'save'
+
+export type DiscogsImportFailure = {
+	releaseId: number | null
+	label: string
+	error: string
+	code: DiscogsErrorCode
+	stage: DiscogsFailureStage
+	retryable: boolean
+	attempts: number
+	requestId?: string
+}
+
+export type DiscogsImportResults = {
+	successful: number
+	skipped: Array<{ label: string }>
+	failed: DiscogsImportFailure[]
+}
+
+export type DiscogsRequestContext = {
+	requestId: string
+	attempt: number
+}
+
+export type DiscogsRetrySummary = {
+	attempted: number
+	recovered: number
+	remaining: number
+}
+
+export type DiscogsRetryStatus = {
+	current: number
+	total: number
+	label: string
+	attempt: number
+	maxAttempts: number
+	waitingMs: number | null
+}
+
 export type DiscogsReleaseFull = {
 	id: number
 	status: string

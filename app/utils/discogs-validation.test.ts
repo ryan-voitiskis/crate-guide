@@ -10,7 +10,8 @@ describe('isValidImportResult', () => {
 		const result: ImportRecordResult = {
 			success: true,
 			record_id: '123',
-			tracks_inserted: 5
+			tracks_inserted: 5,
+			already_exists: false
 		}
 		expect(isValidImportResult(result)).toBe(true)
 	})
@@ -68,7 +69,8 @@ describe('validateImportResult', () => {
 		const result: ImportRecordResult = {
 			success: true,
 			record_id: '123',
-			tracks_inserted: 5
+			tracks_inserted: 0,
+			already_exists: true
 		}
 		expect(validateImportResult(result)).toEqual(result)
 	})

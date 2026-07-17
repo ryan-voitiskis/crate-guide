@@ -3,6 +3,7 @@ import {
 	createMockDiscogsReleaseFull
 } from 'test/mocks/fixtures/discogs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { DiscogsApiError } from '../../utils/discogs-errors'
 
 // Mock supabase client
 const mockInvoke = vi.fn()
@@ -30,6 +31,19 @@ const validFolderReleasesResponse = {
 	releases: []
 }
 
+function expectedInvocation(body: Record<string, unknown>, attempt = 1) {
+	return {
+		body: {
+			...body,
+			request_context: {
+				request_id: expect.any(String),
+				attempt
+			}
+		},
+		timeout: 20_000
+	}
+}
+
 // Stub globals before importing composable
 vi.stubGlobal('getSupabase', () => mockSupabase)
 vi.stubGlobal('useUserStore', () => mockUserStore)
@@ -54,7 +68,7 @@ describe('useDiscogsApi', () => {
 			await getFolders()
 
 			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
-				body: JSON.stringify({ endpoint: 'folders' })
+				...expectedInvocation({ endpoint: 'folders' })
 			})
 		})
 
@@ -76,34 +90,106 @@ describe('useDiscogsApi', () => {
 			expect(mockInvoke).not.toHaveBeenCalled()
 		})
 
-		it('surfaces dispatcher errors', async () => {
+		it('surfaces structured dispatcher errors without losing retry metadata', async () => {
+			const requestId = crypto.randomUUID()
 			mockInvoke.mockResolvedValue({
 				data: null,
-				error: { message: 'Rate limit exceeded' }
+				error: { name: 'FunctionsHttpError' },
+				response: Response.json(
+					{
+						error: 'Discogs is receiving too many requests. Retrying shortly.',
+						code: 'discogs_rate_limited',
+						retryable: true,
+						request_id: requestId,
+						retry_after_ms: 3000
+					},
+					{ status: 429 }
+				)
 			})
 
 			const { getFolders } = useDiscogsApi()
 
-			await expect(getFolders()).rejects.toThrow('Rate limit exceeded')
+			await expect(getFolders()).rejects.toMatchObject({
+				code: 'discogs_rate_limited',
+				retryable: true,
+				status: 429,
+				retryAfterMs: 3000,
+				requestId
+			})
 		})
 
-		it('falls back to toString when error has no message', async () => {
+		it('rejects malformed correlation ids in function error payloads', async () => {
 			mockInvoke.mockResolvedValue({
 				data: null,
-				error: { toString: () => 'Network error' }
+				error: { name: 'FunctionsHttpError' },
+				response: Response.json(
+					{
+						error: 'Spoofed upstream message.',
+						code: 'discogs_rate_limited',
+						retryable: true,
+						request_id: 'not-a-safe-request-id'
+					},
+					{ status: 429 }
+				)
 			})
 
 			const { getFolders } = useDiscogsApi()
 
-			await expect(getFolders()).rejects.toThrow('Network error')
+			await getFolders().catch((error: unknown) => {
+				expect(error).toMatchObject({
+					message: 'Discogs is receiving too many requests. Retrying shortly.',
+					code: 'discogs_rate_limited',
+					retryable: true
+				})
+				expect(error).not.toMatchObject({
+					message: 'Spoofed upstream message.',
+					requestId: 'not-a-safe-request-id'
+				})
+			})
 		})
 
-		it('propagates invoke rejection errors', async () => {
-			mockInvoke.mockRejectedValue(new Error('Network down'))
+		it('does not surface unstructured function error text', async () => {
+			mockInvoke.mockResolvedValue({
+				data: null,
+				error: { message: 'private relay details' }
+			})
 
 			const { getFolders } = useDiscogsApi()
 
-			await expect(getFolders()).rejects.toThrow('Network down')
+			await expect(getFolders()).rejects.toMatchObject({
+				message: 'Could not reach Discogs. Check your connection.',
+				code: 'discogs_transport',
+				retryable: true
+			})
+		})
+
+		it('sanitizes invoke rejection errors', async () => {
+			mockInvoke.mockRejectedValue(new Error('private network details'))
+
+			const { getFolders } = useDiscogsApi()
+
+			await expect(getFolders()).rejects.toMatchObject({
+				message: 'Could not reach Discogs. Check your connection.',
+				code: 'discogs_transport'
+			})
+		})
+
+		it('classifies client-side invocation timeouts as retryable', async () => {
+			mockInvoke.mockResolvedValue({
+				data: null,
+				error: {
+					name: 'FunctionsFetchError',
+					context: { name: 'AbortError' }
+				}
+			})
+
+			const { getFolders } = useDiscogsApi()
+
+			await expect(getFolders()).rejects.toMatchObject({
+				message: 'The Discogs request timed out.',
+				code: 'discogs_timeout',
+				retryable: true
+			})
 		})
 
 		it('rejects malformed folder responses', async () => {
@@ -130,14 +216,15 @@ describe('useDiscogsApi', () => {
 			const { getFolderReleases } = useDiscogsApi()
 			await getFolderReleases(0)
 
-			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
-				body: JSON.stringify({
+			expect(mockInvoke).toHaveBeenCalledWith(
+				'authenticated-discogs-request',
+				expectedInvocation({
 					endpoint: 'folder_releases',
 					folder_id: 0,
 					page: 1,
 					per_page: 100
 				})
-			})
+			)
 		})
 
 		it('invokes dispatcher with custom pagination', async () => {
@@ -149,14 +236,15 @@ describe('useDiscogsApi', () => {
 			const { getFolderReleases } = useDiscogsApi()
 			await getFolderReleases(1, 3, 50)
 
-			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
-				body: JSON.stringify({
+			expect(mockInvoke).toHaveBeenCalledWith(
+				'authenticated-discogs-request',
+				expectedInvocation({
 					endpoint: 'folder_releases',
 					folder_id: 1,
 					page: 3,
 					per_page: 50
 				})
-			})
+			)
 		})
 
 		it('accepts the plural genres field returned by Discogs', async () => {
@@ -210,10 +298,32 @@ describe('useDiscogsApi', () => {
 			const { getRelease } = useDiscogsApi()
 			const result = await getRelease(12345)
 
-			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
-				body: JSON.stringify({ endpoint: 'release', release_id: 12345 })
-			})
+			expect(mockInvoke).toHaveBeenCalledWith(
+				'authenticated-discogs-request',
+				expectedInvocation({ endpoint: 'release', release_id: 12345 })
+			)
 			expect(result).toEqual(mockRelease)
+		})
+
+		it('forwards a stable request id and attempt number for retries', async () => {
+			const mockRelease = createMockDiscogsReleaseFull({ id: 12345 })
+			const requestId = crypto.randomUUID()
+			mockInvoke.mockResolvedValue({ data: mockRelease, error: null })
+
+			const { getRelease } = useDiscogsApi()
+			await getRelease(12345, { requestId, attempt: 2 })
+
+			expect(mockInvoke).toHaveBeenCalledWith('authenticated-discogs-request', {
+				body: {
+					endpoint: 'release',
+					release_id: 12345,
+					request_context: {
+						request_id: requestId,
+						attempt: 2
+					}
+				},
+				timeout: 20_000
+			})
 		})
 
 		it('does not require discogs username', async () => {
@@ -241,6 +351,13 @@ describe('useDiscogsApi', () => {
 			await expect(getRelease(12345)).rejects.toThrow(
 				'Discogs returned an invalid release response.'
 			)
+			await getRelease(12345).catch((error: unknown) => {
+				expect(error).toBeInstanceOf(DiscogsApiError)
+				expect(error).toMatchObject({
+					code: 'invalid_upstream_response',
+					retryable: false
+				})
+			})
 		})
 	})
 })

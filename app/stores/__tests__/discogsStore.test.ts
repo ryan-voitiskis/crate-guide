@@ -2,9 +2,11 @@ import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import {
 	createMockDiscogsRelease,
+	createMockDiscogsReleaseFull,
 	resetReleaseIdCounter
 } from 'test/mocks/fixtures/discogs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { DiscogsImportFailure } from '../../../shared/types/discogs'
 // Import after mocking
 import { useDiscogsStore } from '../discogsStore'
 
@@ -15,6 +17,19 @@ const mockToast = vi.hoisted(() => ({
 }))
 
 vi.mock('vue-sonner', () => ({ toast: mockToast }))
+
+const storageValues = new Map<string, string>()
+const mockSessionStorage = {
+	get length() {
+		return storageValues.size
+	},
+	clear: () => storageValues.clear(),
+	getItem: (key: string) => storageValues.get(key) ?? null,
+	key: (index: number) => [...storageValues.keys()][index] ?? null,
+	removeItem: (key: string) => storageValues.delete(key),
+	setItem: (key: string, value: string) => storageValues.set(key, value)
+}
+vi.stubGlobal('window', { sessionStorage: mockSessionStorage })
 
 // Mock dependencies
 const mockUserStore = {
@@ -58,6 +73,21 @@ function createMockFolder(
 		name: 'House',
 		count: 50,
 		resource_url: 'https://api.discogs.com/users/testuser/collection/folders/1',
+		...overrides
+	}
+}
+
+function createFailure(
+	overrides: Partial<DiscogsImportFailure> = {}
+): DiscogsImportFailure {
+	return {
+		releaseId: 1,
+		label: 'Failed release',
+		error: 'Discogs could not fetch this release.',
+		code: 'discogs_transport',
+		stage: 'fetch',
+		retryable: true,
+		attempts: 3,
 		...overrides
 	}
 }
@@ -120,6 +150,7 @@ vi.stubGlobal('isError', isError)
 describe('discogsStore', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
+		window.sessionStorage.clear()
 		resetReleaseIdCounter()
 		setActivePinia(createPinia())
 
@@ -214,7 +245,7 @@ describe('discogsStore', () => {
 			store.importResults = {
 				successful: 2,
 				skipped: [{ label: 'Skipped' }],
-				failed: [{ label: 'Failed', error: 'Old account error' }]
+				failed: [createFailure({ label: 'Failed', error: 'Old account error' })]
 			}
 
 			store.resetAccountState()
@@ -676,7 +707,7 @@ describe('discogsStore', () => {
 			let shouldCancel: (() => boolean) | undefined
 			let resolveFetch: (value: {
 				releases: unknown[]
-				failed: { label: string; error: string }[]
+				failed: DiscogsImportFailure[]
 				cancelled: boolean
 			}) => void
 
@@ -913,16 +944,25 @@ describe('discogsStore', () => {
 			})
 			mockFetchReleaseDetails.mockResolvedValue({
 				releases: [],
-				failed: [{ label: 'Failed Release', error: 'API timeout' }],
+				failed: [
+					createFailure({
+						releaseId: 1,
+						label: 'Failed Release',
+						error: 'API timeout'
+					})
+				],
 				cancelled: false
 			})
 
 			await store.importSelectedReleases()
 
-			expect(store.importResults.failed).toContainEqual({
-				label: 'Failed Release',
-				error: 'API timeout'
-			})
+			expect(store.importResults.failed).toContainEqual(
+				createFailure({
+					releaseId: 1,
+					label: 'Failed Release',
+					error: 'API timeout'
+				})
+			)
 			expect(store.transferStatus).toBe('completed')
 			expect(store.transferTone).toBe('warning')
 		})
@@ -938,25 +978,49 @@ describe('discogsStore', () => {
 			})
 			mockFetchReleaseDetails.mockResolvedValue({
 				releases: [{ id: 1, title: 'Test' }],
-				failed: [{ label: 'Fetch Failed', error: 'API error' }],
+				failed: [
+					createFailure({
+						releaseId: 1,
+						label: 'Fetch Failed',
+						error: 'API error'
+					})
+				],
 				cancelled: false
 			})
 			mockImportFetchedReleases.mockResolvedValue({
 				successful: 0,
-				failed: [{ label: 'Import Failed', error: 'DB error' }]
+				failed: [
+					createFailure({
+						releaseId: 2,
+						label: 'Import Failed',
+						error: 'DB error',
+						code: 'database_write_failed',
+						stage: 'save',
+						attempts: 1
+					})
+				]
 			})
 
 			await store.importSelectedReleases()
 
 			expect(store.importResults.failed).toHaveLength(2)
-			expect(store.importResults.failed).toContainEqual({
-				label: 'Fetch Failed',
-				error: 'API error'
-			})
-			expect(store.importResults.failed).toContainEqual({
-				label: 'Import Failed',
-				error: 'DB error'
-			})
+			expect(store.importResults.failed).toContainEqual(
+				createFailure({
+					releaseId: 1,
+					label: 'Fetch Failed',
+					error: 'API error'
+				})
+			)
+			expect(store.importResults.failed).toContainEqual(
+				createFailure({
+					releaseId: 2,
+					label: 'Import Failed',
+					error: 'DB error',
+					code: 'database_write_failed',
+					stage: 'save',
+					attempts: 1
+				})
+			)
 		})
 
 		it('cleans up state in finally block', async () => {
@@ -975,8 +1039,13 @@ describe('discogsStore', () => {
 			expect(store.transferStatus).toBe('failed')
 			expect(store.hasTransferActivity).toBe(true)
 			expect(store.importResults.failed).toContainEqual({
+				releaseId: null,
 				label: 'Discogs import',
-				error: 'The transfer stopped unexpectedly. Please try again.'
+				error: 'The transfer stopped unexpectedly. Please try again.',
+				code: 'internal_error',
+				stage: 'pipeline',
+				retryable: false,
+				attempts: 1
 			})
 			expect(mockToast.error).toHaveBeenCalledWith(
 				'Discogs import failed. Open Transfers for details.'
@@ -986,7 +1055,7 @@ describe('discogsStore', () => {
 		it('does not persist or present an import invalidated by account reset', async () => {
 			const detailsFetch = createDeferred<{
 				releases: { id: number; title: string }[]
-				failed: { label: string; error: string }[]
+				failed: DiscogsImportFailure[]
 				cancelled: boolean
 			}>()
 			let isCancelled: (() => boolean) | undefined
@@ -1042,6 +1111,181 @@ describe('discogsStore', () => {
 			expect(mockToast.error).not.toHaveBeenCalled()
 			expect(mockToast.info).not.toHaveBeenCalled()
 			expect(mockToast.success).not.toHaveBeenCalled()
+		})
+	})
+
+	describe('retryFailedReleases', () => {
+		beforeEach(() => {
+			mockFetchReleaseDetails.mockResolvedValue({
+				releases: [],
+				failed: [],
+				cancelled: false
+			})
+			mockImportFetchedReleases.mockResolvedValue({
+				successful: 0,
+				failed: []
+			})
+		})
+
+		it('refetches only retryable failed release ids and merges recovered results', async () => {
+			const store = useDiscogsStore()
+			const nonRetryable = createFailure({
+				releaseId: 2,
+				label: 'Deleted release',
+				code: 'discogs_not_found',
+				retryable: false,
+				attempts: 1
+			})
+			store.importResults = {
+				successful: 179,
+				skipped: [],
+				failed: [createFailure({ releaseId: 1 }), nonRetryable]
+			}
+			store.transferStatus = 'completed'
+			mockFetchReleaseDetails.mockResolvedValueOnce({
+				releases: [createMockDiscogsReleaseFull({ id: 1 })],
+				failed: [],
+				cancelled: false
+			})
+			mockImportFetchedReleases.mockResolvedValueOnce({
+				successful: 1,
+				failed: []
+			})
+
+			await store.retryFailedReleases()
+
+			expect(mockFetchReleaseDetails).toHaveBeenCalledWith(
+				[{ id: 1, label: 'Failed release' }],
+				expect.any(Function),
+				expect.any(Function),
+				expect.objectContaining({ onAttemptStatus: expect.any(Function) })
+			)
+			expect(store.importResults.successful).toBe(180)
+			expect(store.importResults.failed).toEqual([nonRetryable])
+			expect(store.retrySummary).toEqual({
+				attempted: 1,
+				recovered: 1,
+				remaining: 1
+			})
+			expect(store.transferMode).toBe('retry')
+			expect(store.transferStatus).toBe('completed')
+			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledOnce()
+			expect(mockTracksStore.fetchAllTracks).toHaveBeenCalledOnce()
+		})
+
+		it('replaces attempted failures while preserving unrelated failures', async () => {
+			const store = useDiscogsStore()
+			const unrelated = createFailure({
+				releaseId: 2,
+				label: 'Other failure',
+				retryable: false,
+				code: 'discogs_not_found',
+				attempts: 1
+			})
+			const replacement = createFailure({
+				releaseId: 1,
+				error: 'Discogs is still unavailable.'
+			})
+			store.importResults = {
+				successful: 10,
+				skipped: [],
+				failed: [createFailure({ releaseId: 1 }), unrelated]
+			}
+			mockFetchReleaseDetails.mockResolvedValueOnce({
+				releases: [],
+				failed: [replacement],
+				cancelled: false
+			})
+
+			await store.retryFailedReleases()
+
+			expect(store.importResults.failed).toEqual([unrelated, replacement])
+			expect(store.retrySummary).toEqual({
+				attempted: 1,
+				recovered: 0,
+				remaining: 2
+			})
+		})
+
+		it('does nothing when no record-level failure is retryable', async () => {
+			const store = useDiscogsStore()
+			store.importResults = {
+				successful: 0,
+				skipped: [],
+				failed: [
+					createFailure({
+						releaseId: null,
+						stage: 'pipeline',
+						retryable: false
+					})
+				]
+			}
+
+			await store.retryFailedReleases()
+
+			expect(mockFetchReleaseDetails).not.toHaveBeenCalled()
+			expect(store.canRetryFailed).toBe(false)
+		})
+	})
+
+	describe('transfer snapshot', () => {
+		it('restores sanitized completed results for the same user until dismissed', async () => {
+			mockFilterOutExistingReleases.mockResolvedValue({
+				releasesToFetch: [
+					{ ...createMockDiscogsRelease({ id: 1 }), selected: true }
+				],
+				skipped: []
+			})
+			mockFetchReleaseDetails.mockResolvedValue({
+				releases: [],
+				failed: [createFailure({ releaseId: 1 })],
+				cancelled: false
+			})
+			mockImportFetchedReleases.mockResolvedValue({
+				successful: 0,
+				failed: []
+			})
+			const firstStore = useDiscogsStore()
+			firstStore.releasesToImport = [
+				{ ...createMockDiscogsRelease({ id: 1 }), selected: true }
+			]
+
+			await firstStore.importSelectedReleases()
+			expect(window.sessionStorage.length).toBe(1)
+
+			setActivePinia(createPinia())
+			const restoredStore = useDiscogsStore()
+			expect(restoredStore.transferStatus).toBe('completed')
+			expect(restoredStore.importResults.failed).toEqual([
+				createFailure({ releaseId: 1 })
+			])
+
+			restoredStore.dismissTransferMonitor()
+			expect(window.sessionStorage.length).toBe(0)
+		})
+
+		it('discards persisted failures with malformed correlation ids', () => {
+			window.sessionStorage.setItem(
+				'crate-guide:discogs-transfer:test-user-id',
+				JSON.stringify({
+					version: 1,
+					userId: 'test-user-id',
+					status: 'completed',
+					mode: 'import',
+					results: {
+						successful: 0,
+						skipped: [],
+						failed: [createFailure({ requestId: 'not-a-safe-request-id' })]
+					},
+					retrySummary: null
+				})
+			)
+
+			const store = useDiscogsStore()
+
+			expect(store.transferStatus).toBe('idle')
+			expect(store.importResults.failed).toEqual([])
+			expect(window.sessionStorage.length).toBe(0)
 		})
 	})
 

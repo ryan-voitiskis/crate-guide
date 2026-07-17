@@ -2,6 +2,7 @@ export interface ImportRecordResult {
 	success?: boolean
 	record_id?: string
 	tracks_inserted?: number
+	already_exists?: boolean
 	error?: string
 }
 

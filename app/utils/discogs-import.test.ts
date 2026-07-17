@@ -4,6 +4,7 @@ import {
 	resetReleaseIdCounter
 } from 'test/mocks/fixtures/discogs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { DiscogsApiError } from './discogs-errors'
 // Import after mocking
 import {
 	fetchReleaseDetails,
@@ -192,7 +193,13 @@ describe('fetchReleaseDetails', () => {
 	it('handles fetch failures gracefully', async () => {
 		mockGetRelease
 			.mockResolvedValueOnce(createMockDiscogsReleaseFull({ id: 1 }))
-			.mockRejectedValueOnce(new Error('API Error'))
+			.mockRejectedValueOnce(
+				new DiscogsApiError('Release rejected.', {
+					code: 'discogs_request_rejected',
+					retryable: false,
+					status: 400
+				})
+			)
 			.mockResolvedValueOnce(createMockDiscogsReleaseFull({ id: 3 }))
 
 		const releases = [
@@ -206,7 +213,14 @@ describe('fetchReleaseDetails', () => {
 
 		expect(result.releases).toHaveLength(2)
 		expect(result.failed).toHaveLength(1)
-		expect(result.failed[0]?.error).toBe('API Error')
+		expect(result.failed[0]).toMatchObject({
+			releaseId: 2,
+			error: 'Release rejected.',
+			code: 'discogs_request_rejected',
+			stage: 'fetch',
+			retryable: false,
+			attempts: 1
+		})
 		expect(result.cancelled).toBe(false)
 	})
 
@@ -224,7 +238,136 @@ describe('fetchReleaseDetails', () => {
 		const result = await fetchReleaseDetails(releases, onProgress)
 
 		expect(result.failed).toHaveLength(1)
-		expect(result.failed[0]?.error).toBe('Unknown error')
+		expect(result.failed[0]).toMatchObject({
+			error: 'Discogs could not fetch this release.',
+			code: 'unknown_error',
+			retryable: true
+		})
+	})
+
+	it('retries transient failures with a stable request id', async () => {
+		mockGetRelease
+			.mockRejectedValueOnce(
+				new DiscogsApiError('Discogs is temporarily unavailable.', {
+					code: 'discogs_unavailable',
+					retryable: true,
+					status: 503
+				})
+			)
+			.mockResolvedValueOnce(createMockDiscogsReleaseFull({ id: 1 }))
+		const onAttemptStatus = vi.fn()
+		const sleep = vi.fn().mockResolvedValue(undefined)
+
+		const result = await fetchReleaseDetails(
+			[createSelectableRelease({ id: 1 })],
+			vi.fn(),
+			() => false,
+			{ onAttemptStatus, random: () => 0.5, sleep }
+		)
+
+		expect(result).toMatchObject({
+			releases: [expect.objectContaining({ id: 1 })],
+			failed: [],
+			cancelled: false
+		})
+		expect(mockGetRelease).toHaveBeenCalledTimes(2)
+		const firstContext = mockGetRelease.mock.calls[0]?.[1]
+		const secondContext = mockGetRelease.mock.calls[1]?.[1]
+		expect(firstContext).toMatchObject({ attempt: 1 })
+		expect(secondContext).toMatchObject({
+			attempt: 2,
+			requestId: firstContext.requestId
+		})
+		expect(onAttemptStatus).toHaveBeenCalledWith(
+			expect.objectContaining({
+				attempt: 2,
+				maxAttempts: 3,
+				waitingMs: 1500
+			})
+		)
+		expect(sleep).toHaveBeenCalled()
+	})
+
+	it('honours Retry-After and records exhausted attempts', async () => {
+		mockGetRelease.mockRejectedValue(
+			new DiscogsApiError('Discogs is receiving too many requests.', {
+				code: 'discogs_rate_limited',
+				retryable: true,
+				status: 429,
+				retryAfterMs: 5000,
+				requestId: 'request-reference'
+			})
+		)
+		const onAttemptStatus = vi.fn()
+
+		const result = await fetchReleaseDetails(
+			[createSelectableRelease({ id: 1 })],
+			vi.fn(),
+			() => false,
+			{
+				onAttemptStatus,
+				random: () => 0.5,
+				sleep: async () => undefined
+			}
+		)
+
+		expect(mockGetRelease).toHaveBeenCalledTimes(3)
+		expect(onAttemptStatus).toHaveBeenCalledWith(
+			expect.objectContaining({ waitingMs: 5000 })
+		)
+		expect(result.failed[0]).toMatchObject({
+			code: 'discogs_rate_limited',
+			attempts: 3,
+			retryable: true,
+			requestId: 'request-reference'
+		})
+	})
+
+	it('does not automatically retry invalid responses but allows manual retry', async () => {
+		mockGetRelease.mockRejectedValueOnce(
+			new DiscogsApiError('Discogs returned an invalid release response.', {
+				code: 'invalid_upstream_response',
+				retryable: false
+			})
+		)
+
+		const result = await fetchReleaseDetails(
+			[createSelectableRelease({ id: 1 })],
+			vi.fn(),
+			() => false,
+			{ sleep: async () => undefined }
+		)
+
+		expect(mockGetRelease).toHaveBeenCalledOnce()
+		expect(result.failed[0]).toMatchObject({
+			code: 'invalid_upstream_response',
+			attempts: 1,
+			retryable: true
+		})
+	})
+
+	it('cancels during retry backoff without starting another request', async () => {
+		mockGetRelease.mockRejectedValueOnce(
+			new DiscogsApiError('Discogs is temporarily unavailable.', {
+				code: 'discogs_unavailable',
+				retryable: true
+			})
+		)
+		let cancelled = false
+
+		const result = await fetchReleaseDetails(
+			[createSelectableRelease({ id: 1 })],
+			vi.fn(),
+			() => cancelled,
+			{
+				sleep: async () => {
+					cancelled = true
+				}
+			}
+		)
+
+		expect(result.cancelled).toBe(true)
+		expect(mockGetRelease).toHaveBeenCalledOnce()
 	})
 
 	it('stops fetching when cancelled', async () => {
@@ -300,7 +443,14 @@ describe('importFetchedReleases', () => {
 
 		expect(result.successful).toBe(2)
 		expect(result.failed).toHaveLength(1)
-		expect(result.failed[0]?.error).toBe('Database error')
+		expect(result.failed[0]).toMatchObject({
+			releaseId: 2,
+			error: 'Could not save this record to your library.',
+			code: 'database_write_failed',
+			stage: 'save',
+			retryable: true,
+			attempts: 1
+		})
 	})
 
 	it('handles unknown error types', async () => {
@@ -312,7 +462,9 @@ describe('importFetchedReleases', () => {
 
 		expect(result.successful).toBe(0)
 		expect(result.failed).toHaveLength(1)
-		expect(result.failed[0]?.error).toBe('Failed to import')
+		expect(result.failed[0]?.error).toBe(
+			'Could not save this record to your library.'
+		)
 	})
 
 	it('handles empty input array', async () => {

@@ -1,7 +1,14 @@
 import oauthSignature from 'npm:oauth-signature@1.5.0'
 import { generateToken } from '../generateToken.ts'
-import { getDiscogsConfig } from './config.ts'
+import { type DiscogsConfig, getDiscogsConfig } from './config.ts'
 import type { DiscogsCredentialRepository } from './credentials.ts'
+import {
+	DiscogsConnectionRequiredError,
+	DiscogsUpstreamTimeoutError,
+	DiscogsUpstreamTransportError
+} from './requestErrors.ts'
+
+const DEFAULT_TIMEOUT_MS = 12_000
 
 /**
  * Make an authenticated Discogs GET request on behalf of the calling user.
@@ -17,13 +24,13 @@ import type { DiscogsCredentialRepository } from './credentials.ts'
 export async function makeAuthenticatedRequest(
 	url: string,
 	credentials: DiscogsCredentialRepository,
-	fetcher: typeof fetch = fetch
+	fetcher: typeof fetch = fetch,
+	timeoutMs = DEFAULT_TIMEOUT_MS,
+	config: DiscogsConfig = getDiscogsConfig()
 ): Promise<Response> {
-	const config = getDiscogsConfig()
 	const creds = await credentials.getCredentials()
-	if (!creds?.access_token) throw new Error('Missing Discogs access token.')
-	if (!creds.access_secret)
-		throw new Error('Missing Discogs access token secret.')
+	if (!creds?.access_token) throw new DiscogsConnectionRequiredError()
+	if (!creds.access_secret) throw new DiscogsConnectionRequiredError()
 
 	const parsedUrl = new URL(url)
 	const baseUrl = `${parsedUrl.origin}${parsedUrl.pathname}`
@@ -60,8 +67,20 @@ export async function makeAuthenticatedRequest(
 	}
 	finalParams.append('oauth_signature', encodedSignature)
 
-	return await fetcher(`${baseUrl}?${finalParams}`, {
-		method: 'GET',
-		headers: { 'User-Agent': config.userAgent }
-	})
+	const abortController = new AbortController()
+	const timeout = setTimeout(() => abortController.abort(), timeoutMs)
+	try {
+		return await fetcher(`${baseUrl}?${finalParams}`, {
+			method: 'GET',
+			headers: { 'User-Agent': config.userAgent },
+			signal: abortController.signal
+		})
+	} catch {
+		if (abortController.signal.aborted) {
+			throw new DiscogsUpstreamTimeoutError()
+		}
+		throw new DiscogsUpstreamTransportError()
+	} finally {
+		clearTimeout(timeout)
+	}
 }
