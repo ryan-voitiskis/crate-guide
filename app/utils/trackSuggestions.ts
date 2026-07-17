@@ -68,13 +68,13 @@ export function scoreTrack(
 	sourceMode: number | null,
 	pitchRange: number
 ): ScoredTrack {
-	let tempoScore = 0
-	let harmonyScore = 0
-	let pitchAdjustment = 0
+	let tempoScore: number | null = null
+	let harmonyScore: number | null = null
+	let pitchAdjustment: number | null = null
 	let keyCombination = -1
 
 	// Tempo scoring
-	if (targetBpm && track.bpm) {
+	if (targetBpm !== null && targetBpm > 0 && track.bpm && track.bpm > 0) {
 		pitchAdjustment = calculatePitchAdjustment(track.bpm, targetBpm)
 		tempoScore = calculateTempoScore(track.bpm, targetBpm, pitchRange)
 	}
@@ -100,12 +100,27 @@ export function scoreTrack(
 		keyCombination = harmony.keyCombination
 	}
 
-	// Combined score (weighted: harmony more important)
-	const score = harmonyScore * 0.7 + tempoScore * 0.3
+	const scoreBasis =
+		tempoScore !== null && harmonyScore !== null
+			? 'tempo-and-harmony'
+			: tempoScore !== null
+				? 'tempo'
+				: harmonyScore !== null
+					? 'harmony'
+					: 'none'
+	const score =
+		tempoScore !== null && harmonyScore !== null
+			? harmonyScore * 0.7 + tempoScore * 0.3
+			: tempoScore !== null
+				? tempoScore
+				: harmonyScore !== null
+					? harmonyScore
+					: null
 
 	return {
 		...track,
 		score,
+		scoreBasis,
 		tempoScore,
 		harmonyScore,
 		pitchAdjustment,
@@ -163,5 +178,7 @@ export function getTrackSuggestions(
 	)
 
 	// Sort by score descending, limit results
-	return scored.sort((a, b) => b.score - a.score).slice(0, limit)
+	return scored
+		.sort((a, b) => (b.score ?? -1) - (a.score ?? -1))
+		.slice(0, limit)
 }

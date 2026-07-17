@@ -197,6 +197,18 @@ describe('sessionStore', () => {
 			// At 0 pitch, key shouldn't change
 			expect(result).toBeCloseTo(0, 1)
 		})
+
+		it('adjusts a known key even when BPM is unavailable', () => {
+			const store = useSessionStore()
+			store.decks[0]!.loadedTrack = createMockTrack({
+				bpm: null,
+				key: 0,
+				mode: 0
+			})
+			store.decks[0]!.pitch = 0
+
+			expect(store.getAdjustedKey(0)).toBeCloseTo(0, 1)
+		})
 	})
 
 	describe('getSuggestionsForDeck', () => {
@@ -365,9 +377,9 @@ describe('sessionStore', () => {
 			// Both should have harmony scores, track-a should have better tempo score
 			expect(result.length).toBeGreaterThan(0)
 			result.forEach((track) => {
-				expect(track.score).toBeDefined()
-				expect(track.tempoScore).toBeDefined()
-				expect(track.harmonyScore).toBeDefined()
+				expect(track.score).not.toBeNull()
+				expect(track.tempoScore).not.toBeNull()
+				expect(track.harmonyScore).not.toBeNull()
 			})
 		})
 
@@ -424,7 +436,9 @@ describe('sessionStore', () => {
 
 			// Higher score should come first
 			if (result.length >= 2) {
-				expect(result[0]!.score).toBeGreaterThanOrEqual(result[1]!.score)
+				expect(result[0]!.score).not.toBeNull()
+				expect(result[1]!.score).not.toBeNull()
+				expect(result[0]!.score!).toBeGreaterThanOrEqual(result[1]!.score!)
 			}
 		})
 
@@ -454,6 +468,32 @@ describe('sessionStore', () => {
 			// Track with null BPM should be filtered out
 			expect(result.map((t) => t.id)).toContain('with-bpm')
 			expect(result.map((t) => t.id)).not.toContain('no-bpm')
+		})
+
+		it('marks suggestions unscored when source and candidate metadata are absent', () => {
+			mockTracksStore.playableTracks = [
+				createMockTrack({
+					id: 'unknown-candidate',
+					bpm: null,
+					key: null,
+					mode: null,
+					record_id: 'other-record'
+				})
+			]
+			const store = useSessionStore()
+			store.decks[0]!.loadedTrack = createMockTrack({
+				id: 'unknown-source',
+				bpm: null,
+				key: null,
+				mode: null,
+				record_id: 'source-record'
+			})
+
+			const [suggestion] = store.getSuggestionsForDeck(0)
+
+			expect(suggestion?.score).toBeNull()
+			expect(suggestion?.scoreBasis).toBe('none')
+			expect(suggestion?.pitchAdjustment).toBeNull()
 		})
 	})
 

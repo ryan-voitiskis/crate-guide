@@ -242,24 +242,44 @@ describe('scoreTrack', () => {
 		const track = createTestTrack({ bpm: 120, key: 0, mode: 0 })
 		const scored = scoreTrack(track, null, 0, 0, 8)
 
-		expect(scored.tempoScore).toBe(0)
-		expect(scored.pitchAdjustment).toBe(0)
+		expect(scored.tempoScore).toBeNull()
+		expect(scored.pitchAdjustment).toBeNull()
+		expect(scored.harmonyScore).toBe(1)
+		expect(scored.score).toBe(1)
+		expect(scored.scoreBasis).toBe('harmony')
 	})
 
 	it('handles null target key', () => {
 		const track = createTestTrack({ bpm: 120, key: 0, mode: 0 })
 		const scored = scoreTrack(track, 120, null, 0, 8)
 
-		expect(scored.harmonyScore).toBe(0)
+		expect(scored.harmonyScore).toBeNull()
 		expect(scored.keyCombination).toBe(-1)
+		expect(scored.tempoScore).toBe(1)
+		expect(scored.score).toBe(1)
+		expect(scored.scoreBasis).toBe('tempo')
 	})
 
 	it('handles track with null key', () => {
 		const track = createTestTrack({ bpm: 120, key: null, mode: null })
 		const scored = scoreTrack(track, 120, 0, 0, 8)
 
-		expect(scored.harmonyScore).toBe(0)
+		expect(scored.harmonyScore).toBeNull()
 		expect(scored.keyCombination).toBe(-1)
+		expect(scored.tempoScore).toBe(1)
+		expect(scored.score).toBe(1)
+		expect(scored.scoreBasis).toBe('tempo')
+	})
+
+	it('marks compatibility unavailable when neither dimension can be scored', () => {
+		const track = createTestTrack({ bpm: null, key: null, mode: null })
+		const scored = scoreTrack(track, null, null, null, 8)
+
+		expect(scored.tempoScore).toBeNull()
+		expect(scored.harmonyScore).toBeNull()
+		expect(scored.pitchAdjustment).toBeNull()
+		expect(scored.score).toBeNull()
+		expect(scored.scoreBasis).toBe('none')
 	})
 
 	it('includes all original track properties', () => {

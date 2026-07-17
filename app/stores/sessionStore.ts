@@ -79,10 +79,9 @@ export const useSessionStore = defineStore('session', () => {
 
 	function getAdjustedKey(deckIndex: number): number | null {
 		const deck = decks.value[deckIndex]
-		if (!deck?.loadedTrack?.bpm || deck.loadedTrack.key === null) return null
-		const adjustedBpm = getAdjustedBpm(deckIndex)
-		if (!adjustedBpm) return null
-		return adjustKey(deck.loadedTrack.key, adjustedBpm / deck.loadedTrack.bpm)
+		if (!deck?.loadedTrack || deck.loadedTrack.key === null) return null
+		const factor = 1 + (deck.pitch / 100) * (pitchRange.value / 100)
+		return adjustKey(deck.loadedTrack.key, factor)
 	}
 
 	// === Computed: Suggestions per Deck ===

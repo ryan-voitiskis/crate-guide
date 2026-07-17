@@ -45,21 +45,47 @@ const keyCombinationLabel = computed(() => {
 	return keyCombinations[props.track.keyCombination]
 })
 
-const scorePercent = computed(() => Math.round(props.track.score * 100))
-const scoreColour = computed(() => getSuggestionScoreColour(props.track.score))
-const scoreBadgeStyle = computed(() => ({
-	backgroundColor: hexToRgba(scoreColour.value, 0.12),
-	borderColor: hexToRgba(scoreColour.value, 0.34),
-	boxShadow: `inset 0 0 0 1px ${hexToRgba(scoreColour.value, 0.1)}`,
-	color: scoreColour.value
-}))
+const scorePercent = computed(() =>
+	props.track.score === null ? null : Math.round(props.track.score * 100)
+)
+const scoreLabel = computed(() => {
+	if (scorePercent.value === null) {
+		return 'Mix compatibility unavailable because BPM and key data are incomplete.'
+	}
+	if (props.track.scoreBasis === 'tempo') {
+		return `Tempo match ${scorePercent.value} out of 100; harmony data unavailable.`
+	}
+	if (props.track.scoreBasis === 'harmony') {
+		return `Harmonic match ${scorePercent.value} out of 100; tempo data unavailable.`
+	}
+	return `Mix compatibility ${scorePercent.value} out of 100, based on tempo and harmony.`
+})
+const scoreBadgeStyle = computed(() => {
+	if (props.track.score === null) return undefined
+	const scoreColour = getSuggestionScoreColour(props.track.score)
+	return {
+		backgroundColor: hexToRgba(scoreColour, 0.12),
+		borderColor: hexToRgba(scoreColour, 0.34),
+		boxShadow: `inset 0 0 0 1px ${hexToRgba(scoreColour, 0.1)}`,
+		color: scoreColour
+	}
+})
 
 const pitchAdjustmentDisplay = computed(() => {
+	if (props.track.pitchAdjustment === null) return null
 	const adjustment = props.track.pitchAdjustment * 100
 	return (adjustment > 0 ? '+' : '') + adjustment.toFixed(1) + '%'
 })
-const pitchAdjustmentColour = computed(() =>
-	getPitchDeltaColour(props.track.pitchAdjustment)
+const pitchAdjustmentColour = computed(() => {
+	if (props.track.pitchAdjustment === null) return undefined
+	return getPitchDeltaColour(props.track.pitchAdjustment)
+})
+const hasMetadataRow = computed(
+	() =>
+		Boolean(props.track.bpm) ||
+		Boolean(keyDisplay.value) ||
+		Boolean(keyCombinationLabel.value) ||
+		pitchAdjustmentDisplay.value !== null
 )
 
 function handleClick() {
@@ -70,7 +96,7 @@ function handleClick() {
 <template>
 	<button
 		class="bg-card hover:bg-muted/50 focus-visible:ring-signal w-full overflow-hidden rounded-none border text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
-		:aria-label="`Load ${track.title} to deck ${deckIndex + 1}`"
+		:aria-label="`Load ${track.title} to deck ${deckIndex + 1}. ${scoreLabel}`"
 		@click="handleClick"
 	>
 		<div class="flex h-16 items-center">
@@ -109,6 +135,7 @@ function handleClick() {
 
 				<!-- Metadata row -->
 				<div
+					v-if="hasMetadataRow"
 					class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs"
 				>
 					<span v-if="track.bpm" class="text-muted-foreground">
@@ -125,6 +152,7 @@ function handleClick() {
 						{{ keyCombinationLabel }}
 					</span>
 					<span
+						v-if="pitchAdjustmentDisplay !== null"
 						class="font-medium tabular-nums"
 						:style="{ color: pitchAdjustmentColour }"
 					>
@@ -136,9 +164,15 @@ function handleClick() {
 			<!-- Score indicator -->
 			<div
 				class="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-[2px] border font-mono text-[10px] font-semibold tabular-nums transition-colors"
+				:class="
+					track.score === null
+						? 'border-border/70 bg-muted/30 text-muted-foreground/55 border-dashed'
+						: undefined
+				"
 				:style="scoreBadgeStyle"
+				:title="scoreLabel"
 			>
-				{{ scorePercent }}
+				{{ scorePercent ?? '—' }}
 			</div>
 		</div>
 	</button>
