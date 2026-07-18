@@ -77,6 +77,9 @@ async function mountTable(
 			isApplying: false,
 			keyFormat: 'key',
 			sourceLabel: 'Local audio',
+			density: 'compact',
+			sortKey: null,
+			sortDirection: 'asc',
 			...overrides
 		}
 	})
@@ -133,7 +136,7 @@ describe('TableTrackEnrichmentReview', () => {
 			proposedMode: 1
 		})
 		const wrapper = await mountTable([row])
-		const keyCell = wrapper.get('tbody tr').findAll('td')[4]
+		const keyCell = wrapper.get('tbody tr').findAll('td')[5]
 		const proposedValue = keyCell?.findAll('span')[1]
 
 		expect(keyCell).toBeDefined()
@@ -154,5 +157,16 @@ describe('TableTrackEnrichmentReview', () => {
 				.get('[aria-label="Stage all eligible tracks in this view"]')
 				.attributes('aria-checked')
 		).toBe('mixed')
+	})
+
+	it('emits sortable workbench column selections', async () => {
+		const wrapper = await mountTable([createRow()])
+		const bpmSort = wrapper
+			.findAll('button')
+			.find((button) => button.text().trim() === 'BPM')
+
+		expect(bpmSort).toBeDefined()
+		await bpmSort?.trigger('click')
+		expect(wrapper.emitted('sort')).toEqual([['bpm']])
 	})
 })

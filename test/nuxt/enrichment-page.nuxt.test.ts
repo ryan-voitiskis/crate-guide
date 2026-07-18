@@ -383,4 +383,19 @@ describe('enrichment page wiring', () => {
 			}
 		}
 	)
+
+	it('filters the active review queue without mutating workflow rows', async () => {
+		const { workflow, wrapper } = await mountPage([true, true])
+		workflow.currentStep.value = 2
+		await nextTick()
+
+		const search = wrapper.get('input[aria-label="Filter enrichment matches"]')
+		await search.setValue('synthetic')
+		expect(wrapper.find('[data-testid="review-table"]').exists()).toBe(true)
+
+		await search.setValue('not in this collection')
+		expect(wrapper.find('[data-testid="review-table"]').exists()).toBe(false)
+		expect(wrapper.text()).toContain('No matches for this filter')
+		expect(workflow.rows.value).toHaveLength(1)
+	})
 })
