@@ -36,9 +36,12 @@ async function mountPage(
 function expectPersistentFailure(wrapper: VueWrapper) {
 	expect(wrapper.text()).toContain(failureMessage)
 	expect(wrapper.text()).toContain(failureGuidance)
-	const loginLink = wrapper.get('a')
+	const loginLink = wrapper
+		.findAll('a[href^="/login"]')
+		.find((link) => link.text() === 'Back to login')
+	if (!loginLink) throw new Error('Back to login link not found')
 	expect(loginLink.text()).toBe('Back to login')
-	expect(loginLink.attributes('href')).toBe('/login')
+	expect(loginLink.attributes('href')).toBe('/login?redirect=%2F')
 }
 
 describe('auth confirmation page', () => {
@@ -76,7 +79,7 @@ describe('auth confirmation page', () => {
 			type: 'email'
 		})
 
-		expect(verifyOtp).toHaveBeenCalledWith('token-hash', 'email')
+		expect(verifyOtp).toHaveBeenCalledWith('token-hash', 'email', '/')
 		expectPersistentFailure(wrapper)
 	})
 
@@ -94,7 +97,7 @@ describe('auth confirmation page', () => {
 		)
 		await nextTick()
 
-		expect(wrapper.text()).toContain('Verifying confirmation link...')
+		expect(wrapper.text()).toContain('Verifying sign-in link...')
 		expect(wrapper.text()).not.toContain(failureMessage)
 
 		resolveVerification(true)
@@ -108,8 +111,27 @@ describe('auth confirmation page', () => {
 			type: 'email'
 		})
 
-		expect(wrapper.text()).toContain('Confirmation successful. Redirecting...')
+		expect(wrapper.text()).toContain('Sign in verified. Redirecting...')
 		expect(wrapper.text()).not.toContain(failureMessage)
-		expect(wrapper.find('a[href="/login"]').exists()).toBe(false)
+		expect(
+			wrapper
+				.findAll('a[href^="/login"]')
+				.some((link) => link.text() === 'Back to login')
+		).toBe(false)
+	})
+
+	it('forwards a safe return destination through verification', async () => {
+		verifyOtp.mockResolvedValue(true)
+		await mountPage({
+			token_hash: 'token-hash',
+			type: 'signup',
+			redirect: '/records?crate=house'
+		})
+
+		expect(verifyOtp).toHaveBeenCalledWith(
+			'token-hash',
+			'signup',
+			'/records?crate=house'
+		)
 	})
 })

@@ -9,6 +9,8 @@ definePageMeta({ keepalive: false })
 const user = useUserStore()
 const linkSent = ref(false)
 
+user.clearAuthOperationError?.()
+
 const schema = z.object({
 	email: emailSchema
 })
@@ -36,8 +38,17 @@ const onSubmit = form.handleSubmit(async (values: ResetPasswordFormValues) => {
 				: `Enter your email and we'll send you a reset link.`
 		"
 		catalog="CG · B01"
+		context-title="Password recovery"
+		context-description="Recovery links are single-use. The reset flow verifies the link before accepting a new credential."
 	>
 		<div class="grid gap-4">
+			<PanelAuthStatus
+				v-if="user.authOperationError"
+				tone="error"
+				eyebrow="Delivery failed"
+				:title="user.authOperationError"
+			/>
+
 			<form v-if="!linkSent" class="flex flex-col gap-3" @submit="onSubmit">
 				<FormField v-slot="{ componentField }" name="email">
 					<FormItem>
@@ -64,8 +75,16 @@ const onSubmit = form.handleSubmit(async (values: ResetPasswordFormValues) => {
 					Send reset link
 				</ButtonLoading>
 			</form>
-			<div v-else class="py-2">
-				<AnimationTick class="mx-auto" />
+			<div v-else class="grid gap-3">
+				<PanelAuthStatus
+					tone="positive"
+					eyebrow="Reset link sent"
+					title="Check your email to continue."
+					description="For your security, the link expires. Check spam or junk folders if it does not arrive within a few minutes."
+				/>
+				<Button variant="outline" class="w-full" @click="linkSent = false">
+					Use another email
+				</Button>
 			</div>
 
 			<Separator class="my-1" />

@@ -1,24 +1,21 @@
 <script setup lang="ts">
 interface Props {
-	/** Small catalog chip shown above the title, e.g. "Side A · Sign in" */
 	chip?: string
-	/** Main display title */
 	title: string
-	/** Optional subtitle / description */
 	subtitle?: string
-	/** Where the logo links to (defaults to /demo) */
 	logoTo?: string
-	/** Catalog / issue number shown bottom-right inside the frame */
 	catalog?: string
+	contextTitle?: string
+	contextDescription?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-	logoTo: '/demo'
+	logoTo: '/demo',
+	contextTitle: 'Private library access',
+	contextDescription:
+		'Create, enrich and prepare your collection in the same focused workbench used by the demo.'
 })
 
-// Map each title character to a peak amplitude (% mix into primary) shaped
-// like a kick drum's frequency spectrum: strong low-end, fast decay into the
-// mids, with a small transient "click" resurgence near the tail.
 const titleChars = computed(() => {
 	const letters = [...props.title]
 	const last = Math.max(letters.length - 1, 1)
@@ -36,102 +33,108 @@ const titleChars = computed(() => {
 </script>
 
 <template>
-	<div
-		class="bg-background relative flex min-h-full items-center justify-center overflow-x-clip px-4 py-6 sm:py-10"
-	>
-		<!-- Ambient backdrop: faint radial wash that adapts to theme via tokens -->
-		<div
-			aria-hidden="true"
-			class="pointer-events-none absolute inset-0 [background:radial-gradient(120%_80%_at_50%_-10%,color-mix(in_oklch,var(--primary)_12%,transparent),transparent_60%)]"
-		/>
+	<div class="bg-background flex min-h-full flex-col">
+		<HeaderPublic section="Account access" />
 
-		<!-- Floating theme toggle -->
-		<div class="absolute top-3 right-3 z-20 sm:top-6 sm:right-6">
-			<ToggleTheme />
-		</div>
-
-		<!-- Card frame -->
-		<div class="relative z-10 my-auto w-full max-w-md">
-			<!-- Corner tick marks (decorative) -->
-			<span
+		<main
+			class="relative flex min-h-0 flex-1 items-center justify-center overflow-x-clip py-0 sm:px-4 sm:py-8"
+		>
+			<div
 				aria-hidden="true"
-				class="border-foreground/15 absolute -top-px -left-px size-3 border-t border-l"
-			/>
-			<span
-				aria-hidden="true"
-				class="border-foreground/15 absolute -top-px -right-px size-3 border-t border-r"
-			/>
-			<span
-				aria-hidden="true"
-				class="border-foreground/15 absolute -bottom-px -left-px size-3 border-b border-l"
-			/>
-			<span
-				aria-hidden="true"
-				class="border-foreground/15 absolute -right-px -bottom-px size-3 border-r border-b"
+				class="pointer-events-none absolute inset-0 [background:radial-gradient(110%_80%_at_50%_-10%,color-mix(in_oklch,var(--primary)_10%,transparent),transparent_58%)]"
 			/>
 
-			<Card
-				class="border-border/70 bg-card/95 relative rounded-lg p-0 shadow-xl backdrop-blur-sm"
+			<div
+				class="relative z-10 grid w-full max-w-4xl items-stretch lg:grid-cols-[17.5rem_minmax(0,30rem)] lg:justify-center"
 			>
-				<!-- Slipmat logo -->
-				<div class="relative px-6 pt-6 pb-1 sm:px-8 sm:pt-8 sm:pb-2">
-					<div class="mx-auto size-28 sm:size-36">
-						<NuxtLink
-							:to="logoTo"
-							class="focus-visible:ring-ring relative block size-full rounded-full focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-							aria-label="Crate Guide home"
+				<aside
+					class="bg-workbench-inset hidden flex-col border border-r-0 p-6 lg:flex"
+				>
+					<NuxtLink
+						:to="logoTo"
+						class="focus-visible:ring-ring block aspect-square w-full rounded-full focus-visible:ring-2 focus-visible:outline-none"
+						aria-label="Crate Guide demo"
+					>
+						<LogoCrateGuide />
+					</NuxtLink>
+
+					<div class="mt-8">
+						<p
+							class="text-muted-foreground font-mono text-[9px] tracking-[0.16em] uppercase"
 						>
-							<LogoCrateGuide />
-						</NuxtLink>
+							Access console / 01
+						</p>
+						<h2 class="mt-2 text-lg font-semibold tracking-tight">
+							{{ contextTitle }}
+						</h2>
+						<p class="text-muted-foreground mt-2 text-xs leading-relaxed">
+							{{ contextDescription }}
+						</p>
 					</div>
-				</div>
 
-				<!-- Header: chip + title + subtitle -->
-				<header
-					class="space-y-2.5 px-6 pt-3 pb-1 sm:space-y-3 sm:px-8 sm:pt-4 sm:pb-2"
+					<Button variant="outline" size="sm" class="mt-auto" as-child>
+						<NuxtLink to="/demo">Open read-only demo</NuxtLink>
+					</Button>
+				</aside>
+
+				<section
+					class="bg-card relative min-w-0 border-y p-0 shadow-xl sm:rounded-sm sm:border lg:rounded-l-none"
 				>
+					<span
+						aria-hidden="true"
+						class="border-foreground/15 absolute -top-px -right-px size-3 border-t border-r"
+					/>
+					<span
+						aria-hidden="true"
+						class="border-foreground/15 absolute -right-px -bottom-px size-3 border-r border-b"
+					/>
+
+					<header class="border-b px-5 py-5 sm:px-7 sm:py-6">
+						<div
+							v-if="chip"
+							class="text-foreground/45 flex items-center gap-2 font-mono text-[0.65rem] tracking-[0.18em] uppercase"
+						>
+							<span aria-hidden="true" class="bg-signal h-px w-6" />
+							<span>{{ chip }}</span>
+						</div>
+						<h1
+							class="text-foreground mt-3 font-mono text-2xl leading-[1.1] font-normal tracking-tight whitespace-pre sm:text-[1.75rem]"
+						>
+							<span class="sr-only">{{ title }}</span>
+							<!-- prettier-ignore -->
+							<span
+								v-for="(item, i) in titleChars"
+								:key="i"
+								aria-hidden="true"
+								class="kick-title-char"
+								:style="{
+									'--kick-peak': `${item.peak}%`,
+									'--kick-delay': `${item.delay}ms`
+								}"
+							>{{ item.char }}</span>
+						</h1>
+						<p v-if="subtitle" class="text-muted-foreground mt-2 text-sm">
+							{{ subtitle }}
+						</p>
+						<slot name="header-extras" />
+					</header>
+
+					<div class="px-5 py-5 sm:px-7 sm:py-6">
+						<slot />
+					</div>
+
 					<div
-						v-if="chip"
-						class="text-foreground/35 flex items-center gap-2 font-mono text-[0.7rem] tracking-[0.2em] uppercase"
+						v-if="catalog"
+						aria-hidden="true"
+						class="text-foreground/40 flex items-center justify-between border-t px-5 py-2.5 font-mono text-[0.6rem] tracking-[0.16em] uppercase sm:px-7"
 					>
-						<span aria-hidden="true" class="bg-foreground/20 h-px w-6" />
-						<span>{{ chip }}</span>
+						<span>Crate Guide access console</span>
+						<span>{{ catalog }}</span>
 					</div>
-					<h1
-						class="text-foreground font-mono text-2xl leading-[1.1] font-normal tracking-tight whitespace-pre sm:text-[1.75rem]"
-					>
-						<!-- prettier-ignore -->
-						<span
-							v-for="(item, i) in titleChars"
-							:key="i"
-							class="kick-title-char"
-							:style="{
-								'--kick-peak': `${item.peak}%`,
-								'--kick-delay': `${item.delay}ms`
-							}"
-						>{{ item.char }}</span>
-					</h1>
-					<p v-if="subtitle" class="text-muted-foreground text-sm">
-						{{ subtitle }}
-					</p>
-					<slot name="header-extras" />
-				</header>
+				</section>
+			</div>
+		</main>
 
-				<!-- Body slot -->
-				<div class="px-6 pt-3 pb-5 sm:px-8 sm:pt-4 sm:pb-8">
-					<slot />
-				</div>
-
-				<!-- Footer catalog strip (decorative) -->
-				<div
-					v-if="catalog"
-					aria-hidden="true"
-					class="border-border/50 text-foreground/35 flex items-center justify-between border-t px-6 py-3 font-mono text-[0.65rem] tracking-[0.18em] uppercase sm:px-8"
-				>
-					<span>Crate Guide</span>
-					<span>{{ catalog }}</span>
-				</div>
-			</Card>
-		</div>
+		<StatusPublic />
 	</div>
 </template>

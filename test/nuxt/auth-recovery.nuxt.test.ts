@@ -193,10 +193,15 @@ describe('password recovery auth lifecycle', () => {
 		expect(wrapper.text()).toContain(
 			'This password reset link is invalid or has expired.'
 		)
-		expect(wrapper.text()).toContain('Return to login and request a new link.')
+		expect(wrapper.text()).toContain(
+			'Request a new link to restart the recovery flow.'
+		)
 		expect(wrapper.find('input[type="password"]').exists()).toBe(false)
 		expect(wrapper.text()).not.toContain('Update password')
-		const loginLink = wrapper.get('a[href="/login"]')
+		const loginLink = wrapper
+			.findAll('a[href="/login"]')
+			.find((link) => link.text() === 'Back to login')
+		if (!loginLink) throw new Error('Back to login link not found')
 		expect(loginLink.text()).toBe('Back to login')
 		expect(resetPassword).not.toHaveBeenCalled()
 	})

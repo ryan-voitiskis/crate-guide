@@ -307,7 +307,7 @@ function selectCrate(crate: DemoCrate) {
 						</div>
 					</div>
 					<Button as-child size="sm" class="shrink-0">
-						<NuxtLink to="/signup">
+						<NuxtLink to="/signup?redirect=%2Fcrates">
 							Organize your collection
 							<ExternalLink class="ml-2 size-3.5" />
 						</NuxtLink>

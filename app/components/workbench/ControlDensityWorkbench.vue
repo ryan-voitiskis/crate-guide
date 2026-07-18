@@ -19,7 +19,7 @@ function toggleDensity() {
 <template>
 	<button
 		type="button"
-		class="focus-visible:ring-signal flex h-8 shrink-0 items-center gap-1.5 rounded-sm border border-white/10 px-2 text-white/55 transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:outline-none"
+		class="focus-visible:ring-signal border-border text-muted-foreground hover:text-foreground hover:bg-muted flex h-8 shrink-0 items-center gap-1.5 rounded-sm border px-2 transition-colors focus-visible:ring-2 focus-visible:outline-none"
 		:title="`Switch to ${nextDensity} density`"
 		:aria-label="`Workspace density: ${density}. Switch to ${nextDensity}.`"
 		@click="toggleDensity"

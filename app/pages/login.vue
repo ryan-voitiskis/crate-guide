@@ -2,7 +2,10 @@
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import * as z from 'zod'
-import { sanitizeAuthReturnPath } from '../utils/authRoutes'
+import {
+	buildSignupRedirectPath,
+	sanitizeAuthReturnPath
+} from '../utils/authRoutes'
 import { emailSchema } from '../utils/authValidation'
 
 definePageMeta({ keepalive: false })
@@ -11,6 +14,9 @@ const user = useUserStore()
 const router = useRouter()
 const route = useRoute()
 const returnPath = computed(() => sanitizeAuthReturnPath(route.query.redirect))
+const signupPath = computed(() => buildSignupRedirectPath(returnPath.value))
+
+user.clearAuthOperationError?.()
 
 const signingInWithGithub = ref(false)
 const signingInWithGoogle = ref(false)
@@ -51,18 +57,32 @@ const onSubmit = form.handleSubmit((values: LoginFormValues) =>
 </script>
 
 <template>
-	<ShellAuth chip="Side A · Sign in" title="Log in" catalog="CG · A01">
+	<ShellAuth
+		chip="Side A · Sign in"
+		title="Log in"
+		subtitle="Authenticate to continue to your private collection."
+		catalog="CG · A01"
+	>
 		<template #header-extras>
-			<NoticeWarning v-if="user.userAlreadyRegistered">
-				<template #title>
-					It looks like you've already created an account
-				</template>
-				Try sign in with GitHub or Google, or enter your email and password
-			</NoticeWarning>
+			<PanelAuthStatus
+				v-if="user.userAlreadyRegistered"
+				class="mt-4"
+				tone="pending"
+				eyebrow="Existing account"
+				title="It looks like you've already created an account."
+				description="Use GitHub, Google, or your existing email and password to continue."
+			/>
 		</template>
 
 		<div class="grid gap-4">
-			<div class="grid grid-cols-2 gap-3">
+			<PanelAuthStatus
+				v-if="user.authOperationError"
+				tone="error"
+				eyebrow="Authentication failed"
+				:title="user.authOperationError"
+			/>
+
+			<div class="grid gap-2 sm:grid-cols-2">
 				<ButtonLoading
 					variant="outline"
 					:loading="signingInWithGithub"
@@ -83,7 +103,7 @@ const onSubmit = form.handleSubmit((values: LoginFormValues) =>
 				</ButtonLoading>
 			</div>
 
-			<SeparatorLabelled label="OR" class="my-1" />
+			<SeparatorLabelled label="Email credentials" class="my-1" />
 
 			<form class="flex flex-col gap-3" @submit="onSubmit">
 				<FormField v-slot="{ componentField }" name="email">
@@ -126,7 +146,7 @@ const onSubmit = form.handleSubmit((values: LoginFormValues) =>
 				</ButtonLoading>
 			</form>
 
-			<div class="flex flex-col gap-1 pt-1 text-center text-sm">
+			<div class="grid gap-1 pt-1 text-center text-sm">
 				<div>
 					<span class="text-muted-foreground">Forgot your password?</span>
 					<Button variant="link" as-child>
@@ -136,18 +156,9 @@ const onSubmit = form.handleSubmit((values: LoginFormValues) =>
 				<div>
 					<span class="text-muted-foreground">Don't have an account?</span>
 					<Button variant="link" as-child>
-						<NuxtLink to="/signup">Sign up</NuxtLink>
+						<NuxtLink :to="signupPath">Sign up</NuxtLink>
 					</Button>
 				</div>
-			</div>
-
-			<Separator class="my-1" />
-
-			<div class="text-muted-foreground text-center text-sm">
-				<p>Not ready to create an account?</p>
-				<Button variant="link" as-child>
-					<NuxtLink to="/demo">View the demo</NuxtLink>
-				</Button>
 			</div>
 		</div>
 	</ShellAuth>

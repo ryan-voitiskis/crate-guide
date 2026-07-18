@@ -114,7 +114,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 <template>
 	<button
 		type="button"
-		class="focus-visible:ring-signal flex h-8 shrink-0 items-center gap-2 rounded-sm border border-white/10 px-2 text-white/55 transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:outline-none"
+		class="focus-visible:ring-signal border-border text-muted-foreground hover:text-foreground hover:bg-muted flex h-8 shrink-0 items-center gap-2 rounded-sm border px-2 transition-colors focus-visible:ring-2 focus-visible:outline-none"
 		aria-label="Open command palette"
 		@click="showCommand"
 	>
@@ -123,7 +123,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 			Quick switch
 		</span>
 		<kbd
-			class="hidden rounded-[3px] border border-white/10 bg-black/15 px-1.5 py-0.5 font-mono text-[0.55rem] text-white/40 sm:inline"
+			class="border-border bg-background/60 text-muted-foreground hidden rounded-[3px] border px-1.5 py-0.5 font-mono text-[0.55rem] sm:inline"
 		>
 			⌘ K
 		</kbd>

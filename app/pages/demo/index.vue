@@ -372,7 +372,7 @@ function scoreColor(score: number) {
 						</div>
 					</div>
 					<Button as-child size="sm" class="mt-3 w-full">
-						<NuxtLink to="/signup">
+						<NuxtLink to="/signup?redirect=%2F">
 							Start a real session
 							<ExternalLink class="ml-2 size-3.5" />
 						</NuxtLink>

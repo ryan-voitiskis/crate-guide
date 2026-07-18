@@ -41,5 +41,14 @@ describe('legal document layout', () => {
 
 		expect(scrollShell.element.scrollTop).toBe(0)
 		expect(scrollShell.element.scrollLeft).toBe(0)
+		expect(wrapper.find('nav[aria-label="Public navigation"]').exists()).toBe(
+			true
+		)
+		expect(
+			wrapper.find('footer[aria-label="Public session status"]').exists()
+		).toBe(true)
+		expect(wrapper.get('nav[aria-label="Project links"]').text()).toContain(
+			'Terms'
+		)
 	})
 })

@@ -23,6 +23,7 @@ const isActive = usePageActive()
 const query = ref('')
 const genreFilter = ref('all')
 const selectedTrackId = ref(demoTracks[0]!.id)
+const mobileInspectorOpen = ref(false)
 const sortKey = ref<SortKey>('bpm')
 const sortDirection = ref<'asc' | 'desc'>('asc')
 
@@ -95,6 +96,9 @@ function setSort(key: SortKey) {
 
 function selectTrack(track: DemoTrack) {
 	selectedTrackId.value = track.id
+	if (import.meta.client && window.matchMedia('(max-width: 1023px)').matches) {
+		mobileInspectorOpen.value = true
+	}
 }
 </script>
 
@@ -178,7 +182,7 @@ function selectTrack(track: DemoTrack) {
 			<main
 				class="scrollbar-hidden min-h-0 min-w-0 overflow-auto border-b lg:border-r lg:border-b-0"
 			>
-				<div class="min-w-[900px]">
+				<div class="hidden min-w-[900px] md:block">
 					<div
 						class="bg-muted/60 text-muted-foreground sticky top-0 z-[1] grid grid-cols-[42px_46px_minmax(220px,1.5fr)_minmax(150px,1fr)_76px_80px_76px_90px] items-center gap-3 border-b px-3 py-1.5 text-[10px] font-semibold tracking-[0.08em] uppercase backdrop-blur"
 					>
@@ -295,6 +299,43 @@ function selectTrack(track: DemoTrack) {
 					</button>
 				</div>
 
+				<div class="divide-y md:hidden">
+					<button
+						v-for="track in visibleTracks"
+						:key="track.id"
+						type="button"
+						class="flex w-full items-center gap-3 px-3 py-2.5 text-left"
+						:class="
+							track.id === selectedTrackId
+								? 'bg-primary/8'
+								: 'active:bg-muted/55'
+						"
+						@click="selectTrack(track)"
+					>
+						<img
+							:src="getDemoRecord(track.recordId)?.cover"
+							:alt="`${getDemoRecord(track.recordId)?.title} cover`"
+							class="size-11 shrink-0 rounded-sm border object-cover"
+						/>
+						<span class="min-w-0 flex-1">
+							<span class="block truncate text-sm font-medium">
+								{{ track.title }}
+							</span>
+							<span class="text-muted-foreground block truncate text-[11px]">
+								{{ track.artists.join(', ') }} ·
+								{{ getDemoRecord(track.recordId)?.title }}
+							</span>
+							<span class="mt-1 flex items-center gap-2 font-mono text-[10px]">
+								<span>{{ track.bpm.toFixed(1) }} BPM</span>
+								<span :style="{ color: track.keyColor }">{{ track.key }}</span>
+								<span class="text-muted-foreground">
+									{{ formatDemoDuration(track.duration) }}
+								</span>
+							</span>
+						</span>
+					</button>
+				</div>
+
 				<div
 					v-if="!visibleTracks.length"
 					class="text-muted-foreground flex min-h-64 items-center justify-center text-sm"
@@ -305,7 +346,7 @@ function selectTrack(track: DemoTrack) {
 
 			<aside
 				v-if="selectedTrack && selectedRecord"
-				class="scrollbar-hidden bg-muted/10 min-h-0 overflow-y-auto p-4"
+				class="scrollbar-hidden bg-muted/10 hidden min-h-0 overflow-y-auto p-4 lg:block"
 			>
 				<div class="flex gap-3">
 					<img
@@ -416,7 +457,7 @@ function selectTrack(track: DemoTrack) {
 						</p>
 					</div>
 					<Button as-child size="sm" class="mt-3 w-full">
-						<NuxtLink to="/signup">
+						<NuxtLink to="/signup?redirect=%2Ftracks">
 							Try it with your records
 							<ExternalLink class="ml-2 size-3.5" />
 						</NuxtLink>
@@ -424,5 +465,22 @@ function selectTrack(track: DemoTrack) {
 				</div>
 			</aside>
 		</div>
+
+		<Sheet v-model:open="mobileInspectorOpen">
+			<SheetContent side="right" class="w-[min(92vw,360px)] p-0 sm:max-w-90">
+				<SheetHeader class="sr-only">
+					<SheetTitle>Demo track inspector</SheetTitle>
+					<SheetDescription>
+						Read-only performance and release details.
+					</SheetDescription>
+				</SheetHeader>
+				<div
+					v-if="selectedTrack && selectedRecord"
+					class="scrollbar-hidden h-full overflow-y-auto pt-10"
+				>
+					<PanelDemoTrack :track="selectedTrack" :record="selectedRecord" />
+				</div>
+			</SheetContent>
+		</Sheet>
 	</div>
 </template>

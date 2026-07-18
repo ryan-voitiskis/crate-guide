@@ -1,6 +1,21 @@
+<script setup lang="ts">
+interface Props {
+	variant?: 'default' | 'chrome'
+}
+
+withDefaults(defineProps<Props>(), {
+	variant: 'default'
+})
+</script>
+
 <template>
 	<nav
-		class="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
+		class="flex flex-wrap items-center gap-x-3 gap-y-1"
+		:class="
+			variant === 'chrome'
+				? 'text-foreground/75 text-[9px]'
+				: 'text-muted-foreground text-xs'
+		"
 		aria-label="Project links"
 	>
 		<NuxtLink class="hover:text-foreground transition-colors" to="/privacy">

@@ -15,11 +15,15 @@ watch(
 </script>
 
 <template>
-	<div
-		ref="scrollContainer"
-		data-legal-page-scroll-container
-		class="h-full min-h-0 overflow-y-auto overscroll-contain"
-	>
-		<slot />
+	<div class="flex h-full min-h-0 flex-col">
+		<HeaderPublic section="Legal archive" />
+		<div
+			ref="scrollContainer"
+			data-legal-page-scroll-container
+			class="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+		>
+			<slot />
+		</div>
+		<StatusPublic />
 	</div>
 </template>

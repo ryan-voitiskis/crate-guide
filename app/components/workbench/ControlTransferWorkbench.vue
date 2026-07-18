@@ -32,7 +32,7 @@ const toneClasses = computed(() => {
 		case 'success':
 			return 'text-led'
 		case 'warning':
-			return 'text-amber-300'
+			return 'text-amber-700 dark:text-amber-300'
 		default:
 			return 'text-signal'
 	}
@@ -52,8 +52,8 @@ const toneClasses = computed(() => {
 			class="focus-visible:ring-signal group flex items-center rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
 			:class="
 				variant === 'status'
-					? 'h-5 gap-1.5 px-1.5 text-[0.55rem] tracking-[0.1em] text-white/45 uppercase hover:bg-white/8 hover:text-white'
-					: 'h-11 min-w-11 justify-center gap-1.5 border border-white/10 px-2 text-white/60 hover:bg-white/10 hover:text-white'
+					? 'text-muted-foreground hover:text-foreground hover:bg-muted h-5 gap-1.5 px-1.5 text-[0.55rem] tracking-[0.1em] uppercase'
+					: 'border-border text-muted-foreground hover:text-foreground hover:bg-muted h-11 min-w-11 justify-center gap-1.5 border px-2'
 			"
 			@click="discogs.openTransferMonitor"
 		>
@@ -70,8 +70,8 @@ const toneClasses = computed(() => {
 			<TriangleAlert v-else class="size-3.5 shrink-0" :class="toneClasses" />
 
 			<template v-if="variant === 'status'">
-				<span class="text-white/25">Transfers</span>
-				<span class="text-white/15">/</span>
+				<span class="text-muted-foreground">Transfers</span>
+				<span class="text-muted-foreground/50">/</span>
 				<span class="max-w-44 truncate" :class="toneClasses">
 					{{ discogs.transferLabel }}
 				</span>
@@ -88,7 +88,7 @@ const toneClasses = computed(() => {
 		<button
 			v-if="variant === 'status' && !discogs.isImporting"
 			type="button"
-			class="focus-visible:ring-signal flex size-5 items-center justify-center rounded-sm text-white/25 transition-colors hover:bg-white/8 hover:text-white focus-visible:ring-2 focus-visible:outline-none"
+			class="focus-visible:ring-signal text-muted-foreground hover:text-foreground hover:bg-muted flex size-5 items-center justify-center rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
 			aria-label="Dismiss transfer status"
 			title="Dismiss transfer status"
 			@click="discogs.dismissTransferMonitor"

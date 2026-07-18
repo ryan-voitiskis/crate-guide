@@ -1,7 +1,11 @@
 import { toast } from 'vue-sonner'
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { defineStore } from 'pinia'
-import { sanitizeAuthReturnPath } from '../utils/authRoutes'
+import {
+	buildCheckInboxPath,
+	buildLoginRedirectPath,
+	sanitizeAuthReturnPath
+} from '../utils/authRoutes'
 
 // Explicit column list for client-side profile reads. The Discogs OAuth
 // secret columns were moved to public.discogs_credentials (no SELECT RLS) so
@@ -19,6 +23,7 @@ export const useUserStore = defineStore('user', () => {
 
 	const profile = ref<Profile | null>(null)
 	const userAlreadyRegistered = ref(false)
+	const authOperationError = ref<string | null>(null)
 	const isUpdatingSettings = ref(false)
 	const isSigningOut = ref(false)
 	const isDeletingAccount = ref(false)
@@ -75,6 +80,16 @@ export const useUserStore = defineStore('user', () => {
 		throw new Error('SITE_URL is required when window.location is unavailable')
 	}
 
+	function clearAuthOperationError() {
+		authOperationError.value = null
+	}
+
+	function failAuthOperation(message: string): false {
+		authOperationError.value = message
+		toast.error(message)
+		return false
+	}
+
 	async function resolveAuthenticatedUserId(): Promise<string> {
 		const reactiveUserId = supaUserId.value
 		if (reactiveUserId) return reactiveUserId
@@ -101,13 +116,16 @@ export const useUserStore = defineStore('user', () => {
 
 	async function signUpWithEmail(
 		email: string,
-		password: string
+		password: string,
+		returnPath: unknown = '/'
 	): Promise<boolean> {
+		clearAuthOperationError()
+		const safeReturnPath = sanitizeAuthReturnPath(returnPath)
 		try {
 			const { data, error } = await supabase.auth.signUp({ email, password })
 			if (error?.message === 'User already registered') {
 				userAlreadyRegistered.value = true
-				router.push('/login')
+				router.push(buildLoginRedirectPath(safeReturnPath))
 				toast.warning(`You've already created an account.`)
 				return false
 			}
@@ -115,19 +133,21 @@ export const useUserStore = defineStore('user', () => {
 			// When email confirmations are enabled, signUp succeeds but no session
 			// is created until the user clicks the link in their inbox.
 			if (!data.session) {
-				router.push('/auth/check-inbox')
+				router.push(buildCheckInboxPath(safeReturnPath))
 				return true
 			}
-			router.push('/')
+			router.push(safeReturnPath)
 			toast.success('Sign up successful!')
 			return true
-		} catch (e) {
-			toast.error(isError(e) ? e.message : 'Error signing up.')
-			return false
+		} catch {
+			return failAuthOperation(
+				'Your account could not be created. Check the details and try again.'
+			)
 		}
 	}
 
 	async function signInWithEmail(email: string, password: string) {
+		clearAuthOperationError()
 		try {
 			const { error } = await supabase.auth.signInWithPassword({
 				email,
@@ -136,9 +156,10 @@ export const useUserStore = defineStore('user', () => {
 			if (error) throw error
 			toast.success('Sign in successful!')
 			return true
-		} catch (e) {
-			toast.error(isError(e) ? e.message : 'Error signing in.')
-			return false
+		} catch {
+			return failAuthOperation(
+				"We couldn't sign you in. Check your credentials and try again."
+			)
 		}
 	}
 
@@ -146,6 +167,7 @@ export const useUserStore = defineStore('user', () => {
 		provider: 'github' | 'google',
 		returnPath: unknown = '/'
 	): Promise<boolean> {
+		clearAuthOperationError()
 		try {
 			const redirect = encodeURIComponent(sanitizeAuthReturnPath(returnPath))
 			const { error } = await supabase.auth.signInWithOAuth({
@@ -156,9 +178,11 @@ export const useUserStore = defineStore('user', () => {
 			})
 			if (error) throw error
 			return true
-		} catch (e) {
-			toast.error(isError(e) ? e.message : 'Error signing in.')
-			return false
+		} catch {
+			const providerLabel = provider === 'github' ? 'GitHub' : 'Google'
+			return failAuthOperation(
+				`${providerLabel} sign-in couldn't start. Please try again.`
+			)
 		}
 	}
 
@@ -310,6 +334,7 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	async function sendPasswordResetEmail(email: string): Promise<boolean> {
+		clearAuthOperationError()
 		try {
 			const { error } = await supabase.auth.resetPasswordForEmail(email, {
 				redirectTo: `${getSiteUrl()}/update-password`
@@ -317,19 +342,22 @@ export const useUserStore = defineStore('user', () => {
 			if (error) throw error
 			toast.success('Password reset email sent!')
 			return true
-		} catch (e) {
-			toast.error(isError(e) ? e.message : 'Error sending link.')
-			return false
+		} catch {
+			return failAuthOperation(
+				"We couldn't send the reset link. Please try again."
+			)
 		}
 	}
 
 	async function resetPassword(password: string): Promise<boolean> {
+		clearAuthOperationError()
 		try {
 			const { error } = await supabase.auth.updateUser({ password })
 			if (error) throw error
-		} catch (e) {
-			toast.error(isError(e) ? e.message : 'Error resetting password.')
-			return false
+		} catch {
+			return failAuthOperation(
+				"We couldn't update your password. Please check the requirements and try again."
+			)
 		}
 
 		passwordRecovery.consume()
@@ -350,8 +378,10 @@ export const useUserStore = defineStore('user', () => {
 
 	async function verifyOtp(
 		token_hash: string,
-		type: EmailOtpType
+		type: EmailOtpType,
+		returnPath: unknown = '/'
 	): Promise<boolean> {
+		clearAuthOperationError()
 		try {
 			const { error } = await supabase.auth.verifyOtp({ token_hash, type })
 			if (error) throw error
@@ -361,12 +391,13 @@ export const useUserStore = defineStore('user', () => {
 				toast.success('Recovery link verified!')
 				return true
 			}
-			router.push('/')
+			router.push(sanitizeAuthReturnPath(returnPath))
 			toast.success('Sign in successful!')
 			return true
-		} catch (e) {
-			toast.error(isError(e) ? e.message : 'Error verifying OTP.')
-			return false
+		} catch {
+			return failAuthOperation(
+				'This verification link could not be completed. It may have expired.'
+			)
 		}
 	}
 
@@ -598,6 +629,7 @@ export const useUserStore = defineStore('user', () => {
 		currentTheme,
 		currentKeyFormat,
 		userAlreadyRegistered,
+		authOperationError: readonly(authOperationError),
 		isUpdatingSettings,
 		isSigningOut: readonly(isSigningOut),
 		isDeletingAccount: readonly(isDeletingAccount),
@@ -610,6 +642,7 @@ export const useUserStore = defineStore('user', () => {
 		sendPasswordResetEmail,
 		resetPassword,
 		verifyOtp,
+		clearAuthOperationError,
 		fetchProfile,
 		updateSettings,
 		setLocalTheme,

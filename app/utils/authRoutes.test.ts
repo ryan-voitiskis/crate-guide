@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+	buildCheckInboxPath,
 	buildLoginRedirectPath,
+	buildSignupRedirectPath,
 	isPublicRoute,
 	isSignedOutOnlyRoute,
 	sanitizeAuthReturnPath
@@ -109,6 +111,15 @@ describe('auth return paths', () => {
 		)
 		expect(buildLoginRedirectPath('https://evil.example')).toBe(
 			'/login?redirect=%2F'
+		)
+	})
+
+	it('builds encoded signup and confirmation destinations', () => {
+		expect(buildSignupRedirectPath('/tracks?genre=House')).toBe(
+			'/signup?redirect=%2Ftracks%3Fgenre%3DHouse'
+		)
+		expect(buildCheckInboxPath('/records#release-1')).toBe(
+			'/auth/check-inbox?redirect=%2Frecords%23release-1'
 		)
 	})
 })

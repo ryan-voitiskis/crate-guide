@@ -9,6 +9,8 @@ definePageMeta({ keepalive: false })
 const user = useUserStore()
 const recovery = usePasswordRecovery()
 
+user.clearAuthOperationError?.()
+
 const schema = z.object({
 	password: newPasswordSchema
 })
@@ -24,11 +26,20 @@ const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
 </script>
 
 <template>
-	<ShellAuth chip="B-side · New key" title="New password" catalog="CG · B02">
+	<ShellAuth
+		chip="B-side · New key"
+		title="New password"
+		catalog="CG · B02"
+		context-title="Secure credential update"
+		context-description="A verified, single-use recovery session is required before Crate Guide accepts a new password."
+	>
 		<div class="grid gap-4">
-			<StateLoading
+			<PanelAuthStatus
 				v-if="recovery.status.value === 'checking'"
-				message="Checking password reset link..."
+				tone="pending"
+				eyebrow="Verifying recovery"
+				title="Checking password reset link..."
+				description="This normally takes only a moment."
 			/>
 
 			<form
@@ -36,6 +47,13 @@ const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
 				class="flex flex-col gap-3"
 				@submit="onSubmit"
 			>
+				<PanelAuthStatus
+					v-if="user.authOperationError"
+					tone="error"
+					eyebrow="Update failed"
+					:title="user.authOperationError"
+				/>
+
 				<FormField v-slot="{ componentField }" name="password">
 					<FormItem>
 						<FormLabel>New password</FormLabel>
@@ -49,6 +67,8 @@ const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
 					</FormItem>
 				</FormField>
 
+				<ChecklistAuthPassword :password="form.values.password ?? ''" />
+
 				<ButtonLoading
 					class="mt-2 w-full"
 					type="submit"
@@ -59,16 +79,17 @@ const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
 			</form>
 
 			<div v-else class="grid gap-4">
-				<NoticeError class="items-start">
-					<div class="space-y-1">
-						<p class="font-medium">
-							This password reset link is invalid or has expired.
-						</p>
-						<p>Return to login and request a new link.</p>
-					</div>
-				</NoticeError>
+				<PanelAuthStatus
+					tone="error"
+					eyebrow="Recovery unavailable"
+					title="This password reset link is invalid or has expired."
+					description="Request a new link to restart the recovery flow."
+				/>
 
 				<Button class="w-full" as-child>
+					<NuxtLink to="/reset-password">Request a new link</NuxtLink>
+				</Button>
+				<Button variant="outline" class="w-full" as-child>
 					<NuxtLink to="/login">Back to login</NuxtLink>
 				</Button>
 			</div>

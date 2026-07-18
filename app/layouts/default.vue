@@ -10,8 +10,6 @@ const showWorkbench = computed(
 		route.path.startsWith('/demo') ||
 		!isPublicRoute(route.path)
 )
-const showPublicProjectLinks = computed(() => !showWorkbench.value)
-
 const density = useState<'compact' | 'comfortable'>(
 	'workbench-density',
 	() => 'compact'
@@ -50,15 +48,7 @@ onMounted(() => {
 			data-public-page-scroll-container
 			class="h-full min-h-0 overflow-y-auto overscroll-contain"
 		>
-			<div class="flex min-h-full flex-col">
-				<div class="min-h-0 flex-1">
-					<slot />
-				</div>
-				<LinksLegal
-					v-if="showPublicProjectLinks"
-					class="shrink-0 justify-center px-4 pb-6 sm:pb-8"
-				/>
-			</div>
+			<slot />
 		</div>
 	</div>
 </template>

@@ -68,3 +68,11 @@ export function sanitizeAuthReturnPath(value: unknown): string {
 export function buildLoginRedirectPath(returnPath: unknown): string {
 	return `/login?redirect=${encodeURIComponent(sanitizeAuthReturnPath(returnPath))}`
 }
+
+export function buildSignupRedirectPath(returnPath: unknown): string {
+	return `/signup?redirect=${encodeURIComponent(sanitizeAuthReturnPath(returnPath))}`
+}
+
+export function buildCheckInboxPath(returnPath: unknown): string {
+	return `/auth/check-inbox?redirect=${encodeURIComponent(sanitizeAuthReturnPath(returnPath))}`
+}

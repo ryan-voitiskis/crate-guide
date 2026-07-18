@@ -85,6 +85,7 @@ describe('auth form contracts', () => {
 	beforeEach(() => {
 		factories.route.mockReturnValue({ query: {} })
 		factories.user.mockReturnValue({
+			authOperationError: null,
 			userAlreadyRegistered: false,
 			...authActions
 		})
@@ -106,6 +107,52 @@ describe('auth form contracts', () => {
 
 		expectEmailSemantics(wrapper.get('input[name="email"]'))
 		expectPasswordSemantics(wrapper, 'current-password')
+	})
+
+	it('renders the shared public console with one coherent heading name', async () => {
+		const wrapper = await mountPage(LoginPage)
+		const heading = wrapper.get('h1')
+		const animatedCharacters = heading.findAll('.kick-title-char')
+		const platterLink = wrapper
+			.findAll('a[aria-label="Crate Guide demo"]')
+			.find((link) => link.classes().includes('aspect-square'))
+
+		expect(heading.get('.sr-only').text()).toBe('Log in')
+		expect(animatedCharacters.length).toBeGreaterThan(0)
+		expect(
+			animatedCharacters.every(
+				(character) => character.attributes('aria-hidden') === 'true'
+			)
+		).toBe(true)
+		expect(wrapper.find('nav[aria-label="Public navigation"]').exists()).toBe(
+			true
+		)
+		expect(
+			wrapper.find('footer[aria-label="Public session status"]').exists()
+		).toBe(true)
+		expect(wrapper.get('nav[aria-label="Project links"]').text()).toContain(
+			'Privacy'
+		)
+		expect(platterLink?.classes()).toContain('w-full')
+		expect(wrapper.text()).not.toContain('Successful sign-in returns to')
+		expect(wrapper.text()).not.toContain('Session required')
+		expect(wrapper.text()).not.toContain('Destination')
+	})
+
+	it('uses the destructive token for visible validation feedback', async () => {
+		const wrapper = await mountPage(LoginPage)
+		await setFieldValue(wrapper, 'email', 'not-an-email')
+		await setFieldValue(wrapper, 'password', 'password')
+
+		await submit(wrapper)
+
+		await vi.waitFor(() => {
+			expect(
+				wrapper
+					.findAll('p')
+					.some((paragraph) => paragraph.classes().includes('text-destructive'))
+			).toBe(true)
+		})
 	})
 
 	it('keeps login compatible with an existing non-composition password', async () => {
@@ -143,7 +190,8 @@ describe('auth form contracts', () => {
 		await vi.waitFor(() => {
 			expect(authActions.signUpWithEmail).toHaveBeenCalledWith(
 				'user@example.com',
-				'Password123'
+				'Password123',
+				'/'
 			)
 		})
 		expect(email.element.value).toBe('user@example.com')
@@ -156,6 +204,46 @@ describe('auth form contracts', () => {
 			expect(email.element.value).toBe('')
 			expect(password.element.value).toBe('')
 		})
+	})
+
+	it('shows password requirements and hosted-service context on signup', async () => {
+		const wrapper = await mountPage(SignupPage)
+
+		expect(wrapper.text()).toContain('Password requirements')
+		expect(wrapper.text()).toContain('8–64 characters')
+		expect(wrapper.get('a[href="/terms"]').text()).toBe('Hosted Service Terms')
+		expect(wrapper.get('a[href="/privacy"]').text()).toBe('Privacy Notice')
+	})
+
+	it('preserves the requested destination across signup methods', async () => {
+		factories.route.mockReturnValue({
+			query: { redirect: '/tracks?genre=House' }
+		})
+		const wrapper = await mountPage(SignupPage)
+		const github = wrapper
+			.findAll('button')
+			.find((button) => button.text().includes('GitHub'))
+		if (!github) throw new Error('GitHub signup button not found')
+
+		await github.trigger('click')
+		await flushPromises()
+
+		expect(authActions.signInWithProvider).toHaveBeenCalledWith(
+			'github',
+			'/tracks?genre=House'
+		)
+	})
+
+	it('renders persistent operation errors inside the login form', async () => {
+		factories.user.mockReturnValue({
+			authOperationError: 'Credentials were not accepted.',
+			userAlreadyRegistered: false,
+			...authActions
+		})
+		const wrapper = await mountPage(LoginPage)
+
+		const alert = wrapper.get('[role="alert"]')
+		expect(alert.text()).toContain('Credentials were not accepted.')
 	})
 
 	it('starts signup with empty credentials after a remount', async () => {

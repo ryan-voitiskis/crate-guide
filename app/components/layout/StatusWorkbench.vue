@@ -14,7 +14,7 @@ const currentSection = computed(() => {
 
 <template>
 	<footer
-		class="bg-workbench-chrome text-workbench-chrome-foreground flex h-6 items-center justify-between border-t border-white/10 px-2.5 font-mono text-[0.55rem] tracking-[0.12em] uppercase sm:px-3"
+		class="bg-workbench-inset text-foreground border-border flex h-6 items-center justify-between border-t px-2.5 font-mono text-[0.55rem] tracking-[0.12em] uppercase sm:px-3"
 		aria-label="Workspace status"
 	>
 		<div class="flex min-w-0 items-center gap-2.5">
@@ -22,20 +22,20 @@ const currentSection = computed(() => {
 				class="size-1.5 shrink-0 rounded-full"
 				:class="online ? 'bg-led shadow-[0_0_6px_var(--led)]' : 'bg-signal'"
 			/>
-			<span class="truncate text-white/65">
+			<span class="text-foreground/80 truncate">
 				{{
 					isDemo ? 'Read-only demo' : online ? 'Library ready' : 'Offline mode'
 				}}
 			</span>
-			<span class="hidden text-white/20 sm:inline">/</span>
-			<span class="hidden truncate text-white/40 sm:inline">
+			<span class="text-muted-foreground/50 hidden sm:inline">/</span>
+			<span class="text-muted-foreground hidden truncate sm:inline">
 				{{ currentSection }}
 			</span>
 		</div>
-		<div class="flex shrink-0 items-center gap-2.5 text-white/35">
+		<div class="text-muted-foreground flex shrink-0 items-center gap-2.5">
 			<ControlTransferWorkbench />
 			<span class="hidden md:inline">Local-first workspace</span>
-			<span class="hidden text-white/20 md:inline">•</span>
+			<span class="text-muted-foreground/50 hidden md:inline">•</span>
 			<span>CG · 33⅓</span>
 		</div>
 	</footer>

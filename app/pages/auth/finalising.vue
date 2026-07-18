@@ -60,31 +60,41 @@ watch(
 </script>
 
 <template>
-	<ShellAuth chip="Side A · Sign in" title="Signing in" catalog="CG · A01">
-		<StateLoading v-if="state === 'loading'" message="Completing sign in..." />
-		<StateLoading
+	<ShellAuth
+		chip="Side A · Secure callback"
+		title="Signing in"
+		catalog="CG · A01"
+	>
+		<PanelAuthStatus
+			v-if="state === 'loading'"
+			tone="pending"
+			eyebrow="Authentication in progress"
+			title="Completing sign in..."
+			description="Waiting for your authenticated session."
+		/>
+		<PanelAuthStatus
 			v-else-if="state === 'redirecting'"
-			message="Sign in successful. Redirecting..."
+			tone="positive"
+			eyebrow="Authentication complete"
+			title="Sign in successful. Redirecting..."
 		/>
 		<div v-else class="space-y-4">
-			<NoticeError class="items-start">
-				<div class="space-y-1">
-					<p class="font-medium">
-						{{
-							state === 'timeout-error'
-								? 'Sign in is taking longer than expected.'
-								: "We couldn't complete your sign in."
-						}}
-					</p>
-					<p>Please try again or return to login.</p>
-				</div>
-			</NoticeError>
+			<PanelAuthStatus
+				tone="error"
+				eyebrow="Authentication interrupted"
+				:title="
+					state === 'timeout-error'
+						? 'Sign in is taking longer than expected.'
+						: `We couldn't complete your sign in.`
+				"
+				description="Please try again or return to login."
+			/>
 			<div class="grid gap-3 sm:grid-cols-2">
 				<Button as-child>
 					<NuxtLink :to="retryPath">Try again</NuxtLink>
 				</Button>
 				<Button variant="outline" as-child>
-					<NuxtLink to="/login">Back to login</NuxtLink>
+					<NuxtLink to="/demo">Open demo</NuxtLink>
 				</Button>
 			</div>
 		</div>

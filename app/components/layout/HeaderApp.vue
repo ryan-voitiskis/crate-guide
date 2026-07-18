@@ -18,10 +18,10 @@ watch(
 
 <template>
 	<header
-		class="bg-workbench-chrome text-workbench-chrome-foreground relative z-30 flex h-12 w-full border-b border-white/10 shadow-md"
+		class="bg-workbench-inset text-foreground border-border relative z-30 flex h-12 w-full border-b shadow-sm"
 	>
 		<div
-			class="hidden w-52 shrink-0 items-center border-r border-white/10 px-3 lg:flex"
+			class="border-border hidden w-52 shrink-0 items-center border-r px-3 lg:flex"
 		>
 			<NuxtLink
 				:to="homePath"
@@ -32,7 +32,7 @@ watch(
 					<LogoCrateGuide class="size-full" />
 					<span
 						aria-hidden="true"
-						class="bg-led ring-workbench-chrome absolute right-0 bottom-0 size-1.5 rounded-full ring-2"
+						class="bg-led ring-workbench-inset absolute right-0 bottom-0 size-1.5 rounded-full ring-2"
 					/>
 				</span>
 				<span class="min-w-0 leading-none">
@@ -42,7 +42,7 @@ watch(
 						Crate Guide
 					</span>
 					<span
-						class="mt-1 block font-mono text-[0.55rem] tracking-[0.18em] text-white/40 uppercase"
+						class="text-muted-foreground mt-1 block font-mono text-[0.55rem] tracking-[0.18em] uppercase"
 					>
 						Library system
 					</span>
@@ -62,7 +62,7 @@ watch(
 				</span>
 			</NuxtLink>
 
-			<div class="mx-1 hidden h-5 w-px bg-white/10 sm:block lg:hidden" />
+			<div class="bg-border mx-1 hidden h-5 w-px sm:block lg:hidden" />
 
 			<!-- Page-specific actions retain the existing teleport contract. -->
 			<div
@@ -75,7 +75,7 @@ watch(
 					class="bg-signal size-1.5 rounded-full shadow-[0_0_8px_var(--signal)]"
 				/>
 				<span
-					class="font-mono text-[0.6rem] tracking-[0.16em] text-white/55 uppercase"
+					class="text-muted-foreground font-mono text-[0.6rem] tracking-[0.16em] uppercase"
 				>
 					Demo source
 				</span>
@@ -91,7 +91,7 @@ watch(
 						<Button
 							variant="ghost"
 							size="icon"
-							class="text-workbench-chrome-foreground hover:bg-white/10 hover:text-white"
+							class="text-muted-foreground hover:bg-muted hover:text-foreground"
 							aria-label="Open navigation"
 						>
 							<Menu class="size-5" />

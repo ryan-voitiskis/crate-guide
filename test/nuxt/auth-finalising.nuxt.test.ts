@@ -37,6 +37,7 @@ async function mountPage(
 async function mountLoginPage(query: Record<string, unknown>) {
 	factories.route.mockReturnValue({ query })
 	factories.user.mockReturnValue({
+		authOperationError: null,
 		supaUser: null,
 		userAlreadyRegistered: false,
 		signInWithEmail: vi.fn(),
@@ -69,7 +70,7 @@ function expectFailureActions(wrapper: VueWrapper, retryHref: string) {
 	expect(
 		links.some(
 			(link) =>
-				link.text() === 'Back to login' && link.attributes('href') === '/login'
+				link.text() === 'Open demo' && link.attributes('href') === '/demo'
 		)
 	).toBe(true)
 }

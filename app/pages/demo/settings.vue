@@ -145,7 +145,7 @@ const user = useSupabaseUser()
 							</div>
 						</div>
 						<Button as-child size="sm" class="shrink-0">
-							<NuxtLink :to="user ? '/' : '/signup'">
+							<NuxtLink :to="user ? '/' : '/signup?redirect=%2Fsettings'">
 								{{ user ? 'Go to app' : 'Create account' }}
 								<ExternalLink class="ml-2 size-3.5" />
 							</NuxtLink>

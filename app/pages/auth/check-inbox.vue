@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { Mail } from 'lucide-vue-next'
+import {
+	buildLoginRedirectPath,
+	sanitizeAuthReturnPath
+} from '../../utils/authRoutes'
+
+const route = useRoute()
+const returnPath = computed(() => sanitizeAuthReturnPath(route.query.redirect))
+const loginPath = computed(() => buildLoginRedirectPath(returnPath.value))
 </script>
 
 <template>
@@ -10,21 +17,19 @@ import { Mail } from 'lucide-vue-next'
 		catalog="CG · A02b"
 	>
 		<div class="grid gap-4">
-			<div
-				class="border-border/70 bg-muted/30 text-muted-foreground flex items-center gap-3 rounded-md border p-4 text-sm"
-			>
-				<Mail class="text-primary size-5 shrink-0" />
-				<p>
-					If it doesn't arrive within a few minutes, check your spam folder.
-				</p>
-			</div>
+			<PanelAuthStatus
+				tone="pending"
+				eyebrow="Email verification"
+				title="Your account is waiting for confirmation."
+				description="If the message does not arrive within a few minutes, check your spam or junk folder."
+			/>
 
 			<Separator class="my-1" />
 
 			<div class="text-center text-sm">
 				<span class="text-muted-foreground">Already confirmed?</span>
 				<Button variant="link" as-child>
-					<NuxtLink to="/login">Log in</NuxtLink>
+					<NuxtLink :to="loginPath">Log in</NuxtLink>
 				</Button>
 			</div>
 		</div>

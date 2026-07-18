@@ -2,11 +2,20 @@
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import * as z from 'zod'
+import {
+	buildLoginRedirectPath,
+	sanitizeAuthReturnPath
+} from '../utils/authRoutes'
 import { emailSchema, newPasswordSchema } from '../utils/authValidation'
 
 definePageMeta({ keepalive: false })
 
 const user = useUserStore()
+const route = useRoute()
+const returnPath = computed(() => sanitizeAuthReturnPath(route.query.redirect))
+const loginPath = computed(() => buildLoginRedirectPath(returnPath.value))
+
+user.clearAuthOperationError?.()
 
 const signingInWithGithub = ref(false)
 const signingInWithGoogle = ref(false)
@@ -21,19 +30,23 @@ type SignupFormValues = z.infer<typeof schema>
 const form = useForm({ validationSchema: toTypedSchema(schema) })
 
 const onSubmit = form.handleSubmit(async (values: SignupFormValues) => {
-	const didSignUp = await user.signUpWithEmail(values.email, values.password)
+	const didSignUp = await user.signUpWithEmail(
+		values.email,
+		values.password,
+		returnPath.value
+	)
 	if (didSignUp) form.resetForm()
 })
 
 async function signInWithGithub() {
 	signingInWithGithub.value = true
-	const started = await user.signInWithProvider('github')
+	const started = await user.signInWithProvider('github', returnPath.value)
 	if (!started) signingInWithGithub.value = false
 }
 
 async function signInWithGoogle() {
 	signingInWithGoogle.value = true
-	const started = await user.signInWithProvider('google')
+	const started = await user.signInWithProvider('google', returnPath.value)
 	if (!started) signingInWithGoogle.value = false
 }
 </script>
@@ -42,10 +55,18 @@ async function signInWithGoogle() {
 	<ShellAuth
 		chip="Cut 02 · New record"
 		title="Create your account"
+		subtitle="Start a private library and keep every release, track and cue in context."
 		catalog="CG · A02"
 	>
 		<div class="grid gap-4">
-			<div class="grid grid-cols-2 gap-3">
+			<PanelAuthStatus
+				v-if="user.authOperationError"
+				tone="error"
+				eyebrow="Account setup failed"
+				:title="user.authOperationError"
+			/>
+
+			<div class="grid gap-2 sm:grid-cols-2">
 				<ButtonLoading
 					variant="outline"
 					:loading="signingInWithGithub"
@@ -66,7 +87,7 @@ async function signInWithGoogle() {
 				</ButtonLoading>
 			</div>
 
-			<SeparatorLabelled label="OR" class="my-1" />
+			<SeparatorLabelled label="Email credentials" class="my-1" />
 
 			<form class="flex flex-col gap-3" @submit="onSubmit">
 				<FormField v-slot="{ componentField }" name="email">
@@ -99,6 +120,8 @@ async function signInWithGoogle() {
 					</FormItem>
 				</FormField>
 
+				<ChecklistAuthPassword :password="form.values.password ?? ''" />
+
 				<ButtonLoading
 					class="mt-2 w-full"
 					type="submit"
@@ -107,21 +130,31 @@ async function signInWithGoogle() {
 				>
 					Create account
 				</ButtonLoading>
+				<p
+					class="text-muted-foreground text-center text-[11px] leading-relaxed"
+				>
+					By creating an account, you agree to the
+					<NuxtLink
+						to="/terms"
+						class="text-foreground underline underline-offset-4"
+					>
+						Hosted Service Terms
+					</NuxtLink>
+					and acknowledge the
+					<NuxtLink
+						to="/privacy"
+						class="text-foreground underline underline-offset-4"
+					>
+						Privacy Notice
+					</NuxtLink>
+					.
+				</p>
 			</form>
 
 			<div class="pt-1 text-center text-sm">
 				<span class="text-muted-foreground">Already have an account?</span>
 				<Button variant="link" as-child>
-					<NuxtLink to="/login">Log in</NuxtLink>
-				</Button>
-			</div>
-
-			<Separator class="my-1" />
-
-			<div class="text-muted-foreground text-center text-sm">
-				<p>Not ready to create an account?</p>
-				<Button variant="link" as-child>
-					<NuxtLink to="/demo">View the demo</NuxtLink>
+					<NuxtLink :to="loginPath">Log in</NuxtLink>
 				</Button>
 			</div>
 		</div>

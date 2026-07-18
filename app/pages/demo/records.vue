@@ -1,12 +1,5 @@
 <script setup lang="ts">
-import {
-	Disc3,
-	ExternalLink,
-	Grid2X2,
-	List,
-	Music2,
-	Search
-} from 'lucide-vue-next'
+import { Grid2X2, List, Search } from 'lucide-vue-next'
 import {
 	type DemoRecord,
 	demoRecords,
@@ -17,6 +10,7 @@ const isActive = usePageActive()
 const query = ref('')
 const viewMode = ref<'list' | 'covers'>('list')
 const selectedRecordId = ref(demoRecords[0]!.id)
+const mobileInspectorOpen = ref(false)
 
 const filteredRecords = computed(() => {
 	const search = query.value.trim().toLowerCase()
@@ -52,6 +46,9 @@ const totalTracks = computed(() =>
 
 function selectRecord(record: DemoRecord) {
 	selectedRecordId.value = record.id
+	if (import.meta.client && window.matchMedia('(max-width: 1023px)').matches) {
+		mobileInspectorOpen.value = true
+	}
 }
 </script>
 
@@ -139,7 +136,7 @@ function selectRecord(record: DemoRecord) {
 				</div>
 
 				<div class="scrollbar-hidden min-h-0 flex-1 overflow-auto">
-					<div v-if="viewMode === 'list'" class="min-w-[720px]">
+					<div v-if="viewMode === 'list'" class="hidden min-w-[720px] md:block">
 						<div
 							class="bg-muted/50 text-muted-foreground sticky top-0 z-[1] grid grid-cols-[48px_minmax(220px,1.6fr)_minmax(140px,1fr)_100px_72px_64px] items-center gap-3 border-b px-3 py-1.5 text-[10px] font-semibold tracking-[0.08em] uppercase"
 						>
@@ -186,6 +183,41 @@ function selectRecord(record: DemoRecord) {
 						</button>
 					</div>
 
+					<div v-if="viewMode === 'list'" class="divide-y md:hidden">
+						<button
+							v-for="record in filteredRecords"
+							:key="record.id"
+							type="button"
+							class="flex w-full items-center gap-3 px-3 py-2.5 text-left"
+							:class="
+								record.id === selectedRecordId
+									? 'bg-primary/8'
+									: 'active:bg-muted/55'
+							"
+							@click="selectRecord(record)"
+						>
+							<img
+								:src="record.cover"
+								:alt="`${record.title} cover`"
+								class="size-11 shrink-0 rounded-sm border object-cover"
+							/>
+							<span class="min-w-0 flex-1">
+								<span class="block truncate text-sm font-medium">
+									{{ record.title }}
+								</span>
+								<span class="text-muted-foreground block truncate text-[11px]">
+									{{ record.artists.join(', ') }} · {{ record.label }}
+								</span>
+								<span
+									class="text-muted-foreground mt-1 block font-mono text-[10px]"
+								>
+									{{ record.catno }} · {{ record.year }} ·
+									{{ getDemoRecordTracks(record.id).length }} tracks
+								</span>
+							</span>
+						</button>
+					</div>
+
 					<div
 						v-else
 						class="grid grid-cols-2 gap-x-3 gap-y-5 p-3 sm:grid-cols-3 xl:grid-cols-5"
@@ -226,81 +258,27 @@ function selectRecord(record: DemoRecord) {
 
 			<aside
 				v-if="selectedRecord"
-				class="scrollbar-hidden bg-muted/10 min-h-0 overflow-y-auto p-4"
+				class="scrollbar-hidden bg-muted/10 hidden min-h-0 overflow-y-auto lg:block"
 			>
-				<div class="grid grid-cols-[112px_minmax(0,1fr)] gap-4 lg:grid-cols-1">
-					<img
-						:src="selectedRecord.cover"
-						:alt="`${selectedRecord.title} cover`"
-						class="aspect-square w-full max-w-64 rounded-sm border object-cover shadow-md"
-					/>
-					<div class="min-w-0 lg:mt-4">
-						<p
-							class="text-muted-foreground font-mono text-[10px] tracking-[0.12em] uppercase"
-						>
-							{{ selectedRecord.catno }} · {{ selectedRecord.year }}
-						</p>
-						<h2 class="mt-1 text-lg leading-tight font-semibold">
-							{{ selectedRecord.title }}
-						</h2>
-						<p class="text-muted-foreground mt-1 text-sm">
-							{{ selectedRecord.artists.join(', ') }}
-						</p>
-						<div class="mt-3 flex flex-wrap gap-1.5">
-							<Badge variant="secondary">{{ selectedRecord.label }}</Badge>
-							<Badge variant="outline">{{ selectedRecord.format }}</Badge>
-						</div>
-					</div>
-				</div>
-
-				<div class="mt-5 border-t pt-4">
-					<div class="mb-2 flex items-center justify-between">
-						<p class="text-xs font-semibold tracking-[0.08em] uppercase">
-							Tracklist
-						</p>
-						<span
-							class="text-muted-foreground inline-flex items-center gap-1 text-[11px]"
-						>
-							<Music2 class="size-3" />
-							{{ selectedTracks.length }}
-						</span>
-					</div>
-					<div class="divide-y border-y">
-						<div
-							v-for="track in selectedTracks"
-							:key="track.id"
-							class="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2 py-2 text-xs"
-						>
-							<span class="text-muted-foreground font-mono text-[10px]">
-								{{ track.position }}
-							</span>
-							<span class="truncate">{{ track.title }}</span>
-							<span class="font-mono text-[10px] tabular-nums">
-								{{ track.bpm.toFixed(1) }}
-							</span>
-						</div>
-					</div>
-				</div>
-
-				<div class="bg-primary/5 border-primary/15 mt-5 rounded-md border p-3">
-					<div class="flex items-start gap-2">
-						<Disc3 class="text-primary mt-0.5 size-4 shrink-0" />
-						<div>
-							<p class="text-xs font-semibold">Your collection, your data</p>
-							<p class="text-muted-foreground mt-1 text-[11px] leading-relaxed">
-								Sign in to import Discogs releases or add your own records
-								manually.
-							</p>
-						</div>
-					</div>
-					<Button as-child size="sm" class="mt-3 w-full">
-						<NuxtLink to="/signup">
-							Build your library
-							<ExternalLink class="ml-2 size-3.5" />
-						</NuxtLink>
-					</Button>
-				</div>
+				<PanelDemoRecord :record="selectedRecord" :tracks="selectedTracks" />
 			</aside>
 		</div>
+
+		<Sheet v-model:open="mobileInspectorOpen">
+			<SheetContent side="right" class="w-[min(92vw,360px)] p-0 sm:max-w-90">
+				<SheetHeader class="sr-only">
+					<SheetTitle>Demo record inspector</SheetTitle>
+					<SheetDescription>
+						Read-only release and track details.
+					</SheetDescription>
+				</SheetHeader>
+				<div
+					v-if="selectedRecord"
+					class="scrollbar-hidden h-full overflow-y-auto pt-10"
+				>
+					<PanelDemoRecord :record="selectedRecord" :tracks="selectedTracks" />
+				</div>
+			</SheetContent>
+		</Sheet>
 	</div>
 </template>

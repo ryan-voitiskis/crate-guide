@@ -356,7 +356,9 @@ describe('userStore', () => {
 			)
 
 			expect(result).toBe(true)
-			expect(mockRouter.push).toHaveBeenCalledWith('/auth/check-inbox')
+			expect(mockRouter.push).toHaveBeenCalledWith(
+				'/auth/check-inbox?redirect=%2F'
+			)
 		})
 
 		it('returns true and navigates to home when a session is created immediately', async () => {
@@ -389,7 +391,7 @@ describe('userStore', () => {
 
 			expect(result).toBe(false)
 			expect(store.userAlreadyRegistered).toBe(true)
-			expect(mockRouter.push).toHaveBeenCalledWith('/login')
+			expect(mockRouter.push).toHaveBeenCalledWith('/login?redirect=%2F')
 		})
 
 		it('returns false on auth errors', async () => {
@@ -403,6 +405,27 @@ describe('userStore', () => {
 
 			expect(result).toBe(false)
 			expect(mockRouter.push).not.toHaveBeenCalled()
+			expect(store.authOperationError).toBe(
+				'Your account could not be created. Check the details and try again.'
+			)
+		})
+
+		it('preserves the requested destination through confirmation', async () => {
+			const store = useUserStore()
+			mockSupabaseClient.auth.signUp.mockResolvedValue({
+				data: { session: null },
+				error: null
+			})
+
+			await store.signUpWithEmail(
+				'test@example.com',
+				'Password123',
+				'/records?crate=house'
+			)
+
+			expect(mockRouter.push).toHaveBeenCalledWith(
+				'/auth/check-inbox?redirect=%2Frecords%3Fcrate%3Dhouse'
+			)
 		})
 	})
 
@@ -433,6 +456,9 @@ describe('userStore', () => {
 			const result = await store.signInWithEmail('test@example.com', 'wrong')
 
 			expect(result).toBe(false)
+			expect(store.authOperationError).toBe(
+				"We couldn't sign you in. Check your credentials and try again."
+			)
 			expect(mockRouter.push).not.toHaveBeenCalled()
 		})
 	})
@@ -796,6 +822,23 @@ describe('userStore', () => {
 			expect(result).toBe(true)
 			expect(mockRouter.push).toHaveBeenCalledWith('/')
 			expect(mockPasswordRecovery.activate).not.toHaveBeenCalled()
+		})
+
+		it('navigates to a safe requested destination on success', async () => {
+			const store = useUserStore()
+			mockSupabaseClient.auth.verifyOtp.mockResolvedValue({
+				data: {},
+				error: null
+			})
+
+			const result = await store.verifyOtp(
+				'token-hash',
+				'email',
+				'/records?crate=house'
+			)
+
+			expect(result).toBe(true)
+			expect(mockRouter.push).toHaveBeenCalledWith('/records?crate=house')
 		})
 
 		it('activates recovery and navigates to password update for recovery OTPs', async () => {

@@ -29,7 +29,7 @@ function cycle() {
 		type="button"
 		:aria-label="label"
 		:title="label"
-		class="group border-border/70 bg-card/60 text-muted-foreground hover:text-foreground hover:border-border focus-visible:ring-ring relative inline-flex h-9 w-9 items-center justify-center rounded-full border backdrop-blur-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+		class="group border-border text-muted-foreground hover:text-foreground focus-visible:ring-ring hover:bg-muted relative inline-flex size-11 items-center justify-center rounded-sm border bg-transparent transition-colors focus-visible:ring-2 focus-visible:outline-none"
 		@click="cycle"
 	>
 		<Sun

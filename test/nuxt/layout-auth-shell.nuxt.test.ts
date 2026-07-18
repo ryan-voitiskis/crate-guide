@@ -50,22 +50,12 @@ describe('authenticated workbench layout shell', () => {
 		expect(wrapper.text()).toContain('Page content')
 	})
 
-	it('provides project links from the public auth layout', async () => {
+	it('lets public pages own their chrome without duplicating global links', async () => {
 		route.path = '/auth/confirm'
 		const wrapper = await mountLayout()
-		const projectLinks = wrapper.get('nav[aria-label="Project links"]')
-		const sourceLink = projectLinks
-			.findAll('a')
-			.find((link) =>
-				link.attributes('href')?.startsWith('https://github.com/')
-			)
 
-		expect(projectLinks.get('a[href="/privacy"]').text()).toBe('Privacy')
-		expect(projectLinks.get('a[href="/terms"]').text()).toBe('Terms')
-		expect(sourceLink?.attributes('href')).toBe(
-			'https://github.com/ryan-voitiskis/crate-guide'
-		)
-		expect(sourceLink?.text()).toBe('Source')
+		expect(wrapper.find('nav[aria-label="Project links"]').exists()).toBe(false)
+		expect(wrapper.text()).toContain('Page content')
 	})
 
 	it('uses a single stable root across shell changes', async () => {

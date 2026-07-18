@@ -11,20 +11,24 @@ defineProps<Props>()
 </script>
 
 <template>
-	<div class="bg-background min-h-full px-4 py-8 sm:px-6 sm:py-12">
+	<div class="bg-background min-h-full px-4 py-6 sm:px-6 sm:py-10">
 		<main class="mx-auto w-full max-w-3xl">
 			<header class="border-border mb-8 border-b pb-6">
-				<NuxtLink
-					to="/"
-					aria-label="Back to Crate Guide"
-					class="text-muted-foreground hover:text-foreground mb-6 inline-flex items-center gap-2.5 transition-colors"
-				>
-					<span class="size-10"><LogoCrateGuide /></span>
-					<ArrowLeft class="size-3.5" aria-hidden="true" />
-					<span class="font-mono text-xs tracking-[0.16em] uppercase">
-						Back to Crate Guide
-					</span>
-				</NuxtLink>
+				<div class="mb-6 flex items-center justify-between gap-4">
+					<p
+						class="text-muted-foreground font-mono text-[10px] tracking-[0.16em] uppercase"
+					>
+						Public archive / Legal
+					</p>
+					<NuxtLink
+						to="/"
+						aria-label="Back to Crate Guide"
+						class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-xs transition-colors"
+					>
+						<ArrowLeft class="size-3.5" aria-hidden="true" />
+						<span>Back to Crate Guide</span>
+					</NuxtLink>
+				</div>
 
 				<h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">
 					{{ title }}
@@ -46,9 +50,8 @@ defineProps<Props>()
 			</article>
 
 			<footer
-				class="border-border text-muted-foreground mt-10 space-y-4 border-t pt-6 text-xs leading-relaxed"
+				class="border-border text-muted-foreground mt-10 border-t pt-6 text-xs leading-relaxed"
 			>
-				<LinksLegal />
 				<p>
 					This application uses Discogs’ API but is not affiliated with,
 					sponsored or endorsed by Discogs. “Discogs” is a trademark of Zink
