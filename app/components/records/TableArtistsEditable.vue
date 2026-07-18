@@ -204,7 +204,7 @@ async function focusFirstField() {
 </script>
 
 <template>
-	<div class="col-span-3 space-y-2">
+	<div class="space-y-2 md:col-span-3">
 		<div class="flex items-center justify-between">
 			<Label>{{ label || 'Artists' }} ({{ artists.length }})</Label>
 			<Button

@@ -163,7 +163,7 @@ const settingsSections = computed(() => [
 					<section
 						v-if="user.supaUser"
 						id="danger"
-						class="scroll-mt-3 p-4 sm:p-5"
+						class="scroll-mt-3 space-y-3 p-4 sm:p-5"
 					>
 						<div
 							class="border-destructive/25 bg-destructive/5 flex flex-col gap-4 rounded-sm border p-3 sm:flex-row sm:items-center sm:justify-between"
@@ -184,20 +184,42 @@ const settingsSections = computed(() => [
 							</div>
 							<DialogClearAllData />
 						</div>
+						<div
+							class="border-destructive/25 bg-destructive/5 flex flex-col gap-4 rounded-sm border p-3 sm:flex-row sm:items-center sm:justify-between"
+						>
+							<div class="flex items-start gap-3">
+								<ShieldAlert class="text-destructive mt-0.5 size-4 shrink-0" />
+								<div>
+									<p class="text-destructive text-sm font-medium">
+										Delete account
+									</p>
+									<p
+										class="text-muted-foreground mt-0.5 max-w-xl text-xs leading-relaxed"
+									>
+										Permanently delete your account, library, integrations and
+										uploaded covers.
+									</p>
+								</div>
+							</div>
+							<DialogDeleteAccount />
+						</div>
 					</section>
 				</div>
 			</div>
 
-			<a
-				href="https://github.com/ryan-voitiskis/crate-guide"
-				target="_blank"
-				rel="noopener noreferrer"
-				class="text-muted-foreground hover:text-foreground mt-5 inline-flex items-center gap-2 font-mono text-[11px] transition-colors"
-			>
-				<IconGithub class="size-3.5" />
-				Source / AGPL-3.0
-				<ExternalLink class="size-3" />
-			</a>
+			<div class="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+				<LinksLegal />
+				<a
+					href="https://github.com/ryan-voitiskis/crate-guide"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 font-mono text-[11px] transition-colors"
+				>
+					<IconGithub class="size-3.5" />
+					AGPL-3.0
+					<ExternalLink class="size-3" />
+				</a>
+			</div>
 		</div>
 	</div>
 </template>

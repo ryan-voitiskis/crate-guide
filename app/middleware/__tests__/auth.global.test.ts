@@ -92,6 +92,8 @@ describe('auth.global middleware', () => {
 		'/auth/check-inbox',
 		'/auth/confirm',
 		'/auth/finalising',
+		'/privacy',
+		'/terms',
 		'/demo',
 		'/demo/records'
 	])('allows unauthenticated users on public route %s', async (path) => {

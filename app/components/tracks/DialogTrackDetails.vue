@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toTypedSchema } from '@vee-validate/zod'
-import { ImageOff, Pencil, PencilOff } from 'lucide-vue-next'
+import { Pencil, PencilOff } from 'lucide-vue-next'
 import { useForm } from 'vee-validate'
 import {
 	buildTrackEditorPayload,
@@ -170,19 +170,10 @@ function formatKey(track: Track): string {
 				tabindex="-1"
 			>
 				<div v-if="recordForTrack" class="flex items-start gap-4">
-					<div
-						class="bg-muted relative size-24 shrink-0 overflow-hidden rounded-lg bg-cover bg-center bg-no-repeat"
-						:style="{
-							backgroundImage: recordForTrack.cover
-								? `url('${recordForTrack.cover}')`
-								: 'none'
-						}"
-					>
-						<ImageOff
-							v-if="!recordForTrack.cover"
-							class="text-muted-foreground absolute inset-0 m-auto size-8"
-						/>
-					</div>
+					<ImageRecordCover
+						:record="recordForTrack"
+						class="size-24 shrink-0 rounded-lg"
+					/>
 					<div class="space-y-1">
 						<h3 class="font-medium">{{ recordForTrack.title }}</h3>
 						<p class="text-muted-foreground text-sm">

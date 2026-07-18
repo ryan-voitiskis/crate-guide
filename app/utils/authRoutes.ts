@@ -8,11 +8,14 @@ const PUBLIC_AUTH_ROUTES = new Set([
 	'/auth/finalising'
 ])
 
+const PUBLIC_LEGAL_ROUTES = new Set(['/privacy', '/terms'])
+
 const SIGNED_OUT_ONLY_ROUTES = new Set(['/login', '/signup', '/reset-password'])
 
 export function isPublicRoute(path: string): boolean {
 	return (
 		PUBLIC_AUTH_ROUTES.has(path) ||
+		PUBLIC_LEGAL_ROUTES.has(path) ||
 		path === '/demo' ||
 		path.startsWith('/demo/')
 	)

@@ -3,6 +3,7 @@ import {
 	CloudDownload,
 	Disc3,
 	Grid2X2,
+	ImagePlus,
 	KeyRound,
 	List,
 	MoreHorizontal,
@@ -118,6 +119,10 @@ function artistNames(record: DatabaseRecord) {
 
 function openRecordMenu(record: DatabaseRecord) {
 	recordDetails.openRecord(record.id)
+}
+
+function openCoverEditor(record: DatabaseRecord) {
+	recordDetails.openRecord(record.id, true, 'cover')
 }
 
 watch(
@@ -269,6 +274,7 @@ watch(
 						<div
 							v-for="record in sortedRecords"
 							:key="record.id"
+							:data-record-id="record.id"
 							role="button"
 							tabindex="0"
 							class="border-border hover:bg-accent/50 focus-visible:ring-ring grid w-full grid-cols-[48px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px] items-center gap-3 border-b px-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
@@ -280,18 +286,22 @@ watch(
 							@dblclick="recordDetails.openRecord(record.id)"
 							@keydown.enter="selectRecord(record.id)"
 						>
-							<div class="bg-muted size-8 overflow-hidden rounded-sm border">
-								<img
-									v-if="record.cover"
-									:src="record.cover"
-									:alt="`${record.title} cover`"
-									class="h-full w-full object-cover"
-								/>
-								<Disc3
-									v-else
-									class="text-muted-foreground m-auto mt-1.5 size-4.5"
-								/>
-							</div>
+							<ImageRecordCover
+								v-if="record.cover || record.cover_storage_path"
+								:record="record"
+								class="size-8 rounded-sm border"
+							/>
+							<button
+								v-else
+								type="button"
+								class="border-border text-muted-foreground hover:border-primary/70 hover:text-primary focus-visible:ring-ring flex size-8 items-center justify-center rounded-sm border border-dashed transition-colors focus-visible:ring-2 focus-visible:outline-none"
+								data-testid="add-record-cover"
+								title="Add cover artwork"
+								aria-label="Add cover artwork"
+								@click.stop="openCoverEditor(record)"
+							>
+								<ImagePlus class="size-4" />
+							</button>
 							<span class="truncate font-medium">
 								{{ artistNames(record) || 'Unknown artist' }}
 							</span>
@@ -328,20 +338,10 @@ watch(
 							class="hover:bg-accent/50 flex w-full items-center gap-3 px-3 py-2.5 text-left"
 							@click="selectRecord(record.id)"
 						>
-							<div
-								class="bg-muted size-11 shrink-0 overflow-hidden rounded-sm border"
-							>
-								<img
-									v-if="record.cover"
-									:src="record.cover"
-									:alt="`${record.title} cover`"
-									class="h-full w-full object-cover"
-								/>
-								<Disc3
-									v-else
-									class="text-muted-foreground m-auto mt-2.5 size-5"
-								/>
-							</div>
+							<ImageRecordCover
+								:record="record"
+								class="size-11 shrink-0 rounded-sm border"
+							/>
 							<div class="min-w-0 flex-1">
 								<p class="truncate text-sm font-medium">{{ record.title }}</p>
 								<p class="text-muted-foreground truncate text-xs">

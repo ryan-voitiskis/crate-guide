@@ -118,12 +118,7 @@ function handleCrateCreated(crate: Crate) {
 
 			<!-- Record info -->
 			<div v-if="record" class="flex items-center gap-3">
-				<div
-					class="bg-muted size-12 shrink-0 rounded bg-cover bg-center bg-no-repeat"
-					:style="{
-						backgroundImage: record.cover ? `url('${record.cover}')` : 'none'
-					}"
-				/>
+				<ImageRecordCover :record="record" class="size-12 shrink-0 rounded" />
 				<div class="min-w-0">
 					<p class="truncate text-sm font-medium">{{ record.title }}</p>
 					<p

@@ -1,5 +1,10 @@
 import { toast } from 'vue-sonner'
 import { validateImportResult } from '~/utils/discogs-validation'
+import {
+	RECORD_COVER_BUCKET,
+	type RecordCoverCrop,
+	processRecordCoverFile
+} from '~/utils/recordCover'
 import { decodeRecordRow, reportDecodeIssues } from '~/utils/supabaseRows'
 
 type ManualRecordTrackInput = {
@@ -57,6 +62,7 @@ export const useRecordsStore = defineStore('records', () => {
 	const isLoadingRecords = ref(false)
 	const isCreatingRecord = ref(false)
 	const isUpdatingRecord = ref(false)
+	const isUpdatingCover = ref(false)
 	const isDeletingRecord = ref(false)
 	let fetchPromise: Promise<boolean> | null = null
 
@@ -83,7 +89,7 @@ export const useRecordsStore = defineStore('records', () => {
 			return await user.resolveAuthenticatedUserId()
 		} catch (error) {
 			console.error('Auth failed in recordsStore mutation:', error)
-			toast.error('You must be signed in to create records.')
+			toast.error('You must be signed in to update your collection.')
 			return null
 		}
 	}
@@ -287,6 +293,103 @@ export const useRecordsStore = defineStore('records', () => {
 		}
 	}
 
+	async function removeCoverObjects(
+		paths: Array<string | null | undefined>,
+		notifyOnFailure = true
+	): Promise<boolean> {
+		const uniquePaths = [
+			...new Set(paths.filter((path): path is string => !!path))
+		]
+		if (!uniquePaths.length) return true
+
+		for (let index = 0; index < uniquePaths.length; index += 100) {
+			const batch = uniquePaths.slice(index, index + 100)
+			const { error } = await supabase.storage
+				.from(RECORD_COVER_BUCKET)
+				.remove(batch)
+
+			if (!error) continue
+			console.error('Failed to remove record cover objects:', error)
+			if (notifyOnFailure) {
+				toast.warning('Some old cover files still need cleanup.')
+			}
+			return false
+		}
+
+		return true
+	}
+
+	async function updateRecordWithCover(
+		id: string,
+		updates: Partial<
+			Omit<DatabaseRecord, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+		>,
+		coverChange:
+			| { type: 'keep' }
+			| { type: 'remove' }
+			| { type: 'upload'; file: File; crop: RecordCoverCrop }
+	): Promise<DatabaseRecord | null> {
+		const currentRecord = getRecordById(id)
+		if (!currentRecord) {
+			toast.error('Record not found.')
+			return null
+		}
+
+		if (coverChange.type === 'keep') return updateRecord(id, updates)
+
+		isUpdatingCover.value = true
+		let newPath: string | null = null
+
+		try {
+			if (coverChange.type === 'upload') {
+				const userId = await resolveMutationUserId()
+				if (!userId) return null
+
+				const blob = await processRecordCoverFile(
+					coverChange.file,
+					coverChange.crop
+				)
+				newPath = `${userId}/${id}/${crypto.randomUUID()}.webp`
+				const { error } = await supabase.storage
+					.from(RECORD_COVER_BUCKET)
+					.upload(newPath, blob, {
+						cacheControl: '300',
+						contentType: 'image/webp',
+						upsert: false
+					})
+				if (error) throw error
+			}
+
+			const updatedRecord = await updateRecord(id, {
+				...updates,
+				cover_storage_path: newPath
+			})
+
+			if (!updatedRecord) {
+				if (newPath) await removeCoverObjects([newPath], false)
+				return null
+			}
+
+			if (
+				currentRecord.cover_storage_path &&
+				currentRecord.cover_storage_path !== newPath
+			) {
+				await removeCoverObjects([currentRecord.cover_storage_path])
+			}
+
+			return updatedRecord
+		} catch (error) {
+			if (newPath) await removeCoverObjects([newPath], false)
+			console.error('Failed to update record cover:', error)
+			toast.error(
+				error instanceof Error ? error.message : 'Cover upload failed.'
+			)
+			return null
+		} finally {
+			isUpdatingCover.value = false
+		}
+	}
+
 	async function deleteRecord(id: string): Promise<boolean> {
 		isDeletingRecord.value = true
 
@@ -305,6 +408,7 @@ export const useRecordsStore = defineStore('records', () => {
 		try {
 			const { error } = await supabase.from('records').delete().eq('id', id)
 			if (error) throw error
+			await removeCoverObjects([removedRecord?.cover_storage_path])
 			toast.success('Record deleted successfully.')
 			return true
 		} catch (error) {
@@ -320,6 +424,7 @@ export const useRecordsStore = defineStore('records', () => {
 
 	async function removeRecordFromCollection(id: string): Promise<boolean> {
 		isDeletingRecord.value = true
+		const record = getRecordById(id)
 
 		try {
 			const { error } = await supabase.rpc('remove_record_from_collection', {
@@ -332,6 +437,7 @@ export const useRecordsStore = defineStore('records', () => {
 			searchResults.value = searchResults.value.filter(
 				(record) => record.id !== id
 			)
+			await removeCoverObjects([record?.cover_storage_path])
 
 			toast.success('Record removed from collection')
 			return true
@@ -398,6 +504,7 @@ export const useRecordsStore = defineStore('records', () => {
 		isLoadingRecords,
 		isCreatingRecord,
 		isUpdatingRecord,
+		isUpdatingCover,
 		isDeletingRecord,
 		recordsCount,
 		hasRecords,
@@ -412,6 +519,8 @@ export const useRecordsStore = defineStore('records', () => {
 		createRecord,
 		createRecordWithTracks,
 		updateRecord,
+		updateRecordWithCover,
+		removeCoverObjects,
 		deleteRecord,
 		removeRecordFromCollection,
 		getRecordById,

@@ -3,12 +3,16 @@ import { isPublicRoute } from '../utils/authRoutes'
 
 const route = useRoute()
 const user = useSupabaseUser()
+const isLegalDocument = computed(
+	() => route.path === '/privacy' || route.path === '/terms'
+)
 
 const showWorkbench = computed(
 	() =>
-		Boolean(user.value) ||
-		route.path.startsWith('/demo') ||
-		!isPublicRoute(route.path)
+		!isLegalDocument.value &&
+		(Boolean(user.value) ||
+			route.path.startsWith('/demo') ||
+			!isPublicRoute(route.path))
 )
 
 const density = useState<'compact' | 'comfortable'>(

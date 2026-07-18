@@ -59,15 +59,11 @@ function confirmRemove() {
 		<div
 			class="bg-muted relative aspect-square overflow-hidden rounded-md border shadow-sm transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:shadow-md"
 		>
-			<img
-				v-if="record.cover"
-				:src="record.cover"
-				:alt="`${record.title} cover`"
-				class="h-full w-full object-cover"
-			/>
-			<div v-else class="flex h-full items-center justify-center">
-				<Disc3 class="text-muted-foreground size-12 stroke-[1.25]" />
-			</div>
+			<ImageRecordCover :record="record" class="absolute inset-0">
+				<template #missing>
+					<Disc3 class="text-muted-foreground size-12 stroke-[1.25]" />
+				</template>
+			</ImageRecordCover>
 			<div
 				class="absolute inset-x-0 bottom-0 flex items-end justify-between bg-linear-to-t from-black/75 to-transparent px-2 pt-8 pb-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100"
 			>

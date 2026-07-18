@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { ImageOff } from 'lucide-vue-next'
-
 const props = defineProps<{
 	record: DatabaseRecord
 }>()
@@ -26,17 +24,10 @@ const catalogueNumber = computed(() =>
 		class="bg-card hover:bg-accent focus-visible:ring-ring group w-full rounded-sm border p-1.5 text-left shadow-xs transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
 		@click="$emit('select')"
 	>
-		<div
-			class="bg-muted flex aspect-square w-full items-center justify-center overflow-hidden rounded-none"
-		>
-			<img
-				v-if="record.cover"
-				:src="record.cover"
-				:alt="`${record.title} cover`"
-				class="size-full object-cover"
-			/>
-			<ImageOff v-else class="text-muted-foreground size-10" />
-		</div>
+		<ImageRecordCover
+			:record="record"
+			class="aspect-square w-full rounded-none"
+		/>
 		<div class="min-w-0 px-1 pt-2 pb-1">
 			<div class="truncate text-sm font-medium" :title="record.title">
 				{{ record.title }}

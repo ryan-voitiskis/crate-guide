@@ -15,8 +15,12 @@ export function useLibraryMutations() {
 	}
 
 	async function deleteAllUserData() {
+		const coverPaths = records.records.map(
+			(record) => record.cover_storage_path
+		)
 		const success = await user.deleteAllUserData()
 		if (!success) return false
+		await records.removeCoverObjects(coverPaths)
 
 		records.clearRecords()
 		tracks.clearTracks()

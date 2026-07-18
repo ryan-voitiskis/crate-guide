@@ -77,7 +77,8 @@ function createRecord(overrides: Partial<DatabaseRecord> = {}): DatabaseRecord {
 		discogs_release_url: null,
 		created_at: null,
 		updated_at: null,
-		...overrides
+		...overrides,
+		cover_storage_path: overrides.cover_storage_path ?? null
 	}
 }
 

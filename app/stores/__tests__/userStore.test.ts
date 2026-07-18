@@ -92,6 +92,9 @@ let mockQueryBuilder = createMockQueryBuilder()
 const mockSupabaseClient = {
 	from: vi.fn(() => mockQueryBuilder),
 	rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+	functions: {
+		invoke: vi.fn().mockResolvedValue({ data: { success: true }, error: null })
+	},
 	auth: {
 		getSession: vi.fn().mockImplementation(async () => ({
 			data: {
@@ -198,6 +201,10 @@ describe('userStore', () => {
 		mockQueryBuilder = createMockQueryBuilder()
 		mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 		mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: null })
+		mockSupabaseClient.functions.invoke.mockResolvedValue({
+			data: { success: true },
+			error: null
+		})
 		mockSupabaseClient.auth.getUser.mockImplementation(async () => ({
 			data: { user: mockSupaUser.value },
 			error: null
@@ -577,6 +584,100 @@ describe('userStore', () => {
 			)
 			expect(mockToast.error).toHaveBeenCalledWith(
 				'You are signed out, but the login page could not open.',
+				{ duration: 30000 }
+			)
+		})
+	})
+
+	describe('deleteAccount', () => {
+		it('revalidates the user and requires their account email', async () => {
+			const store = useUserStore()
+
+			const result = await store.deleteAccount('someone@example.com')
+
+			expect(result).toBe(false)
+			expect(mockSupabaseClient.auth.getUser).toHaveBeenCalledOnce()
+			expect(mockSupabaseClient.functions.invoke).not.toHaveBeenCalled()
+			expect(mockToast.error).toHaveBeenCalledWith(
+				'Enter the email address for this account to confirm deletion.'
+			)
+		})
+
+		it('deletes the account, clears the local session and opens login', async () => {
+			const store = useUserStore()
+			store.profile = createMockProfile()
+
+			const result = await store.deleteAccount(' TEST@example.com ')
+
+			expect(result).toBe(true)
+			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
+				'delete-account',
+				{ body: { confirmation: ' TEST@example.com ' } }
+			)
+			expect(mockSupabaseClient.auth.signOut).toHaveBeenCalledWith({
+				scope: 'local'
+			})
+			expect(mockSupaUser.value).toBeNull()
+			expect(store.profile).toBeNull()
+			expect(mockRouter.replace).toHaveBeenCalledWith('/login')
+			expect(mockToast.success).toHaveBeenCalledWith(
+				'Your account and its data have been deleted.'
+			)
+		})
+
+		it('shows the safe partial-failure message returned by the function', async () => {
+			const store = useUserStore()
+			const response = new Response(
+				JSON.stringify({
+					error:
+						'Your account was not deleted. Some cover images may already have been removed. Please try again.'
+				}),
+				{ status: 503 }
+			)
+			mockSupabaseClient.functions.invoke.mockResolvedValue({
+				data: null,
+				error: { context: response }
+			})
+
+			const result = await store.deleteAccount('test@example.com')
+
+			expect(result).toBe(false)
+			expect(mockSupabaseClient.auth.signOut).not.toHaveBeenCalled()
+			expect(mockSupaUser.value).not.toBeNull()
+			expect(mockToast.error).toHaveBeenCalledWith(
+				'Your account was not deleted. Some cover images may already have been removed. Please try again.',
+				{ duration: 30000 }
+			)
+		})
+
+		it('truthfully reports success when local sign-out cleanup fails', async () => {
+			const store = useUserStore()
+			mockSupabaseClient.auth.signOut.mockResolvedValue({
+				error: new Error('Local sign out failed')
+			})
+
+			const result = await store.deleteAccount('test@example.com')
+
+			expect(result).toBe(true)
+			expect(mockSupaUser.value).toBeNull()
+			expect(mockToast.warning).toHaveBeenCalledWith(
+				'Your account was deleted. Reload the page if you still appear signed in.',
+				{ duration: 30000 }
+			)
+		})
+
+		it('warns when the deleted account has a cover cleanup race', async () => {
+			const store = useUserStore()
+			mockSupabaseClient.functions.invoke.mockResolvedValue({
+				data: { success: true, cover_cleanup_complete: false },
+				error: null
+			})
+
+			const result = await store.deleteAccount('test@example.com')
+
+			expect(result).toBe(true)
+			expect(mockToast.warning).toHaveBeenCalledWith(
+				'Your account was deleted, but a recently uploaded cover may still need cleanup. Contact the project owner if it remains accessible.',
 				{ duration: 30000 }
 			)
 		})

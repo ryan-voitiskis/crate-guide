@@ -371,15 +371,14 @@ watch(
 									title="Playable status"
 								/>
 							</div>
-							<div class="bg-muted size-7 overflow-hidden rounded-sm border">
-								<img
-									v-if="getRecordForTrack(track)?.cover"
-									:src="getRecordForTrack(track)?.cover || undefined"
-									:alt="`${getRecordForTrack(track)?.title} cover`"
-									class="h-full w-full object-cover"
+							<div class="bg-muted size-7 rounded-sm border">
+								<ImageRecordCover
+									v-if="getRecordForTrack(track)"
+									:record="getRecordForTrack(track)!"
+									class="size-full rounded-sm"
 								/>
 								<Disc3
-									v-else
+									v-if="!getRecordForTrack(track)"
 									class="text-muted-foreground m-auto mt-1 size-4"
 								/>
 							</div>
@@ -423,17 +422,14 @@ watch(
 							class="hover:bg-accent/50 flex w-full items-center gap-3 px-3 py-2.5 text-left"
 							@click="selectTrack(track.id)"
 						>
-							<div
-								class="bg-muted size-10 shrink-0 overflow-hidden rounded-sm border"
-							>
-								<img
-									v-if="getRecordForTrack(track)?.cover"
-									:src="getRecordForTrack(track)?.cover || undefined"
-									:alt="`${getRecordForTrack(track)?.title} cover`"
-									class="h-full w-full object-cover"
+							<div class="bg-muted size-10 shrink-0 rounded-sm border">
+								<ImageRecordCover
+									v-if="getRecordForTrack(track)"
+									:record="getRecordForTrack(track)!"
+									class="size-full rounded-sm"
 								/>
 								<Disc3
-									v-else
+									v-if="!getRecordForTrack(track)"
 									class="text-muted-foreground m-auto mt-2 size-5"
 								/>
 							</div>

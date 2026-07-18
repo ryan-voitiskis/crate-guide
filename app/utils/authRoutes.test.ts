@@ -15,6 +15,8 @@ describe('auth route policy', () => {
 		'/auth/check-inbox',
 		'/auth/confirm',
 		'/auth/finalising',
+		'/privacy',
+		'/terms',
 		'/demo',
 		'/demo/',
 		'/demo/records'
@@ -48,6 +50,8 @@ describe('auth route policy', () => {
 		'/auth/check-inbox',
 		'/auth/confirm',
 		'/auth/finalising',
+		'/privacy',
+		'/terms',
 		'/demo'
 	])('does not classify %s as signed-out only', (path) => {
 		expect(isSignedOutOnlyRoute(path)).toBe(false)
@@ -58,6 +62,8 @@ describe('auth return paths', () => {
 	it.each([
 		'/',
 		'/records',
+		'/privacy',
+		'/terms',
 		'/records?crate=house&sort=year#release-1',
 		'/demo/records?crate=house'
 	])('preserves safe internal path %s', (path) => {

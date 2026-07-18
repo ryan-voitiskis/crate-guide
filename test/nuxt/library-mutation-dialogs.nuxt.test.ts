@@ -8,6 +8,7 @@ import { createMockTrack } from 'test/mocks/fixtures/tracks'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import AlertConfirmRemoveRecord from '~/components/records/AlertConfirmRemoveRecord.vue'
 import DialogClearAllData from '~/components/settings/DialogClearAllData.vue'
+import DialogDeleteAccount from '~/components/settings/DialogDeleteAccount.vue'
 import { useCratesStore } from '~/stores/cratesStore'
 import { useRecordDetailsStore } from '~/stores/recordDetailsStore'
 import { useRecordsStore } from '~/stores/recordsStore'
@@ -18,8 +19,17 @@ const mutationMocks = vi.hoisted(() => ({
 	deleteAllUserData: vi.fn()
 }))
 
+const userMock = vi.hoisted(() => ({
+	supaUser: { email: 'listener@example.com' },
+	deleteAccount: vi.fn()
+}))
+
 mockNuxtImport('useLibraryMutations', () => {
 	return () => mutationMocks
+})
+
+mockNuxtImport('useUserStore', () => {
+	return () => userMock
 })
 
 const wrappers = new Set<VueWrapper>()
@@ -38,6 +48,15 @@ function findButton(label: string) {
 	const button = getBody()
 		.findAll('button')
 		.find((candidate) => candidate.text().trim() === label)
+	expect(button).toBeDefined()
+	return button!
+}
+
+function findLastButton(label: string) {
+	const buttons = getBody()
+		.findAll('button')
+		.filter((candidate) => candidate.text().trim() === label)
+	const button = buttons.at(-1)
 	expect(button).toBeDefined()
 	return button!
 }
@@ -83,6 +102,14 @@ async function mountClearAllDataDialog() {
 	await wrapper.get('button').trigger('click')
 	await settleDialog()
 
+	return { wrapper }
+}
+
+async function mountDeleteAccountDialog() {
+	const wrapper = await mountSuspended(DialogDeleteAccount)
+	wrappers.add(wrapper)
+	await wrapper.get('button').trigger('click')
+	await settleDialog()
 	return { wrapper }
 }
 
@@ -135,6 +162,33 @@ describe('library mutation dialogs', () => {
 		await settleDialog()
 
 		expect(mutationMocks.deleteAllUserData).toHaveBeenCalledOnce()
+		expect(getBody().text()).toContain('This action cannot be undone.')
+	})
+
+	it('requires the signed-in email before deleting an account', async () => {
+		await mountDeleteAccountDialog()
+
+		const deleteButton = findLastButton('Delete Account')
+		expect(deleteButton.attributes('disabled')).toBeDefined()
+		await getBody()
+			.get('#account-deletion-confirmation')
+			.setValue('listener@example.com')
+
+		expect(
+			findLastButton('Delete Account').attributes('disabled')
+		).toBeUndefined()
+	})
+
+	it('keeps account deletion open when the server preserves the account', async () => {
+		userMock.deleteAccount.mockResolvedValue(false)
+		await mountDeleteAccountDialog()
+		await getBody()
+			.get('#account-deletion-confirmation')
+			.setValue('listener@example.com')
+		await findLastButton('Delete Account').trigger('click')
+		await settleDialog()
+
+		expect(userMock.deleteAccount).toHaveBeenCalledWith('listener@example.com')
 		expect(getBody().text()).toContain('This action cannot be undone.')
 	})
 })

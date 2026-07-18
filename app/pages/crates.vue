@@ -378,14 +378,10 @@ watch(
 							:key="record.id"
 							class="hover:bg-muted/40 grid grid-cols-[44px_minmax(220px,1.5fr)_minmax(160px,1fr)_100px_70px_70px] items-center gap-3 border-b px-3 py-2 text-xs transition-colors last:border-b-0"
 						>
-							<div class="bg-muted size-9 overflow-hidden rounded-sm border">
-								<img
-									v-if="record.cover"
-									:src="record.cover"
-									:alt="`${record.title} cover`"
-									class="size-full object-cover"
-								/>
-							</div>
+							<ImageRecordCover
+								:record="record"
+								class="size-9 rounded-sm border"
+							/>
 							<div class="min-w-0">
 								<p class="truncate font-medium">{{ record.title }}</p>
 								<p class="text-muted-foreground truncate text-[11px]">
@@ -414,16 +410,10 @@ watch(
 							:key="record.id"
 							class="min-w-0"
 						>
-							<div
-								class="bg-muted aspect-square overflow-hidden rounded-sm border shadow-sm"
-							>
-								<img
-									v-if="record.cover"
-									:src="record.cover"
-									:alt="`${record.title} cover`"
-									class="size-full object-cover transition-transform duration-300 hover:scale-[1.02]"
-								/>
-							</div>
+							<ImageRecordCover
+								:record="record"
+								class="aspect-square rounded-sm border shadow-sm transition-transform duration-300 hover:scale-[1.02]"
+							/>
 							<p class="mt-2 truncate text-xs font-medium">
 								{{ record.title }}
 							</p>

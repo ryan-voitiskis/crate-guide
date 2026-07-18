@@ -20,6 +20,13 @@ vi.mock('vue-sonner', () => ({
 	toast: mockToast
 }))
 
+const mockProcessRecordCoverFile = vi.hoisted(() => vi.fn())
+
+vi.mock('~/utils/recordCover', async (importOriginal) => ({
+	...(await importOriginal<typeof import('~/utils/recordCover')>()),
+	processRecordCoverFile: mockProcessRecordCoverFile
+}))
+
 // Mock dependencies
 const mockUserStore: {
 	supaUser: { id: string } | null
@@ -45,9 +52,17 @@ function createMockQueryBuilder() {
 
 let mockQueryBuilder = createMockQueryBuilder()
 
+const mockStorageBucket = {
+	upload: vi.fn().mockResolvedValue({ data: null, error: null }),
+	remove: vi.fn().mockResolvedValue({ data: null, error: null })
+}
+
 const mockSupabaseClient = {
 	from: vi.fn(() => mockQueryBuilder),
-	rpc: vi.fn().mockResolvedValue({ data: null, error: null })
+	rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+	storage: {
+		from: vi.fn(() => mockStorageBucket)
+	}
 }
 
 const mockTracksStore = {
@@ -69,6 +84,12 @@ describe('recordsStore', () => {
 		mockQueryBuilder = createMockQueryBuilder()
 		mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 		mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: null })
+		mockSupabaseClient.storage.from.mockReturnValue(mockStorageBucket)
+		mockStorageBucket.upload.mockResolvedValue({ data: null, error: null })
+		mockStorageBucket.remove.mockResolvedValue({ data: null, error: null })
+		mockProcessRecordCoverFile.mockResolvedValue(
+			new Blob(['processed-cover'], { type: 'image/webp' })
+		)
 		mockTracksStore.fetchAllTracks.mockResolvedValue(true)
 
 		// Reset user store
@@ -90,6 +111,7 @@ describe('recordsStore', () => {
 			expect(store.isLoadingRecords).toBe(false)
 			expect(store.isCreatingRecord).toBe(false)
 			expect(store.isUpdatingRecord).toBe(false)
+			expect(store.isUpdatingCover).toBe(false)
 			expect(store.isDeletingRecord).toBe(false)
 		})
 
@@ -98,6 +120,157 @@ describe('recordsStore', () => {
 			expect(store.searchQuery).toBe('')
 			expect(store.searchResults).toEqual([])
 			expect(store.isSearching).toBe(false)
+		})
+	})
+
+	describe('updateRecordWithCover', () => {
+		it('removes cover objects in storage-safe batches', async () => {
+			const store = useRecordsStore()
+			const paths = Array.from(
+				{ length: 205 },
+				(_, index) => `test-user-id/record-${index}/cover.webp`
+			)
+
+			await expect(store.removeCoverObjects(paths)).resolves.toBe(true)
+
+			expect(mockStorageBucket.remove).toHaveBeenCalledTimes(3)
+			expect(mockStorageBucket.remove.mock.calls[0]?.[0]).toHaveLength(100)
+			expect(mockStorageBucket.remove.mock.calls[1]?.[0]).toHaveLength(100)
+			expect(mockStorageBucket.remove.mock.calls[2]?.[0]).toHaveLength(5)
+		})
+
+		it('uploads an immutable WebP path and persists it on the record', async () => {
+			const store = useRecordsStore()
+			store.records = [createMockRecord({ id: 'record-1', cover: null })]
+			mockQueryBuilder.single.mockImplementation(async () => {
+				const uploadedPath = mockStorageBucket.upload.mock.calls[0]?.[0]
+				return {
+					data: createMockRecord({
+						id: 'record-1',
+						title: 'Updated',
+						cover: null,
+						cover_storage_path: uploadedPath
+					}),
+					error: null
+				}
+			})
+
+			const file = { name: 'cover.png' } as File
+			const result = await store.updateRecordWithCover(
+				'record-1',
+				{ title: 'Updated' },
+				{
+					type: 'upload',
+					file,
+					crop: { positionX: 40, positionY: 60 }
+				}
+			)
+
+			expect(mockProcessRecordCoverFile).toHaveBeenCalledWith(file, {
+				positionX: 40,
+				positionY: 60
+			})
+			const [path, blob, options] = mockStorageBucket.upload.mock.calls[0]!
+			expect(path).toMatch(/^test-user-id\/record-1\/[0-9a-f-]+\.webp$/)
+			expect(blob.type).toBe('image/webp')
+			expect(options).toMatchObject({
+				cacheControl: '300',
+				contentType: 'image/webp',
+				upsert: false
+			})
+			expect(mockQueryBuilder.update).toHaveBeenCalledWith({
+				title: 'Updated',
+				cover_storage_path: path
+			})
+			expect(result?.cover_storage_path).toBe(path)
+			expect(store.isUpdatingCover).toBe(false)
+		})
+
+		it('removes the new object when the database update fails', async () => {
+			const store = useRecordsStore()
+			store.records = [createMockRecord({ id: 'record-1' })]
+			mockQueryBuilder.single.mockResolvedValue({
+				data: null,
+				error: new Error('Update failed')
+			})
+
+			const result = await store.updateRecordWithCover(
+				'record-1',
+				{},
+				{
+					type: 'upload',
+					file: { name: 'cover.png' } as File,
+					crop: { positionX: 50, positionY: 50 }
+				}
+			)
+
+			const uploadedPath = mockStorageBucket.upload.mock.calls[0]?.[0]
+			expect(result).toBeNull()
+			expect(mockStorageBucket.remove).toHaveBeenCalledWith([uploadedPath])
+		})
+
+		it('removes the previous object after a successful replacement', async () => {
+			const store = useRecordsStore()
+			store.records = [
+				createMockRecord({
+					id: 'record-1',
+					cover_storage_path: 'test-user-id/record-1/old.webp'
+				})
+			]
+			mockQueryBuilder.single.mockImplementation(async () => ({
+				data: createMockRecord({
+					id: 'record-1',
+					cover_storage_path: mockStorageBucket.upload.mock.calls[0]?.[0]
+				}),
+				error: null
+			}))
+
+			await store.updateRecordWithCover(
+				'record-1',
+				{},
+				{
+					type: 'upload',
+					file: { name: 'cover.png' } as File,
+					crop: { positionX: 50, positionY: 50 }
+				}
+			)
+
+			expect(mockStorageBucket.remove).toHaveBeenCalledWith([
+				'test-user-id/record-1/old.webp'
+			])
+		})
+
+		it('clears the storage override before removing its object', async () => {
+			const store = useRecordsStore()
+			store.records = [
+				createMockRecord({
+					id: 'record-1',
+					cover: 'https://discogs.example/fallback.jpg',
+					cover_storage_path: 'test-user-id/record-1/custom.webp'
+				})
+			]
+			mockQueryBuilder.single.mockResolvedValue({
+				data: createMockRecord({
+					id: 'record-1',
+					cover: 'https://discogs.example/fallback.jpg',
+					cover_storage_path: null
+				}),
+				error: null
+			})
+
+			const result = await store.updateRecordWithCover(
+				'record-1',
+				{},
+				{ type: 'remove' }
+			)
+
+			expect(mockQueryBuilder.update).toHaveBeenCalledWith({
+				cover_storage_path: null
+			})
+			expect(mockStorageBucket.remove).toHaveBeenCalledWith([
+				'test-user-id/record-1/custom.webp'
+			])
+			expect(result?.cover).toBe('https://discogs.example/fallback.jpg')
 		})
 	})
 
@@ -351,6 +524,7 @@ describe('recordsStore', () => {
 			labels: [{ discogs_id: 1, name: 'Label', catno: 'CAT001' }],
 			year: 2024,
 			cover: null,
+			cover_storage_path: null,
 			discogs_id: 123,
 			discogs_release_url: 'https://discogs.com/release/123'
 		}
@@ -642,6 +816,24 @@ describe('recordsStore', () => {
 	})
 
 	describe('deleteRecord', () => {
+		it('removes managed cover storage after the record is deleted', async () => {
+			const store = useRecordsStore()
+			store.records = [
+				createMockRecord({
+					id: 'record-1',
+					cover_storage_path: 'test-user-id/record-1/custom.webp'
+				})
+			]
+			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
+
+			const result = await store.deleteRecord('record-1')
+
+			expect(result).toBe(true)
+			expect(mockStorageBucket.remove).toHaveBeenCalledWith([
+				'test-user-id/record-1/custom.webp'
+			])
+		})
+
 		it('returns false when record not found', async () => {
 			const store = useRecordsStore()
 			store.records = [createMockRecord({ id: 'existing-record' })]

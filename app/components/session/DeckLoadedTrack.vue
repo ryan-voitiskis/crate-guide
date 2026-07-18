@@ -18,7 +18,6 @@ const record = computed(() => {
 	if (!props.track) return null
 	return records.getRecordById(props.track.record_id)
 })
-const coverUrl = computed(() => record.value?.cover ?? null)
 
 // Original key display
 const keyDisplay = computed(() => {
@@ -87,14 +86,14 @@ const artistNames = computed(() => {
 			<div v-else class="flex h-full gap-3 pr-3">
 				<!-- Cover image (full height) -->
 				<div class="relative aspect-square h-full shrink-0 overflow-hidden">
-					<img
-						v-if="coverUrl"
-						:src="coverUrl"
+					<ImageRecordCover
+						v-if="record"
+						:record="record"
 						:alt="track.title"
-						class="h-full w-full object-cover"
+						class="size-full"
 					/>
 					<div
-						v-else
+						v-if="!record"
 						class="bg-muted flex h-full w-full items-center justify-center"
 					>
 						<span class="text-muted-foreground text-xs">No cover</span>

@@ -14,15 +14,30 @@ const props = defineProps<{
 
 const records = useRecordsStore()
 const session = useSessionStore()
+const { getCoverUrl } = useRecordCover()
 
 const platter = ref<SVGElement | null>(null)
 
 // Get album cover from record
-const coverUrl = computed(() => {
+const coverRecord = computed(() => {
 	if (!props.deck.loadedTrack) return null
-	const record = records.getRecordById(props.deck.loadedTrack.record_id)
-	return record?.cover ?? null
+	return records.getRecordById(props.deck.loadedTrack.record_id) ?? null
 })
+const coverUrl = ref<string | null>(null)
+let coverRequest = 0
+
+watch(
+	() =>
+		[coverRecord.value?.cover_storage_path, coverRecord.value?.cover] as const,
+	async () => {
+		const request = ++coverRequest
+		const nextUrl = coverRecord.value
+			? await getCoverUrl(coverRecord.value)
+			: null
+		if (request === coverRequest) coverUrl.value = nextUrl
+	},
+	{ immediate: true }
+)
 
 // Target angular velocity in degrees per millisecond
 const targetVelocity = computed(() =>

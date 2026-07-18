@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ImageOff, X } from 'lucide-vue-next'
+import { X } from 'lucide-vue-next'
 
 defineProps<{
 	records: DatabaseRecord[]
@@ -18,14 +18,10 @@ const emit = defineEmits<{
 			class="hover:bg-muted/45 group grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 py-2 pr-1 transition-colors"
 		>
 			<!-- Cover -->
-			<div
-				class="bg-muted flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-sm border bg-cover bg-center"
-				:style="
-					record.cover ? { backgroundImage: `url('${record.cover}')` } : {}
-				"
-			>
-				<ImageOff v-if="!record.cover" class="text-muted-foreground size-4" />
-			</div>
+			<ImageRecordCover
+				:record="record"
+				class="size-10 shrink-0 rounded-sm border"
+			/>
 
 			<!-- Info -->
 			<div class="min-w-0 flex-1">

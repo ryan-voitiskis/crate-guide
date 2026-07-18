@@ -21,6 +21,7 @@ export const useUserStore = defineStore('user', () => {
 	const userAlreadyRegistered = ref(false)
 	const isUpdatingSettings = ref(false)
 	const isSigningOut = ref(false)
+	const isDeletingAccount = ref(false)
 	const localKeyFormatPreference = ref<'key' | 'camelot'>('key')
 	const anonymousThemePreference = ref<ThemeOptions>(
 		getSavedAnonymousThemePreference() ?? 'auto'
@@ -184,6 +185,127 @@ export const useUserStore = defineStore('user', () => {
 			return false
 		} finally {
 			isSigningOut.value = false
+		}
+	}
+
+	async function getFunctionErrorMessage(
+		error: unknown,
+		fallback: string
+	): Promise<string> {
+		const context = (error as { context?: unknown })?.context
+		if (context instanceof Response) {
+			try {
+				const payload = await context.clone().json()
+				if (
+					payload &&
+					typeof payload === 'object' &&
+					'error' in payload &&
+					typeof payload.error === 'string'
+				) {
+					return payload.error
+				}
+			} catch {
+				// The Edge Function response was not JSON; use the safe fallback.
+			}
+		}
+		return fallback
+	}
+
+	async function deleteAccount(emailConfirmation: string): Promise<boolean> {
+		if (isDeletingAccount.value) return false
+		isDeletingAccount.value = true
+		try {
+			// getUser performs a server-side session check immediately before the
+			// destructive request instead of trusting only the hydrated JWT claims.
+			const { data: userData, error: userError } = await supabase.auth.getUser()
+			if (userError) throw userError
+			const email = userData.user?.email
+			if (!email)
+				throw new Error('Your signed-in account has no email address.')
+			if (
+				emailConfirmation.trim().toLocaleLowerCase('en-US') !==
+				email.trim().toLocaleLowerCase('en-US')
+			) {
+				toast.error(
+					'Enter the email address for this account to confirm deletion.'
+				)
+				return false
+			}
+
+			const { data, error } = await supabase.functions.invoke(
+				'delete-account',
+				{
+					body: { confirmation: emailConfirmation }
+				}
+			)
+			if (error) {
+				throw new Error(
+					await getFunctionErrorMessage(
+						error,
+						'Your account could not be deleted. Please try again.'
+					)
+				)
+			}
+			if (
+				!data ||
+				typeof data !== 'object' ||
+				!('success' in data) ||
+				data.success !== true
+			) {
+				throw new Error('Your account could not be deleted. Please try again.')
+			}
+			const coverCleanupComplete =
+				!('cover_cleanup_complete' in data) ||
+				data.cover_cleanup_complete !== false
+
+			// The server-side deletion has completed. Local cleanup failures must not
+			// be reported as a failed account deletion.
+			const { error: signOutError } = await supabase.auth.signOut({
+				scope: 'local'
+			})
+			if (signOutError) {
+				console.error('Deleted account, but local auth cleanup failed')
+			}
+			if (!coverCleanupComplete) {
+				toast.warning(
+					'Your account was deleted, but a recently uploaded cover may still need cleanup. Contact the project owner if it remains accessible.',
+					{ duration: 30000 }
+				)
+			}
+			supaUser.value = null
+			invalidateIdentity(null)
+
+			try {
+				await router.replace('/login')
+			} catch {
+				console.error('Deleted account, but login navigation failed')
+				toast.warning(
+					'Your account was deleted, but this page could not refresh. Reload the page to finish signing out.',
+					{ duration: 30000 }
+				)
+				return true
+			}
+
+			if (signOutError) {
+				toast.warning(
+					'Your account was deleted. Reload the page if you still appear signed in.',
+					{ duration: 30000 }
+				)
+			} else {
+				toast.success('Your account and its data have been deleted.')
+			}
+			return true
+		} catch (error) {
+			console.error('Account deletion failed')
+			toast.error(
+				error instanceof Error
+					? error.message
+					: 'Your account could not be deleted. Please try again.',
+				{ duration: 30000 }
+			)
+			return false
+		} finally {
+			isDeletingAccount.value = false
 		}
 	}
 
@@ -478,11 +600,13 @@ export const useUserStore = defineStore('user', () => {
 		userAlreadyRegistered,
 		isUpdatingSettings,
 		isSigningOut: readonly(isSigningOut),
+		isDeletingAccount: readonly(isDeletingAccount),
 		resolveAuthenticatedUserId,
 		signUpWithEmail,
 		signInWithEmail,
 		signInWithProvider,
 		signOut,
+		deleteAccount,
 		sendPasswordResetEmail,
 		resetPassword,
 		verifyOtp,

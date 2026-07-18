@@ -24,7 +24,8 @@ export function createMockRecord(overrides?: Partial<Record>): Record {
 		discogs_release_url: `https://discogs.com/release/${recordIdCounter}`,
 		created_at: new Date().toISOString(),
 		updated_at: new Date().toISOString(),
-		...overrides
+		...overrides,
+		cover_storage_path: overrides?.cover_storage_path ?? null
 	}
 }
 

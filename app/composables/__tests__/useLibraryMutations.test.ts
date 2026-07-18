@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useLibraryMutations } from '../useLibraryMutations'
 
 const records = {
+	records: [
+		{ cover_storage_path: 'user-1/record-1/cover.webp' },
+		{ cover_storage_path: null }
+	],
 	removeRecordFromCollection: vi.fn(),
+	removeCoverObjects: vi.fn(),
 	clearRecords: vi.fn()
 }
 const tracks = {
@@ -74,6 +79,10 @@ describe('useLibraryMutations', () => {
 
 		expect(result).toBe(true)
 		expect(user.deleteAllUserData).toHaveBeenCalledOnce()
+		expect(records.removeCoverObjects).toHaveBeenCalledWith([
+			'user-1/record-1/cover.webp',
+			null
+		])
 		expect(records.clearRecords).toHaveBeenCalledOnce()
 		expect(tracks.clearTracks).toHaveBeenCalledOnce()
 		expect(crates.clearAllCrateRecords).toHaveBeenCalledOnce()
@@ -81,6 +90,7 @@ describe('useLibraryMutations', () => {
 		expect(session.clearSession).toHaveBeenCalledOnce()
 		const callOrder = [
 			user.deleteAllUserData,
+			records.removeCoverObjects,
 			records.clearRecords,
 			tracks.clearTracks,
 			crates.clearAllCrateRecords,

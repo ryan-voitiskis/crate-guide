@@ -23,7 +23,8 @@ function createRecordRow(overrides: Partial<RecordRow> = {}): RecordRow {
 		discogs_release_url: null,
 		created_at: '2026-07-12T00:00:00.000Z',
 		updated_at: '2026-07-12T00:00:00.000Z',
-		...overrides
+		...overrides,
+		cover_storage_path: overrides.cover_storage_path ?? null
 	}
 }
 

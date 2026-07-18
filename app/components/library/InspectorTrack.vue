@@ -77,17 +77,14 @@ const keyColour = computed(() => {
 
 		<div class="scrollbar-hidden min-h-0 flex-1 overflow-y-auto p-3">
 			<div class="flex gap-3">
-				<div
-					class="bg-muted relative size-20 shrink-0 overflow-hidden rounded-md border"
-				>
-					<img
-						v-if="record?.cover"
-						:src="record.cover"
-						:alt="`${record.title} cover`"
-						class="h-full w-full object-cover"
+				<div class="bg-muted relative size-20 shrink-0 rounded-md border">
+					<ImageRecordCover
+						v-if="record"
+						:record="record"
+						class="size-full rounded-md"
 					/>
 					<Disc3
-						v-else
+						v-if="!record"
 						class="text-muted-foreground absolute inset-0 m-auto size-8 stroke-[1.25]"
 					/>
 				</div>

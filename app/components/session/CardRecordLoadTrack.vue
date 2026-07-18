@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ImageOff } from 'lucide-vue-next'
 import type { LoadTrackRecordResult } from '~/utils/loadTrackPicker'
 
 const props = withDefaults(
@@ -58,17 +57,10 @@ function getTrackKeyColor(track: Track): string | null {
 <template>
 	<article class="bg-card overflow-hidden rounded-sm border shadow-xs">
 		<div class="flex flex-col gap-3 p-2.5 sm:flex-row">
-			<div
-				class="bg-muted border-border flex aspect-square w-full shrink-0 items-center justify-center overflow-hidden rounded-none border sm:size-28"
-			>
-				<img
-					v-if="result.record.cover"
-					:src="result.record.cover"
-					:alt="`${result.record.title} cover`"
-					class="size-full object-cover"
-				/>
-				<ImageOff v-else class="text-muted-foreground size-9" />
-			</div>
+			<ImageRecordCover
+				:record="result.record"
+				class="border-border aspect-square w-full shrink-0 rounded-none border sm:size-28"
+			/>
 
 			<div class="min-w-0 flex-1">
 				<header class="mb-2 min-w-0">

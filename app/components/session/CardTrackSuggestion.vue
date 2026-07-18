@@ -15,7 +15,6 @@ const session = useSessionStore()
 const user = useUserStore()
 
 const record = computed(() => records.getRecordById(props.track.record_id))
-const coverUrl = computed(() => record.value?.cover ?? null)
 const catalogReference = computed(() => {
 	const label = record.value?.labels?.[0]
 	return [label?.name, label?.catno].filter(Boolean).join(' · ')
@@ -101,17 +100,15 @@ function handleClick() {
 	>
 		<div class="flex h-16 items-center">
 			<!-- Cover art -->
-			<div
-				class="border-border aspect-square h-full shrink-0 overflow-hidden border-r"
-			>
-				<img
-					v-if="coverUrl"
-					:src="coverUrl"
+			<div class="border-border aspect-square h-full shrink-0 border-r">
+				<ImageRecordCover
+					v-if="record"
+					:record="record"
 					:alt="track.title"
-					class="h-full w-full object-cover"
+					class="size-full"
 				/>
 				<div
-					v-else
+					v-if="!record"
 					class="bg-muted flex h-full w-full items-center justify-center"
 				>
 					<span class="text-muted-foreground text-[8px]">No cover</span>

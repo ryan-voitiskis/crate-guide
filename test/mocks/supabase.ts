@@ -70,6 +70,10 @@ export function createMockSupabaseClient() {
 			from: vi.fn(() => ({
 				upload: vi.fn().mockResolvedValue({ data: null, error: null }),
 				download: vi.fn().mockResolvedValue({ data: null, error: null }),
+				createSignedUrl: vi.fn().mockResolvedValue({
+					data: { signedUrl: '' },
+					error: null
+				}),
 				getPublicUrl: vi.fn(() => ({ data: { publicUrl: '' } })),
 				remove: vi.fn().mockResolvedValue({ data: null, error: null })
 			}))

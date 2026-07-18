@@ -5,6 +5,7 @@ import {
 	ExternalLink,
 	FolderPlus,
 	Hash,
+	ImagePlus,
 	ListMusic,
 	Pencil,
 	Tag,
@@ -44,6 +45,10 @@ function openDiscogs() {
 function removeRecord() {
 	recordDetails.recordToRemove = props.record
 }
+
+function addCover() {
+	recordDetails.openRecord(props.record.id, true, 'cover')
+}
 </script>
 
 <template>
@@ -72,22 +77,39 @@ function removeRecord() {
 		</div>
 
 		<div class="scrollbar-hidden min-h-0 flex-1 overflow-y-auto p-3">
-			<div
-				class="bg-muted relative mb-4 aspect-square overflow-hidden rounded-md border"
+			<ImageRecordCover
+				:record="record"
+				show-label
+				class="relative mb-4 aspect-square rounded-md border"
 			>
-				<img
-					v-if="record.cover"
-					:src="record.cover"
-					:alt="`${record.title} cover`"
-					class="h-full w-full object-cover"
-				/>
-				<div v-else class="flex h-full items-center justify-center">
-					<Disc3 class="text-muted-foreground size-12 stroke-[1.25]" />
-				</div>
+				<template #missing>
+					<div class="flex flex-col items-center gap-3 text-center">
+						<ImagePlus class="text-muted-foreground size-10 stroke-[1.25]" />
+						<div>
+							<p class="text-sm font-medium">No cover artwork</p>
+							<p class="text-muted-foreground mt-1 text-xs">
+								Add your own image when Discogs does not have one.
+							</p>
+						</div>
+						<Button size="sm" variant="outline" @click="addCover">
+							<ImagePlus class="mr-1.5 size-3.5" />
+							Add cover
+						</Button>
+					</div>
+				</template>
+				<template #error>
+					<div class="flex flex-col items-center gap-3 text-center">
+						<Disc3 class="text-muted-foreground size-10 stroke-[1.25]" />
+						<p class="text-sm font-medium">Cover unavailable</p>
+						<Button size="sm" variant="outline" @click="addCover">
+							Replace cover
+						</Button>
+					</div>
+				</template>
 				<div
 					class="pointer-events-none absolute inset-2 border border-white/20"
 				/>
-			</div>
+			</ImageRecordCover>
 
 			<p
 				class="text-muted-foreground font-mono text-[10px] tracking-wider uppercase"

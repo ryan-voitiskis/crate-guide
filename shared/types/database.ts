@@ -146,6 +146,7 @@ export type Database = {
 				Row: {
 					artists: Json
 					cover: string | null
+					cover_storage_path: string | null
 					created_at: string | null
 					discogs_id: number | null
 					discogs_release_url: string | null
@@ -159,6 +160,7 @@ export type Database = {
 				Insert: {
 					artists?: Json
 					cover?: string | null
+					cover_storage_path?: string | null
 					created_at?: string | null
 					discogs_id?: number | null
 					discogs_release_url?: string | null
@@ -172,6 +174,7 @@ export type Database = {
 				Update: {
 					artists?: Json
 					cover?: string | null
+					cover_storage_path?: string | null
 					created_at?: string | null
 					discogs_id?: number | null
 					discogs_release_url?: string | null

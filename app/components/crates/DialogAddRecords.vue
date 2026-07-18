@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ImageOff, Plus, Search } from 'lucide-vue-next'
+import { Plus, Search } from 'lucide-vue-next'
 
 const props = defineProps<{
 	open: boolean
@@ -121,19 +121,10 @@ watch(
 							class="hover:bg-accent flex items-center gap-3 rounded-lg border p-2 transition-colors"
 						>
 							<!-- Cover -->
-							<div
-								class="bg-muted flex size-12 shrink-0 items-center justify-center overflow-hidden rounded bg-cover bg-center"
-								:style="
-									record.cover
-										? { backgroundImage: `url('${record.cover}')` }
-										: {}
-								"
-							>
-								<ImageOff
-									v-if="!record.cover"
-									class="text-muted-foreground size-4"
-								/>
-							</div>
+							<ImageRecordCover
+								:record="record"
+								class="size-12 shrink-0 rounded"
+							/>
 
 							<!-- Info -->
 							<div class="min-w-0 flex-1">
