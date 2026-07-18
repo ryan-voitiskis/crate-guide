@@ -1,8 +1,10 @@
 export async function getExistingDiscogsIds(
-	selectedReleases: DiscogsReleaseToFilter[]
+	releases: Array<{ id: number }>
 ): Promise<Set<number>> {
 	const supabase = getSupabase()
-	const discogsIds = selectedReleases.map((r) => r.id)
+	const discogsIds = releases.map((release) => release.id)
+
+	if (discogsIds.length === 0) return new Set()
 
 	const { data: existingRecords, error } = await supabase
 		.from('records')

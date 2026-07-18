@@ -7,13 +7,15 @@ import {
 } from 'test/mocks/fixtures/discogs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DiscogsImportFailure } from '../../../shared/types/discogs'
+import { DiscogsApiError } from '../../utils/discogs-errors'
 // Import after mocking
 import { useDiscogsStore } from '../discogsStore'
 
 const mockToast = vi.hoisted(() => ({
 	error: vi.fn(),
 	info: vi.fn(),
-	success: vi.fn()
+	success: vi.fn(),
+	warning: vi.fn()
 }))
 
 vi.mock('vue-sonner', () => ({ toast: mockToast }))
@@ -132,6 +134,7 @@ const mockSupabaseClient = {
 const mockFilterOutExistingReleases = vi.fn()
 const mockFetchReleaseDetails = vi.fn()
 const mockImportFetchedReleases = vi.fn()
+const mockGetExistingDiscogsIds = vi.fn()
 
 // Mock isError utility (checks if value is an Error instance)
 const isError = (e: unknown): e is Error => e instanceof Error
@@ -145,6 +148,7 @@ vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
 vi.stubGlobal('filterOutExistingReleases', mockFilterOutExistingReleases)
 vi.stubGlobal('fetchReleaseDetails', mockFetchReleaseDetails)
 vi.stubGlobal('importFetchedReleases', mockImportFetchedReleases)
+vi.stubGlobal('getExistingDiscogsIds', mockGetExistingDiscogsIds)
 vi.stubGlobal('isError', isError)
 
 describe('discogsStore', () => {
@@ -162,6 +166,7 @@ describe('discogsStore', () => {
 		mockUserStore.supaUser = { id: 'test-user-id' }
 		mockUserStore.profile = { id: 'test-user-id', discogs_username: 'testuser' }
 		mockUserStore.fetchProfile.mockResolvedValue(true)
+		mockGetExistingDiscogsIds.mockResolvedValue(new Set())
 
 		// Reset rpc mock to default success
 		mockRpc.mockResolvedValue({ data: null, error: null })
@@ -171,6 +176,7 @@ describe('discogsStore', () => {
 		it('starts with empty folders array', () => {
 			const store = useDiscogsStore()
 			expect(store.folders).toEqual([])
+			expect(store.folderError).toBeNull()
 		})
 
 		it('starts with no selected folder', () => {
@@ -229,6 +235,7 @@ describe('discogsStore', () => {
 			const store = useDiscogsStore()
 			const release = { ...createMockDiscogsRelease(), selected: true }
 			store.folders = [createMockFolder()]
+			store.folderError = { message: 'Old folder error' }
 			store.selectedFolder = 'House'
 			store.releasesToImport = [release]
 			store.releaseBeingImported = release
@@ -251,6 +258,7 @@ describe('discogsStore', () => {
 			store.resetAccountState()
 
 			expect(store.folders).toEqual([])
+			expect(store.folderError).toBeNull()
 			expect(store.selectedFolder).toBeUndefined()
 			expect(store.releasesToImport).toEqual([])
 			expect(store.releaseBeingImported).toBeNull()
@@ -366,6 +374,9 @@ describe('discogsStore', () => {
 			await store.getFolders()
 
 			expect(store.folders).toEqual([])
+			expect(store.folderError?.message).toBe(
+				'Could not load your Discogs folders.'
+			)
 			expect(store.isLoadingFolders).toBe(false)
 		})
 
@@ -376,7 +387,33 @@ describe('discogsStore', () => {
 			await store.getFolders()
 
 			expect(store.folders).toEqual([])
+			expect(store.folderError?.message).toBe(
+				'Could not load your Discogs folders.'
+			)
 			expect(store.isLoadingFolders).toBe(false)
+		})
+
+		it('preserves a safe typed error and request id for retry UI', async () => {
+			const requestId = crypto.randomUUID()
+			const store = useDiscogsStore()
+			mockDiscogsApi.getFolders.mockRejectedValue(
+				new DiscogsApiError('Discogs is temporarily unavailable.', {
+					code: 'discogs_unavailable',
+					requestId,
+					retryable: true,
+					status: 503
+				})
+			)
+
+			await store.getFolders()
+
+			expect(store.folderError).toEqual({
+				message: 'Discogs is temporarily unavailable.',
+				requestId
+			})
+			expect(mockToast.error).toHaveBeenCalledWith(
+				'Discogs is temporarily unavailable.'
+			)
 		})
 
 		it('uses the owned profile identity during initial auth hydration', async () => {
@@ -496,6 +533,61 @@ describe('discogsStore', () => {
 			expect(store.releasesToImport.length).toBe(2)
 			expect(store.releasesToImport[0]!.selected).toBe(true)
 			expect(store.releasesToImport[1]!.selected).toBe(true)
+		})
+
+		it('marks and deselects releases already present in the library', async () => {
+			const store = useDiscogsStore()
+			store.folders = [createMockFolder({ count: 2 })]
+			store.selectedFolder = 'House'
+			mockDiscogsApi.getFolderReleases.mockResolvedValue({
+				releases: [
+					createMockDiscogsRelease({ id: 1 }),
+					createMockDiscogsRelease({ id: 2 })
+				],
+				pagination: { pages: 1 }
+			})
+			mockGetExistingDiscogsIds.mockResolvedValue(new Set([1]))
+
+			await store.fetchFolderReleases()
+
+			expect(mockGetExistingDiscogsIds).toHaveBeenCalledWith(
+				expect.arrayContaining([
+					expect.objectContaining({ id: 1 }),
+					expect.objectContaining({ id: 2 })
+				])
+			)
+			expect(store.releasesToImport).toEqual([
+				expect.objectContaining({
+					id: 1,
+					alreadyImported: true,
+					selected: false
+				}),
+				expect.objectContaining({
+					id: 2,
+					alreadyImported: false,
+					selected: true
+				})
+			])
+		})
+
+		it('keeps the manifest usable when its existing-record lookup fails', async () => {
+			const store = useDiscogsStore()
+			store.folders = [createMockFolder()]
+			store.selectedFolder = 'House'
+			mockDiscogsApi.getFolderReleases.mockResolvedValue({
+				releases: [createMockDiscogsRelease({ id: 1 })],
+				pagination: { pages: 1 }
+			})
+			mockGetExistingDiscogsIds.mockRejectedValue(new Error('Database offline'))
+
+			await store.fetchFolderReleases()
+
+			expect(store.releasesToImport[0]).toEqual(
+				expect.objectContaining({ alreadyImported: false, selected: true })
+			)
+			expect(mockToast.warning).toHaveBeenCalledWith(
+				'Could not compare this folder with your library. Existing records will still be skipped safely.'
+			)
 		})
 
 		it('handles pagination - fetches all pages', async () => {

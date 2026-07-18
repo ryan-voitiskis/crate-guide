@@ -151,16 +151,32 @@ ports. The main local endpoints are:
 | Pooler          | `127.0.0.1:42829` (currently disabled) |
 
 ```bash
-# Full environment (Nuxt + Supabase local stack)
+# Full supervised environment (Nuxt + Supabase + Edge Functions)
 npm run dev:all
 
 # Nuxt only (requires external Supabase)
 npm run dev
 
-# Supabase services only
+# Supabase + supervised Edge Functions (long-running)
 npm run supa:start
+
+# Edge Functions only when Supabase is already running (long-running)
+npm run supa:functions
+
+# Confirm the local function gateway and worker are responding
+npm run supa:health
+
+# Stop the local Supabase stack from another terminal
 npm run supa:stop
 ```
+
+The supervised commands intentionally stay in the foreground. If either Nuxt
+or the Edge Functions worker exits unexpectedly, or if the function runtime
+repeatedly fails its health check, the command reports the failure and stops
+its other child process instead of leaving a partially healthy-looking
+development environment. The local `--no-verify-jwt` flag only
+bypasses the gateway check; every Discogs function still verifies the caller
+with `supabase.auth.getUser()` before accessing user-scoped credentials.
 
 ### Testing
 

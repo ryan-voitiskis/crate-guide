@@ -210,6 +210,31 @@
 	display: none; /* Chrome/Safari/Opera */
 }
 
+.workbench-scrollbar {
+	scrollbar-color: color-mix(in oklab, var(--muted-foreground) 62%, transparent)
+		var(--workbench-inset);
+	scrollbar-width: thin;
+}
+
+.workbench-scrollbar::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+.workbench-scrollbar::-webkit-scrollbar-track {
+	background: var(--workbench-inset);
+}
+
+.workbench-scrollbar::-webkit-scrollbar-thumb {
+	background: color-mix(in oklab, var(--muted-foreground) 62%, transparent);
+	border: 2px solid var(--workbench-inset);
+	border-radius: 999px;
+}
+
+.workbench-scrollbar::-webkit-scrollbar-thumb:hover {
+	background: color-mix(in oklab, var(--foreground) 72%, transparent);
+}
+
 /* Record list animations for crate dialogs */
 .animate-pop {
 	animation: pop 150ms ease-out;

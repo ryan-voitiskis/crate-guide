@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FolderOpen, RefreshCw } from 'lucide-vue-next'
+import { AlertTriangle, FolderOpen, RefreshCw } from 'lucide-vue-next'
 
 const discogs = useDiscogsStore()
 </script>
@@ -54,6 +54,38 @@ const discogs = useDiscogsStore()
 					<SpinnerLoading class="text-primary/40 size-10" />
 				</div>
 				<div
+					v-else-if="discogs.folderError"
+					role="alert"
+					class="flex min-h-40 flex-col items-center justify-center gap-3 px-5 py-6 text-center"
+				>
+					<div
+						class="bg-destructive/10 text-destructive flex size-9 items-center justify-center rounded-sm"
+					>
+						<AlertTriangle class="size-4.5" />
+					</div>
+					<div class="space-y-1">
+						<p class="text-sm font-semibold">Could not load folders</p>
+						<p class="text-muted-foreground max-w-sm text-xs">
+							{{ discogs.folderError.message }}
+						</p>
+						<p
+							v-if="discogs.folderError.requestId"
+							class="text-muted-foreground font-mono text-[9px] tracking-wide"
+						>
+							Request {{ discogs.folderError.requestId }}
+						</p>
+					</div>
+					<Button
+						variant="outline"
+						size="sm"
+						class="h-8 gap-1.5 text-xs"
+						@click="discogs.getFolders()"
+					>
+						<RefreshCw class="size-3.5" />
+						Try again
+					</Button>
+				</div>
+				<div
 					v-else-if="discogs.folders.length === 0"
 					class="text-muted-foreground flex min-h-32 flex-col items-center justify-center gap-2 text-sm"
 				>
@@ -85,7 +117,7 @@ const discogs = useDiscogsStore()
 			</div>
 			<DialogFooter>
 				<ButtonLoading
-					:disabled="!discogs.selectedFolder"
+					:disabled="!discogs.selectedFolder || Boolean(discogs.folderError)"
 					:loading="discogs.isLoadingSelectedFolder"
 					@click="discogs.fetchFolderReleases()"
 				>

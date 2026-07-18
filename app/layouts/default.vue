@@ -1,9 +1,14 @@
 <script setup lang="ts">
-const user = useSupabaseUser()
+import { isPublicRoute } from '../utils/authRoutes'
+
 const route = useRoute()
+const user = useSupabaseUser()
 
 const showWorkbench = computed(
-	() => Boolean(user.value) || route.path.startsWith('/demo')
+	() =>
+		Boolean(user.value) ||
+		route.path.startsWith('/demo') ||
+		!isPublicRoute(route.path)
 )
 
 const density = useState<'compact' | 'comfortable'>(

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ImageOff } from 'lucide-vue-next'
+import { CircleCheck, ImageOff } from 'lucide-vue-next'
 
 const props = defineProps<{
 	release: DiscogsReleaseToFilter | DiscogsRelease
@@ -20,16 +20,42 @@ const isSelected = computed({
 	get: () => isFilterableRelease(props.release) && props.release.selected,
 	set: (value: boolean) => emit('update:selected', value)
 })
+
+const checkboxId = computed(() => `discogs-release-${props.release.id}-select`)
+const artistNames = computed(() =>
+	props.release.basic_information.artists
+		.map((artist) => artist.name)
+		.join(', ')
+)
+const selectionLabel = computed(
+	() =>
+		`Select ${props.release.basic_information.title} by ${artistNames.value || 'Unknown artist'} for import`
+)
+const alreadyImported = computed(
+	() =>
+		isFilterableRelease(props.release) && Boolean(props.release.alreadyImported)
+)
+const isSelectableCard = computed(
+	() =>
+		props.showCheckbox &&
+		isFilterableRelease(props.release) &&
+		!alreadyImported.value
+)
 </script>
 
 <template>
-	<div
+	<component
+		:is="isSelectableCard ? 'label' : 'div'"
+		:for="isSelectableCard ? checkboxId : undefined"
 		class="bg-card text-card-foreground border-border grid min-h-16 w-full overflow-hidden rounded-sm border shadow-xs"
-		:class="
+		:class="[
 			showCheckbox && isFilterableRelease(release)
-				? 'grid-cols-[64px_minmax(0,1fr)_36px]'
-				: 'grid-cols-[64px_minmax(0,1fr)]'
-		"
+				? 'grid-cols-[64px_minmax(0,1fr)_88px]'
+				: 'grid-cols-[64px_minmax(0,1fr)]',
+			isSelectableCard &&
+				'hover:border-primary/40 hover:bg-muted/30 cursor-pointer transition-colors',
+			alreadyImported && 'bg-muted/20'
+		]"
 	>
 		<div
 			class="bg-muted border-border flex size-16 items-center justify-center overflow-hidden border-r"
@@ -50,11 +76,7 @@ const isSelected = computed({
 				{{ release.basic_information.title }}
 			</h3>
 			<p class="text-muted-foreground truncate text-[11px]">
-				{{
-					release.basic_information.artists
-						.map((artist) => artist.name)
-						.join(', ')
-				}}
+				{{ artistNames }}
 			</p>
 			<p
 				class="text-muted-foreground mt-1 flex min-w-0 items-center gap-2 font-mono text-[9px] tracking-wide uppercase"
@@ -78,9 +100,22 @@ const isSelected = computed({
 		</div>
 		<div
 			v-if="showCheckbox && isFilterableRelease(release)"
-			class="border-border flex items-center justify-center border-l"
+			class="border-border flex items-center justify-center gap-1.5 border-l px-2"
 		>
-			<Checkbox v-model:checked="isSelected" />
+			<template v-if="alreadyImported">
+				<CircleCheck class="text-led size-3.5 shrink-0" />
+				<span
+					class="text-muted-foreground font-mono text-[8px] tracking-wide uppercase"
+				>
+					In library
+				</span>
+			</template>
+			<Checkbox
+				v-else
+				:id="checkboxId"
+				v-model:checked="isSelected"
+				:aria-label="selectionLabel"
+			/>
 		</div>
-	</div>
+	</component>
 </template>

@@ -88,6 +88,7 @@ export type DiscogsRelease = {
 
 export type DiscogsReleaseToFilter = DiscogsRelease & {
 	selected: boolean
+	alreadyImported?: boolean
 }
 
 export type DiscogsFolderResponse = {

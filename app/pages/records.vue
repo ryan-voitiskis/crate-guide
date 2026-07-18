@@ -215,7 +215,10 @@ watch(
 					</div>
 				</div>
 
-				<div v-if="viewMode === 'table'" class="min-h-0 flex-1 overflow-auto">
+				<div
+					v-if="viewMode === 'table'"
+					class="workbench-scrollbar min-h-0 flex-1 overflow-auto"
+				>
 					<div
 						class="border-border bg-muted/70 sticky top-0 z-10 hidden min-w-[920px] grid-cols-[48px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px] items-center gap-3 border-b px-2 backdrop-blur-md md:grid"
 						:class="density === 'compact' ? 'h-8' : 'h-10'"

@@ -7,11 +7,16 @@ import type {
 	DiscogsRetryStatus,
 	DiscogsRetrySummary
 } from '../../shared/types/discogs'
-import { isDiscogsRequestId } from '../utils/discogs-errors'
+import { isDiscogsApiError, isDiscogsRequestId } from '../utils/discogs-errors'
 import type { DiscogsReleaseTarget } from '../utils/discogs-import'
 
 type TransferStatus = 'idle' | 'running' | 'completed' | 'cancelled' | 'failed'
 type TransferMode = 'import' | 'retry' | null
+
+type FolderLoadError = {
+	message: string
+	requestId?: string
+}
 
 const TRANSFER_SNAPSHOT_VERSION = 1
 const TRANSFER_STORAGE_PREFIX = 'crate-guide:discogs-transfer'
@@ -137,6 +142,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	const selectedFolder = ref<string | undefined>(undefined)
 	const releasesToImport = ref<DiscogsReleaseToFilter[]>([])
 	const releaseBeingImported = ref<DiscogsReleaseToFilter | null>(null)
+	const folderError = ref<FolderLoadError | null>(null)
 
 	const isLoadingFolders = ref(false)
 	const isLoadingSelectedFolder = ref(false)
@@ -301,6 +307,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		accountGeneration += 1
 		shouldCancelImport.value = true
 		folders.value = []
+		folderError.value = null
 		selectedFolder.value = undefined
 		releasesToImport.value = []
 		releaseBeingImported.value = null
@@ -345,14 +352,28 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		if (!context) return
 		isLoadingFolders.value = true
 		folders.value = []
+		folderError.value = null
 		try {
 			const data = await discogsApi.getFolders()
 			if (!isCurrentAccountContext(context)) return
-			if (!data.folders) toast.error('No folders found.')
-			else folders.value = data.folders
+			if (!Array.isArray(data.folders)) {
+				throw new Error('Invalid folders response')
+			}
+			folders.value = data.folders
 		} catch (e) {
 			if (!isCurrentAccountContext(context)) return
-			toast.error(isError(e) ? e.message : 'Error fetching folders.')
+			const message = isDiscogsApiError(e)
+				? e.message
+				: 'Could not load your Discogs folders.'
+			folderError.value = {
+				message,
+				...(isDiscogsApiError(e) &&
+				e.requestId &&
+				isDiscogsRequestId(e.requestId)
+					? { requestId: e.requestId }
+					: {})
+			}
+			toast.error(message)
 		} finally {
 			if (isCurrentAccountContext(context)) isLoadingFolders.value = false
 		}
@@ -380,7 +401,24 @@ export const useDiscogsStore = defineStore('discogs', () => {
 				allReleasesFetched = page >= data.pagination.pages
 				page++
 			}
-			releasesToImport.value = releases.map((r) => ({ ...r, selected: true }))
+			let existingDiscogsIds = new Set<number>()
+			try {
+				existingDiscogsIds = await getExistingDiscogsIds(releases)
+			} catch {
+				if (!isCurrentAccountContext(context)) return
+				toast.warning(
+					'Could not compare this folder with your library. Existing records will still be skipped safely.'
+				)
+			}
+			if (!isCurrentAccountContext(context)) return
+			releasesToImport.value = releases.map((release) => {
+				const alreadyImported = existingDiscogsIds.has(release.id)
+				return {
+					...release,
+					alreadyImported,
+					selected: !alreadyImported
+				}
+			})
 			showGetFoldersDialog.value = false
 			showFilterDialog.value = true
 		} catch (e) {
@@ -766,6 +804,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 
 	return {
 		folders,
+		folderError,
 		releasesToImport,
 		isLoadingFolders,
 		isLoadingSelectedFolder,

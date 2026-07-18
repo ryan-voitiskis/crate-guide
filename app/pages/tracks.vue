@@ -227,16 +227,34 @@ watch(
 						<Badge
 							variant="outline"
 							class="h-6 gap-1 rounded-sm font-mono text-[9px]"
+							:aria-label="
+								'BPM available for ' +
+								(tracks.tracksCount - missingBpmCount) +
+								' of ' +
+								tracks.tracksCount +
+								' tracks'
+							"
 						>
 							<Gauge class="size-3" />
-							{{ missingBpmCount }} BPM
+							BPM {{ tracks.tracksCount - missingBpmCount }}/{{
+								tracks.tracksCount
+							}}
 						</Badge>
 						<Badge
 							variant="outline"
 							class="h-6 gap-1 rounded-sm font-mono text-[9px]"
+							:aria-label="
+								'Key available for ' +
+								(tracks.tracksCount - missingKeyCount) +
+								' of ' +
+								tracks.tracksCount +
+								' tracks'
+							"
 						>
 							<KeyRound class="size-3" />
-							{{ missingKeyCount }} KEY
+							KEY {{ tracks.tracksCount - missingKeyCount }}/{{
+								tracks.tracksCount
+							}}
 						</Badge>
 						<Button
 							size="sm"
@@ -267,7 +285,10 @@ watch(
 					<ControlLibraryDensity v-model="density" />
 				</div>
 
-				<div v-if="sortedTracks.length" class="min-h-0 flex-1 overflow-auto">
+				<div
+					v-if="sortedTracks.length"
+					class="workbench-scrollbar min-h-0 flex-1 overflow-auto"
+				>
 					<div
 						class="border-border bg-muted/70 sticky top-0 z-10 hidden min-w-[1080px] grid-cols-[36px_42px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_66px_64px_58px_minmax(110px,0.7fr)_30px] items-center gap-2 border-b px-2 backdrop-blur-md md:grid"
 						:class="density === 'compact' ? 'h-8' : 'h-10'"
