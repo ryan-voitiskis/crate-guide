@@ -50,6 +50,24 @@ describe('authenticated workbench layout shell', () => {
 		expect(wrapper.text()).toContain('Page content')
 	})
 
+	it('provides project links from the public auth layout', async () => {
+		route.path = '/auth/confirm'
+		const wrapper = await mountLayout()
+		const projectLinks = wrapper.get('nav[aria-label="Project links"]')
+		const sourceLink = projectLinks
+			.findAll('a')
+			.find((link) =>
+				link.attributes('href')?.startsWith('https://github.com/')
+			)
+
+		expect(projectLinks.get('a[href="/privacy"]').text()).toBe('Privacy')
+		expect(projectLinks.get('a[href="/terms"]').text()).toBe('Terms')
+		expect(sourceLink?.attributes('href')).toBe(
+			'https://github.com/ryan-voitiskis/crate-guide'
+		)
+		expect(sourceLink?.text()).toBe('Source')
+	})
+
 	it('returns legal document navigation to the top of the public shell', async () => {
 		route.path = '/privacy'
 		const wrapper = await mountLayout()

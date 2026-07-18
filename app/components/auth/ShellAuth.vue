@@ -132,7 +132,6 @@ const titleChars = computed(() => {
 					<span>{{ catalog }}</span>
 				</div>
 			</Card>
-			<LinksLegal class="mt-5 justify-center" />
 		</div>
 	</div>
 </template>

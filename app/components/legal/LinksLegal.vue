@@ -1,7 +1,7 @@
 <template>
 	<nav
 		class="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
-		aria-label="Legal links"
+		aria-label="Project links"
 	>
 		<NuxtLink class="hover:text-foreground transition-colors" to="/privacy">
 			Privacy

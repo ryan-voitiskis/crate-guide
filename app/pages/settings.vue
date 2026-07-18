@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
 	Disc3,
-	ExternalLink,
+	Info,
 	Palette,
 	Plug,
 	ShieldAlert,
@@ -16,16 +16,20 @@ const settingsSections = computed(() => [
 	{ id: 'appearance', label: 'Appearance', icon: Palette },
 	{ id: 'deck', label: 'Deck controls', icon: SlidersHorizontal },
 	...(user.supaUser
-		? [
-				{ id: 'account', label: 'Account', icon: UserRound },
-				{ id: 'danger', label: 'Data controls', icon: ShieldAlert }
-			]
+		? [{ id: 'account', label: 'Account', icon: UserRound }]
+		: []),
+	{ id: 'about', label: 'About & legal', icon: Info },
+	...(user.supaUser
+		? [{ id: 'danger', label: 'Data controls', icon: ShieldAlert }]
 		: [])
 ])
 </script>
 
 <template>
-	<div class="scrollbar-hidden flex-1 overflow-y-auto">
+	<div
+		data-settings-scroll-container
+		class="scrollbar-hidden h-full min-h-0 overflow-y-auto overscroll-contain"
+	>
 		<div class="mx-auto w-full max-w-6xl px-3 py-4 sm:px-5 sm:py-6">
 			<header class="mb-5 flex items-end justify-between gap-4">
 				<div>
@@ -160,6 +164,24 @@ const settingsSections = computed(() => [
 						</div>
 					</section>
 
+					<section id="about" class="scroll-mt-3 p-4 sm:p-5">
+						<div
+							class="grid gap-4 md:grid-cols-[minmax(0,0.8fr)_minmax(260px,1.2fr)] md:items-center"
+						>
+							<div>
+								<div class="flex items-center gap-2">
+									<Info class="text-primary size-4" />
+									<h2 class="text-sm font-semibold">About Crate Guide</h2>
+								</div>
+								<p class="text-muted-foreground mt-1 text-xs leading-relaxed">
+									A non-commercial, open-source proof of concept available under
+									the AGPL-3.0 licence.
+								</p>
+							</div>
+							<LinksLegal class="md:justify-end" />
+						</div>
+					</section>
+
 					<section
 						v-if="user.supaUser"
 						id="danger"
@@ -205,20 +227,6 @@ const settingsSections = computed(() => [
 						</div>
 					</section>
 				</div>
-			</div>
-
-			<div class="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-				<LinksLegal />
-				<a
-					href="https://github.com/ryan-voitiskis/crate-guide"
-					target="_blank"
-					rel="noopener noreferrer"
-					class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 font-mono text-[11px] transition-colors"
-				>
-					<IconGithub class="size-3.5" />
-					AGPL-3.0
-					<ExternalLink class="size-3" />
-				</a>
 			</div>
 		</div>
 	</div>

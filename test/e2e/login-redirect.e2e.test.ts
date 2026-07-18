@@ -213,6 +213,26 @@ describe('Login redirects', () => {
 		await page.waitForURL(url('/settings'))
 
 		expect(new URL(page.url()).pathname).toBe('/settings')
+		await expect(
+			page.getByRole('heading', { name: 'About Crate Guide' }).count()
+		).resolves.toBe(1)
+
+		const scrollMetrics = await page
+			.locator('[data-settings-scroll-container]')
+			.evaluate((element) => {
+				const container = element as HTMLElement
+				container.scrollTop = container.scrollHeight
+				return {
+					clientHeight: container.clientHeight,
+					scrollHeight: container.scrollHeight,
+					scrollTop: container.scrollTop
+				}
+			})
+
+		expect(scrollMetrics.scrollHeight).toBeGreaterThan(
+			scrollMetrics.clientHeight
+		)
+		expect(scrollMetrics.scrollTop).toBeGreaterThan(0)
 
 		await page.close()
 	})
