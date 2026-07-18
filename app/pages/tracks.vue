@@ -290,7 +290,7 @@ watch(
 					class="workbench-scrollbar min-h-0 flex-1 overflow-auto"
 				>
 					<div
-						class="border-border bg-muted/70 sticky top-0 z-10 hidden min-w-[1080px] grid-cols-[36px_42px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_66px_64px_58px_minmax(110px,0.7fr)_30px] items-center gap-2 border-b px-2 backdrop-blur-md md:grid"
+						class="border-border bg-muted/70 sticky top-0 z-10 hidden min-w-270 grid-cols-[36px_42px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_66px_64px_58px_minmax(110px,0.7fr)_30px] items-center gap-2 border-b px-2 backdrop-blur-md md:grid"
 						:class="density === 'compact' ? 'h-8' : 'h-10'"
 					>
 						<span class="text-muted-foreground font-mono text-[9px]">ST</span>
@@ -349,7 +349,7 @@ watch(
 						<span />
 					</div>
 
-					<div class="hidden min-w-[1080px] md:block">
+					<div class="hidden min-w-270 md:block">
 						<div
 							v-for="track in sortedTracks"
 							:key="track.id"
@@ -488,7 +488,7 @@ watch(
 			</section>
 
 			<aside
-				class="border-border bg-background/70 hidden w-[300px] shrink-0 border-l xl:block"
+				class="border-border bg-background/70 hidden w-75 shrink-0 border-l xl:block"
 			>
 				<InspectorTrack
 					v-if="selectedTrack"
@@ -527,10 +527,7 @@ watch(
 		</div>
 
 		<Sheet v-model:open="mobileInspectorOpen">
-			<SheetContent
-				side="right"
-				class="w-[min(92vw,360px)] p-0 sm:max-w-[360px]"
-			>
+			<SheetContent side="right" class="w-[min(92vw,360px)] p-0 sm:max-w-90">
 				<SheetHeader class="sr-only">
 					<SheetTitle>Track inspector</SheetTitle>
 					<SheetDescription>

@@ -38,7 +38,7 @@ function handleThemeChange(value: AcceptableValue) {
 			@update:model-value="handleThemeChange"
 		>
 			<Label
-				class="border-border hover:bg-muted/40 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5 flex cursor-pointer items-center gap-3 rounded-sm border p-2 transition-colors sm:flex-col sm:items-stretch sm:gap-2"
+				class="border-border hover:bg-muted/40 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5 flex cursor-pointer items-center gap-3 rounded-sm border p-2 transition-colors sm:flex-col sm:items-stretch sm:gap-2"
 			>
 				<RadioGroupItem value="auto" class="sr-only" />
 				<div
@@ -61,7 +61,7 @@ function handleThemeChange(value: AcceptableValue) {
 			</Label>
 
 			<Label
-				class="border-border hover:bg-muted/40 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5 flex cursor-pointer items-center gap-3 rounded-sm border p-2 transition-colors sm:flex-col sm:items-stretch sm:gap-2"
+				class="border-border hover:bg-muted/40 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5 flex cursor-pointer items-center gap-3 rounded-sm border p-2 transition-colors sm:flex-col sm:items-stretch sm:gap-2"
 			>
 				<RadioGroupItem value="light" class="sr-only" />
 				<div
@@ -80,7 +80,7 @@ function handleThemeChange(value: AcceptableValue) {
 			</Label>
 
 			<Label
-				class="border-border hover:bg-muted/40 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5 flex cursor-pointer items-center gap-3 rounded-sm border p-2 transition-colors sm:flex-col sm:items-stretch sm:gap-2"
+				class="border-border hover:bg-muted/40 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5 flex cursor-pointer items-center gap-3 rounded-sm border p-2 transition-colors sm:flex-col sm:items-stretch sm:gap-2"
 			>
 				<RadioGroupItem value="dark" class="sr-only" />
 				<div

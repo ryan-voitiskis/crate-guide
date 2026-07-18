@@ -220,7 +220,7 @@ watch(
 					class="workbench-scrollbar min-h-0 flex-1 overflow-auto"
 				>
 					<div
-						class="border-border bg-muted/70 sticky top-0 z-10 hidden min-w-[920px] grid-cols-[48px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px] items-center gap-3 border-b px-2 backdrop-blur-md md:grid"
+						class="border-border bg-muted/70 sticky top-0 z-10 hidden min-w-230 grid-cols-[48px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px] items-center gap-3 border-b px-2 backdrop-blur-md md:grid"
 						:class="density === 'compact' ? 'h-8' : 'h-10'"
 					>
 						<span class="text-muted-foreground font-mono text-[9px]">ART</span>
@@ -265,7 +265,7 @@ watch(
 						<span />
 					</div>
 
-					<div class="hidden min-w-[920px] md:block">
+					<div class="hidden min-w-230 md:block">
 						<div
 							v-for="record in sortedRecords"
 							:key="record.id"
@@ -378,7 +378,7 @@ watch(
 			</section>
 
 			<aside
-				class="border-border bg-background/70 hidden w-[300px] shrink-0 border-l xl:block"
+				class="border-border bg-background/70 hidden w-75 shrink-0 border-l xl:block"
 			>
 				<InspectorRecord
 					v-if="selectedRecord"
@@ -412,10 +412,7 @@ watch(
 		/>
 
 		<Sheet v-model:open="mobileInspectorOpen">
-			<SheetContent
-				side="right"
-				class="w-[min(92vw,360px)] p-0 sm:max-w-[360px]"
-			>
+			<SheetContent side="right" class="w-[min(92vw,360px)] p-0 sm:max-w-90">
 				<SheetHeader class="sr-only">
 					<SheetTitle>Record inspector</SheetTitle>
 					<SheetDescription>

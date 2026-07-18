@@ -100,7 +100,7 @@ const discogs = useDiscogsStore()
 					<Label
 						v-for="folder in discogs.folders"
 						:key="folder.id"
-						class="hover:bg-muted/40 has-[[data-state=checked]]:bg-primary/5 flex cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors"
+						class="hover:bg-muted/40 has-data-[state=checked]:bg-primary/5 flex cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors"
 					>
 						<RadioGroupItem :value="folder.name" />
 						<FolderOpen class="text-muted-foreground size-4" />
