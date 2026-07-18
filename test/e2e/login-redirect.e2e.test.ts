@@ -237,6 +237,32 @@ describe('Login redirects', () => {
 		await page.close()
 	})
 
+	it('restores the workbench shell after visiting a legal page', async () => {
+		const page = await createPage('/login')
+
+		await mockAuthenticatedSupabase(page)
+		await signInViaForm(page)
+		await page.getByRole('link', { name: 'Settings' }).click()
+		await page.waitForURL(url('/settings'))
+		await page.getByRole('link', { name: 'Privacy', exact: true }).click()
+		await page.waitForURL(url('/privacy'))
+
+		await page.getByRole('link', { name: 'Back to Crate Guide' }).click()
+		await page.waitForURL(url('/'))
+
+		await expect(
+			page.getByRole('link', { name: 'Crate Guide home' }).count()
+		).resolves.toBeGreaterThan(0)
+		await expect(
+			page.getByRole('navigation', { name: 'Library navigation' }).count()
+		).resolves.toBe(1)
+		await expect(
+			page.getByRole('contentinfo', { name: 'Workspace status' }).count()
+		).resolves.toBe(1)
+
+		await page.close()
+	})
+
 	it('replaces rendered Settings content after local logout', async () => {
 		const page = await createPage('/login')
 

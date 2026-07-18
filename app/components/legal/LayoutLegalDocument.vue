@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ArrowLeft } from 'lucide-vue-next'
+
 interface Props {
 	title: string
 	summary: string
@@ -13,12 +15,14 @@ defineProps<Props>()
 		<main class="mx-auto w-full max-w-3xl">
 			<header class="border-border mb-8 border-b pb-6">
 				<NuxtLink
-					to="/demo"
-					class="text-muted-foreground hover:text-foreground mb-6 inline-flex items-center gap-3 transition-colors"
+					to="/"
+					aria-label="Back to Crate Guide"
+					class="text-muted-foreground hover:text-foreground mb-6 inline-flex items-center gap-2.5 transition-colors"
 				>
 					<span class="size-10"><LogoCrateGuide /></span>
+					<ArrowLeft class="size-3.5" aria-hidden="true" />
 					<span class="font-mono text-xs tracking-[0.16em] uppercase">
-						Crate Guide
+						Back to Crate Guide
 					</span>
 				</NuxtLink>
 

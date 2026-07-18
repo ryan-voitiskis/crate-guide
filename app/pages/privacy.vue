@@ -1,4 +1,5 @@
 <script setup lang="ts">
+definePageMeta({ layout: 'legal' })
 useHead({ title: 'Privacy Notice · Crate Guide' })
 </script>
 

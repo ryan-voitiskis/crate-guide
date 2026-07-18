@@ -1,4 +1,5 @@
 <script setup lang="ts">
+definePageMeta({ layout: 'legal' })
 useHead({ title: 'Hosted Service Terms · Crate Guide' })
 </script>
 
