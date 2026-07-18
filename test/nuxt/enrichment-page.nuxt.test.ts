@@ -79,29 +79,37 @@ const ReviewStub = defineComponent({
 		rows: {
 			type: Array as () => TrackEnrichmentRow[],
 			required: true
-		}
+		},
+		unmatchedOnly: Boolean
 	},
 	emits: ['stage-all', 'stage-row'],
 	setup(props, { emit }) {
 		return () =>
-			h('div', { 'data-testid': 'review-table' }, [
-				h(
-					'button',
-					{
-						'data-testid': 'stage-all',
-						onClick: () => emit('stage-all', true)
-					},
-					'Stage all'
-				),
-				h(
-					'button',
-					{
-						'data-testid': 'stage-row',
-						onClick: () => emit('stage-row', props.rows[0], false)
-					},
-					'Unstage row'
-				)
-			])
+			h(
+				'div',
+				{
+					'data-testid': 'review-table',
+					'data-unmatched-only': String(props.unmatchedOnly)
+				},
+				[
+					h(
+						'button',
+						{
+							'data-testid': 'stage-all',
+							onClick: () => emit('stage-all', true)
+						},
+						'Stage all'
+					),
+					h(
+						'button',
+						{
+							'data-testid': 'stage-row',
+							onClick: () => emit('stage-row', props.rows[0], false)
+						},
+						'Unstage row'
+					)
+				]
+			)
 	}
 })
 
@@ -359,6 +367,14 @@ describe('enrichment page wiring', () => {
 			workflow.rows.value[0],
 			false
 		)
+		workflow.selectedFilter.value = 'unmatched'
+		await nextTick()
+		expect(
+			wrapper
+				.get('[data-testid="review-table"]')
+				.attributes('data-unmatched-only')
+		).toBe('true')
+		expect(wrapper.text()).not.toContain('Stage eligible (')
 		await getButton(wrapper, 'Review staged updates').trigger('click')
 		expect(workflow.openApplyReview).toHaveBeenCalledOnce()
 		await getButton(wrapper, 'Apply updates').trigger('click')

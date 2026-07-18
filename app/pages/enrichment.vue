@@ -621,6 +621,7 @@ function handleFileDrop(file: File) {
 									/>
 
 									<Button
+										v-if="selectedFilter !== 'unmatched'"
 										variant="ghost"
 										size="sm"
 										class="h-8 px-2 text-xs"
@@ -683,6 +684,7 @@ function handleFileDrop(file: File) {
 									:density="density"
 									:sort-key="reviewSortKey"
 									:sort-direction="reviewSortDirection"
+									:unmatched-only="selectedFilter === 'unmatched'"
 									@sort="setReviewSort"
 									@stage-all="setVisibleRowsStaged"
 									@stage-row="setRowStaged"

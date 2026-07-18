@@ -23,6 +23,7 @@ const props = defineProps<{
 	density: 'compact' | 'comfortable'
 	sortKey: ReviewSortKey | null
 	sortDirection: 'asc' | 'desc'
+	unmatchedOnly: boolean
 }>()
 
 const emit = defineEmits<{
@@ -109,14 +110,14 @@ function getSourceId(row: TrackEnrichmentRow): string | null {
 	return row.source.sourceType === 'rekordboxXml' ? row.source.trackId : null
 }
 
-function getStageLabel(row: TrackEnrichmentRow): string {
+function getStageLabel(row: TrackEnrichmentRow): string | null {
 	if (row.error) return 'Error'
 	if (row.applied) return 'Applied'
 	if (row.stagingBlockedReason) return 'Blocked'
 	if (isRowStaged(row)) return 'Staged'
 	if (canStageTrackEnrichmentRow(row)) return 'Ready'
 	if (row.alreadyComplete) return 'Complete'
-	return 'Unavailable'
+	return null
 }
 
 function getStageClasses(row: TrackEnrichmentRow): string {
@@ -160,22 +161,34 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 			<div
 				class="bg-muted/70 sticky top-0 z-10 flex h-9 items-center justify-between px-3 backdrop-blur-md"
 			>
-				<div class="flex items-center gap-2">
-					<CheckboxLargeHitArea
-						:model-value="filteredSelectionState"
-						:disabled="stageableRowCount === 0 || isApplying"
-						aria-label="Stage all eligible tracks in this view"
-						@update:model-value="emit('stage-all', $event === true)"
-					/>
+				<template v-if="unmatchedOnly">
 					<span
 						class="text-muted-foreground font-mono text-[9px] font-semibold tracking-[0.08em] uppercase"
 					>
-						Stage view
+						{{ sourceLabel }} tracks
 					</span>
-				</div>
-				<span class="text-muted-foreground font-mono text-[10px]">
-					{{ rows.length }} rows
-				</span>
+					<span class="text-muted-foreground font-mono text-[10px]">
+						{{ rows.length }} not in collection
+					</span>
+				</template>
+				<template v-else>
+					<div class="flex items-center gap-2">
+						<CheckboxLargeHitArea
+							:model-value="filteredSelectionState"
+							:disabled="stageableRowCount === 0 || isApplying"
+							aria-label="Stage all eligible tracks in this view"
+							@update:model-value="emit('stage-all', $event === true)"
+						/>
+						<span
+							class="text-muted-foreground font-mono text-[9px] font-semibold tracking-[0.08em] uppercase"
+						>
+							Stage view
+						</span>
+					</div>
+					<span class="text-muted-foreground font-mono text-[10px]">
+						{{ rows.length }} rows
+					</span>
+				</template>
 			</div>
 
 			<div
@@ -184,7 +197,62 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 				class="px-3 py-2.5"
 				:class="getRowClasses(row)"
 			>
-				<div class="flex items-start gap-2.5">
+				<template v-if="unmatchedOnly">
+					<div data-testid="enrichment-unmatched-mobile-row">
+						<div
+							class="truncate text-sm font-semibold"
+							:title="row.source.name || undefined"
+						>
+							{{ row.source.name || 'Unknown source track' }}
+						</div>
+						<div
+							class="text-muted-foreground mt-0.5 truncate text-xs"
+							:title="`${row.source.artist || 'Unknown artist'} · ${row.source.album || row.source.locationHint || 'No release'}`"
+						>
+							{{ row.source.artist || 'Unknown artist' }}
+							<span class="text-border px-1">/</span>
+							{{ row.source.album || row.source.locationHint || 'No release' }}
+							<span v-if="getSourceId(row)" class="font-mono">
+								<span class="text-border px-1">/</span>
+								ID {{ getSourceId(row) }}
+							</span>
+						</div>
+					</div>
+
+					<div
+						class="border-border bg-background/60 mt-2 grid grid-cols-3 divide-x rounded-sm border"
+					>
+						<div class="px-2 py-1.5 text-center">
+							<div class="text-muted-foreground font-mono text-[8px] uppercase">
+								Time
+							</div>
+							<div class="mt-0.5 font-mono text-xs tabular-nums">
+								{{ formatSeconds(row.source.totalTimeSeconds) }}
+							</div>
+						</div>
+						<div class="px-2 py-1.5 text-center">
+							<div class="text-muted-foreground font-mono text-[8px] uppercase">
+								BPM
+							</div>
+							<div class="mt-0.5 font-mono text-xs font-semibold tabular-nums">
+								{{ formatBpm(row.proposedBpm) }}
+							</div>
+						</div>
+						<div class="px-2 py-1.5 text-center">
+							<div class="text-muted-foreground font-mono text-[8px] uppercase">
+								Key
+							</div>
+							<div
+								class="mt-0.5 font-mono text-xs font-semibold"
+								:style="getKeyStyle(row.proposedKey, row.proposedMode)"
+							>
+								{{ formatKeyValue(row.proposedKey, row.proposedMode) }}
+							</div>
+						</div>
+					</div>
+				</template>
+
+				<div v-if="!unmatchedOnly" class="flex items-start gap-2.5">
 					<CheckboxLargeHitArea
 						:model-value="isRowStaged(row)"
 						:disabled="!canStageTrackEnrichmentRow(row) || isApplying"
@@ -229,6 +297,7 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 							{{ row.confidence }} {{ row.score }}
 						</div>
 						<div
+							v-if="getStageLabel(row)"
 							class="mt-1 font-mono text-[9px] uppercase"
 							:class="getStageClasses(row)"
 						>
@@ -238,6 +307,7 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 				</div>
 
 				<div
+					v-if="!unmatchedOnly"
 					class="border-border bg-background/60 mt-2 grid grid-cols-3 divide-x rounded-sm border"
 				>
 					<div class="px-2 py-1.5 text-center">
@@ -273,6 +343,7 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 					</div>
 				</div>
 				<p
+					v-if="!unmatchedOnly"
 					class="mt-1.5 truncate text-[11px]"
 					:class="
 						row.warnings.length || row.stagingBlockedReason
@@ -290,11 +361,52 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 			data-testid="enrichment-review-table-scroll"
 			class="workbench-scrollbar hidden min-h-0 flex-1 overflow-auto md:block"
 		>
-			<Table class="min-w-[1260px] table-fixed">
+			<Table
+				data-testid="enrichment-review-desktop-table"
+				class="table-fixed"
+				:class="unmatchedOnly ? 'min-w-[720px]' : 'min-w-[1260px]'"
+			>
 				<TableHeader
 					class="bg-muted/70 sticky top-0 z-10 shadow-[0_1px_0_var(--border)] backdrop-blur-md [&_th]:h-8 [&_th]:font-mono [&_th]:text-[9px] [&_th]:tracking-wide [&_th]:uppercase"
 				>
-					<TableRow>
+					<TableRow v-if="unmatchedOnly">
+						<TableHead>
+							<ButtonLibrarySort
+								:label="`${sourceLabel} track`"
+								:active="sortKey === 'source'"
+								:direction="sortDirection"
+								@click="emit('sort', 'source')"
+							/>
+						</TableHead>
+						<TableHead class="w-36">
+							<ButtonLibrarySort
+								label="Time"
+								align="right"
+								:active="sortKey === 'duration'"
+								:direction="sortDirection"
+								@click="emit('sort', 'duration')"
+							/>
+						</TableHead>
+						<TableHead class="w-36">
+							<ButtonLibrarySort
+								label="BPM"
+								align="right"
+								:active="sortKey === 'bpm'"
+								:direction="sortDirection"
+								@click="emit('sort', 'bpm')"
+							/>
+						</TableHead>
+						<TableHead class="w-36">
+							<ButtonLibrarySort
+								label="Key"
+								align="right"
+								:active="sortKey === 'key'"
+								:direction="sortDirection"
+								@click="emit('sort', 'key')"
+							/>
+						</TableHead>
+					</TableRow>
+					<TableRow v-else>
 						<TableHead class="w-24">
 							<div class="flex items-center gap-2">
 								<CheckboxLargeHitArea
@@ -371,7 +483,56 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 								: '[&_td]:h-14 [&_td]:py-2'
 						]"
 					>
-						<TableCell>
+						<template v-if="unmatchedOnly">
+							<TableCell class="whitespace-normal">
+								<div
+									class="truncate text-xs font-semibold"
+									:title="row.source.name || undefined"
+								>
+									{{ row.source.name || 'Unknown source track' }}
+								</div>
+								<div
+									class="text-muted-foreground mt-0.5 truncate text-[10px] leading-tight"
+									:title="
+										[
+											row.source.artist || 'Unknown artist',
+											row.source.album ||
+												row.source.locationHint ||
+												'No release'
+										].join(' · ')
+									"
+								>
+									{{ row.source.artist || 'Unknown artist' }}
+									<span class="text-border px-1">/</span>
+									{{
+										row.source.album || row.source.locationHint || 'No release'
+									}}
+									<span v-if="getSourceId(row)" class="font-mono">
+										<span class="text-border px-1">/</span>
+										ID {{ getSourceId(row) }}
+									</span>
+								</div>
+							</TableCell>
+
+							<TableCell class="text-right font-mono text-[11px] tabular-nums">
+								{{ formatSeconds(row.source.totalTimeSeconds) }}
+							</TableCell>
+
+							<TableCell
+								class="text-right font-mono text-[11px] font-semibold tabular-nums"
+							>
+								{{ formatBpm(row.proposedBpm) }}
+							</TableCell>
+
+							<TableCell
+								class="text-right font-mono text-[11px] font-semibold"
+								:style="getKeyStyle(row.proposedKey, row.proposedMode)"
+							>
+								{{ formatKeyValue(row.proposedKey, row.proposedMode) }}
+							</TableCell>
+						</template>
+
+						<TableCell v-if="!unmatchedOnly">
 							<div class="flex items-center gap-2">
 								<CheckboxLargeHitArea
 									:model-value="isRowStaged(row)"
@@ -381,6 +542,7 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 								/>
 								<div class="min-w-0">
 									<div
+										v-if="getStageLabel(row)"
 										class="font-mono text-[9px] font-semibold tracking-wide uppercase"
 										:class="getStageClasses(row)"
 									>
@@ -397,7 +559,7 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 							</div>
 						</TableCell>
 
-						<TableCell class="whitespace-normal">
+						<TableCell v-if="!unmatchedOnly" class="whitespace-normal">
 							<div class="flex min-w-0 items-center gap-1.5">
 								<span
 									v-if="row.track?.position"
@@ -426,7 +588,7 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 							</div>
 						</TableCell>
 
-						<TableCell class="whitespace-normal">
+						<TableCell v-if="!unmatchedOnly" class="whitespace-normal">
 							<div
 								class="truncate text-xs font-semibold"
 								:title="row.source.name || undefined"
@@ -449,7 +611,7 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 							</div>
 						</TableCell>
 
-						<TableCell class="font-mono text-[10px]">
+						<TableCell v-if="!unmatchedOnly" class="font-mono text-[10px]">
 							<div
 								class="grid grid-cols-[1fr_auto_1fr] items-center gap-1 tabular-nums"
 							>
@@ -470,6 +632,7 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 						</TableCell>
 
 						<TableCell
+							v-if="!unmatchedOnly"
 							class="font-mono text-[11px]"
 							:class="row.canFillBpm && 'bg-primary/5'"
 						>
@@ -490,6 +653,7 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 						</TableCell>
 
 						<TableCell
+							v-if="!unmatchedOnly"
 							class="font-mono text-[11px]"
 							:class="row.canFillKeyMode && 'bg-primary/5'"
 						>
@@ -507,7 +671,7 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 							</div>
 						</TableCell>
 
-						<TableCell class="whitespace-normal">
+						<TableCell v-if="!unmatchedOnly" class="whitespace-normal">
 							<div class="flex min-w-0 items-center gap-1.5">
 								<span
 									class="size-1.5 shrink-0 rounded-full"
