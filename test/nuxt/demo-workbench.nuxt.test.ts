@@ -11,6 +11,7 @@ import {
 	useWorkbenchTracksStore,
 	useWorkbenchUserStore
 } from '~/composables/useWorkbench'
+import { createDemoEnrichmentReview } from '~/demo/enrichmentFixtures'
 
 let wrapper: VueWrapper | null = null
 
@@ -90,5 +91,20 @@ describe('demo workbench', () => {
 		expect(captured.tracks.tracks).toHaveLength(24)
 		expect(captured.records.records).toHaveLength(6)
 		expect(captured.crates.crates).toHaveLength(3)
+	})
+
+	it('provides deterministic enrichment review states without a private XML file', () => {
+		const readyReview = createDemoEnrichmentReview('ready')
+		const unmatchedReview = createDemoEnrichmentReview('unmatched')
+
+		expect(readyReview.fileName).toBe('crate-guide-demo.xml')
+		expect(readyReview.rows).toHaveLength(18)
+		expect(readyReview.rows.filter((row) => row.defaultStaged)).toHaveLength(8)
+		expect(readyReview.rows.filter((row) => row.alreadyComplete)).toHaveLength(
+			2
+		)
+		expect(readyReview.rows.filter((row) => !row.track)).toHaveLength(4)
+		expect(unmatchedReview.selectedFilter).toBe('unmatched')
+		expect(unmatchedReview.rows).not.toBe(readyReview.rows)
 	})
 })

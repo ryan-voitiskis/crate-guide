@@ -525,28 +525,22 @@ describe('useTrackEnrichmentWorkflow', () => {
 		expect(workflow.selectedFilter.value).toBe('done')
 	})
 
-	it('resets pagination on filter changes and clamps it when result pages shrink', async () => {
+	it('loads a prepared review and stages only eligible defaults', () => {
 		const workflow = createWorkflow()
-		workflow.rows.value = Array.from({ length: 201 }, (_, index) =>
-			createRow({ id: `row-${index}` })
-		)
-		workflow.selectedFilter.value = 'ready'
-		await nextTick()
-		expect(workflow.pageCount.value).toBe(3)
-		workflow.currentPage.value = 3
+		const ready = createRow({ id: 'ready' })
+		const blocked = createRow({
+			id: 'blocked',
+			stagingBlockedReason: 'Ambiguous match'
+		})
 
-		workflow.selectedFilter.value = 'matched'
-		await nextTick()
-		expect(workflow.currentPage.value).toBe(1)
-		workflow.currentPage.value = 3
-		workflow.rows.value = workflow.rows.value.slice(0, 20)
-		await nextTick()
+		workflow.loadPreparedReview('demo.xml', [ready, blocked])
 
-		expect(workflow.pageCount.value).toBe(1)
+		expect(workflow.selectedFileName.value).toBe('demo.xml')
+		expect(workflow.rows.value).toEqual([ready, blocked])
+		expect([...workflow.stagedRowIds.value]).toEqual(['ready'])
+		expect(workflow.selectedFilter.value).toBe('ready')
 		expect(workflow.currentPage.value).toBe(1)
-		expect(workflow.pagedRows.value).toHaveLength(20)
-		expect(workflow.shownStart.value).toBe(1)
-		expect(workflow.shownEnd.value).toBe(20)
+		expect(workflow.workflowView.value).toBe('review')
 	})
 
 	it('rejects blocked and ineligible row staging in both single and bulk controls', () => {
@@ -572,7 +566,6 @@ describe('useTrackEnrichmentWorkflow', () => {
 
 		workflow.setFilteredRowsStaged(true)
 		expect([...workflow.stagedRowIds.value]).toEqual(['eligible'])
-		expect(workflow.filteredSelectionState.value).toBe(true)
 		workflow.setFilteredRowsStaged(false)
 		expect([...workflow.stagedRowIds.value]).toEqual([])
 	})

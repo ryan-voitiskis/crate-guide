@@ -70,13 +70,6 @@ export type TrackEnrichmentWorkflow = {
 	sourceLabel: ComputedRef<string>
 	filterOptions: ComputedRef<FilterOption[]>
 	filteredRows: ComputedRef<TrackEnrichmentRow[]>
-	stageableFilteredRows: ComputedRef<TrackEnrichmentRow[]>
-	stagedFilteredCount: ComputedRef<number>
-	filteredSelectionState: ComputedRef<boolean | 'indeterminate'>
-	pageCount: ComputedRef<number>
-	pagedRows: ComputedRef<TrackEnrichmentRow[]>
-	shownStart: ComputedRef<number>
-	shownEnd: ComputedRef<number>
 	stagedBpmCount: ComputedRef<number>
 	stagedKeyModeCount: ComputedRef<number>
 	isStepComplete: (step: number) => boolean
@@ -85,6 +78,7 @@ export type TrackEnrichmentWorkflow = {
 	parseFile: (file: File) => Promise<void>
 	reviewLocalSources: (selection: LocalAudioReviewSelection) => Promise<void>
 	selectSource: (source: TrackEnrichmentSourceKind) => void
+	loadPreparedReview: (fileLabel: string, rows: TrackEnrichmentRow[]) => void
 	returnToSource: () => void
 	startAnotherSource: () => void
 	setRowStaged: (row: TrackEnrichmentRow, checked: boolean) => void
@@ -94,8 +88,6 @@ export type TrackEnrichmentWorkflow = {
 	applyStagedRows: () => Promise<void>
 	returnToReview: () => void
 }
-
-const rowsPerPage = 100
 
 type TrackEnrichmentWorkflowDependencies = {
 	records: ReturnType<typeof useRecordsStore>
@@ -217,33 +209,6 @@ export function useTrackEnrichmentWorkflow(
 	const stageableFilteredRows = computed(() =>
 		filteredRows.value.filter(canStageTrackEnrichmentRow)
 	)
-	const stagedFilteredCount = computed(
-		() =>
-			stageableFilteredRows.value.filter((row) =>
-				stagedRowIds.value.has(row.id)
-			).length
-	)
-	const filteredSelectionState = computed<boolean | 'indeterminate'>(() => {
-		if (stagedFilteredCount.value === 0) return false
-		if (stagedFilteredCount.value === stageableFilteredRows.value.length)
-			return true
-		return 'indeterminate'
-	})
-	const pageCount = computed(() =>
-		Math.max(1, Math.ceil(filteredRows.value.length / rowsPerPage))
-	)
-	const pagedRows = computed(() => {
-		const start = (currentPage.value - 1) * rowsPerPage
-		return filteredRows.value.slice(start, start + rowsPerPage)
-	})
-	const shownStart = computed(() =>
-		filteredRows.value.length === 0
-			? 0
-			: (currentPage.value - 1) * rowsPerPage + 1
-	)
-	const shownEnd = computed(() =>
-		Math.min(currentPage.value * rowsPerPage, filteredRows.value.length)
-	)
 	const stagedBpmCount = computed(
 		() => stagedRows.value.filter((row) => row.canFillBpm).length
 	)
@@ -255,11 +220,10 @@ export function useTrackEnrichmentWorkflow(
 		currentPage.value = 1
 	})
 
-	watch(pageCount, (nextPageCount) => {
-		if (currentPage.value > nextPageCount) currentPage.value = nextPageCount
-	})
-
-	function initializeReview(fileLabel: string, nextRows: TrackEnrichmentRow[]) {
+	function loadPreparedReview(
+		fileLabel: string,
+		nextRows: TrackEnrichmentRow[]
+	) {
 		selectedFileName.value = fileLabel
 		rows.value = nextRows
 		stagedRowIds.value = new Set(
@@ -387,7 +351,7 @@ export function useTrackEnrichmentWorkflow(
 				}
 			})
 			if (!isCurrentReviewOperation(operationGeneration)) return
-			initializeReview(file.name, nextRows)
+			loadPreparedReview(file.name, nextRows)
 		} catch (error) {
 			if (!isCurrentReviewOperation(operationGeneration)) return
 			parseErrors.value = [
@@ -421,7 +385,7 @@ export function useTrackEnrichmentWorkflow(
 				}
 			})
 			if (!isCurrentReviewOperation(operationGeneration)) return
-			initializeReview(fileLabel, nextRows)
+			loadPreparedReview(fileLabel, nextRows)
 		} catch (error) {
 			if (!isCurrentReviewOperation(operationGeneration)) return
 			parseErrors.value = [
@@ -603,13 +567,6 @@ export function useTrackEnrichmentWorkflow(
 		sourceLabel,
 		filterOptions,
 		filteredRows,
-		stageableFilteredRows,
-		stagedFilteredCount,
-		filteredSelectionState,
-		pageCount,
-		pagedRows,
-		shownStart,
-		shownEnd,
 		stagedBpmCount,
 		stagedKeyModeCount,
 		isStepComplete,
@@ -618,6 +575,7 @@ export function useTrackEnrichmentWorkflow(
 		parseFile,
 		reviewLocalSources,
 		selectSource,
+		loadPreparedReview,
 		returnToSource,
 		startAnotherSource,
 		setRowStaged,

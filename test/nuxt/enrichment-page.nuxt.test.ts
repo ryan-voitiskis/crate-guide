@@ -79,36 +79,46 @@ const ReviewStub = defineComponent({
 		rows: {
 			type: Array as () => TrackEnrichmentRow[],
 			required: true
-		},
-		unmatchedOnly: Boolean
+		}
 	},
 	emits: ['stage-all', 'stage-row'],
 	setup(props, { emit }) {
 		return () =>
+			h('div', { 'data-testid': 'review-table' }, [
+				h(
+					'button',
+					{
+						'data-testid': 'stage-all',
+						onClick: () => emit('stage-all', true)
+					},
+					'Stage all'
+				),
+				h(
+					'button',
+					{
+						'data-testid': 'stage-row',
+						onClick: () => emit('stage-row', props.rows[0], false)
+					},
+					'Unstage row'
+				)
+			])
+	}
+})
+
+const UnmatchedStub = defineComponent({
+	name: 'TableTrackEnrichmentUnmatched',
+	props: {
+		rows: {
+			type: Array as () => TrackEnrichmentRow[],
+			required: true
+		}
+	},
+	setup(props) {
+		return () =>
 			h(
 				'div',
-				{
-					'data-testid': 'review-table',
-					'data-unmatched-only': String(props.unmatchedOnly)
-				},
-				[
-					h(
-						'button',
-						{
-							'data-testid': 'stage-all',
-							onClick: () => emit('stage-all', true)
-						},
-						'Stage all'
-					),
-					h(
-						'button',
-						{
-							'data-testid': 'stage-row',
-							onClick: () => emit('stage-row', props.rows[0], false)
-						},
-						'Unstage row'
-					)
-				]
+				{ 'data-testid': 'unmatched-table' },
+				props.rows.map((row) => row.source.name).join(', ')
 			)
 	}
 })
@@ -190,13 +200,25 @@ function createWorkflow(): WorkflowHarness {
 	const rows = ref([row])
 	const stagedRowIds = ref(new Set([row.id]))
 	const lastApplySummary = ref<ApplySummary | null>(null)
+	const selectedFileName = ref<string | null>(null)
+	const selectedFilter = ref<
+		'ready' | 'review' | 'staged' | 'matched' | 'unmatched' | 'done'
+	>('ready')
+	const loadPreparedReview = vi.fn(
+		(fileLabel: string, nextRows: TrackEnrichmentRow[]) => {
+			selectedFileName.value = fileLabel
+			rows.value = nextRows
+			selectedFilter.value = 'ready'
+			currentStep.value = 2
+		}
+	)
 
 	return {
 		activeSource: ref('rekordboxXml'),
-		selectedFileName: ref<string | null>(null),
+		selectedFileName,
 		rows,
 		stagedRowIds,
-		selectedFilter: ref('ready'),
+		selectedFilter,
 		currentPage: ref(1),
 		parseWarnings: ref([]),
 		parseErrors: ref([]),
@@ -228,13 +250,6 @@ function createWorkflow(): WorkflowHarness {
 			{ value: 'ready', label: 'Ready', count: rows.value.length }
 		]),
 		filteredRows: computed(() => rows.value),
-		stageableFilteredRows: computed(() => rows.value),
-		stagedFilteredCount: computed(() => 1),
-		filteredSelectionState: computed(() => true),
-		pageCount: computed(() => 1),
-		pagedRows: computed(() => rows.value),
-		shownStart: computed(() => 1),
-		shownEnd: computed(() => rows.value.length),
 		stagedBpmCount: computed(() => 1),
 		stagedKeyModeCount: computed(() => 1),
 		isStepComplete: vi.fn(() => false),
@@ -243,6 +258,7 @@ function createWorkflow(): WorkflowHarness {
 		parseFile: vi.fn().mockResolvedValue(undefined),
 		reviewLocalSources: vi.fn().mockResolvedValue(undefined),
 		selectSource: vi.fn(),
+		loadPreparedReview,
 		returnToSource: vi.fn(),
 		startAnotherSource: vi.fn(),
 		setRowStaged: vi.fn(),
@@ -256,7 +272,20 @@ function createWorkflow(): WorkflowHarness {
 
 const wrappers = new Set<VueWrapper>()
 
-async function mountPage(loadResults: [boolean, boolean]) {
+async function mountPage(
+	loadResults: [boolean, boolean],
+	initialReview: {
+		fileName: string
+		rows: TrackEnrichmentRow[]
+		selectedFilter?:
+			| 'ready'
+			| 'review'
+			| 'staged'
+			| 'matched'
+			| 'unmatched'
+			| 'done'
+	} | null = null
+) {
 	const workflow = createWorkflow()
 	workflowFactory.mockReturnValue(workflow)
 	const records = {
@@ -273,6 +302,7 @@ async function mountPage(loadResults: [boolean, boolean]) {
 	document.body.appendChild(headerTarget)
 
 	const wrapper = await mountSuspended(EnrichmentPage, {
+		props: { initialReview },
 		global: {
 			stubs: {
 				Dialog: DialogStub,
@@ -283,6 +313,7 @@ async function mountPage(loadResults: [boolean, boolean]) {
 				DialogTitle: SlotStub,
 				PanelTrackEnrichmentSource: SourceStub,
 				TableTrackEnrichmentReview: ReviewStub,
+				TableTrackEnrichmentUnmatched: UnmatchedStub,
 				ToggleGroup: SlotStub,
 				ToggleGroupItem: SlotStub
 			}
@@ -369,11 +400,8 @@ describe('enrichment page wiring', () => {
 		)
 		workflow.selectedFilter.value = 'unmatched'
 		await nextTick()
-		expect(
-			wrapper
-				.get('[data-testid="review-table"]')
-				.attributes('data-unmatched-only')
-		).toBe('true')
+		expect(wrapper.find('[data-testid="review-table"]').exists()).toBe(false)
+		expect(wrapper.find('[data-testid="unmatched-table"]').exists()).toBe(true)
 		expect(wrapper.text()).not.toContain('Stage eligible (')
 		await getButton(wrapper, 'Review staged updates').trigger('click')
 		expect(workflow.openApplyReview).toHaveBeenCalledOnce()
@@ -433,5 +461,36 @@ describe('enrichment page wiring', () => {
 		expect(wrapper.find('[data-testid="review-table"]').exists()).toBe(false)
 		expect(wrapper.text()).toContain('No matches for this filter')
 		expect(workflow.rows.value).toHaveLength(1)
+	})
+
+	it('loads deterministic review rows supplied by the demo route', async () => {
+		const row = createRow()
+		const { workflow, wrapper } = await mountPage([true, true], {
+			fileName: 'demo-review.xml',
+			rows: [row],
+			selectedFilter: 'unmatched'
+		})
+
+		expect(workflow.loadPreparedReview).toHaveBeenCalledWith(
+			'demo-review.xml',
+			[row]
+		)
+		expect(workflow.selectedFilter.value).toBe('unmatched')
+		expect(wrapper.find('[data-testid="unmatched-table"]').exists()).toBe(true)
+	})
+
+	it('warns before reloading an active review but not the source picker', async () => {
+		const { workflow } = await mountPage([true, true])
+		const sourceEvent = new Event('beforeunload', { cancelable: true })
+
+		window.dispatchEvent(sourceEvent)
+		expect(sourceEvent.defaultPrevented).toBe(false)
+
+		workflow.currentStep.value = 2
+		await nextTick()
+		const reviewEvent = new Event('beforeunload', { cancelable: true })
+		window.dispatchEvent(reviewEvent)
+
+		expect(reviewEvent.defaultPrevented).toBe(true)
 	})
 })

@@ -66,7 +66,6 @@ async function mountTable(
 		filteredSelectionState: boolean | 'indeterminate'
 		stageableRowCount: number
 		isApplying: boolean
-		unmatchedOnly: boolean
 	}> = {}
 ) {
 	const wrapper = await mountSuspended(TableTrackEnrichmentReview, {
@@ -81,7 +80,6 @@ async function mountTable(
 			density: 'compact',
 			sortKey: null,
 			sortDirection: 'asc',
-			unmatchedOnly: false,
 			...overrides
 		}
 	})
@@ -183,44 +181,6 @@ describe('TableTrackEnrichmentReview', () => {
 		expect(scrollRegion.classes().some((name) => name.includes('max-h-'))).toBe(
 			false
 		)
-	})
-
-	it('reduces the unmatched view to source track facts', async () => {
-		const unmatched = createRow({
-			track: null,
-			record: null,
-			confidence: 'manual',
-			score: 0,
-			reasons: [],
-			warnings: ['No matching Crate Guide track found'],
-			canFillBpm: false,
-			canFillKeyMode: false,
-			defaultStaged: false
-		})
-		const wrapper = await mountTable([unmatched], {
-			stageableRowCount: 0,
-			unmatchedOnly: true
-		})
-		const desktopTable = wrapper.get(
-			'[data-testid="enrichment-review-desktop-table"]'
-		)
-
-		expect(desktopTable.findAll('thead th')).toHaveLength(4)
-		expect(desktopTable.text()).toContain('Local audio track')
-		expect(desktopTable.text()).toContain('Source Track')
-		expect(desktopTable.text()).toContain('3:00')
-		expect(desktopTable.text()).toContain('130.0')
-		expect(
-			wrapper.findAll('[data-testid="enrichment-unmatched-mobile-row"]')
-		).toHaveLength(1)
-		expect(wrapper.find('[aria-label="Stage Source Track"]').exists()).toBe(
-			false
-		)
-		expect(wrapper.text()).not.toContain('Unavailable')
-		expect(wrapper.text()).not.toContain('No collection match')
-		expect(wrapper.text()).not.toContain('Match quality')
-		expect(wrapper.text()).not.toContain('Score 0')
-		expect(wrapper.text()).not.toContain('No matching Crate Guide track found')
 	})
 
 	it('omits unavailable labels for non-stageable rows in mixed views', async () => {

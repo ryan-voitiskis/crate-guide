@@ -14,19 +14,18 @@ import {
 	WandSparkles,
 	X
 } from 'lucide-vue-next'
-import {
-	type TrackEnrichmentRow,
-	canStageTrackEnrichmentRow
-} from '~/utils/trackEnrichment'
+import type { ReviewFilter } from '~/composables/useTrackEnrichmentWorkflow'
+import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
 
 type Density = 'compact' | 'comfortable'
-type ReviewSortKey =
-	| 'library'
-	| 'source'
-	| 'duration'
-	| 'bpm'
-	| 'key'
-	| 'confidence'
+
+const props = defineProps<{
+	initialReview?: {
+		fileName: string
+		rows: TrackEnrichmentRow[]
+		selectedFilter?: ReviewFilter
+	} | null
+}>()
 
 const records = useWorkbenchRecordsStore()
 const tracks = useWorkbenchTracksStore()
@@ -37,9 +36,6 @@ const isActive = usePageActive()
 const fileInput = ref<HTMLInputElement | null>(null)
 const collectionLoadState = ref<'loading' | 'ready' | 'failed'>('loading')
 const density = useState<Density>('workbench-density', () => 'compact')
-const reviewQuery = ref('')
-const reviewSortKey = ref<ReviewSortKey | null>(null)
-const reviewSortDirection = ref<'asc' | 'desc'>('asc')
 const {
 	activeSource,
 	selectedFileName,
@@ -80,6 +76,7 @@ const {
 	parseFile,
 	reviewLocalSources,
 	selectSource,
+	loadPreparedReview,
 	startAnotherSource,
 	setRowStaged,
 	setFilteredRowsStaged,
@@ -89,169 +86,56 @@ const {
 	returnToReview
 } = useTrackEnrichmentWorkflow({ records, tracks })
 
-const rowsPerReviewPage = 100
-
-function getReviewSearchText(row: TrackEnrichmentRow): string {
-	return [
-		row.track?.title,
-		row.track?.position,
-		row.track?.artists.map((artist) => artist.name).join(' '),
-		row.record?.title,
-		row.record?.labels[0]?.name,
-		row.record?.labels[0]?.catno,
-		row.source.name,
-		row.source.artist,
-		row.source.album,
-		row.source.locationHint,
-		row.source.sourceType === 'rekordboxXml' ? row.source.trackId : null,
-		row.reasons.join(' '),
-		row.warnings.join(' ')
-	]
-		.filter(Boolean)
-		.join(' ')
-		.toLocaleLowerCase()
+if (props.initialReview) {
+	loadPreparedReview(props.initialReview.fileName, props.initialReview.rows)
+	selectedFilter.value = props.initialReview.selectedFilter ?? 'ready'
 }
 
-const normalizedReviewQuery = computed(() =>
-	reviewQuery.value.trim().toLocaleLowerCase()
-)
-
-const searchedReviewRows = computed(() => {
-	if (!normalizedReviewQuery.value) return filteredRows.value
-	return filteredRows.value.filter((row) =>
-		getReviewSearchText(row).includes(normalizedReviewQuery.value)
-	)
+const {
+	query: reviewQuery,
+	sortKey: reviewSortKey,
+	sortDirection: reviewSortDirection,
+	searchedRows: searchedReviewRows,
+	sortedRows: sortedReviewRows,
+	stageableRows: visibleStageableRows,
+	selectionState: visibleSelectionState,
+	pageCount: reviewPageCount,
+	pagedRows: pagedReviewRows,
+	shownStart: reviewShownStart,
+	shownEnd: reviewShownEnd,
+	setVisibleRowsStaged,
+	setSort: setReviewSort
+} = useTrackEnrichmentReviewTable({
+	filteredRows,
+	stagedRowIds,
+	currentPage,
+	selectedFileName,
+	setRowStaged,
+	setFilteredRowsStaged
 })
-
-function compareNullableValues(
-	left: string | number | null | undefined,
-	right: string | number | null | undefined
-): number {
-	if (left === null || left === undefined || left === '')
-		return right === null || right === undefined || right === '' ? 0 : 1
-	if (right === null || right === undefined || right === '') return -1
-	if (typeof left === 'number' && typeof right === 'number') return left - right
-	return String(left).localeCompare(String(right), undefined, {
-		numeric: true,
-		sensitivity: 'base'
-	})
-}
-
-function getReviewSortValue(
-	row: TrackEnrichmentRow,
-	key: ReviewSortKey
-): string | number | null | undefined {
-	switch (key) {
-		case 'library':
-			return `${row.track?.artists[0]?.name || ''} ${row.track?.title || ''}`
-		case 'source':
-			return `${row.source.artist || ''} ${row.source.name || ''}`
-		case 'duration':
-			return row.source.totalTimeSeconds
-		case 'bpm':
-			return row.proposedBpm
-		case 'key':
-			return row.proposedKey === null || row.proposedKey === undefined
-				? null
-				: row.proposedKey * 2 + (row.proposedMode ?? 0)
-		case 'confidence':
-			return (
-				({ high: 300, medium: 200, manual: 100 } as const)[row.confidence] +
-				row.score
-			)
-	}
-}
-
-const sortedReviewRows = computed(() => {
-	if (!reviewSortKey.value) return searchedReviewRows.value
-
-	const direction = reviewSortDirection.value === 'asc' ? 1 : -1
-	const key = reviewSortKey.value
-	return [...searchedReviewRows.value].sort(
-		(left, right) =>
-			compareNullableValues(
-				getReviewSortValue(left, key),
-				getReviewSortValue(right, key)
-			) * direction
-	)
-})
-
-const visibleStageableRows = computed(() =>
-	searchedReviewRows.value.filter(canStageTrackEnrichmentRow)
-)
-
-const visibleStagedCount = computed(
-	() =>
-		visibleStageableRows.value.filter((row) => stagedRowIds.value.has(row.id))
-			.length
-)
-
-const visibleSelectionState = computed<boolean | 'indeterminate'>(() => {
-	if (visibleStagedCount.value === 0) return false
-	if (visibleStagedCount.value === visibleStageableRows.value.length)
-		return true
-	return 'indeterminate'
-})
-
-const reviewPageCount = computed(() =>
-	Math.max(1, Math.ceil(sortedReviewRows.value.length / rowsPerReviewPage))
-)
-
-const pagedReviewRows = computed(() => {
-	const start = (currentPage.value - 1) * rowsPerReviewPage
-	return sortedReviewRows.value.slice(start, start + rowsPerReviewPage)
-})
-
-const reviewShownStart = computed(() =>
-	sortedReviewRows.value.length === 0
-		? 0
-		: (currentPage.value - 1) * rowsPerReviewPage + 1
-)
-
-const reviewShownEnd = computed(() =>
-	Math.min(currentPage.value * rowsPerReviewPage, sortedReviewRows.value.length)
-)
-
-watch([reviewQuery, reviewSortKey, reviewSortDirection], () => {
-	currentPage.value = 1
-})
-
-watch(reviewPageCount, (nextPageCount) => {
-	if (currentPage.value > nextPageCount) currentPage.value = nextPageCount
-})
-
-watch(selectedFileName, (nextFileName, previousFileName) => {
-	if (nextFileName === previousFileName) return
-	reviewQuery.value = ''
-	reviewSortKey.value = null
-	reviewSortDirection.value = 'asc'
-})
-
-function setVisibleRowsStaged(checked: boolean) {
-	if (!normalizedReviewQuery.value) {
-		setFilteredRowsStaged(checked)
-		return
-	}
-
-	for (const row of visibleStageableRows.value) setRowStaged(row, checked)
-}
-
-function setReviewSort(key: ReviewSortKey) {
-	if (reviewSortKey.value === key) {
-		reviewSortDirection.value =
-			reviewSortDirection.value === 'asc' ? 'desc' : 'asc'
-		return
-	}
-
-	reviewSortKey.value = key
-	reviewSortDirection.value = key === 'confidence' ? 'desc' : 'asc'
-}
 
 const workflowSteps = [
 	{ number: 1, label: 'Choose source', shortLabel: 'Source' },
 	{ number: 2, label: 'Review matches', shortLabel: 'Review' },
 	{ number: 3, label: 'Apply updates', shortLabel: 'Apply' }
 ] as const
+
+function handleBeforeUnload(event: BeforeUnloadEvent) {
+	if (
+		!isActive.value ||
+		rows.value.length === 0 ||
+		(currentStep.value !== 2 && !showApplyDialog.value && !isApplying.value)
+	) {
+		return
+	}
+
+	event.preventDefault()
+	event.returnValue = true
+}
+
+if (import.meta.client) {
+	useEventListener(window, 'beforeunload', handleBeforeUnload)
+}
 
 onMounted(async () => {
 	const results = await Promise.all([
@@ -672,7 +556,20 @@ function handleFileDrop(file: File) {
 							</div>
 
 							<template v-else>
+								<TableTrackEnrichmentUnmatched
+									v-if="selectedFilter === 'unmatched'"
+									class="shrink-0 md:min-h-0 md:flex-1 md:shrink md:rounded-none md:border-x-0"
+									:rows="pagedReviewRows"
+									:key-format="user.currentKeyFormat"
+									:source-label="sourceLabel"
+									:density="density"
+									:sort-key="reviewSortKey"
+									:sort-direction="reviewSortDirection"
+									@sort="setReviewSort"
+								/>
+
 								<TableTrackEnrichmentReview
+									v-else
 									class="shrink-0 md:min-h-0 md:flex-1 md:shrink md:rounded-none md:border-x-0"
 									:rows="pagedReviewRows"
 									:staged-row-ids="stagedRowIds"
@@ -684,7 +581,6 @@ function handleFileDrop(file: File) {
 									:density="density"
 									:sort-key="reviewSortKey"
 									:sort-direction="reviewSortDirection"
-									:unmatched-only="selectedFilter === 'unmatched'"
 									@sort="setReviewSort"
 									@stage-all="setVisibleRowsStaged"
 									@stage-row="setRowStaged"
