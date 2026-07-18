@@ -90,11 +90,6 @@ async function chooseFolder() {
 	}
 }
 
-function openFallbackPicker() {
-	if (props.disabled) return
-	fallbackInput.value?.click()
-}
-
 async function handleFallbackFiles(event: Event) {
 	if (props.disabled) return
 	const input = event.target as HTMLInputElement
@@ -136,7 +131,33 @@ function reviewAvailableData() {
 			@change="handleFallbackFiles"
 		/>
 
-		<div class="grid lg:grid-cols-[minmax(260px,0.7fr)_minmax(0,1.3fr)]">
+		<div
+			v-if="entries.length === 0"
+			class="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-5 sm:p-5"
+		>
+			<div
+				class="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-sm"
+			>
+				<FolderOpen class="size-5" />
+			</div>
+			<div class="min-w-0 flex-1">
+				<h3 class="text-sm font-semibold sm:text-base">Choose audio folder</h3>
+				<p class="text-muted-foreground mt-1 text-xs">
+					Tags first · analysis optional · no uploads
+				</p>
+			</div>
+			<ButtonLoading
+				class="w-full shrink-0 sm:w-auto"
+				:loading="isPickingFolder"
+				:disabled="isAnalyzing || props.disabled"
+				@click="chooseFolder"
+			>
+				<FolderOpen class="mr-2 size-4" />
+				Choose folder
+			</ButtonLoading>
+		</div>
+
+		<div v-else class="grid lg:grid-cols-[minmax(260px,0.7fr)_minmax(0,1.3fr)]">
 			<div class="border-border p-4 lg:border-r">
 				<div class="flex items-start gap-3">
 					<div
@@ -145,10 +166,9 @@ function reviewAvailableData() {
 						<FolderOpen class="size-4" />
 					</div>
 					<div class="min-w-0">
-						<h3 class="text-sm font-semibold">Choose an audio folder</h3>
+						<h3 class="text-sm font-semibold">Audio folder</h3>
 						<p class="text-muted-foreground mt-1 text-sm">
-							Crate Guide reads tags first. Audio analysis runs only when you
-							request it.
+							Tags first · analysis optional · no uploads
 						</p>
 					</div>
 				</div>
@@ -160,17 +180,8 @@ function reviewAvailableData() {
 					@click="chooseFolder"
 				>
 					<FolderOpen class="mr-2 size-4" />
-					{{ entries.length ? 'Choose another folder' : 'Choose folder' }}
+					Change folder
 				</ButtonLoading>
-				<Button
-					variant="ghost"
-					size="sm"
-					class="mt-1 w-full"
-					:disabled="isAnalyzing || isPickingFolder || props.disabled"
-					@click="openFallbackPicker"
-				>
-					Use compatible picker
-				</Button>
 			</div>
 
 			<div class="p-4">
@@ -337,11 +348,12 @@ function reviewAvailableData() {
 		</div>
 
 		<div
-			class="border-border bg-muted/30 flex flex-wrap gap-x-5 gap-y-1 border-t px-4 py-2.5 text-xs"
+			v-if="entries.length"
+			class="border-border bg-muted/30 text-muted-foreground flex flex-wrap gap-x-2 gap-y-1 border-t px-4 py-2.5 text-xs"
 		>
-			<span>Runs entirely in this browser</span>
-			<span>No audio is uploaded</span>
-			<span>Results are cached on this device</span>
+			<span>Local only</span>
+			<span aria-hidden="true">·</span>
+			<span>Cached on this device</span>
 		</div>
 	</div>
 </template>

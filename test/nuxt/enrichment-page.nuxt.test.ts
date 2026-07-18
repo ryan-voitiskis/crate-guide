@@ -260,6 +260,9 @@ async function mountPage(loadResults: [boolean, boolean]) {
 	storeFactories.records.mockReturnValue(records)
 	storeFactories.tracks.mockReturnValue(tracks)
 	storeFactories.user.mockReturnValue({ currentKeyFormat: 'key' })
+	const headerTarget = document.createElement('div')
+	headerTarget.id = 'header-left'
+	document.body.appendChild(headerTarget)
 
 	const wrapper = await mountSuspended(EnrichmentPage, {
 		global: {
@@ -305,6 +308,9 @@ describe('enrichment page wiring', () => {
 		const { workflow, wrapper } = await mountPage([true, true])
 
 		expect(wrapper.find('[data-testid="source-panel"]').exists()).toBe(true)
+		expect(document.querySelector('#header-left')?.textContent).toContain(
+			'BPM & Key'
+		)
 		expect(wrapper.text()).not.toContain(
 			'Collection data could not be loaded. Refresh to try again.'
 		)
@@ -378,9 +384,11 @@ describe('enrichment page wiring', () => {
 			expect(wrapper.find('[data-testid="source-panel"]').exists()).toBe(false)
 			expect(wrapper.find('[data-testid="review-table"]').exists()).toBe(false)
 			expect(wrapper.find('[data-testid="apply-dialog"]').exists()).toBe(false)
-			for (const step of wrapper.findAll('button').slice(0, 3)) {
-				expect(step.attributes('disabled')).toBeDefined()
-			}
+			const steps = document.querySelectorAll(
+				'[data-testid="enrichment-workflow-step"]'
+			)
+			expect(steps).toHaveLength(3)
+			for (const step of steps) expect(step.hasAttribute('disabled')).toBe(true)
 		}
 	)
 
