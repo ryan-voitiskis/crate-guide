@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ListX, X } from 'lucide-vue-next'
 
-const session = useSessionStore()
+const session = useWorkbenchSessionStore()
 </script>
 
 <template>

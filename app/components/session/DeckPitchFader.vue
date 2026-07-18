@@ -10,8 +10,8 @@ const props = defineProps<{
 	compact?: boolean
 }>()
 
-const session = useSessionStore()
-const user = useUserStore()
+const session = useWorkbenchSessionStore()
+const user = useWorkbenchUserStore()
 
 const deck = computed(() => session.decks[props.deckIndex])
 const pitchRange = computed(() => user.profile?.turntable_pitch_range ?? 8)

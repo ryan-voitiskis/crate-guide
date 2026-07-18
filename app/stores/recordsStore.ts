@@ -1,4 +1,5 @@
 import { toast } from 'vue-sonner'
+import { getActivePinia } from 'pinia'
 import { validateImportResult } from '~/utils/discogs-validation'
 import {
 	RECORD_COVER_BUCKET,
@@ -6,6 +7,7 @@ import {
 	processRecordCoverFile
 } from '~/utils/recordCover'
 import { decodeRecordRow, reportDecodeIssues } from '~/utils/supabaseRows'
+import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 
 type ManualRecordTrackInput = {
 	title: string
@@ -55,8 +57,10 @@ function buildLabelPayload(
 
 export const useRecordsStore = defineStore('records', () => {
 	const supabase = useSupabaseClient<Database>()
-	const user = useUserStore()
-	const tracksStore = useTracksStore()
+	const pinia = getActivePinia()
+	const isDemoStore = isDemoWorkbenchPinia(pinia)
+	const user = useUserStore(pinia)
+	const tracksStore = useTracksStore(pinia)
 
 	const records = ref<DatabaseRecord[]>([])
 	const isLoadingRecords = ref(false)
@@ -85,6 +89,7 @@ export const useRecordsStore = defineStore('records', () => {
 	)
 
 	async function resolveMutationUserId(): Promise<string | null> {
+		if (isDemoStore) return null
 		try {
 			return await user.resolveAuthenticatedUserId()
 		} catch (error) {
@@ -129,6 +134,7 @@ export const useRecordsStore = defineStore('records', () => {
 	}
 
 	function fetchAllRecords(): Promise<boolean> {
+		if (isDemoStore) return Promise.resolve(true)
 		if (fetchPromise) return fetchPromise
 
 		fetchPromise = performFetchAllRecords()

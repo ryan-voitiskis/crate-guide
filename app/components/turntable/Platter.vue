@@ -12,8 +12,8 @@ const props = defineProps<{
 	deck: Deck
 }>()
 
-const records = useRecordsStore()
-const session = useSessionStore()
+const records = useWorkbenchRecordsStore()
+const session = useWorkbenchSessionStore()
 const { getCoverUrl } = useRecordCover()
 
 const platter = ref<SVGElement | null>(null)

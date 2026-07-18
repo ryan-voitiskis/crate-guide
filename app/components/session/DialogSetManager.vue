@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ChevronRight, Star, Trash2 } from 'lucide-vue-next'
 
-const session = useSessionStore()
-const tracks = useTracksStore()
+const session = useWorkbenchSessionStore()
+const tracks = useWorkbenchTracksStore()
 
 const selectedSet = computed(() => {
 	if (!session.selectedSetId) return null

@@ -1,4 +1,5 @@
 import { toast } from 'vue-sonner'
+import { getActivePinia } from 'pinia'
 import type {
 	DiscogsErrorCode,
 	DiscogsImportFailure,
@@ -135,7 +136,8 @@ function isTransferSnapshot(
 }
 
 export const useDiscogsStore = defineStore('discogs', () => {
-	const user = useUserStore()
+	const pinia = getActivePinia()
+	const user = useUserStore(pinia)
 	const discogsApi = useDiscogsApi()
 	let accountGeneration = 0
 	const folders = ref<DiscogsFolder[]>([])
@@ -529,8 +531,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	}
 
 	async function refreshImportedLibrary(context: AccountOperationContext) {
-		const recordsStore = useRecordsStore()
-		const tracksStore = useTracksStore()
+		const recordsStore = useRecordsStore(pinia)
+		const tracksStore = useTracksStore(pinia)
 		await Promise.all([
 			recordsStore.fetchAllRecords(),
 			tracksStore.fetchAllTracks()

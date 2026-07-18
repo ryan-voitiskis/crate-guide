@@ -4,7 +4,7 @@ import {
 	sanitizeAuthReturnPath
 } from '../../utils/authRoutes'
 
-definePageMeta({ keepalive: false })
+definePageMeta({ layout: 'auth', keepalive: false })
 
 type FinalisingState =
 	| 'loading'

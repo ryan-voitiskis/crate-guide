@@ -17,13 +17,14 @@ const props = defineProps<{
 	record: DatabaseRecord
 	trackCount: number
 	showClose?: boolean
+	readOnly?: boolean
 }>()
 
 const emit = defineEmits<{
 	close: []
 }>()
 
-const recordDetails = useRecordDetailsStore()
+const recordDetails = useWorkbenchRecordDetailsStore()
 
 const artistNames = computed(() =>
 	props.record.artists.map((artist) => artist.name).join(', ')
@@ -91,7 +92,12 @@ function addCover() {
 								Add your own image when Discogs does not have one.
 							</p>
 						</div>
-						<Button size="sm" variant="outline" @click="addCover">
+						<Button
+							size="sm"
+							variant="outline"
+							:disabled="props.readOnly"
+							@click="addCover"
+						>
 							<ImagePlus class="mr-1.5 size-3.5" />
 							Add cover
 						</Button>
@@ -101,7 +107,12 @@ function addCover() {
 					<div class="flex flex-col items-center gap-3 text-center">
 						<Disc3 class="text-muted-foreground size-10 stroke-[1.25]" />
 						<p class="text-sm font-medium">Cover unavailable</p>
-						<Button size="sm" variant="outline" @click="addCover">
+						<Button
+							size="sm"
+							variant="outline"
+							:disabled="props.readOnly"
+							@click="addCover"
+						>
 							Replace cover
 						</Button>
 					</div>
@@ -187,11 +198,16 @@ function addCover() {
 		</div>
 
 		<div class="border-border grid shrink-0 grid-cols-2 gap-2 border-t p-3">
-			<Button size="sm" @click="editRecord">
+			<Button size="sm" :disabled="props.readOnly" @click="editRecord">
 				<Pencil class="mr-1.5 size-3.5" />
 				Edit
 			</Button>
-			<Button size="sm" variant="outline" @click="openAddToCrate">
+			<Button
+				size="sm"
+				variant="outline"
+				:disabled="props.readOnly"
+				@click="openAddToCrate"
+			>
 				<FolderPlus class="mr-1.5 size-3.5" />
 				Crates
 			</Button>
@@ -208,6 +224,7 @@ function addCover() {
 				size="sm"
 				variant="destructive-ghost"
 				class="text-destructive"
+				:disabled="props.readOnly"
 				@click="removeRecord"
 			>
 				<Trash2 class="mr-1.5 size-3.5" />

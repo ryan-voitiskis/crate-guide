@@ -7,7 +7,8 @@ import {
 	Save
 } from 'lucide-vue-next'
 
-const session = useSessionStore()
+const session = useWorkbenchSessionStore()
+const capabilities = useWorkbenchCapabilities()
 
 function handleDeckCountChange(value: unknown) {
 	if (typeof value === 'string' && value) {
@@ -82,7 +83,7 @@ function handleDeckCountChange(value: unknown) {
 		<Button
 			variant="outline"
 			size="sm"
-			:disabled="session.isLoadingSets"
+			:disabled="session.isLoadingSets || !capabilities.canPersistSessions"
 			aria-label="Open saved sets"
 			title="Saved sets"
 			@click="session.showSetManager = true"
@@ -94,7 +95,9 @@ function handleDeckCountChange(value: unknown) {
 		<Button
 			variant="outline"
 			size="sm"
-			:disabled="session.currentSession.length === 0"
+			:disabled="
+				session.currentSession.length === 0 || !capabilities.canPersistSessions
+			"
 			aria-label="Save current set"
 			:title="session.autoSaveError ?? 'Save current set'"
 			@click="session.showSaveDialog = true"

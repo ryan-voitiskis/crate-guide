@@ -12,9 +12,10 @@ import {
 	Trash2
 } from 'lucide-vue-next'
 
-const crates = useCratesStore()
-const records = useRecordsStore()
-const tracks = useTracksStore()
+const crates = useWorkbenchCratesStore()
+const records = useWorkbenchRecordsStore()
+const tracks = useWorkbenchTracksStore()
+const capabilities = useWorkbenchCapabilities()
 
 const isActive = usePageActive()
 
@@ -87,6 +88,7 @@ watch(selectedCrateId, () => {
 })
 
 function openCreateDialog() {
+	if (!capabilities.canManageCrates) return
 	showCreateDialog.value = true
 }
 
@@ -99,14 +101,17 @@ function selectCrate(crate: Crate) {
 }
 
 function openDetail() {
+	if (!capabilities.canManageCrates) return
 	if (selectedCrate.value) showDetailDialog.value = true
 }
 
 function handleDelete(crate: Crate) {
+	if (!capabilities.canManageCrates) return
 	crates.crateToDelete = crate
 }
 
 function handleAddRecord() {
+	if (!capabilities.canManageCrates) return
 	showAddRecordsDialog.value = true
 }
 
@@ -122,24 +127,33 @@ watch(
 
 <template>
 	<div class="flex h-full min-h-0 flex-col">
-		<DialogCrateForm v-model:open="showCreateDialog" @saved="handleCreated" />
+		<DialogCrateForm
+			v-if="capabilities.canManageCrates"
+			v-model:open="showCreateDialog"
+			@saved="handleCreated"
+		/>
 		<DialogCrateDetails
-			v-if="selectedCrate"
+			v-if="selectedCrate && capabilities.canManageCrates"
 			v-model:open="showDetailDialog"
 			:crate="selectedCrate"
 			@delete="handleDelete"
 			@add-record="handleAddRecord"
 		/>
 		<DialogAddRecords
-			v-if="selectedCrate"
+			v-if="selectedCrate && capabilities.canManageCrates"
 			v-model:open="showAddRecordsDialog"
 			:crate="selectedCrate"
 		/>
-		<AlertConfirmDeleteCrate />
+		<AlertConfirmDeleteCrate v-if="capabilities.canManageCrates" />
 
 		<Teleport to="#header-left" defer>
 			<template v-if="isActive && crates.hasCrates">
-				<Button size="sm" @click="openCreateDialog">
+				<Button
+					size="sm"
+					:disabled="!capabilities.canManageCrates"
+					title="Creating crates is disabled in the demo"
+					@click="openCreateDialog"
+				>
 					<Plus class="mr-2 size-4" />
 					New crate
 				</Button>
@@ -183,6 +197,7 @@ watch(
 							class="size-8"
 							title="Create crate"
 							aria-label="Create crate"
+							:disabled="!capabilities.canManageCrates"
 							@click="openCreateDialog"
 						>
 							<Plus class="size-4" />
@@ -255,11 +270,20 @@ watch(
 					</div>
 
 					<div class="flex shrink-0 items-center gap-2">
-						<Button variant="outline" size="sm" @click="openDetail">
+						<Button
+							variant="outline"
+							size="sm"
+							:disabled="!capabilities.canManageCrates"
+							@click="openDetail"
+						>
 							<Pencil class="mr-2 size-3.5" />
 							Edit
 						</Button>
-						<Button size="sm" @click="handleAddRecord">
+						<Button
+							size="sm"
+							:disabled="!capabilities.canManageCrates"
+							@click="handleAddRecord"
+						>
 							<Plus class="mr-2 size-3.5" />
 							Add records
 						</Button>
@@ -270,18 +294,23 @@ watch(
 									size="icon"
 									class="size-8"
 									aria-label="More crate actions"
+									:disabled="!capabilities.canManageCrates"
 								>
 									<MoreHorizontal class="size-4" />
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end">
-								<DropdownMenuItem @click="openDetail">
+								<DropdownMenuItem
+									:disabled="!capabilities.canManageCrates"
+									@click="openDetail"
+								>
 									<Pencil class="mr-2 size-4" />
 									Edit details
 								</DropdownMenuItem>
 								<DropdownMenuSeparator />
 								<DropdownMenuItem
 									class="text-destructive"
+									:disabled="!capabilities.canManageCrates"
 									@click="handleDelete(selectedCrate)"
 								>
 									<Trash2 class="mr-2 size-4" />
@@ -355,6 +384,7 @@ watch(
 							v-if="!recordQuery"
 							class="mt-4"
 							size="sm"
+							:disabled="!capabilities.canManageCrates"
 							@click="handleAddRecord"
 						>
 							<Plus class="mr-2 size-4" />
@@ -440,7 +470,11 @@ watch(
 				Group records by room, energy, set time, or whatever helps you find the
 				right track quickly.
 			</p>
-			<Button class="mt-5" @click="openCreateDialog">
+			<Button
+				class="mt-5"
+				:disabled="!capabilities.canManageCrates"
+				@click="openCreateDialog"
+			>
 				<Plus class="mr-2 size-4" />
 				Create crate
 			</Button>

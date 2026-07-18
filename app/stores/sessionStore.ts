@@ -1,7 +1,9 @@
 import { toast } from 'vue-sonner'
+import { getActivePinia } from 'pinia'
 import { adjustKey } from '~/utils/keyFunctions'
 import { decodeSavedSetRow, reportDecodeIssues } from '~/utils/supabaseRows'
 import { getTrackSuggestions } from '~/utils/trackSuggestions'
+import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 import type { ScoredTrack } from '../../shared/types/session'
 
 export interface Deck {
@@ -31,8 +33,11 @@ function createEmptyDeck(): Deck {
 
 export const useSessionStore = defineStore('session', () => {
 	const supabase = useSupabaseClient<Database>()
-	const user = useUserStore()
-	const tracks = useTracksStore()
+	const pinia = getActivePinia()
+	const isDemoStore = isDemoWorkbenchPinia(pinia)
+	const user = useUserStore(pinia)
+	const tracks = useTracksStore(pinia)
+	const trackSource = ref<Track[] | null>(null)
 
 	// === Deck State ===
 	const deckCount = ref(2)
@@ -94,7 +99,10 @@ export const useSessionStore = defineStore('session', () => {
 		const sourceTrack = deck.loadedTrack
 		const playedIds = new Set(currentSession.value.map((p) => p.track_id))
 
-		return getTrackSuggestions(tracks.playableTracks, {
+		const playableTracks = trackSource.value
+			? trackSource.value.filter((track) => track.playable)
+			: tracks.playableTracks
+		return getTrackSuggestions(playableTracks, {
 			targetBpm: adjustedBpm,
 			targetKey: adjustedKeyVal,
 			sourceMode: sourceTrack.mode,
@@ -119,8 +127,14 @@ export const useSessionStore = defineStore('session', () => {
 		}
 	}
 
+	function setTrackSource(source: Track[]) {
+		trackSource.value = source
+	}
+
 	function loadTrack(trackId: string, deckIndex: number, matchTempo = false) {
-		const track = tracks.getTrackById(trackId)
+		const track = trackSource.value
+			? trackSource.value.find((candidate) => candidate.id === trackId)
+			: tracks.getTrackById(trackId)
 		if (!track) return
 
 		const deck = decks.value[deckIndex]
@@ -292,6 +306,7 @@ export const useSessionStore = defineStore('session', () => {
 
 	// === Actions: Auto-Save ===
 	function captureAccountContext(): AccountOperationContext | null {
+		if (isDemoStore) return null
 		const userId = user.supaUserId
 		return userId ? { generation: accountGeneration, userId } : null
 	}
@@ -572,6 +587,7 @@ export const useSessionStore = defineStore('session', () => {
 		getAdjustedKey,
 		getSuggestionsForDeck,
 		initializeDecks,
+		setTrackSource,
 		loadTrack,
 		slideFader,
 		resetPitch,

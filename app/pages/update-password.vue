@@ -4,7 +4,7 @@ import { useForm } from 'vee-validate'
 import * as z from 'zod'
 import { newPasswordSchema } from '../utils/authValidation'
 
-definePageMeta({ keepalive: false })
+definePageMeta({ layout: 'auth', keepalive: false })
 
 const user = useUserStore()
 const recovery = usePasswordRecovery()

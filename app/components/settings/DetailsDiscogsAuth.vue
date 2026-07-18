@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { KeyRound, User } from 'lucide-vue-next'
 
-const user = useUserStore()
-const discogsAuth = useDiscogsAuthStore()
-const props = withDefaults(defineProps<{ showHeading?: boolean }>(), {
-	showHeading: true
-})
+const user = useWorkbenchUserStore()
+const discogsAuth = useWorkbenchDiscogsAuthStore()
+const props = withDefaults(
+	defineProps<{ showHeading?: boolean; readOnly?: boolean }>(),
+	{
+		showHeading: true,
+		readOnly: false
+	}
+)
 </script>
 
 <template>
@@ -13,7 +17,10 @@ const props = withDefaults(defineProps<{ showHeading?: boolean }>(), {
 		<h2 v-if="props.showHeading" class="leading-none font-medium">
 			Discogs Integration
 		</h2>
-		<div v-if="user.profile?.discogs_username" class="space-y-2">
+		<div
+			v-if="!props.readOnly && user.profile?.discogs_username"
+			class="space-y-2"
+		>
 			<span class="text-muted-foreground text-sm">
 				Crate Guide is connected to your Discogs account
 			</span>
@@ -41,6 +48,12 @@ const props = withDefaults(defineProps<{ showHeading?: boolean }>(), {
 				class="my-2 w-full"
 				variant="secondary"
 				:loading="discogsAuth.isDiscogsConnecting"
+				:disabled="props.readOnly"
+				:title="
+					props.readOnly
+						? 'Discogs connection is disabled in the demo'
+						: undefined
+				"
 				@click="discogsAuth.initDiscogsOAuthFlow"
 			>
 				<KeyRound class="mr-2" />

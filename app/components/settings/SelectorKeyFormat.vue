@@ -3,7 +3,7 @@ const props = defineProps<{
 	localOnly?: boolean
 }>()
 
-const user = useUserStore()
+const user = useWorkbenchUserStore()
 const localKeyFormat = ref<'key' | 'camelot'>(user.currentKeyFormat)
 
 const keyFormat = computed({

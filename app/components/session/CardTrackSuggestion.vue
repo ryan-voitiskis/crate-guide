@@ -10,9 +10,9 @@ const props = defineProps<{
 	deckIndex: number
 }>()
 
-const records = useRecordsStore()
-const session = useSessionStore()
-const user = useUserStore()
+const records = useWorkbenchRecordsStore()
+const session = useWorkbenchSessionStore()
+const user = useWorkbenchUserStore()
 
 const record = computed(() => records.getRecordById(props.track.record_id))
 const catalogReference = computed(() => {

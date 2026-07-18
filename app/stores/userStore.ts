@@ -1,6 +1,7 @@
 import { toast } from 'vue-sonner'
 import type { EmailOtpType } from '@supabase/supabase-js'
-import { defineStore } from 'pinia'
+import { defineStore, getActivePinia } from 'pinia'
+import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 import {
 	buildCheckInboxPath,
 	buildLoginRedirectPath,
@@ -17,7 +18,11 @@ export const PROFILE_SAFE_COLUMNS =
 
 export const useUserStore = defineStore('user', () => {
 	const supabase = useSupabaseClient<Database>()
-	const supaUser = useSupabaseUser()
+	const isDemoStore = isDemoWorkbenchPinia(getActivePinia())
+	const authenticatedUser = useSupabaseUser()
+	const supaUser = computed(() =>
+		isDemoStore ? null : authenticatedUser.value
+	)
 	const router = useRouter()
 	const passwordRecovery = usePasswordRecovery()
 
@@ -91,6 +96,8 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	async function resolveAuthenticatedUserId(): Promise<string> {
+		if (isDemoStore)
+			throw new Error('Account actions are disabled in demo mode.')
 		const reactiveUserId = supaUserId.value
 		if (reactiveUserId) return reactiveUserId
 
@@ -187,6 +194,7 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	async function signOut(): Promise<boolean> {
+		if (isDemoStore) return false
 		let didSignOut = false
 		isSigningOut.value = true
 		try {
@@ -236,6 +244,7 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	async function deleteAccount(emailConfirmation: string): Promise<boolean> {
+		if (isDemoStore) return false
 		if (isDeletingAccount.value) return false
 		isDeletingAccount.value = true
 		try {
@@ -296,7 +305,7 @@ export const useUserStore = defineStore('user', () => {
 					{ duration: 30000 }
 				)
 			}
-			supaUser.value = null
+			authenticatedUser.value = null
 			invalidateIdentity(null)
 
 			try {
@@ -544,6 +553,12 @@ export const useUserStore = defineStore('user', () => {
 	async function updateSettings(
 		settingsPartial: Partial<Profile>
 	): Promise<boolean> {
+		if (isDemoStore) {
+			profile.value = profile.value
+				? { ...profile.value, ...settingsPartial }
+				: null
+			return true
+		}
 		const { didPersist } = await updateSettingsWithWork(settingsPartial)
 		return didPersist
 	}
@@ -576,6 +591,7 @@ export const useUserStore = defineStore('user', () => {
 	}
 
 	async function deleteAllUserData(): Promise<boolean> {
+		if (isDemoStore) return false
 		try {
 			await resolveAuthenticatedUserId()
 			const { error } = await supabase.rpc('delete_all_user_data')
@@ -590,37 +606,38 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
-	watch(
-		() => supaUserId.value,
-		(userId, previousUserId) => {
-			if (userId === profileOwnerId) {
-				if (userId !== null || previousUserId !== undefined) return
-				void (async () => {
-					const bootstrapGeneration = authenticationGeneration
-					const { data: sessionData, error: sessionError } =
-						await supabase.auth.getSession()
-					const sessionUserId = sessionData.session?.user?.id ?? null
-					if (sessionError || !sessionUserId) return
-					if (
-						bootstrapGeneration !== authenticationGeneration ||
-						profileOwnerId !== null ||
-						supaUserId.value
-					)
-						return
-					const generation = invalidateIdentity(sessionUserId)
-					await fetchProfileForWork({ userId: sessionUserId, generation })
-				})()
-				return
-			}
-			if (userId) {
-				const generation = invalidateIdentity(userId)
-				void fetchProfileForWork({ userId, generation })
-				return
-			}
-			invalidateIdentity(null)
-		},
-		{ flush: 'sync', immediate: true }
-	)
+	if (!isDemoStore)
+		watch(
+			() => supaUserId.value,
+			(userId, previousUserId) => {
+				if (userId === profileOwnerId) {
+					if (userId !== null || previousUserId !== undefined) return
+					void (async () => {
+						const bootstrapGeneration = authenticationGeneration
+						const { data: sessionData, error: sessionError } =
+							await supabase.auth.getSession()
+						const sessionUserId = sessionData.session?.user?.id ?? null
+						if (sessionError || !sessionUserId) return
+						if (
+							bootstrapGeneration !== authenticationGeneration ||
+							profileOwnerId !== null ||
+							supaUserId.value
+						)
+							return
+						const generation = invalidateIdentity(sessionUserId)
+						await fetchProfileForWork({ userId: sessionUserId, generation })
+					})()
+					return
+				}
+				if (userId) {
+					const generation = invalidateIdentity(userId)
+					void fetchProfileForWork({ userId, generation })
+					return
+				}
+				invalidateIdentity(null)
+			},
+			{ flush: 'sync', immediate: true }
+		)
 
 	return {
 		supaUser,

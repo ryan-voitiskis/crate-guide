@@ -1,8 +1,12 @@
 import { toast } from 'vue-sonner'
+import { getActivePinia } from 'pinia'
+import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 
 export const useCratesStore = defineStore('crates', () => {
 	const supabase = useSupabaseClient<Database>()
-	const user = useUserStore()
+	const pinia = getActivePinia()
+	const isDemoStore = isDemoWorkbenchPinia(pinia)
+	const user = useUserStore(pinia)
 
 	const crates = ref<Crate[]>([])
 	const isLoadingCrates = ref(false)
@@ -49,6 +53,7 @@ export const useCratesStore = defineStore('crates', () => {
 	}
 
 	function fetchAllCrates(): Promise<boolean> {
+		if (isDemoStore) return Promise.resolve(true)
 		if (fetchPromise) return fetchPromise
 
 		fetchPromise = performFetchAllCrates()
@@ -58,6 +63,7 @@ export const useCratesStore = defineStore('crates', () => {
 	async function createCrate(
 		crateData: Omit<Crate, 'id' | 'user_id' | 'created_at' | 'updated_at'>
 	): Promise<Crate | null> {
+		if (isDemoStore) return null
 		const userId = user.supaUserId
 		if (!userId) {
 			toast.error('You must be signed in to create crates.')
@@ -96,6 +102,7 @@ export const useCratesStore = defineStore('crates', () => {
 			Omit<Crate, 'id' | 'user_id' | 'created_at' | 'updated_at'>
 		>
 	): Promise<Crate | null> {
+		if (isDemoStore) return null
 		isUpdatingCrate.value = true
 
 		// Optimistic update
@@ -134,6 +141,7 @@ export const useCratesStore = defineStore('crates', () => {
 	}
 
 	async function deleteCrate(id: string): Promise<boolean> {
+		if (isDemoStore) return false
 		isDeletingCrate.value = true
 
 		// Optimistic update

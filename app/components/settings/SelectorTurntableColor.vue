@@ -3,7 +3,7 @@ const props = defineProps<{
 	localOnly?: boolean
 }>()
 
-const user = useUserStore()
+const user = useWorkbenchUserStore()
 
 const silverDeckBackground = `linear-gradient(
     135deg,

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Filter } from 'lucide-vue-next'
 
-const trackFilters = useTrackFiltersStore()
+const trackFilters = useWorkbenchTrackFiltersStore()
 
 const isOpen = ref(false)
 

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import SessionPage from '../index.vue'
+import EnrichmentPage from '../enrichment.vue'
 
 provideDemoWorkbench()
 </script>
 
 <template>
-	<SessionPage />
+	<EnrichmentPage />
 </template>

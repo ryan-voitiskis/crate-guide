@@ -2,7 +2,7 @@
 import { onKeyStroke } from '@vueuse/core'
 import { Search } from 'lucide-vue-next'
 
-const recordsStore = useRecordsStore()
+const recordsStore = useWorkbenchRecordsStore()
 
 const searchInputRef = ref()
 

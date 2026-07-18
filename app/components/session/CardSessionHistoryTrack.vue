@@ -5,9 +5,9 @@ const props = defineProps<{
 	isFirst: boolean
 }>()
 
-const session = useSessionStore()
-const tracks = useTracksStore()
-const user = useUserStore()
+const session = useWorkbenchSessionStore()
+const tracks = useWorkbenchTracksStore()
+const user = useWorkbenchUserStore()
 
 const track = computed(() => tracks.getTrackById(props.entry.track_id))
 

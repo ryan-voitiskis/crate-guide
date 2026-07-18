@@ -11,6 +11,8 @@ import {
 } from 'lucide-vue-next'
 import type { LocalAudioReviewSelection } from '~/types/localAudio'
 
+const props = defineProps<{ disabled?: boolean }>()
+
 const emit = defineEmits<{
 	review: [selection: LocalAudioReviewSelection]
 }>()
@@ -79,6 +81,7 @@ function formatCount(value: number): string {
 }
 
 async function chooseFolder() {
+	if (props.disabled) return
 	const result = await pickFolder()
 	if (result === 'fallback') {
 		fallbackInput.value?.click()
@@ -88,10 +91,12 @@ async function chooseFolder() {
 }
 
 function openFallbackPicker() {
+	if (props.disabled) return
 	fallbackInput.value?.click()
 }
 
 async function handleFallbackFiles(event: Event) {
+	if (props.disabled) return
 	const input = event.target as HTMLInputElement
 	setFiles(Array.from(input.files ?? []))
 	input.value = ''
@@ -109,6 +114,7 @@ function entryStatus(entry: (typeof entries.value)[number]) {
 }
 
 function reviewAvailableData() {
+	if (props.disabled) return
 	emit('review', {
 		sources: readySources.value,
 		totalFiles: entries.value.length,
@@ -126,6 +132,7 @@ function reviewAvailableData() {
 			webkitdirectory
 			multiple
 			class="hidden"
+			:disabled="props.disabled"
 			@change="handleFallbackFiles"
 		/>
 
@@ -149,7 +156,7 @@ function reviewAvailableData() {
 				<ButtonLoading
 					class="mt-4 w-full"
 					:loading="isPickingFolder"
-					:disabled="isAnalyzing"
+					:disabled="isAnalyzing || props.disabled"
 					@click="chooseFolder"
 				>
 					<FolderOpen class="mr-2 size-4" />
@@ -159,7 +166,7 @@ function reviewAvailableData() {
 					variant="ghost"
 					size="sm"
 					class="mt-1 w-full"
-					:disabled="isAnalyzing || isPickingFolder"
+					:disabled="isAnalyzing || isPickingFolder || props.disabled"
 					@click="openFallbackPicker"
 				>
 					Use compatible picker
@@ -185,6 +192,7 @@ function reviewAvailableData() {
 							v-if="(pendingCount > 0 || errorCount > 0) && !isAnalyzing"
 							variant="outline"
 							size="sm"
+							:disabled="props.disabled"
 							@click="scanMetadata"
 						>
 							<Play class="mr-1.5 size-3.5" />
@@ -198,6 +206,7 @@ function reviewAvailableData() {
 							v-if="isAnalyzing"
 							variant="outline"
 							size="sm"
+							:disabled="props.disabled"
 							@click="cancelProcessing"
 						>
 							<Square class="mr-1.5 size-3.5" />
@@ -209,7 +218,7 @@ function reviewAvailableData() {
 							v-if="analysisCandidateCount > 0"
 							variant="outline"
 							size="sm"
-							:disabled="isAnalyzing || pendingCount > 0"
+							:disabled="isAnalyzing || pendingCount > 0 || props.disabled"
 							@click="analyzeNextBatch(10)"
 						>
 							<AudioWaveform class="mr-1.5 size-3.5" />
@@ -217,7 +226,9 @@ function reviewAvailableData() {
 						</Button>
 						<Button
 							size="sm"
-							:disabled="readySources.length === 0 || isAnalyzing"
+							:disabled="
+								readySources.length === 0 || isAnalyzing || props.disabled
+							"
 							@click="reviewAvailableData"
 						>
 							<ListChecks class="mr-1.5 size-3.5" />

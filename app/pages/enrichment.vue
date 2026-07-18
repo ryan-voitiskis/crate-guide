@@ -13,9 +13,10 @@ import {
 	X
 } from 'lucide-vue-next'
 
-const records = useRecordsStore()
-const tracks = useTracksStore()
-const user = useUserStore()
+const records = useWorkbenchRecordsStore()
+const tracks = useWorkbenchTracksStore()
+const user = useWorkbenchUserStore()
+const capabilities = useWorkbenchCapabilities()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const collectionLoadState = ref<'loading' | 'ready' | 'failed'>('loading')
@@ -73,7 +74,7 @@ const {
 	openApplyReview,
 	applyStagedRows,
 	returnToReview
-} = useTrackEnrichmentWorkflow()
+} = useTrackEnrichmentWorkflow({ records, tracks })
 
 const workflowSteps = [
 	{ number: 1, label: 'Choose source', shortLabel: 'Source' },
@@ -92,10 +93,12 @@ onMounted(async () => {
 })
 
 function openFilePicker() {
+	if (!capabilities.canEnrichTracks) return
 	fileInput.value?.click()
 }
 
 async function handleFileInput(event: Event) {
+	if (!capabilities.canEnrichTracks) return
 	const input = event.target as HTMLInputElement
 	const file = input.files?.[0]
 	if (!file) return
@@ -105,6 +108,7 @@ async function handleFileInput(event: Event) {
 }
 
 function handleFileDrop(file: File) {
+	if (!capabilities.canEnrichTracks) return
 	void parseFile(file)
 }
 </script>
@@ -120,6 +124,7 @@ function handleFileDrop(file: File) {
 					type="file"
 					accept=".xml,text/xml,application/xml"
 					class="hidden"
+					:disabled="!capabilities.canEnrichTracks"
 					@change="handleFileInput"
 				/>
 
@@ -227,6 +232,11 @@ function handleFileDrop(file: File) {
 				</NoticeError>
 
 				<template v-else>
+					<NoticeWarning v-if="!capabilities.canEnrichTracks">
+						BPM and key import is shown for context, but file analysis and
+						collection updates are disabled in the demo.
+					</NoticeWarning>
+
 					<NoticeError v-if="parseErrors.length" class="items-start">
 						<div class="space-y-1">
 							<div v-for="error in parseErrors" :key="error">{{ error }}</div>
@@ -252,6 +262,7 @@ function handleFileDrop(file: File) {
 						:parse-completed="parseCompleted"
 						:parse-total="parseTotal"
 						:parse-progress="parseProgress"
+						:disabled="!capabilities.canEnrichTracks"
 						@select-file="openFilePicker"
 						@drop-file="handleFileDrop"
 						@select-source="selectSource"

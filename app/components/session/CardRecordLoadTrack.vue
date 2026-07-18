@@ -20,7 +20,7 @@ defineEmits<{
 	toggleExpanded: []
 }>()
 
-const user = useUserStore()
+const user = useWorkbenchUserStore()
 
 const displayedTracks = computed(() =>
 	props.expanded ? props.result.tracks : props.result.previewTracks

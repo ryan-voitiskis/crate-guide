@@ -41,8 +41,7 @@ export const navItems = [
 		label: 'BPM & Key',
 		description: 'Review and apply local track analysis',
 		shortcut: 'G E',
-		icon: WandSparkles,
-		demo: false
+		icon: WandSparkles
 	},
 	{
 		path: '/settings',
@@ -58,11 +57,7 @@ export function useNavigation() {
 
 	const isDemo = computed(() => route.path.startsWith('/demo'))
 	const basePath = computed(() => (isDemo.value ? '/demo' : ''))
-	const visibleNavItems = computed(() =>
-		navItems.filter(
-			(item) => !isDemo.value || !('demo' in item) || item.demo !== false
-		)
-	)
+	const visibleNavItems = computed(() => navItems)
 
 	function isActive(itemPath: string) {
 		const fullPath = basePath.value + itemPath

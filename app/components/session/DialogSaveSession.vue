@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const session = useSessionStore()
+const session = useWorkbenchSessionStore()
 
 const setName = ref('')
 

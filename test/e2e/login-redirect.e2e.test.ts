@@ -121,6 +121,28 @@ async function mockAuthenticatedSupabase(page: Page) {
 }
 
 describe('Login redirects', () => {
+	it('mounts the complete workbench when opening the demo from login', async () => {
+		const page = await createPage('/login')
+
+		await page.getByRole('link', { name: 'Demo', exact: true }).click()
+		await page.waitForURL(url('/demo'))
+
+		await expect(
+			page.getByRole('link', { name: 'Crate Guide home' }).count()
+		).resolves.toBeGreaterThan(0)
+		await expect(
+			page.getByRole('navigation', { name: 'Library navigation' }).count()
+		).resolves.toBe(1)
+		await expect(
+			page.getByRole('contentinfo', { name: 'Workspace status' }).count()
+		).resolves.toBe(1)
+		await expect(
+			page.locator('[data-auth-page-scroll-container]').count()
+		).resolves.toBe(0)
+
+		await page.close()
+	})
+
 	it('loads account data after email login without a page refresh', async () => {
 		const page = await createPage('/login')
 

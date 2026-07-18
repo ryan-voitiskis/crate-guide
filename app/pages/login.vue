@@ -8,7 +8,7 @@ import {
 } from '../utils/authRoutes'
 import { emailSchema } from '../utils/authValidation'
 
-definePageMeta({ keepalive: false })
+definePageMeta({ layout: 'auth', keepalive: false })
 
 const user = useUserStore()
 const router = useRouter()

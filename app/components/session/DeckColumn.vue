@@ -6,8 +6,8 @@ const props = defineProps<{
 	deck: Deck
 }>()
 
-const session = useSessionStore()
-const user = useUserStore()
+const session = useWorkbenchSessionStore()
+const user = useWorkbenchUserStore()
 
 const suggestions = computed(() =>
 	session.getSuggestionsForDeck(props.deckIndex)

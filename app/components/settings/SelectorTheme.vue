@@ -5,7 +5,7 @@ const props = defineProps<{
 	localOnly?: boolean
 }>()
 
-const user = useUserStore()
+const user = useWorkbenchUserStore()
 const localTheme = ref<ThemeOptions>(user.currentTheme)
 
 const selectedTheme = computed(() =>

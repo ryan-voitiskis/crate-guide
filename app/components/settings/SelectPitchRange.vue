@@ -3,7 +3,7 @@ const props = defineProps<{
 	localOnly?: boolean
 }>()
 
-const user = useUserStore()
+const user = useWorkbenchUserStore()
 
 const turntablePitchRange = ref(
 	user.profile?.turntable_pitch_range.toString() ?? '8'

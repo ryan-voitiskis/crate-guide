@@ -15,13 +15,14 @@ type SortDirection = 'asc' | 'desc'
 type Density = 'compact' | 'comfortable'
 type ViewMode = 'table' | 'covers'
 
-const discogs = useDiscogsStore()
-const discogsAuth = useDiscogsAuthStore()
-const manualEntry = useManualRecordEntryStore()
-const records = useRecordsStore()
-const tracks = useTracksStore()
-const crates = useCratesStore()
-const recordDetails = useRecordDetailsStore()
+const discogs = useWorkbenchDiscogsStore()
+const discogsAuth = useWorkbenchDiscogsAuthStore()
+const manualEntry = useWorkbenchManualRecordEntryStore()
+const records = useWorkbenchRecordsStore()
+const tracks = useWorkbenchTracksStore()
+const crates = useWorkbenchCratesStore()
+const recordDetails = useWorkbenchRecordDetailsStore()
+const capabilities = useWorkbenchCapabilities()
 
 const isActive = usePageActive()
 const isMobile = useMediaQuery('(max-width: 1279px)')
@@ -91,6 +92,7 @@ const sortedRecords = computed(() => {
 })
 
 function handleDiscogsImport() {
+	if (!capabilities.canConnectDiscogs) return
 	if (discogsAuth.isOAuthed) {
 		discogs.showGetFoldersDialog = true
 		return
@@ -118,10 +120,12 @@ function artistNames(record: DatabaseRecord) {
 }
 
 function openRecordMenu(record: DatabaseRecord) {
+	if (!capabilities.canMutateLibrary) return
 	recordDetails.openRecord(record.id)
 }
 
 function openCoverEditor(record: DatabaseRecord) {
+	if (!capabilities.canMutateLibrary) return
 	recordDetails.openRecord(record.id, true, 'cover')
 }
 
@@ -148,13 +152,28 @@ watch(
 				<ButtonLoading
 					variant="secondary"
 					:loading="discogsAuth.isDiscogsConnecting"
+					:disabled="!capabilities.canConnectDiscogs"
+					:title="
+						capabilities.canConnectDiscogs
+							? undefined
+							: 'Discogs connection is disabled in the demo'
+					"
 					@click="handleDiscogsImport"
 				>
 					<CloudDownload v-if="discogsAuth.isOAuthed" class="mr-2" />
 					<KeyRound v-else class="mr-2" />
 					{{ discogsImportLabel }}
 				</ButtonLoading>
-				<Button variant="outline" @click="manualEntry.openDialog">
+				<Button
+					variant="outline"
+					:disabled="!capabilities.canMutateLibrary"
+					:title="
+						capabilities.canMutateLibrary
+							? undefined
+							: 'Adding records is disabled in the demo'
+					"
+					@click="manualEntry.openDialog"
+				>
 					<Plus class="mr-2" />
 					Add manually
 				</Button>
@@ -283,7 +302,10 @@ watch(
 								selectedRecordId === record.id && 'bg-accent'
 							]"
 							@click="selectRecord(record.id)"
-							@dblclick="recordDetails.openRecord(record.id)"
+							@dblclick="
+								capabilities.canMutateLibrary &&
+								recordDetails.openRecord(record.id)
+							"
 							@keydown.enter="selectRecord(record.id)"
 						>
 							<ImageRecordCover
@@ -323,6 +345,7 @@ watch(
 								size="icon"
 								class="size-7"
 								aria-label="Open record details"
+								:disabled="!capabilities.canMutateLibrary"
 								@click.stop="openRecordMenu(record)"
 							>
 								<MoreHorizontal class="size-3.5" />
@@ -368,6 +391,7 @@ watch(
 						:key="record.id"
 						:record="record"
 						:selected="selectedRecordId === record.id"
+						:read-only="!capabilities.canMutateLibrary"
 						@select="selectRecord(record.id)"
 					/>
 				</div>
@@ -385,6 +409,7 @@ watch(
 					:record="selectedRecord"
 					:track-count="trackCounts.get(selectedRecord.id) || 0"
 					show-close
+					:read-only="!capabilities.canMutateLibrary"
 					@close="selectedRecordId = null"
 				/>
 				<div
@@ -423,6 +448,7 @@ watch(
 					v-if="selectedRecord"
 					:record="selectedRecord"
 					:track-count="trackCounts.get(selectedRecord.id) || 0"
+					:read-only="!capabilities.canMutateLibrary"
 				/>
 			</SheetContent>
 		</Sheet>

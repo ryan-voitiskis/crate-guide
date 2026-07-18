@@ -4,6 +4,8 @@ import {
 	sanitizeAuthReturnPath
 } from '../../utils/authRoutes'
 
+definePageMeta({ layout: 'auth' })
+
 const route = useRoute()
 const returnPath = computed(() => sanitizeAuthReturnPath(route.query.redirect))
 const loginPath = computed(() => buildLoginRedirectPath(returnPath.value))

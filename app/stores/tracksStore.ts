@@ -1,9 +1,11 @@
 import { toast } from 'vue-sonner'
+import { getActivePinia } from 'pinia'
 import {
 	type DecodeIssue,
 	decodeTrackRow,
 	reportDecodeIssues
 } from '~/utils/supabaseRows'
+import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 import type { TrackAudioFeatures } from '~~/shared/types/audioFeatures'
 import type { BeatportTrackData } from '~~/shared/types/beatport'
 import type { Json } from '~~/shared/types/database'
@@ -22,7 +24,9 @@ type TrackCreateInput = Omit<
 
 export const useTracksStore = defineStore('tracks', () => {
 	const supabase = useSupabaseClient<Database>()
-	const user = useUserStore()
+	const pinia = getActivePinia()
+	const isDemoStore = isDemoWorkbenchPinia(pinia)
+	const user = useUserStore(pinia)
 
 	const tracks = ref<Track[]>([])
 	const isLoadingTracks = ref(false)
@@ -160,6 +164,7 @@ export const useTracksStore = defineStore('tracks', () => {
 	}
 
 	function fetchAllTracks(): Promise<boolean> {
+		if (isDemoStore) return Promise.resolve(true)
 		if (fetchPromise) return fetchPromise
 
 		fetchPromise = performFetchAllTracks()
@@ -169,6 +174,7 @@ export const useTracksStore = defineStore('tracks', () => {
 	async function createTrack(
 		trackData: TrackCreateInput
 	): Promise<Track | null> {
+		if (isDemoStore) return null
 		if (!user.supaUserId) {
 			toast.error('You must be signed in to create tracks.')
 			return null
@@ -212,6 +218,8 @@ export const useTracksStore = defineStore('tracks', () => {
 		error: string | null
 		issues: DecodeIssue[]
 	}> {
+		if (isDemoStore)
+			return { track: null, error: 'Disabled in demo mode.', issues: [] }
 		const trackIndex = tracks.value.findIndex((t: Track) => t.id === id)
 		if (trackIndex === -1) {
 			if (!options?.suppressErrorToast) toast.error('Track not found.')
@@ -316,6 +324,7 @@ export const useTracksStore = defineStore('tracks', () => {
 	}
 
 	async function deleteTrack(id: string): Promise<boolean> {
+		if (isDemoStore) return false
 		// Optimistic update
 		const trackIndex = tracks.value.findIndex((t: Track) => t.id === id)
 		if (trackIndex === -1) {

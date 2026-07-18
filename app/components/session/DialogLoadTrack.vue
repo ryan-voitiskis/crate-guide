@@ -14,10 +14,10 @@ const ALL_RECORDS_SCOPE = '__all-records__'
 const BROWSE_LIMIT = 100
 const SEARCH_LIMIT = 50
 
-const session = useSessionStore()
-const tracks = useTracksStore()
-const records = useRecordsStore()
-const crates = useCratesStore()
+const session = useWorkbenchSessionStore()
+const tracks = useWorkbenchTracksStore()
+const records = useWorkbenchRecordsStore()
+const crates = useWorkbenchCratesStore()
 
 const searchQuery = ref('')
 const focusedRecordId = ref<string | null>(null)

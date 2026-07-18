@@ -8,7 +8,7 @@ import {
 } from '../utils/authRoutes'
 import { emailSchema, newPasswordSchema } from '../utils/authValidation'
 
-definePageMeta({ keepalive: false })
+definePageMeta({ layout: 'auth', keepalive: false })
 
 const user = useUserStore()
 const route = useRoute()

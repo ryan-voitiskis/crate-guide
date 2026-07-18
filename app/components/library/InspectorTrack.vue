@@ -16,6 +16,7 @@ const props = defineProps<{
 	track: Track
 	record: DatabaseRecord | null
 	showClose?: boolean
+	readOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -23,7 +24,7 @@ const emit = defineEmits<{
 	edit: []
 }>()
 
-const user = useUserStore()
+const user = useWorkbenchUserStore()
 
 const artists = computed(() =>
 	[...props.track.artists, ...props.track.extraartists]
@@ -198,7 +199,12 @@ const keyColour = computed(() => {
 		</div>
 
 		<div class="border-border shrink-0 border-t p-3">
-			<Button size="sm" class="w-full" @click="emit('edit')">
+			<Button
+				size="sm"
+				class="w-full"
+				:disabled="props.readOnly"
+				@click="emit('edit')"
+			>
 				<Pencil class="mr-1.5 size-3.5" />
 				Edit track
 			</Button>

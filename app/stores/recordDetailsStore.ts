@@ -1,6 +1,9 @@
+import { getActivePinia } from 'pinia'
+
 export const useRecordDetailsStore = defineStore('recordDetails', () => {
-	const records = useRecordsStore()
-	const tracks = useTracksStore()
+	const pinia = getActivePinia()
+	const records = useRecordsStore(pinia)
+	const tracks = useTracksStore(pinia)
 
 	const selectedRecordId = ref<string | null>(null)
 	const isEditMode = ref(false)

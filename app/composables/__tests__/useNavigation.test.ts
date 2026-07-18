@@ -46,11 +46,10 @@ describe('navItems', () => {
 		expect(crates?.path).toBe('/crates')
 	})
 
-	it('includes enrichment page outside demo mode', () => {
+	it('includes enrichment page', () => {
 		const enrichment = navItems.find((item) => item.label === 'BPM & Key')
 		expect(enrichment).toBeDefined()
 		expect(enrichment?.path).toBe('/enrichment')
-		expect(enrichment?.demo).toBe(false)
 	})
 
 	it('includes settings page', () => {
@@ -115,11 +114,11 @@ describe('useNavigation', () => {
 			)
 		})
 
-		it('omits enrichment in demo navigation', () => {
+		it('includes enrichment in demo navigation', () => {
 			mockRoutePath = '/demo'
 			const { visibleNavItems } = useNavigation()
 
-			expect(visibleNavItems.value.map((item) => item.label)).not.toContain(
+			expect(visibleNavItems.value.map((item) => item.label)).toContain(
 				'BPM & Key'
 			)
 		})

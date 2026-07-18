@@ -20,10 +20,12 @@ type TrackSortKey =
 type SortDirection = 'asc' | 'desc'
 type Density = 'compact' | 'comfortable'
 
-const records = useRecordsStore()
-const tracks = useTracksStore()
-const trackFilters = useTrackFiltersStore()
-const user = useUserStore()
+const records = useWorkbenchRecordsStore()
+const tracks = useWorkbenchTracksStore()
+const trackFilters = useWorkbenchTrackFiltersStore()
+const user = useWorkbenchUserStore()
+const capabilities = useWorkbenchCapabilities()
+const { getHref } = useNavigation()
 
 const isActive = usePageActive()
 const isMobile = useMediaQuery('(max-width: 1279px)')
@@ -34,6 +36,8 @@ const mobileInspectorOpen = ref(false)
 const density = useState<Density>('workbench-density', () => 'compact')
 const sortKey = ref<TrackSortKey>('artist')
 const sortDirection = ref<SortDirection>('asc')
+
+watchEffect(() => trackFilters.setTrackSource(tracks.tracks))
 
 const selectedTrack = computed(() =>
 	selectedTrackId.value ? tracks.getTrackById(selectedTrackId.value) : null
@@ -152,6 +156,7 @@ function selectTrack(trackId: string) {
 }
 
 function editTrack(trackId: string) {
+	if (!capabilities.canMutateLibrary) return
 	editingTrackId.value = trackId
 	mobileInspectorOpen.value = false
 }
@@ -171,6 +176,7 @@ watch(
 <template>
 	<div class="flex h-full min-h-0 flex-col">
 		<DialogTrackDetails
+			v-if="capabilities.canMutateLibrary"
 			:track-id="editingTrackId"
 			@close="editingTrackId = null"
 		/>
@@ -259,7 +265,7 @@ watch(
 						<Button
 							size="sm"
 							class="h-7 text-xs"
-							@click="navigateTo('/enrichment')"
+							@click="navigateTo(getHref('/enrichment'))"
 						>
 							Enrich
 						</Button>
@@ -491,6 +497,7 @@ watch(
 					:track="selectedTrack"
 					:record="selectedRecord"
 					show-close
+					:read-only="!capabilities.canMutateLibrary"
 					@close="selectedTrackId = null"
 					@edit="editTrack(selectedTrack.id)"
 				/>
@@ -534,6 +541,7 @@ watch(
 					v-if="selectedTrack"
 					:track="selectedTrack"
 					:record="selectedRecord"
+					:read-only="!capabilities.canMutateLibrary"
 					@edit="editTrack(selectedTrack.id)"
 				/>
 			</SheetContent>

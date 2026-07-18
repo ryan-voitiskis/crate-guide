@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const recordsStore = useRecordsStore()
+const recordsStore = useWorkbenchRecordsStore()
 
 const displayedCount = computed(() =>
 	recordsStore.hasSearchQuery

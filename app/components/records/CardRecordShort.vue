@@ -8,10 +8,11 @@ import {
 	Trash2
 } from 'lucide-vue-next'
 
-const recordDetails = useRecordDetailsStore()
+const recordDetails = useWorkbenchRecordDetailsStore()
 const props = defineProps<{
 	record: DatabaseRecord
 	selected?: boolean
+	readOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -23,14 +24,17 @@ const artistNames = computed(() =>
 )
 
 function viewRecord() {
+	if (props.readOnly) return
 	recordDetails.openRecord(props.record.id)
 }
 
 function editRecord() {
+	if (props.readOnly) return
 	recordDetails.openRecord(props.record.id, true)
 }
 
 function openAddToCrate() {
+	if (props.readOnly) return
 	recordDetails.recordToAddToCrate = props.record
 }
 
@@ -40,6 +44,7 @@ function openInDiscogs() {
 }
 
 function confirmRemove() {
+	if (props.readOnly) return
 	recordDetails.recordToRemove = props.record
 }
 </script>
@@ -77,6 +82,7 @@ function confirmRemove() {
 							size="icon"
 							class="size-7 bg-black/55 text-white hover:bg-black/75"
 							aria-label="Record actions"
+							:disabled="props.readOnly"
 							@click.stop
 						>
 							<MoreHorizontal class="size-3.5" />

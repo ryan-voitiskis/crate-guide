@@ -9,17 +9,19 @@ import {
 	UserRound
 } from 'lucide-vue-next'
 
-const user = useUserStore()
+const user = useWorkbenchUserStore()
+const capabilities = useWorkbenchCapabilities()
+const isDemo = capabilities.mode === 'demo'
 
 const settingsSections = computed(() => [
 	{ id: 'integration', label: 'Integration', icon: Plug },
 	{ id: 'appearance', label: 'Appearance', icon: Palette },
 	{ id: 'deck', label: 'Deck controls', icon: SlidersHorizontal },
-	...(user.supaUser
+	...(user.supaUser || isDemo
 		? [{ id: 'account', label: 'Account', icon: UserRound }]
 		: []),
 	{ id: 'about', label: 'About & legal', icon: Info },
-	...(user.supaUser
+	...(user.supaUser || isDemo
 		? [{ id: 'danger', label: 'Data controls', icon: ShieldAlert }]
 		: [])
 ])
@@ -92,7 +94,10 @@ const settingsSections = computed(() => [
 									sync.
 								</p>
 							</div>
-							<DetailsDiscogsAuth :show-heading="false" />
+							<DetailsDiscogsAuth
+								:show-heading="false"
+								:read-only="!capabilities.canConnectDiscogs"
+							/>
 						</div>
 					</section>
 
@@ -107,11 +112,11 @@ const settingsSections = computed(() => [
 							</div>
 						</div>
 						<div class="space-y-5">
-							<SelectorTheme />
+							<SelectorTheme :local-only="isDemo" />
 							<Separator />
-							<SelectorKeyFormat />
+							<SelectorKeyFormat :local-only="isDemo" />
 							<Separator />
-							<SelectorTurntableColor />
+							<SelectorTurntableColor :local-only="isDemo" />
 						</div>
 					</section>
 
@@ -128,12 +133,12 @@ const settingsSections = computed(() => [
 									Set the control range used by the turntable simulation.
 								</p>
 							</div>
-							<SelectPitchRange />
+							<SelectPitchRange :local-only="isDemo" />
 						</div>
 					</section>
 
 					<section
-						v-if="user.supaUser"
+						v-if="user.supaUser || isDemo"
 						id="account"
 						class="scroll-mt-3 p-4 sm:p-5"
 					>
@@ -150,15 +155,27 @@ const settingsSections = computed(() => [
 								<div class="min-w-0">
 									<p class="truncate text-sm font-medium">
 										{{
-											user.supaUser.user_metadata?.full_name || 'Signed in user'
+											isDemo
+												? 'Demo visitor'
+												: user.supaUser?.user_metadata?.full_name ||
+													'Signed in user'
 										}}
 									</p>
 									<p class="text-muted-foreground truncate font-mono text-xs">
-										{{ user.supaUser.email }}
+										{{
+											isDemo
+												? 'Account controls unavailable'
+												: user.supaUser?.email
+										}}
 									</p>
 								</div>
 							</div>
-							<Button variant="outline" size="sm" @click="user.signOut">
+							<Button
+								variant="outline"
+								size="sm"
+								:disabled="!capabilities.canManageAccount"
+								@click="user.signOut"
+							>
 								Log out
 							</Button>
 						</div>
@@ -183,7 +200,7 @@ const settingsSections = computed(() => [
 					</section>
 
 					<section
-						v-if="user.supaUser"
+						v-if="user.supaUser || isDemo"
 						id="danger"
 						class="scroll-mt-3 space-y-3 p-4 sm:p-5"
 					>
@@ -204,7 +221,10 @@ const settingsSections = computed(() => [
 									</p>
 								</div>
 							</div>
-							<DialogClearAllData />
+							<Button v-if="isDemo" variant="destructive" disabled>
+								Clear library
+							</Button>
+							<DialogClearAllData v-else />
 						</div>
 						<div
 							class="border-destructive/25 bg-destructive/5 flex flex-col gap-4 rounded-sm border p-3 sm:flex-row sm:items-center sm:justify-between"
@@ -223,7 +243,10 @@ const settingsSections = computed(() => [
 									</p>
 								</div>
 							</div>
-							<DialogDeleteAccount />
+							<Button v-if="isDemo" variant="destructive" disabled>
+								Delete account
+							</Button>
+							<DialogDeleteAccount v-else />
 						</div>
 					</section>
 				</div>

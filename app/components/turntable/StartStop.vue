@@ -3,7 +3,7 @@ const props = defineProps<{
 	deckIndex: number
 }>()
 
-const session = useSessionStore()
+const session = useWorkbenchSessionStore()
 const deck = computed(() => session.decks[props.deckIndex])
 const isPlaying = computed(() => deck.value?.isPlaying ?? false)
 

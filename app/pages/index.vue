@@ -1,12 +1,15 @@
 <script setup lang="ts">
-const records = useRecordsStore()
-const session = useSessionStore()
-const tracks = useTracksStore()
+const records = useWorkbenchRecordsStore()
+const session = useWorkbenchSessionStore()
+const tracks = useWorkbenchTracksStore()
+const capabilities = useWorkbenchCapabilities()
 
 const isActive = usePageActive(true)
 
+watchEffect(() => session.setTrackSource(tracks.tracks))
+
 onMounted(() => {
-	session.fetchSavedSets()
+	if (capabilities.canPersistSessions) session.fetchSavedSets()
 })
 </script>
 

@@ -4,7 +4,7 @@ const props = defineProps<{
 	speed: 33 | 45
 }>()
 
-const session = useSessionStore()
+const session = useWorkbenchSessionStore()
 const deck = computed(() => session.decks[props.deckIndex])
 const isActive = computed(() => deck.value?.rpm === props.speed)
 

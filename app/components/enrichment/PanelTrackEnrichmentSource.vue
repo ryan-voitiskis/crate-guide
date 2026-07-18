@@ -16,6 +16,7 @@ const props = defineProps<{
 	parseCompleted: number
 	parseTotal: number
 	parseProgress: number
+	disabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -26,7 +27,7 @@ const emit = defineEmits<{
 }>()
 
 function handleDrop(event: DragEvent) {
-	if (props.isParsing) return
+	if (props.isParsing || props.disabled) return
 	const file = event.dataTransfer?.files?.[0]
 	if (file) emit('dropFile', file)
 }
@@ -52,6 +53,7 @@ function handleDrop(event: DragEvent) {
 				type="button"
 				role="radio"
 				:aria-checked="activeSource === 'rekordboxXml'"
+				:disabled="disabled"
 				class="rounded-md border p-4 text-left transition-colors"
 				:class="
 					activeSource === 'rekordboxXml'
@@ -87,6 +89,7 @@ function handleDrop(event: DragEvent) {
 				type="button"
 				role="radio"
 				:aria-checked="activeSource === 'localAudio'"
+				:disabled="disabled"
 				class="rounded-md border p-4 text-left transition-colors"
 				:class="
 					activeSource === 'localAudio'
@@ -172,7 +175,11 @@ function handleDrop(event: DragEvent) {
 								before saving.
 							</p>
 							<div class="mt-3 flex flex-wrap items-center gap-2">
-								<ButtonLoading :loading="isParsing" @click="emit('selectFile')">
+								<ButtonLoading
+									:loading="isParsing"
+									:disabled="disabled"
+									@click="emit('selectFile')"
+								>
 									<Upload class="mr-2 size-4" />
 									Select XML
 								</ButtonLoading>
@@ -220,6 +227,7 @@ function handleDrop(event: DragEvent) {
 
 		<PanelTrackEnrichmentLocalAudio
 			v-else
+			:disabled="disabled"
 			@review="emit('reviewLocal', $event)"
 		/>
 

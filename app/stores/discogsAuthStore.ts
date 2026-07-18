@@ -1,11 +1,13 @@
 import { toast } from 'vue-sonner'
+import { getActivePinia } from 'pinia'
 
 const defaultOAuthErrorMessage =
 	'Failed to authenticate with Discogs. Please try again.'
 
 export const useDiscogsAuthStore = defineStore('discogsAuth', () => {
-	const user = useUserStore()
-	const discogs = useDiscogsStore()
+	const pinia = getActivePinia()
+	const user = useUserStore(pinia)
+	const discogs = useDiscogsStore(pinia)
 
 	const supabase = useSupabaseClient<Database>()
 

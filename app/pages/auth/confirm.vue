@@ -5,6 +5,8 @@ import {
 	sanitizeAuthReturnPath
 } from '../../utils/authRoutes'
 
+definePageMeta({ layout: 'auth' })
+
 const route = useRoute()
 const user = useUserStore()
 

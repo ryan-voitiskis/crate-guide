@@ -1,6 +1,6 @@
 <script setup lang="ts">
-const session = useSessionStore()
-const tracks = useTracksStore()
+const session = useWorkbenchSessionStore()
+const tracks = useWorkbenchTracksStore()
 
 const selectedTrack = computed(() => {
 	if (!session.deckSelectDialog.trackId) return null

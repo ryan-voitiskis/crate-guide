@@ -1,6 +1,10 @@
+import { getActivePinia } from 'pinia'
+
 export const useTrackFiltersStore = defineStore('trackFilters', () => {
-	const tracks = useTracksStore()
-	const user = useUserStore()
+	const pinia = getActivePinia()
+	const tracks = useTracksStore(pinia)
+	const user = useUserStore(pinia)
+	const trackSource = ref<Track[] | null>(null)
 
 	const keyOptions = computed(() => {
 		const options = []
@@ -24,7 +28,7 @@ export const useTrackFiltersStore = defineStore('trackFilters', () => {
 	const selectedGenres = ref<string[]>([])
 
 	const filteredTracks = computed(() => {
-		let result = tracks.tracks
+		let result = trackSource.value ?? tracks.tracks
 
 		if (searchQuery.value.trim()) {
 			const query = searchQuery.value.toLowerCase()
@@ -69,7 +73,8 @@ export const useTrackFiltersStore = defineStore('trackFilters', () => {
 
 	const availableGenres = computed(() => {
 		const genreSet = new Set<string>()
-		tracks.tracks.forEach((track) => {
+		const source = trackSource.value ?? tracks.tracks
+		source.forEach((track) => {
 			track.genres.forEach((genre) => genreSet.add(genre.toLowerCase()))
 		})
 		return Array.from(genreSet).sort()
@@ -120,6 +125,10 @@ export const useTrackFiltersStore = defineStore('trackFilters', () => {
 		selectedGenres.value = []
 	}
 
+	function setTrackSource(source: Track[]) {
+		trackSource.value = source
+	}
+
 	return {
 		searchQuery,
 		showOnlyPlayable,
@@ -137,6 +146,7 @@ export const useTrackFiltersStore = defineStore('trackFilters', () => {
 		setSelectedKey,
 		toggleGenre,
 		clearGenres,
-		resetAllFilters
+		resetAllFilters,
+		setTrackSource
 	}
 })

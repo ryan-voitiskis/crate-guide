@@ -97,9 +97,16 @@ export type TrackEnrichmentWorkflow = {
 
 const rowsPerPage = 100
 
-export function useTrackEnrichmentWorkflow(): TrackEnrichmentWorkflow {
-	const records = useRecordsStore()
-	const tracks = useTracksStore()
+type TrackEnrichmentWorkflowDependencies = {
+	records: ReturnType<typeof useRecordsStore>
+	tracks: ReturnType<typeof useTracksStore>
+}
+
+export function useTrackEnrichmentWorkflow(
+	dependencies?: TrackEnrichmentWorkflowDependencies
+): TrackEnrichmentWorkflow {
+	const records = dependencies?.records ?? useRecordsStore()
+	const tracks = dependencies?.tracks ?? useTracksStore()
 
 	const activeSource = ref<TrackEnrichmentSourceKind>('rekordboxXml')
 	const selectedFileName = ref<string | null>(null)
