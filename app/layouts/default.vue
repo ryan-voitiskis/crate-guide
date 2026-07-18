@@ -6,6 +6,7 @@ const user = useSupabaseUser()
 const isLegalDocument = computed(
 	() => route.path === '/privacy' || route.path === '/terms'
 )
+const publicPageScrollContainer = ref<HTMLElement | null>(null)
 
 const showWorkbench = computed(
 	() =>
@@ -26,6 +27,18 @@ onMounted(() => {
 		density.value = savedDensity
 	}
 })
+
+watch(
+	() => route.path,
+	async () => {
+		if (!isLegalDocument.value) return
+		await nextTick()
+		if (publicPageScrollContainer.value) {
+			publicPageScrollContainer.value.scrollTop = 0
+			publicPageScrollContainer.value.scrollLeft = 0
+		}
+	}
+)
 </script>
 
 <template>
@@ -47,7 +60,12 @@ onMounted(() => {
 		</div>
 		<StatusWorkbench class="shrink-0" />
 	</div>
-	<div v-else class="h-full min-h-0 overflow-y-auto overscroll-contain">
+	<div
+		v-else
+		ref="publicPageScrollContainer"
+		data-public-page-scroll-container
+		class="h-full min-h-0 overflow-y-auto overscroll-contain"
+	>
 		<slot />
 	</div>
 </template>
