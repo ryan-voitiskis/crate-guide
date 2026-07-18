@@ -244,10 +244,16 @@ watch(
 					class="workbench-scrollbar min-h-0 flex-1 overflow-auto"
 				>
 					<div
-						class="border-border bg-muted/70 sticky top-0 z-10 hidden min-w-230 grid-cols-[48px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px] items-center gap-3 border-b px-2 backdrop-blur-md md:grid"
-						:class="density === 'compact' ? 'h-8' : 'h-10'"
+						class="border-border bg-muted/70 sticky top-0 z-10 hidden min-w-230 items-center gap-3 border-b pr-2 backdrop-blur-md md:grid"
+						:class="
+							density === 'compact'
+								? 'h-8 grid-cols-[40px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px]'
+								: 'h-10 grid-cols-[56px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px]'
+						"
 					>
-						<span class="text-muted-foreground font-mono text-[9px]">ART</span>
+						<span class="text-muted-foreground pl-2 font-mono text-[9px]">
+							COVER
+						</span>
 						<ButtonLibrarySort
 							label="Artist"
 							:active="sortKey === 'artist'"
@@ -296,9 +302,11 @@ watch(
 							:data-record-id="record.id"
 							role="button"
 							tabindex="0"
-							class="border-border hover:bg-accent/50 focus-visible:ring-ring grid w-full grid-cols-[48px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px] items-center gap-3 border-b px-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
+							class="border-border hover:bg-accent/50 focus-visible:ring-ring grid w-full items-center gap-3 border-b pr-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
 							:class="[
-								density === 'compact' ? 'h-11' : 'h-14',
+								density === 'compact'
+									? 'h-10 grid-cols-[40px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px]'
+									: 'h-14 grid-cols-[56px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px]',
 								selectedRecordId === record.id && 'bg-accent'
 							]"
 							@click="selectRecord(record.id)"
@@ -311,12 +319,12 @@ watch(
 							<ImageRecordCover
 								v-if="record.cover || record.cover_storage_path"
 								:record="record"
-								class="size-8 rounded-sm border"
+								class="size-full border"
 							/>
 							<button
 								v-else
 								type="button"
-								class="border-border text-muted-foreground hover:border-primary/70 hover:text-primary focus-visible:ring-ring flex size-8 items-center justify-center rounded-sm border border-dashed transition-colors focus-visible:ring-2 focus-visible:outline-none"
+								class="border-border text-muted-foreground hover:border-primary/70 hover:text-primary focus-visible:ring-ring flex size-full items-center justify-center border border-dashed transition-colors focus-visible:ring-2 focus-visible:outline-none"
 								data-testid="add-record-cover"
 								title="Add cover artwork"
 								aria-label="Add cover artwork"

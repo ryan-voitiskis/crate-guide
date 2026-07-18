@@ -9,10 +9,10 @@ import {
 } from 'lucide-vue-next'
 
 type TrackSortKey =
-	| 'position'
 	| 'title'
 	| 'artist'
 	| 'release'
+	| 'catno'
 	| 'duration'
 	| 'bpm'
 	| 'key'
@@ -103,10 +103,6 @@ const sortedTracks = computed(() => {
 		let bValue: string | number = ''
 
 		switch (sortKey.value) {
-			case 'position':
-				aValue = a.position || ''
-				bValue = b.position || ''
-				break
 			case 'title':
 				aValue = a.title
 				bValue = b.title
@@ -118,6 +114,10 @@ const sortedTracks = computed(() => {
 			case 'release':
 				aValue = aRecord?.title || ''
 				bValue = bRecord?.title || ''
+				break
+			case 'catno':
+				aValue = aRecord?.labels[0]?.catno || ''
+				bValue = bRecord?.labels[0]?.catno || ''
 				break
 			case 'duration':
 				aValue = a.duration || 0
@@ -296,17 +296,19 @@ watch(
 					class="workbench-scrollbar min-h-0 flex-1 overflow-auto"
 				>
 					<div
-						class="border-border bg-muted/70 sticky top-0 z-10 hidden min-w-270 grid-cols-[36px_42px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_66px_64px_58px_minmax(110px,0.7fr)_30px] items-center gap-2 border-b px-2 backdrop-blur-md md:grid"
-						:class="density === 'compact' ? 'h-8' : 'h-10'"
+						class="border-border bg-muted/70 sticky top-0 z-10 hidden min-w-270 items-center gap-2 border-b pr-2 backdrop-blur-md md:grid"
+						:class="
+							density === 'compact'
+								? 'h-8 grid-cols-[36px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]'
+								: 'h-10 grid-cols-[56px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]'
+						"
 					>
-						<span class="text-muted-foreground font-mono text-[9px]">ST</span>
-						<span class="text-muted-foreground font-mono text-[9px]">ART</span>
-						<ButtonLibrarySort
-							label="Pos"
-							:active="sortKey === 'position'"
-							:direction="sortDirection"
-							@click="setSort('position')"
-						/>
+						<span class="text-muted-foreground pl-2 font-mono text-[9px]">
+							COVER
+						</span>
+						<span class="text-muted-foreground font-mono text-[9px] uppercase">
+							Pos
+						</span>
 						<ButtonLibrarySort
 							label="Title"
 							:active="sortKey === 'title'"
@@ -324,6 +326,12 @@ watch(
 							:active="sortKey === 'release'"
 							:direction="sortDirection"
 							@click="setSort('release')"
+						/>
+						<ButtonLibrarySort
+							label="Cat. no."
+							:active="sortKey === 'catno'"
+							:direction="sortDirection"
+							@click="setSort('catno')"
 						/>
 						<ButtonLibrarySort
 							label="Time"
@@ -361,27 +369,22 @@ watch(
 							:key="track.id"
 							role="button"
 							tabindex="0"
-							class="border-border hover:bg-accent/50 focus-visible:ring-ring grid w-full grid-cols-[36px_42px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_66px_64px_58px_minmax(110px,0.7fr)_30px] items-center gap-2 border-b px-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
+							class="border-border hover:bg-accent/50 focus-visible:ring-ring grid w-full items-center gap-2 border-b pr-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
 							:class="[
-								density === 'compact' ? 'h-10' : 'h-14',
+								density === 'compact'
+									? 'h-9 grid-cols-[36px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]'
+									: 'h-14 grid-cols-[56px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]',
 								selectedTrackId === track.id && 'bg-accent'
 							]"
 							@click="selectTrack(track.id)"
 							@dblclick="editTrack(track.id)"
 							@keydown.enter="selectTrack(track.id)"
 						>
-							<div class="flex items-center justify-center">
-								<span
-									class="size-1.5 rounded-full"
-									:class="track.playable ? 'bg-emerald-500' : 'bg-destructive'"
-									title="Playable status"
-								/>
-							</div>
-							<div class="bg-muted size-7 rounded-sm border">
+							<div class="bg-muted size-full overflow-hidden border">
 								<ImageRecordCover
 									v-if="getRecordForTrack(track)"
 									:record="getRecordForTrack(track)!"
-									class="size-full rounded-sm"
+									class="size-full"
 								/>
 								<Disc3
 									v-if="!getRecordForTrack(track)"
@@ -397,6 +400,9 @@ watch(
 							</span>
 							<span class="text-muted-foreground truncate">
 								{{ getRecordForTrack(track)?.title || 'Unknown release' }}
+							</span>
+							<span class="truncate font-mono text-[10px]">
+								{{ getRecordForTrack(track)?.labels[0]?.catno || '—' }}
 							</span>
 							<span class="text-right font-mono tabular-nums">
 								{{ msToMMSS(track.duration) || '—' }}
