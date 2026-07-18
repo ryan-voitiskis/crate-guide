@@ -340,6 +340,18 @@ describe('enrichment page wiring', () => {
 		workflow.currentStep.value = 2
 		await nextTick()
 		expect(wrapper.find('[data-testid="review-table"]').exists()).toBe(true)
+		expect(
+			wrapper.get('[data-testid="enrichment-scroll-region"]').classes()
+		).toContain('md:overflow-hidden')
+		expect(
+			wrapper.get('[data-testid="enrichment-review-workspace"]').classes()
+		).toContain('md:min-h-0')
+		expect(wrapper.get('[data-testid="review-table"]').classes()).toContain(
+			'shrink-0'
+		)
+		expect(wrapper.get('[data-testid="review-table"]').classes()).toContain(
+			'md:flex-1'
+		)
 		await wrapper.get('[data-testid="stage-all"]').trigger('click')
 		expect(workflow.setFilteredRowsStaged).toHaveBeenCalledWith(true)
 		await wrapper.get('[data-testid="stage-row"]').trigger('click')

@@ -169,4 +169,17 @@ describe('TableTrackEnrichmentReview', () => {
 		await bpmSort?.trigger('click')
 		expect(wrapper.emitted('sort')).toEqual([['bpm']])
 	})
+
+	it('uses the available review height for its desktop scroll region', async () => {
+		const wrapper = await mountTable([createRow()])
+		const scrollRegion = wrapper.get(
+			'[data-testid="enrichment-review-table-scroll"]'
+		)
+
+		expect(wrapper.classes()).toContain('md:flex')
+		expect(scrollRegion.classes()).toContain('flex-1')
+		expect(scrollRegion.classes().some((name) => name.includes('max-h-'))).toBe(
+			false
+		)
+	})
 })

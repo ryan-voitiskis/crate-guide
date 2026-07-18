@@ -285,7 +285,7 @@ function handleFileDrop(file: File) {
 </script>
 
 <template>
-	<div class="flex min-h-0 flex-1 flex-col">
+	<div class="flex h-full min-h-0 flex-1 flex-col">
 		<Teleport to="#header-left" defer>
 			<template v-if="isActive">
 				<div class="flex items-center gap-2">
@@ -338,15 +338,23 @@ function handleFileDrop(file: File) {
 			</template>
 		</Teleport>
 
-		<div class="scrollbar-hidden flex-1 overflow-y-auto">
+		<div
+			data-testid="enrichment-scroll-region"
+			class="scrollbar-hidden min-h-0 flex-1"
+			:class="
+				currentStep === 2
+					? 'overflow-y-auto md:overflow-hidden'
+					: 'overflow-y-auto'
+			"
+		>
 			<div
-				class="flex w-full flex-col gap-3 p-3 pb-0 sm:p-4 sm:pb-0"
+				class="flex w-full flex-col"
 				:class="
 					currentStep === 1
-						? 'mx-auto max-w-3xl pt-5 sm:pt-8'
+						? 'mx-auto max-w-3xl gap-3 p-3 pt-5 pb-0 sm:p-4 sm:pt-8 sm:pb-0'
 						: currentStep !== 2
-							? 'mx-auto max-w-[1600px]'
-							: ''
+							? 'mx-auto max-w-[1600px] gap-3 p-3 pb-0 sm:p-4 sm:pb-0'
+							: 'min-h-full md:h-full md:min-h-0'
 				"
 			>
 				<input
@@ -460,276 +468,286 @@ function handleFileDrop(file: File) {
 
 					<template v-else-if="currentStep === 2">
 						<div
-							class="border-border bg-card/40 grid grid-cols-2 divide-x divide-y overflow-hidden rounded-sm border sm:grid-cols-6 sm:divide-y-0"
+							data-testid="enrichment-review-workspace"
+							class="flex flex-col md:min-h-0 md:flex-1"
 						>
-							<div class="px-3 py-2">
-								<div
-									class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
-								>
-									{{ sourceLabel }} tracks
-								</div>
-								<div class="mt-0.5 text-base font-semibold tabular-nums">
-									{{ rows.length }}
-								</div>
-							</div>
-							<div class="px-3 py-2">
-								<div
-									class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
-								>
-									Matched
-								</div>
-								<div class="mt-0.5 flex items-baseline gap-1.5">
-									<span class="text-base font-semibold tabular-nums">
-										{{ matchedRows.length }}
-									</span>
-									<span class="text-muted-foreground font-mono text-[10px]">
-										{{ matchRate }}
-									</span>
-								</div>
-							</div>
-							<div class="px-3 py-2">
-								<div
-									class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
-								>
-									Ready
-								</div>
-								<div
-									class="text-primary mt-0.5 text-base font-semibold tabular-nums"
-								>
-									{{ readyRows.length }}
-								</div>
-							</div>
-							<div class="px-3 py-2">
-								<div
-									class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
-								>
-									Needs review
-								</div>
-								<div class="mt-0.5 text-base font-semibold tabular-nums">
-									{{ reviewRows.length }}
-								</div>
-							</div>
-							<div class="px-3 py-2">
-								<div
-									class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
-								>
-									Staged
-								</div>
-								<div
-									class="mt-0.5 text-base font-semibold text-emerald-700 tabular-nums dark:text-emerald-400"
-								>
-									{{ stagedRows.length }}
-								</div>
-							</div>
-							<div class="px-3 py-2">
-								<div
-									class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
-								>
-									Not in collection
-								</div>
-								<div class="mt-0.5 text-base font-semibold tabular-nums">
-									{{ unmatchedRows.length }}
-								</div>
-							</div>
-						</div>
-
-						<div
-							v-if="blockedCount || errorCount"
-							class="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs"
-						>
-							<span v-if="blockedCount" class="flex items-center gap-1.5">
-								<AlertTriangle class="size-3.5 text-amber-600" />
-								{{ blockedCount }} competing matches blocked
-							</span>
-							<span v-if="errorCount" class="text-destructive">
-								{{ errorCount }} errors
-							</span>
-						</div>
-
-						<div
-							class="border-border bg-muted/20 flex flex-col gap-1.5 rounded-sm border p-1.5 xl:flex-row xl:items-center xl:justify-between"
-						>
-							<div class="workbench-scrollbar overflow-x-auto">
-								<ToggleGroup
-									v-model="selectedFilter"
-									type="single"
-									variant="outline"
-									class="w-max justify-start"
-								>
-									<ToggleGroupItem
-										v-for="option in filterOptions"
-										:key="option.value"
-										:value="option.value"
-										size="sm"
-										class="h-7 gap-1.5 rounded-sm px-2 text-xs"
+							<div
+								class="border-border bg-card/40 grid shrink-0 grid-cols-2 divide-x divide-y overflow-hidden border-b sm:grid-cols-6 sm:divide-y-0"
+							>
+								<div class="px-3 py-2">
+									<div
+										class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
 									>
-										{{ option.label }}
-										<span class="text-muted-foreground font-mono tabular-nums">
-											{{ option.count }}
+										{{ sourceLabel }} tracks
+									</div>
+									<div class="mt-0.5 text-base font-semibold tabular-nums">
+										{{ rows.length }}
+									</div>
+								</div>
+								<div class="px-3 py-2">
+									<div
+										class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
+									>
+										Matched
+									</div>
+									<div class="mt-0.5 flex items-baseline gap-1.5">
+										<span class="text-base font-semibold tabular-nums">
+											{{ matchedRows.length }}
 										</span>
-									</ToggleGroupItem>
-								</ToggleGroup>
+										<span class="text-muted-foreground font-mono text-[10px]">
+											{{ matchRate }}
+										</span>
+									</div>
+								</div>
+								<div class="px-3 py-2">
+									<div
+										class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
+									>
+										Ready
+									</div>
+									<div
+										class="text-primary mt-0.5 text-base font-semibold tabular-nums"
+									>
+										{{ readyRows.length }}
+									</div>
+								</div>
+								<div class="px-3 py-2">
+									<div
+										class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
+									>
+										Needs review
+									</div>
+									<div class="mt-0.5 text-base font-semibold tabular-nums">
+										{{ reviewRows.length }}
+									</div>
+								</div>
+								<div class="px-3 py-2">
+									<div
+										class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
+									>
+										Staged
+									</div>
+									<div
+										class="mt-0.5 text-base font-semibold text-emerald-700 tabular-nums dark:text-emerald-400"
+									>
+										{{ stagedRows.length }}
+									</div>
+								</div>
+								<div class="px-3 py-2">
+									<div
+										class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
+									>
+										Not in collection
+									</div>
+									<div class="mt-0.5 text-base font-semibold tabular-nums">
+										{{ unmatchedRows.length }}
+									</div>
+								</div>
 							</div>
 
 							<div
-								class="flex min-w-0 flex-wrap items-center justify-end gap-1.5"
+								v-if="blockedCount || errorCount"
+								class="border-border text-muted-foreground flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b px-3 py-1.5 text-xs"
 							>
-								<label
-									class="border-border bg-background flex h-8 min-w-52 flex-1 items-center gap-2 rounded-sm border px-2 xl:w-72 xl:flex-none"
-								>
-									<Search class="text-muted-foreground size-3.5 shrink-0" />
-									<input
-										v-model="reviewQuery"
-										type="search"
-										class="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-xs outline-none"
-										placeholder="Filter title, artist, release, ID..."
-										aria-label="Filter enrichment matches"
-									/>
-									<span
-										class="text-muted-foreground font-mono text-[10px] tabular-nums"
+								<span v-if="blockedCount" class="flex items-center gap-1.5">
+									<AlertTriangle class="size-3.5 text-amber-600" />
+									{{ blockedCount }} competing matches blocked
+								</span>
+								<span v-if="errorCount" class="text-destructive">
+									{{ errorCount }} errors
+								</span>
+							</div>
+
+							<div
+								class="border-border bg-muted/20 flex shrink-0 flex-col gap-1.5 border-b p-1.5 xl:flex-row xl:items-center xl:justify-between"
+							>
+								<div class="workbench-scrollbar overflow-x-auto">
+									<ToggleGroup
+										v-model="selectedFilter"
+										type="single"
+										variant="outline"
+										class="w-max justify-start"
 									>
-										{{ searchedReviewRows.length }}
-									</span>
-									<button
+										<ToggleGroupItem
+											v-for="option in filterOptions"
+											:key="option.value"
+											:value="option.value"
+											size="sm"
+											class="h-7 gap-1.5 rounded-sm px-2 text-xs"
+										>
+											{{ option.label }}
+											<span
+												class="text-muted-foreground font-mono tabular-nums"
+											>
+												{{ option.count }}
+											</span>
+										</ToggleGroupItem>
+									</ToggleGroup>
+								</div>
+
+								<div
+									class="flex min-w-0 flex-wrap items-center justify-end gap-1.5"
+								>
+									<label
+										class="border-border bg-background flex h-8 min-w-52 flex-1 items-center gap-2 rounded-sm border px-2 xl:w-72 xl:flex-none"
+									>
+										<Search class="text-muted-foreground size-3.5 shrink-0" />
+										<input
+											v-model="reviewQuery"
+											type="search"
+											class="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-xs outline-none"
+											placeholder="Filter title, artist, release, ID..."
+											aria-label="Filter enrichment matches"
+										/>
+										<span
+											class="text-muted-foreground font-mono text-[10px] tabular-nums"
+										>
+											{{ searchedReviewRows.length }}
+										</span>
+										<button
+											v-if="reviewQuery"
+											type="button"
+											class="text-muted-foreground hover:text-foreground -mr-1 flex size-6 items-center justify-center rounded-sm"
+											aria-label="Clear match filter"
+											@click="reviewQuery = ''"
+										>
+											<X class="size-3.5" />
+										</button>
+									</label>
+
+									<ControlLibraryDensity
+										v-model="density"
+										class="hidden md:flex"
+									/>
+
+									<Button
+										variant="ghost"
+										size="sm"
+										class="h-8 px-2 text-xs"
+										:disabled="
+											visibleStageableRows.length === 0 ||
+											visibleSelectionState === true
+										"
+										@click="setVisibleRowsStaged(true)"
+									>
+										<ListChecks class="mr-1.5 size-3.5" />
+										Stage eligible ({{ visibleStageableRows.length }})
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										class="h-8 px-2 text-xs"
+										:disabled="stagedRows.length === 0"
+										@click="clearStagedRows"
+									>
+										<X class="mr-1.5 size-3.5" />
+										Clear staged
+									</Button>
+								</div>
+							</div>
+
+							<div
+								v-if="searchedReviewRows.length === 0"
+								class="border-border flex min-h-40 flex-1 items-center justify-center border-b border-dashed"
+							>
+								<div class="flex flex-col items-center gap-2 text-center">
+									<RefreshCw class="size-4" />
+									<div class="text-muted-foreground text-sm">
+										{{
+											reviewQuery
+												? 'No matches for this filter'
+												: 'No rows in this view'
+										}}
+									</div>
+									<Button
 										v-if="reviewQuery"
-										type="button"
-										class="text-muted-foreground hover:text-foreground -mr-1 flex size-6 items-center justify-center rounded-sm"
-										aria-label="Clear match filter"
+										variant="outline"
+										size="sm"
 										@click="reviewQuery = ''"
 									>
-										<X class="size-3.5" />
-									</button>
-								</label>
+										Clear filter
+									</Button>
+								</div>
+							</div>
 
-								<ControlLibraryDensity
-									v-model="density"
-									class="hidden md:flex"
+							<template v-else>
+								<TableTrackEnrichmentReview
+									class="shrink-0 md:min-h-0 md:flex-1 md:shrink md:rounded-none md:border-x-0"
+									:rows="pagedReviewRows"
+									:staged-row-ids="stagedRowIds"
+									:filtered-selection-state="visibleSelectionState"
+									:stageable-row-count="visibleStageableRows.length"
+									:is-applying="isApplying"
+									:key-format="user.currentKeyFormat"
+									:source-label="sourceLabel"
+									:density="density"
+									:sort-key="reviewSortKey"
+									:sort-direction="reviewSortDirection"
+									@sort="setReviewSort"
+									@stage-all="setVisibleRowsStaged"
+									@stage-row="setRowStaged"
 								/>
 
-								<Button
-									variant="ghost"
-									size="sm"
-									class="h-8 px-2 text-xs"
-									:disabled="
-										visibleStageableRows.length === 0 ||
-										visibleSelectionState === true
-									"
-									@click="setVisibleRowsStaged(true)"
-								>
-									<ListChecks class="mr-1.5 size-3.5" />
-									Stage eligible ({{ visibleStageableRows.length }})
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									class="h-8 px-2 text-xs"
-									:disabled="stagedRows.length === 0"
-									@click="clearStagedRows"
-								>
-									<X class="mr-1.5 size-3.5" />
-									Clear staged
-								</Button>
-							</div>
-						</div>
-
-						<div
-							v-if="searchedReviewRows.length === 0"
-							class="border-border flex min-h-40 items-center justify-center rounded-md border border-dashed"
-						>
-							<div class="flex flex-col items-center gap-2 text-center">
-								<RefreshCw class="size-4" />
-								<div class="text-muted-foreground text-sm">
-									{{
-										reviewQuery
-											? 'No matches for this filter'
-											: 'No rows in this view'
-									}}
-								</div>
-								<Button
-									v-if="reviewQuery"
-									variant="outline"
-									size="sm"
-									@click="reviewQuery = ''"
-								>
-									Clear filter
-								</Button>
-							</div>
-						</div>
-
-						<template v-else>
-							<TableTrackEnrichmentReview
-								:rows="pagedReviewRows"
-								:staged-row-ids="stagedRowIds"
-								:filtered-selection-state="visibleSelectionState"
-								:stageable-row-count="visibleStageableRows.length"
-								:is-applying="isApplying"
-								:key-format="user.currentKeyFormat"
-								:source-label="sourceLabel"
-								:density="density"
-								:sort-key="reviewSortKey"
-								:sort-direction="reviewSortDirection"
-								@sort="setReviewSort"
-								@stage-all="setVisibleRowsStaged"
-								@stage-row="setRowStaged"
-							/>
-
-							<div class="flex items-center justify-between gap-3 pb-1 text-xs">
-								<div class="text-muted-foreground font-mono tabular-nums">
-									{{ reviewShownStart }}-{{ reviewShownEnd }} of
-									{{ sortedReviewRows.length }}
-								</div>
-								<div class="flex items-center gap-2">
-									<Button
-										variant="outline"
-										size="sm"
-										:disabled="currentPage === 1"
-										@click="currentPage--"
-									>
-										<ArrowLeft class="size-4" />
-										<span class="sr-only">Previous page</span>
-									</Button>
-									<span class="text-muted-foreground font-mono tabular-nums">
-										{{ currentPage }} / {{ reviewPageCount }}
-									</span>
-									<Button
-										variant="outline"
-										size="sm"
-										:disabled="currentPage === reviewPageCount"
-										@click="currentPage++"
-									>
-										<ArrowRight class="size-4" />
-										<span class="sr-only">Next page</span>
-									</Button>
-								</div>
-							</div>
-						</template>
-
-						<div
-							class="border-border bg-background/95 sticky bottom-0 z-10 -mx-2 mt-1 flex flex-col gap-2 border-t-2 border-t-emerald-500 px-3 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between"
-						>
-							<div class="flex min-w-0 items-center gap-3">
 								<div
-									class="flex size-9 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+									class="border-border flex shrink-0 items-center justify-between gap-3 border-t px-3 py-1.5 text-xs"
 								>
-									<ListChecks class="size-4" />
-								</div>
-								<div class="min-w-0">
-									<div class="text-sm font-semibold">
-										{{ stagedRows.length }} tracks staged for import
+									<div class="text-muted-foreground font-mono tabular-nums">
+										{{ reviewShownStart }}-{{ reviewShownEnd }} of
+										{{ sortedReviewRows.length }}
 									</div>
-									<div class="text-muted-foreground text-xs">
-										{{ stagedBpmCount }} BPM and {{ stagedKeyModeCount }} key
-										values will be filled
+									<div class="flex items-center gap-2">
+										<Button
+											variant="outline"
+											size="sm"
+											:disabled="currentPage === 1"
+											@click="currentPage--"
+										>
+											<ArrowLeft class="size-4" />
+											<span class="sr-only">Previous page</span>
+										</Button>
+										<span class="text-muted-foreground font-mono tabular-nums">
+											{{ currentPage }} / {{ reviewPageCount }}
+										</span>
+										<Button
+											variant="outline"
+											size="sm"
+											:disabled="currentPage === reviewPageCount"
+											@click="currentPage++"
+										>
+											<ArrowRight class="size-4" />
+											<span class="sr-only">Next page</span>
+										</Button>
 									</div>
 								</div>
-							</div>
-							<Button
-								:disabled="stagedRows.length === 0 || isApplying"
-								@click="openApplyReview"
+							</template>
+
+							<div
+								class="border-border bg-background/95 sticky bottom-0 z-10 flex shrink-0 flex-col gap-2 border-t-2 border-t-emerald-500 px-3 py-2.5 backdrop-blur sm:flex-row sm:items-center sm:justify-between md:static"
 							>
-								<ShieldCheck class="mr-2 size-4" />
-								Review staged updates ({{ stagedRows.length }})
-							</Button>
+								<div class="flex min-w-0 items-center gap-3">
+									<div
+										class="flex size-9 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+									>
+										<ListChecks class="size-4" />
+									</div>
+									<div class="min-w-0">
+										<div class="text-sm font-semibold">
+											{{ stagedRows.length }} tracks staged for import
+										</div>
+										<div class="text-muted-foreground text-xs">
+											{{ stagedBpmCount }} BPM and {{ stagedKeyModeCount }} key
+											values will be filled
+										</div>
+									</div>
+								</div>
+								<Button
+									:disabled="stagedRows.length === 0 || isApplying"
+									@click="openApplyReview"
+								>
+									<ShieldCheck class="mr-2 size-4" />
+									Review staged updates ({{ stagedRows.length }})
+								</Button>
+							</div>
 						</div>
 					</template>
 				</template>

@@ -153,7 +153,9 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 </script>
 
 <template>
-	<div class="border-border overflow-hidden rounded-sm border">
+	<div
+		class="border-border overflow-hidden rounded-sm border md:flex md:min-h-0 md:flex-col"
+	>
 		<div class="divide-border divide-y md:hidden">
 			<div
 				class="bg-muted/70 sticky top-0 z-10 flex h-9 items-center justify-between px-3 backdrop-blur-md"
@@ -285,7 +287,8 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 		</div>
 
 		<div
-			class="workbench-scrollbar hidden overflow-auto md:block lg:max-h-[calc(100dvh-21rem)]"
+			data-testid="enrichment-review-table-scroll"
+			class="workbench-scrollbar hidden min-h-0 flex-1 overflow-auto md:block"
 		>
 			<Table class="min-w-[1260px] table-fixed">
 				<TableHeader
