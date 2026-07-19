@@ -2,6 +2,7 @@ import oauthSignature from 'npm:oauth-signature@1.5.0'
 import { generateToken } from '../generateToken.ts'
 import { type DiscogsConfig, getDiscogsConfig } from './config.ts'
 import type { DiscogsCredentialRepository } from './credentials.ts'
+import { buildOAuthAuthorizationHeader } from './oauthAuthorization.ts'
 import {
 	DiscogsConnectionRequiredError,
 	DiscogsUpstreamTimeoutError,
@@ -41,7 +42,7 @@ export async function makeAuthenticatedRequest(
 	// Merge OAuth params with every query param present on the caller-supplied
 	// URL. oauthSignature.generate encodes and sorts keys per the spec; we just
 	// need to hand it the complete param set.
-	const signatureParams: Record<string, string> = {
+	const oauthParameters: Record<string, string> = {
 		oauth_consumer_key: config.consumerKey,
 		oauth_token: creds.access_token,
 		oauth_nonce,
@@ -49,30 +50,33 @@ export async function makeAuthenticatedRequest(
 		oauth_signature_method: 'HMAC-SHA1',
 		oauth_version: '1.0'
 	}
+	const signatureParams = { ...oauthParameters }
 	for (const [key, value] of parsedUrl.searchParams) {
 		signatureParams[key] = value
 	}
 
-	const encodedSignature = oauthSignature.generate(
+	const signature = oauthSignature.generate(
 		'GET',
 		baseUrl,
 		signatureParams,
 		config.consumerSecret,
-		creds.access_secret
+		creds.access_secret,
+		{ encodeSignature: false }
 	)
-
-	const finalParams = new URLSearchParams()
-	for (const [key, value] of Object.entries(signatureParams)) {
-		finalParams.append(key, value)
-	}
-	finalParams.append('oauth_signature', encodedSignature)
+	const authorization = buildOAuthAuthorizationHeader({
+		...oauthParameters,
+		oauth_signature: signature
+	})
 
 	const abortController = new AbortController()
 	const timeout = setTimeout(() => abortController.abort(), timeoutMs)
 	try {
-		return await fetcher(`${baseUrl}?${finalParams}`, {
+		return await fetcher(parsedUrl.toString(), {
 			method: 'GET',
-			headers: { 'User-Agent': config.userAgent },
+			headers: {
+				Authorization: authorization,
+				'User-Agent': config.userAgent
+			},
 			signal: abortController.signal
 		})
 	} catch {

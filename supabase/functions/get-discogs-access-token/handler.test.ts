@@ -82,6 +82,63 @@ Deno.test(
 )
 
 Deno.test(
+	'access-token handler sends OAuth parameters in the header',
+	async () => {
+		let requestedUrl = ''
+		let requestInit: RequestInit | undefined
+		const handler = createDiscogsAccessTokenHandler(headers, {
+			createCredentials: () => Promise.resolve(credentials()),
+			fetcher: ((url: string | URL | Request, init?: RequestInit) => {
+				requestedUrl = String(url)
+				requestInit = init
+				return Promise.resolve(
+					new Response(
+						'oauth_token=access-token&oauth_token_secret=access-secret'
+					)
+				)
+			}) as typeof fetch,
+			generateNonce: () => Promise.resolve('nonce'),
+			getConfig: () => config,
+			fetchIdentity: () => Promise.resolve()
+		})
+
+		const response = await handler(
+			request({ oauth_token: 'request-token', oauth_verifier: 'verifier' })
+		)
+		const requestHeaders = new Headers(requestInit?.headers)
+		const authorization = requestHeaders.get('Authorization') ?? ''
+		const oauthKeys = [...authorization.matchAll(/(oauth_[a-z_]+)=/g)].map(
+			([, key]) => key
+		)
+
+		assert.equal(response.status, 200)
+		assert.equal(requestedUrl, 'https://api.discogs.com/oauth/access_token')
+		assert.equal(requestedUrl.includes('oauth_'), false)
+		assert.equal(requestedUrl.includes('verifier'), false)
+		assert.equal(requestedUrl.includes('request-secret'), false)
+		assert.equal(requestInit?.method, 'POST')
+		assert.equal(requestHeaders.get('User-Agent'), config.userAgent)
+		assert.equal(authorization.startsWith('OAuth '), true)
+		assert.deepEqual(oauthKeys, [
+			'oauth_consumer_key',
+			'oauth_nonce',
+			'oauth_signature',
+			'oauth_signature_method',
+			'oauth_timestamp',
+			'oauth_token',
+			'oauth_verifier'
+		])
+		assert.equal(authorization.includes('oauth_verifier="verifier"'), true)
+		assert.equal(
+			authorization.includes(
+				'oauth_signature="consumer-secret-fixture%26request-secret"'
+			),
+			true
+		)
+	}
+)
+
+Deno.test(
 	'access-token handler does not expose unknown exception messages',
 	async () => {
 		const privateMessage = 'private credential failure'

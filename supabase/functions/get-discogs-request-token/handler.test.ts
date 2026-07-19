@@ -65,6 +65,51 @@ Deno.test('request-token handler stores a complete response', async () => {
 })
 
 Deno.test(
+	'request-token handler sends OAuth parameters in the header',
+	async () => {
+		let requestedUrl = ''
+		let requestInit: RequestInit | undefined
+		const handler = createDiscogsRequestTokenHandler(headers, {
+			createCredentials: () => Promise.resolve(credentials()),
+			fetcher: ((url: string | URL | Request, init?: RequestInit) => {
+				requestedUrl = String(url)
+				requestInit = init
+				return Promise.resolve(
+					new Response(
+						'oauth_token=fixture-token&oauth_token_secret=fixture-secret'
+					)
+				)
+			}) as typeof fetch,
+			generateNonce: () => Promise.resolve('nonce'),
+			getConfig: () => config,
+			getCallback: () => 'http://localhost/callback'
+		})
+
+		const response = await handler(authorizedRequest())
+		const requestHeaders = new Headers(requestInit?.headers)
+		const authorization = requestHeaders.get('Authorization') ?? ''
+
+		assert.equal(response.status, 200)
+		assert.equal(requestedUrl, 'https://api.discogs.com/oauth/request_token')
+		assert.equal(requestedUrl.includes('oauth_'), false)
+		assert.equal(requestedUrl.includes(config.consumerSecret), false)
+		assert.equal(requestInit?.method, 'GET')
+		assert.equal(requestHeaders.get('User-Agent'), config.userAgent)
+		assert.equal(authorization.startsWith('OAuth '), true)
+		assert.equal(
+			authorization.includes(
+				'oauth_callback="http%3A%2F%2Flocalhost%2Fcallback"'
+			),
+			true
+		)
+		assert.equal(
+			authorization.includes('oauth_signature="consumer-secret-fixture%26"'),
+			true
+		)
+	}
+)
+
+Deno.test(
 	'request-token handler does not expose or log upstream bodies',
 	async () => {
 		const rawBody = 'private upstream body'

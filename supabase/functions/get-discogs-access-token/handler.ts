@@ -7,6 +7,7 @@ import {
 	createDiscogsCredentialRepository
 } from '../_shared/discogs/credentials.ts'
 import { fetchAndSetIdentity } from '../_shared/discogs/fetchAndSetIdentity.ts'
+import { buildOAuthAuthorizationHeader } from '../_shared/discogs/oauthAuthorization.ts'
 import {
 	PublicOAuthError,
 	buildDiscogsOAuthHttpError,
@@ -89,22 +90,22 @@ export function createDiscogsAccessTokenHandler(
 				await credentials.getCredentials(),
 				oauthToken
 			)
-			const params = new URLSearchParams({
+			const oauthParameters = {
 				oauth_consumer_key: config.consumerKey,
 				oauth_nonce: await dependencies.generateNonce(),
 				oauth_token: oauthToken,
-				oauth_signature: `${config.consumerSecret}%26${requestSecret}`,
+				oauth_signature: `${config.consumerSecret}&${requestSecret}`,
 				oauth_signature_method: 'PLAINTEXT',
 				oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
 				oauth_verifier: oauthVerifier
-			})
-			const response = await dependencies.fetcher(
-				`${accessTokenUrl}?${params}`,
-				{
-					method: 'POST',
-					headers: { 'User-Agent': config.userAgent }
+			}
+			const response = await dependencies.fetcher(accessTokenUrl, {
+				method: 'POST',
+				headers: {
+					Authorization: buildOAuthAuthorizationHeader(oauthParameters),
+					'User-Agent': config.userAgent
 				}
-			)
+			})
 			const responseText = await response.text()
 			if (!response.ok) {
 				console.error('Discogs access token request failed', {

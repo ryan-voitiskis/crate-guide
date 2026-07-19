@@ -6,6 +6,7 @@ import {
 	type DiscogsCredentialRepository,
 	createDiscogsCredentialRepository
 } from '../_shared/discogs/credentials.ts'
+import { buildOAuthAuthorizationHeader } from '../_shared/discogs/oauthAuthorization.ts'
 import {
 	PublicOAuthError,
 	buildDiscogsOAuthHttpError,
@@ -70,22 +71,22 @@ export function createDiscogsRequestTokenHandler(
 		try {
 			const config = dependencies.getConfig()
 			const credentials = await dependencies.createCredentials(authHeader)
-			const params = new URLSearchParams({
+			const oauthParameters = {
 				oauth_consumer_key: config.consumerKey,
 				oauth_nonce: await dependencies.generateNonce(),
 				oauth_version: '1.0',
 				oauth_signature_method: 'PLAINTEXT',
 				oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
-				oauth_signature: `${config.consumerSecret}%26`,
+				oauth_signature: `${config.consumerSecret}&`,
 				oauth_callback: dependencies.getCallback()
-			})
-			const response = await dependencies.fetcher(
-				`${requestTokenUrl}?${params}`,
-				{
-					method: 'GET',
-					headers: { 'User-Agent': config.userAgent }
+			}
+			const response = await dependencies.fetcher(requestTokenUrl, {
+				method: 'GET',
+				headers: {
+					Authorization: buildOAuthAuthorizationHeader(oauthParameters),
+					'User-Agent': config.userAgent
 				}
-			)
+			})
 			const responseText = await response.text()
 			if (!response.ok) {
 				console.error('Discogs request token request failed', {

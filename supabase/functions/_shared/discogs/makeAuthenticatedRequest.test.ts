@@ -1,5 +1,6 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import assert from 'node:assert/strict'
+import oauthSignature from 'npm:oauth-signature@1.5.0'
 import type { DiscogsCredentialRepository } from './credentials.ts'
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest.ts'
 import {
@@ -116,31 +117,68 @@ Deno.test(
 	}
 )
 
-Deno.test('signs a request and passes a timeout signal to fetch', async () => {
-	let requestedUrl = ''
-	let signal: AbortSignal | null | undefined
-	const fetcher = ((url: string | URL | Request, init?: RequestInit) => {
-		requestedUrl = String(url)
-		signal = init?.signal
-		return Promise.resolve(Response.json({ id: 1 }))
-	}) as typeof fetch
+Deno.test(
+	'signs business query parameters while sending OAuth in the header',
+	async () => {
+		let requestedUrl = ''
+		let signal: AbortSignal | null | undefined
+		let requestHeaders = new Headers()
+		const fetcher = ((url: string | URL | Request, init?: RequestInit) => {
+			requestedUrl = String(url)
+			signal = init?.signal
+			requestHeaders = new Headers(init?.headers)
+			return Promise.resolve(Response.json({ id: 1 }))
+		}) as typeof fetch
 
-	const response = await makeAuthenticatedRequest(
-		'https://api.discogs.com/releases/1',
-		credentials({
-			access_token: 'fixture-token',
-			access_secret: 'fixture-secret'
-		}),
-		fetcher,
-		12_000,
-		config
-	)
+		const response = await makeAuthenticatedRequest(
+			'https://api.discogs.com/releases/1?page=2&per_page=100',
+			credentials({
+				access_token: 'fixture-token',
+				access_secret: 'fixture-secret'
+			}),
+			fetcher,
+			12_000,
+			config
+		)
 
-	assert.equal(response.status, 200)
-	assert.equal(
-		requestedUrl.startsWith('https://api.discogs.com/releases/1?'),
-		true
-	)
-	assert.equal(requestedUrl.includes('oauth_signature='), true)
-	assert.ok(signal instanceof AbortSignal)
-})
+		const authorization = requestHeaders.get('Authorization') ?? ''
+		const oauthParameters = Object.fromEntries(
+			authorization
+				.slice('OAuth '.length)
+				.split(', ')
+				.map((field) => {
+					const separator = field.indexOf('=')
+					return [
+						decodeURIComponent(field.slice(0, separator)),
+						decodeURIComponent(field.slice(separator + 2, -1))
+					]
+				})
+		)
+		const { oauth_signature: signature, ...signatureOAuthParameters } =
+			oauthParameters
+		const expectedSignature = oauthSignature.generate(
+			'GET',
+			'https://api.discogs.com/releases/1',
+			{
+				...signatureOAuthParameters,
+				page: '2',
+				per_page: '100'
+			},
+			config.consumerSecret,
+			'fixture-secret',
+			{ encodeSignature: false }
+		)
+
+		assert.equal(response.status, 200)
+		assert.equal(
+			requestedUrl,
+			'https://api.discogs.com/releases/1?page=2&per_page=100'
+		)
+		assert.equal(requestedUrl.includes('oauth_'), false)
+		assert.equal(requestHeaders.get('User-Agent'), config.userAgent)
+		assert.equal(authorization.startsWith('OAuth '), true)
+		assert.equal(oauthParameters.oauth_token, 'fixture-token')
+		assert.equal(signature, expectedSignature)
+		assert.ok(signal instanceof AbortSignal)
+	}
+)
