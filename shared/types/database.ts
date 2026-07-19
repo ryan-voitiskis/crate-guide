@@ -311,6 +311,25 @@ export type Database = {
 			[_ in never]: never
 		}
 		Functions: {
+			add_record_to_crate: {
+				Args: { target_crate_id: string; target_record_id: string }
+				Returns: {
+					color: string | null
+					created_at: string | null
+					description: string | null
+					id: string
+					name: string
+					records: string[]
+					updated_at: string | null
+					user_id: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'crates'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			consume_discogs_request_quota: {
 				Args: {
 					global_limit: number
@@ -332,6 +351,25 @@ export type Database = {
 			remove_record_from_collection: {
 				Args: { target_record_id: string }
 				Returns: Json
+			}
+			remove_record_from_crate: {
+				Args: { target_crate_id: string; target_record_id: string }
+				Returns: {
+					color: string | null
+					created_at: string | null
+					description: string | null
+					id: string
+					name: string
+					records: string[]
+					updated_at: string | null
+					user_id: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'crates'
+					isOneToOne: true
+					isSetofReturn: false
+				}
 			}
 		}
 		Enums: {

@@ -8,6 +8,15 @@ type FetchContext = {
 	userId: string
 }
 
+type CrateMetadataUpdate = Partial<
+	Omit<Crate, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'records'>
+>
+
+type CrateMembershipRpc = 'add_record_to_crate' | 'remove_record_from_crate'
+
+const POSTGRES_TIMESTAMP_PATTERN =
+	/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?(Z|[+-]\d{2}:\d{2})$/
+
 export const useCratesStore = defineStore('crates', () => {
 	const supabase = useSupabaseClient<Database>()
 	const pinia = getActivePinia()
@@ -22,6 +31,8 @@ export const useCratesStore = defineStore('crates', () => {
 	let fetchPromise: Promise<boolean> | null = null
 	let accountGeneration = 0
 	let activeFetchUserId: string | null = null
+	let activeMembershipMutations = 0
+	const appliedMembershipVersions = new Map<string, bigint>()
 
 	// Dialog state (store-based pattern)
 	const crateToDelete = ref<Crate | null>(null)
@@ -130,9 +141,7 @@ export const useCratesStore = defineStore('crates', () => {
 
 	async function updateCrate(
 		id: string,
-		updates: Partial<
-			Omit<Crate, 'id' | 'user_id' | 'created_at' | 'updated_at'>
-		>
+		updates: CrateMetadataUpdate
 	): Promise<Crate | null> {
 		if (isDemoStore) return null
 		isUpdatingCrate.value = true
@@ -169,6 +178,85 @@ export const useCratesStore = defineStore('crates', () => {
 			return null
 		} finally {
 			isUpdatingCrate.value = false
+		}
+	}
+
+	function postgresTimestampMicroseconds(value: string | null): bigint | null {
+		if (!value) return null
+		const match = POSTGRES_TIMESTAMP_PATTERN.exec(value)
+		if (!match) return null
+
+		const [, date, time, fraction = '', offset] = match
+		const wholeSecondMilliseconds = Date.parse(`${date}T${time}${offset}`)
+		if (!Number.isFinite(wholeSecondMilliseconds)) return null
+
+		return (
+			BigInt(wholeSecondMilliseconds) * 1000n + BigInt(fraction.padEnd(6, '0'))
+		)
+	}
+
+	function decodeMembershipCrate(
+		data: unknown,
+		crateId: string
+	): { crate: Crate; serverUpdatedAt: bigint } {
+		if (!data || typeof data !== 'object') {
+			throw new Error('Invalid crate membership response.')
+		}
+
+		const crate = data as Partial<Crate>
+		const parsedUpdatedAt = postgresTimestampMicroseconds(
+			typeof crate.updated_at === 'string' ? crate.updated_at : null
+		)
+		if (
+			crate.id !== crateId ||
+			!Array.isArray(crate.records) ||
+			parsedUpdatedAt === null
+		) {
+			throw new Error('Invalid crate membership response.')
+		}
+
+		return { crate: data as Crate, serverUpdatedAt: parsedUpdatedAt }
+	}
+
+	function reconcileMembershipCrate(
+		crate: Crate,
+		serverUpdatedAt: bigint
+	): void {
+		const appliedVersion = appliedMembershipVersions.get(crate.id)
+		if (appliedVersion !== undefined && serverUpdatedAt <= appliedVersion)
+			return
+
+		appliedMembershipVersions.set(crate.id, serverUpdatedAt)
+		const crateIndex = crates.value.findIndex(({ id }) => id === crate.id)
+		if (crateIndex !== -1) crates.value[crateIndex] = crate
+	}
+
+	async function mutateCrateMembership(
+		rpcName: CrateMembershipRpc,
+		crateId: string,
+		recordId: string
+	): Promise<Crate | null> {
+		activeMembershipMutations += 1
+		isUpdatingCrate.value = true
+
+		try {
+			const { data, error } = await supabase.rpc(rpcName, {
+				target_crate_id: crateId,
+				target_record_id: recordId
+			})
+			if (error) throw error
+
+			const { crate: authoritativeCrate, serverUpdatedAt } =
+				decodeMembershipCrate(data, crateId)
+			reconcileMembershipCrate(authoritativeCrate, serverUpdatedAt)
+			return authoritativeCrate
+		} catch (error) {
+			console.error('Failed to update crate:', error)
+			toast.error('Error updating crate.')
+			return null
+		} finally {
+			activeMembershipMutations -= 1
+			if (activeMembershipMutations === 0) isUpdatingCrate.value = false
 		}
 	}
 
@@ -219,9 +307,13 @@ export const useCratesStore = defineStore('crates', () => {
 			if (!options?.silent) toast.info('Record is already in this crate.')
 			return false
 		}
+		if (isDemoStore) return false
 
-		const updatedRecords = [...crate.records, recordId]
-		const result = await updateCrate(crateId, { records: updatedRecords })
+		const result = await mutateCrateMembership(
+			'add_record_to_crate',
+			crateId,
+			recordId
+		)
 
 		if (result) {
 			if (!options?.silent) toast.success('Record added to crate.')
@@ -244,9 +336,13 @@ export const useCratesStore = defineStore('crates', () => {
 			toast.info('Record is not in this crate.')
 			return false
 		}
+		if (isDemoStore) return false
 
-		const updatedRecords = crate.records.filter((id) => id !== recordId)
-		const result = await updateCrate(crateId, { records: updatedRecords })
+		const result = await mutateCrateMembership(
+			'remove_record_from_crate',
+			crateId,
+			recordId
+		)
 
 		return Boolean(result)
 	}
@@ -280,6 +376,7 @@ export const useCratesStore = defineStore('crates', () => {
 		accountGeneration += 1
 		fetchPromise = null
 		activeFetchUserId = null
+		appliedMembershipVersions.clear()
 		isLoadingCrates.value = false
 		crates.value = []
 	}
