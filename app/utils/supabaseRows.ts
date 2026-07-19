@@ -274,6 +274,7 @@ export function decodeTrackRow(
 	row: Database['public']['Tables']['tracks']['Row']
 ): DecodedRow<Track> {
 	const issues: DecodeIssue[] = []
+	const { user_id: _transportUserId, ...domainRow } = row
 	const artists = isDiscogsArtistArray(row.artists) ? row.artists : []
 	const extraartists = isDiscogsArtistArray(row.extraartists)
 		? row.extraartists
@@ -299,7 +300,7 @@ export function decodeTrackRow(
 
 	return {
 		row: {
-			...row,
+			...domainRow,
 			artists,
 			extraartists,
 			genres,

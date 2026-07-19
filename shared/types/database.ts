@@ -310,6 +310,7 @@ export type Database = {
 					time_signature_upper: number | null
 					title: string
 					updated_at: string | null
+					user_id: string
 				}
 				Insert: {
 					artists?: Json
@@ -331,6 +332,7 @@ export type Database = {
 					time_signature_upper?: number | null
 					title: string
 					updated_at?: string | null
+					user_id?: string
 				}
 				Update: {
 					artists?: Json
@@ -352,14 +354,15 @@ export type Database = {
 					time_signature_upper?: number | null
 					title?: string
 					updated_at?: string | null
+					user_id?: string
 				}
 				Relationships: [
 					{
-						foreignKeyName: 'tracks_record_id_fkey'
-						columns: ['record_id']
+						foreignKeyName: 'tracks_user_id_record_id_fkey'
+						columns: ['user_id', 'record_id']
 						isOneToOne: false
 						referencedRelation: 'records'
-						referencedColumns: ['id']
+						referencedColumns: ['user_id', 'id']
 					}
 				]
 			}

@@ -69,7 +69,7 @@ function createMockOwnedTrack(
 ) {
 	return {
 		...createMockTrack(overrides),
-		records: { user_id: userId }
+		user_id: userId
 	}
 }
 
@@ -178,11 +178,11 @@ describe('tracksStore', () => {
 				{
 					...createMockTrack({ id: 'track-1' }),
 					future_scalar: 'preserved',
-					records: { user_id: 'test-user-id' }
+					user_id: 'test-user-id'
 				},
 				{
 					...createMockTrack({ id: 'track-2' }),
-					records: { user_id: 'test-user-id' }
+					user_id: 'test-user-id'
 				}
 			]
 			mockQueryBuilder.range.mockResolvedValue({ data: mockData, error: null })
@@ -192,7 +192,7 @@ describe('tracksStore', () => {
 			expect(result).toBe(true)
 			expect(store.tracks.length).toBe(2)
 			expect(store.tracks[0]!.id).toBe('track-1')
-			expect(store.tracks[0]).not.toHaveProperty('records')
+			expect(store.tracks[0]).not.toHaveProperty('user_id')
 			expect(store.tracks[0]).toHaveProperty('future_scalar', 'preserved')
 		})
 
@@ -367,12 +367,12 @@ describe('tracksStore', () => {
 			const store = useTracksStore()
 			const firstPage = Array.from({ length: 1000 }, (_, index) => ({
 				...createMockTrack({ id: `track-${1001 - index}` }),
-				records: { user_id: 'test-user-id' }
+				user_id: 'test-user-id'
 			}))
 			const secondPage = [
 				{
 					...createMockTrack({ id: 'track-1' }),
-					records: { user_id: 'test-user-id' }
+					user_id: 'test-user-id'
 				}
 			]
 			mockQueryBuilder.range
@@ -385,11 +385,18 @@ describe('tracksStore', () => {
 				...firstPage.map((track) => track.id),
 				'track-1'
 			])
-			expect(mockQueryBuilder.select).toHaveBeenCalledWith(
-				'*, records!inner(user_id)'
+			expect(mockQueryBuilder.select).toHaveBeenCalledTimes(2)
+			expect(mockQueryBuilder.select).toHaveBeenNthCalledWith(1, '*')
+			expect(mockQueryBuilder.select).toHaveBeenNthCalledWith(2, '*')
+			expect(mockQueryBuilder.eq).toHaveBeenCalledTimes(2)
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				1,
+				'user_id',
+				'test-user-id'
 			)
-			expect(mockQueryBuilder.eq).toHaveBeenCalledWith(
-				'records.user_id',
+			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+				2,
+				'user_id',
 				'test-user-id'
 			)
 			expect(mockQueryBuilder.order.mock.calls).toEqual([
@@ -404,6 +411,44 @@ describe('tracksStore', () => {
 			])
 		})
 
+		it('fails closed before replacing state when any page has another owner', async () => {
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined)
+			const store = useTracksStore()
+			const existingTrack = createMockTrack({ id: 'existing-track' })
+			store.tracks = [existingTrack]
+			mockQueryBuilder.range
+				.mockResolvedValueOnce({
+					data: Array.from({ length: 1000 }, (_, index) =>
+						createMockOwnedTrack({ id: `track-${index}` })
+					),
+					error: null
+				})
+				.mockResolvedValueOnce({
+					data: [
+						createMockOwnedTrack(
+							{ id: 'unexpected-owner-track' },
+							'other-user-id'
+						)
+					],
+					error: null
+				})
+
+			try {
+				await expect(store.fetchAllTracks()).resolves.toBe(false)
+
+				expect(store.tracks).toEqual([existingTrack])
+				expect(mockToast.error).toHaveBeenCalledOnce()
+				expect(mockToast.error).toHaveBeenCalledWith('Error fetching tracks.')
+				expect(JSON.stringify(mockToast.error.mock.calls)).not.toContain(
+					'other-user-id'
+				)
+			} finally {
+				consoleError.mockRestore()
+			}
+		})
+
 		it('preserves prior tracks when a later page fails', async () => {
 			const store = useTracksStore()
 			const existingTrack = createMockTrack({ id: 'existing-track' })
@@ -412,7 +457,7 @@ describe('tracksStore', () => {
 				.mockResolvedValueOnce({
 					data: Array.from({ length: 1000 }, (_, index) => ({
 						...createMockTrack({ id: `track-${index}` }),
-						records: { user_id: 'test-user-id' }
+						user_id: 'test-user-id'
 					})),
 					error: null
 				})
@@ -444,7 +489,7 @@ describe('tracksStore', () => {
 							version: 2,
 							privateValue
 						},
-						records: { user_id: 'test-user-id' }
+						user_id: 'test-user-id'
 					}
 				],
 				error: null
@@ -455,7 +500,7 @@ describe('tracksStore', () => {
 
 				expect(store.tracks[0]!.artists).toEqual([])
 				expect(store.tracks[0]!.audio_features).toBeNull()
-				expect(store.tracks[0]).not.toHaveProperty('records')
+				expect(store.tracks[0]).not.toHaveProperty('user_id')
 				expect(consoleWarn).toHaveBeenCalledOnce()
 				expect(consoleWarn).toHaveBeenCalledWith(
 					'Invalid saved data was reset to safe defaults',
@@ -507,7 +552,7 @@ describe('tracksStore', () => {
 			const mockData = [
 				{
 					...createMockTrack({ id: 'track-1', audio_features: audioFeatures }),
-					records: { user_id: 'test-user-id' }
+					user_id: 'test-user-id'
 				}
 			]
 			mockQueryBuilder.range.mockResolvedValue({ data: mockData, error: null })
@@ -617,7 +662,7 @@ describe('tracksStore', () => {
 				id: 'new-track-id'
 			})
 			mockQueryBuilder.single.mockResolvedValue({
-				data: createdTrack,
+				data: { ...createdTrack, user_id: 'test-user-id' },
 				error: null
 			})
 
@@ -628,6 +673,11 @@ describe('tracksStore', () => {
 			)
 			expect(result?.id).toBe('new-track-id')
 			expect(store.tracks[0]!.id).toBe('new-track-id')
+			expect(result).not.toHaveProperty('user_id')
+			expect(store.tracks[0]).not.toHaveProperty('user_id')
+			expect(mockQueryBuilder.insert.mock.calls[0]![0]).not.toHaveProperty(
+				'user_id'
+			)
 		})
 
 		it('decodes the created track response before assignment', async () => {
@@ -821,13 +871,18 @@ describe('tracksStore', () => {
 				updated_at: '2024-01-01T00:00:00Z'
 			})
 			mockQueryBuilder.single.mockResolvedValue({
-				data: serverResponse,
+				data: { ...serverResponse, user_id: 'test-user-id' },
 				error: null
 			})
 
-			await store.updateTrack('track-1', { title: 'Updated' })
+			const result = await store.updateTrack('track-1', { title: 'Updated' })
 
 			expect(store.tracks[0]!.updated_at).toBe('2024-01-01T00:00:00Z')
+			expect(result).not.toHaveProperty('user_id')
+			expect(store.tracks[0]).not.toHaveProperty('user_id')
+			expect(mockQueryBuilder.update.mock.calls[0]![0]).not.toHaveProperty(
+				'user_id'
+			)
 		})
 
 		it('decodes the updated track response before assignment', async () => {

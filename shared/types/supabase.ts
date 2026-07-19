@@ -25,7 +25,12 @@ export type DatabaseRecord = Omit<
 
 export type Track = Omit<
 	Database['public']['Tables']['tracks']['Row'],
-	'artists' | 'extraartists' | 'genres' | 'beatport_data' | 'audio_features'
+	| 'user_id'
+	| 'artists'
+	| 'extraartists'
+	| 'genres'
+	| 'beatport_data'
+	| 'audio_features'
 > & {
 	artists: DiscogsArtistDb[]
 	extraartists: DiscogsArtistDb[]

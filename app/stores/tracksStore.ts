@@ -173,18 +173,18 @@ export const useTracksStore = defineStore('tracks', () => {
 			const rows = await fetchAllSupabasePages(async (from, to) => {
 				return await supabase
 					.from('tracks')
-					.select(`*, records!inner(user_id)`)
-					.eq('records.user_id', userId)
+					.select('*')
+					.eq('user_id', userId)
 					.order('created_at', { ascending: false })
 					.order('id', { ascending: false })
 					.range(from, to)
 			})
 			if (!isCurrentFetchContext(context)) return false
+			if (rows.some((track) => track.user_id !== userId)) {
+				throw new Error('Track ownership validation failed')
+			}
 
-			const decodedRows = rows.map((track) => {
-				const { records: _joinedRecord, ...trackRow } = track
-				return decodeTrackRow(trackRow)
-			})
+			const decodedRows = rows.map(decodeTrackRow)
 			const issues = decodedRows.flatMap((decoded) => decoded.issues)
 			reportDecodeIssues(issues, (message) => toast.warning(message))
 			tracks.value = decodedRows.map((decoded) => decoded.row)

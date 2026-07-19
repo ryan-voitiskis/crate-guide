@@ -258,6 +258,7 @@ const audioMutations: AudioMutation[] = [
 function createTrackRow(overrides: Partial<TrackRow> = {}): TrackRow {
 	return {
 		id: 'track-synthetic',
+		user_id: 'user-synthetic',
 		record_id: 'record-synthetic',
 		title: 'Synthetic track',
 		artists: [{ discogs_id: 1, name: 'Synthetic artist', role: null }],
@@ -348,7 +349,9 @@ describe('decodeTrackRow', () => {
 
 		const decoded = decodeTrackRow(row)
 
-		expect(decoded.row).toEqual(row)
+		const { user_id: _transportUserId, ...domainRow } = row
+		expect(decoded.row).toEqual(domainRow)
+		expect(decoded.row).not.toHaveProperty('user_id')
 		expect(decoded.row.beatport_data).toBe(beatportData)
 		expect(decoded.row.audio_features).toBe(validAudioFeatures)
 		expect(decoded.row.audio_features).toHaveProperty(
