@@ -76,6 +76,7 @@ const cropPositionY = ref(50)
 const fileInputRef = ref<HTMLInputElement>()
 const filePickerButtonRef = ref<ComponentPublicInstance>()
 const coverEditorRef = ref<HTMLElement>()
+let coverInspectionGeneration = 0
 
 const coverPreviewRecord = computed(() => {
 	const record = recordDetails.selectedRecord
@@ -178,13 +179,19 @@ function hasFormChanges(): boolean {
 
 function handleCloseDialog() {
 	if (hasFormChanges()) showUnsavedChangesAlert.value = true
-	else recordDetails.closeRecord()
+	else {
+		resetCoverEditor()
+		recordDetails.closeRecord()
+	}
 }
 
 function handleToggleEditMode() {
 	if (recordDetails.isEditMode && hasFormChanges())
 		showUnsavedChangesAlert.value = true
-	else recordDetails.toggleEditMode()
+	else {
+		if (recordDetails.isEditMode) resetCoverEditor()
+		recordDetails.toggleEditMode()
+	}
 }
 
 const saveRecord = handleSubmit(async (values) => {
@@ -223,7 +230,10 @@ const saveRecord = handleSubmit(async (values) => {
 
 function handleCancelEdit() {
 	if (hasFormChanges()) showUnsavedChangesAlert.value = true
-	else recordDetails.toggleEditMode()
+	else {
+		resetCoverEditor()
+		recordDetails.toggleEditMode()
+	}
 }
 
 function confirmDiscardAndProceed() {
@@ -239,7 +249,13 @@ function revokePendingCoverPreview() {
 	pendingCoverPreviewUrl.value = null
 }
 
+function advanceCoverInspectionGeneration(): number {
+	coverInspectionGeneration += 1
+	return coverInspectionGeneration
+}
+
 function resetCoverEditor() {
+	advanceCoverInspectionGeneration()
 	revokePendingCoverPreview()
 	pendingCoverFile.value = null
 	pendingCoverRemoval.value = false
@@ -252,6 +268,7 @@ function resetCoverEditor() {
 }
 
 async function inspectCoverFile(file: File) {
+	const inspectionGeneration = advanceCoverInspectionGeneration()
 	const fileError = validateRecordCoverFile(file)
 	if (fileError) {
 		pendingCoverError.value = fileError
@@ -268,6 +285,11 @@ async function inspectCoverFile(file: File) {
 			image.onerror = () => reject(new Error('The image could not be decoded.'))
 			image.src = previewUrl
 		})
+
+		if (inspectionGeneration !== coverInspectionGeneration) {
+			URL.revokeObjectURL(previewUrl)
+			return
+		}
 
 		const dimensionError = validateRecordCoverDimensions(
 			image.naturalWidth,
@@ -288,6 +310,7 @@ async function inspectCoverFile(file: File) {
 		cropPositionY.value = 50
 	} catch (error) {
 		URL.revokeObjectURL(previewUrl)
+		if (inspectionGeneration !== coverInspectionGeneration) return
 		pendingCoverError.value =
 			error instanceof Error ? error.message : 'The image could not be read.'
 	}
@@ -310,6 +333,7 @@ function chooseCoverFile() {
 }
 
 function clearPendingFile() {
+	advanceCoverInspectionGeneration()
 	revokePendingCoverPreview()
 	pendingCoverFile.value = null
 	pendingCoverError.value = ''
@@ -349,7 +373,10 @@ function startCoverEdit() {
 	void focusCoverEditor()
 }
 
-onUnmounted(revokePendingCoverPreview)
+onUnmounted(() => {
+	advanceCoverInspectionGeneration()
+	revokePendingCoverPreview()
+})
 </script>
 
 <template>
