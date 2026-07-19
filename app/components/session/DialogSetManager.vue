@@ -71,7 +71,7 @@ onMounted(() => {
 				</DialogDescription>
 			</DialogHeader>
 
-			<div class="min-h-[300px] py-4">
+			<div class="min-h-75 py-4">
 				<!-- Loading state -->
 				<div
 					v-if="session.isLoadingSets"
@@ -94,7 +94,7 @@ onMounted(() => {
 				</div>
 
 				<!-- Sets list and detail view -->
-				<div v-else class="flex h-[400px] gap-4">
+				<div v-else class="flex h-100 gap-4">
 					<!-- Sets list -->
 					<ScrollArea class="w-1/2">
 						<div class="space-y-1 pr-2">
@@ -142,7 +142,7 @@ onMounted(() => {
 								</Button>
 							</div>
 
-							<ScrollArea class="h-[320px]">
+							<ScrollArea class="h-80">
 								<div class="space-y-2 pr-2">
 									<div
 										v-for="(entry, index) in selectedSet.played_tracks"

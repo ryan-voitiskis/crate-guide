@@ -250,7 +250,7 @@ async function focusFirstField() {
 						v-for="(artist, index) in artists"
 						:key="`artist-${artist.name}-${index}`"
 						:class="[
-							'grid !h-11 max-sm:!h-auto',
+							'grid h-11! max-sm:h-auto!',
 							isEditMode
 								? 'grid-cols-[44px_64px_3fr_2fr_84px] max-sm:grid-cols-[44px_1fr_84px]'
 								: 'grid-cols-[64px_3fr_2fr] max-sm:grid-cols-[1fr]'
@@ -259,7 +259,7 @@ async function focusFirstField() {
 						<!-- Drag Handle -->
 						<TableCell
 							v-if="isEditMode"
-							class="drag-handle text-muted-foreground hover:text-accent-foreground bp-0 flex !h-11 w-full cursor-grab items-center justify-center whitespace-normal transition-colors active:cursor-grabbing max-sm:!h-auto"
+							class="drag-handle text-muted-foreground hover:text-accent-foreground bp-0 flex h-11! w-full cursor-grab items-center justify-center whitespace-normal transition-colors active:cursor-grabbing max-sm:h-auto!"
 							:class="{ 'cursor-not-allowed opacity-50': isFormActive }"
 						>
 							<GripVertical class="size-4" />
@@ -361,7 +361,7 @@ async function focusFirstField() {
 						<!-- Actions -->
 						<TableCell
 							v-if="isEditMode"
-							class="flex !h-11 items-center justify-end gap-1 p-1 whitespace-normal max-sm:!h-auto"
+							class="flex h-11! items-center justify-end gap-1 p-1 whitespace-normal max-sm:h-auto!"
 						>
 							<Button
 								v-if="isEditingRow(index)"
@@ -415,7 +415,7 @@ async function focusFirstField() {
 				<tbody v-if="formMode === 'new'" class="contents">
 					<TableRow
 						:class="[
-							'grid !h-11 max-sm:!h-auto',
+							'grid h-11! max-sm:h-auto!',
 							isEditMode
 								? 'grid-cols-[44px_64px_3fr_2fr_84px] max-sm:grid-cols-[44px_1fr_84px]'
 								: 'grid-cols-[64px_3fr_2fr] max-sm:grid-cols-[1fr]'
@@ -423,7 +423,7 @@ async function focusFirstField() {
 					>
 						<TableCell
 							v-if="isEditMode"
-							class="flex !h-11 items-center whitespace-normal max-sm:!h-auto"
+							class="flex h-11! items-center whitespace-normal max-sm:h-auto!"
 						>
 							<!-- Empty cell for drag handle -->
 						</TableCell>
@@ -490,7 +490,7 @@ async function focusFirstField() {
 						</TableCell>
 
 						<TableCell
-							class="flex !h-11 items-center justify-end gap-1 p-1 whitespace-normal max-sm:!h-auto"
+							class="flex h-11! items-center justify-end gap-1 p-1 whitespace-normal max-sm:h-auto!"
 						>
 							<Button
 								size="icon"

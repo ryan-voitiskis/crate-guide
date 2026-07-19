@@ -309,7 +309,7 @@ function handleInteractOutside(event: Event) {
 			<div class="flex min-h-0 flex-1 flex-col overflow-hidden py-4 pr-2 pl-6">
 				<div
 					v-if="crateRecords.length === 0"
-					class="flex min-h-[200px] flex-col items-center justify-center text-center"
+					class="flex min-h-50 flex-col items-center justify-center text-center"
 				>
 					<div class="bg-muted mb-4 rounded-full p-4">
 						<Disc3 class="text-muted-foreground size-8" />

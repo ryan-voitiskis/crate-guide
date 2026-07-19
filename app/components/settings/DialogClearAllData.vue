@@ -36,7 +36,7 @@ async function handleDelete() {
 	<Button variant="destructive" @click="openDialog">Clear All Data</Button>
 
 	<Dialog v-model:open="showDialog">
-		<DialogContent class="sm:max-w-[425px]">
+		<DialogContent class="sm:max-w-106.25">
 			<DialogHeader>
 				<DialogTitle class="flex items-center gap-2">
 					<AlertTriangle class="text-destructive size-5" />

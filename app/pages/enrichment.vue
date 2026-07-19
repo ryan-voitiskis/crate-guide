@@ -237,7 +237,7 @@ function handleFileDrop(file: File) {
 					currentStep === 1
 						? 'mx-auto max-w-3xl gap-3 p-3 pt-5 pb-0 sm:p-4 sm:pt-8 sm:pb-0'
 						: currentStep !== 2
-							? 'mx-auto max-w-[1600px] gap-3 p-3 pb-0 sm:p-4 sm:pb-0'
+							? 'mx-auto max-w-400 gap-3 p-3 pb-0 sm:p-4 sm:pb-0'
 							: 'min-h-full md:h-full md:min-h-0'
 				"
 			>

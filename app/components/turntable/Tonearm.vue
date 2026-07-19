@@ -9,7 +9,7 @@ defineProps<{
 	<!-- Base layer: pivot well + platform (renders below platter) -->
 	<svg
 		v-if="layer === 'base'"
-		class="absolute top-3 -right-[50px] z-0 h-[190px] w-[100px]"
+		class="absolute top-3 -right-12.5 z-0 h-47.5 w-25"
 		viewBox="-25 0 100 210"
 		overflow="visible"
 	>
@@ -55,7 +55,7 @@ defineProps<{
 	<!-- Arm layer: arm + bearing housing (renders above platter) -->
 	<svg
 		v-else
-		class="absolute top-3 -right-[50px] z-20 h-[190px] w-[100px]"
+		class="absolute top-3 -right-12.5 z-20 h-47.5 w-25"
 		viewBox="-25 0 100 210"
 		overflow="visible"
 	>

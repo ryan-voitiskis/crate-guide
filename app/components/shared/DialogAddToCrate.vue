@@ -151,7 +151,7 @@ function handleCrateCreated(crate: Crate) {
 				</div>
 
 				<!-- Crate list -->
-				<ScrollArea v-else class="max-h-[300px]">
+				<ScrollArea v-else class="max-h-75">
 					<div class="space-y-1">
 						<div
 							v-for="crate in cratesStore.crates"
@@ -160,7 +160,7 @@ function handleCrateCreated(crate: Crate) {
 							@click="toggleCrate(crate.id)"
 						>
 							<div
-								class="border-input flex size-4 shrink-0 items-center justify-center rounded-[4px] border shadow-xs"
+								class="border-input flex size-4 shrink-0 items-center justify-center rounded-md border shadow-xs"
 								:class="
 									isSelected(crate.id)
 										? 'bg-primary border-primary text-primary-foreground'

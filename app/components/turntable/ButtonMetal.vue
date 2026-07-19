@@ -20,8 +20,8 @@ defineProps<{
 			:class="variant === 'start-stop' ? 'inset-[1.5px]' : 'inset-0'"
 		>
 			<span
-				class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 bg-[url(/textures/brushed-metal-009.jpg)] [background-size:100%_100%] bg-no-repeat opacity-[0.34] mix-blend-multiply"
-				:class="variant === 'start-stop' ? 'h-[54px] w-[34px]' : 'h-9 w-3.5'"
+				class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 bg-[url(/textures/brushed-metal-009.jpg)] bg-size-[100%_100%] bg-no-repeat opacity-[0.34] mix-blend-multiply"
+				:class="variant === 'start-stop' ? 'h-13.5 w-8.5' : 'h-9 w-3.5'"
 			/>
 			<span
 				class="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.42)_0%,transparent_28%,rgba(0,0,0,0.08)_100%)]"

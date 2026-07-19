@@ -13,7 +13,7 @@
 			r="25"
 		/>
 		<path
-			class="fill-none stroke-white [stroke-width:2] [stroke-linecap:round] [stroke-linejoin:round]"
+			class="fill-none stroke-white stroke-2 [stroke-linecap:round] [stroke-linejoin:round]"
 			fill="none"
 			d="M14.1 27.2l7.1 7.2 16.7-16.8"
 		/>

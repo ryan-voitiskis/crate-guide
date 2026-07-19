@@ -1,6 +1,6 @@
 <template>
 	<footer
-		class="bg-workbench-inset text-foreground border-border flex min-h-7 shrink-0 items-center gap-3 border-t px-2 font-mono text-[9px] tracking-[0.1em] uppercase sm:px-3"
+		class="bg-workbench-inset text-foreground border-border flex min-h-7 shrink-0 items-center gap-3 border-t px-2 font-mono text-[9px] tracking-widest uppercase sm:px-3"
 		aria-label="Public session status"
 	>
 		<div class="flex shrink-0 items-center gap-1.5">

@@ -67,7 +67,7 @@ watch(
 			<!-- Page-specific actions retain the existing teleport contract. -->
 			<div
 				id="header-left"
-				class="scrollbar-hidden flex min-w-0 flex-1 items-center gap-2 overflow-x-auto [&>*]:shrink-0"
+				class="scrollbar-hidden flex min-w-0 flex-1 items-center gap-2 overflow-x-auto *:shrink-0"
 			/>
 
 			<div v-if="isDemo" class="hidden shrink-0 items-center gap-2 sm:flex">

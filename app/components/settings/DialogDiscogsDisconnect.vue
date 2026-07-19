@@ -14,7 +14,7 @@ async function handleDisconnect() {
 	</Button>
 
 	<Dialog v-model:open="showDialog">
-		<DialogContent class="sm:max-w-[425px]">
+		<DialogContent class="sm:max-w-106.25">
 			<DialogHeader>
 				<DialogTitle>Disconnect Discogs</DialogTitle>
 				<DialogDescription class="text-muted-foreground text-sm">

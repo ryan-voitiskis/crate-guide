@@ -118,7 +118,7 @@ const legendMarkClass = computed(() =>
 const pitchValueClass =
 	'font-mono text-[13px] leading-none font-semibold tabular-nums'
 const resetButtonClass =
-	'flex h-8 w-8 items-center justify-center rounded-full bg-[#171716] p-[2px] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.85)] transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:hover:brightness-100'
+	'flex h-8 w-8 items-center justify-center rounded-full bg-[#171716] p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.85)] transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:hover:brightness-100'
 const resetButtonFaceClass =
 	'pointer-events-none block h-full w-full rounded-full bg-[radial-gradient(circle_at_35%_30%,#ffffff_0%,#d9d9d6_34%,#a8a8a2_68%,#f2f0e8_100%)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),inset_0_-2px_3px_rgba(0,0,0,0.18),0_0_0_1px_rgba(255,255,255,0.14)]'
 const moduleShellClass = computed(() =>
@@ -151,13 +151,13 @@ const compactRailPanelClass = computed(() =>
 )
 const brushedScaleGrainClass = computed(() =>
 	isSilverTurntableTheme.value
-		? 'pointer-events-none absolute inset-0 bg-[linear-gradient(92deg,rgba(255,255,255,0.26)_0%,transparent_20%,rgba(0,0,0,0.14)_42%,transparent_60%,rgba(255,255,255,0.18)_78%,rgba(0,0,0,0.08)_100%),linear-gradient(180deg,rgba(255,255,255,0.15)_0%,transparent_34%,rgba(0,0,0,0.1)_100%),url(/textures/brushed-metal-009.jpg)] bg-no-repeat opacity-[0.34] mix-blend-multiply [background-size:100%_100%,100%_100%,100%_100%]'
-		: 'pointer-events-none absolute inset-0 bg-[linear-gradient(92deg,rgba(255,255,255,0.16)_0%,transparent_18%,rgba(0,0,0,0.18)_37%,transparent_56%,rgba(255,255,255,0.13)_73%,rgba(0,0,0,0.12)_100%),linear-gradient(180deg,rgba(255,255,255,0.1)_0%,transparent_34%,rgba(0,0,0,0.24)_100%),url(/textures/brushed-metal-009.jpg)] bg-no-repeat opacity-90 mix-blend-soft-light [background-size:100%_100%,100%_100%,100%_100%]'
+		? 'pointer-events-none absolute inset-0 bg-[linear-gradient(92deg,rgba(255,255,255,0.26)_0%,transparent_20%,rgba(0,0,0,0.14)_42%,transparent_60%,rgba(255,255,255,0.18)_78%,rgba(0,0,0,0.08)_100%),linear-gradient(180deg,rgba(255,255,255,0.15)_0%,transparent_34%,rgba(0,0,0,0.1)_100%),url(/textures/brushed-metal-009.jpg)] bg-no-repeat opacity-[0.34] mix-blend-multiply bg-size-[100%_100%,100%_100%,100%_100%]'
+		: 'pointer-events-none absolute inset-0 bg-[linear-gradient(92deg,rgba(255,255,255,0.16)_0%,transparent_18%,rgba(0,0,0,0.18)_37%,transparent_56%,rgba(255,255,255,0.13)_73%,rgba(0,0,0,0.12)_100%),linear-gradient(180deg,rgba(255,255,255,0.1)_0%,transparent_34%,rgba(0,0,0,0.24)_100%),url(/textures/brushed-metal-009.jpg)] bg-no-repeat opacity-90 mix-blend-soft-light bg-size-[100%_100%,100%_100%,100%_100%]'
 )
 const brushedRailGrainClass = computed(() =>
 	isSilverTurntableTheme.value
-		? 'pointer-events-none absolute inset-0 bg-[linear-gradient(92deg,rgba(255,255,255,0.22)_0%,transparent_22%,rgba(0,0,0,0.16)_44%,transparent_62%,rgba(255,255,255,0.16)_80%,rgba(0,0,0,0.09)_100%),linear-gradient(180deg,rgba(255,255,255,0.13)_0%,transparent_32%,rgba(0,0,0,0.11)_100%),url(/textures/brushed-metal-009.jpg)] bg-no-repeat opacity-[0.36] mix-blend-multiply [background-size:100%_100%,100%_100%,100%_100%]'
-		: 'pointer-events-none absolute inset-0 bg-[linear-gradient(92deg,rgba(255,255,255,0.14)_0%,transparent_20%,rgba(0,0,0,0.22)_43%,transparent_62%,rgba(255,255,255,0.11)_78%,rgba(0,0,0,0.14)_100%),linear-gradient(180deg,rgba(255,255,255,0.09)_0%,transparent_32%,rgba(0,0,0,0.28)_100%),url(/textures/brushed-metal-009.jpg)] bg-no-repeat opacity-95 mix-blend-soft-light [background-size:100%_100%,100%_100%,100%_100%]'
+		? 'pointer-events-none absolute inset-0 bg-[linear-gradient(92deg,rgba(255,255,255,0.22)_0%,transparent_22%,rgba(0,0,0,0.16)_44%,transparent_62%,rgba(255,255,255,0.16)_80%,rgba(0,0,0,0.09)_100%),linear-gradient(180deg,rgba(255,255,255,0.13)_0%,transparent_32%,rgba(0,0,0,0.11)_100%),url(/textures/brushed-metal-009.jpg)] bg-no-repeat opacity-[0.36] mix-blend-multiply bg-size-[100%_100%,100%_100%,100%_100%]'
+		: 'pointer-events-none absolute inset-0 bg-[linear-gradient(92deg,rgba(255,255,255,0.14)_0%,transparent_20%,rgba(0,0,0,0.22)_43%,transparent_62%,rgba(255,255,255,0.11)_78%,rgba(0,0,0,0.14)_100%),linear-gradient(180deg,rgba(255,255,255,0.09)_0%,transparent_32%,rgba(0,0,0,0.28)_100%),url(/textures/brushed-metal-009.jpg)] bg-no-repeat opacity-95 mix-blend-soft-light bg-size-[100%_100%,100%_100%,100%_100%]'
 )
 const fullFaderHandleClass = computed(() =>
 	isSilverTurntableTheme.value
@@ -307,11 +307,11 @@ function resetPitch() {
 	<!-- Full mode: vertical SL-1200 style -->
 	<div
 		v-if="!compact"
-		class="relative z-20 flex h-[226px] shrink-0 items-stretch gap-2 overflow-visible"
+		class="relative z-20 flex h-56.5 shrink-0 items-stretch gap-2 overflow-visible"
 	>
 		<div
 			:data-testid="`deck-${deckIndex}-pitch-reset-guide`"
-			class="pointer-events-none absolute top-1/2 left-6 z-20 h-[61px] w-[30px] border-t border-l"
+			class="pointer-events-none absolute top-1/2 left-6 z-20 h-15.25 w-7.5 border-t border-l"
 			:class="fullDeckGuideClass"
 		/>
 
@@ -352,7 +352,7 @@ function resetPitch() {
 
 		<!-- Labels and fader container -->
 		<div
-			class="relative h-full w-[86px] overflow-visible"
+			class="relative h-full w-21.5 overflow-visible"
 			:data-testid="`deck-${deckIndex}-pitch-module`"
 		>
 			<div
@@ -360,7 +360,7 @@ function resetPitch() {
 				:class="moduleShellClass"
 			>
 				<div
-					class="relative h-full w-[34px] border-r"
+					class="relative h-full w-8.5 border-r"
 					:class="[moduleDividerClass, fullScalePanelClass]"
 				>
 					<div :class="brushedScaleGrainClass" />
@@ -385,12 +385,12 @@ function resetPitch() {
 							class="block"
 							:class="[
 								legendMarkClass,
-								mark.major ? 'h-[5px] w-[7px]' : 'h-[3px] w-[4px]'
+								mark.major ? 'h-1.25 w-1.75' : 'h-0.75 w-1'
 							]"
 						/>
 					</div>
 					<div
-						class="absolute top-1/2 left-[7px] h-2.5 w-4 -translate-y-1/2 rounded-[1px] border border-black/75 transition-all"
+						class="absolute top-1/2 left-1.75 h-2.5 w-4 -translate-y-1/2 rounded-[1px] border border-black/75 transition-all"
 						:class="zeroLightClass"
 					/>
 				</div>
@@ -403,7 +403,7 @@ function resetPitch() {
 
 					<div
 						:data-testid="`deck-${deckIndex}-pitch-handle`"
-						class="pointer-events-none absolute left-1/2 z-20 h-[42px] w-[calc(100%+1px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[3px] border border-black/35 shadow-[0_3px_5px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.82),inset_0_-1px_0_rgba(0,0,0,0.36)]"
+						class="pointer-events-none absolute left-1/2 z-20 h-10.5 w-[calc(100%+1px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[3px] border border-black/35 shadow-[0_3px_5px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.82),inset_0_-1px_0_rgba(0,0,0,0.36)]"
 						:class="fullFaderHandleClass"
 						:style="fullHandleStyle"
 					>
@@ -445,7 +445,7 @@ function resetPitch() {
 	<!-- Compact mode: horizontal battle-mode SL-1200 style -->
 	<div
 		v-else
-		class="relative flex h-[90px] shrink-0 items-center gap-2 overflow-visible rounded-[3px] border p-2"
+		class="relative flex h-22.5 shrink-0 items-center gap-2 overflow-visible rounded-[3px] border p-2"
 		:class="compactDeckClass"
 	>
 		<div class="relative flex w-12 shrink-0 flex-col items-center gap-1">
@@ -479,11 +479,11 @@ function resetPitch() {
 			:data-testid="`deck-${deckIndex}-pitch-module`"
 		>
 			<div
-				class="flex h-[62px] flex-col overflow-hidden rounded-[3px] border"
+				class="flex h-15.5 flex-col overflow-hidden rounded-[3px] border"
 				:class="moduleShellClass"
 			>
 				<div
-					class="relative h-[25px] border-b"
+					class="relative h-6.25 border-b"
 					:class="[moduleDividerClass, compactScalePanelClass]"
 				>
 					<div :class="brushedScaleGrainClass" />
@@ -508,12 +508,12 @@ function resetPitch() {
 							class="block"
 							:class="[
 								legendMarkClass,
-								mark.major ? 'h-[6px] w-[5px]' : 'h-[4px] w-[3px]'
+								mark.major ? 'h-1.5 w-1.25' : 'h-1 w-0.75'
 							]"
 						/>
 					</div>
 					<div
-						class="absolute top-[7px] left-1/2 h-2 w-4 -translate-x-1/2 rounded-[1px] border border-black/75 transition-all"
+						class="absolute top-1.75 left-1/2 h-2 w-4 -translate-x-1/2 rounded-[1px] border border-black/75 transition-all"
 						:class="zeroLightClass"
 					/>
 				</div>
@@ -526,7 +526,7 @@ function resetPitch() {
 
 					<div
 						:data-testid="`deck-${deckIndex}-pitch-handle`"
-						class="pointer-events-none absolute top-1/2 z-20 h-[calc(100%+2px)] w-[58px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[3px] border border-black/35 shadow-[2px_0_5px_rgba(0,0,0,0.45),inset_1px_0_0_rgba(255,255,255,0.82),inset_-1px_0_0_rgba(0,0,0,0.36)]"
+						class="pointer-events-none absolute top-1/2 z-20 h-[calc(100%+2px)] w-14.5 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[3px] border border-black/35 shadow-[2px_0_5px_rgba(0,0,0,0.45),inset_1px_0_0_rgba(255,255,255,0.82),inset_-1px_0_0_rgba(0,0,0,0.36)]"
 						:class="compactFaderHandleClass"
 						:style="compactHandleStyle"
 					>
@@ -551,7 +551,7 @@ function resetPitch() {
 				:value="faderValue"
 				:disabled="deck?.faderSliding"
 				aria-label="Pitch adjustment"
-				class="absolute inset-x-0 top-[18px] z-30 m-0 h-[52px] cursor-pointer touch-none appearance-none bg-transparent opacity-0 [direction:rtl] disabled:cursor-not-allowed"
+				class="absolute inset-x-0 top-4.5 z-30 m-0 h-13 cursor-pointer touch-none appearance-none bg-transparent opacity-0 [direction:rtl] disabled:cursor-not-allowed"
 				@pointerdown="handleCompactPitchPointerDown"
 				@input="handleCompactPitchInput"
 			/>

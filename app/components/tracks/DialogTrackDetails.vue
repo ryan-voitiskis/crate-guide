@@ -137,7 +137,7 @@ function formatKey(track: Track): string {
 <template>
 	<Dialog v-model:open="dialogOpen">
 		<DialogContent
-			class="max-h-[100dvh] max-w-6xl grid-rows-[auto_minmax(0,1fr)_auto] p-2 max-sm:rounded-none max-sm:border-none sm:max-h-[90dvh] sm:p-6"
+			class="max-h-dvh max-w-6xl grid-rows-[auto_minmax(0,1fr)_auto] p-2 max-sm:rounded-none max-sm:border-none sm:max-h-[90dvh] sm:p-6"
 		>
 			<DialogHeader>
 				<DialogTitle>Track Details</DialogTitle>

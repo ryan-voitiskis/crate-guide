@@ -392,7 +392,7 @@ watch(
 						</Button>
 					</div>
 
-					<div v-else-if="viewMode === 'list'" class="min-w-[680px]">
+					<div v-else-if="viewMode === 'list'" class="min-w-170">
 						<div
 							class="bg-muted/50 text-muted-foreground grid grid-cols-[44px_minmax(220px,1.5fr)_minmax(160px,1fr)_100px_70px_70px] items-center gap-3 border-b px-3 py-1.5 text-[10px] font-semibold tracking-[0.08em] uppercase"
 						>

@@ -54,7 +54,7 @@ const deckBackground = computed(() => {
 </script>
 
 <template>
-	<div class="flex h-full w-[380px] shrink-0 flex-col gap-2">
+	<div class="flex h-full w-95 shrink-0 flex-col gap-2">
 		<!-- Deck header -->
 		<div class="flex h-6 items-center justify-between px-1">
 			<span class="text-muted-foreground text-sm font-medium">
@@ -76,7 +76,7 @@ const deckBackground = computed(() => {
 		<template v-if="session.showTurntableSim">
 			<div
 				:data-testid="`deck-${deckIndex}-turntable`"
-				class="relative flex h-[250px] flex-col overflow-hidden"
+				class="relative flex h-62.5 flex-col overflow-hidden"
 				:style="{
 					background: deckBackground,
 					boxShadow:

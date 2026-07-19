@@ -26,7 +26,7 @@ function toggleDensity() {
 	>
 		<Rows3 class="size-3.5" />
 		<span
-			class="hidden font-mono text-[0.55rem] tracking-[0.1em] uppercase xl:inline"
+			class="hidden font-mono text-[0.55rem] tracking-widest uppercase xl:inline"
 		>
 			{{ density === 'compact' ? 'Dense' : 'Cozy' }}
 		</span>

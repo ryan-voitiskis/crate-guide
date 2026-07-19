@@ -52,7 +52,7 @@ const toneClasses = computed(() => {
 			class="focus-visible:ring-signal group flex items-center rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
 			:class="
 				variant === 'status'
-					? 'text-muted-foreground hover:text-foreground hover:bg-muted h-5 gap-1.5 px-1.5 text-[0.55rem] tracking-[0.1em] uppercase'
+					? 'text-muted-foreground hover:text-foreground hover:bg-muted h-5 gap-1.5 px-1.5 text-[0.55rem] tracking-widest uppercase'
 					: 'border-border text-muted-foreground hover:text-foreground hover:bg-muted h-11 min-w-11 justify-center gap-1.5 border px-2'
 			"
 			@click="discogs.openTransferMonitor"

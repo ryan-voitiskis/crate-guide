@@ -153,7 +153,7 @@ function getSourceDetails(row: TrackEnrichmentRow): string {
 		>
 			<Table
 				data-testid="enrichment-unmatched-desktop-table"
-				class="min-w-[720px] table-fixed"
+				class="min-w-180 table-fixed"
 			>
 				<TableHeader
 					class="bg-muted/70 sticky top-0 z-10 shadow-[0_1px_0_var(--border)] backdrop-blur-md [&_th]:h-8 [&_th]:font-mono [&_th]:text-[9px] [&_th]:tracking-wide [&_th]:uppercase"
