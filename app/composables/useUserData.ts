@@ -16,6 +16,7 @@ export function useUserData() {
 	let loadPromise: Promise<boolean> | null = null
 	let authenticationGeneration = 0
 	let dataUserId: string | null = null
+	let cleanupStartedUserId: string | null = null
 	let isReplacingProtectedRoute = false
 
 	const isLoadingAny = computed(
@@ -78,6 +79,14 @@ export function useUserData() {
 			}
 			const didLoadAllData = results.every(Boolean)
 			hasLoadedData.value = didLoadAllData
+			if (
+				didLoadAllData &&
+				cleanupStartedUserId !== resolvedUserId &&
+				!getStaleLoadTransition(resolvedUserId, loadGeneration)
+			) {
+				cleanupStartedUserId = resolvedUserId
+				void records.drainCoverCleanup().catch(() => undefined)
+			}
 			return didLoadAllData
 		} catch (error) {
 			// Drain every started store action before a replacement user load begins.
@@ -136,6 +145,7 @@ export function useUserData() {
 		crates.clearCrates()
 		hasLoadedData.value = false
 		dataUserId = null
+		cleanupStartedUserId = null
 	}
 
 	function clearAllUserData() {

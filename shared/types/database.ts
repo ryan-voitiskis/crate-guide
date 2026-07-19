@@ -160,6 +160,36 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			record_cover_cleanup_jobs: {
+				Row: {
+					attempt_count: number
+					created_at: string
+					id: number
+					last_attempted_at: string | null
+					object_path: string
+					record_id: string
+					user_id: string
+				}
+				Insert: {
+					attempt_count?: number
+					created_at?: string
+					id?: number
+					last_attempted_at?: string | null
+					object_path: string
+					record_id: string
+					user_id: string
+				}
+				Update: {
+					attempt_count?: number
+					created_at?: string
+					id?: number
+					last_attempted_at?: string | null
+					object_path?: string
+					record_id?: string
+					user_id?: string
+				}
+				Relationships: []
+			}
 			records: {
 				Row: {
 					artists: Json

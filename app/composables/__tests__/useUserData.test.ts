@@ -40,6 +40,7 @@ const mockRecordsStore = {
 	isLoadingRecords: false,
 	hasRecords: false,
 	fetchAllRecords: vi.fn(),
+	drainCoverCleanup: vi.fn(),
 	clearRecords: vi.fn()
 }
 
@@ -162,6 +163,7 @@ describe('useUserData', () => {
 		mockRecordsStore.isLoadingRecords = false
 		mockRecordsStore.hasRecords = false
 		mockRecordsStore.fetchAllRecords.mockResolvedValue(true)
+		mockRecordsStore.drainCoverCleanup.mockResolvedValue(true)
 		mockRecordsStore.clearRecords.mockImplementation(() => {
 			mockRecordsStore.hasRecords = false
 		})
@@ -219,6 +221,7 @@ describe('useUserData', () => {
 			expect(mockRecordsStore.fetchAllRecords).not.toHaveBeenCalled()
 			expect(mockTracksStore.fetchAllTracks).not.toHaveBeenCalled()
 			expect(mockCratesStore.fetchAllCrates).not.toHaveBeenCalled()
+			expect(mockRecordsStore.drainCoverCleanup).not.toHaveBeenCalled()
 		})
 
 		it('returns true and marks loaded only when every store succeeds', async () => {
@@ -230,6 +233,7 @@ describe('useUserData', () => {
 			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledOnce()
 			expect(mockTracksStore.fetchAllTracks).toHaveBeenCalledOnce()
 			expect(mockCratesStore.fetchAllCrates).toHaveBeenCalledOnce()
+			expect(mockRecordsStore.drainCoverCleanup).toHaveBeenCalledOnce()
 			expect(hasLoadedData.value).toBe(true)
 		})
 
@@ -242,6 +246,7 @@ describe('useUserData', () => {
 
 			expect(hasLoadedData.value).toBe(false)
 			expect(mockToast.error).not.toHaveBeenCalled()
+			expect(mockRecordsStore.drainCoverCleanup).not.toHaveBeenCalled()
 		})
 
 		it('shares the exact in-flight promise and starts fresh after settlement', async () => {
@@ -276,6 +281,30 @@ describe('useUserData', () => {
 
 			await expect(loadAllUserData()).resolves.toBe(true)
 			expect(mockRecordsStore.fetchAllRecords).not.toHaveBeenCalled()
+			expect(mockRecordsStore.drainCoverCleanup).toHaveBeenCalledOnce()
+		})
+
+		it('does not block readiness on the best-effort cleanup drain', async () => {
+			mockSupaUser.value = { id: 'user-123' }
+			const drainResult = createDeferred<boolean>()
+			mockRecordsStore.drainCoverCleanup.mockReturnValue(drainResult.promise)
+			const { loadAllUserData, hasLoadedData } = createUserData()
+
+			await expect(loadAllUserData()).resolves.toBe(true)
+
+			expect(hasLoadedData.value).toBe(true)
+			expect(mockRecordsStore.drainCoverCleanup).toHaveBeenCalledOnce()
+		})
+
+		it('starts cleanup only once for repeated loads of the same account', async () => {
+			mockSupaUser.value = { id: 'user-123' }
+			const { loadAllUserData, refreshAllUserData } = createUserData()
+
+			await expect(loadAllUserData()).resolves.toBe(true)
+			await expect(refreshAllUserData()).resolves.toBe(true)
+
+			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledTimes(2)
+			expect(mockRecordsStore.drainCoverCleanup).toHaveBeenCalledOnce()
 		})
 
 		it('catches unexpected throws at the coordinator boundary', async () => {
@@ -290,6 +319,7 @@ describe('useUserData', () => {
 			expect(hasLoadedData.value).toBe(false)
 			expect(mockToast.error).toHaveBeenCalledWith('Error loading user data.')
 			expect(mockToast.error).toHaveBeenCalledOnce()
+			expect(mockRecordsStore.drainCoverCleanup).not.toHaveBeenCalled()
 		})
 	})
 
@@ -469,6 +499,7 @@ describe('useUserData', () => {
 				expect(mockCratesStore.fetchAllCrates).toHaveBeenCalledOnce()
 				expect(hasLoadedData.value).toBe(true)
 			})
+			expect(mockRecordsStore.drainCoverCleanup).toHaveBeenCalledOnce()
 
 			expect(mockRecordsStore.clearRecords).toHaveBeenCalledOnce()
 			expect(mockTracksStore.clearTracks).toHaveBeenCalledOnce()
@@ -538,6 +569,7 @@ describe('useUserData', () => {
 				expect(mockCratesStore.fetchAllCrates).toHaveBeenCalledTimes(2)
 				expect(hasLoadedData.value).toBe(true)
 			})
+			expect(mockRecordsStore.drainCoverCleanup).toHaveBeenCalledOnce()
 			expect(hasAnyData.value).toBe(true)
 			expect(mockSessionStore.resetAccountState).toHaveBeenCalledOnce()
 			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledOnce()

@@ -2,12 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useLibraryMutations } from '../useLibraryMutations'
 
 const records = {
-	records: [
-		{ cover_storage_path: 'user-1/record-1/cover.webp' },
-		{ cover_storage_path: null }
-	],
 	removeRecordFromCollection: vi.fn(),
-	removeCoverObjects: vi.fn(),
+	drainCoverCleanup: vi.fn(),
 	clearRecords: vi.fn()
 }
 const tracks = {
@@ -35,6 +31,7 @@ vi.stubGlobal('useUserStore', () => user)
 describe('useLibraryMutations', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
+		records.drainCoverCleanup.mockResolvedValue(true)
 	})
 
 	it('cleans track and crate state in order after record removal succeeds', async () => {
@@ -79,10 +76,7 @@ describe('useLibraryMutations', () => {
 
 		expect(result).toBe(true)
 		expect(user.deleteAllUserData).toHaveBeenCalledOnce()
-		expect(records.removeCoverObjects).toHaveBeenCalledWith([
-			'user-1/record-1/cover.webp',
-			null
-		])
+		expect(records.drainCoverCleanup).toHaveBeenCalledWith()
 		expect(records.clearRecords).toHaveBeenCalledOnce()
 		expect(tracks.clearTracks).toHaveBeenCalledOnce()
 		expect(crates.clearAllCrateRecords).toHaveBeenCalledOnce()
@@ -90,7 +84,7 @@ describe('useLibraryMutations', () => {
 		expect(session.clearSession).toHaveBeenCalledOnce()
 		const callOrder = [
 			user.deleteAllUserData,
-			records.removeCoverObjects,
+			records.drainCoverCleanup,
 			records.clearRecords,
 			tracks.clearTracks,
 			crates.clearAllCrateRecords,
@@ -112,5 +106,22 @@ describe('useLibraryMutations', () => {
 		expect(crates.clearAllCrateRecords).not.toHaveBeenCalled()
 		expect(session.clearSavedSetTracks).not.toHaveBeenCalled()
 		expect(session.clearSession).not.toHaveBeenCalled()
+		expect(records.drainCoverCleanup).not.toHaveBeenCalled()
+	})
+
+	it('clears local state when the best-effort drain rejects', async () => {
+		user.deleteAllUserData.mockResolvedValue(true)
+		records.drainCoverCleanup.mockRejectedValue(
+			new Error('cleanup function unavailable')
+		)
+		const mutations = useLibraryMutations()
+
+		await expect(mutations.deleteAllUserData()).resolves.toBe(true)
+
+		expect(records.clearRecords).toHaveBeenCalledOnce()
+		expect(tracks.clearTracks).toHaveBeenCalledOnce()
+		expect(crates.clearAllCrateRecords).toHaveBeenCalledOnce()
+		expect(session.clearSavedSetTracks).toHaveBeenCalledOnce()
+		expect(session.clearSession).toHaveBeenCalledOnce()
 	})
 })

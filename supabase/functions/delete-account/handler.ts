@@ -34,6 +34,7 @@ interface StorageEntry {
 
 interface AccountDeletionAdmin {
 	deleteUser(userId: string): Promise<void>
+	deleteCoverCleanupJobs(userId: string): Promise<void>
 	listFolder(path: string, offset: number): Promise<StorageEntry[]>
 	removeObjects(paths: string[]): Promise<void>
 }
@@ -47,6 +48,7 @@ interface HandlerDependencies {
 
 class StorageCleanupError extends Error {}
 class AccountDeleteError extends Error {}
+class CleanupQueueDeleteError extends Error {}
 
 function createDefaultAdmin(): AccountDeletionAdmin {
 	const supabase = createServiceRoleSupabaseClient()
@@ -56,6 +58,15 @@ function createDefaultAdmin(): AccountDeletionAdmin {
 		async deleteUser(userId) {
 			const { error } = await supabase.auth.admin.deleteUser(userId, false)
 			if (error) throw new AccountDeleteError('Auth user deletion failed')
+		},
+		async deleteCoverCleanupJobs(userId) {
+			const { error } = await supabase
+				.from('record_cover_cleanup_jobs')
+				.delete()
+				.eq('user_id', userId)
+			if (error) {
+				throw new CleanupQueueDeleteError('Cleanup queue deletion failed')
+			}
 		},
 		async listFolder(path, offset) {
 			const { data, error } = await bucket.list(path, {
@@ -318,14 +329,39 @@ export function createDeleteAccountHandler(
 		} catch {
 			console.error('Account deleted, but final cover cleanup failed')
 			return jsonResponse(
-				{ success: true, cover_cleanup_complete: false },
+				{
+					success: true,
+					cover_cleanup_complete: false,
+					cleanup_queue_complete: false
+				},
+				headers,
+				200
+			)
+		}
+
+		// Cascading record deletes enqueue their former paths. Only discard those
+		// durable jobs after the final full-tree pass proves there is no cover left.
+		try {
+			await admin.deleteCoverCleanupJobs(user.id)
+		} catch {
+			console.error('Account deleted, but cleanup queue removal failed')
+			return jsonResponse(
+				{
+					success: true,
+					cover_cleanup_complete: true,
+					cleanup_queue_complete: false
+				},
 				headers,
 				200
 			)
 		}
 
 		return jsonResponse(
-			{ success: true, cover_cleanup_complete: true },
+			{
+				success: true,
+				cover_cleanup_complete: true,
+				cleanup_queue_complete: true
+			},
 			headers,
 			200
 		)

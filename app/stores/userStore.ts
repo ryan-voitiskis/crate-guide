@@ -315,8 +315,10 @@ export const useUserStore = defineStore('user', () => {
 				throw new Error('Your account could not be deleted. Please try again.')
 			}
 			const coverCleanupComplete =
-				!('cover_cleanup_complete' in data) ||
-				data.cover_cleanup_complete !== false
+				(!('cover_cleanup_complete' in data) ||
+					data.cover_cleanup_complete !== false) &&
+				(!('cleanup_queue_complete' in data) ||
+					data.cleanup_queue_complete !== false)
 
 			// The server-side deletion has completed. Local cleanup failures must not
 			// be reported as a failed account deletion.
@@ -328,7 +330,7 @@ export const useUserStore = defineStore('user', () => {
 			}
 			if (!coverCleanupComplete) {
 				toast.warning(
-					'Your account was deleted, but a recently uploaded cover may still need cleanup. Contact the project owner if it remains accessible.',
+					'Your account was deleted, but server-side cover cleanup did not finish. Contact the project owner if a cover remains accessible.',
 					{ duration: 30000 }
 				)
 			}

@@ -6,6 +6,7 @@ import {
 	resetRecordIdCounter
 } from 'test/mocks/fixtures/records'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { markDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 // Import after mocking
 import { useRecordsStore } from '../recordsStore'
 
@@ -61,6 +62,9 @@ const mockStorageBucket = {
 const mockSupabaseClient = {
 	from: vi.fn(() => mockQueryBuilder),
 	rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+	functions: {
+		invoke: vi.fn().mockResolvedValue({ data: null, error: null })
+	},
 	storage: {
 		from: vi.fn(() => mockStorageBucket)
 	}
@@ -93,6 +97,10 @@ describe('recordsStore', () => {
 		mockQueryBuilder = createMockQueryBuilder()
 		mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 		mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: null })
+		mockSupabaseClient.functions.invoke.mockResolvedValue({
+			data: null,
+			error: null
+		})
 		mockSupabaseClient.storage.from.mockReturnValue(mockStorageBucket)
 		mockStorageBucket.upload.mockResolvedValue({ data: null, error: null })
 		mockStorageBucket.remove.mockResolvedValue({ data: null, error: null })
@@ -133,19 +141,77 @@ describe('recordsStore', () => {
 	})
 
 	describe('updateRecordWithCover', () => {
-		it('removes cover objects in storage-safe batches', async () => {
+		it('shares one in-flight cleanup operation and starts fresh after settlement', async () => {
 			const store = useRecordsStore()
-			const paths = Array.from(
-				{ length: 205 },
-				(_, index) => `test-user-id/record-${index}/cover.webp`
+			const drainResult = createDeferred<{ data: null; error: null }>()
+			mockSupabaseClient.functions.invoke.mockReturnValueOnce(
+				drainResult.promise
 			)
 
-			await expect(store.removeCoverObjects(paths)).resolves.toBe(true)
+			const firstDrain = store.drainCoverCleanup()
+			const concurrentDrain = store.drainCoverCleanup()
 
-			expect(mockStorageBucket.remove).toHaveBeenCalledTimes(3)
-			expect(mockStorageBucket.remove.mock.calls[0]?.[0]).toHaveLength(100)
-			expect(mockStorageBucket.remove.mock.calls[1]?.[0]).toHaveLength(100)
-			expect(mockStorageBucket.remove.mock.calls[2]?.[0]).toHaveLength(5)
+			await vi.waitFor(() => {
+				expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledOnce()
+			})
+			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
+				'cleanup-record-covers'
+			)
+
+			drainResult.resolve({ data: null, error: null })
+			await expect(Promise.all([firstDrain, concurrentDrain])).resolves.toEqual(
+				[true, true]
+			)
+
+			const laterDrain = store.drainCoverCleanup()
+			await expect(laterDrain).resolves.toBe(true)
+			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledTimes(2)
+		})
+
+		it('does not invoke cleanup while signed out', async () => {
+			mockUserStore.supaUser = null
+			const store = useRecordsStore()
+
+			await expect(store.drainCoverCleanup()).resolves.toBe(false)
+
+			expect(mockSupabaseClient.functions.invoke).not.toHaveBeenCalled()
+		})
+
+		it('does not invoke cleanup from the demo workbench store', async () => {
+			setActivePinia(markDemoWorkbenchPinia(createPinia()))
+			const store = useRecordsStore()
+
+			await expect(store.drainCoverCleanup()).resolves.toBe(true)
+
+			expect(mockUserStore.resolveAuthenticatedUserId).not.toHaveBeenCalled()
+			expect(mockSupabaseClient.functions.invoke).not.toHaveBeenCalled()
+		})
+
+		it('does not share cleanup work across an account reset', async () => {
+			const oldDrainResult = createDeferred<{ data: null; error: Error }>()
+			mockSupabaseClient.functions.invoke.mockReturnValueOnce(
+				oldDrainResult.promise
+			)
+			const store = useRecordsStore()
+			const oldDrain = store.drainCoverCleanup()
+			await vi.waitFor(() => {
+				expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledOnce()
+			})
+
+			store.clearRecords()
+			mockUserStore.supaUser = { id: 'replacement-user-id' }
+			const replacementDrain = store.drainCoverCleanup()
+
+			expect(replacementDrain).not.toBe(oldDrain)
+			await expect(replacementDrain).resolves.toBe(true)
+			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledTimes(2)
+
+			oldDrainResult.resolve({
+				data: null,
+				error: new Error('old account failure')
+			})
+			await expect(oldDrain).resolves.toBe(false)
+			expect(mockToast.warning).not.toHaveBeenCalled()
 		})
 
 		it('uploads an immutable WebP path and persists it on the record', async () => {
@@ -192,6 +258,9 @@ describe('recordsStore', () => {
 				cover_storage_path: path
 			})
 			expect(result?.cover_storage_path).toBe(path)
+			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
+				'cleanup-record-covers'
+			)
 			expect(store.isUpdatingCover).toBe(false)
 		})
 
@@ -216,9 +285,10 @@ describe('recordsStore', () => {
 			const uploadedPath = mockStorageBucket.upload.mock.calls[0]?.[0]
 			expect(result).toBeNull()
 			expect(mockStorageBucket.remove).toHaveBeenCalledWith([uploadedPath])
+			expect(mockSupabaseClient.functions.invoke).not.toHaveBeenCalled()
 		})
 
-		it('removes the previous object after a successful replacement', async () => {
+		it('drains the durable queue after a successful replacement', async () => {
 			const store = useRecordsStore()
 			store.records = [
 				createMockRecord({
@@ -244,12 +314,13 @@ describe('recordsStore', () => {
 				}
 			)
 
-			expect(mockStorageBucket.remove).toHaveBeenCalledWith([
-				'test-user-id/record-1/old.webp'
-			])
+			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
+				'cleanup-record-covers'
+			)
+			expect(mockStorageBucket.remove).not.toHaveBeenCalled()
 		})
 
-		it('clears the storage override before removing its object', async () => {
+		it('clears the storage override before draining its queued object', async () => {
 			const store = useRecordsStore()
 			store.records = [
 				createMockRecord({
@@ -276,9 +347,10 @@ describe('recordsStore', () => {
 			expect(mockQueryBuilder.update).toHaveBeenCalledWith({
 				cover_storage_path: null
 			})
-			expect(mockStorageBucket.remove).toHaveBeenCalledWith([
-				'test-user-id/record-1/custom.webp'
-			])
+			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
+				'cleanup-record-covers'
+			)
+			expect(mockStorageBucket.remove).not.toHaveBeenCalled()
 			expect(result?.cover).toBe('https://discogs.example/fallback.jpg')
 		})
 	})
@@ -1044,7 +1116,7 @@ describe('recordsStore', () => {
 	})
 
 	describe('deleteRecord', () => {
-		it('removes managed cover storage after the record is deleted', async () => {
+		it('drains managed cover cleanup after the record is deleted', async () => {
 			const store = useRecordsStore()
 			store.records = [
 				createMockRecord({
@@ -1057,9 +1129,40 @@ describe('recordsStore', () => {
 			const result = await store.deleteRecord('record-1')
 
 			expect(result).toBe(true)
-			expect(mockStorageBucket.remove).toHaveBeenCalledWith([
-				'test-user-id/record-1/custom.webp'
-			])
+			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
+				'cleanup-record-covers'
+			)
+			expect(mockStorageBucket.remove).not.toHaveBeenCalled()
+		})
+
+		it('keeps a successful delete successful when queue draining fails', async () => {
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined)
+			try {
+				const store = useRecordsStore()
+				store.records = [createMockRecord({ id: 'record-1' })]
+				mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
+				mockSupabaseClient.functions.invoke.mockResolvedValue({
+					data: null,
+					error: new Error('private cleanup failure')
+				})
+
+				await expect(store.deleteRecord('record-1')).resolves.toBe(true)
+
+				expect(store.records).toEqual([])
+				expect(mockToast.success).toHaveBeenCalledWith(
+					'Record deleted successfully.'
+				)
+				expect(mockToast.warning).toHaveBeenCalledWith(
+					'Some old cover files still need cleanup.'
+				)
+				expect(consoleError).toHaveBeenCalledWith(
+					'Failed to drain record cover cleanup.'
+				)
+			} finally {
+				consoleError.mockRestore()
+			}
 		})
 
 		it('returns false when record not found', async () => {
@@ -1151,6 +1254,9 @@ describe('recordsStore', () => {
 			expect(result).toBe(true)
 			expect(store.records.map((item) => item.id)).toEqual(['record-2'])
 			expect(store.searchResults).toEqual([])
+			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
+				'cleanup-record-covers'
+			)
 		})
 
 		it('keeps local state unchanged when the RPC fails', async () => {

@@ -15,12 +15,14 @@ export function useLibraryMutations() {
 	}
 
 	async function deleteAllUserData() {
-		const coverPaths = records.records.map(
-			(record) => record.cover_storage_path
-		)
 		const success = await user.deleteAllUserData()
 		if (!success) return false
-		await records.removeCoverObjects(coverPaths)
+		try {
+			await records.drainCoverCleanup()
+		} catch {
+			// Cleanup jobs are durable; clearing local data must not undo a successful
+			// database deletion when a best-effort drain cannot run.
+		}
 
 		records.clearRecords()
 		tracks.clearTracks()

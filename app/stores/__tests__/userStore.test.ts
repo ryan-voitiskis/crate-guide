@@ -742,7 +742,30 @@ describe('userStore', () => {
 				coverCleanupComplete: false
 			})
 			expect(mockToast.warning).toHaveBeenCalledWith(
-				'Your account was deleted, but a recently uploaded cover may still need cleanup. Contact the project owner if it remains accessible.',
+				'Your account was deleted, but server-side cover cleanup did not finish. Contact the project owner if a cover remains accessible.',
+				{ duration: 30000 }
+			)
+		})
+
+		it('warns when deleted-account cleanup jobs could not be removed', async () => {
+			const store = useUserStore()
+			mockSupabaseClient.functions.invoke.mockResolvedValue({
+				data: {
+					success: true,
+					cover_cleanup_complete: true,
+					cleanup_queue_complete: false
+				},
+				error: null
+			})
+
+			const result = await store.deleteAccount('test@example.com')
+
+			expect(result).toEqual({
+				status: 'deleted',
+				coverCleanupComplete: false
+			})
+			expect(mockToast.warning).toHaveBeenCalledWith(
+				'Your account was deleted, but server-side cover cleanup did not finish. Contact the project owner if a cover remains accessible.',
 				{ duration: 30000 }
 			)
 		})

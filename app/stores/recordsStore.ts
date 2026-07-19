@@ -75,6 +75,7 @@ export const useRecordsStore = defineStore('records', () => {
 	const isUpdatingCover = ref(false)
 	const isDeletingRecord = ref(false)
 	let fetchPromise: Promise<boolean> | null = null
+	let coverCleanupPromise: Promise<boolean> | null = null
 	let accountGeneration = 0
 	let activeFetchUserId: string | null = null
 
@@ -334,30 +335,48 @@ export const useRecordsStore = defineStore('records', () => {
 		}
 	}
 
-	async function removeCoverObjects(
-		paths: Array<string | null | undefined>,
-		notifyOnFailure = true
-	): Promise<boolean> {
-		const uniquePaths = [
-			...new Set(paths.filter((path): path is string => !!path))
-		]
-		if (!uniquePaths.length) return true
-
-		for (let index = 0; index < uniquePaths.length; index += 100) {
-			const batch = uniquePaths.slice(index, index + 100)
+	async function removeUncommittedCoverObject(path: string): Promise<boolean> {
+		try {
 			const { error } = await supabase.storage
 				.from(RECORD_COVER_BUCKET)
-				.remove(batch)
-
-			if (!error) continue
-			console.error('Failed to remove record cover objects:', error)
-			if (notifyOnFailure) {
-				toast.warning('Some old cover files still need cleanup.')
-			}
+				.remove([path])
+			if (error) throw error
+			return true
+		} catch {
+			console.error('Failed to remove uncommitted record cover object.')
 			return false
 		}
+	}
 
-		return true
+	async function performCoverCleanup(generation: number): Promise<boolean> {
+		const userId = await user
+			.resolveAuthenticatedUserId()
+			.catch(() => null as string | null)
+		if (!userId || generation !== accountGeneration) return false
+
+		try {
+			const { error } = await supabase.functions.invoke('cleanup-record-covers')
+			if (generation !== accountGeneration) return false
+			if (error) throw error
+			return true
+		} catch {
+			if (generation !== accountGeneration) return false
+			console.error('Failed to drain record cover cleanup.')
+			toast.warning('Some old cover files still need cleanup.')
+			return false
+		}
+	}
+
+	function drainCoverCleanup(): Promise<boolean> {
+		if (isDemoStore) return Promise.resolve(true)
+		if (coverCleanupPromise) return coverCleanupPromise
+
+		const generation = accountGeneration
+		const createdPromise = performCoverCleanup(generation).finally(() => {
+			if (coverCleanupPromise === createdPromise) coverCleanupPromise = null
+		})
+		coverCleanupPromise = createdPromise
+		return createdPromise
 	}
 
 	async function updateRecordWithCover(
@@ -407,20 +426,15 @@ export const useRecordsStore = defineStore('records', () => {
 			})
 
 			if (!updatedRecord) {
-				if (newPath) await removeCoverObjects([newPath], false)
+				if (newPath) await removeUncommittedCoverObject(newPath)
 				return null
 			}
 
-			if (
-				currentRecord.cover_storage_path &&
-				currentRecord.cover_storage_path !== newPath
-			) {
-				await removeCoverObjects([currentRecord.cover_storage_path])
-			}
+			await drainCoverCleanup()
 
 			return updatedRecord
 		} catch (error) {
-			if (newPath) await removeCoverObjects([newPath], false)
+			if (newPath) await removeUncommittedCoverObject(newPath)
 			console.error('Failed to update record cover:', error)
 			toast.error(
 				error instanceof Error ? error.message : 'Cover upload failed.'
@@ -449,7 +463,7 @@ export const useRecordsStore = defineStore('records', () => {
 		try {
 			const { error } = await supabase.from('records').delete().eq('id', id)
 			if (error) throw error
-			await removeCoverObjects([removedRecord?.cover_storage_path])
+			await drainCoverCleanup()
 			toast.success('Record deleted successfully.')
 			return true
 		} catch (error) {
@@ -465,8 +479,6 @@ export const useRecordsStore = defineStore('records', () => {
 
 	async function removeRecordFromCollection(id: string): Promise<boolean> {
 		isDeletingRecord.value = true
-		const record = getRecordById(id)
-
 		try {
 			const { error } = await supabase.rpc('remove_record_from_collection', {
 				target_record_id: id
@@ -478,7 +490,7 @@ export const useRecordsStore = defineStore('records', () => {
 			searchResults.value = searchResults.value.filter(
 				(record) => record.id !== id
 			)
-			await removeCoverObjects([record?.cover_storage_path])
+			await drainCoverCleanup()
 
 			toast.success('Record removed from collection')
 			return true
@@ -540,6 +552,7 @@ export const useRecordsStore = defineStore('records', () => {
 	function clearRecords() {
 		accountGeneration += 1
 		fetchPromise = null
+		coverCleanupPromise = null
 		activeFetchUserId = null
 		isLoadingRecords.value = false
 		records.value = []
@@ -568,7 +581,7 @@ export const useRecordsStore = defineStore('records', () => {
 		createRecordWithTracks,
 		updateRecord,
 		updateRecordWithCover,
-		removeCoverObjects,
+		drainCoverCleanup,
 		deleteRecord,
 		removeRecordFromCollection,
 		getRecordById,
