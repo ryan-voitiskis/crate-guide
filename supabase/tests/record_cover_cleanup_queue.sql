@@ -383,19 +383,29 @@ SELECT is(
 	'a null old path creates no cleanup job'
 );
 
-SET LOCAL ROLE authenticated;
-SELECT set_config(
-	'request.jwt.claim.sub',
-	'00000000-0000-0000-0000-000000000201',
-	true
+CREATE TEMPORARY TABLE record_cover_cleanup_dedup_probe (
+	id UUID NOT NULL,
+	user_id UUID NOT NULL,
+	cover_storage_path TEXT
 );
-UPDATE public.records
-SET cover_storage_path = '00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/old.webp'
-WHERE id = '00000000-0000-0000-0000-000000000211';
-UPDATE public.records
-SET cover_storage_path = '00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/new.webp'
-WHERE id = '00000000-0000-0000-0000-000000000211';
-RESET ROLE;
+CREATE TRIGGER record_cover_cleanup_dedup_probe_trigger
+AFTER UPDATE OF cover_storage_path ON record_cover_cleanup_dedup_probe
+FOR EACH ROW
+EXECUTE FUNCTION public.queue_obsolete_record_cover();
+INSERT INTO record_cover_cleanup_dedup_probe (
+	id,
+	user_id,
+	cover_storage_path
+)
+VALUES (
+	'00000000-0000-0000-0000-000000000211',
+	'00000000-0000-0000-0000-000000000201',
+	'00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/new.webp'
+);
+UPDATE record_cover_cleanup_dedup_probe
+SET cover_storage_path = '00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/old.webp';
+UPDATE record_cover_cleanup_dedup_probe
+SET cover_storage_path = '00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/new.webp';
 SELECT is(
 	(
 		SELECT count(*)
@@ -403,7 +413,7 @@ SELECT is(
 		WHERE record_id = '00000000-0000-0000-0000-000000000211'
 	),
 	2::BIGINT,
-	'reused obsolete paths are deduplicated'
+	'the queue trigger deduplicates repeated obsolete paths without reattaching them to records'
 );
 
 SET LOCAL ROLE authenticated;
