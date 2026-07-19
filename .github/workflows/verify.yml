@@ -34,6 +34,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check dependency topology
+        run: npm run check:dependency-topology
+
       - name: Audit production dependencies
         run: npm run audit:prod
 

@@ -21,6 +21,7 @@
 		"test:browser": "vitest run --project browser",
 		"test:audio-config": "node --test scripts/benchmark-local-audio.test.cjs",
 		"test:conventions": "node --test scripts/check-conventions.test.mjs",
+		"test:dependency-topology": "node --test scripts/check-dependency-topology.test.mjs",
 		"test:dev-start-script": "node --test scripts/dev-start.test.mjs",
 		"test:typegen-script": "node --test scripts/generate-database-types.test.mjs",
 		"test:database-type-parity": "node --test scripts/check-database-type-parity.test.mjs",
@@ -28,6 +29,7 @@
 		"audit:all": "npm audit --audit-level=high",
 		"check:conventions": "node scripts/check-conventions.mjs",
 		"check:database-types": "node scripts/check-database-type-parity.mjs",
+		"check:dependency-topology": "node scripts/check-dependency-topology.mjs",
 		"check:edge": "cd supabase && deno task check",
 		"lint:edge": "cd supabase && deno task lint",
 		"test:edge": "cd supabase && deno task test",
@@ -43,7 +45,7 @@
 		"typecheck": "nuxt typecheck",
 		"format": "prettier --write '**/*.{ts,js,mjs,cjs,mts,cts,vue,css,md,json}'",
 		"format:check": "prettier --check '**/*.{ts,js,mjs,cjs,mts,cts,vue,css,md,json}'",
-		"verify": "npm run format:check && npm run lint && npm run typecheck && npm run test:run && npm run test:e2e && npm run test:browser && npm run check:edge && npm run lint:edge && npm run test:edge && npm run test:typegen-script && npm run test:database-type-parity && npm run check:database-types && npm run test:audio-config && npm run test:dev-start-script && npm run test:conventions && npm run check:conventions",
+		"verify": "npm run format:check && npm run lint && npm run typecheck && npm run test:run && npm run test:e2e && npm run test:browser && npm run check:edge && npm run lint:edge && npm run test:edge && npm run test:typegen-script && npm run test:database-type-parity && npm run check:database-types && npm run test:audio-config && npm run test:dev-start-script && npm run test:conventions && npm run check:conventions && npm run test:dependency-topology && npm run check:dependency-topology",
 		"verify:full": "npm run verify && npm run build && npm run test:db",
 		"supa:start": "node scripts/dev-start.mjs",
 		"supa:stop": "supabase stop",
@@ -73,7 +75,8 @@
 		"sortablejs": "^1.15.7",
 		"tailwind-merge": "^3.5.0",
 		"vee-validate": "^4.15.1",
-		"vue": "3.5.32",
+		"vue": "3.5.40",
+		"vue-router": "5.2.0",
 		"vue-sonner": "^2.0.9",
 		"zod": "^3.25.76"
 	},
@@ -87,6 +90,7 @@
 		"@types/sortablejs": "^1.15.9",
 		"@vitest/browser-playwright": "4.1.10",
 		"@vue/test-utils": "^2.4.11",
+		"crossws": "0.4.1",
 		"esbuild": "0.28.1",
 		"eslint": "^9.39.4",
 		"happy-dom": "^20.10.6",
@@ -104,7 +108,7 @@
 		"vue-tsc": "^3.2.6"
 	},
 	"overrides": {
-		"vue": "3.5.32"
+		"vue": "3.5.40"
 	},
 	"prettier": {
 		"useTabs": true,
