@@ -85,6 +85,9 @@ export const useRecordsStore = defineStore('records', () => {
 
 	const recordsCount = computed(() => records.value.length)
 	const hasRecords = computed(() => records.value.length > 0)
+	const recordsById = computed(
+		() => new Map(records.value.map((record) => [record.id, record]))
+	)
 
 	// Search computed properties
 	const hasSearchQuery = computed(() => searchQuery.value.trim().length > 0)
@@ -489,11 +492,14 @@ export const useRecordsStore = defineStore('records', () => {
 	}
 
 	function getRecordById(id: string): DatabaseRecord | undefined {
-		return records.value.find((r: DatabaseRecord) => r.id === id)
+		return recordsById.value.get(id)
 	}
 
 	function getRecordsByIds(ids: string[]): DatabaseRecord[] {
-		return records.value.filter((r: DatabaseRecord) => ids.includes(r.id))
+		return ids.flatMap((id) => {
+			const record = recordsById.value.get(id)
+			return record ? [record] : []
+		})
 	}
 
 	async function performSearch(query: string) {

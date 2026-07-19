@@ -1190,6 +1190,34 @@ describe('recordsStore', () => {
 
 			expect(result?.title).toBe('Found Record')
 		})
+
+		it('rebuilds the index after replacement, additions, removals, and reset', () => {
+			const store = useRecordsStore()
+			const original = createMockRecord({
+				id: 'record-1',
+				title: 'Original'
+			})
+			store.records = [original]
+
+			expect(store.getRecordById('record-1')?.title).toBe('Original')
+
+			const replacement = createMockRecord({
+				id: 'record-1',
+				title: 'Replacement'
+			})
+			store.records = [replacement]
+			expect(store.getRecordById('record-1')?.title).toBe('Replacement')
+
+			const added = createMockRecord({ id: 'record-2' })
+			store.records.push(added)
+			expect(store.getRecordById('record-2')?.id).toBe(added.id)
+
+			store.records.splice(0, 1)
+			expect(store.getRecordById('record-1')).toBeUndefined()
+
+			store.clearRecords()
+			expect(store.getRecordById('record-2')).toBeUndefined()
+		})
 	})
 
 	describe('getRecordsByIds', () => {
@@ -1202,7 +1230,7 @@ describe('recordsStore', () => {
 			expect(result).toEqual([])
 		})
 
-		it('returns all matching records', () => {
+		it('omits missing IDs and preserves requested order', () => {
 			const store = useRecordsStore()
 			store.records = [
 				createMockRecord({ id: 'record-1' }),
@@ -1210,10 +1238,18 @@ describe('recordsStore', () => {
 				createMockRecord({ id: 'record-3' })
 			]
 
-			const result = store.getRecordsByIds(['record-1', 'record-3'])
+			const result = store.getRecordsByIds([
+				'record-3',
+				'missing',
+				'record-1',
+				'record-2'
+			])
 
-			expect(result.length).toBe(2)
-			expect(result.map((r) => r.id)).toEqual(['record-1', 'record-3'])
+			expect(result.map((record) => record.id)).toEqual([
+				'record-3',
+				'record-1',
+				'record-2'
+			])
 		})
 	})
 

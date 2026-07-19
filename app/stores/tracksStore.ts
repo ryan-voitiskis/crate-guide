@@ -45,6 +45,18 @@ export const useTracksStore = defineStore('tracks', () => {
 	const tracksCount = computed(() => tracks.value.length)
 	const hasTracks = computed(() => tracks.value.length > 0)
 	const playableTracks = computed(() => tracks.value.filter((t) => t.playable))
+	const tracksById = computed(
+		() => new Map(tracks.value.map((track) => [track.id, track]))
+	)
+	const tracksByRecordId = computed(() => {
+		const groupedTracks = new Map<string, Track[]>()
+		for (const track of tracks.value) {
+			const recordTracks = groupedTracks.get(track.record_id) ?? []
+			recordTracks.push(track)
+			groupedTracks.set(track.record_id, recordTracks)
+		}
+		return groupedTracks
+	})
 
 	function isCurrentFetchContext(context: FetchContext): boolean {
 		return (
@@ -379,11 +391,11 @@ export const useTracksStore = defineStore('tracks', () => {
 	}
 
 	function getTrackById(id: string): Track | undefined {
-		return tracks.value.find((t: Track) => t.id === id)
+		return tracksById.value.get(id)
 	}
 
 	function getTracksByRecordId(recordId: string): Track[] {
-		return tracks.value.filter((t: Track) => t.record_id === recordId)
+		return [...(tracksByRecordId.value.get(recordId) ?? [])]
 	}
 
 	function removeTracksByRecordId(recordId: string) {

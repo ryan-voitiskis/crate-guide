@@ -29,6 +29,7 @@ const { getHref } = useNavigation()
 
 const isActive = usePageActive()
 const isMobile = useMediaQuery('(max-width: 1279px)')
+const isCompactTable = useMediaQuery('(max-width: 767px)')
 
 const selectedTrackId = ref<string | null>(null)
 const editingTrackId = ref<string | null>(null)
@@ -64,10 +65,6 @@ const missingAnalysisCount = computed(
 		).length
 )
 
-function getRecordForTrack(track: Track) {
-	return records.getRecordById(track.record_id)
-}
-
 function formatArtists(track: Track) {
 	return [...track.artists, ...track.extraartists]
 		.map((artist) => artist.name)
@@ -89,16 +86,20 @@ function keyStyle(track: Track) {
 	return { color: getKeyColour(track.key, track.mode) }
 }
 
-const sortedTracks = computed(() => {
+const sortedTrackRows = computed(() => {
 	const collator = new Intl.Collator(undefined, {
 		numeric: true,
 		sensitivity: 'base'
 	})
 	const direction = sortDirection.value === 'asc' ? 1 : -1
+	const rows = trackFilters.filteredTracks.map((track) => ({
+		track,
+		record: records.getRecordById(track.record_id) ?? null
+	}))
 
-	return [...trackFilters.filteredTracks].sort((a, b) => {
-		const aRecord = getRecordForTrack(a)
-		const bRecord = getRecordForTrack(b)
+	return rows.sort((aRow, bRow) => {
+		const { record: aRecord, track: a } = aRow
+		const { record: bRecord, track: b } = bRow
 		let aValue: string | number = ''
 		let bValue: string | number = ''
 
@@ -292,7 +293,7 @@ watch(
 				</div>
 
 				<div
-					v-if="sortedTracks.length"
+					v-if="sortedTrackRows.length"
 					class="workbench-scrollbar min-h-0 flex-1 overflow-auto"
 				>
 					<div
@@ -363,111 +364,129 @@ watch(
 						<span />
 					</div>
 
-					<div class="hidden min-w-270 md:block">
+					<div
+						v-if="!isCompactTable"
+						class="min-w-270"
+						data-testid="desktop-track-rows"
+					>
 						<div
-							v-for="track in sortedTracks"
-							:key="track.id"
+							v-for="row in sortedTrackRows"
+							:key="row.track.id"
 							role="button"
 							tabindex="0"
+							:data-track-id="row.track.id"
 							class="border-border hover:bg-accent/50 focus-visible:ring-ring grid w-full items-center gap-2 border-b pr-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
 							:class="[
 								density === 'compact'
 									? 'h-9 grid-cols-[36px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]'
 									: 'h-14 grid-cols-[56px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]',
-								selectedTrackId === track.id && 'bg-accent'
+								selectedTrackId === row.track.id && 'bg-accent'
 							]"
-							@click="selectTrack(track.id)"
-							@dblclick="editTrack(track.id)"
-							@keydown.enter="selectTrack(track.id)"
+							@click="selectTrack(row.track.id)"
+							@dblclick="editTrack(row.track.id)"
+							@keydown.enter="selectTrack(row.track.id)"
 						>
 							<div class="bg-muted size-full overflow-hidden border">
 								<ImageRecordCover
-									v-if="getRecordForTrack(track)"
-									:record="getRecordForTrack(track)!"
+									v-if="row.record"
+									:record="row.record"
 									class="size-full"
 								/>
 								<Disc3
-									v-if="!getRecordForTrack(track)"
+									v-if="!row.record"
 									class="text-muted-foreground m-auto mt-1 size-4"
 								/>
 							</div>
 							<span class="font-mono text-[10px]">
-								{{ track.position || '—' }}
+								{{ row.track.position || '—' }}
 							</span>
-							<span class="truncate font-semibold">{{ track.title }}</span>
+							<span class="truncate font-semibold">{{ row.track.title }}</span>
 							<span class="text-muted-foreground truncate">
-								{{ formatArtists(track) || 'Unknown artist' }}
+								{{ formatArtists(row.track) || 'Unknown artist' }}
 							</span>
 							<span class="text-muted-foreground truncate">
-								{{ getRecordForTrack(track)?.title || 'Unknown release' }}
+								{{ row.record?.title || 'Unknown release' }}
 							</span>
 							<span class="truncate font-mono text-[10px]">
-								{{ getRecordForTrack(track)?.labels[0]?.catno || '—' }}
+								{{ row.record?.labels[0]?.catno || '—' }}
 							</span>
 							<span class="text-right font-mono tabular-nums">
-								{{ msToMMSS(track.duration) || '—' }}
+								{{ msToMMSS(row.track.duration) || '—' }}
 							</span>
 							<span class="text-right font-mono font-semibold tabular-nums">
-								{{ track.bpm ? track.bpm.toFixed(1) : '—' }}
+								{{ row.track.bpm ? row.track.bpm.toFixed(1) : '—' }}
 							</span>
 							<span
 								class="text-center font-mono font-semibold"
-								:style="keyStyle(track)"
+								:style="keyStyle(row.track)"
 							>
-								{{ formatKey(track) }}
+								{{ formatKey(row.track) }}
 							</span>
 							<span class="text-muted-foreground truncate">
-								{{ track.genres.join(' · ') || '—' }}
+								{{ row.track.genres.join(' · ') || '—' }}
 							</span>
 							<ShieldAlert
-								v-if="!track.playable"
+								v-if="!row.track.playable"
 								class="text-destructive size-3.5"
 							/>
 						</div>
 					</div>
 
-					<div class="divide-border divide-y md:hidden">
+					<div
+						v-else
+						class="divide-border divide-y"
+						data-testid="compact-track-rows"
+					>
 						<button
-							v-for="track in sortedTracks"
-							:key="track.id"
+							v-for="row in sortedTrackRows"
+							:key="row.track.id"
 							type="button"
+							:data-track-id="row.track.id"
 							class="hover:bg-accent/50 flex w-full items-center gap-3 px-3 py-2.5 text-left"
-							@click="selectTrack(track.id)"
+							@click="selectTrack(row.track.id)"
 						>
 							<div class="bg-muted size-10 shrink-0 rounded-sm border">
 								<ImageRecordCover
-									v-if="getRecordForTrack(track)"
-									:record="getRecordForTrack(track)!"
+									v-if="row.record"
+									:record="row.record"
 									class="size-full rounded-sm"
 								/>
 								<Disc3
-									v-if="!getRecordForTrack(track)"
+									v-if="!row.record"
 									class="text-muted-foreground m-auto mt-2 size-5"
 								/>
 							</div>
 							<div class="min-w-0 flex-1">
 								<div class="flex items-baseline gap-2">
-									<p class="truncate text-sm font-medium">{{ track.title }}</p>
+									<p class="truncate text-sm font-medium">
+										{{ row.track.title }}
+									</p>
 									<span
 										class="text-muted-foreground shrink-0 font-mono text-[10px]"
 									>
-										{{ track.position || '—' }}
+										{{ row.track.position || '—' }}
 									</span>
 								</div>
 								<p class="text-muted-foreground truncate text-xs">
-									{{ formatArtists(track) || 'Unknown artist' }}
+									{{ formatArtists(row.track) || 'Unknown artist' }}
 								</p>
 								<div class="mt-1 flex items-center gap-2 font-mono text-[10px]">
-									<span>{{ track.bpm ? track.bpm.toFixed(1) : '—' }} BPM</span>
-									<span :style="keyStyle(track)">{{ formatKey(track) }}</span>
+									<span>
+										{{ row.track.bpm ? row.track.bpm.toFixed(1) : '—' }} BPM
+									</span>
+									<span :style="keyStyle(row.track)">
+										{{ formatKey(row.track) }}
+									</span>
 									<span class="text-muted-foreground">
-										{{ msToMMSS(track.duration) || '—' }}
+										{{ msToMMSS(row.track.duration) || '—' }}
 									</span>
 								</div>
 							</div>
 							<span
 								class="size-1.5 shrink-0 rounded-full"
-								:class="track.playable ? 'bg-emerald-500' : 'bg-destructive'"
+								:class="
+									row.track.playable ? 'bg-emerald-500' : 'bg-destructive'
+								"
 							/>
 						</button>
 					</div>

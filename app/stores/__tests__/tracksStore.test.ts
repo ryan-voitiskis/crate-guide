@@ -1063,6 +1063,31 @@ describe('tracksStore', () => {
 
 			expect(result?.title).toBe('Found Track')
 		})
+
+		it('rebuilds the index after replacement, additions, removals, and reset', () => {
+			const store = useTracksStore()
+			const original = createMockTrack({ id: 'track-1', title: 'Original' })
+			store.tracks = [original]
+
+			expect(store.getTrackById('track-1')?.title).toBe('Original')
+
+			const replacement = createMockTrack({
+				id: 'track-1',
+				title: 'Replacement'
+			})
+			store.tracks = [replacement]
+			expect(store.getTrackById('track-1')?.title).toBe('Replacement')
+
+			const added = createMockTrack({ id: 'track-2' })
+			store.tracks.push(added)
+			expect(store.getTrackById('track-2')?.id).toBe(added.id)
+
+			store.tracks.splice(0, 1)
+			expect(store.getTrackById('track-1')).toBeUndefined()
+
+			store.clearTracks()
+			expect(store.getTrackById('track-2')).toBeUndefined()
+		})
 	})
 
 	describe('getTracksByRecordId', () => {
@@ -1087,6 +1112,45 @@ describe('tracksStore', () => {
 
 			expect(result.length).toBe(2)
 			expect(result.map((t) => t.id)).toEqual(['track-1', 'track-2'])
+		})
+
+		it('rebuilds grouped indexes after replacement, mutation, and reset', () => {
+			const store = useTracksStore()
+			const first = createMockTrack({
+				id: 'track-1',
+				record_id: 'record-1'
+			})
+			const second = createMockTrack({
+				id: 'track-2',
+				record_id: 'record-1'
+			})
+			store.tracks = [first, second]
+
+			expect(store.getTracksByRecordId('record-1')).toEqual([first, second])
+
+			const replacement = createMockTrack({
+				id: 'track-3',
+				record_id: 'record-2'
+			})
+			store.tracks = [replacement]
+			expect(store.getTracksByRecordId('record-1')).toEqual([])
+			expect(store.getTracksByRecordId('record-2')).toEqual([replacement])
+
+			const added = createMockTrack({
+				id: 'track-4',
+				record_id: 'record-2'
+			})
+			store.tracks.push(added)
+			expect(store.getTracksByRecordId('record-2')).toEqual([
+				replacement,
+				added
+			])
+
+			store.tracks.splice(0, 1)
+			expect(store.getTracksByRecordId('record-2')).toEqual([added])
+
+			store.clearTracks()
+			expect(store.getTracksByRecordId('record-2')).toEqual([])
 		})
 	})
 
