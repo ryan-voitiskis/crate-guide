@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(28);
+SELECT plan(41);
 
 SELECT has_table(
 	'public',
@@ -54,6 +54,15 @@ SELECT ok(
 	'outbox rows are inaccessible directly and must be mediated by service RPCs'
 );
 SELECT ok(
+	to_regclass(
+		'public.record_cover_account_cleanup_jobs_available_idx'
+	) IS NULL
+	AND pg_get_indexdef(
+		'public.record_cover_account_cleanup_jobs_fair_available_idx'::regclass
+	) LIKE '%(COALESCE(last_attempted_at, created_at), created_at, user_id) INCLUDE (locked_until)%',
+	'the claim index serves fair ordering while carrying lease availability'
+);
+SELECT ok(
 	to_regprocedure('public.enqueue_record_cover_account_cleanup(uuid)') IS NOT NULL
 	AND to_regprocedure('public.claim_record_cover_account_cleanup()') IS NOT NULL
 	AND to_regprocedure(
@@ -61,6 +70,9 @@ SELECT ok(
 	) IS NOT NULL
 	AND to_regprocedure(
 		'public.release_record_cover_account_cleanup(uuid,uuid)'
+	) IS NOT NULL
+	AND to_regprocedure(
+		'public.list_record_cover_account_cleanup_objects(uuid)'
 	) IS NOT NULL,
 	'all account cleanup outbox RPCs exist'
 );
@@ -72,7 +84,8 @@ SELECT ok(
 			'public.enqueue_record_cover_account_cleanup(uuid)'::regprocedure,
 			'public.claim_record_cover_account_cleanup()'::regprocedure,
 			'public.complete_record_cover_account_cleanup(uuid,uuid)'::regprocedure,
-			'public.release_record_cover_account_cleanup(uuid,uuid)'::regprocedure
+			'public.release_record_cover_account_cleanup(uuid,uuid)'::regprocedure,
+			'public.list_record_cover_account_cleanup_objects(uuid)'::regprocedure
 		)
 	),
 	'account cleanup outbox RPCs are security definers'
@@ -87,7 +100,8 @@ SELECT ok(
 			'public.enqueue_record_cover_account_cleanup(uuid)'::regprocedure,
 			'public.claim_record_cover_account_cleanup()'::regprocedure,
 			'public.complete_record_cover_account_cleanup(uuid,uuid)'::regprocedure,
-			'public.release_record_cover_account_cleanup(uuid,uuid)'::regprocedure
+			'public.release_record_cover_account_cleanup(uuid,uuid)'::regprocedure,
+			'public.list_record_cover_account_cleanup_objects(uuid)'::regprocedure
 		)
 	),
 	'account cleanup outbox RPCs pin their search paths'
@@ -132,6 +146,16 @@ SELECT ok(
 		'authenticated',
 		'public.release_record_cover_account_cleanup(uuid,uuid)',
 		'EXECUTE'
+	)
+	AND NOT has_function_privilege(
+		'anon',
+		'public.list_record_cover_account_cleanup_objects(uuid)',
+		'EXECUTE'
+	)
+	AND NOT has_function_privilege(
+		'authenticated',
+		'public.list_record_cover_account_cleanup_objects(uuid)',
+		'EXECUTE'
 	),
 	'browser roles cannot invoke account cleanup outbox RPCs'
 );
@@ -155,6 +179,11 @@ SELECT ok(
 		'service_role',
 		'public.release_record_cover_account_cleanup(uuid,uuid)',
 		'EXECUTE'
+	)
+	AND has_function_privilege(
+		'service_role',
+		'public.list_record_cover_account_cleanup_objects(uuid)',
+		'EXECUTE'
 	),
 	'the service role can use every account cleanup outbox RPC'
 );
@@ -165,6 +194,36 @@ SELECT ok(
 		)
 	) > 0,
 	'the claim RPC uses skip-locked row leasing'
+);
+SELECT ok(
+	position(
+		'COALESCE(jobs.last_attempted_at, jobs.created_at)' IN pg_get_functiondef(
+			'public.claim_record_cover_account_cleanup()'::REGPROCEDURE
+		)
+	) > 0
+	AND position(
+		'last_attempted_at = statement_timestamp()' IN pg_get_functiondef(
+			'public.claim_record_cover_account_cleanup()'::REGPROCEDURE
+		)
+	) > 0,
+	'the claim RPC orders by attempts and records an attempt at claim time'
+);
+SELECT is(
+	(
+		SELECT pronargs
+		FROM pg_proc
+		WHERE oid = 'public.list_record_cover_account_cleanup_objects(uuid)'::REGPROCEDURE
+	),
+	1::SMALLINT,
+	'the object enumeration accepts only the internally claimed user UUID'
+);
+SELECT ok(
+	position(
+		'LIMIT 101' IN pg_get_functiondef(
+			'public.list_record_cover_account_cleanup_objects(uuid)'::REGPROCEDURE
+		)
+	) > 0,
+	'the object enumeration has a database-fixed 101-row bound'
 );
 
 SELECT throws_like(
@@ -185,7 +244,85 @@ SELECT throws_like(
 INSERT INTO auth.users (id)
 VALUES
 	('00000000-0000-0000-0000-000000000401'),
-	('00000000-0000-0000-0000-000000000402');
+	('00000000-0000-0000-0000-000000000402'),
+	('00000000-0000-0000-0000-000000000403');
+
+INSERT INTO storage.objects (bucket_id, name, owner_id)
+SELECT
+	'record-covers',
+	'00000000-0000-0000-0000-000000000401/record/cover-'
+		|| object_number::TEXT
+		|| '.webp',
+	'00000000-0000-0000-0000-000000000401'
+FROM generate_series(1, 105) AS object_number;
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('other-bucket', 'other-bucket', FALSE);
+INSERT INTO storage.objects (bucket_id, name, owner_id)
+VALUES
+	(
+		'record-covers',
+		'00000000-0000-0000-0000-000000000401/000/deep/legacy/path/below/eight/folders/to/cover.webp',
+		'00000000-0000-0000-0000-000000000401'
+	),
+	(
+		'record-covers',
+		'00000000-0000-0000-0000-000000000402/record/cross-account.webp',
+		'00000000-0000-0000-0000-000000000402'
+	),
+	(
+		'other-bucket',
+		'00000000-0000-0000-0000-000000000401/record/wrong-bucket.webp',
+		'00000000-0000-0000-0000-000000000401'
+	);
+
+SET LOCAL ROLE service_role;
+SELECT is(
+	(
+		SELECT count(*)
+		FROM public.list_record_cover_account_cleanup_objects(
+			'00000000-0000-0000-0000-000000000401'
+		)
+	),
+	101::BIGINT,
+	'the service enumeration returns at most its fixed 101 rows'
+);
+SELECT ok(
+	NOT EXISTS (
+		SELECT 1
+		FROM public.list_record_cover_account_cleanup_objects(
+			'00000000-0000-0000-0000-000000000401'
+		)
+		WHERE object_name NOT LIKE
+			'00000000-0000-0000-0000-000000000401/%'
+	),
+	'the service enumeration returns only the claimed account prefix'
+);
+SELECT ok(
+	EXISTS (
+		SELECT 1
+		FROM public.list_record_cover_account_cleanup_objects(
+			'00000000-0000-0000-0000-000000000401'
+		)
+		WHERE object_name LIKE '%/below/eight/folders/to/cover.webp'
+	),
+	'the database enumeration sees deep legacy objects'
+);
+SELECT is(
+	(
+		SELECT array_agg(object_name)
+		FROM public.list_record_cover_account_cleanup_objects(
+			'00000000-0000-0000-0000-000000000401'
+		)
+	),
+	(
+		SELECT array_agg(object_name ORDER BY object_name)
+		FROM public.list_record_cover_account_cleanup_objects(
+			'00000000-0000-0000-0000-000000000401'
+		)
+	),
+	'the bounded enumeration is deterministic by exact object name'
+);
+RESET ROLE;
 
 CREATE TEMPORARY TABLE account_cleanup_claims (
 	label TEXT PRIMARY KEY,
@@ -279,6 +416,15 @@ SELECT is(
 	),
 	'00000000-0000-0000-0000-000000000401'::UUID,
 	'the oldest available job is claimed while another lease remains locked'
+);
+SELECT ok(
+	(
+		SELECT last_attempted_at IS NOT NULL
+			AND locked_until > statement_timestamp()
+		FROM public.record_cover_account_cleanup_jobs
+		WHERE user_id = '00000000-0000-0000-0000-000000000401'
+	),
+	'claiming immediately records the attempt and active lease'
 );
 SELECT is(
 	(
@@ -385,6 +531,63 @@ SELECT ok(
 		WHERE user_id = '00000000-0000-0000-0000-000000000402'
 	),
 	'a stalled deleter cannot complete a worker-rotated live-user cleanup claim'
+);
+
+UPDATE public.record_cover_account_cleanup_jobs
+SET
+	created_at = statement_timestamp() - INTERVAL '10 minutes',
+	last_attempted_at = statement_timestamp() - INTERVAL '1 minute',
+	locked_until = statement_timestamp() - INTERVAL '1 second',
+	claim_token = gen_random_uuid()
+WHERE user_id = '00000000-0000-0000-0000-000000000402';
+INSERT INTO public.record_cover_account_cleanup_jobs (user_id, created_at)
+VALUES (
+	'00000000-0000-0000-0000-000000000403',
+	statement_timestamp() - INTERVAL '2 minutes'
+);
+INSERT INTO account_cleanup_claims
+SELECT 'fair-untouched', claimed_user_id, claim_token
+FROM public.claim_record_cover_account_cleanup();
+SELECT is(
+	(
+		SELECT claimed_user_id
+		FROM account_cleanup_claims
+		WHERE label = 'fair-untouched'
+	),
+	'00000000-0000-0000-0000-000000000403'::UUID,
+	'an untouched newer job is selected before an older attempted expired row'
+);
+SELECT ok(
+	(
+		SELECT last_attempted_at > created_at
+			AND locked_until > statement_timestamp()
+		FROM public.record_cover_account_cleanup_jobs
+		WHERE user_id = '00000000-0000-0000-0000-000000000403'
+	),
+	'the fair claim marks the formerly untouched job at claim time'
+);
+SELECT ok(
+	public.complete_record_cover_account_cleanup(
+		'00000000-0000-0000-0000-000000000403',
+		(
+			SELECT claim_token
+			FROM account_cleanup_claims
+			WHERE label = 'fair-untouched'
+		)
+	),
+	'the exact fair claim can complete'
+);
+INSERT INTO account_cleanup_claims
+SELECT 'fair-attempted-next', claimed_user_id, claim_token
+FROM public.claim_record_cover_account_cleanup();
+SELECT is(
+	(
+		SELECT claimed_user_id
+		FROM account_cleanup_claims
+		WHERE label = 'fair-attempted-next'
+	),
+	'00000000-0000-0000-0000-000000000402'::UUID,
+	'the previously attempted job remains available after untouched work receives service'
 );
 
 DELETE FROM auth.users

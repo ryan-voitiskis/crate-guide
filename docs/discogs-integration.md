@@ -147,7 +147,10 @@ credential-shaped OAuth messages.
 
 Discogs imports may initially retain an external cover URL. When a cover is
 uploaded into the private `record-covers` bucket, its managed path is shaped as
-`<user UUID>/<record UUID>/<file>.webp`.
+`<user UUID>/<record UUID>/<file>.webp`. The authenticated Storage insert policy
+requires exactly those two folder components; it rejects both shallower and
+deeper new uploads, while service cleanup remains able to remove older objects
+at any legacy depth.
 
 - A database trigger atomically enqueues an obsolete managed path when a record
   cover is replaced or the record is deleted. Jobs have no user/record foreign
@@ -184,25 +187,32 @@ Account deletion has an additional service-owned recovery path:
   upload races; only a confirmed empty tree permits ordinary-job deletion and
   outbox completion.
 - The outbox has no auth-user foreign key and no browser policies or grants.
-  Service-role-only RPCs claim at most the oldest available job under a
-  two-minute lease, and completion or release must present that claim's token.
-  A release retains the row, records a bounded attempt count, and applies a
-  short retry delay.
+  Service-role-only RPCs claim one available job under a two-minute lease and
+  order fairly by the last claim/release attempt, then stable creation and user
+  ties. Claiming immediately records `last_attempted_at`, so an expired crash
+  lease rotates behind untouched available work. Completion or release must
+  present the current claim token; release retains the row, records a bounded
+  attempt count, and applies a short retry delay.
 - `cleanup-orphaned-record-covers` is a POST-only, no-body service endpoint. It
   accepts only an exact `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>`
   credential, compared timing-safely with the server environment value. It has
   no browser CORS contract, rejects ordinary authenticated and anonymous
   tokens, accepts no user/path selector, and returns only generic `processed`
   and `complete` booleans.
-- One service invocation claims at most one outbox job and processes at most
-  100 listed objects with bounded recursive listing work. A live auth user,
-  remaining objects, or ambiguous Storage/database state releases the lease for
-  retry. Only a confirming empty listing permits ordinary-job deletion and
-  exact outbox completion.
-- After its own work succeeds, ordinary `cleanup-record-covers` also attempts
-  at most one service-selected outbox batch. This opportunistic work is opaque:
-  its result or failure does not change the ordinary caller's already-computed
-  counts or status and exposes no cross-account information.
+- One service invocation claims at most one outbox job. A fixed service-only
+  database enumeration returns at most 101 exact object names for the claimed
+  UUID from `storage.objects`, regardless of folder depth. The worker validates
+  every returned prefix and segment, removes only the first 100 names, and uses
+  row 101 as bounded proof that more work remains. Otherwise one confirming
+  database enumeration after removal must be empty before ordinary-job deletion
+  and exact outbox completion. A live auth user or ambiguous Storage/database
+  state releases the lease for retry.
+- After its own work succeeds, ordinary `cleanup-record-covers` schedules at
+  most one service-selected outbox batch through the Edge background lifetime.
+  It does not await Auth, Storage, or outbox work from that opportunistic task.
+  Scheduling failure and background rejection are opaque and cannot change the
+  ordinary caller's already-computed counts or status or expose cross-account
+  information.
 - The repository contains no source-controlled hosted schedule for the service
   endpoint. Its presence supports an operator or future scheduler, but this
   guide makes no claim that the function is deployed, configured, or scheduled

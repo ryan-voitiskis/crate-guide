@@ -36,6 +36,11 @@ interface HandlerDependencies {
 	createAdmin(): CleanupAdmin
 	now(): Date
 	processOrphanedAccountCleanup(): Promise<void>
+	scheduleBackground(task: Promise<void>): void
+}
+
+interface EdgeRuntimeLifetime {
+	waitUntil(task: Promise<unknown>): void
 }
 
 class CleanupDatabaseError extends Error {}
@@ -129,6 +134,15 @@ const defaultDependencies: HandlerDependencies = {
 	now: () => new Date(),
 	processOrphanedAccountCleanup: async () => {
 		await processOneAccountCoverCleanup()
+	},
+	scheduleBackground: (task) => {
+		const edgeRuntime = (
+			globalThis as typeof globalThis & {
+				EdgeRuntime?: EdgeRuntimeLifetime
+			}
+		).EdgeRuntime
+		if (!edgeRuntime) throw new Error('Edge background lifetime is unavailable')
+		edgeRuntime.waitUntil(task)
 	}
 }
 
@@ -195,13 +209,16 @@ function cleanupResponse(
 	)
 }
 
-async function runOpportunisticAccountCleanup(
+function scheduleOpportunisticAccountCleanup(
 	dependencies: HandlerDependencies
-): Promise<void> {
+): void {
+	const task = Promise.resolve()
+		.then(() => dependencies.processOrphanedAccountCleanup())
+		.catch(() => undefined)
 	try {
-		await dependencies.processOrphanedAccountCleanup()
+		dependencies.scheduleBackground(task)
 	} catch {
-		// This service-owned work must remain opaque to the ordinary caller.
+		// Background scheduling and work remain opaque to the ordinary caller.
 	}
 }
 
@@ -268,7 +285,7 @@ export function createCleanupRecordCoversHandler(
 				{ processed: 0, removed: 0, deferred: 0 },
 				false
 			)
-			await runOpportunisticAccountCleanup(dependencies)
+			scheduleOpportunisticAccountCleanup(dependencies)
 			return response
 		}
 
@@ -368,7 +385,7 @@ export function createCleanupRecordCoversHandler(
 			failedJobs.length > 0
 		)
 		if (!failedJobs.length) {
-			await runOpportunisticAccountCleanup(dependencies)
+			scheduleOpportunisticAccountCleanup(dependencies)
 		}
 		return response
 	}

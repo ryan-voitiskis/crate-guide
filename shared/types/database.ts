@@ -426,6 +426,12 @@ export type Database = {
 				Args: { record: Json; tracks?: Json }
 				Returns: Json
 			}
+			list_record_cover_account_cleanup_objects: {
+				Args: { target_user_id: string }
+				Returns: {
+					object_name: string
+				}[]
+			}
 			release_record_cover_account_cleanup: {
 				Args: { expected_claim_token: string; target_user_id: string }
 				Returns: boolean

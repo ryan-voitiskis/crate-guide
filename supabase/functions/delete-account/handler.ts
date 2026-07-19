@@ -29,7 +29,10 @@ interface ClaimsClient {
 	}
 }
 
-interface AccountDeletionAdmin extends AccountCoverCleanupAdapter {
+type AccountDeletionAdmin = Omit<
+	AccountCoverCleanupAdapter,
+	'listClaimedObjects'
+> & {
 	deleteUser(userId: string): Promise<void>
 }
 

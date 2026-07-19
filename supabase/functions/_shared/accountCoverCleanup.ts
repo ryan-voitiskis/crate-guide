@@ -3,8 +3,9 @@ import { createServiceRoleSupabaseClient } from './supabaseHelpers.ts'
 
 const RECORD_COVER_BUCKET = 'record-covers'
 export const ACCOUNT_COVER_STORAGE_BATCH_LIMIT = 100
+export const ACCOUNT_COVER_ENUMERATION_LIMIT =
+	ACCOUNT_COVER_STORAGE_BATCH_LIMIT + 1
 const MAX_FULL_CLEANUP_PASSES = 3
-export const ACCOUNT_COVER_RETRY_LIST_CALL_LIMIT = 8
 const UUID_PATTERN =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
@@ -24,6 +25,7 @@ export interface AccountCoverCleanupAdapter {
 		offset: number,
 		limit: number
 	): Promise<AccountCoverStorageEntry[]>
+	listClaimedObjects(userId: string): Promise<unknown>
 	removeObjects(paths: string[]): Promise<void>
 	deleteOrdinaryJobs(userId: string): Promise<void>
 	enqueue(userId: string): Promise<AccountCoverCleanupClaim>
@@ -44,6 +46,10 @@ export class AccountCoverCleanupError extends Error {}
 interface RpcClaimRow {
 	claimed_user_id: unknown
 	claim_token: unknown
+}
+
+interface RpcObjectRow {
+	object_name: unknown
 }
 
 interface StorageBatch {
@@ -98,6 +104,41 @@ function assertSafeStorageSegment(name: unknown): asserts name is string {
 	}
 }
 
+function parseClaimedObjectRows(value: unknown, userId: string): string[] {
+	assertSafeUserId(userId)
+	if (!Array.isArray(value) || value.length > ACCOUNT_COVER_ENUMERATION_LIMIT) {
+		throw new AccountCoverCleanupError('Cleanup object response was invalid')
+	}
+
+	const seen = new Set<string>()
+	return value.map((row) => {
+		if (
+			!row ||
+			typeof row !== 'object' ||
+			Array.isArray(row) ||
+			Object.keys(row).length !== 1 ||
+			!Object.hasOwn(row, 'object_name')
+		) {
+			throw new AccountCoverCleanupError('Cleanup object response was invalid')
+		}
+
+		const { object_name: objectName } = row as RpcObjectRow
+		if (typeof objectName !== 'string' || objectName.includes('\\')) {
+			throw new AccountCoverCleanupError('Cleanup object response was invalid')
+		}
+		const segments = objectName.split('/')
+		if (segments.length < 2 || segments[0] !== userId) {
+			throw new AccountCoverCleanupError('Cleanup object response was invalid')
+		}
+		for (const segment of segments) assertSafeStorageSegment(segment)
+		if (seen.has(objectName)) {
+			throw new AccountCoverCleanupError('Cleanup object response was invalid')
+		}
+		seen.add(objectName)
+		return objectName
+	})
+}
+
 function assertSafeUserId(userId: string): void {
 	if (!isUuid(userId)) {
 		throw new AccountCoverCleanupError('Unsafe account identifier')
@@ -123,6 +164,16 @@ export function createAccountCoverCleanupAdapter(
 				id: entry.id ?? null,
 				name: entry.name
 			}))
+		},
+		async listClaimedObjects(userId) {
+			const { data, error } = await supabase.rpc(
+				'list_record_cover_account_cleanup_objects',
+				{ target_user_id: userId }
+			)
+			if (error) {
+				throw new AccountCoverCleanupError('Cleanup object listing failed')
+			}
+			return data
 		},
 		async removeObjects(paths) {
 			if (!paths.length) return
@@ -345,21 +396,25 @@ export async function processOneAccountCoverCleanup(
 			return { processed: true, complete: false, failed: false }
 		}
 
-		const batch = await listStorageBatch(
-			adapter,
-			claim.userId,
-			ACCOUNT_COVER_STORAGE_BATCH_LIMIT,
-			ACCOUNT_COVER_RETRY_LIST_CALL_LIMIT
+		const listedPaths = parseClaimedObjectRows(
+			await adapter.listClaimedObjects(claim.userId),
+			claim.userId
 		)
-		if (batch.paths.length) await adapter.removeObjects(batch.paths)
+		const removalPaths = listedPaths.slice(0, ACCOUNT_COVER_STORAGE_BATCH_LIMIT)
+		if (removalPaths.length) await adapter.removeObjects(removalPaths)
 
-		const remaining = await listStorageBatch(
-			adapter,
-			claim.userId,
-			1,
-			ACCOUNT_COVER_RETRY_LIST_CALL_LIMIT
+		if (listedPaths.length === ACCOUNT_COVER_ENUMERATION_LIMIT) {
+			if (!(await adapter.release(claim))) {
+				throw new AccountCoverCleanupError('Cleanup release was not confirmed')
+			}
+			return { processed: true, complete: false, failed: false }
+		}
+
+		const remainingPaths = parseClaimedObjectRows(
+			await adapter.listClaimedObjects(claim.userId),
+			claim.userId
 		)
-		if (remaining.paths.length || remaining.hasMore) {
+		if (remainingPaths.length) {
 			if (!(await adapter.release(claim))) {
 				throw new AccountCoverCleanupError('Cleanup release was not confirmed')
 			}

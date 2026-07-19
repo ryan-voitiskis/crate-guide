@@ -47,6 +47,7 @@ function dependencies(
 			attemptedAt: string
 		) => Promise<void>
 		processOrphanedAccountCleanup?: () => Promise<void>
+		scheduleBackground?: (task: Promise<void>) => void
 	} = {}
 ) {
 	return {
@@ -63,7 +64,8 @@ function dependencies(
 			markAttempts: overrides.markAttempts ?? (() => Promise.resolve())
 		}),
 		processOrphanedAccountCleanup:
-			overrides.processOrphanedAccountCleanup ?? (() => Promise.resolve())
+			overrides.processOrphanedAccountCleanup ?? (() => Promise.resolve()),
+		scheduleBackground: overrides.scheduleBackground ?? (() => undefined)
 	}
 }
 
@@ -161,20 +163,26 @@ Deno.test(
 )
 
 Deno.test(
-	'cleanup-record-covers keeps an orphan retry opaque to an ordinary caller',
+	'cleanup-record-covers returns promptly while the scheduler owns pending orphan work',
 	async () => {
-		let attempts = 0
+		const neverSettles = new Promise<void>(() => undefined)
+		const scheduledTasks: Promise<void>[] = []
 		const handler = createCleanupRecordCoversHandler(
 			{ 'Content-Type': 'application/json' },
 			dependencies({
-				processOrphanedAccountCleanup: () => {
-					attempts += 1
-					return Promise.reject(new Error('private orphan cleanup detail'))
+				processOrphanedAccountCleanup: () => neverSettles,
+				scheduleBackground: (task) => {
+					scheduledTasks.push(task)
 				}
 			})
 		)
 
-		const response = await handler(request())
+		const response = await Promise.race([
+			handler(request()),
+			new Promise<Response>((_resolve, reject) =>
+				setTimeout(() => reject(new Error('ordinary response stalled')), 50)
+			)
+		])
 
 		assert.equal(response.status, 200)
 		assert.deepEqual(await response.json(), {
@@ -182,7 +190,46 @@ Deno.test(
 			removed: 0,
 			deferred: 0
 		})
-		assert.equal(attempts, 1)
+		assert.equal(scheduledTasks.length, 1)
+	}
+)
+
+Deno.test(
+	'cleanup-record-covers swallows scheduling failure and background rejection',
+	async () => {
+		const scheduledTasks: Promise<void>[] = []
+		const rejectingHandler = createCleanupRecordCoversHandler(
+			{ 'Content-Type': 'application/json' },
+			dependencies({
+				processOrphanedAccountCleanup: () =>
+					Promise.reject(new Error('private orphan cleanup detail')),
+				scheduleBackground: (task) => {
+					scheduledTasks.push(task)
+				}
+			})
+		)
+		const schedulingFailureHandler = createCleanupRecordCoversHandler(
+			{ 'Content-Type': 'application/json' },
+			dependencies({
+				scheduleBackground: () => {
+					throw new Error('private scheduler detail')
+				}
+			})
+		)
+
+		const rejectingResponse = await rejectingHandler(request())
+		assert.equal(scheduledTasks.length, 1)
+		await scheduledTasks[0]
+		const schedulingFailureResponse = await schedulingFailureHandler(request())
+
+		for (const response of [rejectingResponse, schedulingFailureResponse]) {
+			assert.equal(response.status, 200)
+			assert.deepEqual(await response.json(), {
+				processed: 0,
+				removed: 0,
+				deferred: 0
+			})
+		}
 	}
 )
 
