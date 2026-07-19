@@ -1,6 +1,7 @@
 import { toast } from 'vue-sonner'
 import { getActivePinia } from 'pinia'
 import { adjustKey } from '~/utils/keyFunctions'
+import { sortCreatedAtDescIdDesc } from '~/utils/supabaseOrdering'
 import { fetchAllSupabasePages } from '~/utils/supabasePagination'
 import { decodeSavedSetRow, reportDecodeIssues } from '~/utils/supabaseRows'
 import { getTrackSuggestions } from '~/utils/trackSuggestions'
@@ -614,22 +615,31 @@ export const useSessionStore = defineStore('session', () => {
 		if (!context) return
 
 		isLoadingSets.value = true
+		const startingIds = new Set(savedSets.value.map((set) => set.id))
 		try {
-			const rows = await fetchAllSupabasePages(async (from, to) => {
-				return await supabase
+			const rows = await fetchAllSupabasePages(async (cursor, pageSize) => {
+				let query = supabase
 					.from('sets')
 					.select('*')
 					.eq('user_id', context.userId)
-					.order('created_at', { ascending: false })
 					.order('id', { ascending: false })
-					.range(from, to)
+				if (cursor !== null) query = query.lt('id', cursor)
+				return await query.limit(pageSize)
 			})
 
 			if (!isCurrentAccountContext(context)) return
 			const decodedRows = rows.map(decodeSavedSetRow)
 			const issues = decodedRows.flatMap((decoded) => decoded.issues)
 			reportDecodeIssues(issues, (message) => toast.warning(message))
-			savedSets.value = decodedRows.map((decoded) => decoded.row)
+			const fetchedSets = decodedRows.map((decoded) => decoded.row)
+			const fetchedIds = new Set(fetchedSets.map((set) => set.id))
+			const createdDuringFetch = savedSets.value.filter(
+				(set) => !startingIds.has(set.id) && !fetchedIds.has(set.id)
+			)
+			savedSets.value = sortCreatedAtDescIdDesc([
+				...fetchedSets,
+				...createdDuringFetch
+			])
 		} catch (e) {
 			if (!isCurrentAccountContext(context)) return
 			console.error(e)

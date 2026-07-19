@@ -1,5 +1,9 @@
 import { toast } from 'vue-sonner'
 import { getActivePinia } from 'pinia'
+import {
+	compareCreatedAtDescIdDesc,
+	postgresTimestampMicroseconds
+} from '~/utils/supabaseOrdering'
 import { fetchAllSupabasePages } from '~/utils/supabasePagination'
 import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 
@@ -40,9 +44,6 @@ type MembershipResult = {
 	context: MembershipContext
 	crate: Crate
 }
-
-const POSTGRES_TIMESTAMP_PATTERN =
-	/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?(Z|([+-])(\d{2}):(\d{2}))$/
 
 export const useCratesStore = defineStore('crates', () => {
 	const supabase = useSupabaseClient<Database>()
@@ -164,83 +165,6 @@ export const useCratesStore = defineStore('crates', () => {
 		)
 	}
 
-	function postgresTimestampMicroseconds(value: string): bigint | null {
-		const match = POSTGRES_TIMESTAMP_PATTERN.exec(value)
-		if (!match) return null
-
-		const [
-			,
-			yearValue,
-			monthValue,
-			dayValue,
-			hourValue,
-			minuteValue,
-			secondValue,
-			fraction = '',
-			offset,
-			offsetSign,
-			offsetHourValue,
-			offsetMinuteValue
-		] = match
-		const year = Number(yearValue)
-		const month = Number(monthValue)
-		const day = Number(dayValue)
-		const hour = Number(hourValue)
-		const minute = Number(minuteValue)
-		const second = Number(secondValue)
-		const isLeapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
-		const daysInMonth = [
-			31,
-			isLeapYear ? 29 : 28,
-			31,
-			30,
-			31,
-			30,
-			31,
-			31,
-			30,
-			31,
-			30,
-			31
-		]
-
-		if (
-			year < 1 ||
-			month < 1 ||
-			month > 12 ||
-			day < 1 ||
-			day > daysInMonth[month - 1]! ||
-			hour > 23 ||
-			minute > 59 ||
-			second > 59
-		) {
-			return null
-		}
-
-		let offsetMinutes = 0
-		if (offset !== 'Z') {
-			const offsetHours = Number(offsetHourValue)
-			const offsetMinute = Number(offsetMinuteValue)
-			if (
-				offsetHours > 14 ||
-				offsetMinute > 59 ||
-				(offsetHours === 14 && offsetMinute !== 0)
-			) {
-				return null
-			}
-			offsetMinutes =
-				(offsetHours * 60 + offsetMinute) * (offsetSign === '-' ? -1 : 1)
-		}
-
-		const date = new Date(0)
-		date.setUTCFullYear(year, month - 1, day)
-		date.setUTCHours(hour, minute, second, 0)
-		const absoluteMilliseconds =
-			BigInt(date.getTime()) - BigInt(offsetMinutes) * 60_000n
-
-		return absoluteMilliseconds * 1000n + BigInt(fraction.padEnd(6, '0'))
-	}
-
 	function decodeCrate(
 		data: unknown,
 		expected: { id?: string; userId: string }
@@ -254,14 +178,12 @@ export const useCratesStore = defineStore('crates', () => {
 			(field) =>
 				candidate[field] === null || typeof candidate[field] === 'string'
 		)
-		const timestampsAreValid = ['created_at', 'updated_at'].every((field) => {
-			const value = candidate[field]
-			return (
-				value === null ||
-				(typeof value === 'string' &&
-					postgresTimestampMicroseconds(value) !== null)
-			)
-		})
+		const createdAtIsValid =
+			candidate.created_at === null || typeof candidate.created_at === 'string'
+		const updatedAtIsValid =
+			candidate.updated_at === null ||
+			(typeof candidate.updated_at === 'string' &&
+				postgresTimestampMicroseconds(candidate.updated_at) !== null)
 
 		if (
 			typeof candidate.id !== 'string' ||
@@ -270,7 +192,8 @@ export const useCratesStore = defineStore('crates', () => {
 			typeof candidate.user_id !== 'string' ||
 			candidate.user_id !== expected.userId ||
 			!nullableStringsAreValid ||
-			!timestampsAreValid ||
+			!createdAtIsValid ||
+			!updatedAtIsValid ||
 			!Array.isArray(candidate.records) ||
 			!candidate.records.every((recordId) => typeof recordId === 'string')
 		) {
@@ -304,28 +227,9 @@ export const useCratesStore = defineStore('crates', () => {
 		return { ...crate, ...updates }
 	}
 
-	function compareCratesByDeclaredOrder(left: Crate, right: Crate): number {
-		const leftCreatedAt = left.created_at
-			? postgresTimestampMicroseconds(left.created_at)
-			: null
-		const rightCreatedAt = right.created_at
-			? postgresTimestampMicroseconds(right.created_at)
-			: null
-
-		if (leftCreatedAt === null && rightCreatedAt !== null) return 1
-		if (leftCreatedAt !== null && rightCreatedAt === null) return -1
-		if (leftCreatedAt !== null && rightCreatedAt !== null) {
-			if (leftCreatedAt > rightCreatedAt) return -1
-			if (leftCreatedAt < rightCreatedAt) return 1
-		}
-
-		if (left.id === right.id) return 0
-		return left.id > right.id ? -1 : 1
-	}
-
 	function insertCrateInDeclaredOrder(rows: Crate[], crate: Crate): void {
 		const insertAt = rows.findIndex(
-			(existingCrate) => compareCratesByDeclaredOrder(crate, existingCrate) < 0
+			(existingCrate) => compareCreatedAtDescIdDesc(crate, existingCrate) < 0
 		)
 		if (insertAt === -1) rows.push(crate)
 		else rows.splice(insertAt, 0, crate)
@@ -435,7 +339,7 @@ export const useCratesStore = defineStore('crates', () => {
 		}
 
 		for (const addedCrate of rowsAddedDuringFetch.sort(
-			compareCratesByDeclaredOrder
+			compareCreatedAtDescIdDesc
 		)) {
 			insertCrateInDeclaredOrder(reconciledRows, addedCrate)
 		}
@@ -461,18 +365,22 @@ export const useCratesStore = defineStore('crates', () => {
 			if (!isCurrentFetchContext(context)) return false
 			const snapshot = captureFetchSnapshot()
 
-			const rows = await fetchAllSupabasePages(async (from, to) => {
-				return await supabase
+			const rows = await fetchAllSupabasePages(async (cursor, pageSize) => {
+				let query = supabase
 					.from('crates')
 					.select('*')
 					.eq('user_id', userId)
-					.order('created_at', { ascending: false, nullsFirst: false })
 					.order('id', { ascending: false })
-					.range(from, to)
+				if (cursor !== null) query = query.lt('id', cursor)
+				return await query.limit(pageSize)
 			})
 			if (!isCurrentFetchContext(context)) return false
 
-			const decodedRows = rows.map((row) => decodeCrate(row, { userId }))
+			const decodedRows = rows
+				.map((row) => decodeCrate(row, { userId }))
+				.sort((left, right) =>
+					compareCreatedAtDescIdDesc(left.crate, right.crate)
+				)
 			reconcileFetchedCrates(decodedRows, snapshot)
 			return true
 		} catch (error) {

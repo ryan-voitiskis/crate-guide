@@ -1,5 +1,6 @@
 import { toast } from 'vue-sonner'
 import { getActivePinia } from 'pinia'
+import { sortCreatedAtDescIdDesc } from '~/utils/supabaseOrdering'
 import { fetchAllSupabasePages } from '~/utils/supabasePagination'
 import {
 	type DecodeIssue,
@@ -169,25 +170,35 @@ export const useTracksStore = defineStore('tracks', () => {
 			if (generation !== accountGeneration) return false
 			activeFetchUserId = userId
 			context = { generation, userId }
+			const startingIds = new Set(tracks.value.map((track) => track.id))
 
-			const rows = await fetchAllSupabasePages(async (from, to) => {
-				return await supabase
+			const rows = await fetchAllSupabasePages(async (cursor, pageSize) => {
+				let query = supabase
 					.from('tracks')
 					.select('*')
 					.eq('user_id', userId)
-					.order('created_at', { ascending: false })
 					.order('id', { ascending: false })
-					.range(from, to)
+				if (cursor !== null) query = query.lt('id', cursor)
+				const result = await query.limit(pageSize)
+				if (result.data?.some((track) => track.user_id !== userId)) {
+					throw new Error('Track ownership validation failed')
+				}
+				return result
 			})
 			if (!isCurrentFetchContext(context)) return false
-			if (rows.some((track) => track.user_id !== userId)) {
-				throw new Error('Track ownership validation failed')
-			}
 
 			const decodedRows = rows.map(decodeTrackRow)
 			const issues = decodedRows.flatMap((decoded) => decoded.issues)
 			reportDecodeIssues(issues, (message) => toast.warning(message))
-			tracks.value = decodedRows.map((decoded) => decoded.row)
+			const fetchedTracks = decodedRows.map((decoded) => decoded.row)
+			const fetchedIds = new Set(fetchedTracks.map((track) => track.id))
+			const createdDuringFetch = tracks.value.filter(
+				(track) => !startingIds.has(track.id) && !fetchedIds.has(track.id)
+			)
+			tracks.value = sortCreatedAtDescIdDesc([
+				...fetchedTracks,
+				...createdDuringFetch
+			])
 			return true
 		} catch (error) {
 			if (!context || !isCurrentFetchContext(context)) return false

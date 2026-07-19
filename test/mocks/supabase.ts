@@ -13,7 +13,7 @@ type MockQueryBuilder = {
 	maybeSingle: ReturnType<typeof vi.fn>
 	order: ReturnType<typeof vi.fn>
 	limit: ReturnType<typeof vi.fn>
-	range: ReturnType<typeof vi.fn>
+	lt: ReturnType<typeof vi.fn>
 	then: ReturnType<typeof vi.fn>
 }
 
@@ -31,7 +31,7 @@ export function createMockQueryBuilder(): MockQueryBuilder {
 		maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
 		order: vi.fn().mockReturnThis(),
 		limit: vi.fn().mockReturnThis(),
-		range: vi.fn().mockReturnThis(),
+		lt: vi.fn().mockReturnThis(),
 		then: vi.fn()
 	}
 	return builder

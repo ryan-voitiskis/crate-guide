@@ -57,7 +57,8 @@ function createMockQueryBuilder() {
 		delete: vi.fn().mockReturnThis(),
 		eq: vi.fn().mockReturnThis(),
 		order: vi.fn().mockReturnThis(),
-		range: vi.fn().mockResolvedValue({ data: [], error: null }),
+		lt: vi.fn().mockReturnThis(),
+		limit: vi.fn().mockResolvedValue({ data: [], error: null }),
 		single: vi.fn().mockResolvedValue({ data: null, error: null })
 	}
 	return builder
@@ -1117,7 +1118,7 @@ describe('recordsStore', () => {
 
 		it('returns true for a successful empty response and resets loading', async () => {
 			const store = useRecordsStore()
-			mockQueryBuilder.range.mockResolvedValue({ data: [], error: null })
+			mockQueryBuilder.limit.mockResolvedValue({ data: [], error: null })
 
 			const fetchPromise = store.fetchAllRecords()
 			expect(store.isLoadingRecords).toBe(true)
@@ -1130,10 +1131,16 @@ describe('recordsStore', () => {
 		it('returns true and populates records from a non-empty response', async () => {
 			const store = useRecordsStore()
 			const mockData = [
-				createMockRecord({ id: 'record-1' }),
-				createMockRecord({ id: 'record-2' })
+				createMockRecord({
+					id: 'record-2',
+					created_at: '2026-07-12T00:00:00.000001Z'
+				}),
+				createMockRecord({
+					id: 'record-1',
+					created_at: '2026-07-12T00:00:00.000002Z'
+				})
 			]
-			mockQueryBuilder.range.mockResolvedValue({ data: mockData, error: null })
+			mockQueryBuilder.limit.mockResolvedValue({ data: mockData, error: null })
 
 			const result = await store.fetchAllRecords()
 
@@ -1147,12 +1154,12 @@ describe('recordsStore', () => {
 				data: DatabaseRecord[]
 				error: null
 			}>()
-			mockQueryBuilder.range.mockReturnValueOnce(oldResult.promise)
+			mockQueryBuilder.limit.mockReturnValueOnce(oldResult.promise)
 			const store = useRecordsStore()
 
 			const oldFetch = store.fetchAllRecords()
 			await vi.waitFor(() =>
-				expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
 			)
 			store.clearRecords()
 			expect(store.isLoadingRecords).toBe(false)
@@ -1171,7 +1178,7 @@ describe('recordsStore', () => {
 				data: null
 				error: Error
 			}>()
-			mockQueryBuilder.range.mockReturnValueOnce(oldResult.promise)
+			mockQueryBuilder.limit.mockReturnValueOnce(oldResult.promise)
 			const consoleError = vi
 				.spyOn(console, 'error')
 				.mockImplementation(() => undefined)
@@ -1180,7 +1187,7 @@ describe('recordsStore', () => {
 			try {
 				const oldFetch = store.fetchAllRecords()
 				await vi.waitFor(() =>
-					expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+					expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
 				)
 				store.clearRecords()
 				oldResult.resolve({
@@ -1208,20 +1215,20 @@ describe('recordsStore', () => {
 				data: DatabaseRecord[]
 				error: null
 			}>()
-			mockQueryBuilder.range
+			mockQueryBuilder.limit
 				.mockReturnValueOnce(oldResult.promise)
 				.mockReturnValueOnce(newResult.promise)
 			const store = useRecordsStore()
 
 			const oldFetch = store.fetchAllRecords()
 			await vi.waitFor(() =>
-				expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
 			)
 			store.clearRecords()
 			mockUserStore.supaUser = { id: 'user-b' }
 			const newFetch = store.fetchAllRecords()
 			await vi.waitFor(() =>
-				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+				expect(mockQueryBuilder.limit).toHaveBeenCalledTimes(2)
 			)
 
 			newResult.resolve({
@@ -1249,20 +1256,20 @@ describe('recordsStore', () => {
 				data: DatabaseRecord[]
 				error: null
 			}>()
-			mockQueryBuilder.range
+			mockQueryBuilder.limit
 				.mockReturnValueOnce(oldResult.promise)
 				.mockReturnValueOnce(newResult.promise)
 			const store = useRecordsStore()
 
 			const oldFetch = store.fetchAllRecords()
 			await vi.waitFor(() =>
-				expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
 			)
 			store.clearRecords()
 			mockUserStore.supaUser = { id: 'user-b' }
 			const newFetch = store.fetchAllRecords()
 			await vi.waitFor(() =>
-				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+				expect(mockQueryBuilder.limit).toHaveBeenCalledTimes(2)
 			)
 
 			oldResult.resolve({ data: [], error: null })
@@ -1284,10 +1291,12 @@ describe('recordsStore', () => {
 				data: DatabaseRecord[]
 				error: null
 			}>()
-			mockQueryBuilder.range
+			mockQueryBuilder.limit
 				.mockResolvedValueOnce({
 					data: Array.from({ length: 1000 }, (_, index) =>
-						createMockRecord({ id: `old-record-${index}` })
+						createMockRecord({
+							id: `old-record-${String(1000 - index).padStart(4, '0')}`
+						})
 					),
 					error: null
 				})
@@ -1296,11 +1305,11 @@ describe('recordsStore', () => {
 
 			const oldFetch = store.fetchAllRecords()
 			await vi.waitFor(() =>
-				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+				expect(mockQueryBuilder.limit).toHaveBeenCalledTimes(2)
 			)
 			store.clearRecords()
 			secondPage.resolve({
-				data: [createMockRecord({ id: 'old-record-final' })],
+				data: [createMockRecord({ id: 'old-record-0000' })],
 				error: null
 			})
 
@@ -1309,13 +1318,21 @@ describe('recordsStore', () => {
 			expect(store.isLoadingRecords).toBe(false)
 		})
 
-		it('loads 1001 records with stable ordering and exact page ranges', async () => {
+		it('loads 1001 records with stable ordering and exact keyset pages', async () => {
 			const store = useRecordsStore()
 			const firstPage = Array.from({ length: 1000 }, (_, index) =>
-				createMockRecord({ id: `record-${1001 - index}` })
+				createMockRecord({
+					id: `record-${String(1001 - index).padStart(4, '0')}`,
+					created_at: '2026-07-12T00:00:00.000Z'
+				})
 			)
-			const secondPage = [createMockRecord({ id: 'record-1' })]
-			mockQueryBuilder.range
+			const secondPage = [
+				createMockRecord({
+					id: 'record-0001',
+					created_at: '2026-07-12T00:00:00.000Z'
+				})
+			]
+			mockQueryBuilder.limit
 				.mockResolvedValueOnce({ data: firstPage, error: null })
 				.mockResolvedValueOnce({ data: secondPage, error: null })
 
@@ -1323,17 +1340,54 @@ describe('recordsStore', () => {
 
 			expect(store.records.map((record) => record.id)).toEqual([
 				...firstPage.map((record) => record.id),
-				'record-1'
+				'record-0001'
 			])
 			expect(mockQueryBuilder.order.mock.calls).toEqual([
-				['created_at', { ascending: false }],
 				['id', { ascending: false }],
-				['created_at', { ascending: false }],
 				['id', { ascending: false }]
 			])
-			expect(mockQueryBuilder.range.mock.calls).toEqual([
-				[0, 999],
-				[1000, 1999]
+			expect(mockQueryBuilder.lt.mock.calls).toEqual([['id', 'record-0002']])
+			expect(mockQueryBuilder.limit.mock.calls).toEqual([[1000], [1000]])
+		})
+
+		it('restores exact timestamp presentation order after ID traversal', async () => {
+			const store = useRecordsStore()
+			mockQueryBuilder.limit.mockResolvedValue({
+				data: [
+					createMockRecord({
+						id: 'record-z-invalid',
+						created_at: 'invalid'
+					}),
+					createMockRecord({ id: 'record-y-null', created_at: null }),
+					createMockRecord({
+						id: 'record-x-tie',
+						created_at: '2026-07-19T14:00:00.123456+10:00'
+					}),
+					createMockRecord({
+						id: 'record-w-newest',
+						created_at: '2026-07-19T04:00:00.123457Z'
+					}),
+					createMockRecord({
+						id: 'record-v-tie',
+						created_at: '2026-07-18 20:00:00.123456-08:00'
+					}),
+					createMockRecord({
+						id: 'record-u-older',
+						created_at: '2026-07-19T04:00:00.123455Z'
+					})
+				],
+				error: null
+			})
+
+			await expect(store.fetchAllRecords()).resolves.toBe(true)
+
+			expect(store.records.map(({ id }) => id)).toEqual([
+				'record-w-newest',
+				'record-x-tie',
+				'record-v-tie',
+				'record-u-older',
+				'record-z-invalid',
+				'record-y-null'
 			])
 		})
 
@@ -1341,10 +1395,12 @@ describe('recordsStore', () => {
 			const store = useRecordsStore()
 			const existingRecord = createMockRecord({ id: 'existing-record' })
 			store.records = [existingRecord]
-			mockQueryBuilder.range
+			mockQueryBuilder.limit
 				.mockResolvedValueOnce({
 					data: Array.from({ length: 1000 }, (_, index) =>
-						createMockRecord({ id: `record-${index}` })
+						createMockRecord({
+							id: `record-${String(1000 - index).padStart(4, '0')}`
+						})
 					),
 					error: null
 				})
@@ -1355,10 +1411,85 @@ describe('recordsStore', () => {
 
 			await expect(store.fetchAllRecords()).resolves.toBe(false)
 			expect(store.records).toEqual([existingRecord])
-			expect(mockQueryBuilder.range.mock.calls).toEqual([
-				[0, 999],
-				[1000, 1999]
+			expect(mockQueryBuilder.lt).toHaveBeenCalledWith('id', 'record-0001')
+			expect(mockQueryBuilder.limit.mock.calls).toEqual([[1000], [1000]])
+		})
+
+		it('preserves and deduplicates same-account creates on both sides of the cursor', async () => {
+			const fetchResponse = createDeferred<{
+				data: DatabaseRecord[]
+				error: null
+			}>()
+			const firstPage = Array.from({ length: 1000 }, (_, index) =>
+				createMockRecord({
+					id: `record-m-${String(1000 - index).padStart(4, '0')}`,
+					created_at: '2026-07-12T00:00:00.000001Z'
+				})
+			)
+			mockQueryBuilder.limit
+				.mockResolvedValueOnce({ data: firstPage, error: null })
+				.mockReturnValueOnce(fetchResponse.promise)
+			const createdAboveCursor = createMockRecord({
+				id: 'record-z-created-locally',
+				created_at: '2026-07-12T00:00:00.000004Z'
+			})
+			const createdBelowCursor = createMockRecord({
+				id: 'record-a-local',
+				created_at: '2026-07-12T00:00:00.000003Z'
+			})
+			mockQueryBuilder.single
+				.mockResolvedValueOnce({ data: createdAboveCursor, error: null })
+				.mockResolvedValueOnce({ data: createdBelowCursor, error: null })
+			const store = useRecordsStore()
+			const createInput = {
+				user_id: 'test-user-id',
+				title: 'Created during fetch',
+				artists: [],
+				labels: [],
+				year: null,
+				cover: null,
+				cover_storage_path: null,
+				discogs_id: null,
+				discogs_release_url: null
+			}
+
+			const fetchPromise = store.fetchAllRecords()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.limit).toHaveBeenCalledTimes(2)
+			)
+			await expect(store.createRecord(createInput)).resolves.toEqual(
+				createdAboveCursor
+			)
+			await expect(store.createRecord(createInput)).resolves.toEqual(
+				createdBelowCursor
+			)
+
+			fetchResponse.resolve({
+				data: [
+					createMockRecord({
+						id: 'record-a-local',
+						title: 'Authoritative fetched copy',
+						created_at: '2026-07-12T00:00:00.000003Z'
+					}),
+					createMockRecord({
+						id: 'record-a-fetched',
+						created_at: '2026-07-12T00:00:00.000001Z'
+					})
+				],
+				error: null
+			})
+			await expect(fetchPromise).resolves.toBe(true)
+
+			const ids = store.records.map(({ id }) => id)
+			expect(ids.slice(0, 2)).toEqual([
+				'record-z-created-locally',
+				'record-a-local'
 			])
+			expect(ids).toContain('record-a-fetched')
+			expect(ids.filter((id) => id === 'record-a-local')).toHaveLength(1)
+			expect(
+				store.records.find(({ id }) => id === 'record-a-local')?.title
+			).toBe('Authoritative fetched copy')
 		})
 
 		it('aggregates malformed JSON fallbacks into one redacted warning', async () => {
@@ -1367,8 +1498,12 @@ describe('recordsStore', () => {
 				.spyOn(console, 'warn')
 				.mockImplementation(() => undefined)
 			const store = useRecordsStore()
-			mockQueryBuilder.range.mockResolvedValue({
+			mockQueryBuilder.limit.mockResolvedValue({
 				data: [
+					createMockRecord({
+						id: 'record-invalid-labels',
+						labels: [{ name: privateValue, discogs_id: Number.NaN }]
+					}),
 					createMockRecord({
 						id: 'record-invalid-artists',
 						artists: [
@@ -1377,10 +1512,6 @@ describe('recordsStore', () => {
 								discogs_id: Infinity
 							}
 						]
-					}),
-					createMockRecord({
-						id: 'record-invalid-labels',
-						labels: [{ name: privateValue, discogs_id: Number.NaN }]
 					})
 				],
 				error: null
@@ -1389,21 +1520,21 @@ describe('recordsStore', () => {
 			try {
 				await expect(store.fetchAllRecords()).resolves.toBe(true)
 
-				expect(store.records[0]!.artists).toEqual([])
-				expect(store.records[1]!.labels).toEqual([])
+				expect(store.records[0]!.labels).toEqual([])
+				expect(store.records[1]!.artists).toEqual([])
 				expect(consoleWarn).toHaveBeenCalledOnce()
 				expect(consoleWarn).toHaveBeenCalledWith(
 					'Invalid saved data was reset to safe defaults',
 					[
 						{
 							entity: 'record',
-							id: 'record-invalid-artists',
-							field: 'artists'
+							id: 'record-invalid-labels',
+							field: 'labels'
 						},
 						{
 							entity: 'record',
-							id: 'record-invalid-labels',
-							field: 'labels'
+							id: 'record-invalid-artists',
+							field: 'artists'
 						}
 					]
 				)
@@ -1423,7 +1554,7 @@ describe('recordsStore', () => {
 			const store = useRecordsStore()
 			const existingRecord = createMockRecord({ id: 'existing-record' })
 			store.records = [existingRecord]
-			mockQueryBuilder.range
+			mockQueryBuilder.limit
 				.mockResolvedValueOnce({
 					data: null,
 					error: new Error('Database error')
@@ -1451,7 +1582,7 @@ describe('recordsStore', () => {
 					resolveQuery = resolve
 				}
 			)
-			mockQueryBuilder.range.mockReturnValue(queryResult)
+			mockQueryBuilder.limit.mockReturnValue(queryResult)
 
 			const firstFetch = store.fetchAllRecords()
 			const concurrentFetch = store.fetchAllRecords()
@@ -1465,7 +1596,7 @@ describe('recordsStore', () => {
 			expect(mockSupabaseClient.from).toHaveBeenCalledOnce()
 			expect(store.isLoadingRecords).toBe(false)
 
-			mockQueryBuilder.range.mockResolvedValue({ data: [], error: null })
+			mockQueryBuilder.limit.mockResolvedValue({ data: [], error: null })
 			await expect(store.fetchAllRecords()).resolves.toBe(true)
 			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledTimes(2)
 			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
@@ -1697,7 +1828,7 @@ describe('recordsStore', () => {
 				},
 				error: null
 			})
-			mockQueryBuilder.range.mockResolvedValue({
+			mockQueryBuilder.limit.mockResolvedValue({
 				data: [createdRecord],
 				error: null
 			})

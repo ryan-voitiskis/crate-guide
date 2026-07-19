@@ -44,7 +44,8 @@ function createMockQueryBuilder() {
 		select: vi.fn().mockReturnThis(),
 		eq: vi.fn().mockReturnThis(),
 		order: vi.fn().mockReturnThis(),
-		range: vi.fn().mockResolvedValue({ data: [], error: null }),
+		lt: vi.fn().mockReturnThis(),
+		limit: vi.fn().mockResolvedValue({ data: [], error: null }),
 		single: vi.fn().mockResolvedValue({ data: null, error: null })
 	}
 }
@@ -1207,7 +1208,7 @@ describe('sessionStore', () => {
 				data: SavedSetRow[]
 				error: null
 			}>()
-			mockQueryBuilder.range
+			mockQueryBuilder.limit
 				.mockReturnValueOnce(oldFetch.promise)
 				.mockReturnValueOnce(newFetch.promise)
 			const store = useSessionStore()
@@ -1370,13 +1371,15 @@ describe('sessionStore', () => {
 			transition_rating: 5
 		}
 
-		it('loads 1001 saved sets with stable ordering and exact page ranges', async () => {
+		it('loads 1001 saved sets with stable ordering and exact keyset pages', async () => {
 			const store = useSessionStore()
 			const firstPage = Array.from({ length: 1000 }, (_, index) =>
-				createSavedSetRow({ id: `set-${1001 - index}` })
+				createSavedSetRow({
+					id: `set-${String(1001 - index).padStart(4, '0')}`
+				})
 			)
-			const secondPage = [createSavedSetRow({ id: 'set-1' })]
-			mockQueryBuilder.range
+			const secondPage = [createSavedSetRow({ id: 'set-0001' })]
+			mockQueryBuilder.limit
 				.mockResolvedValueOnce({ data: firstPage, error: null })
 				.mockResolvedValueOnce({ data: secondPage, error: null })
 
@@ -1384,17 +1387,54 @@ describe('sessionStore', () => {
 
 			expect(store.savedSets.map((set) => set.id)).toEqual([
 				...firstPage.map((set) => set.id),
-				'set-1'
+				'set-0001'
 			])
 			expect(mockQueryBuilder.order.mock.calls).toEqual([
-				['created_at', { ascending: false }],
 				['id', { ascending: false }],
-				['created_at', { ascending: false }],
 				['id', { ascending: false }]
 			])
-			expect(mockQueryBuilder.range.mock.calls).toEqual([
-				[0, 999],
-				[1000, 1999]
+			expect(mockQueryBuilder.lt.mock.calls).toEqual([['id', 'set-0002']])
+			expect(mockQueryBuilder.limit.mock.calls).toEqual([[1000], [1000]])
+		})
+
+		it('restores exact timestamp presentation order after ID traversal', async () => {
+			const store = useSessionStore()
+			mockQueryBuilder.limit.mockResolvedValue({
+				data: [
+					createSavedSetRow({
+						id: 'set-z-invalid',
+						created_at: 'invalid'
+					}),
+					createSavedSetRow({ id: 'set-y-null', created_at: null }),
+					createSavedSetRow({
+						id: 'set-x-tie',
+						created_at: '2026-07-19T14:00:00.123456+10:00'
+					}),
+					createSavedSetRow({
+						id: 'set-w-newest',
+						created_at: '2026-07-19T04:00:00.123457Z'
+					}),
+					createSavedSetRow({
+						id: 'set-v-tie',
+						created_at: '2026-07-18 20:00:00.123456-08:00'
+					}),
+					createSavedSetRow({
+						id: 'set-u-older',
+						created_at: '2026-07-19T04:00:00.123455Z'
+					})
+				],
+				error: null
+			})
+
+			await store.fetchSavedSets()
+
+			expect(store.savedSets.map(({ id }) => id)).toEqual([
+				'set-w-newest',
+				'set-x-tie',
+				'set-v-tie',
+				'set-u-older',
+				'set-z-invalid',
+				'set-y-null'
 			])
 		})
 
@@ -1402,10 +1442,12 @@ describe('sessionStore', () => {
 			const store = useSessionStore()
 			const existingSet = createSavedSet({ id: 'existing-set' })
 			store.savedSets = [existingSet]
-			mockQueryBuilder.range
+			mockQueryBuilder.limit
 				.mockResolvedValueOnce({
 					data: Array.from({ length: 1000 }, (_, index) =>
-						createSavedSetRow({ id: `set-${index}` })
+						createSavedSetRow({
+							id: `set-${String(1000 - index).padStart(4, '0')}`
+						})
 					),
 					error: null
 				})
@@ -1417,11 +1459,76 @@ describe('sessionStore', () => {
 			await store.fetchSavedSets()
 
 			expect(store.savedSets).toEqual([existingSet])
-			expect(mockQueryBuilder.range.mock.calls).toEqual([
-				[0, 999],
-				[1000, 1999]
-			])
+			expect(mockQueryBuilder.lt).toHaveBeenCalledWith('id', 'set-0001')
+			expect(mockQueryBuilder.limit.mock.calls).toEqual([[1000], [1000]])
 			expect(mockToast.error).toHaveBeenCalledWith('Failed to load saved sets')
+		})
+
+		it('preserves and deduplicates same-account saves on both sides of the cursor', async () => {
+			const fetchResponse = createDeferred<{
+				data: SavedSetRow[]
+				error: null
+			}>()
+			const firstPage = Array.from({ length: 1000 }, (_, index) =>
+				createSavedSetRow({
+					id: `set-m-${String(1000 - index).padStart(4, '0')}`,
+					created_at: '2026-07-12T00:00:00.000001Z'
+				})
+			)
+			mockQueryBuilder.limit
+				.mockResolvedValueOnce({ data: firstPage, error: null })
+				.mockReturnValueOnce(fetchResponse.promise)
+			const createdAboveCursor = createSavedSetRow({
+				id: 'set-z-created-locally',
+				created_at: '2026-07-12T00:00:00.000004Z',
+				played_tracks: [firstEntry]
+			})
+			const createdBelowCursor = createSavedSetRow({
+				id: 'set-a-local',
+				created_at: '2026-07-12T00:00:00.000003Z',
+				played_tracks: [firstEntry]
+			})
+			mockQueryBuilder.single
+				.mockResolvedValueOnce({ data: createdAboveCursor, error: null })
+				.mockResolvedValueOnce({ data: createdBelowCursor, error: null })
+			const store = useSessionStore()
+			store.currentSession = [firstEntry]
+
+			const fetchPromise = store.fetchSavedSets()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.limit).toHaveBeenCalledTimes(2)
+			)
+			await expect(store.saveSession('Above cursor')).resolves.toEqual(
+				createdAboveCursor
+			)
+			store.activeSetId = null
+			await expect(store.saveSession('Below cursor')).resolves.toEqual(
+				createdBelowCursor
+			)
+
+			fetchResponse.resolve({
+				data: [
+					createSavedSetRow({
+						id: 'set-a-local',
+						name: 'Authoritative fetched copy',
+						created_at: '2026-07-12T00:00:00.000003Z'
+					}),
+					createSavedSetRow({
+						id: 'set-a-fetched',
+						created_at: '2026-07-12T00:00:00.000001Z'
+					})
+				],
+				error: null
+			})
+			await fetchPromise
+
+			const ids = store.savedSets.map(({ id }) => id)
+			expect(ids.slice(0, 2)).toEqual(['set-z-created-locally', 'set-a-local'])
+			expect(ids).toContain('set-a-fetched')
+			expect(ids.filter((id) => id === 'set-a-local')).toHaveLength(1)
+			expect(store.savedSets.find(({ id }) => id === 'set-a-local')?.name).toBe(
+				'Authoritative fetched copy'
+			)
 		})
 
 		it('decodes fetched sets, preserves mixed-entry order, and warns once', async () => {
@@ -1430,12 +1537,8 @@ describe('sessionStore', () => {
 				.spyOn(console, 'warn')
 				.mockImplementation(() => undefined)
 			const store = useSessionStore()
-			mockQueryBuilder.range.mockResolvedValue({
+			mockQueryBuilder.limit.mockResolvedValue({
 				data: [
-					createSavedSetRow({
-						id: 'set-invalid-array',
-						played_tracks: { privateValue }
-					}),
 					createSavedSetRow({
 						id: 'set-mixed-array',
 						played_tracks: [
@@ -1449,6 +1552,10 @@ describe('sessionStore', () => {
 							},
 							secondEntry
 						]
+					}),
+					createSavedSetRow({
+						id: 'set-invalid-array',
+						played_tracks: { privateValue }
 					})
 				],
 				error: null
@@ -1457,23 +1564,23 @@ describe('sessionStore', () => {
 			try {
 				await store.fetchSavedSets()
 
-				expect(store.savedSets[0]!.played_tracks).toEqual([])
-				expect(store.savedSets[1]!.played_tracks).toEqual([
+				expect(store.savedSets[0]!.played_tracks).toEqual([
 					firstEntry,
 					secondEntry
 				])
+				expect(store.savedSets[1]!.played_tracks).toEqual([])
 				expect(consoleWarn).toHaveBeenCalledOnce()
 				expect(consoleWarn).toHaveBeenCalledWith(
 					'Invalid saved data was reset to safe defaults',
 					[
 						{
 							entity: 'saved-set',
-							id: 'set-invalid-array',
+							id: 'set-mixed-array',
 							field: 'played_tracks'
 						},
 						{
 							entity: 'saved-set',
-							id: 'set-mixed-array',
+							id: 'set-invalid-array',
 							field: 'played_tracks'
 						}
 					]

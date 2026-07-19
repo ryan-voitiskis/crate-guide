@@ -2,18 +2,21 @@ import { createPage, setup, url } from '@nuxt/test-utils/e2e'
 import type { Page } from 'playwright-core'
 import { describe, expect, it } from 'vitest'
 
-type E2ERangeCompletion = {
+type E2EKeysetCompletion = {
 	table: string
-	from: number
-	to: number
+	cursor: string | null
+	equalityFilters: Array<[column: string, value: unknown]>
+	limit: number | null
+	orders: Array<[column: string, ascending: boolean]>
+	selection: string | null
 }
 
 type E2EQueryObservations = {
-	__e2eRangeCompletions?: E2ERangeCompletion[]
+	__e2eKeysetCompletions?: E2EKeysetCompletion[]
 	__e2eSingleCompletions?: string[]
 }
 
-const LIBRARY_TABLES = ['records', 'tracks', 'crates']
+const LIBRARY_TABLES = ['records', 'tracks', 'crates', 'sets']
 
 await setup({
 	browser: true,
@@ -50,10 +53,11 @@ async function mockAuthenticatedSupabase(page: Page) {
 	await page.evaluate(() => {
 		type QueryResult = { data: unknown; error: null }
 		type QueryBuilder = PromiseLike<QueryResult> & {
-			eq: () => QueryBuilder
-			order: () => QueryBuilder
-			range: (from: number, to: number) => QueryBuilder
-			select: () => QueryBuilder
+			eq: (column: string, value: unknown) => QueryBuilder
+			limit: (count: number) => QueryBuilder
+			lt: (column: string, value: string) => QueryBuilder
+			order: (column: string, options?: { ascending?: boolean }) => QueryBuilder
+			select: (columns?: string) => QueryBuilder
 			single: () => Promise<QueryResult>
 		}
 		type NuxtAppLike = {
@@ -117,10 +121,16 @@ async function mockAuthenticatedSupabase(page: Page) {
 			return { error: null }
 		}
 
-		maybeWindow.__e2eRangeCompletions = []
+		maybeWindow.__e2eKeysetCompletions = []
 		maybeWindow.__e2eSingleCompletions = []
+		const libraryTables = ['records', 'tracks', 'crates', 'sets']
 		client.from = (table: string) => {
-			const result: QueryResult = {
+			const equalityFilters: Array<[string, unknown]> = []
+			const orders: Array<[string, boolean]> = []
+			let requestedCursor: string | null = null
+			let requestedLimit: number | null = null
+			let selection: string | null = null
+			const resultForQuery = (): QueryResult => ({
 				data:
 					table === 'profiles'
 						? {
@@ -128,31 +138,57 @@ async function mockAuthenticatedSupabase(page: Page) {
 								key_format: 'key',
 								ui_theme: 'auto'
 							}
-						: [],
+						: table === 'sets' && requestedCursor === null
+							? Array.from({ length: 1000 }, (_, index) => ({
+									id: `set-${String(1000 - index).padStart(4, '0')}`,
+									user_id: 'e2e-user',
+									name: `Set ${index + 1}`,
+									played_tracks: [],
+									created_at: '2026-07-12T00:00:00.000Z',
+									updated_at: '2026-07-12T00:00:00.000Z'
+								}))
+							: [],
 				error: null
-			}
-			let requestedRange: { from: number; to: number } | null = null
+			})
 			const builder = {
-				eq: () => builder,
-				order: () => builder,
-				range: (from: number, to: number) => {
-					requestedRange = { from, to }
+				eq: (column: string, value: unknown) => {
+					equalityFilters.push([column, value])
 					return builder
 				},
-				select: () => builder,
+				limit: (count: number) => {
+					requestedLimit = count
+					return builder
+				},
+				lt: (column: string, value: string) => {
+					if (column !== 'id') throw new Error('Expected an ID keyset cursor')
+					requestedCursor = value
+					return builder
+				},
+				order: (column: string, options?: { ascending?: boolean }) => {
+					orders.push([column, options?.ascending ?? true])
+					return builder
+				},
+				select: (columns = '*') => {
+					selection = columns
+					return builder
+				},
 				single: async () => {
 					maybeWindow.__e2eSingleCompletions?.push(table)
-					return result
+					return resultForQuery()
 				},
 				then: (
 					resolve: (value: QueryResult) => unknown,
 					reject?: (reason: unknown) => unknown
 				) =>
-					Promise.resolve(result).then((value) => {
-						if (requestedRange) {
-							maybeWindow.__e2eRangeCompletions?.push({
+					Promise.resolve(resultForQuery()).then((value) => {
+						if (libraryTables.includes(table)) {
+							maybeWindow.__e2eKeysetCompletions?.push({
 								table,
-								...requestedRange
+								cursor: requestedCursor,
+								equalityFilters: [...equalityFilters],
+								limit: requestedLimit,
+								orders: [...orders],
+								selection
 							})
 						}
 						return resolve(value)
@@ -196,41 +232,73 @@ describe('Login redirects', () => {
 		await signInViaForm(page)
 		await page.waitForFunction(() => {
 			const observations = window as unknown as E2EQueryObservations
-			const completedRanges = observations.__e2eRangeCompletions ?? []
-			const expectedTables = ['records', 'tracks', 'crates']
+			const completions = observations.__e2eKeysetCompletions ?? []
+			const expectedTables = ['records', 'tracks', 'crates', 'sets']
 			return (
 				expectedTables.every((table) =>
-					completedRanges.some(
+					completions.some(
 						(completion) =>
 							completion.table === table &&
-							completion.from === 0 &&
-							completion.to === 999
+							completion.cursor === null &&
+							completion.limit === 1000
 					)
-				) && observations.__e2eSingleCompletions?.includes('profiles')
+				) &&
+				completions.some(
+					(completion) =>
+						completion.table === 'sets' && completion.cursor === 'set-0001'
+				) &&
+				observations.__e2eSingleCompletions?.includes('profiles')
 			)
 		})
 
 		const completions = await page.evaluate(() => {
 			const observations = window as unknown as E2EQueryObservations
 			return {
-				ranges: observations.__e2eRangeCompletions ?? [],
+				keysets: observations.__e2eKeysetCompletions ?? [],
 				singles: observations.__e2eSingleCompletions ?? []
 			}
 		})
-		const libraryRanges = completions.ranges.filter((completion) =>
+		const libraryKeysets = completions.keysets.filter((completion) =>
 			LIBRARY_TABLES.includes(completion.table)
 		)
-		expect(libraryRanges).toHaveLength(3)
-		for (const table of LIBRARY_TABLES) {
-			expect(
-				libraryRanges.filter(
-					(completion) =>
-						completion.table === table &&
-						completion.from === 0 &&
-						completion.to === 999
-				)
-			).toHaveLength(1)
+		expect(libraryKeysets).toHaveLength(7)
+		for (const table of ['records', 'tracks', 'crates']) {
+			expect(libraryKeysets.filter((query) => query.table === table)).toEqual([
+				{
+					table,
+					cursor: null,
+					equalityFilters: [['user_id', 'e2e-user']],
+					limit: 1000,
+					orders: [['id', false]],
+					selection: '*'
+				}
+			])
 		}
+		const setQueries = libraryKeysets.filter((query) => query.table === 'sets')
+		expect(setQueries).toHaveLength(4)
+		for (const cursor of [null, 'set-0001']) {
+			expect(setQueries.filter((query) => query.cursor === cursor)).toEqual([
+				{
+					table: 'sets',
+					cursor,
+					equalityFilters: [['user_id', 'e2e-user']],
+					limit: 1000,
+					orders: [['id', false]],
+					selection: '*'
+				},
+				{
+					table: 'sets',
+					cursor,
+					equalityFilters: [['user_id', 'e2e-user']],
+					limit: 1000,
+					orders: [['id', false]],
+					selection: '*'
+				}
+			])
+		}
+		const trackQuery = libraryKeysets.find((query) => query.table === 'tracks')
+		expect(trackQuery?.selection).toBe('*')
+		expect(trackQuery?.equalityFilters).toContainEqual(['user_id', 'e2e-user'])
 		expect(completions.singles).toEqual(['profiles'])
 		expect(pageErrors).toEqual([])
 

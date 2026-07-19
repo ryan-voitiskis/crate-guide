@@ -43,7 +43,8 @@ function createMockQueryBuilder() {
 		eq: vi.fn().mockReturnThis(),
 		is: vi.fn().mockReturnThis(),
 		order: vi.fn().mockReturnThis(),
-		range: vi.fn().mockResolvedValue({ data: [], error: null }),
+		lt: vi.fn().mockReturnThis(),
+		limit: vi.fn().mockResolvedValue({ data: [], error: null }),
 		single: vi.fn().mockResolvedValue({ data: null, error: null })
 	}
 	return builder
@@ -162,7 +163,7 @@ describe('tracksStore', () => {
 
 		it('returns true for a successful empty response and resets loading', async () => {
 			const store = useTracksStore()
-			mockQueryBuilder.range.mockResolvedValue({ data: [], error: null })
+			mockQueryBuilder.limit.mockResolvedValue({ data: [], error: null })
 
 			const fetchPromise = store.fetchAllTracks()
 			expect(store.isLoadingTracks).toBe(true)
@@ -176,16 +177,22 @@ describe('tracksStore', () => {
 			const store = useTracksStore()
 			const mockData = [
 				{
-					...createMockTrack({ id: 'track-1' }),
-					future_scalar: 'preserved',
+					...createMockTrack({
+						id: 'track-2',
+						created_at: '2026-07-12T00:00:00.000001Z'
+					}),
 					user_id: 'test-user-id'
 				},
 				{
-					...createMockTrack({ id: 'track-2' }),
+					...createMockTrack({
+						id: 'track-1',
+						created_at: '2026-07-12T00:00:00.000002Z'
+					}),
+					future_scalar: 'preserved',
 					user_id: 'test-user-id'
 				}
 			]
-			mockQueryBuilder.range.mockResolvedValue({ data: mockData, error: null })
+			mockQueryBuilder.limit.mockResolvedValue({ data: mockData, error: null })
 
 			const result = await store.fetchAllTracks()
 
@@ -201,12 +208,12 @@ describe('tracksStore', () => {
 				data: Array<ReturnType<typeof createMockOwnedTrack>>
 				error: null
 			}>()
-			mockQueryBuilder.range.mockReturnValueOnce(oldResult.promise)
+			mockQueryBuilder.limit.mockReturnValueOnce(oldResult.promise)
 			const store = useTracksStore()
 
 			const oldFetch = store.fetchAllTracks()
 			await vi.waitFor(() =>
-				expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
 			)
 			store.clearTracks()
 			expect(store.isLoadingTracks).toBe(false)
@@ -225,7 +232,7 @@ describe('tracksStore', () => {
 				data: null
 				error: Error
 			}>()
-			mockQueryBuilder.range.mockReturnValueOnce(oldResult.promise)
+			mockQueryBuilder.limit.mockReturnValueOnce(oldResult.promise)
 			const consoleError = vi
 				.spyOn(console, 'error')
 				.mockImplementation(() => undefined)
@@ -234,7 +241,7 @@ describe('tracksStore', () => {
 			try {
 				const oldFetch = store.fetchAllTracks()
 				await vi.waitFor(() =>
-					expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+					expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
 				)
 				store.clearTracks()
 				oldResult.resolve({
@@ -262,20 +269,20 @@ describe('tracksStore', () => {
 				data: Array<ReturnType<typeof createMockOwnedTrack>>
 				error: null
 			}>()
-			mockQueryBuilder.range
+			mockQueryBuilder.limit
 				.mockReturnValueOnce(oldResult.promise)
 				.mockReturnValueOnce(newResult.promise)
 			const store = useTracksStore()
 
 			const oldFetch = store.fetchAllTracks()
 			await vi.waitFor(() =>
-				expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
 			)
 			store.clearTracks()
 			mockUserStore.supaUser = { id: 'user-b' }
 			const newFetch = store.fetchAllTracks()
 			await vi.waitFor(() =>
-				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+				expect(mockQueryBuilder.limit).toHaveBeenCalledTimes(2)
 			)
 
 			newResult.resolve({
@@ -303,20 +310,20 @@ describe('tracksStore', () => {
 				data: Array<ReturnType<typeof createMockOwnedTrack>>
 				error: null
 			}>()
-			mockQueryBuilder.range
+			mockQueryBuilder.limit
 				.mockReturnValueOnce(oldResult.promise)
 				.mockReturnValueOnce(newResult.promise)
 			const store = useTracksStore()
 
 			const oldFetch = store.fetchAllTracks()
 			await vi.waitFor(() =>
-				expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
 			)
 			store.clearTracks()
 			mockUserStore.supaUser = { id: 'user-b' }
 			const newFetch = store.fetchAllTracks()
 			await vi.waitFor(() =>
-				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+				expect(mockQueryBuilder.limit).toHaveBeenCalledTimes(2)
 			)
 
 			oldResult.resolve({ data: [], error: null })
@@ -338,10 +345,12 @@ describe('tracksStore', () => {
 				data: Array<ReturnType<typeof createMockOwnedTrack>>
 				error: null
 			}>()
-			mockQueryBuilder.range
+			mockQueryBuilder.limit
 				.mockResolvedValueOnce({
 					data: Array.from({ length: 1000 }, (_, index) =>
-						createMockOwnedTrack({ id: `old-track-${index}` })
+						createMockOwnedTrack({
+							id: `old-track-${String(1000 - index).padStart(4, '0')}`
+						})
 					),
 					error: null
 				})
@@ -350,11 +359,11 @@ describe('tracksStore', () => {
 
 			const oldFetch = store.fetchAllTracks()
 			await vi.waitFor(() =>
-				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+				expect(mockQueryBuilder.limit).toHaveBeenCalledTimes(2)
 			)
 			store.clearTracks()
 			secondPage.resolve({
-				data: [createMockOwnedTrack({ id: 'old-track-final' })],
+				data: [createMockOwnedTrack({ id: 'old-track-0000' })],
 				error: null
 			})
 
@@ -363,19 +372,25 @@ describe('tracksStore', () => {
 			expect(store.isLoadingTracks).toBe(false)
 		})
 
-		it('loads 1001 owned tracks with stable ordering and exact page ranges', async () => {
+		it('loads 1001 owned tracks with stable ordering and exact keyset pages', async () => {
 			const store = useTracksStore()
 			const firstPage = Array.from({ length: 1000 }, (_, index) => ({
-				...createMockTrack({ id: `track-${1001 - index}` }),
+				...createMockTrack({
+					id: `track-${String(1001 - index).padStart(4, '0')}`,
+					created_at: '2026-07-12T00:00:00.000Z'
+				}),
 				user_id: 'test-user-id'
 			}))
 			const secondPage = [
 				{
-					...createMockTrack({ id: 'track-1' }),
+					...createMockTrack({
+						id: 'track-0001',
+						created_at: '2026-07-12T00:00:00.000Z'
+					}),
 					user_id: 'test-user-id'
 				}
 			]
-			mockQueryBuilder.range
+			mockQueryBuilder.limit
 				.mockResolvedValueOnce({ data: firstPage, error: null })
 				.mockResolvedValueOnce({ data: secondPage, error: null })
 
@@ -383,7 +398,7 @@ describe('tracksStore', () => {
 
 			expect(store.tracks.map((track) => track.id)).toEqual([
 				...firstPage.map((track) => track.id),
-				'track-1'
+				'track-0001'
 			])
 			expect(mockQueryBuilder.select).toHaveBeenCalledTimes(2)
 			expect(mockQueryBuilder.select).toHaveBeenNthCalledWith(1, '*')
@@ -400,14 +415,51 @@ describe('tracksStore', () => {
 				'test-user-id'
 			)
 			expect(mockQueryBuilder.order.mock.calls).toEqual([
-				['created_at', { ascending: false }],
 				['id', { ascending: false }],
-				['created_at', { ascending: false }],
 				['id', { ascending: false }]
 			])
-			expect(mockQueryBuilder.range.mock.calls).toEqual([
-				[0, 999],
-				[1000, 1999]
+			expect(mockQueryBuilder.lt.mock.calls).toEqual([['id', 'track-0002']])
+			expect(mockQueryBuilder.limit.mock.calls).toEqual([[1000], [1000]])
+		})
+
+		it('restores exact timestamp presentation order after ID traversal', async () => {
+			const store = useTracksStore()
+			mockQueryBuilder.limit.mockResolvedValue({
+				data: [
+					createMockOwnedTrack({
+						id: 'track-z-invalid',
+						created_at: 'invalid'
+					}),
+					createMockOwnedTrack({ id: 'track-y-null', created_at: null }),
+					createMockOwnedTrack({
+						id: 'track-x-tie',
+						created_at: '2026-07-19T14:00:00.123456+10:00'
+					}),
+					createMockOwnedTrack({
+						id: 'track-w-newest',
+						created_at: '2026-07-19T04:00:00.123457Z'
+					}),
+					createMockOwnedTrack({
+						id: 'track-v-tie',
+						created_at: '2026-07-18 20:00:00.123456-08:00'
+					}),
+					createMockOwnedTrack({
+						id: 'track-u-older',
+						created_at: '2026-07-19T04:00:00.123455Z'
+					})
+				],
+				error: null
+			})
+
+			await expect(store.fetchAllTracks()).resolves.toBe(true)
+
+			expect(store.tracks.map(({ id }) => id)).toEqual([
+				'track-w-newest',
+				'track-x-tie',
+				'track-v-tie',
+				'track-u-older',
+				'track-z-invalid',
+				'track-y-null'
 			])
 		})
 
@@ -418,10 +470,12 @@ describe('tracksStore', () => {
 			const store = useTracksStore()
 			const existingTrack = createMockTrack({ id: 'existing-track' })
 			store.tracks = [existingTrack]
-			mockQueryBuilder.range
+			mockQueryBuilder.limit
 				.mockResolvedValueOnce({
 					data: Array.from({ length: 1000 }, (_, index) =>
-						createMockOwnedTrack({ id: `track-${index}` })
+						createMockOwnedTrack({
+							id: `track-${String(1000 - index).padStart(4, '0')}`
+						})
 					),
 					error: null
 				})
@@ -453,10 +507,12 @@ describe('tracksStore', () => {
 			const store = useTracksStore()
 			const existingTrack = createMockTrack({ id: 'existing-track' })
 			store.tracks = [existingTrack]
-			mockQueryBuilder.range
+			mockQueryBuilder.limit
 				.mockResolvedValueOnce({
 					data: Array.from({ length: 1000 }, (_, index) => ({
-						...createMockTrack({ id: `track-${index}` }),
+						...createMockTrack({
+							id: `track-${String(1000 - index).padStart(4, '0')}`
+						}),
 						user_id: 'test-user-id'
 					})),
 					error: null
@@ -468,10 +524,97 @@ describe('tracksStore', () => {
 
 			await expect(store.fetchAllTracks()).resolves.toBe(false)
 			expect(store.tracks).toEqual([existingTrack])
-			expect(mockQueryBuilder.range.mock.calls).toEqual([
-				[0, 999],
-				[1000, 1999]
+			expect(mockQueryBuilder.lt).toHaveBeenCalledWith('id', 'track-0001')
+			expect(mockQueryBuilder.limit.mock.calls).toEqual([[1000], [1000]])
+		})
+
+		it('preserves and deduplicates same-account creates on both sides of the cursor', async () => {
+			const fetchResponse = createDeferred<{
+				data: Array<ReturnType<typeof createMockOwnedTrack>>
+				error: null
+			}>()
+			const firstPage = Array.from({ length: 1000 }, (_, index) =>
+				createMockOwnedTrack({
+					id: `track-m-${String(1000 - index).padStart(4, '0')}`,
+					created_at: '2026-07-12T00:00:00.000001Z'
+				})
+			)
+			mockQueryBuilder.limit
+				.mockResolvedValueOnce({ data: firstPage, error: null })
+				.mockReturnValueOnce(fetchResponse.promise)
+			const createdAboveCursor = createMockTrack({
+				id: 'track-z-created-locally',
+				created_at: '2026-07-12T00:00:00.000004Z'
+			})
+			const createdBelowCursor = createMockTrack({
+				id: 'track-a-local',
+				created_at: '2026-07-12T00:00:00.000003Z'
+			})
+			mockQueryBuilder.single
+				.mockResolvedValueOnce({
+					data: { ...createdAboveCursor, user_id: 'test-user-id' },
+					error: null
+				})
+				.mockResolvedValueOnce({
+					data: { ...createdBelowCursor, user_id: 'test-user-id' },
+					error: null
+				})
+			const store = useTracksStore()
+			const createInput = {
+				record_id: 'record-1',
+				title: 'Created during fetch',
+				artists: [],
+				extraartists: [],
+				position: 'A1',
+				duration: 180000,
+				bpm: 128,
+				rpm: 33,
+				key: 0,
+				mode: 0,
+				genres: [],
+				time_signature_upper: null,
+				time_signature_lower: null,
+				playable: true,
+				beatport_data: null
+			}
+
+			const fetchPromise = store.fetchAllTracks()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.limit).toHaveBeenCalledTimes(2)
+			)
+			await expect(store.createTrack(createInput)).resolves.toMatchObject({
+				id: 'track-z-created-locally'
+			})
+			await expect(store.createTrack(createInput)).resolves.toMatchObject({
+				id: 'track-a-local'
+			})
+
+			fetchResponse.resolve({
+				data: [
+					createMockOwnedTrack({
+						id: 'track-a-local',
+						title: 'Authoritative fetched copy',
+						created_at: '2026-07-12T00:00:00.000003Z'
+					}),
+					createMockOwnedTrack({
+						id: 'track-a-fetched',
+						created_at: '2026-07-12T00:00:00.000001Z'
+					})
+				],
+				error: null
+			})
+			await expect(fetchPromise).resolves.toBe(true)
+
+			const ids = store.tracks.map(({ id }) => id)
+			expect(ids.slice(0, 2)).toEqual([
+				'track-z-created-locally',
+				'track-a-local'
 			])
+			expect(ids).toContain('track-a-fetched')
+			expect(ids.filter((id) => id === 'track-a-local')).toHaveLength(1)
+			expect(store.tracks.find(({ id }) => id === 'track-a-local')?.title).toBe(
+				'Authoritative fetched copy'
+			)
 		})
 
 		it('aggregates invalid nested JSON into one redacted warning', async () => {
@@ -480,7 +623,7 @@ describe('tracksStore', () => {
 				.spyOn(console, 'warn')
 				.mockImplementation(() => undefined)
 			const store = useTracksStore()
-			mockQueryBuilder.range.mockResolvedValue({
+			mockQueryBuilder.limit.mockResolvedValue({
 				data: [
 					{
 						...createMockTrack({ id: 'track-invalid-json' }),
@@ -555,7 +698,7 @@ describe('tracksStore', () => {
 					user_id: 'test-user-id'
 				}
 			]
-			mockQueryBuilder.range.mockResolvedValue({ data: mockData, error: null })
+			mockQueryBuilder.limit.mockResolvedValue({ data: mockData, error: null })
 
 			await store.fetchAllTracks()
 
@@ -566,7 +709,7 @@ describe('tracksStore', () => {
 			const store = useTracksStore()
 			const existingTrack = createMockTrack({ id: 'existing-track' })
 			store.tracks = [existingTrack]
-			mockQueryBuilder.range
+			mockQueryBuilder.limit
 				.mockResolvedValueOnce({
 					data: null,
 					error: new Error('Database error')
@@ -591,7 +734,7 @@ describe('tracksStore', () => {
 					resolveQuery = resolve
 				}
 			)
-			mockQueryBuilder.range.mockReturnValue(queryResult)
+			mockQueryBuilder.limit.mockReturnValue(queryResult)
 
 			const firstFetch = store.fetchAllTracks()
 			const concurrentFetch = store.fetchAllTracks()
@@ -605,7 +748,7 @@ describe('tracksStore', () => {
 			expect(mockSupabaseClient.from).toHaveBeenCalledOnce()
 			expect(store.isLoadingTracks).toBe(false)
 
-			mockQueryBuilder.range.mockResolvedValue({ data: [], error: null })
+			mockQueryBuilder.limit.mockResolvedValue({ data: [], error: null })
 			await expect(store.fetchAllTracks()).resolves.toBe(true)
 			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledTimes(2)
 			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)

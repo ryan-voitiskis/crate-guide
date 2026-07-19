@@ -7,6 +7,7 @@ import {
 	type RecordCoverCrop,
 	processRecordCoverFile
 } from '~/utils/recordCover'
+import { sortCreatedAtDescIdDesc } from '~/utils/supabaseOrdering'
 import { fetchAllSupabasePages } from '~/utils/supabasePagination'
 import { decodeRecordRow, reportDecodeIssues } from '~/utils/supabaseRows'
 import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
@@ -352,22 +353,31 @@ export const useRecordsStore = defineStore('records', () => {
 			context = adoptAccountContext(generation, userId)
 			if (!context) return false
 			activeFetchUserId = userId
+			const startingIds = new Set(records.value.map((record) => record.id))
 
-			const rows = await fetchAllSupabasePages(async (from, to) => {
-				return await supabase
+			const rows = await fetchAllSupabasePages(async (cursor, pageSize) => {
+				let query = supabase
 					.from('records')
 					.select('*')
 					.eq('user_id', userId)
-					.order('created_at', { ascending: false })
 					.order('id', { ascending: false })
-					.range(from, to)
+				if (cursor !== null) query = query.lt('id', cursor)
+				return await query.limit(pageSize)
 			})
 			if (!isCurrentFetchContext(context)) return false
 
 			const decodedRows = rows.map(decodeRecordRow)
 			const issues = decodedRows.flatMap((decoded) => decoded.issues)
 			reportDecodeIssues(issues, (message) => toast.warning(message))
-			records.value = decodedRows.map((decoded) => decoded.row)
+			const fetchedRecords = decodedRows.map((decoded) => decoded.row)
+			const fetchedIds = new Set(fetchedRecords.map((record) => record.id))
+			const createdDuringFetch = records.value.filter(
+				(record) => !startingIds.has(record.id) && !fetchedIds.has(record.id)
+			)
+			records.value = sortCreatedAtDescIdDesc([
+				...fetchedRecords,
+				...createdDuringFetch
+			])
 			return true
 		} catch (error) {
 			if (!context || !isCurrentFetchContext(context)) return false
