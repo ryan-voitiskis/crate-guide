@@ -37,6 +37,9 @@ jobs:
       - name: Audit production dependencies
         run: npm run audit:prod
 
+      - name: Audit all dependencies
+        run: npm run audit:all
+
       - name: Install Chromium
         run: npx --no-install playwright-core install --with-deps chromium
 
