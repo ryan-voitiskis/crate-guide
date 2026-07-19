@@ -190,6 +190,9 @@ export const useSessionStore = defineStore('session', () => {
 		const deck = decks.value[deckIndex]
 		if (!deck) return
 
+		cancelFaderAnimation(deckIndex)
+		deck.faderSliding = false
+		deck.faderPosition = deck.pitch
 		deck.loadedTrack = track
 		if (track.rpm === 33 || track.rpm === 45) {
 			deck.rpm = track.rpm

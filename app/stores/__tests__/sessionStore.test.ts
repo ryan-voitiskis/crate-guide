@@ -779,6 +779,125 @@ describe('sessionStore', () => {
 				expect(store.decks[0]!.rpm).toBe(45)
 			}
 		)
+
+		it('cancels obsolete fader work when loading without tempo matching', async () => {
+			vi.useFakeTimers()
+			const replacementTrack = createMockTrack({
+				id: 'replacement-track',
+				bpm: 120
+			})
+			mockTracksStore.getTrackById.mockReturnValue(replacementTrack)
+			const store = useSessionStore()
+			const deck = store.decks[0]!
+			deck.loadedTrack = createMockTrack({ id: 'original-track', bpm: 128 })
+			deck.pitch = 7
+			deck.faderPosition = 7
+
+			try {
+				const obsoleteAnimation = store.slideFader(0, 20)
+				await vi.advanceTimersByTimeAsync(10)
+				expect(deck.faderPosition).not.toBe(7)
+
+				store.loadTrack(replacementTrack.id, 0)
+
+				expect(deck.loadedTrack?.id).toBe(replacementTrack.id)
+				expect(deck.pitch).toBe(7)
+				expect(deck.faderPosition).toBe(7)
+				expect(deck.faderSliding).toBe(false)
+
+				await vi.advanceTimersByTimeAsync(200)
+				await obsoleteAnimation
+
+				expect(deck.pitch).toBe(7)
+				expect(deck.faderPosition).toBe(7)
+				expect(deck.faderSliding).toBe(false)
+				expect(store.currentSession.at(-1)?.adjusted_bpm).toBe(120)
+			} finally {
+				vi.clearAllTimers()
+				vi.useRealTimers()
+			}
+		})
+
+		it('lets a requested tempo match own the replacement animation', async () => {
+			vi.useFakeTimers()
+			const replacementTrack = createMockTrack({
+				id: 'replacement-track',
+				bpm: 100
+			})
+			mockTracksStore.getTrackById.mockReturnValue(replacementTrack)
+			const store = useSessionStore()
+			const deck = store.decks[0]!
+			deck.loadedTrack = createMockTrack({ id: 'original-track', bpm: 128 })
+			deck.pitch = 10
+			deck.faderPosition = 10
+			store.decks[1]!.loadedTrack = createMockTrack({
+				id: 'matching-track',
+				bpm: 102
+			})
+
+			try {
+				const obsoleteAnimation = store.slideFader(0, -20)
+				await vi.advanceTimersByTimeAsync(10)
+
+				store.loadTrack(replacementTrack.id, 0, true)
+
+				expect(deck.loadedTrack?.id).toBe(replacementTrack.id)
+				expect(deck.pitch).toBe(10)
+				expect(deck.faderSliding).toBe(true)
+
+				await vi.advanceTimersByTimeAsync(10)
+				await obsoleteAnimation
+				expect(deck.pitch).toBe(10)
+				expect(deck.faderSliding).toBe(true)
+
+				await vi.advanceTimersByTimeAsync(500)
+
+				expect(deck.pitch).toBeCloseTo(25)
+				expect(deck.faderPosition).toBeCloseTo(25)
+				expect(deck.faderSliding).toBe(false)
+				expect(store.currentSession.at(-1)?.adjusted_bpm).toBe(102)
+			} finally {
+				vi.clearAllTimers()
+				vi.useRealTimers()
+			}
+		})
+
+		it.each([
+			{ label: 'missing track', trackExists: false, deckIndex: 0 },
+			{ label: 'missing deck', trackExists: true, deckIndex: 99 }
+		])(
+			'leaves valid fader work untouched for a $label request',
+			async ({ trackExists, deckIndex }) => {
+				vi.useFakeTimers()
+				const requestedTrack = createMockTrack({ id: 'requested-track' })
+				mockTracksStore.getTrackById.mockReturnValue(
+					trackExists ? requestedTrack : undefined
+				)
+				const store = useSessionStore()
+				const deck = store.decks[0]!
+				const originalTrack = createMockTrack({ id: 'original-track' })
+				deck.loadedTrack = originalTrack
+
+				try {
+					const animation = store.slideFader(0, 10)
+					await vi.advanceTimersByTimeAsync(10)
+
+					store.loadTrack(requestedTrack.id, deckIndex)
+
+					await vi.advanceTimersByTimeAsync(200)
+					await animation
+
+					expect(deck.loadedTrack?.id).toBe(originalTrack.id)
+					expect(deck.pitch).toBe(10)
+					expect(deck.faderPosition).toBe(10)
+					expect(deck.faderSliding).toBe(false)
+					expect(store.currentSession).toEqual([])
+				} finally {
+					vi.clearAllTimers()
+					vi.useRealTimers()
+				}
+			}
+		)
 	})
 
 	describe('setRpm', () => {
