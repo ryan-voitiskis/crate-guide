@@ -242,6 +242,13 @@ production build is also a separate release check. For release and
 deployment-affecting handoffs, run `npm run verify:full`; it adds the production
 build and local database tests, so it requires a running local Supabase stack.
 
+GitHub Actions runs source-controlled CI for every pull request and push to
+`main`. The application job installs Chromium, runs `npm run verify`, and builds
+the production application. The database job starts the tracked local Supabase
+stack and runs `npm run test:db`, without using a linked hosted project. Locally,
+`npm run verify:full` is the nearest equivalent to both jobs; it requires Docker
+and a running local Supabase stack.
+
 ### Database
 
 ```bash
