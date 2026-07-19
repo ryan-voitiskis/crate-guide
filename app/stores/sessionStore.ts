@@ -21,6 +21,26 @@ interface AccountOperationContext {
 	userId: string
 }
 
+type PlayedTrackSnapshot = readonly Readonly<PlayedTrackEntry>[]
+
+interface SessionWriteRequestBase {
+	readonly context: AccountOperationContext
+	readonly generation: number
+	readonly playedTracks: PlayedTrackSnapshot
+}
+
+interface AutoSaveRequest extends SessionWriteRequestBase {
+	readonly kind: 'auto'
+}
+
+interface ManualSaveRequest extends SessionWriteRequestBase {
+	readonly kind: 'manual'
+	readonly name: string | null
+	readonly resolve: (savedSet: SavedSet | null) => void
+}
+
+type SessionWriteRequest = AutoSaveRequest | ManualSaveRequest
+
 function createEmptyDeck(): Deck {
 	return {
 		loadedTrack: null,
@@ -54,6 +74,9 @@ export const useSessionStore = defineStore('session', () => {
 	const autoSaveError = ref<string | null>(null)
 	const autoSaveTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
 	let accountGeneration = 0
+	let sessionWriteGeneration = 0
+	let activeSessionWrite: SessionWriteRequest | null = null
+	const pendingSessionWrites: SessionWriteRequest[] = []
 
 	// === UI State ===
 	const showTurntableSim = ref(true)
@@ -267,13 +290,10 @@ export const useSessionStore = defineStore('session', () => {
 	}
 
 	function clearSession() {
+		invalidateSessionWrites()
 		currentSession.value = []
 		activeSetId.value = null
 		autoSaveError.value = null
-		if (autoSaveTimeout.value) {
-			clearTimeout(autoSaveTimeout.value)
-			autoSaveTimeout.value = null
-		}
 		decks.value.forEach((deck) => {
 			deck.loadedTrack = null
 			deck.pitch = 0
@@ -285,10 +305,7 @@ export const useSessionStore = defineStore('session', () => {
 
 	function resetAccountState() {
 		accountGeneration += 1
-		if (autoSaveTimeout.value) {
-			clearTimeout(autoSaveTimeout.value)
-			autoSaveTimeout.value = null
-		}
+		invalidateSessionWrites()
 
 		currentSession.value = []
 		savedSets.value = []
@@ -319,96 +336,227 @@ export const useSessionStore = defineStore('session', () => {
 		)
 	}
 
-	async function createActiveSet(
-		context: AccountOperationContext
-	): Promise<string | null> {
-		if (!isCurrentAccountContext(context) || currentSession.value.length === 0)
-			return null
-
-		const playedTracks = currentSession.value.map((entry) => ({ ...entry }))
-		isAutoSaving.value = true
-		try {
-			const { data, error } = await supabase
-				.from('sets')
-				.insert({
-					user_id: context.userId,
-					name: null,
-					played_tracks: playedTracks
-				})
-				.select('id')
-				.single()
-
-			if (!isCurrentAccountContext(context)) return null
-			if (error) throw error
-			autoSaveError.value = null
-			return data.id
-		} catch (e) {
-			if (!isCurrentAccountContext(context)) return null
-			console.error('Failed to create active set:', e)
-			autoSaveError.value =
-				'Auto-save failed. Your current session is not saved yet.'
-			toast.error(autoSaveError.value)
-			return null
-		} finally {
-			if (isCurrentAccountContext(context)) isAutoSaving.value = false
-		}
+	function captureSessionSnapshot(): PlayedTrackSnapshot {
+		return currentSession.value.map((entry) => ({ ...entry }))
 	}
 
-	async function updateActiveSet(
-		context: AccountOperationContext,
-		setId: string
-	) {
-		if (!isCurrentAccountContext(context) || currentSession.value.length === 0)
+	function isCurrentSessionWrite(request: SessionWriteRequest): boolean {
+		return (
+			request.generation === sessionWriteGeneration &&
+			isCurrentAccountContext(request.context)
+		)
+	}
+
+	function updateSessionWriteFlags() {
+		isAutoSaving.value =
+			activeSessionWrite?.kind === 'auto' &&
+			isCurrentSessionWrite(activeSessionWrite)
+		isSavingSession.value =
+			(activeSessionWrite?.kind === 'manual' &&
+				isCurrentSessionWrite(activeSessionWrite)) ||
+			pendingSessionWrites.some(
+				(request) => request.kind === 'manual' && isCurrentSessionWrite(request)
+			)
+	}
+
+	function invalidateSessionWrites() {
+		sessionWriteGeneration += 1
+		if (autoSaveTimeout.value) {
+			clearTimeout(autoSaveTimeout.value)
+			autoSaveTimeout.value = null
+		}
+
+		const discardedRequests = pendingSessionWrites.splice(0)
+		for (const request of discardedRequests) {
+			if (request.kind === 'manual') request.resolve(null)
+		}
+		updateSessionWriteFlags()
+	}
+
+	function cloneSnapshotForWrite(
+		playedTracks: PlayedTrackSnapshot
+	): PlayedTrackEntry[] {
+		return playedTracks.map((entry) => ({ ...entry }))
+	}
+
+	async function executeAutoSave(request: AutoSaveRequest) {
+		if (!isCurrentSessionWrite(request) || request.playedTracks.length === 0)
 			return
 
-		const playedTracks = currentSession.value.map((entry) => ({ ...entry }))
-		isAutoSaving.value = true
+		const playedTracks = cloneSnapshotForWrite(request.playedTracks)
 		try {
-			const { error } = await supabase
-				.from('sets')
-				.update({ played_tracks: playedTracks })
-				.eq('id', setId)
+			const setId = activeSetId.value
+			if (setId) {
+				const { error } = await supabase
+					.from('sets')
+					.update({ played_tracks: playedTracks })
+					.eq('id', setId)
 
-			if (!isCurrentAccountContext(context)) return
-			if (error) throw error
+				if (!isCurrentSessionWrite(request)) return
+				if (error) throw error
+			} else {
+				const { data, error } = await supabase
+					.from('sets')
+					.insert({
+						user_id: request.context.userId,
+						name: null,
+						played_tracks: playedTracks
+					})
+					.select('id')
+					.single()
+
+				if (!isCurrentSessionWrite(request)) return
+				if (error) throw error
+				activeSetId.value = data.id
+			}
+
 			autoSaveError.value = null
 		} catch (e) {
-			if (!isCurrentAccountContext(context)) return
+			if (!isCurrentSessionWrite(request)) return
 			console.error('Auto-save failed:', e)
 			autoSaveError.value =
 				'Auto-save failed. Your current session is not saved yet.'
 			toast.error(autoSaveError.value)
-		} finally {
-			if (isCurrentAccountContext(context)) isAutoSaving.value = false
 		}
+	}
+
+	async function executeManualSave(
+		request: ManualSaveRequest
+	): Promise<SavedSet | null> {
+		if (!isCurrentSessionWrite(request) || request.playedTracks.length === 0)
+			return null
+
+		const playedTracks = cloneSnapshotForWrite(request.playedTracks)
+		try {
+			let savedSet: SavedSet
+			const setId = activeSetId.value
+
+			if (setId) {
+				const { data, error } = await supabase
+					.from('sets')
+					.update({
+						name: request.name,
+						played_tracks: playedTracks
+					})
+					.eq('id', setId)
+					.select()
+					.single()
+
+				if (!isCurrentSessionWrite(request)) return null
+				if (error) throw error
+				const decoded = decodeSavedSetRow(data)
+				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
+				savedSet = decoded.row
+
+				const existingIndex = savedSets.value.findIndex(
+					(saved) => saved.id === setId
+				)
+				if (existingIndex !== -1) {
+					savedSets.value[existingIndex] = savedSet
+				} else {
+					savedSets.value.unshift(savedSet)
+				}
+			} else {
+				const { data, error } = await supabase
+					.from('sets')
+					.insert({
+						user_id: request.context.userId,
+						name: request.name,
+						played_tracks: playedTracks
+					})
+					.select()
+					.single()
+
+				if (!isCurrentSessionWrite(request)) return null
+				if (error) throw error
+				const decoded = decodeSavedSetRow(data)
+				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
+				savedSet = decoded.row
+				savedSets.value.unshift(savedSet)
+				activeSetId.value = savedSet.id
+			}
+
+			toast.success('Session saved')
+			showSaveDialog.value = false
+			autoSaveError.value = null
+			return savedSet
+		} catch (e) {
+			if (!isCurrentSessionWrite(request)) return null
+			console.error('Failed to save session:', e)
+			toast.error('Failed to save session')
+			return null
+		}
+	}
+
+	async function drainSessionWrites() {
+		if (activeSessionWrite) return
+		const request = pendingSessionWrites.shift()
+		if (!request) return
+
+		activeSessionWrite = request
+		updateSessionWriteFlags()
+		let manualResult: SavedSet | null = null
+		try {
+			if (request.kind === 'auto') {
+				await executeAutoSave(request)
+			} else {
+				manualResult = await executeManualSave(request)
+			}
+		} finally {
+			if (request.kind === 'manual') request.resolve(manualResult)
+			const shouldUpdateFlags = isCurrentSessionWrite(request)
+			activeSessionWrite = null
+			if (shouldUpdateFlags) updateSessionWriteFlags()
+			if (pendingSessionWrites.length > 0) void drainSessionWrites()
+		}
+	}
+
+	function enqueueAutoSave(request: AutoSaveRequest) {
+		const pendingAutoSaveIndex = pendingSessionWrites.findIndex(
+			(pendingRequest) => pendingRequest.kind === 'auto'
+		)
+		if (pendingAutoSaveIndex !== -1) {
+			pendingSessionWrites.splice(pendingAutoSaveIndex, 1)
+		}
+		pendingSessionWrites.push(request)
+		updateSessionWriteFlags()
+		void drainSessionWrites()
+	}
+
+	function enqueueManualSave(
+		request: Omit<ManualSaveRequest, 'resolve'>
+	): Promise<SavedSet | null> {
+		return new Promise((resolve) => {
+			pendingSessionWrites.push({ ...request, resolve })
+			updateSessionWriteFlags()
+			void drainSessionWrites()
+		})
 	}
 
 	function scheduleAutoSave() {
 		const context = captureAccountContext()
 		if (!context || currentSession.value.length === 0) return
+		const generation = sessionWriteGeneration
 
 		if (autoSaveTimeout.value) {
 			clearTimeout(autoSaveTimeout.value)
 		}
 
-		autoSaveTimeout.value = setTimeout(async () => {
+		autoSaveTimeout.value = setTimeout(() => {
 			autoSaveTimeout.value = null
 			if (
+				generation !== sessionWriteGeneration ||
 				!isCurrentAccountContext(context) ||
 				currentSession.value.length === 0
 			)
 				return
 
-			// Create set if none exists
-			const setId = activeSetId.value
-			if (!setId) {
-				const createdSetId = await createActiveSet(context)
-				if (isCurrentAccountContext(context)) {
-					activeSetId.value = createdSetId
-				}
-			} else {
-				await updateActiveSet(context, setId)
-			}
+			enqueueAutoSave({
+				context,
+				generation,
+				kind: 'auto',
+				playedTracks: captureSessionSnapshot()
+			})
 		}, 2000) // Debounce 2 seconds
 	}
 
@@ -452,77 +600,18 @@ export const useSessionStore = defineStore('session', () => {
 		}
 	}
 
-	async function saveSession(name?: string): Promise<SavedSet | null> {
+	function saveSession(name?: string): Promise<SavedSet | null> {
 		const context = captureAccountContext()
-		if (!context || currentSession.value.length === 0) return null
+		if (!context || currentSession.value.length === 0)
+			return Promise.resolve(null)
 
-		const activeSetIdAtStart = activeSetId.value
-		const playedTracks = currentSession.value.map((entry) => ({ ...entry }))
-		isSavingSession.value = true
-		try {
-			let savedSet: SavedSet
-
-			if (!isCurrentAccountContext(context)) return null
-			if (activeSetIdAtStart) {
-				// Update existing auto-saved set with name
-				const { data, error } = await supabase
-					.from('sets')
-					.update({
-						name: name || null,
-						played_tracks: playedTracks
-					})
-					.eq('id', activeSetIdAtStart)
-					.select()
-					.single()
-
-				if (!isCurrentAccountContext(context)) return null
-				if (error) throw error
-				const decoded = decodeSavedSetRow(data)
-				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
-				savedSet = decoded.row
-
-				// Update in savedSets if already fetched
-				const existingIndex = savedSets.value.findIndex(
-					(s) => s.id === activeSetIdAtStart
-				)
-				if (existingIndex !== -1) {
-					savedSets.value[existingIndex] = savedSet
-				} else {
-					savedSets.value.unshift(savedSet)
-				}
-			} else {
-				// Create new set
-				const { data, error } = await supabase
-					.from('sets')
-					.insert({
-						user_id: context.userId,
-						name: name || null,
-						played_tracks: playedTracks
-					})
-					.select()
-					.single()
-
-				if (!isCurrentAccountContext(context)) return null
-				if (error) throw error
-				const decoded = decodeSavedSetRow(data)
-				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
-				savedSet = decoded.row
-				savedSets.value.unshift(savedSet)
-				activeSetId.value = savedSet.id
-			}
-
-			toast.success('Session saved')
-			showSaveDialog.value = false
-			autoSaveError.value = null
-			return savedSet
-		} catch (e) {
-			if (!isCurrentAccountContext(context)) return null
-			console.error('Failed to save session:', e)
-			toast.error('Failed to save session')
-			return null
-		} finally {
-			if (isCurrentAccountContext(context)) isSavingSession.value = false
-		}
+		return enqueueManualSave({
+			context,
+			generation: sessionWriteGeneration,
+			kind: 'manual',
+			name: name || null,
+			playedTracks: captureSessionSnapshot()
+		})
 	}
 
 	async function deleteSet(setId: string) {

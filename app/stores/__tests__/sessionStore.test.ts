@@ -83,6 +83,12 @@ function createDeferred<T>() {
 	return { promise, reject, resolve }
 }
 
+async function flushAsyncWork() {
+	for (let index = 0; index < 8; index += 1) {
+		await Promise.resolve()
+	}
+}
+
 // Stub Nuxt composables (these are auto-imported in the store)
 vi.stubGlobal('useTracksStore', () => mockTracksStore)
 vi.stubGlobal('useUserStore', () => mockUserStore)
@@ -756,6 +762,50 @@ describe('sessionStore', () => {
 			expect(store.showSetManager).toBe(true)
 			expect(store.showSaveDialog).toBe(true)
 		})
+
+		it('drops a queued autosave update when the session is cleared', async () => {
+			vi.useFakeTimers()
+			const update = createDeferred<{ data: null; error: null }>()
+			const firstEntry = {
+				track_id: 'track-first',
+				time_added: 1,
+				adjusted_bpm: 128,
+				transition_rating: null
+			}
+			const secondEntry = {
+				track_id: 'track-second',
+				time_added: 2,
+				adjusted_bpm: 129,
+				transition_rating: 4
+			}
+			mockQueryBuilder.eq.mockReturnValueOnce(update.promise)
+			const store = useSessionStore()
+			store.activeSetId = 'set-active'
+
+			try {
+				store.currentSession = [firstEntry]
+				await nextTick()
+				await vi.advanceTimersByTimeAsync(2000)
+				store.currentSession = [firstEntry, secondEntry]
+				await nextTick()
+				await vi.advanceTimersByTimeAsync(2000)
+				expect(mockQueryBuilder.update).toHaveBeenCalledOnce()
+
+				store.clearSession()
+				update.resolve({ data: null, error: null })
+				await flushAsyncWork()
+
+				expect(mockQueryBuilder.update).toHaveBeenCalledOnce()
+				expect(store.currentSession).toEqual([])
+				expect(store.activeSetId).toBeNull()
+				expect(store.isAutoSaving).toBe(false)
+				expect(store.autoSaveError).toBeNull()
+				expect(mockToast.error).not.toHaveBeenCalled()
+				expect(mockToast.success).not.toHaveBeenCalled()
+			} finally {
+				vi.useRealTimers()
+			}
+		})
 	})
 
 	describe('resetAccountState', () => {
@@ -934,14 +984,28 @@ describe('sessionStore', () => {
 					name: null,
 					played_tracks: [playedEntry]
 				})
+				store.currentSession = [
+					playedEntry,
+					{
+						...playedEntry,
+						track_id: 'track-b',
+						time_added: 2
+					}
+				]
+				await nextTick()
+				await vi.advanceTimersByTimeAsync(2000)
+				const queuedManualSave = store.saveSession('Queued old account set')
+				expect(mockQueryBuilder.insert).toHaveBeenCalledOnce()
 
 				store.resetAccountState()
+				await expect(queuedManualSave).resolves.toBeNull()
 				mockUserStore.supaUser = { id: 'user-b' }
 				store.activeSetId = 'set-b'
 				autoSave.resolve({ data: { id: 'set-a' }, error: null })
-				await Promise.resolve()
-				await Promise.resolve()
+				await flushAsyncWork()
 
+				expect(mockQueryBuilder.insert).toHaveBeenCalledOnce()
+				expect(mockQueryBuilder.update).not.toHaveBeenCalled()
 				expect(store.activeSetId).toBe('set-b')
 				expect(store.isAutoSaving).toBe(false)
 				expect(store.autoSaveError).toBeNull()
@@ -1246,6 +1310,215 @@ describe('sessionStore', () => {
 		})
 	})
 
+	describe('session write queue', () => {
+		const firstEntry = {
+			track_id: 'track-first',
+			time_added: 1,
+			adjusted_bpm: 128,
+			transition_rating: null
+		}
+		const secondEntry = {
+			track_id: 'track-second',
+			time_added: 2,
+			adjusted_bpm: 129,
+			transition_rating: 4
+		}
+		const thirdEntry = {
+			track_id: 'track-third',
+			time_added: 3,
+			adjusted_bpm: null,
+			transition_rating: 5
+		}
+
+		it('serializes a slow initial autosave and updates the created set with the latest snapshot', async () => {
+			vi.useFakeTimers()
+			const insert = createDeferred<{
+				data: { id: string }
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValueOnce(insert.promise)
+			const store = useSessionStore()
+
+			try {
+				store.currentSession = [firstEntry]
+				await nextTick()
+				await vi.advanceTimersByTimeAsync(2000)
+
+				store.currentSession = [firstEntry, secondEntry]
+				await nextTick()
+				await vi.advanceTimersByTimeAsync(2000)
+
+				expect(mockQueryBuilder.insert).toHaveBeenCalledOnce()
+				expect(mockQueryBuilder.insert).toHaveBeenCalledWith({
+					user_id: 'test-user-id',
+					name: null,
+					played_tracks: [firstEntry]
+				})
+				insert.resolve({ data: { id: 'set-queued' }, error: null })
+				await flushAsyncWork()
+
+				expect(mockQueryBuilder.insert).toHaveBeenCalledOnce()
+				expect(mockQueryBuilder.update).toHaveBeenCalledOnce()
+				expect(mockQueryBuilder.update).toHaveBeenCalledWith({
+					played_tracks: [firstEntry, secondEntry]
+				})
+				expect(store.activeSetId).toBe('set-queued')
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
+		it('coalesces snapshots queued behind a slow update to one newest follow-up', async () => {
+			vi.useFakeTimers()
+			const firstUpdate = createDeferred<{ data: null; error: null }>()
+			mockQueryBuilder.eq.mockReturnValueOnce(firstUpdate.promise)
+			const store = useSessionStore()
+			store.activeSetId = 'set-queued'
+
+			try {
+				store.currentSession = [firstEntry]
+				await nextTick()
+				await vi.advanceTimersByTimeAsync(2000)
+
+				store.currentSession = [firstEntry, secondEntry]
+				await nextTick()
+				await vi.advanceTimersByTimeAsync(2000)
+				store.currentSession = [firstEntry, secondEntry, thirdEntry]
+				await nextTick()
+				await vi.advanceTimersByTimeAsync(2000)
+
+				expect(mockQueryBuilder.update).toHaveBeenCalledOnce()
+				expect(mockQueryBuilder.update).toHaveBeenCalledWith({
+					played_tracks: [firstEntry]
+				})
+				expect(store.isAutoSaving).toBe(true)
+				firstUpdate.resolve({ data: null, error: null })
+				await flushAsyncWork()
+
+				expect(mockQueryBuilder.update).toHaveBeenCalledTimes(2)
+				expect(mockQueryBuilder.update).toHaveBeenLastCalledWith({
+					played_tracks: [firstEntry, secondEntry, thirdEntry]
+				})
+				expect(store.isAutoSaving).toBe(false)
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
+		it('orders a named manual save after autosave and preserves its captured latest snapshot', async () => {
+			vi.useFakeTimers()
+			const insert = createDeferred<{
+				data: { id: string }
+				error: null
+			}>()
+			mockQueryBuilder.single
+				.mockReturnValueOnce(insert.promise)
+				.mockResolvedValueOnce({
+					data: createSavedSetRow({
+						id: 'set-queued',
+						name: 'Named session',
+						played_tracks: [firstEntry, secondEntry]
+					}),
+					error: null
+				})
+			const store = useSessionStore()
+
+			try {
+				store.currentSession = [firstEntry]
+				await nextTick()
+				await vi.advanceTimersByTimeAsync(2000)
+				store.currentSession = [firstEntry, secondEntry]
+				await nextTick()
+
+				const manualSave = store.saveSession('Named session')
+				expect(mockQueryBuilder.insert).toHaveBeenCalledOnce()
+				expect(store.isAutoSaving).toBe(true)
+				expect(store.isSavingSession).toBe(true)
+
+				insert.resolve({ data: { id: 'set-queued' }, error: null })
+				await expect(manualSave).resolves.toMatchObject({
+					id: 'set-queued',
+					name: 'Named session',
+					played_tracks: [firstEntry, secondEntry]
+				})
+				expect(mockQueryBuilder.insert).toHaveBeenCalledOnce()
+				expect(mockQueryBuilder.update).toHaveBeenCalledWith({
+					name: 'Named session',
+					played_tracks: [firstEntry, secondEntry]
+				})
+
+				await vi.advanceTimersByTimeAsync(2000)
+				expect(mockQueryBuilder.update).toHaveBeenLastCalledWith({
+					played_tracks: [firstEntry, secondEntry]
+				})
+				expect(store.isAutoSaving).toBe(false)
+				expect(store.isSavingSession).toBe(false)
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
+		it('keeps multiple manual saves ordered with their own immutable snapshots', async () => {
+			vi.useFakeTimers()
+			const firstSaveResponse = createDeferred<{
+				data: SavedSetRow
+				error: null
+			}>()
+			mockQueryBuilder.single
+				.mockReturnValueOnce(firstSaveResponse.promise)
+				.mockResolvedValueOnce({
+					data: createSavedSetRow({
+						id: 'set-queued',
+						name: 'Second manual',
+						played_tracks: [firstEntry, secondEntry]
+					}),
+					error: null
+				})
+			const store = useSessionStore()
+			store.activeSetId = 'set-queued'
+			store.currentSession = [firstEntry]
+
+			try {
+				const firstSave = store.saveSession('First manual')
+				store.currentSession = [firstEntry, secondEntry]
+				const secondSave = store.saveSession('Second manual')
+
+				expect(mockQueryBuilder.update).toHaveBeenCalledOnce()
+				expect(mockQueryBuilder.update).toHaveBeenCalledWith({
+					name: 'First manual',
+					played_tracks: [firstEntry]
+				})
+				expect(store.isSavingSession).toBe(true)
+
+				firstSaveResponse.resolve({
+					data: createSavedSetRow({
+						id: 'set-queued',
+						name: 'First manual',
+						played_tracks: [firstEntry]
+					}),
+					error: null
+				})
+				await expect(firstSave).resolves.toMatchObject({
+					name: 'First manual',
+					played_tracks: [firstEntry]
+				})
+				await expect(secondSave).resolves.toMatchObject({
+					name: 'Second manual',
+					played_tracks: [firstEntry, secondEntry]
+				})
+
+				expect(mockQueryBuilder.update).toHaveBeenCalledTimes(2)
+				expect(mockQueryBuilder.update).toHaveBeenLastCalledWith({
+					name: 'Second manual',
+					played_tracks: [firstEntry, secondEntry]
+				})
+				expect(store.isSavingSession).toBe(false)
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+	})
+
 	describe('auto-save failures', () => {
 		it('surfaces create auto-save failures and clears the error after a successful retry', async () => {
 			vi.useFakeTimers()
@@ -1275,6 +1548,7 @@ describe('sessionStore', () => {
 					'Auto-save failed. Your current session is not saved yet.'
 				)
 				expect(store.activeSetId).toBeNull()
+				expect(mockToast.error).toHaveBeenCalledOnce()
 
 				store.currentSession = [
 					...store.currentSession,
@@ -1289,6 +1563,7 @@ describe('sessionStore', () => {
 
 				expect(store.activeSetId).toBe('set-1')
 				expect(store.autoSaveError).toBeNull()
+				expect(mockToast.error).toHaveBeenCalledOnce()
 			} finally {
 				vi.useRealTimers()
 			}
@@ -1322,6 +1597,7 @@ describe('sessionStore', () => {
 				expect(store.autoSaveError).toBe(
 					'Auto-save failed. Your current session is not saved yet.'
 				)
+				expect(mockToast.error).toHaveBeenCalledOnce()
 
 				store.currentSession = [
 					...store.currentSession,
@@ -1335,6 +1611,7 @@ describe('sessionStore', () => {
 				await vi.advanceTimersByTimeAsync(2000)
 
 				expect(store.autoSaveError).toBeNull()
+				expect(mockToast.error).toHaveBeenCalledOnce()
 			} finally {
 				vi.useRealTimers()
 			}
