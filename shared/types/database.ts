@@ -160,6 +160,33 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			record_cover_account_cleanup_jobs: {
+				Row: {
+					attempt_count: number
+					claim_token: string | null
+					created_at: string
+					last_attempted_at: string | null
+					locked_until: string | null
+					user_id: string
+				}
+				Insert: {
+					attempt_count?: number
+					claim_token?: string | null
+					created_at?: string
+					last_attempted_at?: string | null
+					locked_until?: string | null
+					user_id: string
+				}
+				Update: {
+					attempt_count?: number
+					claim_token?: string | null
+					created_at?: string
+					last_attempted_at?: string | null
+					locked_until?: string | null
+					user_id?: string
+				}
+				Relationships: []
+			}
 			record_cover_cleanup_jobs: {
 				Row: {
 					attempt_count: number
@@ -360,6 +387,17 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			claim_record_cover_account_cleanup: {
+				Args: never
+				Returns: {
+					claim_token: string
+					claimed_user_id: string
+				}[]
+			}
+			complete_record_cover_account_cleanup: {
+				Args: { expected_claim_token: string; target_user_id: string }
+				Returns: boolean
+			}
 			consume_discogs_request_quota: {
 				Args: {
 					global_limit: number
@@ -374,9 +412,20 @@ export type Database = {
 			}
 			delete_all_user_data: { Args: never; Returns: Json }
 			disconnect_discogs: { Args: never; Returns: undefined }
+			enqueue_record_cover_account_cleanup: {
+				Args: { target_user_id: string }
+				Returns: {
+					claim_token: string
+					claimed_user_id: string
+				}[]
+			}
 			import_record_with_tracks: {
 				Args: { record: Json; tracks?: Json }
 				Returns: Json
+			}
+			release_record_cover_account_cleanup: {
+				Args: { expected_claim_token: string; target_user_id: string }
+				Returns: boolean
 			}
 			remove_record_from_collection: {
 				Args: { target_record_id: string }

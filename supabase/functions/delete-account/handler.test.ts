@@ -8,6 +8,8 @@ import {
 } from './handler.ts'
 
 const NOW_SECONDS = 2_000_000_000
+const USER_ID = '00000000-0000-4000-8000-000000000601'
+const CLAIM_TOKEN = '00000000-0000-4000-8000-000000000602'
 
 interface StorageEntry {
 	id: string | null
@@ -32,9 +34,21 @@ function dependencies(
 		verifyClaims?: () => Promise<Record<string, unknown>>
 		nowSeconds?: () => number
 		deleteUser?: (userId: string) => Promise<void>
-		deleteCoverCleanupJobs?: (userId: string) => Promise<void>
+		deleteOrdinaryJobs?: (userId: string) => Promise<void>
 		listFolder?: (path: string, offset: number) => Promise<StorageEntry[]>
 		removeObjects?: (paths: string[]) => Promise<void>
+		enqueue?: (userId: string) => Promise<{
+			userId: string
+			claimToken: string
+		}>
+		complete?: (claim: {
+			userId: string
+			claimToken: string
+		}) => Promise<boolean>
+		release?: (claim: {
+			userId: string
+			claimToken: string
+		}) => Promise<boolean>
 	} = {}
 ) {
 	return {
@@ -42,7 +56,7 @@ function dependencies(
 			overrides.authenticate ??
 			(() =>
 				Promise.resolve({
-					id: 'user-id',
+					id: USER_ID,
 					email: 'listener@example.com'
 				} as User)),
 		verifyClaims:
@@ -50,17 +64,24 @@ function dependencies(
 			(() =>
 				Promise.resolve(
 					overrides.claims ?? {
-						sub: 'user-id',
+						sub: USER_ID,
 						amr: [{ method: 'password', timestamp: NOW_SECONDS }]
 					}
 				)),
 		nowSeconds: overrides.nowSeconds ?? (() => NOW_SECONDS),
 		createAdmin: () => ({
 			deleteUser: overrides.deleteUser ?? (() => Promise.resolve()),
-			deleteCoverCleanupJobs:
-				overrides.deleteCoverCleanupJobs ?? (() => Promise.resolve()),
+			deleteOrdinaryJobs:
+				overrides.deleteOrdinaryJobs ?? (() => Promise.resolve()),
 			listFolder: overrides.listFolder ?? (() => Promise.resolve([])),
-			removeObjects: overrides.removeObjects ?? (() => Promise.resolve())
+			removeObjects: overrides.removeObjects ?? (() => Promise.resolve()),
+			enqueue:
+				overrides.enqueue ??
+				((userId) => Promise.resolve({ userId, claimToken: CLAIM_TOKEN })),
+			claim: () => Promise.resolve(null),
+			complete: overrides.complete ?? (() => Promise.resolve(true)),
+			release: overrides.release ?? (() => Promise.resolve(true)),
+			authUserExists: () => Promise.resolve(true)
 		})
 	}
 }
@@ -92,7 +113,7 @@ async function assertRecentAuthenticationRejected(
 Deno.test('delete-account verifies the exact parsed bearer token', async () => {
 	const authHeader = ' \tbeAreR   signed-token \t'
 	const claims = {
-		sub: 'user-id',
+		sub: USER_ID,
 		amr: [{ method: 'password', timestamp: NOW_SECONDS }]
 	}
 	let receivedAuthHeader: string | null = null
@@ -225,7 +246,7 @@ Deno.test(
 			{ 'Content-Type': 'application/json' },
 			dependencies({
 				claims: {
-					sub: 'user-id',
+					sub: USER_ID,
 					amr: [{ method: 'oauth', timestamp: NOW_SECONDS }]
 				}
 			})
@@ -244,7 +265,7 @@ Deno.test(
 			{ 'Content-Type': 'application/json' },
 			dependencies({
 				claims: {
-					sub: 'user-id',
+					sub: USER_ID,
 					amr: [
 						{
 							method: 'password',
@@ -268,7 +289,7 @@ Deno.test(
 			{ 'Content-Type': 'application/json' },
 			dependencies({
 				claims: {
-					sub: 'user-id',
+					sub: USER_ID,
 					amr: [
 						{
 							method: 'password',
@@ -288,7 +309,7 @@ Deno.test(
 
 Deno.test('delete-account rejects a stale AMR timestamp', () =>
 	assertRecentAuthenticationRejected({
-		sub: 'user-id',
+		sub: USER_ID,
 		amr: [
 			{
 				method: 'password',
@@ -300,7 +321,7 @@ Deno.test('delete-account rejects a stale AMR timestamp', () =>
 
 Deno.test('delete-account rejects an AMR timestamp too far in the future', () =>
 	assertRecentAuthenticationRejected({
-		sub: 'user-id',
+		sub: USER_ID,
 		amr: [
 			{
 				method: 'password',
@@ -312,33 +333,33 @@ Deno.test('delete-account rejects an AMR timestamp too far in the future', () =>
 )
 
 Deno.test('delete-account rejects missing AMR claims', () =>
-	assertRecentAuthenticationRejected({ sub: 'user-id' })
+	assertRecentAuthenticationRejected({ sub: USER_ID })
 )
 
 Deno.test('delete-account rejects a fresh JWT issued-at claim', () =>
 	assertRecentAuthenticationRejected({
-		sub: 'user-id',
+		sub: USER_ID,
 		iat: NOW_SECONDS
 	})
 )
 
 Deno.test('delete-account rejects a user metadata timestamp', () =>
 	assertRecentAuthenticationRejected({
-		sub: 'user-id',
+		sub: USER_ID,
 		user_metadata: { last_authenticated_at: NOW_SECONDS }
 	})
 )
 
 Deno.test('delete-account rejects string-only AMR claims', () =>
 	assertRecentAuthenticationRejected({
-		sub: 'user-id',
+		sub: USER_ID,
 		amr: ['password']
 	})
 )
 
 Deno.test('delete-account rejects a fresh token-refresh AMR entry', () =>
 	assertRecentAuthenticationRejected({
-		sub: 'user-id',
+		sub: USER_ID,
 		amr: [{ method: 'token_refresh', timestamp: NOW_SECONDS }]
 	})
 )
@@ -347,7 +368,7 @@ Deno.test(
 	'delete-account ignores a fresh token refresh beside stale OAuth',
 	() =>
 		assertRecentAuthenticationRejected({
-			sub: 'user-id',
+			sub: USER_ID,
 			amr: [
 				{
 					method: 'oauth',
@@ -360,7 +381,7 @@ Deno.test(
 
 Deno.test('delete-account rejects malformed AMR entries', () =>
 	assertRecentAuthenticationRejected({
-		sub: 'user-id',
+		sub: USER_ID,
 		amr: [
 			null,
 			{ method: 'password' },
@@ -410,18 +431,18 @@ Deno.test(
 			dependencies({
 				listFolder: (path) => {
 					steps.push(`list:${path}`)
-					if (path === 'user-id') {
+					if (path === USER_ID) {
 						return Promise.resolve([
 							{ id: null, name: 'record-one' },
 							{ id: null, name: 'record-two' }
 						])
 					}
-					if (path === 'user-id/record-one') {
+					if (path === `${USER_ID}/record-one`) {
 						return Promise.resolve(
 							didRemoveObjects ? [] : [{ id: 'one', name: 'cover.webp' }]
 						)
 					}
-					if (path === 'user-id/record-two') {
+					if (path === `${USER_ID}/record-two`) {
 						return Promise.resolve(
 							didRemoveObjects ? [] : [{ id: 'two', name: 'cover.webp' }]
 						)
@@ -437,9 +458,17 @@ Deno.test(
 					steps.push(`delete:${userId}`)
 					return Promise.resolve()
 				},
-				deleteCoverCleanupJobs: (userId) => {
+				enqueue: (userId) => {
+					steps.push(`enqueue:${userId}`)
+					return Promise.resolve({ userId, claimToken: CLAIM_TOKEN })
+				},
+				deleteOrdinaryJobs: (userId) => {
 					steps.push(`delete-jobs:${userId}`)
 					return Promise.resolve()
+				},
+				complete: (claim) => {
+					steps.push(`complete:${claim.userId}:${claim.claimToken}`)
+					return Promise.resolve(true)
 				}
 			})
 		)
@@ -448,18 +477,20 @@ Deno.test(
 
 		assert.equal(response.status, 200)
 		assert.deepEqual(steps, [
-			'list:user-id',
-			'list:user-id/record-one',
-			'list:user-id/record-two',
-			'remove:user-id/record-one/cover.webp,user-id/record-two/cover.webp',
-			'list:user-id',
-			'list:user-id/record-one',
-			'list:user-id/record-two',
-			'delete:user-id',
-			'list:user-id',
-			'list:user-id/record-one',
-			'list:user-id/record-two',
-			'delete-jobs:user-id'
+			`list:${USER_ID}`,
+			`list:${USER_ID}/record-one`,
+			`list:${USER_ID}/record-two`,
+			`remove:${USER_ID}/record-one/cover.webp,${USER_ID}/record-two/cover.webp`,
+			`list:${USER_ID}`,
+			`list:${USER_ID}/record-one`,
+			`list:${USER_ID}/record-two`,
+			`enqueue:${USER_ID}`,
+			`delete:${USER_ID}`,
+			`list:${USER_ID}`,
+			`list:${USER_ID}/record-one`,
+			`list:${USER_ID}/record-two`,
+			`delete-jobs:${USER_ID}`,
+			`complete:${USER_ID}:${CLAIM_TOKEN}`
 		])
 		assert.deepEqual(await response.json(), {
 			success: true,
@@ -484,7 +515,7 @@ Deno.test(
 					didDeleteUser = true
 					return Promise.resolve()
 				},
-				deleteCoverCleanupJobs: () => {
+				deleteOrdinaryJobs: () => {
 					didDeleteJobs = true
 					return Promise.resolve()
 				}
@@ -501,6 +532,40 @@ Deno.test(
 )
 
 Deno.test(
+	'delete-account aborts before auth deletion when outbox enqueue fails',
+	async () => {
+		const privateMessage = 'private enqueue database detail'
+		const logs: unknown[][] = []
+		let didDeleteUser = false
+		const originalConsoleError = console.error
+		console.error = (...values: unknown[]) => logs.push(values)
+		try {
+			const handler = createDeleteAccountHandler(
+				{ 'Content-Type': 'application/json' },
+				dependencies({
+					enqueue: () => Promise.reject(new Error(privateMessage)),
+					deleteUser: () => {
+						didDeleteUser = true
+						return Promise.resolve()
+					}
+				})
+			)
+
+			const response = await handler(request())
+			const payload = await response.json()
+
+			assert.equal(response.status, 503)
+			assert.equal(payload.code, 'cleanup_enqueue_failed')
+			assert.equal(didDeleteUser, false)
+			assert.equal(JSON.stringify(payload).includes(privateMessage), false)
+			assert.equal(JSON.stringify(logs).includes(privateMessage), false)
+		} finally {
+			console.error = originalConsoleError
+		}
+	}
+)
+
+Deno.test(
 	'delete-account describes auth deletion partial failure safely',
 	async () => {
 		const privateMessage = 'private auth service detail'
@@ -513,7 +578,7 @@ Deno.test(
 				{ 'Content-Type': 'application/json' },
 				dependencies({
 					deleteUser: () => Promise.reject(new Error(privateMessage)),
-					deleteCoverCleanupJobs: () => {
+					deleteOrdinaryJobs: () => {
 						didDeleteJobs = true
 						return Promise.resolve()
 					}
@@ -540,6 +605,7 @@ Deno.test(
 	async () => {
 		let didDeleteUser = false
 		let didDeleteJobs = false
+		const releasedClaims: unknown[] = []
 		const handler = createDeleteAccountHandler(
 			{ 'Content-Type': 'application/json' },
 			dependencies({
@@ -552,9 +618,13 @@ Deno.test(
 						didDeleteUser ? [{ id: 'late-cover', name: 'late.webp' }] : []
 					),
 				removeObjects: () => Promise.reject(new Error('storage unavailable')),
-				deleteCoverCleanupJobs: () => {
+				deleteOrdinaryJobs: () => {
 					didDeleteJobs = true
 					return Promise.resolve()
+				},
+				release: (claim) => {
+					releasedClaims.push(claim)
+					return Promise.resolve(true)
 				}
 			})
 		)
@@ -568,6 +638,48 @@ Deno.test(
 		assert.equal(payload.cover_cleanup_complete, false)
 		assert.equal(payload.cleanup_queue_complete, false)
 		assert.equal(didDeleteJobs, false)
+		assert.deepEqual(releasedClaims, [
+			{ userId: USER_ID, claimToken: CLAIM_TOKEN }
+		])
+	}
+)
+
+Deno.test(
+	'delete-account retains retryable work when exact completion is lost',
+	async () => {
+		let didDeleteUser = false
+		let didDeleteJobs = false
+		let releases = 0
+		const handler = createDeleteAccountHandler(
+			{ 'Content-Type': 'application/json' },
+			dependencies({
+				deleteUser: () => {
+					didDeleteUser = true
+					return Promise.resolve()
+				},
+				deleteOrdinaryJobs: () => {
+					didDeleteJobs = true
+					return Promise.resolve()
+				},
+				complete: () => Promise.resolve(false),
+				release: () => {
+					releases += 1
+					return Promise.resolve(false)
+				}
+			})
+		)
+
+		const response = await handler(request())
+
+		assert.equal(response.status, 200)
+		assert.deepEqual(await response.json(), {
+			success: true,
+			cover_cleanup_complete: true,
+			cleanup_queue_complete: false
+		})
+		assert.equal(didDeleteUser, true)
+		assert.equal(didDeleteJobs, true)
+		assert.equal(releases, 1)
 	}
 )
 
@@ -588,7 +700,7 @@ Deno.test(
 					jobs.push('cascade-created')
 					return Promise.resolve()
 				},
-				deleteCoverCleanupJobs: (userId) => {
+				deleteOrdinaryJobs: (userId) => {
 					steps.push(`delete-jobs:${userId}`)
 					jobs.length = 0
 					return Promise.resolve()
@@ -600,10 +712,10 @@ Deno.test(
 
 		assert.equal(response.status, 200)
 		assert.deepEqual(steps, [
-			'list:user-id',
-			'delete:user-id',
-			'list:user-id',
-			'delete-jobs:user-id'
+			`list:${USER_ID}`,
+			`delete:${USER_ID}`,
+			`list:${USER_ID}`,
+			`delete-jobs:${USER_ID}`
 		])
 		assert.deepEqual(jobs, [])
 	}
@@ -620,8 +732,7 @@ Deno.test(
 			const handler = createDeleteAccountHandler(
 				{ 'Content-Type': 'application/json' },
 				dependencies({
-					deleteCoverCleanupJobs: () =>
-						Promise.reject(new Error(privateMessage))
+					deleteOrdinaryJobs: () => Promise.reject(new Error(privateMessage))
 				})
 			)
 

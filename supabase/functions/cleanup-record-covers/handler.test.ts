@@ -46,6 +46,7 @@ function dependencies(
 			jobs: CleanupJob[],
 			attemptedAt: string
 		) => Promise<void>
+		processOrphanedAccountCleanup?: () => Promise<void>
 	} = {}
 ) {
 	return {
@@ -60,7 +61,9 @@ function dependencies(
 			removeObjects: overrides.removeObjects ?? (() => Promise.resolve()),
 			deleteJobs: overrides.deleteJobs ?? (() => Promise.resolve()),
 			markAttempts: overrides.markAttempts ?? (() => Promise.resolve())
-		})
+		}),
+		processOrphanedAccountCleanup:
+			overrides.processOrphanedAccountCleanup ?? (() => Promise.resolve())
 	}
 }
 
@@ -154,6 +157,32 @@ Deno.test(
 		})
 		assert.equal(receivedUserId, USER_ID)
 		assert.equal(receivedLimit, CLEANUP_JOB_LIMIT)
+	}
+)
+
+Deno.test(
+	'cleanup-record-covers keeps an orphan retry opaque to an ordinary caller',
+	async () => {
+		let attempts = 0
+		const handler = createCleanupRecordCoversHandler(
+			{ 'Content-Type': 'application/json' },
+			dependencies({
+				processOrphanedAccountCleanup: () => {
+					attempts += 1
+					return Promise.reject(new Error('private orphan cleanup detail'))
+				}
+			})
+		)
+
+		const response = await handler(request())
+
+		assert.equal(response.status, 200)
+		assert.deepEqual(await response.json(), {
+			processed: 0,
+			removed: 0,
+			deferred: 0
+		})
+		assert.equal(attempts, 1)
 	}
 )
 

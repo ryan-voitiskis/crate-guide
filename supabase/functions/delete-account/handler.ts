@@ -1,14 +1,16 @@
 import type { User } from '@supabase/supabase-js'
 import {
+	type AccountCoverCleanupAdapter,
+	type AccountCoverCleanupClaim,
+	createAccountCoverCleanupAdapter,
+	removeAllAccountCoverObjects
+} from '../_shared/accountCoverCleanup.ts'
+import {
 	createAuthedSupabaseClient,
 	createServiceRoleSupabaseClient,
 	getUser
 } from '../_shared/supabaseHelpers.ts'
 
-const RECORD_COVER_BUCKET = 'record-covers'
-const LIST_PAGE_SIZE = 1000
-const REMOVE_BATCH_SIZE = 100
-const MAX_CLEANUP_PASSES = 3
 export const RECENT_AUTHENTICATION_MAX_AGE_SECONDS = 300
 export const RECENT_AUTHENTICATION_FUTURE_TOLERANCE_SECONDS = 30
 const RECENT_AUTHENTICATION_METHODS: ReadonlySet<string> = new Set([
@@ -27,16 +29,8 @@ interface ClaimsClient {
 	}
 }
 
-interface StorageEntry {
-	id: string | null
-	name: string
-}
-
-interface AccountDeletionAdmin {
+interface AccountDeletionAdmin extends AccountCoverCleanupAdapter {
 	deleteUser(userId: string): Promise<void>
-	deleteCoverCleanupJobs(userId: string): Promise<void>
-	listFolder(path: string, offset: number): Promise<StorageEntry[]>
-	removeObjects(paths: string[]): Promise<void>
 }
 
 interface HandlerDependencies {
@@ -46,43 +40,17 @@ interface HandlerDependencies {
 	nowSeconds(): number
 }
 
-class StorageCleanupError extends Error {}
 class AccountDeleteError extends Error {}
-class CleanupQueueDeleteError extends Error {}
 
 function createDefaultAdmin(): AccountDeletionAdmin {
 	const supabase = createServiceRoleSupabaseClient()
-	const bucket = supabase.storage.from(RECORD_COVER_BUCKET)
+	const cleanup = createAccountCoverCleanupAdapter(supabase)
 
 	return {
+		...cleanup,
 		async deleteUser(userId) {
 			const { error } = await supabase.auth.admin.deleteUser(userId, false)
 			if (error) throw new AccountDeleteError('Auth user deletion failed')
-		},
-		async deleteCoverCleanupJobs(userId) {
-			const { error } = await supabase
-				.from('record_cover_cleanup_jobs')
-				.delete()
-				.eq('user_id', userId)
-			if (error) {
-				throw new CleanupQueueDeleteError('Cleanup queue deletion failed')
-			}
-		},
-		async listFolder(path, offset) {
-			const { data, error } = await bucket.list(path, {
-				limit: LIST_PAGE_SIZE,
-				offset,
-				sortBy: { column: 'name', order: 'asc' }
-			})
-			if (error) throw new StorageCleanupError('Cover listing failed')
-			return (data ?? []).map((entry) => ({
-				id: entry.id ?? null,
-				name: entry.name
-			}))
-		},
-		async removeObjects(paths) {
-			const { error } = await bucket.remove(paths)
-			if (error) throw new StorageCleanupError('Cover removal failed')
 		}
 	}
 }
@@ -167,48 +135,14 @@ function normaliseEmail(value: string): string {
 	return value.trim().toLocaleLowerCase('en-US')
 }
 
-async function listAllCoverObjects(
+async function releaseClaimBestEffort(
 	admin: AccountDeletionAdmin,
-	userId: string
-): Promise<string[]> {
-	const folders = [userId]
-	const objectPaths: string[] = []
-
-	while (folders.length) {
-		const folder = folders.shift()!
-		let offset = 0
-
-		while (true) {
-			const entries = await admin.listFolder(folder, offset)
-			for (const entry of entries) {
-				const path = `${folder}/${entry.name}`
-				if (entry.id) objectPaths.push(path)
-				else folders.push(path)
-			}
-
-			if (entries.length < LIST_PAGE_SIZE) break
-			offset += LIST_PAGE_SIZE
-		}
-	}
-
-	return objectPaths
-}
-
-async function removeAllCoverObjects(
-	admin: AccountDeletionAdmin,
-	userId: string
+	claim: AccountCoverCleanupClaim
 ): Promise<void> {
-	for (let pass = 0; pass < MAX_CLEANUP_PASSES; pass += 1) {
-		const paths = await listAllCoverObjects(admin, userId)
-		if (!paths.length) return
-
-		for (let index = 0; index < paths.length; index += REMOVE_BATCH_SIZE) {
-			await admin.removeObjects(paths.slice(index, index + REMOVE_BATCH_SIZE))
-		}
-	}
-
-	if ((await listAllCoverObjects(admin, userId)).length) {
-		throw new StorageCleanupError('Cover cleanup did not settle')
+	try {
+		await admin.release(claim)
+	} catch {
+		// A missing acknowledgement leaves the durable row for lease-expiry retry.
 	}
 }
 
@@ -293,7 +227,7 @@ export function createDeleteAccountHandler(
 
 		const admin = dependencies.createAdmin()
 		try {
-			await removeAllCoverObjects(admin, user.id)
+			await removeAllAccountCoverObjects(admin, user.id)
 		} catch {
 			console.error('Account deletion stopped during cover cleanup')
 			return jsonResponse(
@@ -307,9 +241,26 @@ export function createDeleteAccountHandler(
 			)
 		}
 
+		let cleanupClaim: AccountCoverCleanupClaim
+		try {
+			cleanupClaim = await admin.enqueue(user.id)
+		} catch {
+			console.error('Account deletion stopped while persisting cleanup intent')
+			return jsonResponse(
+				{
+					error:
+						'Your account was not deleted because cleanup could not be scheduled. Please try again.',
+					code: 'cleanup_enqueue_failed'
+				},
+				headers,
+				503
+			)
+		}
+
 		try {
 			await admin.deleteUser(user.id)
 		} catch {
+			await releaseClaimBestEffort(admin, cleanupClaim)
 			console.error('Account deletion stopped while deleting the auth user')
 			return jsonResponse(
 				{
@@ -325,8 +276,9 @@ export function createDeleteAccountHandler(
 		// Once the auth user is gone, no valid session can create another cover.
 		// A final pass closes the small race with uploads from another active tab.
 		try {
-			await removeAllCoverObjects(admin, user.id)
+			await removeAllAccountCoverObjects(admin, user.id)
 		} catch {
+			await releaseClaimBestEffort(admin, cleanupClaim)
 			console.error('Account deleted, but final cover cleanup failed')
 			return jsonResponse(
 				{
@@ -342,9 +294,28 @@ export function createDeleteAccountHandler(
 		// Cascading record deletes enqueue their former paths. Only discard those
 		// durable jobs after the final full-tree pass proves there is no cover left.
 		try {
-			await admin.deleteCoverCleanupJobs(user.id)
+			await admin.deleteOrdinaryJobs(user.id)
 		} catch {
+			await releaseClaimBestEffort(admin, cleanupClaim)
 			console.error('Account deleted, but cleanup queue removal failed')
+			return jsonResponse(
+				{
+					success: true,
+					cover_cleanup_complete: true,
+					cleanup_queue_complete: false
+				},
+				headers,
+				200
+			)
+		}
+
+		try {
+			if (!(await admin.complete(cleanupClaim))) {
+				throw new Error('Cleanup completion was not confirmed')
+			}
+		} catch {
+			await releaseClaimBestEffort(admin, cleanupClaim)
+			console.error('Account deleted, but cleanup completion failed')
 			return jsonResponse(
 				{
 					success: true,

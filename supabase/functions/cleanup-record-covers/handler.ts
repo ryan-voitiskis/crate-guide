@@ -1,4 +1,5 @@
 import type { User } from '@supabase/supabase-js'
+import { processOneAccountCoverCleanup } from '../_shared/accountCoverCleanup.ts'
 import {
 	createAuthedSupabaseClient,
 	createServiceRoleSupabaseClient,
@@ -34,6 +35,7 @@ interface HandlerDependencies {
 	authenticate(authHeader: string): Promise<User>
 	createAdmin(): CleanupAdmin
 	now(): Date
+	processOrphanedAccountCleanup(): Promise<void>
 }
 
 class CleanupDatabaseError extends Error {}
@@ -124,7 +126,10 @@ function createDefaultAdmin(): CleanupAdmin {
 const defaultDependencies: HandlerDependencies = {
 	authenticate: (authHeader) => getUser(createAuthedSupabaseClient(authHeader)),
 	createAdmin: createDefaultAdmin,
-	now: () => new Date()
+	now: () => new Date(),
+	processOrphanedAccountCleanup: async () => {
+		await processOneAccountCoverCleanup()
+	}
 }
 
 function jsonResponse(
@@ -190,6 +195,16 @@ function cleanupResponse(
 	)
 }
 
+async function runOpportunisticAccountCleanup(
+	dependencies: HandlerDependencies
+): Promise<void> {
+	try {
+		await dependencies.processOrphanedAccountCleanup()
+	} catch {
+		// This service-owned work must remain opaque to the ordinary caller.
+	}
+}
+
 export function createCleanupRecordCoversHandler(
 	headers: HeadersInit,
 	dependencies: HandlerDependencies = defaultDependencies
@@ -248,11 +263,13 @@ export function createCleanupRecordCoversHandler(
 		}
 
 		if (!jobs.length) {
-			return cleanupResponse(
+			const response = cleanupResponse(
 				headers,
 				{ processed: 0, removed: 0, deferred: 0 },
 				false
 			)
+			await runOpportunisticAccountCleanup(dependencies)
+			return response
 		}
 
 		let processed = 0
@@ -345,10 +362,14 @@ export function createCleanupRecordCoversHandler(
 			failedJobs,
 			dependencies.now().toISOString()
 		)
-		return cleanupResponse(
+		const response = cleanupResponse(
 			headers,
 			{ processed, removed, deferred: failedJobs.length },
 			failedJobs.length > 0
 		)
+		if (!failedJobs.length) {
+			await runOpportunisticAccountCleanup(dependencies)
+		}
+		return response
 	}
 }
