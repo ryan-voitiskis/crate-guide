@@ -2,6 +2,19 @@ import { createPage, setup, url } from '@nuxt/test-utils/e2e'
 import type { Page } from 'playwright-core'
 import { describe, expect, it } from 'vitest'
 
+type E2ERangeCompletion = {
+	table: string
+	from: number
+	to: number
+}
+
+type E2EQueryObservations = {
+	__e2eRangeCompletions?: E2ERangeCompletion[]
+	__e2eSingleCompletions?: string[]
+}
+
+const LIBRARY_TABLES = ['records', 'tracks', 'crates']
+
 await setup({
 	browser: true,
 	nuxtConfig: {
@@ -39,6 +52,7 @@ async function mockAuthenticatedSupabase(page: Page) {
 		type QueryBuilder = PromiseLike<QueryResult> & {
 			eq: () => QueryBuilder
 			order: () => QueryBuilder
+			range: (from: number, to: number) => QueryBuilder
 			select: () => QueryBuilder
 			single: () => Promise<QueryResult>
 		}
@@ -66,8 +80,7 @@ async function mockAuthenticatedSupabase(page: Page) {
 			}
 		}
 
-		const maybeWindow = window as unknown as {
-			__e2eFromCalls?: string[]
+		const maybeWindow = window as unknown as E2EQueryObservations & {
 			useNuxtApp?: () => NuxtAppLike
 		}
 		const nuxtApp = maybeWindow.useNuxtApp?.()
@@ -104,9 +117,9 @@ async function mockAuthenticatedSupabase(page: Page) {
 			return { error: null }
 		}
 
-		maybeWindow.__e2eFromCalls = []
+		maybeWindow.__e2eRangeCompletions = []
+		maybeWindow.__e2eSingleCompletions = []
 		client.from = (table: string) => {
-			maybeWindow.__e2eFromCalls?.push(table)
 			const result: QueryResult = {
 				data:
 					table === 'profiles'
@@ -118,15 +131,32 @@ async function mockAuthenticatedSupabase(page: Page) {
 						: [],
 				error: null
 			}
+			let requestedRange: { from: number; to: number } | null = null
 			const builder = {
 				eq: () => builder,
 				order: () => builder,
+				range: (from: number, to: number) => {
+					requestedRange = { from, to }
+					return builder
+				},
 				select: () => builder,
-				single: async () => result,
+				single: async () => {
+					maybeWindow.__e2eSingleCompletions?.push(table)
+					return result
+				},
 				then: (
 					resolve: (value: QueryResult) => unknown,
 					reject?: (reason: unknown) => unknown
-				) => Promise.resolve(result).then(resolve, reject)
+				) =>
+					Promise.resolve(result).then((value) => {
+						if (requestedRange) {
+							maybeWindow.__e2eRangeCompletions?.push({
+								table,
+								...requestedRange
+							})
+						}
+						return resolve(value)
+					}, reject)
 			} as QueryBuilder
 			return builder
 		}
@@ -159,25 +189,50 @@ describe('Login redirects', () => {
 
 	it('loads account data after email login without a page refresh', async () => {
 		const page = await createPage('/login')
+		const pageErrors: string[] = []
+		page.on('pageerror', (error) => pageErrors.push(error.message))
 
 		await mockAuthenticatedSupabase(page)
 		await signInViaForm(page)
 		await page.waitForFunction(() => {
-			const calls = (window as unknown as { __e2eFromCalls?: string[] })
-				.__e2eFromCalls
-			return ['records', 'tracks', 'crates'].every((table) =>
-				calls?.includes(table)
+			const observations = window as unknown as E2EQueryObservations
+			const completedRanges = observations.__e2eRangeCompletions ?? []
+			const expectedTables = ['records', 'tracks', 'crates']
+			return (
+				expectedTables.every((table) =>
+					completedRanges.some(
+						(completion) =>
+							completion.table === table &&
+							completion.from === 0 &&
+							completion.to === 999
+					)
+				) && observations.__e2eSingleCompletions?.includes('profiles')
 			)
 		})
 
-		const calls = await page.evaluate(
-			() =>
-				(window as unknown as { __e2eFromCalls?: string[] }).__e2eFromCalls ??
-				[]
+		const completions = await page.evaluate(() => {
+			const observations = window as unknown as E2EQueryObservations
+			return {
+				ranges: observations.__e2eRangeCompletions ?? [],
+				singles: observations.__e2eSingleCompletions ?? []
+			}
+		})
+		const libraryRanges = completions.ranges.filter((completion) =>
+			LIBRARY_TABLES.includes(completion.table)
 		)
-		expect(calls).toEqual(
-			expect.arrayContaining(['profiles', 'records', 'tracks', 'crates'])
-		)
+		expect(libraryRanges).toHaveLength(3)
+		for (const table of LIBRARY_TABLES) {
+			expect(
+				libraryRanges.filter(
+					(completion) =>
+						completion.table === table &&
+						completion.from === 0 &&
+						completion.to === 999
+				)
+			).toHaveLength(1)
+		}
+		expect(completions.singles).toEqual(['profiles'])
+		expect(pageErrors).toEqual([])
 
 		await page.close()
 	})
