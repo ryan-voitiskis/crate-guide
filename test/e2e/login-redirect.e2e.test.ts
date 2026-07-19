@@ -20,6 +20,19 @@ async function signInViaForm(page: Page, expectedPath = '/') {
 	await page.waitForURL(url(expectedPath))
 }
 
+async function waitForWorkbenchShell(page: Page) {
+	await page
+		.getByRole('link', { name: 'Crate Guide home' })
+		.first()
+		.waitFor({ state: 'visible' })
+	await page
+		.getByRole('navigation', { name: 'Library navigation' })
+		.waitFor({ state: 'visible' })
+	await page
+		.getByRole('contentinfo', { name: 'Workspace status' })
+		.waitFor({ state: 'visible' })
+}
+
 async function mockAuthenticatedSupabase(page: Page) {
 	await page.evaluate(() => {
 		type QueryResult = { data: unknown; error: null }
@@ -126,6 +139,7 @@ describe('Login redirects', () => {
 
 		await page.getByRole('link', { name: 'Demo', exact: true }).click()
 		await page.waitForURL(url('/demo'))
+		await waitForWorkbenchShell(page)
 
 		await expect(
 			page.getByRole('link', { name: 'Crate Guide home' }).count()
@@ -271,6 +285,7 @@ describe('Login redirects', () => {
 
 		await page.getByRole('link', { name: 'Back to Crate Guide' }).click()
 		await page.waitForURL(url('/'))
+		await waitForWorkbenchShell(page)
 
 		await expect(
 			page.getByRole('link', { name: 'Crate Guide home' }).count()
