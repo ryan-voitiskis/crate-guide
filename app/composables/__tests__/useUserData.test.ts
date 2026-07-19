@@ -296,7 +296,7 @@ describe('useUserData', () => {
 			expect(mockRecordsStore.drainCoverCleanup).toHaveBeenCalledOnce()
 		})
 
-		it('keeps successful cleanup detached and starts it once for the same account', async () => {
+		it('requests detached store-owned cleanup after each successful refresh', async () => {
 			mockSupaUser.value = { id: 'user-123' }
 			const { loadAllUserData, refreshAllUserData } = createUserData()
 
@@ -304,10 +304,10 @@ describe('useUserData', () => {
 			await expect(refreshAllUserData()).resolves.toBe(true)
 
 			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledTimes(2)
-			expect(mockRecordsStore.drainCoverCleanup).toHaveBeenCalledOnce()
+			expect(mockRecordsStore.drainCoverCleanup).toHaveBeenCalledTimes(2)
 		})
 
-		it('releases the cleanup sentinel after failure so a later refresh retries', async () => {
+		it('requests a store-owned retry on refresh after cleanup failure', async () => {
 			mockSupaUser.value = { id: 'user-123' }
 			mockRecordsStore.drainCoverCleanup
 				.mockResolvedValueOnce(false)
@@ -315,7 +315,6 @@ describe('useUserData', () => {
 			const { loadAllUserData, refreshAllUserData } = createUserData()
 
 			await expect(loadAllUserData()).resolves.toBe(true)
-			await Promise.resolve()
 			await expect(refreshAllUserData()).resolves.toBe(true)
 
 			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledTimes(2)
@@ -355,11 +354,13 @@ describe('useUserData', () => {
 			recordsResult.resolve(true)
 			await expect(refreshPromise).resolves.toBe(true)
 			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledOnce()
+			expect(mockRecordsStore.drainCoverCleanup).toHaveBeenCalledOnce()
 
 			const laterRefresh = refreshAllUserData()
 			expect(laterRefresh).not.toBe(loadPromise)
 			await expect(laterRefresh).resolves.toBe(true)
 			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledTimes(2)
+			expect(mockRecordsStore.drainCoverCleanup).toHaveBeenCalledTimes(2)
 		})
 
 		it('can manually retry successfully after a failed load', async () => {

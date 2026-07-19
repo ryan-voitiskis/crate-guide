@@ -18,7 +18,7 @@ export function useLibraryMutations() {
 		const success = await user.deleteAllUserData()
 		if (!success) return false
 		try {
-			await records.drainCoverCleanup()
+			await records.drainCoverCleanup({ fresh: true })
 		} catch {
 			// Cleanup jobs are durable; clearing local data must not undo a successful
 			// database deletion when a best-effort drain cannot run.

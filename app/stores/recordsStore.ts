@@ -47,15 +47,22 @@ type CoverCleanupPage = {
 }
 
 type CoverCleanupPageResult =
-	| { status: 'success'; page: CoverCleanupPage }
+	| { status: 'success'; page: CoverCleanupPage; invocationEpoch: number }
 	| { status: 'failed' }
 	| { status: 'cancelled' }
+
+type CoverCleanupDrainOptions = {
+	fresh?: boolean
+}
 
 // This mirrors the Edge response contract. It is intentionally separate from
 // the client's total-work guard so changing one bound cannot silently change the
 // other.
 export const COVER_CLEANUP_PAGE_SIZE = 100
 export const COVER_CLEANUP_MAX_PAGES = 100
+// @supabase/functions-js 2.97.0 supports both timeout and signal natively, so
+// each request has a wall-clock bound and remains abortable on account reset.
+export const COVER_CLEANUP_INVOKE_TIMEOUT_MS = 20_000
 const COVER_CLEANUP_RETRY_DELAYS_MS = [0, 250, 1000] as const
 
 function isNonnegativeSafeInteger(value: unknown): value is number {
@@ -78,8 +85,22 @@ function decodeCoverCleanupPage(value: unknown): CoverCleanupPage | null {
 	return { processed, removed, deferred }
 }
 
-function waitForCoverCleanupRetry(delayMs: number): Promise<void> {
-	return new Promise((resolvePromise) => setTimeout(resolvePromise, delayMs))
+function waitForCoverCleanupRetry(
+	delayMs: number,
+	signal: AbortSignal
+): Promise<boolean> {
+	if (signal.aborted) return Promise.resolve(false)
+	return new Promise((resolvePromise) => {
+		let timeoutId: ReturnType<typeof setTimeout> | null = null
+		const finish = (didWait: boolean) => {
+			if (timeoutId !== null) clearTimeout(timeoutId)
+			signal.removeEventListener('abort', handleAbort)
+			resolvePromise(didWait)
+		}
+		const handleAbort = () => finish(false)
+		timeoutId = setTimeout(() => finish(true), delayMs)
+		signal.addEventListener('abort', handleAbort, { once: true })
+	})
 }
 
 function buildArtistPayload(name?: string | null): DiscogsArtistDb[] {
@@ -118,6 +139,10 @@ export const useRecordsStore = defineStore('records', () => {
 	const isDeletingRecord = ref(false)
 	let fetchPromise: Promise<boolean> | null = null
 	let coverCleanupPromise: Promise<boolean> | null = null
+	let activeCoverCleanupController: AbortController | null = null
+	let requestedCoverCleanupEpoch = 0
+	let completedCoverCleanupEpoch = 0
+	let invocationStartedCoverCleanupEpoch = 0
 	let accountGeneration = 0
 	let activeFetchUserId: string | null = null
 
@@ -401,22 +426,29 @@ export const useRecordsStore = defineStore('records', () => {
 			if (!isCurrentCleanupGeneration(generation)) {
 				return { status: 'cancelled' }
 			}
-			if (retryDelayMs > 0) {
-				if (!isCurrentCleanupGeneration(generation)) {
-					return { status: 'cancelled' }
-				}
-				await waitForCoverCleanupRetry(retryDelayMs)
-				if (!isCurrentCleanupGeneration(generation)) {
-					return { status: 'cancelled' }
-				}
-			}
+			const abortController = new AbortController()
+			activeCoverCleanupController = abortController
 
 			try {
+				if (
+					retryDelayMs > 0 &&
+					!(await waitForCoverCleanupRetry(
+						retryDelayMs,
+						abortController.signal
+					))
+				)
+					return { status: 'cancelled' }
 				if (!isCurrentCleanupGeneration(generation)) {
 					return { status: 'cancelled' }
 				}
+				const invocationEpoch = requestedCoverCleanupEpoch
+				invocationStartedCoverCleanupEpoch = invocationEpoch
 				const { data, error } = await supabase.functions.invoke(
-					'cleanup-record-covers'
+					'cleanup-record-covers',
+					{
+						signal: abortController.signal,
+						timeout: COVER_CLEANUP_INVOKE_TIMEOUT_MS
+					}
 				)
 				if (!isCurrentCleanupGeneration(generation)) {
 					return { status: 'cancelled' }
@@ -424,10 +456,14 @@ export const useRecordsStore = defineStore('records', () => {
 				if (error) continue
 
 				const page = decodeCoverCleanupPage(data)
-				if (page) return { status: 'success', page }
+				if (page) return { status: 'success', page, invocationEpoch }
 			} catch {
 				if (!isCurrentCleanupGeneration(generation)) {
 					return { status: 'cancelled' }
+				}
+			} finally {
+				if (activeCoverCleanupController === abortController) {
+					activeCoverCleanupController = null
 				}
 			}
 		}
@@ -461,14 +497,34 @@ export const useRecordsStore = defineStore('records', () => {
 			if (result.status === 'failed') {
 				return reportCoverCleanupFailure(generation)
 			}
-			if (result.page.processed < COVER_CLEANUP_PAGE_SIZE) return true
+			if (result.page.processed < COVER_CLEANUP_PAGE_SIZE) {
+				completedCoverCleanupEpoch = Math.max(
+					completedCoverCleanupEpoch,
+					result.invocationEpoch
+				)
+				if (
+					completedCoverCleanupEpoch >= requestedCoverCleanupEpoch &&
+					invocationStartedCoverCleanupEpoch >= requestedCoverCleanupEpoch
+				)
+					return true
+			}
 		}
 
 		return reportCoverCleanupFailure(generation)
 	}
 
-	function drainCoverCleanup(): Promise<boolean> {
+	function drainCoverCleanup(
+		options: CoverCleanupDrainOptions = {}
+	): Promise<boolean> {
 		if (isDemoStore) return Promise.resolve(true)
+		if (options.fresh) {
+			requestedCoverCleanupEpoch += 1
+		} else if (
+			!coverCleanupPromise &&
+			completedCoverCleanupEpoch >= requestedCoverCleanupEpoch
+		) {
+			requestedCoverCleanupEpoch += 1
+		}
 		if (coverCleanupPromise) return coverCleanupPromise
 
 		const generation = accountGeneration
@@ -530,7 +586,7 @@ export const useRecordsStore = defineStore('records', () => {
 				return null
 			}
 
-			await drainCoverCleanup()
+			await drainCoverCleanup({ fresh: true })
 
 			return updatedRecord
 		} catch (error) {
@@ -563,7 +619,7 @@ export const useRecordsStore = defineStore('records', () => {
 		try {
 			const { error } = await supabase.from('records').delete().eq('id', id)
 			if (error) throw error
-			await drainCoverCleanup()
+			await drainCoverCleanup({ fresh: true })
 			toast.success('Record deleted successfully.')
 			return true
 		} catch (error) {
@@ -590,7 +646,7 @@ export const useRecordsStore = defineStore('records', () => {
 			searchResults.value = searchResults.value.filter(
 				(record) => record.id !== id
 			)
-			await drainCoverCleanup()
+			await drainCoverCleanup({ fresh: true })
 
 			toast.success('Record removed from collection')
 			return true
@@ -651,8 +707,13 @@ export const useRecordsStore = defineStore('records', () => {
 
 	function clearRecords() {
 		accountGeneration += 1
+		activeCoverCleanupController?.abort()
+		activeCoverCleanupController = null
 		fetchPromise = null
 		coverCleanupPromise = null
+		requestedCoverCleanupEpoch = 0
+		completedCoverCleanupEpoch = 0
+		invocationStartedCoverCleanupEpoch = 0
 		activeFetchUserId = null
 		isLoadingRecords.value = false
 		records.value = []

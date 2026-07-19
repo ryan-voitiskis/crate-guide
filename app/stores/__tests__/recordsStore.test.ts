@@ -8,7 +8,11 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { markDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 // Import after mocking
-import { COVER_CLEANUP_MAX_PAGES, useRecordsStore } from '../recordsStore'
+import {
+	COVER_CLEANUP_INVOKE_TIMEOUT_MS,
+	COVER_CLEANUP_MAX_PAGES,
+	useRecordsStore
+} from '../recordsStore'
 
 const mockToast = vi.hoisted(() => ({
 	success: vi.fn(),
@@ -92,11 +96,35 @@ function cleanupResponse(processed = 0, removed = processed) {
 function expectCleanupInvocationsWithoutBodies(count: number) {
 	expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledTimes(count)
 	for (let callIndex = 1; callIndex <= count; callIndex += 1) {
-		expect(mockSupabaseClient.functions.invoke).toHaveBeenNthCalledWith(
-			callIndex,
-			'cleanup-record-covers'
-		)
+		const [functionName, options] =
+			mockSupabaseClient.functions.invoke.mock.calls[callIndex - 1]!
+		expect(functionName).toBe('cleanup-record-covers')
+		expect(options).toMatchObject({
+			signal: expect.any(AbortSignal),
+			timeout: COVER_CLEANUP_INVOKE_TIMEOUT_MS
+		})
+		expect(options).not.toHaveProperty('body')
 	}
+}
+
+function timeoutAwareNeverSettlingInvoke(
+	_functionName: string,
+	options: { signal: AbortSignal; timeout: number }
+): Promise<{ data: null; error: Error }> {
+	return new Promise((resolvePromise) => {
+		let timeoutId: ReturnType<typeof setTimeout> | null = null
+		let didSettle = false
+		const finish = (reason: string) => {
+			if (didSettle) return
+			didSettle = true
+			if (timeoutId !== null) clearTimeout(timeoutId)
+			options.signal.removeEventListener('abort', handleAbort)
+			resolvePromise({ data: null, error: new Error(reason) })
+		}
+		const handleAbort = () => finish('aborted')
+		timeoutId = setTimeout(() => finish('timed out'), options.timeout)
+		options.signal.addEventListener('abort', handleAbort, { once: true })
+	})
 }
 
 // Stub globals before importing the store
@@ -184,6 +212,63 @@ describe('recordsStore', () => {
 			await expect(Promise.all([firstDrain, concurrentDrain])).resolves.toEqual(
 				[true, true]
 			)
+			expectCleanupInvocationsWithoutBodies(2)
+		})
+
+		it('requires a request started after a fresh post-commit signal', async () => {
+			const store = useRecordsStore()
+			const oldEmptyPage = createDeferred<ReturnType<typeof cleanupResponse>>()
+			const postCommitPage =
+				createDeferred<ReturnType<typeof cleanupResponse>>()
+			mockSupabaseClient.functions.invoke
+				.mockReturnValueOnce(oldEmptyPage.promise)
+				.mockReturnValueOnce(postCommitPage.promise)
+
+			const backgroundDrain = store.drainCoverCleanup()
+			await vi.waitFor(() => expectCleanupInvocationsWithoutBodies(1))
+			const postCommitDrain = store.drainCoverCleanup({ fresh: true })
+			let didPostCommitDrainSettle = false
+			void postCommitDrain.then(() => {
+				didPostCommitDrainSettle = true
+			})
+
+			oldEmptyPage.resolve(cleanupResponse())
+			await vi.waitFor(() => expectCleanupInvocationsWithoutBodies(2))
+			expect(didPostCommitDrainSettle).toBe(false)
+
+			postCommitPage.resolve(cleanupResponse())
+			await expect(
+				Promise.all([backgroundDrain, postCommitDrain])
+			).resolves.toEqual([true, true])
+		})
+
+		it('coalesces fresh signals through one request after the newest epoch', async () => {
+			const store = useRecordsStore()
+			const oldEmptyPage = createDeferred<ReturnType<typeof cleanupResponse>>()
+			const newestEpochPage =
+				createDeferred<ReturnType<typeof cleanupResponse>>()
+			mockSupabaseClient.functions.invoke
+				.mockReturnValueOnce(oldEmptyPage.promise)
+				.mockReturnValueOnce(newestEpochPage.promise)
+
+			const backgroundDrain = store.drainCoverCleanup()
+			await vi.waitFor(() => expectCleanupInvocationsWithoutBodies(1))
+			const firstMutationDrain = store.drainCoverCleanup({ fresh: true })
+			const secondMutationDrain = store.drainCoverCleanup({ fresh: true })
+			const thirdMutationDrain = store.drainCoverCleanup({ fresh: true })
+
+			oldEmptyPage.resolve(cleanupResponse())
+			await vi.waitFor(() => expectCleanupInvocationsWithoutBodies(2))
+			newestEpochPage.resolve(cleanupResponse())
+
+			await expect(
+				Promise.all([
+					backgroundDrain,
+					firstMutationDrain,
+					secondMutationDrain,
+					thirdMutationDrain
+				])
+			).resolves.toEqual([true, true, true, true])
 			expectCleanupInvocationsWithoutBodies(2)
 		})
 
@@ -289,6 +374,53 @@ describe('recordsStore', () => {
 			)
 		})
 
+		it('keeps failed fresh work eligible for a later background retry', async () => {
+			vi.useFakeTimers()
+			const store = useRecordsStore()
+			mockSupabaseClient.functions.invoke
+				.mockResolvedValueOnce(cleanupResponse())
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('private failure')
+				})
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('private failure')
+				})
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('private failure')
+				})
+				.mockResolvedValueOnce(cleanupResponse())
+
+			await expect(store.drainCoverCleanup()).resolves.toBe(true)
+			const failedMutationDrain = store.drainCoverCleanup({ fresh: true })
+			await vi.runAllTimersAsync()
+			await expect(failedMutationDrain).resolves.toBe(false)
+
+			await expect(store.drainCoverCleanup()).resolves.toBe(true)
+			expectCleanupInvocationsWithoutBodies(5)
+		})
+
+		it('times out and retries hung invocations before releasing later work', async () => {
+			vi.useFakeTimers()
+			const store = useRecordsStore()
+			mockSupabaseClient.functions.invoke.mockImplementation(
+				timeoutAwareNeverSettlingInvoke
+			)
+
+			const timedOutDrain = store.drainCoverCleanup()
+			await vi.runAllTimersAsync()
+
+			await expect(timedOutDrain).resolves.toBe(false)
+			expectCleanupInvocationsWithoutBodies(3)
+			expect(mockToast.warning).toHaveBeenCalledOnce()
+
+			mockSupabaseClient.functions.invoke.mockResolvedValue(cleanupResponse())
+			await expect(store.drainCoverCleanup()).resolves.toBe(true)
+			expectCleanupInvocationsWithoutBodies(4)
+		})
+
 		it('returns false when the separate client page cap is reached', async () => {
 			const store = useRecordsStore()
 			mockSupabaseClient.functions.invoke.mockResolvedValue(
@@ -336,6 +468,32 @@ describe('recordsStore', () => {
 			oldDrainResult.resolve(cleanupResponse(100))
 			await expect(oldDrain).resolves.toBe(false)
 			expectCleanupInvocationsWithoutBodies(1)
+			expect(mockToast.warning).not.toHaveBeenCalled()
+		})
+
+		it('aborts a hung request and lets a replacement account start immediately', async () => {
+			const store = useRecordsStore()
+			mockSupabaseClient.functions.invoke
+				.mockImplementationOnce(timeoutAwareNeverSettlingInvoke)
+				.mockResolvedValueOnce(cleanupResponse())
+
+			const oldDrain = store.drainCoverCleanup()
+			await vi.waitFor(() => expectCleanupInvocationsWithoutBodies(1))
+			const oldSignal = mockSupabaseClient.functions.invoke.mock.calls[0]![1]
+				.signal as AbortSignal
+
+			store.clearRecords()
+			mockUserStore.supaUser = { id: 'replacement-user-id' }
+			const replacementDrain = store.drainCoverCleanup()
+
+			await expect(oldDrain).resolves.toBe(false)
+			await expect(replacementDrain).resolves.toBe(true)
+			expectCleanupInvocationsWithoutBodies(2)
+			const replacementSignal = mockSupabaseClient.functions.invoke.mock
+				.calls[1]![1].signal as AbortSignal
+			expect(oldSignal.aborted).toBe(true)
+			expect(replacementSignal).not.toBe(oldSignal)
+			expect(replacementSignal.aborted).toBe(false)
 			expect(mockToast.warning).not.toHaveBeenCalled()
 		})
 
@@ -402,9 +560,7 @@ describe('recordsStore', () => {
 				cover_storage_path: path
 			})
 			expect(result?.cover_storage_path).toBe(path)
-			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
-				'cleanup-record-covers'
-			)
+			expectCleanupInvocationsWithoutBodies(1)
 			expect(store.isUpdatingCover).toBe(false)
 		})
 
@@ -458,9 +614,7 @@ describe('recordsStore', () => {
 				}
 			)
 
-			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
-				'cleanup-record-covers'
-			)
+			expectCleanupInvocationsWithoutBodies(1)
 			expect(mockStorageBucket.remove).not.toHaveBeenCalled()
 		})
 
@@ -491,9 +645,7 @@ describe('recordsStore', () => {
 			expect(mockQueryBuilder.update).toHaveBeenCalledWith({
 				cover_storage_path: null
 			})
-			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
-				'cleanup-record-covers'
-			)
+			expectCleanupInvocationsWithoutBodies(1)
 			expect(mockStorageBucket.remove).not.toHaveBeenCalled()
 			expect(result?.cover).toBe('https://discogs.example/fallback.jpg')
 		})
@@ -1260,6 +1412,37 @@ describe('recordsStore', () => {
 	})
 
 	describe('deleteRecord', () => {
+		it('waits for cleanup begun after the committed deletion epoch', async () => {
+			const store = useRecordsStore()
+			store.records = [createMockRecord({ id: 'record-1' })]
+			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
+			const oldEmptyPage = createDeferred<ReturnType<typeof cleanupResponse>>()
+			const postDeletePage =
+				createDeferred<ReturnType<typeof cleanupResponse>>()
+			mockSupabaseClient.functions.invoke
+				.mockReturnValueOnce(oldEmptyPage.promise)
+				.mockReturnValueOnce(postDeletePage.promise)
+
+			const backgroundDrain = store.drainCoverCleanup()
+			await vi.waitFor(() => expectCleanupInvocationsWithoutBodies(1))
+			const deletion = store.deleteRecord('record-1')
+			let didDeletionSettle = false
+			void deletion.then(() => {
+				didDeletionSettle = true
+			})
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.delete).toHaveBeenCalledOnce()
+			)
+
+			oldEmptyPage.resolve(cleanupResponse())
+			await vi.waitFor(() => expectCleanupInvocationsWithoutBodies(2))
+			expect(didDeletionSettle).toBe(false)
+
+			postDeletePage.resolve(cleanupResponse())
+			await expect(deletion).resolves.toBe(true)
+			await expect(backgroundDrain).resolves.toBe(true)
+		})
+
 		it('drains managed cover cleanup after the record is deleted', async () => {
 			const store = useRecordsStore()
 			store.records = [
@@ -1273,9 +1456,7 @@ describe('recordsStore', () => {
 			const result = await store.deleteRecord('record-1')
 
 			expect(result).toBe(true)
-			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
-				'cleanup-record-covers'
-			)
+			expectCleanupInvocationsWithoutBodies(1)
 			expect(mockStorageBucket.remove).not.toHaveBeenCalled()
 		})
 
@@ -1398,9 +1579,7 @@ describe('recordsStore', () => {
 			expect(result).toBe(true)
 			expect(store.records.map((item) => item.id)).toEqual(['record-2'])
 			expect(store.searchResults).toEqual([])
-			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
-				'cleanup-record-covers'
-			)
+			expectCleanupInvocationsWithoutBodies(1)
 		})
 
 		it('keeps local state unchanged when the RPC fails', async () => {

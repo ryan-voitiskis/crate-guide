@@ -84,7 +84,7 @@ describe('useLibraryMutations', () => {
 
 		expect(result).toBe(true)
 		expect(user.deleteAllUserData).toHaveBeenCalledOnce()
-		expect(records.drainCoverCleanup).toHaveBeenCalledWith()
+		expect(records.drainCoverCleanup).toHaveBeenCalledWith({ fresh: true })
 		expect(records.clearRecords).toHaveBeenCalledOnce()
 		expect(tracks.clearTracks).toHaveBeenCalledOnce()
 		expect(crates.clearAllCrateRecords).toHaveBeenCalledOnce()
@@ -133,15 +133,21 @@ describe('useLibraryMutations', () => {
 		expect(session.clearSession).toHaveBeenCalledOnce()
 	})
 
-	it('waits for the bounded cleanup drain before clearing bulk-deletion state', async () => {
-		user.deleteAllUserData.mockResolvedValue(true)
+	it('commits deletion before requesting fresh cleanup and clearing state', async () => {
+		const deletionCommit = createDeferred<boolean>()
+		user.deleteAllUserData.mockReturnValueOnce(deletionCommit.promise)
 		const drainResult = createDeferred<boolean>()
 		records.drainCoverCleanup.mockReturnValueOnce(drainResult.promise)
 		const mutations = useLibraryMutations()
 
 		const deletion = mutations.deleteAllUserData()
+		await Promise.resolve()
+		expect(records.drainCoverCleanup).not.toHaveBeenCalled()
+		expect(records.clearRecords).not.toHaveBeenCalled()
+
+		deletionCommit.resolve(true)
 		await vi.waitFor(() => {
-			expect(records.drainCoverCleanup).toHaveBeenCalledOnce()
+			expect(records.drainCoverCleanup).toHaveBeenCalledWith({ fresh: true })
 		})
 		expect(records.clearRecords).not.toHaveBeenCalled()
 		expect(tracks.clearTracks).not.toHaveBeenCalled()

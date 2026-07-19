@@ -16,7 +16,6 @@ export function useUserData() {
 	let loadPromise: Promise<boolean> | null = null
 	let authenticationGeneration = 0
 	let dataUserId: string | null = null
-	let cleanupStartedUserId: string | null = null
 	let isReplacingProtectedRoute = false
 
 	const isLoadingAny = computed(
@@ -43,28 +42,6 @@ export function useUserData() {
 		return didAuthenticationChange || didUserIdentityChange
 			? { replacementUserId: reactiveUserId }
 			: null
-	}
-
-	function startCoverCleanup(userId: string, loadGeneration: number) {
-		cleanupStartedUserId = userId
-		void records.drainCoverCleanup().then(
-			(didComplete) => {
-				if (
-					didComplete ||
-					cleanupStartedUserId !== userId ||
-					getStaleLoadTransition(userId, loadGeneration)
-				)
-					return
-				cleanupStartedUserId = null
-			},
-			() => {
-				if (
-					cleanupStartedUserId === userId &&
-					!getStaleLoadTransition(userId, loadGeneration)
-				)
-					cleanupStartedUserId = null
-			}
-		)
 	}
 
 	async function performLoadAllUserData(
@@ -103,10 +80,9 @@ export function useUserData() {
 			hasLoadedData.value = didLoadAllData
 			if (
 				didLoadAllData &&
-				cleanupStartedUserId !== resolvedUserId &&
 				!getStaleLoadTransition(resolvedUserId, loadGeneration)
 			) {
-				startCoverCleanup(resolvedUserId, loadGeneration)
+				void records.drainCoverCleanup().catch(() => undefined)
 			}
 			return didLoadAllData
 		} catch (error) {
@@ -166,7 +142,6 @@ export function useUserData() {
 		crates.clearCrates()
 		hasLoadedData.value = false
 		dataUserId = null
-		cleanupStartedUserId = null
 	}
 
 	function clearAllUserData() {
