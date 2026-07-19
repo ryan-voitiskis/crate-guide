@@ -44,12 +44,11 @@ export function useUserData() {
 			: null
 	}
 
-	async function performLoadAllUserData(): Promise<boolean> {
-		const loadGeneration = authenticationGeneration
+	async function performLoadAllUserData(
+		loadGeneration: number
+	): Promise<boolean> {
 		let resolvedUserId: string | null = null
-		let reloadUserId: string | null = null
 		let storePromises: Promise<boolean>[] | null = null
-		isLoadingUserData.value = true
 
 		try {
 			resolvedUserId = await user
@@ -61,8 +60,6 @@ export function useUserData() {
 				loadGeneration
 			)
 			if (transitionBeforeFetch) {
-				reloadUserId = transitionBeforeFetch.replacementUserId
-				clearLibraryData()
 				return false
 			}
 
@@ -77,8 +74,6 @@ export function useUserData() {
 				loadGeneration
 			)
 			if (transitionAfterFetch) {
-				reloadUserId = transitionAfterFetch.replacementUserId
-				clearLibraryData()
 				return false
 			}
 			const didLoadAllData = results.every(Boolean)
@@ -91,27 +86,11 @@ export function useUserData() {
 				? getStaleLoadTransition(resolvedUserId, loadGeneration)
 				: null
 			if (staleTransition) {
-				reloadUserId = staleTransition.replacementUserId
-				clearLibraryData()
 				return false
 			}
 			console.error('Failed to load user data:', error)
 			toast.error('Error loading user data.')
 			return false
-		} finally {
-			isLoadingUserData.value = false
-			loadPromise = null
-			if (reloadUserId) {
-				const expectedUserId = reloadUserId
-				void Promise.resolve().then(() => {
-					if (
-						user.supaUserId === expectedUserId &&
-						!hasLoadedData.value &&
-						!loadPromise
-					)
-						void loadAllUserData()
-				})
-			}
 		}
 	}
 
@@ -119,8 +98,18 @@ export function useUserData() {
 		if (loadPromise) return loadPromise
 		if (hasLoadedData.value) return Promise.resolve(true)
 
-		loadPromise = performLoadAllUserData()
-		return loadPromise
+		const loadGeneration = authenticationGeneration
+		isLoadingUserData.value = true
+		const createdPromise = performLoadAllUserData(loadGeneration).finally(
+			() => {
+				if (loadPromise !== createdPromise) return
+				loadPromise = null
+				if (loadGeneration === authenticationGeneration)
+					isLoadingUserData.value = false
+			}
+		)
+		loadPromise = createdPromise
+		return createdPromise
 	}
 
 	async function bootstrapLoadFromSession() {
@@ -139,6 +128,9 @@ export function useUserData() {
 	}
 
 	function clearLibraryData() {
+		authenticationGeneration += 1
+		loadPromise = null
+		isLoadingUserData.value = false
 		records.clearRecords()
 		tracks.clearTracks()
 		crates.clearCrates()
@@ -184,13 +176,11 @@ export function useUserData() {
 				const hasDataForDifferentUser =
 					dataUserId !== null && dataUserId !== userId
 				if (didAuthenticatedUserChange || hasDataForDifferentUser) {
-					authenticationGeneration += 1
 					clearAllUserData()
 				}
 				if (hasLoadedData.value) return
 				void loadAllUserData()
 			} else if (previousUserId) {
-				authenticationGeneration += 1
 				clearAllUserData()
 				if (!isSigningOut) void leaveProtectedRoute()
 			}

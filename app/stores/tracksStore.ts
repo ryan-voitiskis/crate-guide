@@ -23,6 +23,11 @@ type TrackCreateInput = Omit<
 	audio_features?: TrackAudioFeatures | null
 }
 
+type FetchContext = {
+	generation: number
+	userId: string
+}
+
 export const useTracksStore = defineStore('tracks', () => {
 	const supabase = useSupabaseClient<Database>()
 	const pinia = getActivePinia()
@@ -34,10 +39,19 @@ export const useTracksStore = defineStore('tracks', () => {
 	const isCreatingTrack = ref(false)
 	const isUpdatingTrack = ref(false)
 	let fetchPromise: Promise<boolean> | null = null
+	let accountGeneration = 0
+	let activeFetchUserId: string | null = null
 
 	const tracksCount = computed(() => tracks.value.length)
 	const hasTracks = computed(() => tracks.value.length > 0)
 	const playableTracks = computed(() => tracks.value.filter((t) => t.playable))
+
+	function isCurrentFetchContext(context: FetchContext): boolean {
+		return (
+			context.generation === accountGeneration &&
+			activeFetchUserId === context.userId
+		)
+	}
 
 	function serializeTrackArtists(
 		artists: DiscogsArtistDb[]
@@ -127,17 +141,22 @@ export const useTracksStore = defineStore('tracks', () => {
 		return 'Unknown error'
 	}
 
-	async function performFetchAllTracks(): Promise<boolean> {
+	async function performFetchAllTracks(generation: number): Promise<boolean> {
 		isLoadingTracks.value = true
+		let context: FetchContext | null = null
 		try {
-			const userId = await user
-				.resolveAuthenticatedUserId()
-				.catch((e: unknown) => {
-					console.error('Auth failed in tracksStore:', e)
-					toast.error('Failed to load data')
-					return null as string | null
-				})
-			if (!userId) return false
+			let userId: string
+			try {
+				userId = await user.resolveAuthenticatedUserId()
+			} catch (error) {
+				if (generation !== accountGeneration) return false
+				console.error('Auth failed in tracksStore:', error)
+				toast.error('Failed to load data')
+				return false
+			}
+			if (generation !== accountGeneration) return false
+			activeFetchUserId = userId
+			context = { generation, userId }
 
 			const rows = await fetchAllSupabasePages(async (from, to) => {
 				return await supabase
@@ -148,6 +167,7 @@ export const useTracksStore = defineStore('tracks', () => {
 					.order('id', { ascending: false })
 					.range(from, to)
 			})
+			if (!isCurrentFetchContext(context)) return false
 
 			const decodedRows = rows.map((track) => {
 				const { records: _joinedRecord, ...trackRow } = track
@@ -158,12 +178,15 @@ export const useTracksStore = defineStore('tracks', () => {
 			tracks.value = decodedRows.map((decoded) => decoded.row)
 			return true
 		} catch (error) {
+			if (!context || !isCurrentFetchContext(context)) return false
 			console.error('Failed to fetch tracks:', error)
 			toast.error('Error fetching tracks.')
 			return false
 		} finally {
-			isLoadingTracks.value = false
-			fetchPromise = null
+			const isCurrentOperation = context
+				? isCurrentFetchContext(context)
+				: generation === accountGeneration
+			if (isCurrentOperation) isLoadingTracks.value = false
 		}
 	}
 
@@ -171,8 +194,13 @@ export const useTracksStore = defineStore('tracks', () => {
 		if (isDemoStore) return Promise.resolve(true)
 		if (fetchPromise) return fetchPromise
 
-		fetchPromise = performFetchAllTracks()
-		return fetchPromise
+		const createdPromise = performFetchAllTracks(accountGeneration).finally(
+			() => {
+				if (fetchPromise === createdPromise) fetchPromise = null
+			}
+		)
+		fetchPromise = createdPromise
+		return createdPromise
 	}
 
 	async function createTrack(
@@ -405,6 +433,10 @@ export const useTracksStore = defineStore('tracks', () => {
 
 	// Clear tracks when user signs out
 	function clearTracks() {
+		accountGeneration += 1
+		fetchPromise = null
+		activeFetchUserId = null
+		isLoadingTracks.value = false
 		tracks.value = []
 	}
 

@@ -504,12 +504,12 @@ describe('useUserData', () => {
 			await nextTick()
 			expect(mockRecordsStore.clearRecords).toHaveBeenCalledOnce()
 
-			oldUserResult.resolve(true)
+			oldUserResult.resolve(false)
 			await expect(oldUserLoad).resolves.toBe(false)
 
-			expect(mockRecordsStore.clearRecords).toHaveBeenCalledTimes(2)
-			expect(mockTracksStore.clearTracks).toHaveBeenCalledTimes(2)
-			expect(mockCratesStore.clearCrates).toHaveBeenCalledTimes(2)
+			expect(mockRecordsStore.clearRecords).toHaveBeenCalledOnce()
+			expect(mockTracksStore.clearTracks).toHaveBeenCalledOnce()
+			expect(mockCratesStore.clearCrates).toHaveBeenCalledOnce()
 			expect(mockSessionStore.resetAccountState).toHaveBeenCalledOnce()
 			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledOnce()
 			expect(hasLoadedData.value).toBe(false)
@@ -545,6 +545,45 @@ describe('useUserData', () => {
 			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledTimes(2)
 		})
 
+		it('starts a replacement load before a signed-out account fetch settles', async () => {
+			mockSupaUser.value = { id: 'user-a' }
+			const oldUserResult = createDeferred<boolean>()
+			deferNextStoreLoads(oldUserResult)
+			makeFollowingStoreLoadsSucceed()
+			const { loadAllUserData, hasLoadedData } = createUserData()
+			const oldUserLoad = loadAllUserData()
+			let oldUserLoadSettled = false
+			void oldUserLoad.then(() => {
+				oldUserLoadSettled = true
+			})
+			await vi.waitFor(() => {
+				expect(mockCratesStore.fetchAllCrates).toHaveBeenCalledOnce()
+			})
+
+			mockSupaUser.value = null
+			await nextTick()
+			expect(mockRecordsStore.clearRecords).toHaveBeenCalledOnce()
+			expect(mockTracksStore.clearTracks).toHaveBeenCalledOnce()
+			expect(mockCratesStore.clearCrates).toHaveBeenCalledOnce()
+
+			mockSupaUser.value = { id: 'user-b' }
+			await nextTick()
+			await vi.waitFor(() => {
+				expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledTimes(2)
+				expect(mockTracksStore.fetchAllTracks).toHaveBeenCalledTimes(2)
+				expect(mockCratesStore.fetchAllCrates).toHaveBeenCalledTimes(2)
+				expect(hasLoadedData.value).toBe(true)
+			})
+			expect(oldUserLoadSettled).toBe(false)
+
+			oldUserResult.resolve(true)
+			await expect(oldUserLoad).resolves.toBe(false)
+			expect(hasLoadedData.value).toBe(true)
+			expect(mockRecordsStore.clearRecords).toHaveBeenCalledOnce()
+			expect(mockTracksStore.clearTracks).toHaveBeenCalledOnce()
+			expect(mockCratesStore.clearCrates).toHaveBeenCalledOnce()
+		})
+
 		it('loads a new account after an old-account load rejects unexpectedly', async () => {
 			mockSupaUser.value = { id: 'user-a' }
 			const recordsResult = createDeferred<boolean>()
@@ -572,18 +611,24 @@ describe('useUserData', () => {
 
 			mockSupaUser.value = { id: 'user-b' }
 			await nextTick()
+			await vi.waitFor(() => {
+				expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledTimes(2)
+				expect(mockTracksStore.fetchAllTracks).toHaveBeenCalledTimes(2)
+				expect(mockCratesStore.fetchAllCrates).toHaveBeenCalledTimes(2)
+				expect(hasLoadedData.value).toBe(true)
+			})
 			recordsResult.reject(new Error('Old account request failed'))
 			await Promise.resolve()
 			await Promise.resolve()
 			expect(oldUserLoadSettled).toBe(false)
-			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledOnce()
-			expect(mockTracksStore.fetchAllTracks).toHaveBeenCalledOnce()
-			expect(mockCratesStore.fetchAllCrates).toHaveBeenCalledOnce()
+			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledTimes(2)
+			expect(mockTracksStore.fetchAllTracks).toHaveBeenCalledTimes(2)
+			expect(mockCratesStore.fetchAllCrates).toHaveBeenCalledTimes(2)
 
 			tracksResult.resolve(true)
 			await Promise.resolve()
 			expect(oldUserLoadSettled).toBe(false)
-			expect(mockTracksStore.fetchAllTracks).toHaveBeenCalledOnce()
+			expect(mockTracksStore.fetchAllTracks).toHaveBeenCalledTimes(2)
 
 			cratesResult.resolve(true)
 			await expect(oldUserLoad).resolves.toBe(false)

@@ -35,6 +35,11 @@ type ManualRecordWithTracksInput = {
 	tracks: ManualRecordTrackInput[]
 }
 
+type FetchContext = {
+	generation: number
+	userId: string
+}
+
 function buildArtistPayload(name?: string | null): DiscogsArtistDb[] {
 	const trimmedName = name?.trim()
 	return trimmedName ? [{ name: trimmedName, role: null }] : []
@@ -70,6 +75,8 @@ export const useRecordsStore = defineStore('records', () => {
 	const isUpdatingCover = ref(false)
 	const isDeletingRecord = ref(false)
 	let fetchPromise: Promise<boolean> | null = null
+	let accountGeneration = 0
+	let activeFetchUserId: string | null = null
 
 	// Search state
 	const searchQuery = ref('')
@@ -89,6 +96,13 @@ export const useRecordsStore = defineStore('records', () => {
 		hasSearchQuery.value ? searchResults.value : records.value
 	)
 
+	function isCurrentFetchContext(context: FetchContext): boolean {
+		return (
+			context.generation === accountGeneration &&
+			activeFetchUserId === context.userId
+		)
+	}
+
 	async function resolveMutationUserId(): Promise<string | null> {
 		if (isDemoStore) return null
 		try {
@@ -100,17 +114,22 @@ export const useRecordsStore = defineStore('records', () => {
 		}
 	}
 
-	async function performFetchAllRecords(): Promise<boolean> {
+	async function performFetchAllRecords(generation: number): Promise<boolean> {
 		isLoadingRecords.value = true
+		let context: FetchContext | null = null
 		try {
-			const userId = await user
-				.resolveAuthenticatedUserId()
-				.catch((e: unknown) => {
-					console.error('Auth failed in recordsStore:', e)
-					toast.error('Failed to load data')
-					return null as string | null
-				})
-			if (!userId) return false
+			let userId: string
+			try {
+				userId = await user.resolveAuthenticatedUserId()
+			} catch (error) {
+				if (generation !== accountGeneration) return false
+				console.error('Auth failed in recordsStore:', error)
+				toast.error('Failed to load data')
+				return false
+			}
+			if (generation !== accountGeneration) return false
+			activeFetchUserId = userId
+			context = { generation, userId }
 
 			const rows = await fetchAllSupabasePages(async (from, to) => {
 				return await supabase
@@ -121,6 +140,7 @@ export const useRecordsStore = defineStore('records', () => {
 					.order('id', { ascending: false })
 					.range(from, to)
 			})
+			if (!isCurrentFetchContext(context)) return false
 
 			const decodedRows = rows.map(decodeRecordRow)
 			const issues = decodedRows.flatMap((decoded) => decoded.issues)
@@ -128,12 +148,15 @@ export const useRecordsStore = defineStore('records', () => {
 			records.value = decodedRows.map((decoded) => decoded.row)
 			return true
 		} catch (error) {
+			if (!context || !isCurrentFetchContext(context)) return false
 			console.error('Failed to fetch records:', error)
 			toast.error('Error fetching records.')
 			return false
 		} finally {
-			isLoadingRecords.value = false
-			fetchPromise = null
+			const isCurrentOperation = context
+				? isCurrentFetchContext(context)
+				: generation === accountGeneration
+			if (isCurrentOperation) isLoadingRecords.value = false
 		}
 	}
 
@@ -141,8 +164,13 @@ export const useRecordsStore = defineStore('records', () => {
 		if (isDemoStore) return Promise.resolve(true)
 		if (fetchPromise) return fetchPromise
 
-		fetchPromise = performFetchAllRecords()
-		return fetchPromise
+		const createdPromise = performFetchAllRecords(accountGeneration).finally(
+			() => {
+				if (fetchPromise === createdPromise) fetchPromise = null
+			}
+		)
+		fetchPromise = createdPromise
+		return createdPromise
 	}
 
 	async function createRecord(
@@ -504,6 +532,10 @@ export const useRecordsStore = defineStore('records', () => {
 	}
 
 	function clearRecords() {
+		accountGeneration += 1
+		fetchPromise = null
+		activeFetchUserId = null
+		isLoadingRecords.value = false
 		records.value = []
 		searchResults.value = []
 		searchQuery.value = ''

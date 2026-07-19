@@ -70,6 +70,14 @@ const mockTracksStore = {
 	fetchAllTracks: vi.fn()
 }
 
+function createDeferred<T>() {
+	let resolve!: (value: T | PromiseLike<T>) => void
+	const promise = new Promise<T>((resolvePromise) => {
+		resolve = resolvePromise
+	})
+	return { promise, resolve }
+}
+
 // Stub globals before importing the store
 vi.stubGlobal('useUserStore', () => mockUserStore)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
@@ -404,6 +412,173 @@ describe('recordsStore', () => {
 			expect(result).toBe(true)
 			expect(store.records.length).toBe(2)
 			expect(store.records[0]!.id).toBe('record-1')
+		})
+
+		it('keeps records empty when a cleared fetch resolves successfully', async () => {
+			const oldResult = createDeferred<{
+				data: DatabaseRecord[]
+				error: null
+			}>()
+			mockQueryBuilder.range.mockReturnValueOnce(oldResult.promise)
+			const store = useRecordsStore()
+
+			const oldFetch = store.fetchAllRecords()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+			)
+			store.clearRecords()
+			expect(store.isLoadingRecords).toBe(false)
+
+			oldResult.resolve({
+				data: [createMockRecord({ id: 'old-record' })],
+				error: null
+			})
+			await expect(oldFetch).resolves.toBe(false)
+			expect(store.records).toEqual([])
+			expect(store.isLoadingRecords).toBe(false)
+		})
+
+		it('silences a cleared fetch error', async () => {
+			const oldResult = createDeferred<{
+				data: null
+				error: Error
+			}>()
+			mockQueryBuilder.range.mockReturnValueOnce(oldResult.promise)
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined)
+			const store = useRecordsStore()
+
+			try {
+				const oldFetch = store.fetchAllRecords()
+				await vi.waitFor(() =>
+					expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+				)
+				store.clearRecords()
+				oldResult.resolve({
+					data: null,
+					error: new Error('Old request failed')
+				})
+
+				await expect(oldFetch).resolves.toBe(false)
+				expect(consoleError).not.toHaveBeenCalledWith(
+					'Failed to fetch records:',
+					expect.anything()
+				)
+				expect(mockToast.error).not.toHaveBeenCalled()
+			} finally {
+				consoleError.mockRestore()
+			}
+		})
+
+		it('keeps only replacement-account records when its fetch wins', async () => {
+			const oldResult = createDeferred<{
+				data: DatabaseRecord[]
+				error: null
+			}>()
+			const newResult = createDeferred<{
+				data: DatabaseRecord[]
+				error: null
+			}>()
+			mockQueryBuilder.range
+				.mockReturnValueOnce(oldResult.promise)
+				.mockReturnValueOnce(newResult.promise)
+			const store = useRecordsStore()
+
+			const oldFetch = store.fetchAllRecords()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+			)
+			store.clearRecords()
+			mockUserStore.supaUser = { id: 'user-b' }
+			const newFetch = store.fetchAllRecords()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+			)
+
+			newResult.resolve({
+				data: [createMockRecord({ id: 'new-record', user_id: 'user-b' })],
+				error: null
+			})
+			await expect(newFetch).resolves.toBe(true)
+			oldResult.resolve({
+				data: [createMockRecord({ id: 'old-record' })],
+				error: null
+			})
+			await expect(oldFetch).resolves.toBe(false)
+
+			expect(store.records.map((record) => record.id)).toEqual(['new-record'])
+			expect(store.isLoadingRecords).toBe(false)
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
+		})
+
+		it('does not let an old finally clear the replacement fetch slot', async () => {
+			const oldResult = createDeferred<{
+				data: DatabaseRecord[]
+				error: null
+			}>()
+			const newResult = createDeferred<{
+				data: DatabaseRecord[]
+				error: null
+			}>()
+			mockQueryBuilder.range
+				.mockReturnValueOnce(oldResult.promise)
+				.mockReturnValueOnce(newResult.promise)
+			const store = useRecordsStore()
+
+			const oldFetch = store.fetchAllRecords()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+			)
+			store.clearRecords()
+			mockUserStore.supaUser = { id: 'user-b' }
+			const newFetch = store.fetchAllRecords()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+			)
+
+			oldResult.resolve({ data: [], error: null })
+			await expect(oldFetch).resolves.toBe(false)
+			expect(store.isLoadingRecords).toBe(true)
+			const concurrentFetch = store.fetchAllRecords()
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
+
+			newResult.resolve({ data: [], error: null })
+			await expect(Promise.all([newFetch, concurrentFetch])).resolves.toEqual([
+				true,
+				true
+			])
+			expect(store.isLoadingRecords).toBe(false)
+		})
+
+		it('does not commit a partial paginated fetch invalidated between pages', async () => {
+			const secondPage = createDeferred<{
+				data: DatabaseRecord[]
+				error: null
+			}>()
+			mockQueryBuilder.range
+				.mockResolvedValueOnce({
+					data: Array.from({ length: 1000 }, (_, index) =>
+						createMockRecord({ id: `old-record-${index}` })
+					),
+					error: null
+				})
+				.mockReturnValueOnce(secondPage.promise)
+			const store = useRecordsStore()
+
+			const oldFetch = store.fetchAllRecords()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+			)
+			store.clearRecords()
+			secondPage.resolve({
+				data: [createMockRecord({ id: 'old-record-final' })],
+				error: null
+			})
+
+			await expect(oldFetch).resolves.toBe(false)
+			expect(store.records).toEqual([])
+			expect(store.isLoadingRecords).toBe(false)
 		})
 
 		it('loads 1001 records with stable ordering and exact page ranges', async () => {

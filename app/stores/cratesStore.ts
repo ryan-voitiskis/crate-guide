@@ -3,6 +3,11 @@ import { getActivePinia } from 'pinia'
 import { fetchAllSupabasePages } from '~/utils/supabasePagination'
 import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 
+type FetchContext = {
+	generation: number
+	userId: string
+}
+
 export const useCratesStore = defineStore('crates', () => {
 	const supabase = useSupabaseClient<Database>()
 	const pinia = getActivePinia()
@@ -15,6 +20,8 @@ export const useCratesStore = defineStore('crates', () => {
 	const isUpdatingCrate = ref(false)
 	const isDeletingCrate = ref(false)
 	let fetchPromise: Promise<boolean> | null = null
+	let accountGeneration = 0
+	let activeFetchUserId: string | null = null
 
 	// Dialog state (store-based pattern)
 	const crateToDelete = ref<Crate | null>(null)
@@ -22,17 +29,29 @@ export const useCratesStore = defineStore('crates', () => {
 	const cratesCount = computed(() => crates.value.length)
 	const hasCrates = computed(() => crates.value.length > 0)
 
-	async function performFetchAllCrates(): Promise<boolean> {
+	function isCurrentFetchContext(context: FetchContext): boolean {
+		return (
+			context.generation === accountGeneration &&
+			activeFetchUserId === context.userId
+		)
+	}
+
+	async function performFetchAllCrates(generation: number): Promise<boolean> {
 		isLoadingCrates.value = true
+		let context: FetchContext | null = null
 		try {
-			const userId = await user
-				.resolveAuthenticatedUserId()
-				.catch((e: unknown) => {
-					console.error('Auth failed in cratesStore:', e)
-					toast.error('Failed to load data')
-					return null as string | null
-				})
-			if (!userId) return false
+			let userId: string
+			try {
+				userId = await user.resolveAuthenticatedUserId()
+			} catch (error) {
+				if (generation !== accountGeneration) return false
+				console.error('Auth failed in cratesStore:', error)
+				toast.error('Failed to load data')
+				return false
+			}
+			if (generation !== accountGeneration) return false
+			activeFetchUserId = userId
+			context = { generation, userId }
 
 			const rows = await fetchAllSupabasePages(async (from, to) => {
 				return await supabase
@@ -43,16 +62,20 @@ export const useCratesStore = defineStore('crates', () => {
 					.order('id', { ascending: false })
 					.range(from, to)
 			})
+			if (!isCurrentFetchContext(context)) return false
 
 			crates.value = rows as Crate[]
 			return true
 		} catch (error) {
+			if (!context || !isCurrentFetchContext(context)) return false
 			console.error('Failed to fetch crates:', error)
 			toast.error('Error fetching crates.')
 			return false
 		} finally {
-			isLoadingCrates.value = false
-			fetchPromise = null
+			const isCurrentOperation = context
+				? isCurrentFetchContext(context)
+				: generation === accountGeneration
+			if (isCurrentOperation) isLoadingCrates.value = false
 		}
 	}
 
@@ -60,8 +83,13 @@ export const useCratesStore = defineStore('crates', () => {
 		if (isDemoStore) return Promise.resolve(true)
 		if (fetchPromise) return fetchPromise
 
-		fetchPromise = performFetchAllCrates()
-		return fetchPromise
+		const createdPromise = performFetchAllCrates(accountGeneration).finally(
+			() => {
+				if (fetchPromise === createdPromise) fetchPromise = null
+			}
+		)
+		fetchPromise = createdPromise
+		return createdPromise
 	}
 
 	async function createCrate(
@@ -249,6 +277,10 @@ export const useCratesStore = defineStore('crates', () => {
 
 	// Clear crates when user signs out
 	function clearCrates() {
+		accountGeneration += 1
+		fetchPromise = null
+		activeFetchUserId = null
+		isLoadingCrates.value = false
 		crates.value = []
 	}
 

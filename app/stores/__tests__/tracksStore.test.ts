@@ -55,6 +55,24 @@ const mockSupabaseClient = {
 	from: vi.fn(() => mockQueryBuilder)
 }
 
+function createDeferred<T>() {
+	let resolve!: (value: T | PromiseLike<T>) => void
+	const promise = new Promise<T>((resolvePromise) => {
+		resolve = resolvePromise
+	})
+	return { promise, resolve }
+}
+
+function createMockOwnedTrack(
+	overrides?: Parameters<typeof createMockTrack>[0],
+	userId = 'test-user-id'
+) {
+	return {
+		...createMockTrack(overrides),
+		records: { user_id: userId }
+	}
+}
+
 // Stub globals before importing the store
 vi.stubGlobal('useUserStore', () => mockUserStore)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
@@ -176,6 +194,173 @@ describe('tracksStore', () => {
 			expect(store.tracks[0]!.id).toBe('track-1')
 			expect(store.tracks[0]).not.toHaveProperty('records')
 			expect(store.tracks[0]).toHaveProperty('future_scalar', 'preserved')
+		})
+
+		it('keeps tracks empty when a cleared fetch resolves successfully', async () => {
+			const oldResult = createDeferred<{
+				data: Array<ReturnType<typeof createMockOwnedTrack>>
+				error: null
+			}>()
+			mockQueryBuilder.range.mockReturnValueOnce(oldResult.promise)
+			const store = useTracksStore()
+
+			const oldFetch = store.fetchAllTracks()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+			)
+			store.clearTracks()
+			expect(store.isLoadingTracks).toBe(false)
+
+			oldResult.resolve({
+				data: [createMockOwnedTrack({ id: 'old-track' })],
+				error: null
+			})
+			await expect(oldFetch).resolves.toBe(false)
+			expect(store.tracks).toEqual([])
+			expect(store.isLoadingTracks).toBe(false)
+		})
+
+		it('silences a cleared fetch error', async () => {
+			const oldResult = createDeferred<{
+				data: null
+				error: Error
+			}>()
+			mockQueryBuilder.range.mockReturnValueOnce(oldResult.promise)
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined)
+			const store = useTracksStore()
+
+			try {
+				const oldFetch = store.fetchAllTracks()
+				await vi.waitFor(() =>
+					expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+				)
+				store.clearTracks()
+				oldResult.resolve({
+					data: null,
+					error: new Error('Old request failed')
+				})
+
+				await expect(oldFetch).resolves.toBe(false)
+				expect(consoleError).not.toHaveBeenCalledWith(
+					'Failed to fetch tracks:',
+					expect.anything()
+				)
+				expect(mockToast.error).not.toHaveBeenCalled()
+			} finally {
+				consoleError.mockRestore()
+			}
+		})
+
+		it('keeps only replacement-account tracks when its fetch wins', async () => {
+			const oldResult = createDeferred<{
+				data: Array<ReturnType<typeof createMockOwnedTrack>>
+				error: null
+			}>()
+			const newResult = createDeferred<{
+				data: Array<ReturnType<typeof createMockOwnedTrack>>
+				error: null
+			}>()
+			mockQueryBuilder.range
+				.mockReturnValueOnce(oldResult.promise)
+				.mockReturnValueOnce(newResult.promise)
+			const store = useTracksStore()
+
+			const oldFetch = store.fetchAllTracks()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+			)
+			store.clearTracks()
+			mockUserStore.supaUser = { id: 'user-b' }
+			const newFetch = store.fetchAllTracks()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+			)
+
+			newResult.resolve({
+				data: [createMockOwnedTrack({ id: 'new-track' }, 'user-b')],
+				error: null
+			})
+			await expect(newFetch).resolves.toBe(true)
+			oldResult.resolve({
+				data: [createMockOwnedTrack({ id: 'old-track' })],
+				error: null
+			})
+			await expect(oldFetch).resolves.toBe(false)
+
+			expect(store.tracks.map((track) => track.id)).toEqual(['new-track'])
+			expect(store.isLoadingTracks).toBe(false)
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
+		})
+
+		it('does not let an old finally clear the replacement fetch slot', async () => {
+			const oldResult = createDeferred<{
+				data: Array<ReturnType<typeof createMockOwnedTrack>>
+				error: null
+			}>()
+			const newResult = createDeferred<{
+				data: Array<ReturnType<typeof createMockOwnedTrack>>
+				error: null
+			}>()
+			mockQueryBuilder.range
+				.mockReturnValueOnce(oldResult.promise)
+				.mockReturnValueOnce(newResult.promise)
+			const store = useTracksStore()
+
+			const oldFetch = store.fetchAllTracks()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+			)
+			store.clearTracks()
+			mockUserStore.supaUser = { id: 'user-b' }
+			const newFetch = store.fetchAllTracks()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+			)
+
+			oldResult.resolve({ data: [], error: null })
+			await expect(oldFetch).resolves.toBe(false)
+			expect(store.isLoadingTracks).toBe(true)
+			const concurrentFetch = store.fetchAllTracks()
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
+
+			newResult.resolve({ data: [], error: null })
+			await expect(Promise.all([newFetch, concurrentFetch])).resolves.toEqual([
+				true,
+				true
+			])
+			expect(store.isLoadingTracks).toBe(false)
+		})
+
+		it('does not commit a partial paginated fetch invalidated between pages', async () => {
+			const secondPage = createDeferred<{
+				data: Array<ReturnType<typeof createMockOwnedTrack>>
+				error: null
+			}>()
+			mockQueryBuilder.range
+				.mockResolvedValueOnce({
+					data: Array.from({ length: 1000 }, (_, index) =>
+						createMockOwnedTrack({ id: `old-track-${index}` })
+					),
+					error: null
+				})
+				.mockReturnValueOnce(secondPage.promise)
+			const store = useTracksStore()
+
+			const oldFetch = store.fetchAllTracks()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+			)
+			store.clearTracks()
+			secondPage.resolve({
+				data: [createMockOwnedTrack({ id: 'old-track-final' })],
+				error: null
+			})
+
+			await expect(oldFetch).resolves.toBe(false)
+			expect(store.tracks).toEqual([])
+			expect(store.isLoadingTracks).toBe(false)
 		})
 
 		it('loads 1001 owned tracks with stable ordering and exact page ranges', async () => {

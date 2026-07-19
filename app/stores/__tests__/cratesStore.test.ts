@@ -3,6 +3,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Import after mocking
 import { useCratesStore } from '../cratesStore'
 
+const mockToast = vi.hoisted(() => ({
+	success: vi.fn(),
+	error: vi.fn(),
+	info: vi.fn(),
+	warning: vi.fn()
+}))
+
+vi.mock('vue-sonner', () => ({
+	toast: mockToast
+}))
+
 // Mock dependencies
 const mockUserStore: {
 	supaUser: { id: string } | null
@@ -35,6 +46,14 @@ let mockQueryBuilder = createMockQueryBuilder()
 
 const mockSupabaseClient = {
 	from: vi.fn(() => mockQueryBuilder)
+}
+
+function createDeferred<T>() {
+	let resolve!: (value: T | PromiseLike<T>) => void
+	const promise = new Promise<T>((resolvePromise) => {
+		resolve = resolvePromise
+	})
+	return { promise, resolve }
 }
 
 // Stub globals before importing the store
@@ -164,6 +183,173 @@ describe('cratesStore', () => {
 
 			expect(result).toBe(true)
 			expect(store.crates.length).toBe(2)
+		})
+
+		it('keeps crates empty when a cleared fetch resolves successfully', async () => {
+			const oldResult = createDeferred<{
+				data: Array<ReturnType<typeof createMockCrate>>
+				error: null
+			}>()
+			mockQueryBuilder.range.mockReturnValueOnce(oldResult.promise)
+			const store = useCratesStore()
+
+			const oldFetch = store.fetchAllCrates()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+			)
+			store.clearCrates()
+			expect(store.isLoadingCrates).toBe(false)
+
+			oldResult.resolve({
+				data: [createMockCrate({ id: 'old-crate' })],
+				error: null
+			})
+			await expect(oldFetch).resolves.toBe(false)
+			expect(store.crates).toEqual([])
+			expect(store.isLoadingCrates).toBe(false)
+		})
+
+		it('silences a cleared fetch error', async () => {
+			const oldResult = createDeferred<{
+				data: null
+				error: Error
+			}>()
+			mockQueryBuilder.range.mockReturnValueOnce(oldResult.promise)
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined)
+			const store = useCratesStore()
+
+			try {
+				const oldFetch = store.fetchAllCrates()
+				await vi.waitFor(() =>
+					expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+				)
+				store.clearCrates()
+				oldResult.resolve({
+					data: null,
+					error: new Error('Old request failed')
+				})
+
+				await expect(oldFetch).resolves.toBe(false)
+				expect(consoleError).not.toHaveBeenCalledWith(
+					'Failed to fetch crates:',
+					expect.anything()
+				)
+				expect(mockToast.error).not.toHaveBeenCalled()
+			} finally {
+				consoleError.mockRestore()
+			}
+		})
+
+		it('keeps only replacement-account crates when its fetch wins', async () => {
+			const oldResult = createDeferred<{
+				data: Array<ReturnType<typeof createMockCrate>>
+				error: null
+			}>()
+			const newResult = createDeferred<{
+				data: Array<ReturnType<typeof createMockCrate>>
+				error: null
+			}>()
+			mockQueryBuilder.range
+				.mockReturnValueOnce(oldResult.promise)
+				.mockReturnValueOnce(newResult.promise)
+			const store = useCratesStore()
+
+			const oldFetch = store.fetchAllCrates()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+			)
+			store.clearCrates()
+			mockUserStore.supaUser = { id: 'user-b' }
+			const newFetch = store.fetchAllCrates()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+			)
+
+			newResult.resolve({
+				data: [createMockCrate({ id: 'new-crate', user_id: 'user-b' })],
+				error: null
+			})
+			await expect(newFetch).resolves.toBe(true)
+			oldResult.resolve({
+				data: [createMockCrate({ id: 'old-crate' })],
+				error: null
+			})
+			await expect(oldFetch).resolves.toBe(false)
+
+			expect(store.crates.map((crate) => crate.id)).toEqual(['new-crate'])
+			expect(store.isLoadingCrates).toBe(false)
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
+		})
+
+		it('does not let an old finally clear the replacement fetch slot', async () => {
+			const oldResult = createDeferred<{
+				data: Array<ReturnType<typeof createMockCrate>>
+				error: null
+			}>()
+			const newResult = createDeferred<{
+				data: Array<ReturnType<typeof createMockCrate>>
+				error: null
+			}>()
+			mockQueryBuilder.range
+				.mockReturnValueOnce(oldResult.promise)
+				.mockReturnValueOnce(newResult.promise)
+			const store = useCratesStore()
+
+			const oldFetch = store.fetchAllCrates()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledOnce()
+			)
+			store.clearCrates()
+			mockUserStore.supaUser = { id: 'user-b' }
+			const newFetch = store.fetchAllCrates()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+			)
+
+			oldResult.resolve({ data: [], error: null })
+			await expect(oldFetch).resolves.toBe(false)
+			expect(store.isLoadingCrates).toBe(true)
+			const concurrentFetch = store.fetchAllCrates()
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
+
+			newResult.resolve({ data: [], error: null })
+			await expect(Promise.all([newFetch, concurrentFetch])).resolves.toEqual([
+				true,
+				true
+			])
+			expect(store.isLoadingCrates).toBe(false)
+		})
+
+		it('does not commit a partial paginated fetch invalidated between pages', async () => {
+			const secondPage = createDeferred<{
+				data: Array<ReturnType<typeof createMockCrate>>
+				error: null
+			}>()
+			mockQueryBuilder.range
+				.mockResolvedValueOnce({
+					data: Array.from({ length: 1000 }, (_, index) =>
+						createMockCrate({ id: `old-crate-${index}` })
+					),
+					error: null
+				})
+				.mockReturnValueOnce(secondPage.promise)
+			const store = useCratesStore()
+
+			const oldFetch = store.fetchAllCrates()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+			)
+			store.clearCrates()
+			secondPage.resolve({
+				data: [createMockCrate({ id: 'old-crate-final' })],
+				error: null
+			})
+
+			await expect(oldFetch).resolves.toBe(false)
+			expect(store.crates).toEqual([])
+			expect(store.isLoadingCrates).toBe(false)
 		})
 
 		it('loads 1001 crates with stable ordering and exact page ranges', async () => {
