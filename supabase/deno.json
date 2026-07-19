@@ -8,7 +8,7 @@
 		"noUnusedParameters": false
 	},
 	"imports": {
-		"@supabase/supabase-js": "npm:@supabase/supabase-js@2"
+		"@supabase/supabase-js": "npm:@supabase/supabase-js@2.110.7"
 	},
 	"tasks": {
 		"dev": "supabase functions serve --debug",
