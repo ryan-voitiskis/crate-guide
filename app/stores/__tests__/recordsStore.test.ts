@@ -14,6 +14,13 @@ import {
 	useRecordsStore
 } from '../recordsStore'
 
+const mockCreateSupabaseClient = vi.hoisted(() => vi.fn())
+
+vi.mock('@supabase/supabase-js', async (importOriginal) => ({
+	...(await importOriginal<typeof import('@supabase/supabase-js')>()),
+	createClient: mockCreateSupabaseClient
+}))
+
 const mockToast = vi.hoisted(() => ({
 	success: vi.fn(),
 	error: vi.fn(),
@@ -63,14 +70,41 @@ const mockStorageBucket = {
 	remove: vi.fn().mockResolvedValue({ data: null, error: null })
 }
 
+const mockGlobalStorageBucket = {
+	upload: vi.fn().mockResolvedValue({ data: null, error: null }),
+	remove: vi.fn().mockResolvedValue({ data: null, error: null })
+}
+
+const mockBoundRecordQuery = {
+	select: vi.fn().mockReturnThis(),
+	eq: vi.fn().mockReturnThis(),
+	maybeSingle: vi.fn()
+}
+
+const mockBoundFunctionsInvoke = vi
+	.fn()
+	.mockResolvedValue({ data: null, error: null })
+const mockGlobalFunctionsInvoke = vi
+	.fn()
+	.mockResolvedValue({ data: null, error: null })
+
+const mockBoundSupabaseClient = {
+	from: vi.fn(() => mockBoundRecordQuery),
+	functions: { invoke: mockBoundFunctionsInvoke },
+	storage: { from: vi.fn(() => mockStorageBucket) }
+}
+
 const mockSupabaseClient = {
 	from: vi.fn(() => mockQueryBuilder),
 	rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
 	functions: {
-		invoke: vi.fn().mockResolvedValue({ data: null, error: null })
+		invoke: mockGlobalFunctionsInvoke
+	},
+	auth: {
+		getSession: vi.fn()
 	},
 	storage: {
-		from: vi.fn(() => mockStorageBucket)
+		from: vi.fn(() => mockGlobalStorageBucket)
 	}
 }
 
@@ -80,10 +114,12 @@ const mockTracksStore = {
 
 function createDeferred<T>() {
 	let resolve!: (value: T | PromiseLike<T>) => void
-	const promise = new Promise<T>((resolvePromise) => {
+	let reject!: (reason?: unknown) => void
+	const promise = new Promise<T>((resolvePromise, rejectPromise) => {
 		resolve = resolvePromise
+		reject = rejectPromise
 	})
-	return { promise, resolve }
+	return { promise, reject, resolve }
 }
 
 function cleanupResponse(processed = 0, removed = processed) {
@@ -94,10 +130,10 @@ function cleanupResponse(processed = 0, removed = processed) {
 }
 
 function expectCleanupInvocationsWithoutBodies(count: number) {
-	expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledTimes(count)
+	expect(mockBoundFunctionsInvoke).toHaveBeenCalledTimes(count)
 	for (let callIndex = 1; callIndex <= count; callIndex += 1) {
 		const [functionName, options] =
-			mockSupabaseClient.functions.invoke.mock.calls[callIndex - 1]!
+			mockBoundFunctionsInvoke.mock.calls[callIndex - 1]!
 		expect(functionName).toBe('cleanup-record-covers')
 		expect(options).toMatchObject({
 			signal: expect.any(AbortSignal),
@@ -130,6 +166,14 @@ function timeoutAwareNeverSettlingInvoke(
 // Stub globals before importing the store
 vi.stubGlobal('useUserStore', () => mockUserStore)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
+vi.stubGlobal('useRuntimeConfig', () => ({
+	public: {
+		supabase: {
+			url: 'https://supabase.test.invalid',
+			key: 'test-anon-key'
+		}
+	}
+}))
 vi.stubGlobal('useTracksStore', () => mockTracksStore)
 
 describe('recordsStore', () => {
@@ -142,12 +186,39 @@ describe('recordsStore', () => {
 		mockQueryBuilder = createMockQueryBuilder()
 		mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 		mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: null })
-		mockSupabaseClient.functions.invoke
-			.mockReset()
-			.mockResolvedValue(cleanupResponse())
-		mockSupabaseClient.storage.from.mockReturnValue(mockStorageBucket)
+		mockBoundFunctionsInvoke.mockReset().mockResolvedValue(cleanupResponse())
+		mockGlobalFunctionsInvoke.mockReset().mockResolvedValue(cleanupResponse())
+		mockSupabaseClient.auth.getSession.mockImplementation(async () => ({
+			data: {
+				session: mockUserStore.supaUser
+					? {
+							access_token: `token:${mockUserStore.supaUser.id}`,
+							user: { id: mockUserStore.supaUser.id }
+						}
+					: null
+			},
+			error: null
+		}))
+		mockSupabaseClient.storage.from.mockReturnValue(mockGlobalStorageBucket)
+		mockBoundSupabaseClient.from.mockReturnValue(mockBoundRecordQuery)
+		mockBoundSupabaseClient.storage.from.mockReturnValue(mockStorageBucket)
+		mockBoundRecordQuery.select.mockReturnThis()
+		mockBoundRecordQuery.eq.mockReturnThis()
+		mockBoundRecordQuery.maybeSingle.mockResolvedValue({
+			data: { cover_storage_path: null },
+			error: null
+		})
+		mockCreateSupabaseClient.mockReturnValue(mockBoundSupabaseClient)
 		mockStorageBucket.upload.mockResolvedValue({ data: null, error: null })
 		mockStorageBucket.remove.mockResolvedValue({ data: null, error: null })
+		mockGlobalStorageBucket.upload.mockResolvedValue({
+			data: null,
+			error: null
+		})
+		mockGlobalStorageBucket.remove.mockResolvedValue({
+			data: null,
+			error: null
+		})
 		mockProcessRecordCoverFile.mockResolvedValue(
 			new Blob(['processed-cover'], { type: 'image/webp' })
 		)
@@ -193,7 +264,7 @@ describe('recordsStore', () => {
 			const store = useRecordsStore()
 			const fullPage = createDeferred<ReturnType<typeof cleanupResponse>>()
 			const finalPage = createDeferred<ReturnType<typeof cleanupResponse>>()
-			mockSupabaseClient.functions.invoke
+			mockBoundFunctionsInvoke
 				.mockReturnValueOnce(fullPage.promise)
 				.mockReturnValueOnce(finalPage.promise)
 
@@ -220,7 +291,7 @@ describe('recordsStore', () => {
 			const oldEmptyPage = createDeferred<ReturnType<typeof cleanupResponse>>()
 			const postCommitPage =
 				createDeferred<ReturnType<typeof cleanupResponse>>()
-			mockSupabaseClient.functions.invoke
+			mockBoundFunctionsInvoke
 				.mockReturnValueOnce(oldEmptyPage.promise)
 				.mockReturnValueOnce(postCommitPage.promise)
 
@@ -247,7 +318,7 @@ describe('recordsStore', () => {
 			const oldEmptyPage = createDeferred<ReturnType<typeof cleanupResponse>>()
 			const newestEpochPage =
 				createDeferred<ReturnType<typeof cleanupResponse>>()
-			mockSupabaseClient.functions.invoke
+			mockBoundFunctionsInvoke
 				.mockReturnValueOnce(oldEmptyPage.promise)
 				.mockReturnValueOnce(newestEpochPage.promise)
 
@@ -274,7 +345,7 @@ describe('recordsStore', () => {
 
 		it('drains a 101-job backlog across a full and short page', async () => {
 			const store = useRecordsStore()
-			mockSupabaseClient.functions.invoke
+			mockBoundFunctionsInvoke
 				.mockResolvedValueOnce(cleanupResponse(100))
 				.mockResolvedValueOnce(cleanupResponse(1))
 
@@ -285,7 +356,7 @@ describe('recordsStore', () => {
 
 		it('confirms an exact 100-job backlog with one empty page', async () => {
 			const store = useRecordsStore()
-			mockSupabaseClient.functions.invoke
+			mockBoundFunctionsInvoke
 				.mockResolvedValueOnce(cleanupResponse(100))
 				.mockResolvedValueOnce(cleanupResponse())
 
@@ -296,9 +367,7 @@ describe('recordsStore', () => {
 
 		it('stops after one short page', async () => {
 			const store = useRecordsStore()
-			mockSupabaseClient.functions.invoke.mockResolvedValueOnce(
-				cleanupResponse(7, 4)
-			)
+			mockBoundFunctionsInvoke.mockResolvedValueOnce(cleanupResponse(7, 4))
 
 			await expect(store.drainCoverCleanup()).resolves.toBe(true)
 
@@ -319,7 +388,7 @@ describe('recordsStore', () => {
 			async (data) => {
 				vi.useFakeTimers()
 				const store = useRecordsStore()
-				mockSupabaseClient.functions.invoke.mockResolvedValue({
+				mockBoundFunctionsInvoke.mockResolvedValue({
 					data,
 					error: null
 				})
@@ -336,7 +405,7 @@ describe('recordsStore', () => {
 		it('recovers from a transient page failure after the first backoff', async () => {
 			vi.useFakeTimers()
 			const store = useRecordsStore()
-			mockSupabaseClient.functions.invoke
+			mockBoundFunctionsInvoke
 				.mockResolvedValueOnce({
 					data: null,
 					error: new Error('private failure')
@@ -358,7 +427,7 @@ describe('recordsStore', () => {
 		it('warns once only after bounded retries are exhausted', async () => {
 			vi.useFakeTimers()
 			const store = useRecordsStore()
-			mockSupabaseClient.functions.invoke.mockResolvedValue({
+			mockBoundFunctionsInvoke.mockResolvedValue({
 				data: null,
 				error: new Error('private failure')
 			})
@@ -377,7 +446,7 @@ describe('recordsStore', () => {
 		it('keeps failed fresh work eligible for a later background retry', async () => {
 			vi.useFakeTimers()
 			const store = useRecordsStore()
-			mockSupabaseClient.functions.invoke
+			mockBoundFunctionsInvoke
 				.mockResolvedValueOnce(cleanupResponse())
 				.mockResolvedValueOnce({
 					data: null,
@@ -405,7 +474,7 @@ describe('recordsStore', () => {
 		it('times out and retries hung invocations before releasing later work', async () => {
 			vi.useFakeTimers()
 			const store = useRecordsStore()
-			mockSupabaseClient.functions.invoke.mockImplementation(
+			mockBoundFunctionsInvoke.mockImplementation(
 				timeoutAwareNeverSettlingInvoke
 			)
 
@@ -416,16 +485,14 @@ describe('recordsStore', () => {
 			expectCleanupInvocationsWithoutBodies(3)
 			expect(mockToast.warning).toHaveBeenCalledOnce()
 
-			mockSupabaseClient.functions.invoke.mockResolvedValue(cleanupResponse())
+			mockBoundFunctionsInvoke.mockResolvedValue(cleanupResponse())
 			await expect(store.drainCoverCleanup()).resolves.toBe(true)
 			expectCleanupInvocationsWithoutBodies(4)
 		})
 
 		it('returns false when the separate client page cap is reached', async () => {
 			const store = useRecordsStore()
-			mockSupabaseClient.functions.invoke.mockResolvedValue(
-				cleanupResponse(100)
-			)
+			mockBoundFunctionsInvoke.mockResolvedValue(cleanupResponse(100))
 
 			await expect(store.drainCoverCleanup()).resolves.toBe(false)
 
@@ -439,7 +506,71 @@ describe('recordsStore', () => {
 
 			await expect(store.drainCoverCleanup()).resolves.toBe(false)
 
-			expect(mockSupabaseClient.functions.invoke).not.toHaveBeenCalled()
+			expect(mockBoundFunctionsInvoke).not.toHaveBeenCalled()
+		})
+
+		it('does not invoke cleanup as B when the session changes during token capture', async () => {
+			const session = createDeferred<{
+				data: {
+					session: {
+						access_token: string
+						user: { id: string }
+					}
+				}
+				error: null
+			}>()
+			mockSupabaseClient.auth.getSession.mockReturnValueOnce(session.promise)
+			const store = useRecordsStore()
+			const drain = store.drainCoverCleanup()
+			await vi.waitFor(() =>
+				expect(mockSupabaseClient.auth.getSession).toHaveBeenCalledOnce()
+			)
+
+			mockUserStore.supaUser = { id: 'replacement-user-id' }
+			session.resolve({
+				data: {
+					session: {
+						access_token: 'token:replacement-user-id',
+						user: { id: 'replacement-user-id' }
+					}
+				},
+				error: null
+			})
+
+			await expect(drain).resolves.toBe(false)
+			expect(mockCreateSupabaseClient).not.toHaveBeenCalled()
+			expect(mockBoundFunctionsInvoke).not.toHaveBeenCalled()
+			expect(mockToast.warning).not.toHaveBeenCalled()
+		})
+
+		it('keeps cleanup bound to A when B arrives during fixed-token lookup', async () => {
+			const beginTokenLookup = createDeferred<undefined>()
+			let accessToken: (() => Promise<string>) | undefined
+			let observedToken: string | undefined
+			mockCreateSupabaseClient.mockImplementationOnce(
+				(_url, _key, options: { accessToken: () => Promise<string> }) => {
+					accessToken = options.accessToken
+					return mockBoundSupabaseClient
+				}
+			)
+			mockBoundFunctionsInvoke.mockImplementationOnce(async () => {
+				await beginTokenLookup.promise
+				observedToken = await accessToken?.()
+				return cleanupResponse()
+			})
+			const store = useRecordsStore()
+			const drain = store.drainCoverCleanup()
+			await vi.waitFor(() =>
+				expect(mockBoundFunctionsInvoke).toHaveBeenCalledOnce()
+			)
+
+			mockUserStore.supaUser = { id: 'replacement-user-id' }
+			beginTokenLookup.resolve(undefined)
+
+			await expect(drain).resolves.toBe(true)
+			expect(observedToken).toBe('token:test-user-id')
+			expect(mockGlobalFunctionsInvoke).not.toHaveBeenCalled()
+			expect(mockToast.warning).not.toHaveBeenCalled()
 		})
 
 		it('does not invoke cleanup from the demo workbench store', async () => {
@@ -449,19 +580,17 @@ describe('recordsStore', () => {
 			await expect(store.drainCoverCleanup()).resolves.toBe(true)
 
 			expect(mockUserStore.resolveAuthenticatedUserId).not.toHaveBeenCalled()
-			expect(mockSupabaseClient.functions.invoke).not.toHaveBeenCalled()
+			expect(mockBoundFunctionsInvoke).not.toHaveBeenCalled()
 		})
 
 		it('cancels an in-flight page without stale retries or warnings on reset', async () => {
 			const oldDrainResult =
 				createDeferred<ReturnType<typeof cleanupResponse>>()
-			mockSupabaseClient.functions.invoke.mockReturnValueOnce(
-				oldDrainResult.promise
-			)
+			mockBoundFunctionsInvoke.mockReturnValueOnce(oldDrainResult.promise)
 			const store = useRecordsStore()
 			const oldDrain = store.drainCoverCleanup()
 			await vi.waitFor(() => {
-				expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledOnce()
+				expect(mockBoundFunctionsInvoke).toHaveBeenCalledOnce()
 			})
 
 			store.clearRecords()
@@ -473,13 +602,13 @@ describe('recordsStore', () => {
 
 		it('aborts a hung request and lets a replacement account start immediately', async () => {
 			const store = useRecordsStore()
-			mockSupabaseClient.functions.invoke
+			mockBoundFunctionsInvoke
 				.mockImplementationOnce(timeoutAwareNeverSettlingInvoke)
 				.mockResolvedValueOnce(cleanupResponse())
 
 			const oldDrain = store.drainCoverCleanup()
 			await vi.waitFor(() => expectCleanupInvocationsWithoutBodies(1))
-			const oldSignal = mockSupabaseClient.functions.invoke.mock.calls[0]![1]
+			const oldSignal = mockBoundFunctionsInvoke.mock.calls[0]![1]
 				.signal as AbortSignal
 
 			store.clearRecords()
@@ -489,8 +618,8 @@ describe('recordsStore', () => {
 			await expect(oldDrain).resolves.toBe(false)
 			await expect(replacementDrain).resolves.toBe(true)
 			expectCleanupInvocationsWithoutBodies(2)
-			const replacementSignal = mockSupabaseClient.functions.invoke.mock
-				.calls[1]![1].signal as AbortSignal
+			const replacementSignal = mockBoundFunctionsInvoke.mock.calls[1]![1]
+				.signal as AbortSignal
 			expect(oldSignal.aborted).toBe(true)
 			expect(replacementSignal).not.toBe(oldSignal)
 			expect(replacementSignal.aborted).toBe(false)
@@ -500,7 +629,7 @@ describe('recordsStore', () => {
 		it('cancels retry backoff without another request or stale warning on reset', async () => {
 			vi.useFakeTimers()
 			const store = useRecordsStore()
-			mockSupabaseClient.functions.invoke.mockResolvedValue({
+			mockBoundFunctionsInvoke.mockResolvedValue({
 				data: null,
 				error: new Error('private failure')
 			})
@@ -564,6 +693,178 @@ describe('recordsStore', () => {
 			expect(store.isUpdatingCover).toBe(false)
 		})
 
+		it('compensates an A upload that succeeds after reset with only the fixed A client', async () => {
+			const upload = createDeferred<{ data: null; error: null }>()
+			mockStorageBucket.upload.mockReturnValueOnce(upload.promise)
+			const store = useRecordsStore()
+			store.records = [createMockRecord({ id: 'record-1' })]
+
+			const update = store.updateRecordWithCover(
+				'record-1',
+				{},
+				{
+					type: 'upload',
+					file: { name: 'cover.png' } as File,
+					crop: { positionX: 50, positionY: 50 }
+				}
+			)
+			await vi.waitFor(() =>
+				expect(mockStorageBucket.upload).toHaveBeenCalledOnce()
+			)
+			const uploadedPath = mockStorageBucket.upload.mock.calls[0]![0]
+
+			store.clearRecords()
+			mockUserStore.supaUser = { id: 'replacement-user-id' }
+			store.records = [
+				createMockRecord({ id: 'record-b', user_id: 'replacement-user-id' })
+			]
+			upload.resolve({ data: null, error: null })
+
+			await expect(update).resolves.toBeNull()
+			expect(mockStorageBucket.remove).toHaveBeenCalledWith([uploadedPath])
+			expect(mockQueryBuilder.update).not.toHaveBeenCalled()
+			expect(mockSupabaseClient.storage.from).not.toHaveBeenCalled()
+			expect(mockGlobalStorageBucket.remove).not.toHaveBeenCalled()
+			expect(mockSupabaseClient.auth.getSession).toHaveBeenCalledOnce()
+			expect(store.records.map((record) => record.id)).toEqual(['record-b'])
+			expect(mockToast.success).not.toHaveBeenCalled()
+			expect(mockToast.error).not.toHaveBeenCalled()
+		})
+
+		it('compensates an A upload rejection after reset without replacement feedback', async () => {
+			const upload = createDeferred<{ data: null; error: null }>()
+			mockStorageBucket.upload.mockReturnValueOnce(upload.promise)
+			const store = useRecordsStore()
+			store.records = [createMockRecord({ id: 'record-1' })]
+
+			const update = store.updateRecordWithCover(
+				'record-1',
+				{},
+				{
+					type: 'upload',
+					file: { name: 'cover.png' } as File,
+					crop: { positionX: 50, positionY: 50 }
+				}
+			)
+			await vi.waitFor(() =>
+				expect(mockStorageBucket.upload).toHaveBeenCalledOnce()
+			)
+			const uploadedPath = mockStorageBucket.upload.mock.calls[0]![0]
+
+			store.clearRecords()
+			mockUserStore.supaUser = { id: 'replacement-user-id' }
+			store.records = [
+				createMockRecord({ id: 'record-b', user_id: 'replacement-user-id' })
+			]
+			upload.reject(new Error('ambiguous upload transport failure'))
+
+			await expect(update).resolves.toBeNull()
+			expect(mockStorageBucket.remove).toHaveBeenCalledWith([uploadedPath])
+			expect(mockQueryBuilder.update).not.toHaveBeenCalled()
+			expect(mockSupabaseClient.storage.from).not.toHaveBeenCalled()
+			expect(mockGlobalStorageBucket.remove).not.toHaveBeenCalled()
+			expect(mockSupabaseClient.auth.getSession).toHaveBeenCalledOnce()
+			expect(store.records.map((record) => record.id)).toEqual(['record-b'])
+			expect(mockToast.error).not.toHaveBeenCalled()
+		})
+
+		it('preserves a stale submitted upload when A still references its exact path', async () => {
+			const metadata = createDeferred<{
+				data: DatabaseRecord
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValueOnce(metadata.promise)
+			const store = useRecordsStore()
+			store.records = [createMockRecord({ id: 'record-1' })]
+
+			const update = store.updateRecordWithCover(
+				'record-1',
+				{},
+				{
+					type: 'upload',
+					file: { name: 'cover.png' } as File,
+					crop: { positionX: 50, positionY: 50 }
+				}
+			)
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+			)
+			const uploadedPath = mockStorageBucket.upload.mock.calls[0]![0]
+			mockBoundRecordQuery.maybeSingle.mockResolvedValueOnce({
+				data: { cover_storage_path: uploadedPath },
+				error: null
+			})
+
+			store.clearRecords()
+			mockUserStore.supaUser = { id: 'replacement-user-id' }
+			store.records = [
+				createMockRecord({ id: 'record-1', user_id: 'replacement-user-id' })
+			]
+			metadata.resolve({
+				data: createMockRecord({
+					id: 'record-1',
+					cover_storage_path: uploadedPath
+				}),
+				error: null
+			})
+
+			await expect(update).resolves.toBeNull()
+			expect(mockBoundSupabaseClient.from).toHaveBeenCalledWith('records')
+			expect(mockBoundRecordQuery.select).toHaveBeenCalledWith(
+				'cover_storage_path'
+			)
+			expect(mockBoundRecordQuery.eq.mock.calls).toEqual([
+				['id', 'record-1'],
+				['user_id', 'test-user-id']
+			])
+			expect(mockStorageBucket.remove).not.toHaveBeenCalled()
+			expect(mockSupabaseClient.storage.from).not.toHaveBeenCalled()
+			expect(store.records[0]!.user_id).toBe('replacement-user-id')
+			expect(mockToast.success).not.toHaveBeenCalled()
+		})
+
+		it('removes a stale rejected metadata upload only after A no longer references it', async () => {
+			const metadata = createDeferred<{
+				data: DatabaseRecord
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValueOnce(metadata.promise)
+			const store = useRecordsStore()
+			store.records = [createMockRecord({ id: 'record-1' })]
+
+			const update = store.updateRecordWithCover(
+				'record-1',
+				{},
+				{
+					type: 'upload',
+					file: { name: 'cover.png' } as File,
+					crop: { positionX: 50, positionY: 50 }
+				}
+			)
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+			)
+			const uploadedPath = mockStorageBucket.upload.mock.calls[0]![0]
+			mockBoundRecordQuery.maybeSingle.mockResolvedValueOnce({
+				data: { cover_storage_path: 'test-user-id/record-1/older.webp' },
+				error: null
+			})
+
+			store.clearRecords()
+			mockUserStore.supaUser = { id: 'replacement-user-id' }
+			store.records = [
+				createMockRecord({ id: 'record-1', user_id: 'replacement-user-id' })
+			]
+			metadata.reject(new Error('ambiguous metadata transport failure'))
+
+			await expect(update).resolves.toBeNull()
+			expect(mockBoundSupabaseClient.from).toHaveBeenCalledWith('records')
+			expect(mockStorageBucket.remove).toHaveBeenCalledWith([uploadedPath])
+			expect(mockSupabaseClient.storage.from).not.toHaveBeenCalled()
+			expect(store.records[0]!.user_id).toBe('replacement-user-id')
+			expect(mockToast.error).not.toHaveBeenCalled()
+		})
+
 		it('removes the new object when the database update fails', async () => {
 			const store = useRecordsStore()
 			store.records = [createMockRecord({ id: 'record-1' })]
@@ -585,7 +886,7 @@ describe('recordsStore', () => {
 			const uploadedPath = mockStorageBucket.upload.mock.calls[0]?.[0]
 			expect(result).toBeNull()
 			expect(mockStorageBucket.remove).toHaveBeenCalledWith([uploadedPath])
-			expect(mockSupabaseClient.functions.invoke).not.toHaveBeenCalled()
+			expect(mockBoundFunctionsInvoke).not.toHaveBeenCalled()
 		})
 
 		it('drains the durable queue after a successful replacement', async () => {
@@ -649,6 +950,65 @@ describe('recordsStore', () => {
 			expect(mockStorageBucket.remove).not.toHaveBeenCalled()
 			expect(result?.cover).toBe('https://discogs.example/fallback.jpg')
 		})
+
+		it.each([
+			{
+				label: 'success',
+				response: {
+					data: createMockRecord({
+						id: 'record-1',
+						cover_storage_path: null
+					}),
+					error: null
+				}
+			},
+			{
+				label: 'failure',
+				response: { data: null, error: new Error('A cover update failed') }
+			}
+		])(
+			'does not let stale A cover-removal $label invoke B cleanup',
+			async ({ response }) => {
+				const metadata = createDeferred<typeof response>()
+				mockQueryBuilder.single.mockReturnValueOnce(metadata.promise)
+				const store = useRecordsStore()
+				store.records = [
+					createMockRecord({
+						id: 'record-1',
+						cover_storage_path: 'test-user-id/record-1/old.webp'
+					})
+				]
+				const removal = store.updateRecordWithCover(
+					'record-1',
+					{},
+					{ type: 'remove' }
+				)
+				await vi.waitFor(() =>
+					expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+				)
+
+				store.clearRecords()
+				mockUserStore.supaUser = { id: 'replacement-user-id' }
+				store.records = [
+					createMockRecord({
+						id: 'record-1',
+						cover_storage_path: 'replacement-user-id/record-1/b.webp',
+						user_id: 'replacement-user-id'
+					})
+				]
+				mockToast.success.mockClear()
+				mockToast.error.mockClear()
+				metadata.resolve(response)
+
+				await expect(removal).resolves.toBeNull()
+				expect(mockBoundFunctionsInvoke).not.toHaveBeenCalled()
+				expect(store.records[0]!.cover_storage_path).toBe(
+					'replacement-user-id/record-1/b.webp'
+				)
+				expect(mockToast.success).not.toHaveBeenCalled()
+				expect(mockToast.error).not.toHaveBeenCalled()
+			}
+		)
 	})
 
 	describe('computed properties', () => {
@@ -1198,6 +1558,114 @@ describe('recordsStore', () => {
 
 			expect(result).toBeNull()
 		})
+
+		it('does not let stale A success mutate B or clear B creation activity', async () => {
+			const accountACreate = createDeferred<{
+				data: DatabaseRecord
+				error: null
+			}>()
+			const accountBCreate = createDeferred<{
+				data: DatabaseRecord
+				error: null
+			}>()
+			mockQueryBuilder.single
+				.mockReturnValueOnce(accountACreate.promise)
+				.mockReturnValueOnce(accountBCreate.promise)
+			const store = useRecordsStore()
+			const createA = store.createRecord(newRecordData)
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+			)
+
+			store.clearRecords()
+			mockUserStore.supaUser = { id: 'replacement-user-id' }
+			const bRecord = createMockRecord({
+				id: 'record-b',
+				user_id: 'replacement-user-id'
+			})
+			const createB = store.createRecord({
+				...newRecordData,
+				user_id: 'replacement-user-id'
+			})
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.single).toHaveBeenCalledTimes(2)
+			)
+			expect(store.isCreatingRecord).toBe(true)
+			mockToast.success.mockClear()
+
+			accountACreate.resolve({
+				data: createMockRecord({ id: 'record-a' }),
+				error: null
+			})
+			await expect(createA).resolves.toBeNull()
+			expect(store.records).toEqual([])
+			expect(store.isCreatingRecord).toBe(true)
+			expect(mockToast.success).not.toHaveBeenCalled()
+
+			accountBCreate.resolve({ data: bRecord, error: null })
+			await expect(createB).resolves.toEqual(bRecord)
+			expect(store.records).toEqual([bRecord])
+			expect(store.isCreatingRecord).toBe(false)
+		})
+
+		it('suppresses stale A creation failure feedback', async () => {
+			const accountACreate = createDeferred<{
+				data: null
+				error: Error
+			}>()
+			mockQueryBuilder.single.mockReturnValueOnce(accountACreate.promise)
+			const store = useRecordsStore()
+			const createA = store.createRecord(newRecordData)
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+			)
+
+			store.clearRecords()
+			mockUserStore.supaUser = { id: 'replacement-user-id' }
+			store.records = [
+				createMockRecord({ id: 'record-b', user_id: 'replacement-user-id' })
+			]
+			mockToast.error.mockClear()
+			accountACreate.resolve({ data: null, error: new Error('A failed') })
+
+			await expect(createA).resolves.toBeNull()
+			expect(store.records.map((record) => record.id)).toEqual(['record-b'])
+			expect(mockToast.error).not.toHaveBeenCalled()
+		})
+
+		it('keeps current-account creation activity until the final writer settles', async () => {
+			const firstResponse = createDeferred<{
+				data: DatabaseRecord
+				error: null
+			}>()
+			const secondResponse = createDeferred<{
+				data: DatabaseRecord
+				error: null
+			}>()
+			mockQueryBuilder.single
+				.mockReturnValueOnce(firstResponse.promise)
+				.mockReturnValueOnce(secondResponse.promise)
+			const store = useRecordsStore()
+			const first = store.createRecord(newRecordData)
+			const second = store.createRecord(newRecordData)
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.single).toHaveBeenCalledTimes(2)
+			)
+
+			firstResponse.resolve({
+				data: createMockRecord({ id: 'record-1' }),
+				error: null
+			})
+			await first
+			expect(store.isCreatingRecord).toBe(true)
+
+			secondResponse.resolve({
+				data: createMockRecord({ id: 'record-2' }),
+				error: null
+			})
+			await second
+			expect(store.isCreatingRecord).toBe(false)
+		})
 	})
 
 	describe('createRecordWithTracks', () => {
@@ -1308,6 +1776,49 @@ describe('recordsStore', () => {
 
 			expect(result).toBeNull()
 		})
+
+		it('does not start replacement-account fetches after stale manual creation', async () => {
+			const accountAImport = createDeferred<{
+				data: {
+					record_id: string
+					success: true
+					tracks_inserted: number
+				}
+				error: null
+			}>()
+			mockSupabaseClient.rpc.mockReturnValueOnce(accountAImport.promise)
+			const store = useRecordsStore()
+			const creation = store.createRecordWithTracks({
+				title: 'Account A record',
+				tracks: [{ title: 'Account A track' }]
+			})
+			await vi.waitFor(() =>
+				expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+					'import_record_with_tracks',
+					expect.anything()
+				)
+			)
+
+			store.clearRecords()
+			mockUserStore.supaUser = { id: 'replacement-user-id' }
+			store.records = [
+				createMockRecord({ id: 'record-b', user_id: 'replacement-user-id' })
+			]
+			accountAImport.resolve({
+				data: {
+					record_id: 'record-a',
+					success: true,
+					tracks_inserted: 1
+				},
+				error: null
+			})
+
+			await expect(creation).resolves.toBeNull()
+			expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+			expect(mockTracksStore.fetchAllTracks).not.toHaveBeenCalled()
+			expect(store.records.map((record) => record.id)).toEqual(['record-b'])
+			expect(mockToast.success).not.toHaveBeenCalled()
+		})
 	})
 
 	describe('updateRecord', () => {
@@ -1409,6 +1920,53 @@ describe('recordsStore', () => {
 			await updatePromise
 			expect(store.isUpdatingRecord).toBe(false)
 		})
+
+		it.each([
+			{
+				label: 'success',
+				response: {
+					data: createMockRecord({ id: 'record-1', title: 'A response' }),
+					error: null
+				}
+			},
+			{
+				label: 'failure',
+				response: { data: null, error: new Error('A update failed') }
+			}
+		])(
+			'does not let stale A update $label replace or roll back B',
+			async ({ response }) => {
+				const accountAUpdate = createDeferred<typeof response>()
+				mockQueryBuilder.single.mockReturnValueOnce(accountAUpdate.promise)
+				const store = useRecordsStore()
+				store.records = [
+					createMockRecord({ id: 'record-1', title: 'Account A' })
+				]
+				const update = store.updateRecord('record-1', { title: 'A optimistic' })
+				expect(store.records[0]!.title).toBe('A optimistic')
+				await vi.waitFor(() =>
+					expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+				)
+
+				store.clearRecords()
+				mockUserStore.supaUser = { id: 'replacement-user-id' }
+				store.records = [
+					createMockRecord({
+						id: 'record-1',
+						title: 'Account B',
+						user_id: 'replacement-user-id'
+					})
+				]
+				mockToast.success.mockClear()
+				mockToast.error.mockClear()
+				accountAUpdate.resolve(response)
+
+				await expect(update).resolves.toBeNull()
+				expect(store.records[0]!.title).toBe('Account B')
+				expect(mockToast.success).not.toHaveBeenCalled()
+				expect(mockToast.error).not.toHaveBeenCalled()
+			}
+		)
 	})
 
 	describe('deleteRecord', () => {
@@ -1419,7 +1977,7 @@ describe('recordsStore', () => {
 			const oldEmptyPage = createDeferred<ReturnType<typeof cleanupResponse>>()
 			const postDeletePage =
 				createDeferred<ReturnType<typeof cleanupResponse>>()
-			mockSupabaseClient.functions.invoke
+			mockBoundFunctionsInvoke
 				.mockReturnValueOnce(oldEmptyPage.promise)
 				.mockReturnValueOnce(postDeletePage.promise)
 
@@ -1468,7 +2026,7 @@ describe('recordsStore', () => {
 				const store = useRecordsStore()
 				store.records = [createMockRecord({ id: 'record-1' })]
 				mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
-				mockSupabaseClient.functions.invoke.mockResolvedValue({
+				mockBoundFunctionsInvoke.mockResolvedValue({
 					data: null,
 					error: new Error('private cleanup failure')
 				})
@@ -1553,6 +2111,47 @@ describe('recordsStore', () => {
 			await deletePromise
 			expect(store.isDeletingRecord).toBe(false)
 		})
+
+		it.each([
+			{ label: 'success', response: { data: null, error: null } },
+			{
+				label: 'failure',
+				response: { data: null, error: new Error('A delete failed') }
+			}
+		])(
+			'does not let stale A delete $label roll back into or clean B',
+			async ({ response }) => {
+				const accountADelete = createDeferred<typeof response>()
+				mockQueryBuilder.eq.mockReturnValueOnce(accountADelete.promise)
+				const store = useRecordsStore()
+				store.records = [createMockRecord({ id: 'record-1' })]
+				const deletion = store.deleteRecord('record-1')
+				expect(store.records).toEqual([])
+				await vi.waitFor(() =>
+					expect(mockQueryBuilder.delete).toHaveBeenCalledOnce()
+				)
+
+				store.clearRecords()
+				mockUserStore.supaUser = { id: 'replacement-user-id' }
+				store.records = [
+					createMockRecord({
+						id: 'record-1',
+						title: 'Account B',
+						user_id: 'replacement-user-id'
+					})
+				]
+				mockToast.success.mockClear()
+				mockToast.error.mockClear()
+				accountADelete.resolve(response)
+
+				await expect(deletion).resolves.toBe(false)
+				expect(store.records).toHaveLength(1)
+				expect(store.records[0]!.title).toBe('Account B')
+				expect(mockBoundFunctionsInvoke).not.toHaveBeenCalled()
+				expect(mockToast.success).not.toHaveBeenCalled()
+				expect(mockToast.error).not.toHaveBeenCalled()
+			}
+		)
 	})
 
 	describe('removeRecordFromCollection', () => {
@@ -1598,6 +2197,49 @@ describe('recordsStore', () => {
 			expect(store.records).toEqual([record])
 			expect(store.searchResults).toEqual([record])
 		})
+
+		it.each([
+			{ label: 'success', response: { data: null, error: null } },
+			{
+				label: 'failure',
+				response: { data: null, error: new Error('A removal failed') }
+			}
+		])(
+			'does not let stale A collection-removal $label mutate or clean B',
+			async ({ response }) => {
+				const accountARemoval = createDeferred<typeof response>()
+				mockSupabaseClient.rpc.mockReturnValueOnce(accountARemoval.promise)
+				const store = useRecordsStore()
+				store.records = [createMockRecord({ id: 'record-1' })]
+				const removal = store.removeRecordFromCollection('record-1')
+				await vi.waitFor(() =>
+					expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+						'remove_record_from_collection',
+						{ target_record_id: 'record-1' }
+					)
+				)
+
+				store.clearRecords()
+				mockUserStore.supaUser = { id: 'replacement-user-id' }
+				store.records = [
+					createMockRecord({
+						id: 'record-1',
+						title: 'Account B',
+						user_id: 'replacement-user-id'
+					})
+				]
+				mockToast.success.mockClear()
+				mockToast.error.mockClear()
+				accountARemoval.resolve(response)
+
+				await expect(removal).resolves.toBe(false)
+				expect(store.records).toHaveLength(1)
+				expect(store.records[0]!.title).toBe('Account B')
+				expect(mockBoundFunctionsInvoke).not.toHaveBeenCalled()
+				expect(mockToast.success).not.toHaveBeenCalled()
+				expect(mockToast.error).not.toHaveBeenCalled()
+			}
+		)
 	})
 
 	describe('getRecordById', () => {
@@ -1840,6 +2482,43 @@ describe('recordsStore', () => {
 
 			expect(store.searchQuery).toBe('')
 			expect(store.searchResults).toEqual([])
+		})
+
+		it('clears all mutation activity and stale finalizers cannot relight it', async () => {
+			const store = useRecordsStore()
+			store.records = [createMockRecord({ id: 'record-1' })]
+			const operations = [
+				store.createRecord({
+					user_id: 'test-user-id',
+					title: 'New Record',
+					artists: [],
+					labels: [],
+					year: null,
+					cover: null,
+					cover_storage_path: null,
+					discogs_id: null,
+					discogs_release_url: null
+				}),
+				store.updateRecord('record-1', { title: 'Updated' }),
+				store.updateRecordWithCover('record-1', {}, { type: 'remove' }),
+				store.deleteRecord('record-1')
+			]
+			expect(store.isCreatingRecord).toBe(true)
+			expect(store.isUpdatingRecord).toBe(true)
+			expect(store.isUpdatingCover).toBe(true)
+			expect(store.isDeletingRecord).toBe(true)
+
+			store.clearRecords()
+			expect(store.isCreatingRecord).toBe(false)
+			expect(store.isUpdatingRecord).toBe(false)
+			expect(store.isUpdatingCover).toBe(false)
+			expect(store.isDeletingRecord).toBe(false)
+
+			await Promise.all(operations)
+			expect(store.isCreatingRecord).toBe(false)
+			expect(store.isUpdatingRecord).toBe(false)
+			expect(store.isUpdatingCover).toBe(false)
+			expect(store.isDeletingRecord).toBe(false)
 		})
 	})
 })

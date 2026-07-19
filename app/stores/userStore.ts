@@ -1,5 +1,9 @@
 import { toast } from 'vue-sonner'
-import type { EmailOtpType } from '@supabase/supabase-js'
+import {
+	type EmailOtpType,
+	type SupabaseClient,
+	createClient
+} from '@supabase/supabase-js'
 import { defineStore, getActivePinia } from 'pinia'
 import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 import {
@@ -62,6 +66,7 @@ export const useUserStore = defineStore('user', () => {
 		didPersist: boolean
 		work: AuthenticatedWork | null
 	}
+	type AccountBoundMutationClient = Pick<SupabaseClient<Database>, 'rpc'>
 
 	function isCurrentWork({ userId, generation }: AuthenticatedWork): boolean {
 		return generation === authenticationGeneration && profileOwnerId === userId
@@ -75,6 +80,41 @@ export const useUserStore = defineStore('user', () => {
 		settingsUpdateQueue = Promise.resolve(true)
 		setTheme(anonymousThemePreference.value)
 		return authenticationGeneration
+	}
+
+	async function createAccountBoundMutationClient(
+		work: AuthenticatedWork
+	): Promise<AccountBoundMutationClient | null> {
+		if (!isCurrentWork(work)) return null
+		const { data, error } = await supabase.auth.getSession()
+		if (!isCurrentWork(work)) return null
+		const session = data.session
+		if (
+			error ||
+			!session ||
+			session.user.id !== work.userId ||
+			!session.access_token
+		) {
+			throw new Error('Authenticated session is unavailable.')
+		}
+
+		const supabaseConfig = useRuntimeConfig().public.supabase as {
+			key?: unknown
+			url?: unknown
+		}
+		if (
+			typeof supabaseConfig.url !== 'string' ||
+			!supabaseConfig.url ||
+			typeof supabaseConfig.key !== 'string' ||
+			!supabaseConfig.key
+		) {
+			throw new Error('Authenticated session is unavailable.')
+		}
+
+		const accessToken = session.access_token
+		return createClient<Database>(supabaseConfig.url, supabaseConfig.key, {
+			accessToken: async () => accessToken
+		})
 	}
 
 	function getSiteUrl(): string {
@@ -619,17 +659,41 @@ export const useUserStore = defineStore('user', () => {
 			localKeyFormatPreference.value = previousKeyFormat
 	}
 
-	async function deleteAllUserData(): Promise<boolean> {
+	async function deleteAllUserData(expectedUserId?: string): Promise<boolean> {
 		if (isDemoStore) return false
+		const resolutionGeneration = authenticationGeneration
+		let work: AuthenticatedWork | null = null
 		try {
-			await resolveAuthenticatedUserId()
-			const { error } = await supabase.rpc('delete_all_user_data')
+			const userId = await resolveAuthenticatedUserId()
+			if (resolutionGeneration !== authenticationGeneration) return false
+			if (expectedUserId !== undefined && expectedUserId !== userId)
+				return false
+			const reactiveUserId = supaUserId.value
+			if (reactiveUserId && reactiveUserId !== userId) return false
+			if (profileOwnerId !== userId) {
+				if (profileOwnerId !== null) return false
+				const generation = invalidateIdentity(userId)
+				work = { userId, generation }
+			} else {
+				work = { userId, generation: authenticationGeneration }
+			}
+			if (!isCurrentWork(work)) return false
+			const accountClient = await createAccountBoundMutationClient(work)
+			if (!accountClient || !isCurrentWork(work)) return false
 
+			const { error } = await accountClient.rpc('delete_all_user_data')
+			if (!isCurrentWork(work)) return false
 			if (error) throw error
 
 			toast.success('All records and tracks have been deleted.')
 			return true
 		} catch (e) {
+			if (
+				work
+					? !isCurrentWork(work)
+					: resolutionGeneration !== authenticationGeneration
+			)
+				return false
 			toast.error(isError(e) ? e.message : 'Error deleting data.')
 			return false
 		}

@@ -14,6 +14,13 @@ import type { Profile } from '~/../../shared/types/supabase'
 // Import after mocking
 import { useUserStore as createPiniaUserStore } from '../userStore'
 
+const mockCreateSupabaseClient = vi.hoisted(() => vi.fn())
+
+vi.mock('@supabase/supabase-js', async (importOriginal) => ({
+	...(await importOriginal<typeof import('@supabase/supabase-js')>()),
+	createClient: mockCreateSupabaseClient
+}))
+
 vi.mock('vue-sonner', () => ({
 	toast: {
 		error: vi.fn(),
@@ -119,11 +126,23 @@ const mockSupabaseClient = {
 	}
 }
 
+const mockAccountBoundSupabaseClient = {
+	rpc: vi.fn().mockResolvedValue({ data: null, error: null })
+}
+
 // Mock isError utility
 const isError = (e: unknown): e is Error => e instanceof Error
 
 // Stub globals before importing the store
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
+vi.stubGlobal('useRuntimeConfig', () => ({
+	public: {
+		supabase: {
+			url: 'https://supabase.test.invalid',
+			key: 'test-anon-key'
+		}
+	}
+}))
 vi.stubGlobal('useSupabaseUser', () => mockSupaUser)
 vi.stubGlobal('useRouter', () => mockRouter)
 vi.stubGlobal('usePasswordRecovery', () => mockPasswordRecovery)
@@ -201,6 +220,11 @@ describe('userStore', () => {
 		mockQueryBuilder = createMockQueryBuilder()
 		mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 		mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: null })
+		mockAccountBoundSupabaseClient.rpc.mockResolvedValue({
+			data: null,
+			error: null
+		})
+		mockCreateSupabaseClient.mockReturnValue(mockAccountBoundSupabaseClient)
 		mockSupabaseClient.functions.invoke.mockResolvedValue({
 			data: { success: true },
 			error: null
@@ -212,7 +236,10 @@ describe('userStore', () => {
 		mockSupabaseClient.auth.getSession.mockImplementation(async () => ({
 			data: {
 				session: mockSupaUser.value
-					? { user: { id: mockSupaUser.value.id ?? mockSupaUser.value.sub } }
+					? {
+							access_token: `token:${mockSupaUser.value.id ?? mockSupaUser.value.sub}`,
+							user: { id: mockSupaUser.value.id ?? mockSupaUser.value.sub }
+						}
 					: null
 			},
 			error: null
@@ -1796,9 +1823,10 @@ describe('userStore', () => {
 
 			await store.deleteAllUserData()
 
-			expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+			expect(mockAccountBoundSupabaseClient.rpc).toHaveBeenCalledWith(
 				'delete_all_user_data'
 			)
+			expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
 		})
 
 		it('does not construct or mutate unrelated stores on success', async () => {
@@ -1822,7 +1850,7 @@ describe('userStore', () => {
 
 		it('returns false on rpc error', async () => {
 			const store = useUserStore()
-			mockSupabaseClient.rpc.mockResolvedValue({
+			mockAccountBoundSupabaseClient.rpc.mockResolvedValue({
 				data: null,
 				error: new Error('Delete failed')
 			})
@@ -1834,6 +1862,83 @@ describe('userStore', () => {
 			expect(mockUseTracksStore).not.toHaveBeenCalled()
 			expect(mockUseCratesStore).not.toHaveBeenCalled()
 			expect(mockUseSessionStore).not.toHaveBeenCalled()
+		})
+
+		it.each([
+			{ label: 'success', error: null },
+			{ label: 'failure', error: new Error('Delete failed') }
+		])(
+			'rejects stale $label without replacement-account feedback',
+			async ({ error }) => {
+				const response = createDeferred<{ data: null; error: Error | null }>()
+				mockAccountBoundSupabaseClient.rpc.mockReturnValueOnce(response.promise)
+				const store = useUserStore()
+				const deletion = store.deleteAllUserData('test-user-id')
+				await vi.waitFor(() => {
+					expect(mockAccountBoundSupabaseClient.rpc).toHaveBeenCalledWith(
+						'delete_all_user_data'
+					)
+				})
+				mockToast.success.mockClear()
+				mockToast.error.mockClear()
+
+				mockSupaUser.value = {
+					id: 'replacement-user-id',
+					email: 'replacement@example.com'
+				}
+				response.resolve({ data: null, error })
+
+				await expect(deletion).resolves.toBe(false)
+				expect(mockToast.success).not.toHaveBeenCalled()
+				expect(mockToast.error).not.toHaveBeenCalled()
+			}
+		)
+
+		it('keeps the destructive RPC bound to A when B arrives during token lookup', async () => {
+			const beginTokenLookup = createDeferred<undefined>()
+			let accessToken: (() => Promise<string>) | undefined
+			let observedToken: string | undefined
+			mockCreateSupabaseClient.mockImplementationOnce(
+				(_url, _key, options: { accessToken: () => Promise<string> }) => {
+					accessToken = options.accessToken
+					return mockAccountBoundSupabaseClient
+				}
+			)
+			mockAccountBoundSupabaseClient.rpc.mockImplementationOnce(async () => {
+				await beginTokenLookup.promise
+				observedToken = await accessToken?.()
+				return { data: null, error: null }
+			})
+			const store = useUserStore()
+			const deletion = store.deleteAllUserData('test-user-id')
+			await vi.waitFor(() =>
+				expect(mockAccountBoundSupabaseClient.rpc).toHaveBeenCalledWith(
+					'delete_all_user_data'
+				)
+			)
+
+			mockSupaUser.value = {
+				id: 'replacement-user-id',
+				email: 'replacement@example.com'
+			}
+			await nextTick()
+			beginTokenLookup.resolve(undefined)
+
+			await expect(deletion).resolves.toBe(false)
+			expect(observedToken).toBe('token:test-user-id')
+			expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+			expect(mockToast.success).not.toHaveBeenCalled()
+			expect(mockToast.error).not.toHaveBeenCalled()
+		})
+
+		it('rejects an expected account mismatch before the RPC', async () => {
+			const store = useUserStore()
+
+			await expect(
+				store.deleteAllUserData('replacement-user-id')
+			).resolves.toBe(false)
+			expect(mockAccountBoundSupabaseClient.rpc).not.toHaveBeenCalled()
+			expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
 		})
 	})
 
