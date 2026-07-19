@@ -618,7 +618,7 @@ export const useCratesStore = defineStore('crates', () => {
 			crates.value[currentIndex] = overlayOptimisticMetadata(rolledBackCrate)
 		}
 
-		function commitOwnedFields(decoded: DecodedCrate): boolean {
+		function commitOwnedFields(decoded: DecodedCrate): Crate | null {
 			const { crate, version } = decoded
 			const currentIndex = crates.value.findIndex(
 				(candidate) => candidate.id === id
@@ -627,7 +627,7 @@ export const useCratesStore = defineStore('crates', () => {
 			const currentOwners = optimisticMetadataFields.get(id)
 			if (!currentCrate) {
 				releaseOwnedFields()
-				return false
+				return null
 			}
 
 			if (
@@ -640,7 +640,7 @@ export const useCratesStore = defineStore('crates', () => {
 					crates.value[currentIndex] =
 						overlayOptimisticMetadata(authoritativeCrate)
 				}
-				return false
+				return null
 			}
 
 			let committedOwnedField = false
@@ -661,7 +661,7 @@ export const useCratesStore = defineStore('crates', () => {
 			crates.value[currentIndex] = overlayOptimisticMetadata(
 				committedAuthoritativeCrate
 			)
-			return committedOwnedField
+			return committedOwnedField ? committedAuthoritativeCrate : null
 		}
 
 		try {
@@ -677,7 +677,7 @@ export const useCratesStore = defineStore('crates', () => {
 
 			const decoded = decodeCrate(data, { id, userId: context.userId })
 			if (crateRevision !== getCrateRevision(id)) {
-				return commitOwnedFields(decoded) ? decoded.crate : null
+				return commitOwnedFields(decoded)
 			}
 			releaseOwnedFields()
 			return applyAuthoritativeCrate(decoded) ? decoded.crate : null

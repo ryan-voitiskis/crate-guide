@@ -35,7 +35,7 @@ const form = useForm({
 	}
 })
 
-const { handleSubmit, setValues, errors, resetForm, values, meta } = form
+const { handleSubmit, errors, resetForm, values, meta } = form
 const [nameValue] = form.defineField('name')
 const [descriptionValue] = form.defineField('description')
 
@@ -49,17 +49,23 @@ const crateRecords = computed(() =>
 
 const recordCount = computed(() => props.crate.records.length)
 
+function initializeFormFromCrate(crate: Crate) {
+	resetForm({
+		values: {
+			name: crate.name,
+			description: crate.description || ''
+		}
+	})
+	colorValue.value = crate.color
+	isFormInitialized.value = true
+}
+
 // Initialize form when entering edit mode
 watch(
 	[() => props.crate, () => isEditMode.value],
 	([crate, editMode]) => {
 		if (crate && editMode && !isFormInitialized.value) {
-			setValues({
-				name: crate.name,
-				description: crate.description || ''
-			})
-			colorValue.value = crate.color
-			isFormInitialized.value = true
+			initializeFormFromCrate(crate)
 		} else if (!editMode) {
 			isFormInitialized.value = false
 		}
@@ -123,6 +129,9 @@ const saveChanges = handleSubmit(async (formValues) => {
 	if (result) {
 		isEditMode.value = false
 		isFormInitialized.value = false
+	} else {
+		await nextTick()
+		initializeFormFromCrate(props.crate)
 	}
 })
 

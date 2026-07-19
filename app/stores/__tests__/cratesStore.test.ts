@@ -2412,7 +2412,10 @@ describe('cratesStore', () => {
 				})
 				metadataResponse.resolve({ data: staleResponse, error: null })
 
-				await expect(metadataPromise).resolves.toEqual(staleResponse)
+				await expect(metadataPromise).resolves.toEqual({
+					...staleResponse,
+					records: expectedRecords
+				})
 				expect(store.crates[0]).toMatchObject({
 					name: 'Updated',
 					records: expectedRecords
@@ -2463,7 +2466,10 @@ describe('cratesStore', () => {
 				updated_at: '2026-07-19T04:00:00.000003Z'
 			})
 			metadataResponse.resolve({ data: metadataCrate, error: null })
-			await expect(metadataPromise).resolves.toEqual(metadataCrate)
+			await expect(metadataPromise).resolves.toEqual({
+				...metadataCrate,
+				records: ['record-2']
+			})
 			expect(store.crates[0]).toMatchObject({
 				name: 'Updated',
 				records: ['record-2']
