@@ -97,6 +97,24 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			discogs_request_rate_limits: {
+				Row: {
+					bucket_key: string
+					request_count: number
+					reset_at: string
+				}
+				Insert: {
+					bucket_key: string
+					request_count: number
+					reset_at: string
+				}
+				Update: {
+					bucket_key?: string
+					request_count?: number
+					reset_at?: string
+				}
+				Relationships: []
+			}
 			profiles: {
 				Row: {
 					discogs_avatar_url: string | null
@@ -293,6 +311,18 @@ export type Database = {
 			[_ in never]: never
 		}
 		Functions: {
+			consume_discogs_request_quota: {
+				Args: {
+					global_limit: number
+					per_user_limit: number
+					target_user_id: string
+					window_seconds: number
+				}
+				Returns: {
+					allowed: boolean
+					retry_after_seconds: number
+				}[]
+			}
 			delete_all_user_data: { Args: never; Returns: Json }
 			disconnect_discogs: { Args: never; Returns: undefined }
 			import_record_with_tracks: {

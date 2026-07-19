@@ -11,7 +11,10 @@ import { createAuthenticatedDiscogsRequestHandler } from './handler.ts'
 const headers = { 'Content-Type': 'application/json' }
 const requestId = '00000000-0000-4000-8000-000000000001'
 
-function createCredentials(): DiscogsCredentialRepository {
+function createCredentials(
+	consumeRequestQuota = () =>
+		Promise.resolve({ allowed: true, retryAfterMs: 0 })
+): DiscogsCredentialRepository {
 	const callerClient = {
 		from: () => ({
 			select: () => ({
@@ -28,7 +31,8 @@ function createCredentials(): DiscogsCredentialRepository {
 		user: { id: 'verified-user-id' } as User,
 		getCredentials: () => Promise.resolve(null),
 		setRequestCredentials: () => Promise.resolve(),
-		setAccessCredentials: () => Promise.resolve()
+		setAccessCredentials: () => Promise.resolve(),
+		consumeRequestQuota
 	}
 }
 
@@ -139,6 +143,107 @@ Deno.test('rejects invalid page and per-page values', async () => {
 		})
 	}
 })
+
+Deno.test(
+	'checks local quota immediately before the upstream request',
+	async () => {
+		const steps: string[] = []
+		const handler = createAuthenticatedDiscogsRequestHandler(headers, {
+			createCredentials: () =>
+				Promise.resolve(
+					createCredentials(() => {
+						steps.push('quota')
+						return Promise.resolve({ allowed: true, retryAfterMs: 0 })
+					})
+				),
+			makeRequest: () => {
+				steps.push('upstream')
+				return Promise.resolve(Response.json({ id: 42 }))
+			}
+		})
+
+		assert.equal(
+			(await handler(request({ endpoint: 'release', release_id: 42 }))).status,
+			200
+		)
+		assert.deepEqual(steps, ['quota', 'upstream'])
+	}
+)
+
+Deno.test(
+	'denies local quota without contacting or logging Discogs',
+	async () => {
+		let upstreamCalled = false
+		const logs: unknown[][] = []
+		const originalConsoleError = console.error
+		console.error = (...values: unknown[]) => logs.push(values)
+		try {
+			const handler = createAuthenticatedDiscogsRequestHandler(headers, {
+				createCredentials: () =>
+					Promise.resolve(
+						createCredentials(() =>
+							Promise.resolve({ allowed: false, retryAfterMs: 7000 })
+						)
+					),
+				makeRequest: () => {
+					upstreamCalled = true
+					return Promise.resolve(Response.json({}))
+				}
+			})
+			const response = await handler(
+				request({ endpoint: 'release', release_id: 42 })
+			)
+			const body = await assertErrorEnvelope(response, {
+				code: 'discogs_rate_limited',
+				retryable: true,
+				message: 'Discogs is receiving too many requests. Retrying shortly.',
+				requestId
+			})
+
+			assert.equal(response.status, 429)
+			assert.equal(response.headers.get('Retry-After'), '7')
+			assert.equal(body.retry_after_ms, 7000)
+			assert.equal(upstreamCalled, false)
+			assert.deepEqual(logs, [])
+		} finally {
+			console.error = originalConsoleError
+		}
+	}
+)
+
+Deno.test(
+	'sanitizes local quota failures without contacting Discogs',
+	async () => {
+		const privateMessage = 'private quota database failure'
+		let upstreamCalled = false
+		const logs: unknown[][] = []
+		const originalConsoleError = console.error
+		console.error = (...values: unknown[]) => logs.push(values)
+		try {
+			const handler = createAuthenticatedDiscogsRequestHandler(headers, {
+				createCredentials: () =>
+					Promise.resolve(
+						createCredentials(() => Promise.reject(new Error(privateMessage)))
+					),
+				makeRequest: () => {
+					upstreamCalled = true
+					return Promise.resolve(Response.json({}))
+				}
+			})
+			const response = await handler(
+				request({ endpoint: 'release', release_id: 42 })
+			)
+			const responseText = await response.text()
+
+			assert.equal(response.status, 500)
+			assert.equal(upstreamCalled, false)
+			assert.equal(responseText.includes(privateMessage), false)
+			assert.equal(JSON.stringify(logs).includes(privateMessage), false)
+		} finally {
+			console.error = originalConsoleError
+		}
+	}
+)
 
 Deno.test(
 	'classifies rate limits and bounds Retry-After metadata',

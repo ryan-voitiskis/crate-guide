@@ -11,14 +11,18 @@ const config = {
 }
 
 function credentials(
-	setRequestCredentials = (_token: string, _secret: string) => Promise.resolve()
+	setRequestCredentials = (_token: string, _secret: string) =>
+		Promise.resolve(),
+	consumeRequestQuota = () =>
+		Promise.resolve({ allowed: true, retryAfterMs: 0 })
 ): DiscogsCredentialRepository {
 	return {
 		callerClient: {} as SupabaseClient,
 		user: { id: 'verified-user-id' } as User,
 		getCredentials: () => Promise.resolve(null),
 		setRequestCredentials,
-		setAccessCredentials: () => Promise.resolve()
+		setAccessCredentials: () => Promise.resolve(),
+		consumeRequestQuota
 	}
 }
 
@@ -62,6 +66,109 @@ Deno.test('request-token handler stores a complete response', async () => {
 	const response = await handler(authorizedRequest())
 	assert.equal(response.status, 200)
 	assert.deepEqual(stored, ['fixture-token', 'fixture-secret'])
+})
+
+Deno.test('request-token handler checks quota before fetching', async () => {
+	const steps: string[] = []
+	const handler = createDiscogsRequestTokenHandler(headers, {
+		createCredentials: () =>
+			Promise.resolve(
+				credentials(undefined, () => {
+					steps.push('quota')
+					return Promise.resolve({ allowed: true, retryAfterMs: 0 })
+				})
+			),
+		fetcher: (() => {
+			steps.push('upstream')
+			return Promise.resolve(
+				new Response(
+					'oauth_token=fixture-token&oauth_token_secret=fixture-secret'
+				)
+			)
+		}) as typeof fetch,
+		generateNonce: () => Promise.resolve('nonce'),
+		getConfig: () => config,
+		getCallback: () => 'http://localhost/callback'
+	})
+
+	assert.equal((await handler(authorizedRequest())).status, 200)
+	assert.deepEqual(steps, ['quota', 'upstream'])
+})
+
+Deno.test(
+	'request-token handler denies quota without upstream contact',
+	async () => {
+		let fetchCalled = false
+		const logs: unknown[][] = []
+		const originalConsoleError = console.error
+		console.error = (...values: unknown[]) => logs.push(values)
+		try {
+			const handler = createDiscogsRequestTokenHandler(headers, {
+				createCredentials: () =>
+					Promise.resolve(
+						credentials(undefined, () =>
+							Promise.resolve({ allowed: false, retryAfterMs: 9000 })
+						)
+					),
+				fetcher: (() => {
+					fetchCalled = true
+					return Promise.resolve(new Response('private provider response'))
+				}) as typeof fetch,
+				generateNonce: () => Promise.resolve('nonce'),
+				getConfig: () => config,
+				getCallback: () => 'http://localhost/callback'
+			})
+			const response = await handler(authorizedRequest())
+			const body = await response.json()
+
+			assert.equal(response.status, 429)
+			assert.equal(response.headers.get('Retry-After'), '9')
+			assert.deepEqual(body, {
+				error: 'Discogs is receiving too many requests. Retrying shortly.',
+				code: 'discogs_rate_limited',
+				retryable: true,
+				retry_after_ms: 9000
+			})
+			assert.equal(fetchCalled, false)
+			assert.deepEqual(logs, [])
+		} finally {
+			console.error = originalConsoleError
+		}
+	}
+)
+
+Deno.test('request-token handler sanitizes quota failures', async () => {
+	const privateMessage = 'private quota database failure'
+	let fetchCalled = false
+	const logs: unknown[][] = []
+	const originalConsoleError = console.error
+	console.error = (...values: unknown[]) => logs.push(values)
+	try {
+		const handler = createDiscogsRequestTokenHandler(headers, {
+			createCredentials: () =>
+				Promise.resolve(
+					credentials(undefined, () =>
+						Promise.reject(new Error(privateMessage))
+					)
+				),
+			fetcher: (() => {
+				fetchCalled = true
+				return Promise.resolve(new Response('{}'))
+			}) as typeof fetch,
+			generateNonce: () => Promise.resolve('nonce'),
+			getConfig: () => config,
+			getCallback: () => 'http://localhost/callback'
+		})
+		const response = await handler(authorizedRequest())
+		const responseText = await response.text()
+
+		assert.equal(response.status, 500)
+		assert.equal(fetchCalled, false)
+		assert.equal(responseText.includes(privateMessage), false)
+		assert.equal(JSON.stringify(logs).includes(privateMessage), false)
+	} finally {
+		console.error = originalConsoleError
+	}
 })
 
 Deno.test(

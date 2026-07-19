@@ -295,6 +295,16 @@ export function createAuthenticatedDiscogsRequestHandler(
 
 			const credentials = await dependencies.createCredentials(authHeader)
 			const url = await resolveDiscogsRequestUrl(body, credentials)
+			const quota = await credentials.consumeRequestQuota()
+			if (!quota.allowed) {
+				return errorResponse(
+					definitionForStatus(429),
+					headers,
+					429,
+					context,
+					quota.retryAfterMs
+				)
+			}
 			const response = await dependencies.makeRequest(url, credentials)
 
 			if (!response.ok) {

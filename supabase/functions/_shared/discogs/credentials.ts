@@ -4,6 +4,12 @@ import {
 	createServiceRoleSupabaseClient,
 	getUser
 } from '../supabaseHelpers.ts'
+import {
+	type DiscogsRateLimitConfig,
+	DiscogsRateLimitError,
+	decodeDiscogsQuotaResponse,
+	getDiscogsRateLimitConfig
+} from './rateLimit.ts'
 
 export interface DiscogsCredentialsRow {
 	request_token: string | null
@@ -18,18 +24,24 @@ export interface DiscogsCredentialRepository {
 	getCredentials(): Promise<DiscogsCredentialsRow | null>
 	setRequestCredentials(token: string, secret: string): Promise<void>
 	setAccessCredentials(token: string, secret: string): Promise<void>
+	consumeRequestQuota(): Promise<{
+		allowed: boolean
+		retryAfterMs: number
+	}>
 }
 
 interface CredentialRepositoryDependencies {
 	createCallerClient(authHeader: string): SupabaseClient
 	createServiceClient(): SupabaseClient
 	getAuthenticatedUser(client: SupabaseClient): Promise<User>
+	getRateLimitConfig(): DiscogsRateLimitConfig
 }
 
 const defaultDependencies: CredentialRepositoryDependencies = {
 	createCallerClient: createAuthedSupabaseClient,
 	createServiceClient: createServiceRoleSupabaseClient,
-	getAuthenticatedUser: getUser
+	getAuthenticatedUser: getUser,
+	getRateLimitConfig: getDiscogsRateLimitConfig
 }
 
 export async function createDiscogsCredentialRepository(
@@ -64,6 +76,23 @@ export async function createDiscogsCredentialRepository(
 		if (error) throw error
 	}
 
+	const consumeRequestQuota = async () => {
+		const config = dependencies.getRateLimitConfig()
+		let result: { data: unknown; error: unknown }
+		try {
+			result = await serviceClient.rpc('consume_discogs_request_quota', {
+				target_user_id: user.id,
+				per_user_limit: config.perUserLimit,
+				global_limit: config.globalLimit,
+				window_seconds: config.windowSeconds
+			})
+		} catch {
+			throw new DiscogsRateLimitError()
+		}
+		if (result.error) throw new DiscogsRateLimitError()
+		return decodeDiscogsQuotaResponse(result.data)
+	}
+
 	return {
 		callerClient,
 		user,
@@ -71,6 +100,7 @@ export async function createDiscogsCredentialRepository(
 		setRequestCredentials: (token, secret) =>
 			upsertCredentials({ request_token: token, request_secret: secret }),
 		setAccessCredentials: (token, secret) =>
-			upsertCredentials({ access_token: token, access_secret: secret })
+			upsertCredentials({ access_token: token, access_secret: secret }),
+		consumeRequestQuota
 	}
 }

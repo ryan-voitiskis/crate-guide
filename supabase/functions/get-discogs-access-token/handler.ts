@@ -40,9 +40,34 @@ const defaultDependencies: HandlerDependencies = {
 function jsonResponse(
 	body: unknown,
 	headers: HeadersInit,
-	status: number
+	status: number,
+	retryAfterMs?: number
 ): Response {
-	return new Response(JSON.stringify(body), { headers, status })
+	const responseHeaders = new Headers(headers)
+	if (retryAfterMs !== undefined) {
+		responseHeaders.set('Retry-After', String(Math.ceil(retryAfterMs / 1000)))
+	}
+	return new Response(JSON.stringify(body), {
+		headers: responseHeaders,
+		status
+	})
+}
+
+function rateLimitResponse(
+	headers: HeadersInit,
+	retryAfterMs: number
+): Response {
+	return jsonResponse(
+		{
+			error: 'Discogs is receiving too many requests. Retrying shortly.',
+			code: 'discogs_rate_limited',
+			retryable: true,
+			retry_after_ms: retryAfterMs
+		},
+		headers,
+		429,
+		retryAfterMs
+	)
 }
 
 export function createDiscogsAccessTokenHandler(
@@ -98,6 +123,10 @@ export function createDiscogsAccessTokenHandler(
 				oauth_signature_method: 'PLAINTEXT',
 				oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
 				oauth_verifier: oauthVerifier
+			}
+			const quota = await credentials.consumeRequestQuota()
+			if (!quota.allowed) {
+				return rateLimitResponse(headers, quota.retryAfterMs)
 			}
 			const response = await dependencies.fetcher(accessTokenUrl, {
 				method: 'POST',

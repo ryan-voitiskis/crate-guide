@@ -11,7 +11,9 @@ const config = {
 }
 
 function credentials(
-	setAccessCredentials = (_token: string, _secret: string) => Promise.resolve()
+	setAccessCredentials = (_token: string, _secret: string) => Promise.resolve(),
+	consumeRequestQuota = () =>
+		Promise.resolve({ allowed: true, retryAfterMs: 0 })
 ): DiscogsCredentialRepository {
 	return {
 		callerClient: {} as SupabaseClient,
@@ -24,7 +26,8 @@ function credentials(
 				access_secret: null
 			}),
 		setRequestCredentials: () => Promise.resolve(),
-		setAccessCredentials
+		setAccessCredentials,
+		consumeRequestQuota
 	}
 }
 
@@ -80,6 +83,156 @@ Deno.test(
 		assert.deepEqual(steps, ['stored', 'identity'])
 	}
 )
+
+Deno.test('access-token handler checks quota before fetching', async () => {
+	const steps: string[] = []
+	const handler = createDiscogsAccessTokenHandler(headers, {
+		createCredentials: () =>
+			Promise.resolve(
+				credentials(undefined, () => {
+					steps.push('quota')
+					return Promise.resolve({ allowed: true, retryAfterMs: 0 })
+				})
+			),
+		fetcher: (() => {
+			steps.push('upstream')
+			return Promise.resolve(
+				new Response(
+					'oauth_token=access-token&oauth_token_secret=access-secret'
+				)
+			)
+		}) as typeof fetch,
+		generateNonce: () => Promise.resolve('nonce'),
+		getConfig: () => config,
+		fetchIdentity: () => Promise.resolve()
+	})
+
+	assert.equal(
+		(
+			await handler(
+				request({ oauth_token: 'request-token', oauth_verifier: 'verifier' })
+			)
+		).status,
+		200
+	)
+	assert.deepEqual(steps, ['quota', 'upstream'])
+})
+
+Deno.test(
+	'access-token handler rejects callback mismatch before quota',
+	async () => {
+		let quotaCalls = 0
+		let fetchCalled = false
+		const handler = createDiscogsAccessTokenHandler(headers, {
+			createCredentials: () =>
+				Promise.resolve(
+					credentials(undefined, () => {
+						quotaCalls += 1
+						return Promise.resolve({ allowed: true, retryAfterMs: 0 })
+					})
+				),
+			fetcher: (() => {
+				fetchCalled = true
+				return Promise.resolve(new Response('{}'))
+			}) as typeof fetch,
+			generateNonce: () => Promise.resolve('nonce'),
+			getConfig: () => config,
+			fetchIdentity: () => Promise.resolve()
+		})
+
+		const response = await handler(
+			request({ oauth_token: 'wrong-token', oauth_verifier: 'verifier' })
+		)
+		assert.equal(response.status, 400)
+		assert.equal(quotaCalls, 0)
+		assert.equal(fetchCalled, false)
+	}
+)
+
+Deno.test(
+	'access-token handler denies quota without upstream contact',
+	async () => {
+		let fetchCalled = false
+		let identityCalled = false
+		const logs: unknown[][] = []
+		const originalConsoleError = console.error
+		console.error = (...values: unknown[]) => logs.push(values)
+		try {
+			const handler = createDiscogsAccessTokenHandler(headers, {
+				createCredentials: () =>
+					Promise.resolve(
+						credentials(undefined, () =>
+							Promise.resolve({ allowed: false, retryAfterMs: 11_000 })
+						)
+					),
+				fetcher: (() => {
+					fetchCalled = true
+					return Promise.resolve(new Response('private provider response'))
+				}) as typeof fetch,
+				generateNonce: () => Promise.resolve('nonce'),
+				getConfig: () => config,
+				fetchIdentity: () => {
+					identityCalled = true
+					return Promise.resolve()
+				}
+			})
+			const response = await handler(
+				request({ oauth_token: 'request-token', oauth_verifier: 'verifier' })
+			)
+			const body = await response.json()
+
+			assert.equal(response.status, 429)
+			assert.equal(response.headers.get('Retry-After'), '11')
+			assert.deepEqual(body, {
+				error: 'Discogs is receiving too many requests. Retrying shortly.',
+				code: 'discogs_rate_limited',
+				retryable: true,
+				retry_after_ms: 11_000
+			})
+			assert.equal(fetchCalled, false)
+			assert.equal(identityCalled, false)
+			assert.deepEqual(logs, [])
+		} finally {
+			console.error = originalConsoleError
+		}
+	}
+)
+
+Deno.test('access-token handler sanitizes quota failures', async () => {
+	const privateMessage = 'private quota database failure'
+	let fetchCalled = false
+	const logs: unknown[][] = []
+	const originalConsoleError = console.error
+	console.error = (...values: unknown[]) => logs.push(values)
+	try {
+		const handler = createDiscogsAccessTokenHandler(headers, {
+			createCredentials: () =>
+				Promise.resolve(
+					credentials(undefined, () =>
+						Promise.reject(new Error(privateMessage))
+					)
+				),
+			fetcher: (() => {
+				fetchCalled = true
+				return Promise.resolve(new Response('{}'))
+			}) as typeof fetch,
+			generateNonce: () => Promise.resolve('nonce'),
+			getConfig: () => config,
+			fetchIdentity: () => Promise.resolve()
+		})
+		const response = await handler(
+			request({ oauth_token: 'request-token', oauth_verifier: 'verifier' })
+		)
+		const responseText = await response.text()
+
+		assert.equal(response.status, 500)
+		assert.equal(fetchCalled, false)
+		assert.equal(responseText.includes(privateMessage), false)
+		assert.equal(JSON.stringify(logs).includes(privateMessage), false)
+	} finally {
+		console.error = originalConsoleError
+	}
+})
 
 Deno.test(
 	'access-token handler sends OAuth parameters in the header',

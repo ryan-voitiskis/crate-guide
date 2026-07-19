@@ -32,7 +32,9 @@ function credentials(
 					: null
 			),
 		setRequestCredentials: () => Promise.resolve(),
-		setAccessCredentials: () => Promise.resolve()
+		setAccessCredentials: () => Promise.resolve(),
+		consumeRequestQuota: () =>
+			Promise.resolve({ allowed: true, retryAfterMs: 0 })
 	}
 }
 
