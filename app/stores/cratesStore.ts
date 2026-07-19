@@ -3,9 +3,19 @@ import { getActivePinia } from 'pinia'
 import { fetchAllSupabasePages } from '~/utils/supabasePagination'
 import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 
-type FetchContext = {
+type AccountContext = {
 	generation: number
 	userId: string
+}
+
+type FetchSnapshot = {
+	crateIds: Set<string>
+	crateRevisions: Map<string, number>
+}
+
+type DecodedCrate = {
+	crate: Crate
+	version: bigint | null
 }
 
 type CrateMetadataUpdate = Partial<
@@ -14,8 +24,25 @@ type CrateMetadataUpdate = Partial<
 
 type CrateMembershipRpc = 'add_record_to_crate' | 'remove_record_from_crate'
 
+type CrateMetadataField = keyof CrateMetadataUpdate
+
+type OptimisticMetadataField = {
+	token: symbol
+	value: Crate[CrateMetadataField]
+}
+
+type MembershipContext = {
+	account: AccountContext
+	crateRevision: number
+}
+
+type MembershipResult = {
+	context: MembershipContext
+	crate: Crate
+}
+
 const POSTGRES_TIMESTAMP_PATTERN =
-	/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?(Z|[+-]\d{2}:\d{2})$/
+	/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?(Z|([+-])(\d{2}):(\d{2}))$/
 
 export const useCratesStore = defineStore('crates', () => {
 	const supabase = useSupabaseClient<Database>()
@@ -31,8 +58,14 @@ export const useCratesStore = defineStore('crates', () => {
 	let fetchPromise: Promise<boolean> | null = null
 	let accountGeneration = 0
 	let activeFetchUserId: string | null = null
-	let activeMembershipMutations = 0
-	const appliedMembershipVersions = new Map<string, bigint>()
+	let activeUpdateOperations = 0
+	const authoritativeCrates = new Map<string, Crate>()
+	const authoritativeVersions = new Map<string, bigint | null>()
+	const crateRevisions = new Map<string, number>()
+	const optimisticMetadataFields = new Map<
+		string,
+		Map<CrateMetadataField, OptimisticMetadataField>
+	>()
 
 	// Dialog state (store-based pattern)
 	const crateToDelete = ref<Crate | null>(null)
@@ -40,16 +73,306 @@ export const useCratesStore = defineStore('crates', () => {
 	const cratesCount = computed(() => crates.value.length)
 	const hasCrates = computed(() => crates.value.length > 0)
 
-	function isCurrentFetchContext(context: FetchContext): boolean {
+	function captureAccountContext(): AccountContext | null {
+		const userId = user.supaUserId
+		return userId ? { generation: accountGeneration, userId } : null
+	}
+
+	function isCurrentAccountContext(context: AccountContext): boolean {
 		return (
 			context.generation === accountGeneration &&
-			activeFetchUserId === context.userId
+			user.supaUserId === context.userId
 		)
+	}
+
+	function isCurrentFetchContext(context: AccountContext): boolean {
+		return (
+			isCurrentAccountContext(context) && activeFetchUserId === context.userId
+		)
+	}
+
+	function beginUpdateOperation(context: AccountContext): () => void {
+		activeUpdateOperations += 1
+		isUpdatingCrate.value = true
+		let finished = false
+
+		return () => {
+			if (finished) return
+			finished = true
+			if (!isCurrentAccountContext(context)) return
+			activeUpdateOperations = Math.max(0, activeUpdateOperations - 1)
+			isUpdatingCrate.value = activeUpdateOperations > 0
+		}
+	}
+
+	function getCrateRevision(crateId: string): number {
+		return crateRevisions.get(crateId) ?? 0
+	}
+
+	function invalidateCrate(crateId: string): void {
+		crateRevisions.set(crateId, getCrateRevision(crateId) + 1)
+	}
+
+	function isCurrentMembershipContext(
+		context: MembershipContext,
+		crateId: string
+	): boolean {
+		return (
+			isCurrentAccountContext(context.account) &&
+			context.crateRevision === getCrateRevision(crateId)
+		)
+	}
+
+	function postgresTimestampMicroseconds(value: string): bigint | null {
+		const match = POSTGRES_TIMESTAMP_PATTERN.exec(value)
+		if (!match) return null
+
+		const [
+			,
+			yearValue,
+			monthValue,
+			dayValue,
+			hourValue,
+			minuteValue,
+			secondValue,
+			fraction = '',
+			offset,
+			offsetSign,
+			offsetHourValue,
+			offsetMinuteValue
+		] = match
+		const year = Number(yearValue)
+		const month = Number(monthValue)
+		const day = Number(dayValue)
+		const hour = Number(hourValue)
+		const minute = Number(minuteValue)
+		const second = Number(secondValue)
+		const isLeapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+		const daysInMonth = [
+			31,
+			isLeapYear ? 29 : 28,
+			31,
+			30,
+			31,
+			30,
+			31,
+			31,
+			30,
+			31,
+			30,
+			31
+		]
+
+		if (
+			year < 1 ||
+			month < 1 ||
+			month > 12 ||
+			day < 1 ||
+			day > daysInMonth[month - 1]! ||
+			hour > 23 ||
+			minute > 59 ||
+			second > 59
+		) {
+			return null
+		}
+
+		let offsetMinutes = 0
+		if (offset !== 'Z') {
+			const offsetHours = Number(offsetHourValue)
+			const offsetMinute = Number(offsetMinuteValue)
+			if (
+				offsetHours > 14 ||
+				offsetMinute > 59 ||
+				(offsetHours === 14 && offsetMinute !== 0)
+			) {
+				return null
+			}
+			offsetMinutes =
+				(offsetHours * 60 + offsetMinute) * (offsetSign === '-' ? -1 : 1)
+		}
+
+		const date = new Date(0)
+		date.setUTCFullYear(year, month - 1, day)
+		date.setUTCHours(hour, minute, second, 0)
+		const absoluteMilliseconds =
+			BigInt(date.getTime()) - BigInt(offsetMinutes) * 60_000n
+
+		return absoluteMilliseconds * 1000n + BigInt(fraction.padEnd(6, '0'))
+	}
+
+	function decodeCrate(
+		data: unknown,
+		expected: { id?: string; userId: string }
+	): DecodedCrate {
+		if (!data || typeof data !== 'object' || Array.isArray(data)) {
+			throw new Error('Invalid crate response.')
+		}
+
+		const candidate = data as Record<string, unknown>
+		const nullableStringsAreValid = ['description', 'color'].every(
+			(field) =>
+				candidate[field] === null || typeof candidate[field] === 'string'
+		)
+		const timestampsAreValid = ['created_at', 'updated_at'].every((field) => {
+			const value = candidate[field]
+			return (
+				value === null ||
+				(typeof value === 'string' &&
+					postgresTimestampMicroseconds(value) !== null)
+			)
+		})
+
+		if (
+			typeof candidate.id !== 'string' ||
+			candidate.id !== (expected.id ?? candidate.id) ||
+			typeof candidate.name !== 'string' ||
+			typeof candidate.user_id !== 'string' ||
+			candidate.user_id !== expected.userId ||
+			!nullableStringsAreValid ||
+			!timestampsAreValid ||
+			!Array.isArray(candidate.records) ||
+			!candidate.records.every((recordId) => typeof recordId === 'string')
+		) {
+			throw new Error('Invalid crate response.')
+		}
+
+		const updatedAt = candidate.updated_at as string | null
+		return {
+			crate: {
+				id: candidate.id,
+				name: candidate.name,
+				description: candidate.description as string | null,
+				color: candidate.color as string | null,
+				records: candidate.records,
+				user_id: candidate.user_id,
+				created_at: candidate.created_at as string | null,
+				updated_at: updatedAt
+			},
+			version:
+				updatedAt === null ? null : postgresTimestampMicroseconds(updatedAt)
+		}
+	}
+
+	function overlayOptimisticMetadata(crate: Crate): Crate {
+		const fields = optimisticMetadataFields.get(crate.id)
+		if (!fields) return crate
+
+		const updates = Object.fromEntries(
+			[...fields].map(([field, owner]) => [field, owner.value])
+		) as CrateMetadataUpdate
+		return { ...crate, ...updates }
+	}
+
+	function recordAuthoritativeCrate(decoded: DecodedCrate): boolean {
+		const { crate, version } = decoded
+		if (authoritativeVersions.has(crate.id)) {
+			const appliedVersion = authoritativeVersions.get(crate.id)!
+			if (
+				version === null ||
+				(appliedVersion !== null && version <= appliedVersion)
+			) {
+				return false
+			}
+		}
+
+		authoritativeVersions.set(crate.id, version)
+		authoritativeCrates.set(crate.id, crate)
+		return true
+	}
+
+	function applyAuthoritativeCrate(
+		decoded: DecodedCrate,
+		options?: { insert?: 'append' | 'prepend' | number }
+	): boolean {
+		const accepted = recordAuthoritativeCrate(decoded)
+		const authoritativeCrate = authoritativeCrates.get(decoded.crate.id)
+		const crateIndex = crates.value.findIndex(
+			({ id }) => id === decoded.crate.id
+		)
+
+		if (crateIndex !== -1 && authoritativeCrate) {
+			crates.value[crateIndex] = overlayOptimisticMetadata(authoritativeCrate)
+		} else if (authoritativeCrate && options?.insert !== undefined) {
+			const renderedCrate = overlayOptimisticMetadata(authoritativeCrate)
+			if (options.insert === 'prepend') crates.value.unshift(renderedCrate)
+			else if (options.insert === 'append') crates.value.push(renderedCrate)
+			else {
+				crates.value.splice(
+					Math.min(options.insert, crates.value.length),
+					0,
+					renderedCrate
+				)
+			}
+		}
+
+		return accepted
+	}
+
+	function captureFetchSnapshot(): FetchSnapshot {
+		return {
+			crateIds: new Set(crates.value.map(({ id }) => id)),
+			crateRevisions: new Map(
+				crates.value.map(({ id }) => [id, getCrateRevision(id)])
+			)
+		}
+	}
+
+	function reconcileFetchedCrates(
+		decodedRows: DecodedCrate[],
+		snapshot: FetchSnapshot
+	): void {
+		const decodedIds = new Set<string>()
+		for (const { crate } of decodedRows) {
+			if (decodedIds.has(crate.id)) throw new Error('Invalid crate response.')
+			decodedIds.add(crate.id)
+		}
+
+		const currentRows = new Map(crates.value.map((crate) => [crate.id, crate]))
+		const fetchedIds = new Set<string>()
+		const reconciledRows: Crate[] = []
+
+		for (const decoded of decodedRows) {
+			const crateId = decoded.crate.id
+			fetchedIds.add(crateId)
+
+			const revisionAtStart = snapshot.crateRevisions.get(crateId) ?? 0
+			if (revisionAtStart !== getCrateRevision(crateId)) {
+				const currentCrate = currentRows.get(crateId)
+				if (currentCrate) reconciledRows.push(currentCrate)
+				continue
+			}
+
+			recordAuthoritativeCrate(decoded)
+			const authoritativeCrate = authoritativeCrates.get(crateId)
+			if (authoritativeCrate) {
+				reconciledRows.push(overlayOptimisticMetadata(authoritativeCrate))
+			} else {
+				const currentCrate = currentRows.get(crateId)
+				if (currentCrate) reconciledRows.push(currentCrate)
+			}
+		}
+
+		for (const currentCrate of currentRows.values()) {
+			if (fetchedIds.has(currentCrate.id)) continue
+
+			const wasAddedDuringFetch = !snapshot.crateIds.has(currentCrate.id)
+			if (wasAddedDuringFetch) {
+				reconciledRows.push(currentCrate)
+				continue
+			}
+
+			authoritativeCrates.delete(currentCrate.id)
+			authoritativeVersions.delete(currentCrate.id)
+			optimisticMetadataFields.delete(currentCrate.id)
+			invalidateCrate(currentCrate.id)
+		}
+
+		crates.value = reconciledRows
 	}
 
 	async function performFetchAllCrates(generation: number): Promise<boolean> {
 		isLoadingCrates.value = true
-		let context: FetchContext | null = null
+		let context: AccountContext | null = null
 		try {
 			let userId: string
 			try {
@@ -63,6 +386,8 @@ export const useCratesStore = defineStore('crates', () => {
 			if (generation !== accountGeneration) return false
 			activeFetchUserId = userId
 			context = { generation, userId }
+			if (!isCurrentFetchContext(context)) return false
+			const snapshot = captureFetchSnapshot()
 
 			const rows = await fetchAllSupabasePages(async (from, to) => {
 				return await supabase
@@ -75,7 +400,8 @@ export const useCratesStore = defineStore('crates', () => {
 			})
 			if (!isCurrentFetchContext(context)) return false
 
-			crates.value = rows as Crate[]
+			const decodedRows = rows.map((row) => decodeCrate(row, { userId }))
+			reconcileFetchedCrates(decodedRows, snapshot)
 			return true
 		} catch (error) {
 			if (!context || !isCurrentFetchContext(context)) return false
@@ -107,8 +433,8 @@ export const useCratesStore = defineStore('crates', () => {
 		crateData: Omit<Crate, 'id' | 'user_id' | 'created_at' | 'updated_at'>
 	): Promise<Crate | null> {
 		if (isDemoStore) return null
-		const userId = user.supaUserId
-		if (!userId) {
+		const context = captureAccountContext()
+		if (!context) {
 			toast.error('You must be signed in to create crates.')
 			return null
 		}
@@ -119,23 +445,25 @@ export const useCratesStore = defineStore('crates', () => {
 				.from('crates')
 				.insert({
 					...crateData,
-					user_id: userId
+					user_id: context.userId
 				})
 				.select()
 				.single()
 
 			if (error) throw error
+			if (!isCurrentAccountContext(context)) return null
 
-			// Add to local state
-			crates.value.unshift(data as Crate)
+			const decoded = decodeCrate(data, { userId: context.userId })
+			applyAuthoritativeCrate(decoded, { insert: 'prepend' })
 			toast.success('Crate created successfully.')
-			return data as Crate
+			return decoded.crate
 		} catch (error) {
+			if (!isCurrentAccountContext(context)) return null
 			console.error('Failed to create crate:', error)
 			toast.error('Error creating crate.')
 			return null
 		} finally {
-			isCreatingCrate.value = false
+			if (isCurrentAccountContext(context)) isCreatingCrate.value = false
 		}
 	}
 
@@ -144,18 +472,121 @@ export const useCratesStore = defineStore('crates', () => {
 		updates: CrateMetadataUpdate
 	): Promise<Crate | null> {
 		if (isDemoStore) return null
-		isUpdatingCrate.value = true
-
-		// Optimistic update
 		const crateIndex = crates.value.findIndex((c: Crate) => c.id === id)
 		if (crateIndex === -1) {
 			toast.error('Crate not found.')
-			isUpdatingCrate.value = false
 			return null
 		}
+		const context = captureAccountContext()
+		if (!context) {
+			toast.error('Error updating crate.')
+			return null
+		}
+		const crateRevision = getCrateRevision(id)
+		const finishUpdate = beginUpdateOperation(context)
 
-		const originalCrate = crates.value[crateIndex]
+		const token = Symbol('crate metadata update')
+		const originalValues = new Map<
+			CrateMetadataField,
+			Crate[CrateMetadataField]
+		>()
+		const optimisticValues = new Map<
+			CrateMetadataField,
+			Crate[CrateMetadataField]
+		>()
+		const owners =
+			optimisticMetadataFields.get(id) ??
+			new Map<CrateMetadataField, OptimisticMetadataField>()
+		const originalCrate = crates.value[crateIndex]!
+		for (const field of Object.keys(updates) as CrateMetadataField[]) {
+			const value = updates[field] as Crate[CrateMetadataField]
+			if (value === undefined) continue
+			originalValues.set(field, originalCrate[field])
+			optimisticValues.set(field, value)
+			owners.set(field, { token, value })
+		}
+		if (owners.size > 0) optimisticMetadataFields.set(id, owners)
 		crates.value[crateIndex] = { ...originalCrate, ...updates } as Crate
+
+		function releaseOwnedFields(): void {
+			const currentOwners = optimisticMetadataFields.get(id)
+			if (!currentOwners) return
+			for (const field of originalValues.keys()) {
+				if (currentOwners.get(field)?.token === token) {
+					currentOwners.delete(field)
+				}
+			}
+			if (currentOwners.size === 0) optimisticMetadataFields.delete(id)
+		}
+
+		function rollbackOwnedFields(): void {
+			const currentOwners = optimisticMetadataFields.get(id)
+			const currentIndex = crates.value.findIndex((crate) => crate.id === id)
+			const currentCrate = crates.value[currentIndex]
+			if (!currentOwners || !currentCrate) {
+				releaseOwnedFields()
+				return
+			}
+
+			let rolledBackCrate = { ...currentCrate }
+			const authoritativeCrate = authoritativeCrates.get(id)
+			for (const [field, originalValue] of originalValues) {
+				if (currentOwners.get(field)?.token !== token) continue
+				if (Object.is(currentCrate[field], optimisticValues.get(field))) {
+					rolledBackCrate = {
+						...rolledBackCrate,
+						[field]: authoritativeCrate
+							? authoritativeCrate[field]
+							: originalValue
+					}
+				}
+				currentOwners.delete(field)
+			}
+			if (currentOwners.size === 0) optimisticMetadataFields.delete(id)
+			crates.value[currentIndex] = overlayOptimisticMetadata(rolledBackCrate)
+		}
+
+		function commitOwnedFields(decoded: DecodedCrate): boolean {
+			const { crate, version } = decoded
+			const currentIndex = crates.value.findIndex(
+				(candidate) => candidate.id === id
+			)
+			const currentCrate = crates.value[currentIndex]
+			const currentOwners = optimisticMetadataFields.get(id)
+			if (!currentCrate) {
+				releaseOwnedFields()
+				return false
+			}
+
+			let committedCrate = { ...currentCrate }
+			let committedAuthoritativeCrate = authoritativeCrates.get(id)
+			for (const field of originalValues.keys()) {
+				if (currentOwners?.get(field)?.token !== token) continue
+				committedCrate = { ...committedCrate, [field]: crate[field] }
+				if (committedAuthoritativeCrate) {
+					committedAuthoritativeCrate = {
+						...committedAuthoritativeCrate,
+						[field]: crate[field]
+					}
+				}
+				currentOwners.delete(field)
+			}
+			if (committedAuthoritativeCrate) {
+				authoritativeCrates.set(id, committedAuthoritativeCrate)
+			}
+			const appliedVersion = authoritativeVersions.get(id)
+			if (
+				version !== null &&
+				(appliedVersion === undefined ||
+					appliedVersion === null ||
+					version > appliedVersion)
+			) {
+				authoritativeVersions.set(id, version)
+			}
+			if (currentOwners?.size === 0) optimisticMetadataFields.delete(id)
+			crates.value[currentIndex] = overlayOptimisticMetadata(committedCrate)
+			return true
+		}
 
 		try {
 			const { data, error } = await supabase
@@ -166,78 +597,41 @@ export const useCratesStore = defineStore('crates', () => {
 				.single()
 
 			if (error) throw error
+			if (!isCurrentAccountContext(context)) return null
 
-			// Update with server response
-			crates.value[crateIndex] = data as Crate
-			return data as Crate
+			const decoded = decodeCrate(data, { id, userId: context.userId })
+			if (crateRevision !== getCrateRevision(id)) {
+				return commitOwnedFields(decoded) ? decoded.crate : null
+			}
+			releaseOwnedFields()
+			applyAuthoritativeCrate(decoded)
+			return decoded.crate
 		} catch (error) {
+			if (!isCurrentAccountContext(context)) return null
 			console.error('Failed to update crate:', error)
-			// Revert optimistic update
-			crates.value[crateIndex] = originalCrate as Crate
+			rollbackOwnedFields()
 			toast.error('Error updating crate.')
 			return null
 		} finally {
-			isUpdatingCrate.value = false
+			finishUpdate()
 		}
-	}
-
-	function postgresTimestampMicroseconds(value: string | null): bigint | null {
-		if (!value) return null
-		const match = POSTGRES_TIMESTAMP_PATTERN.exec(value)
-		if (!match) return null
-
-		const [, date, time, fraction = '', offset] = match
-		const wholeSecondMilliseconds = Date.parse(`${date}T${time}${offset}`)
-		if (!Number.isFinite(wholeSecondMilliseconds)) return null
-
-		return (
-			BigInt(wholeSecondMilliseconds) * 1000n + BigInt(fraction.padEnd(6, '0'))
-		)
-	}
-
-	function decodeMembershipCrate(
-		data: unknown,
-		crateId: string
-	): { crate: Crate; serverUpdatedAt: bigint } {
-		if (!data || typeof data !== 'object') {
-			throw new Error('Invalid crate membership response.')
-		}
-
-		const crate = data as Partial<Crate>
-		const parsedUpdatedAt = postgresTimestampMicroseconds(
-			typeof crate.updated_at === 'string' ? crate.updated_at : null
-		)
-		if (
-			crate.id !== crateId ||
-			!Array.isArray(crate.records) ||
-			parsedUpdatedAt === null
-		) {
-			throw new Error('Invalid crate membership response.')
-		}
-
-		return { crate: data as Crate, serverUpdatedAt: parsedUpdatedAt }
-	}
-
-	function reconcileMembershipCrate(
-		crate: Crate,
-		serverUpdatedAt: bigint
-	): void {
-		const appliedVersion = appliedMembershipVersions.get(crate.id)
-		if (appliedVersion !== undefined && serverUpdatedAt <= appliedVersion)
-			return
-
-		appliedMembershipVersions.set(crate.id, serverUpdatedAt)
-		const crateIndex = crates.value.findIndex(({ id }) => id === crate.id)
-		if (crateIndex !== -1) crates.value[crateIndex] = crate
 	}
 
 	async function mutateCrateMembership(
 		rpcName: CrateMembershipRpc,
 		crateId: string,
 		recordId: string
-	): Promise<Crate | null> {
-		activeMembershipMutations += 1
-		isUpdatingCrate.value = true
+	): Promise<MembershipResult | null> {
+		const account = captureAccountContext()
+		if (!account) {
+			toast.error('Error updating crate.')
+			return null
+		}
+		const context = {
+			account,
+			crateRevision: getCrateRevision(crateId)
+		}
+		const finishUpdate = beginUpdateOperation(account)
 
 		try {
 			const { data, error } = await supabase.rpc(rpcName, {
@@ -245,50 +639,65 @@ export const useCratesStore = defineStore('crates', () => {
 				target_record_id: recordId
 			})
 			if (error) throw error
+			if (!isCurrentMembershipContext(context, crateId)) return null
 
-			const { crate: authoritativeCrate, serverUpdatedAt } =
-				decodeMembershipCrate(data, crateId)
-			reconcileMembershipCrate(authoritativeCrate, serverUpdatedAt)
-			return authoritativeCrate
+			const decoded = decodeCrate(data, {
+				id: crateId,
+				userId: account.userId
+			})
+			applyAuthoritativeCrate(decoded)
+			return { context, crate: decoded.crate }
 		} catch (error) {
+			if (!isCurrentMembershipContext(context, crateId)) return null
 			console.error('Failed to update crate:', error)
 			toast.error('Error updating crate.')
 			return null
 		} finally {
-			activeMembershipMutations -= 1
-			if (activeMembershipMutations === 0) isUpdatingCrate.value = false
+			finishUpdate()
 		}
 	}
 
 	async function deleteCrate(id: string): Promise<boolean> {
 		if (isDemoStore) return false
-		isDeletingCrate.value = true
-
-		// Optimistic update
 		const crateIndex = crates.value.findIndex((c: Crate) => c.id === id)
 		if (crateIndex === -1) {
 			toast.error('Crate not found.')
-			isDeletingCrate.value = false
 			return false
 		}
+		const context = captureAccountContext()
+		if (!context) {
+			toast.error('Error deleting crate.')
+			return false
+		}
+		isDeletingCrate.value = true
 
-		const removedCrate = crates.value.splice(crateIndex, 1)[0]
+		const removedCrate = crates.value.splice(crateIndex, 1)[0]!
 
 		try {
 			const { error } = await supabase.from('crates').delete().eq('id', id)
 
 			if (error) throw error
+			if (!isCurrentAccountContext(context)) return false
 
+			invalidateCrate(id)
+			crates.value = crates.value.filter((crate) => crate.id !== id)
+			authoritativeCrates.delete(id)
+			authoritativeVersions.delete(id)
+			optimisticMetadataFields.delete(id)
 			toast.success('Crate deleted successfully.')
 			return true
 		} catch (error) {
+			if (!isCurrentAccountContext(context)) return false
 			console.error('Failed to delete crate:', error)
-			// Revert optimistic update
-			crates.value.splice(crateIndex, 0, removedCrate as Crate)
+			const safeCrate = authoritativeCrates.get(id) ?? removedCrate
+			applyAuthoritativeCrate(
+				decodeCrate(safeCrate, { id, userId: context.userId }),
+				{ insert: crateIndex }
+			)
 			toast.error('Error deleting crate.')
 			return false
 		} finally {
-			isDeletingCrate.value = false
+			if (isCurrentAccountContext(context)) isDeletingCrate.value = false
 		}
 	}
 
@@ -315,7 +724,7 @@ export const useCratesStore = defineStore('crates', () => {
 			recordId
 		)
 
-		if (result) {
+		if (result && isCurrentMembershipContext(result.context, crateId)) {
 			if (!options?.silent) toast.success('Record added to crate.')
 			return true
 		}
@@ -344,7 +753,9 @@ export const useCratesStore = defineStore('crates', () => {
 			recordId
 		)
 
-		return Boolean(result)
+		return Boolean(
+			result && isCurrentMembershipContext(result.context, crateId)
+		)
 	}
 
 	function getCrateById(id: string): Crate | undefined {
@@ -358,6 +769,16 @@ export const useCratesStore = defineStore('crates', () => {
 	}
 
 	function removeRecordFromAllCrates(recordId: string) {
+		for (const crate of crates.value) {
+			invalidateCrate(crate.id)
+			const authoritativeCrate = authoritativeCrates.get(crate.id)
+			if (authoritativeCrate) {
+				authoritativeCrates.set(crate.id, {
+					...authoritativeCrate,
+					records: authoritativeCrate.records.filter((id) => id !== recordId)
+				})
+			}
+		}
 		crates.value = crates.value.map((crate) => ({
 			...crate,
 			records: crate.records.filter((id) => id !== recordId)
@@ -365,6 +786,16 @@ export const useCratesStore = defineStore('crates', () => {
 	}
 
 	function clearAllCrateRecords() {
+		for (const crate of crates.value) {
+			invalidateCrate(crate.id)
+			const authoritativeCrate = authoritativeCrates.get(crate.id)
+			if (authoritativeCrate) {
+				authoritativeCrates.set(crate.id, {
+					...authoritativeCrate,
+					records: []
+				})
+			}
+		}
 		crates.value = crates.value.map((crate) => ({
 			...crate,
 			records: []
@@ -376,8 +807,16 @@ export const useCratesStore = defineStore('crates', () => {
 		accountGeneration += 1
 		fetchPromise = null
 		activeFetchUserId = null
-		appliedMembershipVersions.clear()
+		activeUpdateOperations = 0
+		authoritativeCrates.clear()
+		authoritativeVersions.clear()
+		crateRevisions.clear()
+		optimisticMetadataFields.clear()
 		isLoadingCrates.value = false
+		isCreatingCrate.value = false
+		isUpdatingCrate.value = false
+		isDeletingCrate.value = false
+		crateToDelete.value = null
 		crates.value = []
 	}
 
