@@ -207,7 +207,14 @@ npm run test:e2e
 npm run check:edge
 npm run lint:edge
 npm run test:edge
+
+# Supabase SQL tests (requires the running local stack)
+npm run test:db
 ```
+
+`npm run test:db` runs every pgTAP suite under `supabase/tests` against the
+local Supabase stack. It requires the Supabase CLI and a running local stack;
+it does not target a linked hosted project.
 
 ### Code Quality
 
@@ -224,19 +231,25 @@ npm run check:database-types # Reject missing, empty, or differing type copies
 npm run test:audio-config    # Shared analyzer/benchmark config tests
 npm run test:conventions     # Convention checker tests
 npm run verify               # Comprehensive read-only verification gate
+npm run verify:full          # Application, build, and local database gate
 npm run build                # Production build (separate from verify)
 ```
 
 `npm run verify` runs formatting, lint, type checking, all application and E2E
 tests, all three Edge gates, and the maintenance/convention tests above. It is
 read-only; run `npm run format` separately when files need formatting. A
-production build is also a separate release check.
+production build is also a separate release check. For release and
+deployment-affecting handoffs, run `npm run verify:full`; it adds the production
+build and local database tests, so it requires a running local Supabase stack.
 
 ### Database
 
 ```bash
 # Generate TypeScript types (requires the CLI and a running local Supabase stack)
 npm run genTypes
+
+# Run every pgTAP suite against the running local Supabase stack
+npm run test:db
 
 # Reset local database (applies migrations + seed)
 npm run supa:reset

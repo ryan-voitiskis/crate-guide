@@ -70,12 +70,19 @@ linting, type checking, application and browser tests, Edge Function checks,
 and convention tests. Run `npm run build` separately when the change affects
 production generation or deployment behaviour.
 
+Changes to schemas, RLS, RPCs, storage policies, or migrations must also pass
+`npm run test:db` against a running local Supabase stack. For
+deployment-affecting handoffs, run `npm run verify:full`; it combines the
+read-only application gate, production build, and local database tests.
+
 ## Pull request checklist
 
 - [ ] The change is focused and its motivation and user impact are explained.
 - [ ] Relevant tests were added or updated, or the reason none are needed is
       stated.
 - [ ] `npm run format`, `npm run check:conventions`, and `npm run verify` pass.
+- [ ] Database changes pass `npm run test:db`, and deployment-affecting changes
+      pass `npm run verify:full`.
 - [ ] Database, environment, deployment, and privacy implications are
       documented where relevant.
 - [ ] No secrets, personal data, private URLs, or production data are included.
