@@ -542,6 +542,168 @@ describe('sessionStore', () => {
 		})
 	})
 
+	describe('slideFader', () => {
+		it('reaches the target and releases the fader after a normal animation', async () => {
+			vi.useFakeTimers()
+			const store = useSessionStore()
+
+			try {
+				const animation = store.slideFader(0, 10)
+				expect(store.decks[0]!.faderSliding).toBe(true)
+
+				await vi.runAllTimersAsync()
+				await animation
+
+				expect(store.decks[0]!.pitch).toBe(10)
+				expect(store.decks[0]!.faderPosition).toBe(10)
+				expect(store.decks[0]!.faderSliding).toBe(false)
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
+		it('lets a second animation supersede the first target', async () => {
+			vi.useFakeTimers()
+			const store = useSessionStore()
+
+			try {
+				const firstAnimation = store.slideFader(0, 20)
+				await vi.advanceTimersByTimeAsync(10)
+				const secondAnimation = store.slideFader(0, -10)
+
+				await vi.runAllTimersAsync()
+				await Promise.all([firstAnimation, secondAnimation])
+
+				expect(store.decks[0]!.pitch).toBe(-10)
+				expect(store.decks[0]!.faderPosition).toBe(-10)
+				expect(store.decks[0]!.faderSliding).toBe(false)
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
+		it('keeps pitch reset after pending animation timers drain', async () => {
+			vi.useFakeTimers()
+			const store = useSessionStore()
+
+			try {
+				const animation = store.slideFader(0, 20)
+				await vi.advanceTimersByTimeAsync(10)
+
+				store.resetPitch(0)
+				expect(store.decks[0]!.faderSliding).toBe(false)
+
+				await vi.runAllTimersAsync()
+				await animation
+
+				expect(store.decks[0]!.pitch).toBe(0)
+				expect(store.decks[0]!.faderPosition).toBe(0)
+				expect(store.decks[0]!.faderSliding).toBe(false)
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
+		it('keeps an unloaded deck reset after pending animation timers drain', async () => {
+			vi.useFakeTimers()
+			const store = useSessionStore()
+			store.decks[0]!.loadedTrack = createMockTrack({ id: 'loaded' })
+			store.decks[0]!.isPlaying = true
+
+			try {
+				const animation = store.slideFader(0, 20)
+				await vi.advanceTimersByTimeAsync(10)
+
+				store.unloadDeck(0)
+
+				await vi.runAllTimersAsync()
+				await animation
+
+				expect(store.decks[0]!.loadedTrack).toBeNull()
+				expect(store.decks[0]!.pitch).toBe(0)
+				expect(store.decks[0]!.faderPosition).toBe(0)
+				expect(store.decks[0]!.faderSliding).toBe(false)
+				expect(store.decks[0]!.isPlaying).toBe(false)
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
+		it.each(['clearSession', 'resetAccountState'] as const)(
+			'%s prevents a pending animation from committing',
+			async (resetAction) => {
+				vi.useFakeTimers()
+				const store = useSessionStore()
+
+				try {
+					const animation = store.slideFader(0, 20)
+					await vi.advanceTimersByTimeAsync(10)
+
+					store[resetAction]()
+
+					await vi.runAllTimersAsync()
+					await animation
+
+					expect(store.decks[0]!.pitch).toBe(0)
+					expect(store.decks[0]!.faderPosition).toBe(0)
+					expect(store.decks[0]!.faderSliding).toBe(false)
+				} finally {
+					vi.useRealTimers()
+				}
+			}
+		)
+
+		it('protects a regrown deck slot from a removed deck animation', async () => {
+			vi.useFakeTimers()
+			const store = useSessionStore()
+			store.initializeDecks(3)
+			const removedDeck = store.decks[2]!
+
+			try {
+				const animation = store.slideFader(2, 20)
+				await vi.advanceTimersByTimeAsync(10)
+
+				store.initializeDecks(2)
+				store.initializeDecks(3)
+				const replacementDeck = store.decks[2]!
+				expect(replacementDeck).not.toBe(removedDeck)
+
+				await vi.runAllTimersAsync()
+				await animation
+
+				expect(replacementDeck.pitch).toBe(0)
+				expect(replacementDeck.faderPosition).toBe(0)
+				expect(replacementDeck.faderSliding).toBe(false)
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
+		it('does not let an obsolete completion release a newer animation', async () => {
+			vi.useFakeTimers()
+			const store = useSessionStore()
+
+			try {
+				const firstAnimation = store.slideFader(0, 4)
+				const secondAnimation = store.slideFader(0, 20)
+
+				await vi.advanceTimersByTimeAsync(10)
+				await firstAnimation
+				expect(store.decks[0]!.faderSliding).toBe(true)
+				expect(store.decks[0]!.pitch).toBe(0)
+
+				await vi.runAllTimersAsync()
+				await secondAnimation
+
+				expect(store.decks[0]!.pitch).toBe(20)
+				expect(store.decks[0]!.faderPosition).toBe(20)
+				expect(store.decks[0]!.faderSliding).toBe(false)
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+	})
+
 	describe('setPitch', () => {
 		it('sets pitch value on deck', () => {
 			const store = useSessionStore()

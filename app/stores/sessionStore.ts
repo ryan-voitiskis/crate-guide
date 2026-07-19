@@ -63,6 +63,31 @@ export const useSessionStore = defineStore('session', () => {
 	// === Deck State ===
 	const deckCount = ref(2)
 	const decks = ref<Deck[]>([createEmptyDeck(), createEmptyDeck()])
+	const faderAnimationGenerations = new Map<number, number>()
+
+	function beginFaderAnimation(deckIndex: number): number {
+		const generation = (faderAnimationGenerations.get(deckIndex) ?? 0) + 1
+		faderAnimationGenerations.set(deckIndex, generation)
+		return generation
+	}
+
+	function cancelFaderAnimation(deckIndex: number) {
+		faderAnimationGenerations.set(
+			deckIndex,
+			(faderAnimationGenerations.get(deckIndex) ?? 0) + 1
+		)
+	}
+
+	function ownsFaderAnimation(
+		deckIndex: number,
+		deck: Deck,
+		generation: number
+	): boolean {
+		return (
+			faderAnimationGenerations.get(deckIndex) === generation &&
+			decks.value[deckIndex] === deck
+		)
+	}
 
 	// === Session State ===
 	const currentSession = ref<PlayedTrackEntry[]>([])
@@ -147,6 +172,7 @@ export const useSessionStore = defineStore('session', () => {
 			decks.value.push(createEmptyDeck())
 		}
 		while (decks.value.length > clampedCount) {
+			cancelFaderAnimation(decks.value.length - 1)
 			decks.value.pop()
 		}
 	}
@@ -201,6 +227,7 @@ export const useSessionStore = defineStore('session', () => {
 	async function slideFader(deckIndex: number, targetPitch: number) {
 		const deck = decks.value[deckIndex]
 		if (!deck) return
+		const generation = beginFaderAnimation(deckIndex)
 
 		deck.faderSliding = true
 
@@ -210,8 +237,10 @@ export const useSessionStore = defineStore('session', () => {
 		while (Math.abs(deck.faderPosition - targetPitch) > step) {
 			deck.faderPosition += targetPitch > deck.faderPosition ? step : -step
 			await new Promise((r) => setTimeout(r, delay))
+			if (!ownsFaderAnimation(deckIndex, deck, generation)) return
 		}
 
+		if (!ownsFaderAnimation(deckIndex, deck, generation)) return
 		deck.faderPosition = targetPitch
 		deck.pitch = targetPitch
 		deck.faderSliding = false
@@ -220,8 +249,10 @@ export const useSessionStore = defineStore('session', () => {
 	function resetPitch(deckIndex: number) {
 		const deck = decks.value[deckIndex]
 		if (!deck) return
+		cancelFaderAnimation(deckIndex)
 		deck.pitch = 0
 		deck.faderPosition = 0
+		deck.faderSliding = false
 	}
 
 	function setPitch(deckIndex: number, pitch: number) {
@@ -246,6 +277,7 @@ export const useSessionStore = defineStore('session', () => {
 	function unloadDeck(deckIndex: number) {
 		const deck = decks.value[deckIndex]
 		if (!deck) return
+		cancelFaderAnimation(deckIndex)
 		deck.loadedTrack = null
 		deck.pitch = 0
 		deck.faderPosition = 0
@@ -294,7 +326,8 @@ export const useSessionStore = defineStore('session', () => {
 		currentSession.value = []
 		activeSetId.value = null
 		autoSaveError.value = null
-		decks.value.forEach((deck) => {
+		decks.value.forEach((deck, deckIndex) => {
+			cancelFaderAnimation(deckIndex)
 			deck.loadedTrack = null
 			deck.pitch = 0
 			deck.faderPosition = 0
@@ -312,6 +345,9 @@ export const useSessionStore = defineStore('session', () => {
 		activeSetId.value = null
 		selectedSetId.value = null
 		loadTrackCrateId.value = null
+		decks.value.forEach((_, deckIndex) => {
+			cancelFaderAnimation(deckIndex)
+		})
 		decks.value = Array.from({ length: deckCount.value }, createEmptyDeck)
 		deckSelectDialog.value = { open: false, trackId: '', sourceDeck: -1 }
 		showSetManager.value = false
