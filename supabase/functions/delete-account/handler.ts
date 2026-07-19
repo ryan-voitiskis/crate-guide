@@ -18,6 +18,15 @@ const RECENT_AUTHENTICATION_METHODS: ReadonlySet<string> = new Set([
 
 type VerifiedClaims = Record<string, unknown>
 
+interface ClaimsClient {
+	auth: {
+		getClaims(token: string): Promise<{
+			data: { claims: unknown } | null
+			error: unknown
+		}>
+	}
+}
+
 interface StorageEntry {
 	id: string | null
 	name: string
@@ -69,21 +78,7 @@ function createDefaultAdmin(): AccountDeletionAdmin {
 
 const defaultDependencies: HandlerDependencies = {
 	authenticate: (authHeader) => getUser(createAuthedSupabaseClient(authHeader)),
-	async verifyClaims(authHeader) {
-		const token = getBearerToken(authHeader)
-		if (!token) throw new Error('Invalid authorization header')
-
-		// The Edge Function lock currently predates auth.getClaims(). Verifying the
-		// exact bearer with getUser(token) before decoding that same token is the
-		// installed SDK's equivalent server-verified claims path.
-		const supabase = createAuthedSupabaseClient(authHeader)
-		const { data, error } = await supabase.auth.getUser(token)
-		if (error || !data.user) throw error ?? new Error('User not found')
-
-		const claims = decodeVerifiedJwtPayload(token)
-		if (claims.sub !== data.user.id) throw new Error('JWT subject mismatch')
-		return claims
-	},
+	verifyClaims: verifyBearerClaims,
 	createAdmin: createDefaultAdmin,
 	nowSeconds: () => Math.floor(Date.now() / 1000)
 }
@@ -92,22 +87,23 @@ function getBearerToken(authHeader: string): string | null {
 	return /^Bearer\s+(\S+)$/i.exec(authHeader.trim())?.[1] ?? null
 }
 
-function decodeVerifiedJwtPayload(token: string): VerifiedClaims {
-	const encodedPayload = token.split('.')[1]
-	if (!encodedPayload) throw new Error('Invalid JWT')
+export async function verifyBearerClaims(
+	authHeader: string,
+	createClient: (
+		authHeader: string
+	) => ClaimsClient = createAuthedSupabaseClient
+): Promise<VerifiedClaims> {
+	const token = getBearerToken(authHeader)
+	if (!token) throw new Error('Invalid authorization header')
 
-	const base64 = encodedPayload
-		.replaceAll('-', '+')
-		.replaceAll('_', '/')
-		.padEnd(Math.ceil(encodedPayload.length / 4) * 4, '=')
-	const bytes = Uint8Array.from(atob(base64), (character) =>
-		character.charCodeAt(0)
-	)
-	const payload: unknown = JSON.parse(new TextDecoder().decode(bytes))
-	if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-		throw new Error('Invalid JWT payload')
+	const { data, error } = await createClient(authHeader).auth.getClaims(token)
+	if (error || !data) throw error ?? new Error('Verified claims unavailable')
+
+	const { claims } = data
+	if (!claims || typeof claims !== 'object' || Array.isArray(claims)) {
+		throw new Error('Invalid verified claims')
 	}
-	return payload as VerifiedClaims
+	return claims as VerifiedClaims
 }
 
 export function hasRecentAuthentication(

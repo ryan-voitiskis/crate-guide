@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import {
 	RECENT_AUTHENTICATION_FUTURE_TOLERANCE_SECONDS,
 	RECENT_AUTHENTICATION_MAX_AGE_SECONDS,
-	createDeleteAccountHandler
+	createDeleteAccountHandler,
+	verifyBearerClaims
 } from './handler.ts'
 
 const NOW_SECONDS = 2_000_000_000
@@ -84,6 +85,124 @@ async function assertRecentAuthenticationRejected(
 	assert.equal(payload.error, 'Sign in again before deleting your account.')
 	assert.equal(didCreateAdmin, false)
 }
+
+Deno.test('delete-account verifies the exact parsed bearer token', async () => {
+	const authHeader = ' \tbeAreR   signed-token \t'
+	const claims = {
+		sub: 'user-id',
+		amr: [{ method: 'password', timestamp: NOW_SECONDS }]
+	}
+	let receivedAuthHeader: string | null = null
+	let receivedToken: string | null = null
+
+	const result = await verifyBearerClaims(authHeader, (value) => {
+		receivedAuthHeader = value
+		return {
+			auth: {
+				getClaims(token) {
+					receivedToken = token
+					return Promise.resolve({ data: { claims }, error: null })
+				}
+			}
+		}
+	})
+
+	assert.equal(receivedAuthHeader, authHeader)
+	assert.equal(receivedToken, 'signed-token')
+	assert.equal(result, claims)
+})
+
+Deno.test(
+	'delete-account rejects malformed authorization headers before verification',
+	async () => {
+		for (const authHeader of ['', 'Basic valid', 'Bearer', 'Bearer one two']) {
+			let didCreateClient = false
+			await assert.rejects(
+				() =>
+					verifyBearerClaims(authHeader, () => {
+						didCreateClient = true
+						throw new Error('must not create client')
+					}),
+				/Invalid authorization header/
+			)
+			assert.equal(didCreateClient, false)
+		}
+	}
+)
+
+Deno.test('delete-account rejects SDK claim verification errors', async () => {
+	const verificationError = new Error('invalid JWT signature')
+
+	await assert.rejects(
+		() =>
+			verifyBearerClaims('Bearer invalid', () => ({
+				auth: {
+					getClaims: () =>
+						Promise.resolve({ data: null, error: verificationError })
+				}
+			})),
+		(error) => error === verificationError
+	)
+})
+
+Deno.test(
+	'delete-account rejects absent or malformed verified claims',
+	async () => {
+		const invalidResults = [
+			{
+				result: { data: null, error: null },
+				expectedMessage: 'Verified claims unavailable'
+			},
+			{
+				result: { data: { claims: null }, error: null },
+				expectedMessage: 'Invalid verified claims'
+			},
+			{
+				result: { data: { claims: [] }, error: null },
+				expectedMessage: 'Invalid verified claims'
+			},
+			{
+				result: { data: { claims: 'not-an-object' }, error: null },
+				expectedMessage: 'Invalid verified claims'
+			}
+		]
+
+		for (const { result, expectedMessage } of invalidResults) {
+			await assert.rejects(
+				() =>
+					verifyBearerClaims('Bearer invalid', () => ({
+						auth: { getClaims: () => Promise.resolve(result) }
+					})),
+				(error) => error instanceof Error && error.message === expectedMessage
+			)
+		}
+	}
+)
+
+Deno.test('delete-account controls claim verification failures', async () => {
+	const privateMessage = 'private JWT verification detail'
+	let didCreateAdmin = false
+	const handler = createDeleteAccountHandler(
+		{ 'Content-Type': 'application/json' },
+		{
+			...dependencies({
+				verifyClaims: () => Promise.reject(new Error(privateMessage))
+			}),
+			createAdmin: () => {
+				didCreateAdmin = true
+				throw new Error('must not create admin')
+			}
+		}
+	)
+
+	const response = await handler(request())
+	const payload = await response.json()
+
+	assert.equal(response.status, 401)
+	assert.equal(payload.code, 'authentication_required')
+	assert.equal(JSON.stringify(payload).includes(privateMessage), false)
+	assert.equal(didCreateAdmin, false)
+})
 
 Deno.test('delete-account accepts a fresh password AMR timestamp', async () => {
 	const handler = createDeleteAccountHandler(
