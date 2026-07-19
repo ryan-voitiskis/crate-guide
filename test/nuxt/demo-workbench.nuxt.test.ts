@@ -1,7 +1,9 @@
 import { defineComponent, h, nextTick } from 'vue'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import type { VueWrapper } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import { afterEach, describe, expect, it } from 'vitest'
+import CardCrate from '~/components/crates/CardCrate.vue'
 import {
 	provideDemoWorkbench,
 	useWorkbenchCapabilities,
@@ -11,7 +13,10 @@ import {
 	useWorkbenchTracksStore,
 	useWorkbenchUserStore
 } from '~/composables/useWorkbench'
+import { demoCrates, demoRecords } from '~/demo/domainFixtures'
 import { createDemoEnrichmentReview } from '~/demo/enrichmentFixtures'
+import { useRecordsStore } from '~/stores/recordsStore'
+import type { Crate } from '~~/shared/types/supabase'
 
 let wrapper: VueWrapper | null = null
 
@@ -91,6 +96,58 @@ describe('demo workbench', () => {
 		expect(captured.tracks.tracks).toHaveLength(24)
 		expect(captured.records.records).toHaveLength(6)
 		expect(captured.crates.crates).toHaveLength(3)
+	})
+
+	it('renders crate previews from the isolated demo records store', async () => {
+		const sentinelTitle = 'Application store sentinel'
+		const fixtureCrate = demoCrates[0]
+		const sentinelRecord = demoRecords.find(
+			(record) => record.id === fixtureCrate?.records[0]
+		)
+		if (!fixtureCrate || !sentinelRecord)
+			throw new Error('Expected the first demo crate and record fixtures')
+
+		const appPinia = createPinia()
+		const appRecords = useRecordsStore(appPinia)
+		appRecords.$patch({
+			records: [{ ...sentinelRecord, title: sentinelTitle }]
+		})
+
+		let renderedCrate: Crate | undefined
+		const DemoCrate = defineComponent({
+			setup() {
+				const crates = useWorkbenchCratesStore()
+				const crate = crates.crates[0]
+				if (!crate) throw new Error('Expected a seeded demo crate')
+				renderedCrate = crate
+
+				return () => h(CardCrate, { crate })
+			}
+		})
+		const DemoWorkbenchHost = defineComponent({
+			setup() {
+				provideDemoWorkbench()
+				return () => h(DemoCrate)
+			}
+		})
+
+		wrapper = await mountSuspended(DemoWorkbenchHost, {
+			global: { plugins: [appPinia] }
+		})
+		await nextTick()
+		if (!renderedCrate) throw new Error('Expected the demo crate to render')
+
+		const card = wrapper.getComponent(CardCrate)
+		const summary = card.get('[class~="mt-0.5"]')
+		expect(card.text()).toContain('Atmosphere E.P. Vol. 1')
+		expect(card.text()).toContain('Rojus (Designed To Dance)')
+		expect(card.text()).not.toContain(sentinelTitle)
+		expect(summary.text()).toMatch(
+			new RegExp(`^${renderedCrate.records.length}\\b`)
+		)
+
+		await card.get('button').trigger('click')
+		expect(card.emitted('select')?.[0]?.[0]).toBe(renderedCrate)
 	})
 
 	it('provides deterministic enrichment review states without a private XML file', () => {

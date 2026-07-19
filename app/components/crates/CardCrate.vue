@@ -11,7 +11,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{ select: [crate: Crate] }>()
 
-const records = useRecordsStore()
+const records = useWorkbenchRecordsStore()
 
 const previewRecords = computed(() =>
 	records.getRecordsByIds(props.crate.records.slice(0, 3))
