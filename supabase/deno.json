@@ -13,7 +13,7 @@
 	"tasks": {
 		"dev": "supabase functions serve --debug",
 		"deploy": "supabase functions deploy",
-		"deploy-all": "supabase functions deploy --no-verify-jwt",
+		"deploy-all": "supabase functions deploy",
 		"test": "deno test",
 		"check": "deno check functions/**/*.ts",
 		"lint": "deno lint"

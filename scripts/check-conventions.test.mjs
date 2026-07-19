@@ -13,8 +13,14 @@ import test from 'node:test'
 import {
 	checkConventions,
 	discoverAppFiles,
-	evaluateAppPath
+	evaluateAppPath,
+	evaluateEdgeDeployConfig
 } from './check-conventions.mjs'
+
+const DEPLOY_WITH_JWT_BYPASS = [
+	'supabase functions deploy',
+	'--no-verify-jwt'
+].join(' ')
 
 function withTemporaryRepository(callback) {
 	const root = mkdtempSync(join(tmpdir(), 'crate-guide-conventions-'))
@@ -88,6 +94,73 @@ test('excludes generated UI only', () => {
 			'component filename must be PascalCase'
 		]
 	)
+})
+
+test('accepts Edge deploy tasks with gateway JWT verification', () => {
+	assert.deepEqual(
+		evaluateEdgeDeployConfig(
+			JSON.stringify({
+				tasks: {
+					deploy: 'supabase functions deploy',
+					'deploy-all': 'supabase functions deploy'
+				}
+			})
+		),
+		[]
+	)
+})
+
+test('accepts the local Edge serve JWT bypass', () => {
+	assert.deepEqual(
+		evaluateEdgeDeployConfig(
+			JSON.stringify({
+				tasks: {
+					dev: 'supabase functions serve --no-verify-jwt'
+				}
+			})
+		),
+		[]
+	)
+})
+
+test('rejects a JWT bypass in an Edge deployment task', () => {
+	assert.deepEqual(
+		evaluateEdgeDeployConfig(
+			JSON.stringify({
+				tasks: {
+					'deploy-all': DEPLOY_WITH_JWT_BYPASS
+				}
+			})
+		),
+		['task "deploy-all" must not disable JWT verification during deployment']
+	)
+})
+
+test('reports malformed Edge deployment configuration without throwing', () => {
+	assert.deepEqual(evaluateEdgeDeployConfig('{ invalid'), [
+		'must contain valid JSON'
+	])
+})
+
+test('reports Edge deployment diagnostics at the Supabase config path', () => {
+	withTemporaryRepository(({ root, write }) => {
+		write(
+			'supabase/deno.json',
+			JSON.stringify({
+				tasks: {
+					deploy: DEPLOY_WITH_JWT_BYPASS
+				}
+			})
+		)
+
+		assert.deepEqual(checkConventions(root), [
+			{
+				message:
+					'task "deploy" must not disable JWT verification during deployment',
+				path: 'supabase/deno.json'
+			}
+		])
+	})
 })
 
 test('discovers tracked and untracked files without ignored or deleted paths', () => {

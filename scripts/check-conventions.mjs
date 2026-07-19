@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { lstatSync, readFileSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync } from 'node:fs'
 import { basename, extname, relative, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -75,6 +75,35 @@ export function evaluateAppPath(path, contents = '') {
 }
 
 /**
+ * Evaluate the local Supabase task configuration without reading other files.
+ */
+export function evaluateEdgeDeployConfig(contents) {
+	let config
+	try {
+		config = JSON.parse(contents)
+	} catch {
+		return ['must contain valid JSON']
+	}
+
+	if (!config || typeof config !== 'object' || Array.isArray(config)) return []
+	const { tasks } = config
+	if (!tasks || typeof tasks !== 'object' || Array.isArray(tasks)) return []
+
+	return Object.entries(tasks).flatMap(([taskName, command]) => {
+		if (
+			typeof command === 'string' &&
+			command.includes('supabase functions deploy') &&
+			command.includes('--no-verify-jwt')
+		) {
+			return [
+				`task "${taskName}" must not disable JWT verification during deployment`
+			]
+		}
+		return []
+	})
+}
+
+/**
  * Discover tracked and untracked, non-ignored app files without modifying Git.
  */
 export function discoverAppFiles(root = process.cwd()) {
@@ -96,10 +125,23 @@ export function discoverAppFiles(root = process.cwd()) {
 }
 
 export function checkConventions(root = process.cwd()) {
-	return discoverAppFiles(root).flatMap((path) => {
+	const diagnostics = discoverAppFiles(root).flatMap((path) => {
 		const contents = readFileSync(resolve(root, path), 'utf8')
 		return evaluateAppPath(path, contents).map((message) => ({ path, message }))
 	})
+	const edgeConfigPath = 'supabase/deno.json'
+	const absoluteEdgeConfigPath = resolve(root, edgeConfigPath)
+	if (existsSync(absoluteEdgeConfigPath)) {
+		const contents = readFileSync(absoluteEdgeConfigPath, 'utf8')
+		diagnostics.push(
+			...evaluateEdgeDeployConfig(contents).map((message) => ({
+				path: edgeConfigPath,
+				message
+			}))
+		)
+	}
+
+	return diagnostics
 }
 
 function run() {
