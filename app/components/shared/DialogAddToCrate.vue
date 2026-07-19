@@ -64,25 +64,32 @@ async function handleSave() {
 			(id) => !selectedCrateIds.value.includes(id)
 		)
 
+		let successfulAdditions = 0
+		let successfulRemovals = 0
+
 		// Perform all operations
 		for (const crateId of toAdd) {
-			await cratesStore.addRecordToCrate(crateId, recordId, { silent: true })
+			const added = await cratesStore.addRecordToCrate(crateId, recordId, {
+				silent: true
+			})
+			if (added) successfulAdditions += 1
 		}
 		for (const crateId of toRemove) {
-			await cratesStore.removeRecordFromCrate(crateId, recordId)
+			const removed = await cratesStore.removeRecordFromCrate(crateId, recordId)
+			if (removed) successfulRemovals += 1
 		}
 
 		// Show summary toast
-		if (toAdd.length > 0 || toRemove.length > 0) {
+		if (successfulAdditions > 0 || successfulRemovals > 0) {
 			const messages: string[] = []
-			if (toAdd.length > 0) {
+			if (successfulAdditions > 0) {
 				messages.push(
-					`Added to ${toAdd.length} crate${toAdd.length > 1 ? 's' : ''}`
+					`Added to ${successfulAdditions} crate${successfulAdditions > 1 ? 's' : ''}`
 				)
 			}
-			if (toRemove.length > 0) {
+			if (successfulRemovals > 0) {
 				messages.push(
-					`Removed from ${toRemove.length} crate${toRemove.length > 1 ? 's' : ''}`
+					`Removed from ${successfulRemovals} crate${successfulRemovals > 1 ? 's' : ''}`
 				)
 			}
 			toast.success(messages.join(', '))

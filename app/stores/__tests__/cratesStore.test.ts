@@ -732,6 +732,56 @@ describe('cratesStore', () => {
 				'crate-null-a'
 			])
 		})
+
+		it('allows a crate omitted by one fetch to re-enter without accepting an older operation', async () => {
+			const store = useCratesStore()
+			const initialCrate = createMockCrate({
+				id: 'crate-1',
+				name: 'Initial',
+				updated_at: '2026-07-19T04:00:00.000001Z'
+			})
+			mockQueryBuilder.range.mockResolvedValue({
+				data: [initialCrate],
+				error: null
+			})
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+
+			const metadataResponse = createDeferred<{
+				data: ReturnType<typeof createMockCrate>
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValue(metadataResponse.promise)
+			const metadataPromise = store.updateCrate('crate-1', {
+				name: 'Delayed metadata'
+			})
+
+			mockQueryBuilder.range.mockResolvedValue({ data: [], error: null })
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+			expect(store.crates).toEqual([])
+
+			const restoredCrate = createMockCrate({
+				id: 'crate-1',
+				name: 'Restored v2',
+				updated_at: '2026-07-19T04:00:00.000002Z'
+			})
+			mockQueryBuilder.range.mockResolvedValue({
+				data: [restoredCrate],
+				error: null
+			})
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+			expect(store.crates).toEqual([restoredCrate])
+
+			metadataResponse.resolve({
+				data: createMockCrate({
+					id: 'crate-1',
+					name: 'Delayed metadata',
+					updated_at: '2026-07-19T04:00:00.000003Z'
+				}),
+				error: null
+			})
+			await expect(metadataPromise).resolves.toBeNull()
+			expect(store.crates).toEqual([restoredCrate])
+		})
 	})
 
 	describe('createCrate', () => {
@@ -826,6 +876,66 @@ describe('cratesStore', () => {
 			} finally {
 				consoleError.mockRestore()
 			}
+		})
+
+		it('orders concurrent successful creates independently of response order', async () => {
+			const responses = Array.from({ length: 5 }, () =>
+				createDeferred<{
+					data: ReturnType<typeof createMockCrate>
+					error: null
+				}>()
+			)
+			for (const response of responses) {
+				mockQueryBuilder.single.mockReturnValueOnce(response.promise)
+			}
+			const store = useCratesStore()
+			store.crates = [
+				createMockCrate({
+					id: 'crate-invalid-m',
+					created_at: 'invalid-postgres-timestamp'
+				})
+			]
+			const responseRows = [
+				createMockCrate({
+					id: 'crate-newest',
+					created_at: '2026-07-19T04:00:00.123457Z'
+				}),
+				createMockCrate({
+					id: 'crate-tied-z',
+					created_at: '2026-07-19T14:00:00.123456+10:00'
+				}),
+				createMockCrate({
+					id: 'crate-tied-a',
+					created_at: '2026-07-18 20:00:00.123456-08:00'
+				}),
+				createMockCrate({ id: 'crate-null-z', created_at: null }),
+				createMockCrate({ id: 'crate-null-a', created_at: null })
+			]
+			const createPromises = responseRows.map((row) =>
+				store.createCrate({
+					name: row.name,
+					description: row.description,
+					color: row.color,
+					records: []
+				})
+			)
+
+			for (let index = responses.length - 1; index >= 0; index -= 1) {
+				responses[index]!.resolve({ data: responseRows[index]!, error: null })
+				await expect(createPromises[index]).resolves.toEqual(
+					responseRows[index]
+				)
+			}
+
+			expect(store.crates.map(({ id }) => id)).toEqual([
+				'crate-newest',
+				'crate-tied-z',
+				'crate-tied-a',
+				'crate-null-z',
+				'crate-null-a',
+				'crate-invalid-m'
+			])
+			expect(store.isCreatingCrate).toBe(false)
 		})
 
 		it('returns null on creation error', async () => {
@@ -942,6 +1052,52 @@ describe('cratesStore', () => {
 			await expect(addPromise).resolves.toBe(true)
 
 			expect(store.crates).toEqual([newerMetadataCrate])
+			expect(store.isUpdatingCrate).toBe(false)
+		})
+
+		it('returns null when a fetch advances past a delayed metadata response', async () => {
+			const store = useCratesStore()
+			const initialCrate = createMockCrate({
+				id: 'crate-1',
+				name: 'Initial',
+				updated_at: '2026-07-19T04:00:00.000001Z'
+			})
+			mockQueryBuilder.range.mockResolvedValue({
+				data: [initialCrate],
+				error: null
+			})
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+
+			const metadataResponse = createDeferred<{
+				data: ReturnType<typeof createMockCrate>
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValue(metadataResponse.promise)
+			const metadataPromise = store.updateCrate('crate-1', {
+				name: 'Delayed local'
+			})
+
+			const remoteV3 = createMockCrate({
+				id: 'crate-1',
+				name: 'Remote v3',
+				updated_at: '2026-07-19T04:00:00.000003Z'
+			})
+			mockQueryBuilder.range.mockResolvedValue({
+				data: [remoteV3],
+				error: null
+			})
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+
+			metadataResponse.resolve({
+				data: createMockCrate({
+					id: 'crate-1',
+					name: 'Delayed local',
+					updated_at: '2026-07-19T04:00:00.000002Z'
+				}),
+				error: null
+			})
+			await expect(metadataPromise).resolves.toBeNull()
+			expect(store.crates).toEqual([remoteV3])
 			expect(store.isUpdatingCrate).toBe(false)
 		})
 
@@ -1072,8 +1228,14 @@ describe('cratesStore', () => {
 
 		it('reverts on delete error', async () => {
 			const store = useCratesStore()
-			const crate1 = createMockCrate({ id: 'crate-1' })
-			const crate2 = createMockCrate({ id: 'crate-2' })
+			const crate1 = createMockCrate({
+				id: 'crate-1',
+				created_at: '2026-07-19T04:00:00.000002Z'
+			})
+			const crate2 = createMockCrate({
+				id: 'crate-2',
+				created_at: '2026-07-19T04:00:00.000001Z'
+			})
 			store.crates = [crate1, crate2]
 			mockQueryBuilder.eq.mockResolvedValue({
 				data: null,
@@ -1132,6 +1294,89 @@ describe('cratesStore', () => {
 				consoleError.mockRestore()
 			}
 		})
+
+		it.each(['first-delete', 'second-delete'] as const)(
+			'restores concurrent failed deletes in declared order when %s fails first',
+			async (firstFailure) => {
+				const firstResponse = createDeferred<{ data: null; error: Error }>()
+				const secondResponse = createDeferred<{ data: null; error: Error }>()
+				mockQueryBuilder.eq
+					.mockReturnValueOnce(firstResponse.promise)
+					.mockReturnValueOnce(secondResponse.promise)
+				const consoleError = vi
+					.spyOn(console, 'error')
+					.mockImplementation(() => undefined)
+				const store = useCratesStore()
+				const crateA = createMockCrate({
+					id: 'crate-a',
+					created_at: '2026-07-19T04:00:00.000004Z'
+				})
+				const crateB = createMockCrate({
+					id: 'crate-b',
+					created_at: '2026-07-19T04:00:00.000003Z'
+				})
+				const crateC = createMockCrate({
+					id: 'crate-c',
+					created_at: '2026-07-19T04:00:00.000001Z'
+				})
+				const createdWhilePending = createMockCrate({
+					id: 'crate-created',
+					created_at: '2026-07-19T04:00:00.000002Z'
+				})
+				store.crates = [crateA, crateB, crateC]
+				mockQueryBuilder.single.mockResolvedValue({
+					data: createdWhilePending,
+					error: null
+				})
+
+				try {
+					const firstDelete = store.deleteCrate(crateA.id)
+					const secondDelete = store.deleteCrate(crateB.id)
+					await expect(
+						store.createCrate({
+							name: createdWhilePending.name,
+							description: createdWhilePending.description,
+							color: createdWhilePending.color,
+							records: []
+						})
+					).resolves.toEqual(createdWhilePending)
+
+					const failures = {
+						'first-delete': {
+							response: firstResponse,
+							promise: firstDelete
+						},
+						'second-delete': {
+							response: secondResponse,
+							promise: secondDelete
+						}
+					}
+					const secondFailure =
+						firstFailure === 'first-delete' ? 'second-delete' : 'first-delete'
+
+					failures[firstFailure].response.resolve({
+						data: null,
+						error: new Error(`${firstFailure} failed`)
+					})
+					await expect(failures[firstFailure].promise).resolves.toBe(false)
+					failures[secondFailure].response.resolve({
+						data: null,
+						error: new Error(`${secondFailure} failed`)
+					})
+					await expect(failures[secondFailure].promise).resolves.toBe(false)
+
+					expect(store.crates.map(({ id }) => id)).toEqual([
+						'crate-a',
+						'crate-b',
+						'crate-created',
+						'crate-c'
+					])
+					expect(store.isDeletingCrate).toBe(false)
+				} finally {
+					consoleError.mockRestore()
+				}
+			}
+		)
 
 		it('restores the pre-delete authoritative row when delete fails', async () => {
 			const membershipResponse = createDeferred<{
@@ -1210,6 +1455,35 @@ describe('cratesStore', () => {
 			expect(mockToast.success.mock.calls).toEqual([
 				['Crate deleted successfully.']
 			])
+		})
+
+		it('does not resurrect a successful delete from a later fetch', async () => {
+			const store = useCratesStore()
+			const initialCrate = createMockCrate({
+				id: 'crate-1',
+				updated_at: '2026-07-19T04:00:00.000001Z'
+			})
+			mockQueryBuilder.range.mockResolvedValue({
+				data: [initialCrate],
+				error: null
+			})
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+
+			mockQueryBuilder.eq.mockResolvedValueOnce({ data: null, error: null })
+			await expect(store.deleteCrate('crate-1')).resolves.toBe(true)
+			expect(store.crates).toEqual([])
+
+			mockQueryBuilder.range.mockResolvedValue({
+				data: [
+					createMockCrate({
+						...initialCrate,
+						updated_at: '2026-07-19T04:00:00.000002Z'
+					})
+				],
+				error: null
+			})
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+			expect(store.crates).toEqual([])
 		})
 
 		it('does not resurrect a pending delete from an older fetch snapshot', async () => {

@@ -64,7 +64,8 @@ export const useCratesStore = defineStore('crates', () => {
 	const authoritativeCrates = new Map<string, Crate>()
 	const authoritativeVersions = new Map<string, bigint | null>()
 	const crateRevisions = new Map<string, number>()
-	const crateDeletionBoundaries = new Map<string, number>()
+	const crateLifecycleBoundaries = new Map<string, number>()
+	const explicitDeletionTombstones = new Set<string>()
 	const optimisticMetadataFields = new Map<
 		string,
 		Map<CrateMetadataField, OptimisticMetadataField>
@@ -146,11 +147,11 @@ export const useCratesStore = defineStore('crates', () => {
 		return revision
 	}
 
-	function wasInvalidatedByDeletion(
+	function wasInvalidatedByLifecycle(
 		crateId: string,
 		operationRevision: number
 	): boolean {
-		return (crateDeletionBoundaries.get(crateId) ?? 0) > operationRevision
+		return (crateLifecycleBoundaries.get(crateId) ?? 0) > operationRevision
 	}
 
 	function isCurrentMembershipContext(
@@ -353,7 +354,7 @@ export const useCratesStore = defineStore('crates', () => {
 
 	function applyAuthoritativeCrate(
 		decoded: DecodedCrate,
-		options?: { insert?: 'append' | 'prepend' | number }
+		options?: { insertInDeclaredOrder?: boolean }
 	): boolean {
 		const accepted = recordAuthoritativeCrate(decoded)
 		const authoritativeCrate = authoritativeCrates.get(decoded.crate.id)
@@ -363,17 +364,9 @@ export const useCratesStore = defineStore('crates', () => {
 
 		if (crateIndex !== -1 && authoritativeCrate) {
 			crates.value[crateIndex] = overlayOptimisticMetadata(authoritativeCrate)
-		} else if (authoritativeCrate && options?.insert !== undefined) {
+		} else if (authoritativeCrate && options?.insertInDeclaredOrder) {
 			const renderedCrate = overlayOptimisticMetadata(authoritativeCrate)
-			if (options.insert === 'prepend') crates.value.unshift(renderedCrate)
-			else if (options.insert === 'append') crates.value.push(renderedCrate)
-			else {
-				crates.value.splice(
-					Math.min(options.insert, crates.value.length),
-					0,
-					renderedCrate
-				)
-			}
+			insertCrateInDeclaredOrder(crates.value, renderedCrate)
 		}
 
 		return accepted
@@ -382,9 +375,7 @@ export const useCratesStore = defineStore('crates', () => {
 	function captureFetchSnapshot(): FetchSnapshot {
 		return {
 			crateIds: new Set(crates.value.map(({ id }) => id)),
-			crateRevisions: new Map(
-				crates.value.map(({ id }) => [id, getCrateRevision(id)])
-			)
+			crateRevisions: new Map(crateRevisions)
 		}
 	}
 
@@ -408,7 +399,10 @@ export const useCratesStore = defineStore('crates', () => {
 			fetchedIds.add(crateId)
 
 			const revisionAtStart = snapshot.crateRevisions.get(crateId) ?? 0
-			if (revisionAtStart !== getCrateRevision(crateId)) {
+			if (
+				revisionAtStart !== getCrateRevision(crateId) ||
+				explicitDeletionTombstones.has(crateId)
+			) {
 				const currentCrate = currentRows.get(crateId)
 				if (currentCrate) reconciledRows.push(currentCrate)
 				continue
@@ -436,7 +430,8 @@ export const useCratesStore = defineStore('crates', () => {
 			authoritativeCrates.delete(currentCrate.id)
 			authoritativeVersions.delete(currentCrate.id)
 			optimisticMetadataFields.delete(currentCrate.id)
-			invalidateCrate(currentCrate.id)
+			const lifecycleRevision = invalidateCrate(currentCrate.id)
+			crateLifecycleBoundaries.set(currentCrate.id, lifecycleRevision)
 		}
 
 		for (const addedCrate of rowsAddedDuringFetch.sort(
@@ -531,7 +526,7 @@ export const useCratesStore = defineStore('crates', () => {
 			if (!isCurrentAccountContext(context)) return null
 
 			const decoded = decodeCrate(data, { userId: context.userId })
-			applyAuthoritativeCrate(decoded, { insert: 'prepend' })
+			applyAuthoritativeCrate(decoded, { insertInDeclaredOrder: true })
 			toast.success('Crate created successfully.')
 			return decoded.crate
 		} catch (error) {
@@ -636,7 +631,7 @@ export const useCratesStore = defineStore('crates', () => {
 			}
 
 			if (
-				wasInvalidatedByDeletion(id, crateRevision) ||
+				wasInvalidatedByLifecycle(id, crateRevision) ||
 				!canAdvanceAuthoritativeVersion(id, version)
 			) {
 				releaseOwnedFields()
@@ -685,8 +680,7 @@ export const useCratesStore = defineStore('crates', () => {
 				return commitOwnedFields(decoded) ? decoded.crate : null
 			}
 			releaseOwnedFields()
-			applyAuthoritativeCrate(decoded)
-			return decoded.crate
+			return applyAuthoritativeCrate(decoded) ? decoded.crate : null
 		} catch (error) {
 			if (!isCurrentAccountContext(context)) return null
 			console.error('Failed to update crate:', error)
@@ -752,7 +746,8 @@ export const useCratesStore = defineStore('crates', () => {
 		}
 		const finishDelete = beginDeleteOperation(context)
 		const deletionRevision = invalidateCrate(id)
-		crateDeletionBoundaries.set(id, deletionRevision)
+		crateLifecycleBoundaries.set(id, deletionRevision)
+		explicitDeletionTombstones.add(id)
 		optimisticMetadataFields.delete(id)
 
 		const removedCrate = crates.value.splice(crateIndex, 1)[0]!
@@ -773,9 +768,10 @@ export const useCratesStore = defineStore('crates', () => {
 			if (!isCurrentAccountContext(context)) return false
 			console.error('Failed to delete crate:', error)
 			const safeCrate = authoritativeCrates.get(id) ?? removedCrate
+			explicitDeletionTombstones.delete(id)
 			applyAuthoritativeCrate(
 				decodeCrate(safeCrate, { id, userId: context.userId }),
-				{ insert: crateIndex }
+				{ insertInDeclaredOrder: true }
 			)
 			toast.error('Error deleting crate.')
 			return false
@@ -912,7 +908,8 @@ export const useCratesStore = defineStore('crates', () => {
 		authoritativeCrates.clear()
 		authoritativeVersions.clear()
 		crateRevisions.clear()
-		crateDeletionBoundaries.clear()
+		crateLifecycleBoundaries.clear()
+		explicitDeletionTombstones.clear()
 		optimisticMetadataFields.clear()
 		isLoadingCrates.value = false
 		isCreatingCrate.value = false
