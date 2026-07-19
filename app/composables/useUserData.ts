@@ -45,6 +45,28 @@ export function useUserData() {
 			: null
 	}
 
+	function startCoverCleanup(userId: string, loadGeneration: number) {
+		cleanupStartedUserId = userId
+		void records.drainCoverCleanup().then(
+			(didComplete) => {
+				if (
+					didComplete ||
+					cleanupStartedUserId !== userId ||
+					getStaleLoadTransition(userId, loadGeneration)
+				)
+					return
+				cleanupStartedUserId = null
+			},
+			() => {
+				if (
+					cleanupStartedUserId === userId &&
+					!getStaleLoadTransition(userId, loadGeneration)
+				)
+					cleanupStartedUserId = null
+			}
+		)
+	}
+
 	async function performLoadAllUserData(
 		loadGeneration: number
 	): Promise<boolean> {
@@ -84,8 +106,7 @@ export function useUserData() {
 				cleanupStartedUserId !== resolvedUserId &&
 				!getStaleLoadTransition(resolvedUserId, loadGeneration)
 			) {
-				cleanupStartedUserId = resolvedUserId
-				void records.drainCoverCleanup().catch(() => undefined)
+				startCoverCleanup(resolvedUserId, loadGeneration)
 			}
 			return didLoadAllData
 		} catch (error) {

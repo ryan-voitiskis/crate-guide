@@ -296,7 +296,7 @@ describe('useUserData', () => {
 			expect(mockRecordsStore.drainCoverCleanup).toHaveBeenCalledOnce()
 		})
 
-		it('starts cleanup only once for repeated loads of the same account', async () => {
+		it('keeps successful cleanup detached and starts it once for the same account', async () => {
 			mockSupaUser.value = { id: 'user-123' }
 			const { loadAllUserData, refreshAllUserData } = createUserData()
 
@@ -305,6 +305,21 @@ describe('useUserData', () => {
 
 			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledTimes(2)
 			expect(mockRecordsStore.drainCoverCleanup).toHaveBeenCalledOnce()
+		})
+
+		it('releases the cleanup sentinel after failure so a later refresh retries', async () => {
+			mockSupaUser.value = { id: 'user-123' }
+			mockRecordsStore.drainCoverCleanup
+				.mockResolvedValueOnce(false)
+				.mockResolvedValueOnce(true)
+			const { loadAllUserData, refreshAllUserData } = createUserData()
+
+			await expect(loadAllUserData()).resolves.toBe(true)
+			await Promise.resolve()
+			await expect(refreshAllUserData()).resolves.toBe(true)
+
+			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledTimes(2)
+			expect(mockRecordsStore.drainCoverCleanup).toHaveBeenCalledTimes(2)
 		})
 
 		it('catches unexpected throws at the coordinator boundary', async () => {

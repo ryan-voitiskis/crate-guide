@@ -28,6 +28,14 @@ vi.stubGlobal('useCratesStore', () => crates)
 vi.stubGlobal('useSessionStore', () => session)
 vi.stubGlobal('useUserStore', () => user)
 
+function createDeferred<T>() {
+	let resolve!: (value: T | PromiseLike<T>) => void
+	const promise = new Promise<T>((resolvePromise) => {
+		resolve = resolvePromise
+	})
+	return { promise, resolve }
+}
+
 describe('useLibraryMutations', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
@@ -123,5 +131,24 @@ describe('useLibraryMutations', () => {
 		expect(crates.clearAllCrateRecords).toHaveBeenCalledOnce()
 		expect(session.clearSavedSetTracks).toHaveBeenCalledOnce()
 		expect(session.clearSession).toHaveBeenCalledOnce()
+	})
+
+	it('waits for the bounded cleanup drain before clearing bulk-deletion state', async () => {
+		user.deleteAllUserData.mockResolvedValue(true)
+		const drainResult = createDeferred<boolean>()
+		records.drainCoverCleanup.mockReturnValueOnce(drainResult.promise)
+		const mutations = useLibraryMutations()
+
+		const deletion = mutations.deleteAllUserData()
+		await vi.waitFor(() => {
+			expect(records.drainCoverCleanup).toHaveBeenCalledOnce()
+		})
+		expect(records.clearRecords).not.toHaveBeenCalled()
+		expect(tracks.clearTracks).not.toHaveBeenCalled()
+
+		drainResult.resolve(false)
+		await expect(deletion).resolves.toBe(true)
+		expect(records.clearRecords).toHaveBeenCalledOnce()
+		expect(tracks.clearTracks).toHaveBeenCalledOnce()
 	})
 })

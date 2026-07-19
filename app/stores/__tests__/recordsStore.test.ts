@@ -5,10 +5,10 @@ import {
 	createMockRecordWithLabels,
 	resetRecordIdCounter
 } from 'test/mocks/fixtures/records'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { markDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 // Import after mocking
-import { useRecordsStore } from '../recordsStore'
+import { COVER_CLEANUP_MAX_PAGES, useRecordsStore } from '../recordsStore'
 
 const mockToast = vi.hoisted(() => ({
 	success: vi.fn(),
@@ -82,6 +82,23 @@ function createDeferred<T>() {
 	return { promise, resolve }
 }
 
+function cleanupResponse(processed = 0, removed = processed) {
+	return {
+		data: { processed, removed, deferred: 0 },
+		error: null
+	}
+}
+
+function expectCleanupInvocationsWithoutBodies(count: number) {
+	expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledTimes(count)
+	for (let callIndex = 1; callIndex <= count; callIndex += 1) {
+		expect(mockSupabaseClient.functions.invoke).toHaveBeenNthCalledWith(
+			callIndex,
+			'cleanup-record-covers'
+		)
+	}
+}
+
 // Stub globals before importing the store
 vi.stubGlobal('useUserStore', () => mockUserStore)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
@@ -97,10 +114,9 @@ describe('recordsStore', () => {
 		mockQueryBuilder = createMockQueryBuilder()
 		mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
 		mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: null })
-		mockSupabaseClient.functions.invoke.mockResolvedValue({
-			data: null,
-			error: null
-		})
+		mockSupabaseClient.functions.invoke
+			.mockReset()
+			.mockResolvedValue(cleanupResponse())
 		mockSupabaseClient.storage.from.mockReturnValue(mockStorageBucket)
 		mockStorageBucket.upload.mockResolvedValue({ data: null, error: null })
 		mockStorageBucket.remove.mockResolvedValue({ data: null, error: null })
@@ -115,6 +131,10 @@ describe('recordsStore', () => {
 			if (!mockUserStore.supaUser?.id) throw new Error('User not logged in.')
 			return mockUserStore.supaUser.id
 		})
+	})
+
+	afterEach(() => {
+		vi.useRealTimers()
 	})
 
 	describe('initial state', () => {
@@ -141,31 +161,144 @@ describe('recordsStore', () => {
 	})
 
 	describe('updateRecordWithCover', () => {
-		it('shares one in-flight cleanup operation and starts fresh after settlement', async () => {
+		it('shares one full in-flight drain across concurrent callers', async () => {
 			const store = useRecordsStore()
-			const drainResult = createDeferred<{ data: null; error: null }>()
-			mockSupabaseClient.functions.invoke.mockReturnValueOnce(
-				drainResult.promise
-			)
+			const fullPage = createDeferred<ReturnType<typeof cleanupResponse>>()
+			const finalPage = createDeferred<ReturnType<typeof cleanupResponse>>()
+			mockSupabaseClient.functions.invoke
+				.mockReturnValueOnce(fullPage.promise)
+				.mockReturnValueOnce(finalPage.promise)
 
 			const firstDrain = store.drainCoverCleanup()
 			const concurrentDrain = store.drainCoverCleanup()
 
 			await vi.waitFor(() => {
-				expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledOnce()
+				expectCleanupInvocationsWithoutBodies(1)
 			})
-			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
-				'cleanup-record-covers'
-			)
+			fullPage.resolve(cleanupResponse(100))
+			await vi.waitFor(() => {
+				expectCleanupInvocationsWithoutBodies(2)
+			})
+			finalPage.resolve(cleanupResponse(1))
 
-			drainResult.resolve({ data: null, error: null })
 			await expect(Promise.all([firstDrain, concurrentDrain])).resolves.toEqual(
 				[true, true]
 			)
+			expectCleanupInvocationsWithoutBodies(2)
+		})
 
-			const laterDrain = store.drainCoverCleanup()
-			await expect(laterDrain).resolves.toBe(true)
-			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledTimes(2)
+		it('drains a 101-job backlog across a full and short page', async () => {
+			const store = useRecordsStore()
+			mockSupabaseClient.functions.invoke
+				.mockResolvedValueOnce(cleanupResponse(100))
+				.mockResolvedValueOnce(cleanupResponse(1))
+
+			await expect(store.drainCoverCleanup()).resolves.toBe(true)
+
+			expectCleanupInvocationsWithoutBodies(2)
+		})
+
+		it('confirms an exact 100-job backlog with one empty page', async () => {
+			const store = useRecordsStore()
+			mockSupabaseClient.functions.invoke
+				.mockResolvedValueOnce(cleanupResponse(100))
+				.mockResolvedValueOnce(cleanupResponse())
+
+			await expect(store.drainCoverCleanup()).resolves.toBe(true)
+
+			expectCleanupInvocationsWithoutBodies(2)
+		})
+
+		it('stops after one short page', async () => {
+			const store = useRecordsStore()
+			mockSupabaseClient.functions.invoke.mockResolvedValueOnce(
+				cleanupResponse(7, 4)
+			)
+
+			await expect(store.drainCoverCleanup()).resolves.toBe(true)
+
+			expectCleanupInvocationsWithoutBodies(1)
+		})
+
+		it.each([
+			null,
+			{},
+			{ processed: '1', removed: 1, deferred: 0 },
+			{ processed: -1, removed: 0, deferred: 0 },
+			{ processed: 101, removed: 0, deferred: 0 },
+			{ processed: 1, removed: 2, deferred: 0 },
+			{ processed: 1, removed: 1, deferred: 1 },
+			{ processed: Number.MAX_SAFE_INTEGER + 1, removed: 0, deferred: 0 }
+		])(
+			'rejects malformed cleanup counts without exposing details: %j',
+			async (data) => {
+				vi.useFakeTimers()
+				const store = useRecordsStore()
+				mockSupabaseClient.functions.invoke.mockResolvedValue({
+					data,
+					error: null
+				})
+
+				const drain = store.drainCoverCleanup()
+				await vi.runAllTimersAsync()
+
+				await expect(drain).resolves.toBe(false)
+				expectCleanupInvocationsWithoutBodies(3)
+				expect(mockToast.warning).toHaveBeenCalledOnce()
+			}
+		)
+
+		it('recovers from a transient page failure after the first backoff', async () => {
+			vi.useFakeTimers()
+			const store = useRecordsStore()
+			mockSupabaseClient.functions.invoke
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('private failure')
+				})
+				.mockResolvedValueOnce(cleanupResponse(1))
+
+			const drain = store.drainCoverCleanup()
+			await vi.advanceTimersByTimeAsync(0)
+			expectCleanupInvocationsWithoutBodies(1)
+			await vi.advanceTimersByTimeAsync(249)
+			expectCleanupInvocationsWithoutBodies(1)
+			await vi.advanceTimersByTimeAsync(1)
+
+			await expect(drain).resolves.toBe(true)
+			expectCleanupInvocationsWithoutBodies(2)
+			expect(mockToast.warning).not.toHaveBeenCalled()
+		})
+
+		it('warns once only after bounded retries are exhausted', async () => {
+			vi.useFakeTimers()
+			const store = useRecordsStore()
+			mockSupabaseClient.functions.invoke.mockResolvedValue({
+				data: null,
+				error: new Error('private failure')
+			})
+
+			const drain = store.drainCoverCleanup()
+			await vi.runAllTimersAsync()
+
+			await expect(drain).resolves.toBe(false)
+			expectCleanupInvocationsWithoutBodies(3)
+			expect(mockToast.warning).toHaveBeenCalledOnce()
+			expect(mockToast.warning).toHaveBeenCalledWith(
+				'Some old cover files still need cleanup.'
+			)
+		})
+
+		it('returns false when the separate client page cap is reached', async () => {
+			const store = useRecordsStore()
+			mockSupabaseClient.functions.invoke.mockResolvedValue(
+				cleanupResponse(100)
+			)
+
+			await expect(store.drainCoverCleanup()).resolves.toBe(false)
+
+			expectCleanupInvocationsWithoutBodies(COVER_CLEANUP_MAX_PAGES)
+			expect(mockToast.warning).toHaveBeenCalledOnce()
 		})
 
 		it('does not invoke cleanup while signed out', async () => {
@@ -187,8 +320,9 @@ describe('recordsStore', () => {
 			expect(mockSupabaseClient.functions.invoke).not.toHaveBeenCalled()
 		})
 
-		it('does not share cleanup work across an account reset', async () => {
-			const oldDrainResult = createDeferred<{ data: null; error: Error }>()
+		it('cancels an in-flight page without stale retries or warnings on reset', async () => {
+			const oldDrainResult =
+				createDeferred<ReturnType<typeof cleanupResponse>>()
 			mockSupabaseClient.functions.invoke.mockReturnValueOnce(
 				oldDrainResult.promise
 			)
@@ -199,18 +333,28 @@ describe('recordsStore', () => {
 			})
 
 			store.clearRecords()
-			mockUserStore.supaUser = { id: 'replacement-user-id' }
-			const replacementDrain = store.drainCoverCleanup()
-
-			expect(replacementDrain).not.toBe(oldDrain)
-			await expect(replacementDrain).resolves.toBe(true)
-			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledTimes(2)
-
-			oldDrainResult.resolve({
-				data: null,
-				error: new Error('old account failure')
-			})
+			oldDrainResult.resolve(cleanupResponse(100))
 			await expect(oldDrain).resolves.toBe(false)
+			expectCleanupInvocationsWithoutBodies(1)
+			expect(mockToast.warning).not.toHaveBeenCalled()
+		})
+
+		it('cancels retry backoff without another request or stale warning on reset', async () => {
+			vi.useFakeTimers()
+			const store = useRecordsStore()
+			mockSupabaseClient.functions.invoke.mockResolvedValue({
+				data: null,
+				error: new Error('private failure')
+			})
+
+			const drain = store.drainCoverCleanup()
+			await vi.advanceTimersByTimeAsync(0)
+			expectCleanupInvocationsWithoutBodies(1)
+			store.clearRecords()
+			await vi.runAllTimersAsync()
+
+			await expect(drain).resolves.toBe(false)
+			expectCleanupInvocationsWithoutBodies(1)
 			expect(mockToast.warning).not.toHaveBeenCalled()
 		})
 

@@ -40,6 +40,48 @@ type FetchContext = {
 	userId: string
 }
 
+type CoverCleanupPage = {
+	processed: number
+	removed: number
+	deferred: 0
+}
+
+type CoverCleanupPageResult =
+	| { status: 'success'; page: CoverCleanupPage }
+	| { status: 'failed' }
+	| { status: 'cancelled' }
+
+// This mirrors the Edge response contract. It is intentionally separate from
+// the client's total-work guard so changing one bound cannot silently change the
+// other.
+export const COVER_CLEANUP_PAGE_SIZE = 100
+export const COVER_CLEANUP_MAX_PAGES = 100
+const COVER_CLEANUP_RETRY_DELAYS_MS = [0, 250, 1000] as const
+
+function isNonnegativeSafeInteger(value: unknown): value is number {
+	return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+}
+
+function decodeCoverCleanupPage(value: unknown): CoverCleanupPage | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+	const { processed, removed, deferred } = value as Record<string, unknown>
+	if (
+		!isNonnegativeSafeInteger(processed) ||
+		!isNonnegativeSafeInteger(removed) ||
+		!isNonnegativeSafeInteger(deferred) ||
+		processed > COVER_CLEANUP_PAGE_SIZE ||
+		removed > processed ||
+		deferred !== 0
+	)
+		return null
+
+	return { processed, removed, deferred }
+}
+
+function waitForCoverCleanupRetry(delayMs: number): Promise<void> {
+	return new Promise((resolvePromise) => setTimeout(resolvePromise, delayMs))
+}
+
 function buildArtistPayload(name?: string | null): DiscogsArtistDb[] {
 	const trimmedName = name?.trim()
 	return trimmedName ? [{ name: trimmedName, role: null }] : []
@@ -348,23 +390,81 @@ export const useRecordsStore = defineStore('records', () => {
 		}
 	}
 
+	function isCurrentCleanupGeneration(generation: number): boolean {
+		return generation === accountGeneration
+	}
+
+	async function invokeCoverCleanupPage(
+		generation: number
+	): Promise<CoverCleanupPageResult> {
+		for (const retryDelayMs of COVER_CLEANUP_RETRY_DELAYS_MS) {
+			if (!isCurrentCleanupGeneration(generation)) {
+				return { status: 'cancelled' }
+			}
+			if (retryDelayMs > 0) {
+				if (!isCurrentCleanupGeneration(generation)) {
+					return { status: 'cancelled' }
+				}
+				await waitForCoverCleanupRetry(retryDelayMs)
+				if (!isCurrentCleanupGeneration(generation)) {
+					return { status: 'cancelled' }
+				}
+			}
+
+			try {
+				if (!isCurrentCleanupGeneration(generation)) {
+					return { status: 'cancelled' }
+				}
+				const { data, error } = await supabase.functions.invoke(
+					'cleanup-record-covers'
+				)
+				if (!isCurrentCleanupGeneration(generation)) {
+					return { status: 'cancelled' }
+				}
+				if (error) continue
+
+				const page = decodeCoverCleanupPage(data)
+				if (page) return { status: 'success', page }
+			} catch {
+				if (!isCurrentCleanupGeneration(generation)) {
+					return { status: 'cancelled' }
+				}
+			}
+		}
+
+		return { status: 'failed' }
+	}
+
+	function reportCoverCleanupFailure(generation: number): false {
+		if (!isCurrentCleanupGeneration(generation)) return false
+		console.error('Failed to drain record cover cleanup.')
+		toast.warning('Some old cover files still need cleanup.')
+		return false
+	}
+
 	async function performCoverCleanup(generation: number): Promise<boolean> {
+		if (!isCurrentCleanupGeneration(generation)) return false
 		const userId = await user
 			.resolveAuthenticatedUserId()
 			.catch(() => null as string | null)
-		if (!userId || generation !== accountGeneration) return false
+		if (!isCurrentCleanupGeneration(generation) || !userId) return false
 
-		try {
-			const { error } = await supabase.functions.invoke('cleanup-record-covers')
-			if (generation !== accountGeneration) return false
-			if (error) throw error
-			return true
-		} catch {
-			if (generation !== accountGeneration) return false
-			console.error('Failed to drain record cover cleanup.')
-			toast.warning('Some old cover files still need cleanup.')
-			return false
+		for (
+			let pageIndex = 0;
+			pageIndex < COVER_CLEANUP_MAX_PAGES;
+			pageIndex += 1
+		) {
+			if (!isCurrentCleanupGeneration(generation)) return false
+			const result = await invokeCoverCleanupPage(generation)
+			if (!isCurrentCleanupGeneration(generation)) return false
+			if (result.status === 'cancelled') return false
+			if (result.status === 'failed') {
+				return reportCoverCleanupFailure(generation)
+			}
+			if (result.page.processed < COVER_CLEANUP_PAGE_SIZE) return true
 		}
+
+		return reportCoverCleanupFailure(generation)
 	}
 
 	function drainCoverCleanup(): Promise<boolean> {
