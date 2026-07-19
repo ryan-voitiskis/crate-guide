@@ -11,9 +11,22 @@ import DialogTrackDetails from '~/components/tracks/DialogTrackDetails.vue'
 import { useRecordsStore } from '~/stores/recordsStore'
 import { useTrackEditStore } from '~/stores/trackEditStore'
 import { useTracksStore } from '~/stores/tracksStore'
+import { createTrackEditorInitialValues } from '~/utils/trackEditor'
 import type { DatabaseRecord, Track } from '~~/shared/types/supabase'
 
 const wrappers = new Set<VueWrapper>()
+const COMMON_FIELD_NAMES = [
+	'title',
+	'position',
+	'duration',
+	'bpm',
+	'keyComposite',
+	'genres',
+	'rpm',
+	'playable',
+	'time_signature_upper',
+	'time_signature_lower'
+] as const
 
 function getBody() {
 	return new DOMWrapper(document.body)
@@ -52,8 +65,14 @@ function createEditorFixture() {
 		genres: ['House'],
 		time_signature_upper: 4,
 		time_signature_lower: 4,
-		artists: [{ discogs_id: 1, name: 'Test Artist', role: null }],
-		extraartists: [{ name: 'Guest Artist', role: 'Vocals' }]
+		artists: [
+			{ discogs_id: 1, name: 'Test Artist', role: null },
+			{ discogs_id: 2, name: 'Second Artist', role: 'Remix' }
+		],
+		extraartists: [
+			{ name: 'Guest Artist', role: 'Vocals' },
+			{ name: 'Engineer', role: 'Mastered By' }
+		]
 	})
 
 	return { record, track }
@@ -171,6 +190,28 @@ describe('track editor dialogs', () => {
 		)
 	})
 
+	it('uses the exact shared form field contract in both editors', async () => {
+		expect(Object.keys(createTrackEditorInitialValues())).toEqual(
+			COMMON_FIELD_NAMES
+		)
+
+		const editDialog = await mountAddOrEditDialog('edit')
+		expect(
+			getBody()
+				.findAll('input[name]')
+				.map((input) => input.attributes('name'))
+		).toEqual(['title', 'position', 'duration', 'bpm'])
+		unmountWrapper(editDialog.wrapper)
+
+		await mountDetailsDialog()
+		await enterDetailsEditMode()
+		expect(
+			getBody()
+				.findAll('input[name]')
+				.map((input) => input.attributes('name'))
+		).toEqual(['title', 'position', 'duration', 'bpm'])
+	})
+
 	it('warns in both editors when only duration changes', async () => {
 		const editDialog = await mountAddOrEditDialog('edit')
 		await getBody().get('input[name="duration"]').setValue('3:01')
@@ -223,8 +264,14 @@ describe('track editor dialogs', () => {
 		expect(editPayload).toEqual(detailsPayload)
 		expect(editPayload).toEqual({
 			title: 'Normalized Track',
-			artists: [{ discogs_id: 1, name: 'Test Artist', role: null }],
-			extraartists: [{ name: 'Guest Artist', role: 'Vocals' }],
+			artists: [
+				{ discogs_id: 1, name: 'Test Artist', role: null },
+				{ discogs_id: 2, name: 'Second Artist', role: 'Remix' }
+			],
+			extraartists: [
+				{ name: 'Guest Artist', role: 'Vocals' },
+				{ name: 'Engineer', role: 'Mastered By' }
+			],
 			position: 'B2',
 			duration: 225000,
 			bpm: 128.5,
@@ -236,6 +283,56 @@ describe('track editor dialogs', () => {
 			time_signature_lower: 4,
 			playable: true
 		})
+	})
+
+	it('preserves each dialog validation visibility policy', async () => {
+		const addDialog = await mountAddOrEditDialog('add')
+		expect(getBody().text()).not.toContain('Title is required')
+		await getButton('Add Track').trigger('click')
+		await vi.waitFor(() => {
+			expect(getBody().text()).toContain('Title is required')
+		})
+		unmountWrapper(addDialog.wrapper)
+
+		await mountDetailsDialog()
+		await enterDetailsEditMode()
+		await getBody().get('input[name="title"]').setValue('')
+		await vi.waitFor(() => {
+			expect(getBody().text()).toContain('Title is required')
+		})
+		expect(getButton('Save Changes').attributes('disabled')).toBeDefined()
+	})
+
+	it('keeps dirty cancel and discard behavior in both editors', async () => {
+		const editDialog = await mountAddOrEditDialog('edit')
+		await getBody().get('input[name="duration"]').setValue('3:01')
+		await getButton('Cancel').trigger('click')
+		await settleDialog()
+
+		expect(getBody().text()).toContain('Unsaved Changes')
+		await getButton('Keep Editing').trigger('click')
+		await settleDialog()
+		expect(getBody().get('input[name="duration"]').element).toHaveProperty(
+			'value',
+			'3:01'
+		)
+		await getButton('Cancel').trigger('click')
+		await getButton('Discard Changes').trigger('click')
+		await settleDialog()
+		expect(editDialog.trackEdit.closeTrackDialog).toHaveBeenCalledOnce()
+		unmountWrapper(editDialog.wrapper)
+
+		const detailsDialog = await mountDetailsDialog()
+		await enterDetailsEditMode()
+		await getBody().get('input[name="duration"]').setValue('3:01')
+		await getButton('Cancel').trigger('click')
+		await settleDialog()
+		expect(getBody().text()).toContain('Unsaved Changes')
+		await getButton('Discard Changes').trigger('click')
+		await settleDialog()
+
+		expect(detailsDialog.wrapper.emitted('close')).toEqual([[]])
+		expect(getBody().find('input[name="duration"]').exists()).toBe(false)
 	})
 
 	it('keeps add-only record and legacy fields outside the common payload', async () => {

@@ -50,24 +50,10 @@ const form = useForm({
 	initialValues: createTrackEditorInitialValues()
 })
 
-const { handleSubmit, setValues, values, errors, meta } = form
-const [titleValue] = form.defineField('title')
-const [positionValue] = form.defineField('position')
-const [durationValue] = form.defineField('duration')
-const [bpmValue] = form.defineField('bpm')
-const [keyCompositeValue] = form.defineField('keyComposite')
-const [genresValue] = form.defineField('genres')
-const [rpmValue] = form.defineField('rpm')
-const [playableValue] = form.defineField('playable')
-const [timeSignatureUpperValue] = form.defineField('time_signature_upper')
-const [timeSignatureLowerValue] = form.defineField('time_signature_lower')
+const { handleSubmit, setValues, values, meta } = form
 
 const artists = ref<DiscogsArtistDb[]>([])
 const extraartists = ref<DiscogsArtistDb[]>([])
-
-const keyOptions = computed(() =>
-	getKeyOptionsForComposite(user.currentKeyFormat)
-)
 
 watch(
 	[() => selectedTrack.value, () => isEditMode.value],
@@ -198,224 +184,113 @@ function formatKey(track: Track): string {
 						</Button>
 					</div>
 
-					<div class="grid gap-4 md:grid-cols-2">
-						<div class="space-y-2">
-							<Label>Title</Label>
-							<FormItem v-if="isEditMode">
-								<Input
-									v-model="titleValue"
-									name="title"
-									placeholder="Track title"
-									:class="{
-										'border-destructive': !!errors.title
-									}"
-								/>
-								<p v-if="errors.title" class="text-destructive text-sm">
-									{{ errors.title }}
-								</p>
-							</FormItem>
-							<div v-else>{{ selectedTrack?.title }}</div>
-						</div>
-
-						<div class="space-y-2">
-							<Label>Position</Label>
-							<FormItem v-if="isEditMode">
-								<Input
-									v-model="positionValue"
-									name="position"
-									placeholder="A1, B2, etc."
-									:class="{
-										'border-destructive': !!errors.position
-									}"
-								/>
-								<p v-if="errors.position" class="text-destructive text-sm">
-									{{ errors.position }}
-								</p>
-							</FormItem>
-							<div v-else class="text-muted-foreground">
-								{{ selectedTrack?.position || 'Not specified' }}
-							</div>
-						</div>
-					</div>
-
-					<TableArtistsEditable
-						v-model="artists"
-						:is-edit-mode="isEditMode"
-						label="Artists"
+					<FormTrackEditorFields
+						v-if="isEditMode"
+						v-model:artists="artists"
+						v-model:extraartists="extraartists"
+						:key-format="user.currentKeyFormat"
+						:show-validation-errors="true"
 					/>
 
-					<TableArtistsEditable
-						v-model="extraartists"
-						:is-edit-mode="isEditMode"
-						label="Extra Artists"
-					/>
+					<template v-else>
+						<div class="grid gap-4 md:grid-cols-2">
+							<div class="space-y-2">
+								<Label>Title</Label>
+								<div>{{ selectedTrack?.title }}</div>
+							</div>
 
-					<div class="space-y-2">
-						<Label>Genres</Label>
-						<TagsInput v-if="isEditMode" v-model="genresValue">
-							<TagsInputItem
-								v-for="(genre, index) in genresValue"
-								:key="`genre-${index}`"
-								:value="genre"
-							>
-								<TagsInputItemText>{{ genre }}</TagsInputItemText>
-								<TagsInputItemDelete />
-							</TagsInputItem>
-							<TagsInputInput placeholder="Add genres..." />
-						</TagsInput>
-						<div v-else class="flex flex-wrap gap-1">
-							<span
-								v-for="genre in selectedTrack?.genres"
-								:key="genre"
-								class="bg-muted rounded px-2 py-1 text-sm"
-							>
-								{{ genre }}
-							</span>
-							<span
-								v-if="!selectedTrack?.genres?.length"
-								class="text-muted-foreground"
-							>
-								No genres specified
-							</span>
-						</div>
-					</div>
-
-					<div class="grid gap-4 md:grid-cols-3">
-						<div class="space-y-2">
-							<Label>Duration</Label>
-							<FormItem v-if="isEditMode">
-								<Input
-									v-model="durationValue"
-									name="duration"
-									placeholder="3:45"
-									:class="{
-										'border-destructive': !!errors.duration
-									}"
-								/>
-								<p v-if="errors.duration" class="text-destructive text-sm">
-									{{ errors.duration }}
-								</p>
-							</FormItem>
-							<div v-else class="text-muted-foreground">
-								{{
-									msToMMSS(selectedTrack?.duration || null) || 'Not specified'
-								}}
+							<div class="space-y-2">
+								<Label>Position</Label>
+								<div class="text-muted-foreground">
+									{{ selectedTrack?.position || 'Not specified' }}
+								</div>
 							</div>
 						</div>
 
-						<div class="space-y-2">
-							<Label>BPM</Label>
-							<FormItem v-if="isEditMode">
-								<Input
-									v-model="bpmValue"
-									name="bpm"
-									placeholder="128.5"
-									:class="{
-										'border-destructive': !!errors.bpm
-									}"
-								/>
-								<p v-if="errors.bpm" class="text-destructive text-sm">
-									{{ errors.bpm }}
-								</p>
-							</FormItem>
-							<div v-else class="text-muted-foreground">
-								{{ selectedTrack?.bpm || 'Not specified' }}
-							</div>
-						</div>
-
-						<div class="space-y-2">
-							<Label>RPM</Label>
-							<Select v-if="isEditMode" v-model="rpmValue">
-								<SelectTrigger class="w-full">
-									<SelectValue placeholder="Select RPM" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem :value="null">Not specified</SelectItem>
-									<SelectItem :value="33">33⅓ RPM</SelectItem>
-									<SelectItem :value="45">45 RPM</SelectItem>
-								</SelectContent>
-							</Select>
-							<div v-else class="text-muted-foreground">
-								{{
-									selectedTrack?.rpm
-										? `${selectedTrack.rpm} RPM`
-										: 'Not specified'
-								}}
-							</div>
-						</div>
-					</div>
-
-					<div class="grid gap-4 md:grid-cols-2">
-						<div class="space-y-2">
-							<Label>Key</Label>
-							<FormItem v-if="isEditMode">
-								<Select v-model="keyCompositeValue">
-									<SelectTrigger class="w-full">
-										<SelectValue placeholder="Select key" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem
-											v-for="option in keyOptions"
-											:key="option.id"
-											:value="option.id"
-										>
-											{{ option.name }}
-										</SelectItem>
-									</SelectContent>
-								</Select>
-								<p v-if="errors.keyComposite" class="text-destructive text-sm">
-									{{ errors.keyComposite }}
-								</p>
-							</FormItem>
-							<div v-else class="text-muted-foreground">
-								{{ selectedTrack ? formatKey(selectedTrack) : 'Not specified' }}
-							</div>
-						</div>
-
-						<div class="space-y-2">
-							<Label>Time Signature</Label>
-							<div v-if="isEditMode" class="flex gap-2">
-								<NumberField
-									v-model="timeSignatureUpperValue"
-									:min="1"
-									:max="16"
-									:default-value="4"
-									class="w-16"
-								>
-									<NumberFieldInput placeholder="4" />
-								</NumberField>
-								<span class="flex items-center">/</span>
-								<NumberField
-									v-model="timeSignatureLowerValue"
-									:min="1"
-									:max="16"
-									:default-value="4"
-									class="w-16"
-								>
-									<NumberFieldInput placeholder="4" />
-								</NumberField>
-							</div>
-							<div v-else class="text-muted-foreground">
-								{{
-									selectedTrack?.time_signature_upper &&
-									selectedTrack?.time_signature_lower
-										? `${selectedTrack.time_signature_upper}/${selectedTrack.time_signature_lower}`
-										: 'Not specified'
-								}}
-							</div>
-						</div>
-					</div>
-
-					<div class="flex items-center space-x-2">
-						<Switch
-							v-if="isEditMode"
-							id="playable"
-							v-model:checked="playableValue"
+						<TableArtistsEditable
+							v-model="artists"
+							:is-edit-mode="false"
+							label="Artists"
 						/>
-						<Label v-if="isEditMode" for="playable">
-							Playable (track is in good condition)
-						</Label>
-						<div v-else class="flex items-center gap-2">
+
+						<TableArtistsEditable
+							v-model="extraartists"
+							:is-edit-mode="false"
+							label="Extra Artists"
+						/>
+
+						<div class="space-y-2">
+							<Label>Genres</Label>
+							<div class="flex flex-wrap gap-1">
+								<span
+									v-for="genre in selectedTrack?.genres"
+									:key="genre"
+									class="bg-muted rounded px-2 py-1 text-sm"
+								>
+									{{ genre }}
+								</span>
+								<span
+									v-if="!selectedTrack?.genres?.length"
+									class="text-muted-foreground"
+								>
+									No genres specified
+								</span>
+							</div>
+						</div>
+
+						<div class="grid gap-4 md:grid-cols-3">
+							<div class="space-y-2">
+								<Label>Duration</Label>
+								<div class="text-muted-foreground">
+									{{
+										msToMMSS(selectedTrack?.duration || null) || 'Not specified'
+									}}
+								</div>
+							</div>
+
+							<div class="space-y-2">
+								<Label>BPM</Label>
+								<div class="text-muted-foreground">
+									{{ selectedTrack?.bpm || 'Not specified' }}
+								</div>
+							</div>
+
+							<div class="space-y-2">
+								<Label>RPM</Label>
+								<div class="text-muted-foreground">
+									{{
+										selectedTrack?.rpm
+											? `${selectedTrack.rpm} RPM`
+											: 'Not specified'
+									}}
+								</div>
+							</div>
+						</div>
+
+						<div class="grid gap-4 md:grid-cols-2">
+							<div class="space-y-2">
+								<Label>Key</Label>
+								<div class="text-muted-foreground">
+									{{
+										selectedTrack ? formatKey(selectedTrack) : 'Not specified'
+									}}
+								</div>
+							</div>
+
+							<div class="space-y-2">
+								<Label>Time Signature</Label>
+								<div class="text-muted-foreground">
+									{{
+										selectedTrack?.time_signature_upper &&
+										selectedTrack?.time_signature_lower
+											? `${selectedTrack.time_signature_upper}/${selectedTrack.time_signature_lower}`
+											: 'Not specified'
+									}}
+								</div>
+							</div>
+						</div>
+
+						<div class="flex items-center gap-2">
 							<Label>Playable</Label>
 							<span
 								:class="[
@@ -428,7 +303,7 @@ function formatKey(track: Track): string {
 								{{ selectedTrack?.playable ? 'Yes' : 'No' }}
 							</span>
 						</div>
-					</div>
+					</template>
 
 					<div v-if="selectedTrack?.beatport_data" class="space-y-2">
 						<Label>Beatport Data</Label>
