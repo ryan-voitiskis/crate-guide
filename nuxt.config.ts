@@ -1,6 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath } from 'node:url'
+import { buildAnonymousThemeBootstrapScript } from './app/utils/themeBootstrap'
 
 export default defineNuxtConfig({
 	alias: {
@@ -60,7 +61,15 @@ export default defineNuxtConfig({
 				{ property: 'twitter:site', content: '@ryanvoitiskis' },
 				{ property: 'twitter:creator', content: '@ryanvoitiskis' }
 			],
-			link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }]
+			link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+			script: [
+				{
+					key: 'anonymous-theme-bootstrap',
+					innerHTML: buildAnonymousThemeBootstrapScript(),
+					tagPosition: 'head',
+					tagPriority: 'critical'
+				}
+			]
 		}
 	},
 	supabase: {

@@ -2,14 +2,34 @@
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import * as z from 'zod'
+import {
+	buildLoginRedirectPath,
+	buildResetPasswordPath,
+	sanitizeAuthReturnPath
+} from '../utils/authRoutes'
 import { newPasswordSchema } from '../utils/authValidation'
 
 definePageMeta({ layout: 'auth', keepalive: false })
 
 const user = useUserStore()
 const recovery = usePasswordRecovery()
+const route = useRoute()
+const formElement = ref<HTMLFormElement | null>(null)
+const passwordRequirementsId = 'update-password-requirements'
+const returnPath = computed(() => sanitizeAuthReturnPath(route.query.redirect))
+const loginPath = computed(() => buildLoginRedirectPath(returnPath.value))
+const resetPasswordPath = computed(() =>
+	buildResetPasswordPath(returnPath.value)
+)
 
-user.clearAuthOperationError?.()
+useHead({
+	title: computed(() =>
+		recovery.status.value === 'active'
+			? 'Choose new password · Crate Guide'
+			: 'Password recovery · Crate Guide'
+	)
+})
+user.clearAuthFeedback?.('password-update')
 
 const schema = z.object({
 	password: newPasswordSchema
@@ -19,10 +39,20 @@ type UpdatePasswordFormValues = z.infer<typeof schema>
 
 const form = useForm({ validationSchema: toTypedSchema(schema) })
 
-const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
-	const didReset = await user.resetPassword(values.password)
-	if (didReset) form.resetForm()
-})
+watch(
+	() => form.values.password,
+	() => user.clearAuthFeedback?.('password-update')
+)
+
+onBeforeUnmount(() => user.clearAuthFeedback?.('password-update'))
+
+const onSubmit = form.handleSubmit(
+	async (values: UpdatePasswordFormValues) => {
+		const didReset = await user.resetPassword(values.password, returnPath.value)
+		if (didReset) form.resetForm()
+	},
+	({ errors }) => focusFirstInvalidAuthField(formElement.value, errors)
+)
 </script>
 
 <template>
@@ -44,22 +74,17 @@ const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
 
 			<form
 				v-else-if="recovery.status.value === 'active'"
+				ref="formElement"
 				class="flex flex-col gap-3"
 				@submit="onSubmit"
 			>
-				<PanelAuthStatus
-					v-if="user.authOperationError"
-					tone="error"
-					eyebrow="Update failed"
-					:title="user.authOperationError"
-				/>
-
 				<FormField v-slot="{ componentField }" name="password">
 					<FormItem>
 						<FormLabel>New password</FormLabel>
 						<FormControl>
 							<InputPassword
 								autocomplete="new-password"
+								:described-by="passwordRequirementsId"
 								v-bind="componentField"
 							/>
 						</FormControl>
@@ -67,15 +92,24 @@ const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
 					</FormItem>
 				</FormField>
 
-				<ChecklistAuthPassword :password="form.values.password ?? ''" />
+				<ChecklistAuthPassword
+					:id="passwordRequirementsId"
+					:password="form.values.password ?? ''"
+				/>
 
 				<ButtonLoading
-					class="mt-2 w-full"
+					class="hover:bg-primary mt-2 w-full"
 					type="submit"
 					:loading="form.isSubmitting.value"
 				>
 					Update password
 				</ButtonLoading>
+				<PanelAuthStatus
+					v-if="user.authFeedback?.['password-update']"
+					tone="error"
+					eyebrow="Update failed"
+					:title="user.authFeedback['password-update']"
+				/>
 			</form>
 
 			<div v-else class="grid gap-4">
@@ -86,11 +120,11 @@ const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
 					description="Request a new link to restart the recovery flow."
 				/>
 
-				<Button class="w-full" as-child>
-					<NuxtLink to="/reset-password">Request a new link</NuxtLink>
+				<Button class="hover:bg-primary w-full" as-child>
+					<NuxtLink :to="resetPasswordPath">Request a new link</NuxtLink>
 				</Button>
 				<Button variant="outline" class="w-full" as-child>
-					<NuxtLink to="/login">Back to login</NuxtLink>
+					<NuxtLink :to="loginPath">Back to login</NuxtLink>
 				</Button>
 			</div>
 
@@ -98,7 +132,7 @@ const onSubmit = form.handleSubmit(async (values: UpdatePasswordFormValues) => {
 				<Separator class="my-1" />
 
 				<Button variant="link" as-child>
-					<NuxtLink to="/login">Back to login</NuxtLink>
+					<NuxtLink :to="loginPath">Back to login</NuxtLink>
 				</Button>
 			</template>
 		</div>

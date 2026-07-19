@@ -94,7 +94,11 @@ async function enterPassword(wrapper: VueWrapper, password: string) {
 
 describe('password recovery auth lifecycle', () => {
 	beforeEach(async () => {
-		factories.user.mockReturnValue({ resetPassword })
+		factories.user.mockReturnValue({
+			authFeedback: {},
+			clearAuthFeedback: vi.fn(),
+			resetPassword
+		})
 		sessionStorage.clear()
 		await mountRecoveryHarness()
 		recovery.invalidate()
@@ -199,7 +203,7 @@ describe('password recovery auth lifecycle', () => {
 		expect(wrapper.find('input[type="password"]').exists()).toBe(false)
 		expect(wrapper.text()).not.toContain('Update password')
 		const loginLink = wrapper
-			.findAll('a[href="/login"]')
+			.findAll('a[href^="/login"]')
 			.find((link) => link.text() === 'Back to login')
 		if (!loginLink) throw new Error('Back to login link not found')
 		expect(loginLink.text()).toBe('Back to login')
@@ -232,14 +236,16 @@ describe('password recovery auth lifecycle', () => {
 		expect(wrapper.vm.$router.resolve('/update-password').meta.keepalive).toBe(
 			false
 		)
-
 		await wrapper.get('form').trigger('submit.prevent')
 		await flushPromises()
 		await nextTick()
 
 		await vi.waitFor(() => {
-			expect(resetPassword).toHaveBeenCalledWith('Password123')
+			expect(resetPassword).toHaveBeenCalledWith('Password123', '/')
 		})
+		expect(input.attributes('aria-describedby')?.split(' ')).toContain(
+			'update-password-requirements'
+		)
 		expect((input.element as HTMLInputElement).value).toBe('Password123')
 	})
 
@@ -254,7 +260,7 @@ describe('password recovery auth lifecycle', () => {
 		await nextTick()
 
 		await vi.waitFor(() => {
-			expect(resetPassword).toHaveBeenCalledWith('Password123')
+			expect(resetPassword).toHaveBeenCalledWith('Password123', '/')
 		})
 		expect((input.element as HTMLInputElement).value).toBe('')
 	})

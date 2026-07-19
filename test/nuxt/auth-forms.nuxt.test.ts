@@ -12,6 +12,8 @@ const factories = vi.hoisted(() => ({
 }))
 
 const authActions = vi.hoisted(() => ({
+	clearAuthFeedback: vi.fn(),
+	consumeUserAlreadyRegistered: vi.fn(() => false),
 	sendPasswordResetEmail: vi.fn(),
 	signInWithEmail: vi.fn(),
 	signInWithProvider: vi.fn(),
@@ -24,7 +26,7 @@ mockNuxtImport('useUserStore', () => factories.user)
 const wrappers = new Set<VueWrapper>()
 
 async function mountPage(page: Component) {
-	const wrapper = await mountSuspended(page)
+	const wrapper = await mountSuspended(page, { attachTo: document.body })
 	wrappers.add(wrapper)
 	await nextTick()
 	return wrapper
@@ -85,7 +87,7 @@ describe('auth form contracts', () => {
 	beforeEach(() => {
 		factories.route.mockReturnValue({ query: {} })
 		factories.user.mockReturnValue({
-			authOperationError: null,
+			authFeedback: {},
 			userAlreadyRegistered: false,
 			...authActions
 		})
@@ -107,6 +109,18 @@ describe('auth form contracts', () => {
 
 		expectEmailSemantics(wrapper.get('input[name="email"]'))
 		expectPasswordSemantics(wrapper, 'current-password')
+	})
+
+	it('sets safe descriptive titles for login and signup', async () => {
+		const login = await mountPage(LoginPage)
+		await vi.waitFor(() => expect(document.title).toBe('Log in · Crate Guide'))
+		login.unmount()
+		wrappers.delete(login)
+
+		await mountPage(SignupPage)
+		await vi.waitFor(() =>
+			expect(document.title).toBe('Create account · Crate Guide')
+		)
 	})
 
 	it('renders the shared public console with one coherent heading name', async () => {
@@ -208,9 +222,15 @@ describe('auth form contracts', () => {
 
 	it('shows password requirements and hosted-service context on signup', async () => {
 		const wrapper = await mountPage(SignupPage)
+		const password = wrapper.get('input[name="password"]')
 
 		expect(wrapper.text()).toContain('Password requirements')
 		expect(wrapper.text()).toContain('8–64 characters')
+		expect(password.attributes('aria-describedby')?.split(' ')).toContain(
+			'signup-password-requirements'
+		)
+		expect(wrapper.find('#signup-password-requirements').exists()).toBe(true)
+		expect(password.classes()).toContain('pr-12')
 		expect(wrapper.get('a[href="/terms"]').text()).toBe('Hosted Service Terms')
 		expect(wrapper.get('a[href="/privacy"]').text()).toBe('Privacy Notice')
 	})
@@ -236,7 +256,7 @@ describe('auth form contracts', () => {
 
 	it('renders persistent operation errors inside the login form', async () => {
 		factories.user.mockReturnValue({
-			authOperationError: 'Credentials were not accepted.',
+			authFeedback: { 'email-login': 'Credentials were not accepted.' },
 			userAlreadyRegistered: false,
 			...authActions
 		})
@@ -244,6 +264,21 @@ describe('auth form contracts', () => {
 
 		const alert = wrapper.get('[role="alert"]')
 		expect(alert.text()).toContain('Credentials were not accepted.')
+		expect(wrapper.get('form').find('[role="alert"]').exists()).toBe(true)
+	})
+
+	it('focuses the first invalid field and renders exact required copy', async () => {
+		const wrapper = await mountPage(LoginPage)
+
+		await submit(wrapper)
+
+		await vi.waitFor(() => {
+			expect(document.activeElement).toBe(
+				wrapper.get('input[name="email"]').element
+			)
+		})
+		expect(wrapper.text()).toContain('Email is required')
+		expect(wrapper.text()).toContain('Password is required')
 	})
 
 	it('starts signup with empty credentials after a remount', async () => {
@@ -273,7 +308,8 @@ describe('auth form contracts', () => {
 
 		await vi.waitFor(() => {
 			expect(authActions.sendPasswordResetEmail).toHaveBeenCalledWith(
-				'user@example.com'
+				'user@example.com',
+				'/'
 			)
 		})
 		expect(email.element.value).toBe('user@example.com')
@@ -290,6 +326,7 @@ describe('auth form contracts', () => {
 		await vi.waitFor(() => {
 			expect(wrapper.find('form').exists()).toBe(false)
 			expect(wrapper.text()).toContain('Check your inbox')
+			expect(document.title).toBe('Reset link sent · Crate Guide')
 		})
 	})
 })

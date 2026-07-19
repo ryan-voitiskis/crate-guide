@@ -2,6 +2,7 @@
 import { Check, Circle } from 'lucide-vue-next'
 
 interface Props {
+	id?: string
 	password?: string
 }
 
@@ -22,6 +23,7 @@ const requirements = computed(() => [
 
 <template>
 	<div
+		:id="id"
 		class="bg-workbench-inset rounded-sm border px-3 py-2.5"
 		aria-label="Password requirements"
 	>
@@ -30,7 +32,7 @@ const requirements = computed(() => [
 		>
 			Password requirements
 		</p>
-		<ul class="grid gap-x-3 gap-y-1.5 sm:grid-cols-2" aria-live="polite">
+		<ul class="grid gap-x-3 gap-y-1.5 sm:grid-cols-2">
 			<li
 				v-for="requirement in requirements"
 				:key="requirement.label"

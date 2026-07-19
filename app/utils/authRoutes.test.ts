@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
 	buildCheckInboxPath,
 	buildLoginRedirectPath,
+	buildResetPasswordPath,
 	buildSignupRedirectPath,
+	buildUpdatePasswordPath,
 	isPublicRoute,
 	isSignedOutOnlyRoute,
 	sanitizeAuthReturnPath
@@ -120,6 +122,18 @@ describe('auth return paths', () => {
 		)
 		expect(buildCheckInboxPath('/records#release-1')).toBe(
 			'/auth/check-inbox?redirect=%2Frecords%23release-1'
+		)
+	})
+
+	it('builds encoded password recovery destinations', () => {
+		expect(buildResetPasswordPath('/records?crate=house#release-1')).toBe(
+			'/reset-password?redirect=%2Frecords%3Fcrate%3Dhouse%23release-1'
+		)
+		expect(buildUpdatePasswordPath('/tracks?genre=House')).toBe(
+			'/update-password?redirect=%2Ftracks%3Fgenre%3DHouse'
+		)
+		expect(buildUpdatePasswordPath('https://evil.example')).toBe(
+			'/update-password?redirect=%2F'
 		)
 	})
 })

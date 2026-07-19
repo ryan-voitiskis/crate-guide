@@ -33,7 +33,9 @@ const titleChars = computed(() => {
 </script>
 
 <template>
-	<div class="bg-background flex min-h-full flex-col">
+	<div
+		class="bg-background flex min-h-full flex-col [--destructive:var(--auth-destructive)] [--muted-foreground:var(--auth-muted-foreground)] [--primary-foreground:var(--auth-primary-foreground)] [--primary:var(--auth-primary)]"
+	>
 		<HeaderPublic section="Account access" />
 
 		<main

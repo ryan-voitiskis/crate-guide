@@ -200,6 +200,56 @@ async function mockAuthenticatedSupabase(page: Page) {
 }
 
 describe('Login redirects', () => {
+	it.each([
+		{ width: 375, height: 667 },
+		{ width: 390, height: 844 }
+	])(
+		'keeps auth validation usable without overflow at $width×$height',
+		async (viewport) => {
+			const page = await createPage('/login')
+			await page.setViewportSize(viewport)
+			await page.reload()
+			await page.getByRole('button', { name: 'Sign in' }).click()
+
+			await page.getByText('Email is required').waitFor()
+			await page.getByText('Password is required').waitFor()
+			expect(
+				await page.evaluate(
+					() => document.documentElement.scrollWidth > window.innerWidth
+				)
+			).toBe(false)
+			expect(
+				await page.evaluate(() => document.activeElement?.getAttribute('name'))
+			).toBe('email')
+
+			await page.close()
+		}
+	)
+
+	it('applies the saved anonymous dark theme before auth styles and content', async () => {
+		const page = await createPage('/login')
+		await page.addInitScript(() => {
+			localStorage.setItem('crate-guide:anonymous-theme', 'dark')
+		})
+
+		const response = await page.reload()
+		await page.getByRole('heading', { name: 'Log in' }).waitFor()
+		const html = (await response?.text()) ?? ''
+		const bootstrapIndex = html.indexOf('crate-guide:anonymous-theme')
+		const stylesheetIndex = html.indexOf('rel="stylesheet"')
+
+		expect(bootstrapIndex).toBeGreaterThan(-1)
+		expect(stylesheetIndex).toBeGreaterThan(-1)
+		expect(bootstrapIndex).toBeLessThan(stylesheetIndex)
+		expect(
+			await page.evaluate(() =>
+				document.documentElement.classList.contains('dark')
+			)
+		).toBe(true)
+
+		await page.close()
+	})
+
 	it('mounts the complete workbench when opening the demo from login', async () => {
 		const page = await createPage('/login')
 

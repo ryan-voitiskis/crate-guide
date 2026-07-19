@@ -14,8 +14,11 @@ const user = useUserStore()
 const route = useRoute()
 const returnPath = computed(() => sanitizeAuthReturnPath(route.query.redirect))
 const loginPath = computed(() => buildLoginRedirectPath(returnPath.value))
+const formElement = ref<HTMLFormElement | null>(null)
+const passwordRequirementsId = 'signup-password-requirements'
 
-user.clearAuthOperationError?.()
+useHead({ title: 'Create account · Crate Guide' })
+user.clearAuthFeedback?.()
 
 const signingInWithGithub = ref(false)
 const signingInWithGoogle = ref(false)
@@ -29,14 +32,24 @@ type SignupFormValues = z.infer<typeof schema>
 
 const form = useForm({ validationSchema: toTypedSchema(schema) })
 
-const onSubmit = form.handleSubmit(async (values: SignupFormValues) => {
-	const didSignUp = await user.signUpWithEmail(
-		values.email,
-		values.password,
-		returnPath.value
-	)
-	if (didSignUp) form.resetForm()
-})
+watch(
+	() => [form.values.email, form.values.password],
+	() => user.clearAuthFeedback?.('email-signup')
+)
+
+onBeforeUnmount(() => user.clearAuthFeedback?.())
+
+const onSubmit = form.handleSubmit(
+	async (values: SignupFormValues) => {
+		const didSignUp = await user.signUpWithEmail(
+			values.email,
+			values.password,
+			returnPath.value
+		)
+		if (didSignUp) form.resetForm()
+	},
+	({ errors }) => focusFirstInvalidAuthField(formElement.value, errors)
+)
 
 async function signInWithGithub() {
 	signingInWithGithub.value = true
@@ -59,13 +72,6 @@ async function signInWithGoogle() {
 		catalog="CG · A02"
 	>
 		<div class="grid gap-4">
-			<PanelAuthStatus
-				v-if="user.authOperationError"
-				tone="error"
-				eyebrow="Account setup failed"
-				:title="user.authOperationError"
-			/>
-
 			<div class="grid gap-2 sm:grid-cols-2">
 				<ButtonLoading
 					variant="outline"
@@ -86,10 +92,22 @@ async function signInWithGoogle() {
 					Google
 				</ButtonLoading>
 			</div>
+			<PanelAuthStatus
+				v-if="user.authFeedback?.github"
+				tone="error"
+				eyebrow="GitHub sign-up failed"
+				:title="user.authFeedback.github"
+			/>
+			<PanelAuthStatus
+				v-if="user.authFeedback?.google"
+				tone="error"
+				eyebrow="Google sign-up failed"
+				:title="user.authFeedback.google"
+			/>
 
 			<SeparatorLabelled label="Email credentials" class="my-1" />
 
-			<form class="flex flex-col gap-3" @submit="onSubmit">
+			<form ref="formElement" class="flex flex-col gap-3" @submit="onSubmit">
 				<FormField v-slot="{ componentField }" name="email">
 					<FormItem>
 						<FormLabel>Email</FormLabel>
@@ -113,6 +131,7 @@ async function signInWithGoogle() {
 						<FormControl>
 							<InputPassword
 								autocomplete="new-password"
+								:described-by="passwordRequirementsId"
 								v-bind="componentField"
 							/>
 						</FormControl>
@@ -120,16 +139,25 @@ async function signInWithGoogle() {
 					</FormItem>
 				</FormField>
 
-				<ChecklistAuthPassword :password="form.values.password ?? ''" />
+				<ChecklistAuthPassword
+					:id="passwordRequirementsId"
+					:password="form.values.password ?? ''"
+				/>
 
 				<ButtonLoading
-					class="mt-2 w-full"
+					class="hover:bg-primary mt-2 w-full"
 					type="submit"
 					:disabled="signingInWithGithub || signingInWithGoogle"
 					:loading="form.isSubmitting.value"
 				>
 					Create account
 				</ButtonLoading>
+				<PanelAuthStatus
+					v-if="user.authFeedback?.['email-signup']"
+					tone="error"
+					eyebrow="Account setup failed"
+					:title="user.authFeedback['email-signup']"
+				/>
 				<p
 					class="text-muted-foreground text-center text-[11px] leading-relaxed"
 				>

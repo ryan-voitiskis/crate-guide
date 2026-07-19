@@ -126,7 +126,8 @@ stack. For every hosted environment, verify the actual Supabase Auth URL
 Configuration and explicitly add these Redirect URLs using that environment's
 real `SITE_URL`:
 
-- `${SITE_URL}/update-password`
+- `${SITE_URL}/update-password?redirect=**` (or an equivalently narrow pattern
+  supported by Supabase)
 - `${SITE_URL}/auth/finalising?redirect=**` (or an equivalently narrow pattern
   supported by Supabase)
 

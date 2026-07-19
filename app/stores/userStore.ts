@@ -9,6 +9,7 @@ import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 import {
 	buildCheckInboxPath,
 	buildLoginRedirectPath,
+	buildUpdatePasswordPath,
 	sanitizeAuthReturnPath
 } from '../utils/authRoutes'
 
@@ -25,6 +26,30 @@ export type DeleteAccountResult =
 	| { status: 'recent-auth-required' }
 	| { status: 'failed' }
 
+export type AuthFeedbackAction =
+	| 'email-login'
+	| 'email-signup'
+	| 'password-reset-request'
+	| 'password-update'
+	| 'github'
+	| 'google'
+	| 'signup-confirmation-resend'
+
+export type PendingSignupContext = {
+	email: string
+	returnPath: string
+}
+
+const AUTH_FEEDBACK_ACTIONS: AuthFeedbackAction[] = [
+	'email-login',
+	'email-signup',
+	'password-reset-request',
+	'password-update',
+	'github',
+	'google',
+	'signup-confirmation-resend'
+]
+
 export const useUserStore = defineStore('user', () => {
 	const supabase = useSupabaseClient<Database>()
 	const isDemoStore = isDemoWorkbenchPinia(getActivePinia())
@@ -37,7 +62,13 @@ export const useUserStore = defineStore('user', () => {
 
 	const profile = ref<Profile | null>(null)
 	const userAlreadyRegistered = ref(false)
-	const authOperationError = ref<string | null>(null)
+	const authFeedback = ref<Record<AuthFeedbackAction, string | null>>(
+		Object.fromEntries(
+			AUTH_FEEDBACK_ACTIONS.map((action) => [action, null])
+		) as Record<AuthFeedbackAction, string | null>
+	)
+	const pendingSignup = ref<PendingSignupContext | null>(null)
+	const isResendingSignupConfirmation = ref(false)
 	const isUpdatingSettings = ref(false)
 	const isSigningOut = ref(false)
 	const isDeletingAccount = ref(false)
@@ -130,14 +161,32 @@ export const useUserStore = defineStore('user', () => {
 		throw new Error('SITE_URL is required when window.location is unavailable')
 	}
 
-	function clearAuthOperationError() {
-		authOperationError.value = null
+	function clearAuthFeedback(action?: AuthFeedbackAction) {
+		if (action) {
+			authFeedback.value[action] = null
+			return
+		}
+		for (const feedbackAction of AUTH_FEEDBACK_ACTIONS)
+			authFeedback.value[feedbackAction] = null
 	}
 
-	function failAuthOperation(message: string): false {
-		authOperationError.value = message
-		toast.error(message)
+	function failAuthOperation(
+		action: AuthFeedbackAction,
+		message: string
+	): false {
+		authFeedback.value[action] = message
 		return false
+	}
+
+	function consumeUserAlreadyRegistered(): boolean {
+		const shouldShow = userAlreadyRegistered.value
+		userAlreadyRegistered.value = false
+		return shouldShow
+	}
+
+	function clearPendingSignup() {
+		pendingSignup.value = null
+		clearAuthFeedback('signup-confirmation-resend')
 	}
 
 	async function resolveAuthenticatedUserId(): Promise<string> {
@@ -171,45 +220,49 @@ export const useUserStore = defineStore('user', () => {
 		password: string,
 		returnPath: unknown = '/'
 	): Promise<boolean> {
-		clearAuthOperationError()
+		clearAuthFeedback('email-signup')
+		userAlreadyRegistered.value = false
 		const safeReturnPath = sanitizeAuthReturnPath(returnPath)
 		try {
 			const { data, error } = await supabase.auth.signUp({ email, password })
 			if (error?.message === 'User already registered') {
 				userAlreadyRegistered.value = true
-				router.push(buildLoginRedirectPath(safeReturnPath))
-				toast.warning(`You've already created an account.`)
+				await router.push(buildLoginRedirectPath(safeReturnPath))
 				return false
 			}
 			if (error) throw error
 			// When email confirmations are enabled, signUp succeeds but no session
 			// is created until the user clicks the link in their inbox.
 			if (!data.session) {
-				router.push(buildCheckInboxPath(safeReturnPath))
+				pendingSignup.value = { email, returnPath: safeReturnPath }
+				await router.push(buildCheckInboxPath(safeReturnPath))
 				return true
 			}
-			router.push(safeReturnPath)
+			pendingSignup.value = null
+			await router.push(safeReturnPath)
 			toast.success('Sign up successful!')
 			return true
 		} catch {
 			return failAuthOperation(
+				'email-signup',
 				'Your account could not be created. Check the details and try again.'
 			)
 		}
 	}
 
 	async function signInWithEmail(email: string, password: string) {
-		clearAuthOperationError()
+		clearAuthFeedback('email-login')
+		userAlreadyRegistered.value = false
 		try {
 			const { error } = await supabase.auth.signInWithPassword({
 				email,
 				password
 			})
 			if (error) throw error
-			toast.success('Sign in successful!')
 			return true
 		} catch {
 			return failAuthOperation(
+				'email-login',
 				"We couldn't sign you in. Check your credentials and try again."
 			)
 		}
@@ -219,7 +272,8 @@ export const useUserStore = defineStore('user', () => {
 		provider: 'github' | 'google',
 		returnPath: unknown = '/'
 	): Promise<boolean> {
-		clearAuthOperationError()
+		clearAuthFeedback(provider)
+		userAlreadyRegistered.value = false
 		try {
 			const redirect = encodeURIComponent(sanitizeAuthReturnPath(returnPath))
 			const { error } = await supabase.auth.signInWithOAuth({
@@ -233,6 +287,7 @@ export const useUserStore = defineStore('user', () => {
 		} catch {
 			const providerLabel = provider === 'github' ? 'GitHub' : 'Google'
 			return failAuthOperation(
+				provider,
 				`${providerLabel} sign-in couldn't start. Please try again.`
 			)
 		}
@@ -411,41 +466,50 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
-	async function sendPasswordResetEmail(email: string): Promise<boolean> {
-		clearAuthOperationError()
+	async function sendPasswordResetEmail(
+		email: string,
+		returnPath: unknown = '/'
+	): Promise<boolean> {
+		clearAuthFeedback('password-reset-request')
+		const safeReturnPath = sanitizeAuthReturnPath(returnPath)
 		try {
 			const { error } = await supabase.auth.resetPasswordForEmail(email, {
-				redirectTo: `${getSiteUrl()}/update-password`
+				redirectTo: `${getSiteUrl()}${buildUpdatePasswordPath(safeReturnPath)}`
 			})
 			if (error) throw error
-			toast.success('Password reset email sent!')
 			return true
 		} catch {
 			return failAuthOperation(
+				'password-reset-request',
 				"We couldn't send the reset link. Please try again."
 			)
 		}
 	}
 
-	async function resetPassword(password: string): Promise<boolean> {
-		clearAuthOperationError()
+	async function resetPassword(
+		password: string,
+		returnPath: unknown = '/'
+	): Promise<boolean> {
+		clearAuthFeedback('password-update')
+		const safeReturnPath = sanitizeAuthReturnPath(returnPath)
 		try {
 			const { error } = await supabase.auth.updateUser({ password })
 			if (error) throw error
 		} catch {
 			return failAuthOperation(
+				'password-update',
 				"We couldn't update your password. Please check the requirements and try again."
 			)
 		}
 
 		passwordRecovery.consume()
 		try {
-			await router.push('/')
+			await router.push(safeReturnPath)
 			toast.success('Password reset successful!')
 		} catch (e) {
 			console.error(e)
 			toast.error(
-				`Your password was reset, but the home page could not open.`,
+				`Your password was reset, but the requested page could not open.`,
 				{
 					duration: 30000
 				}
@@ -459,23 +523,40 @@ export const useUserStore = defineStore('user', () => {
 		type: EmailOtpType,
 		returnPath: unknown = '/'
 	): Promise<boolean> {
-		clearAuthOperationError()
 		try {
 			const { error } = await supabase.auth.verifyOtp({ token_hash, type })
 			if (error) throw error
 			if (type === 'recovery') {
 				passwordRecovery.activate()
-				router.push('/update-password')
-				toast.success('Recovery link verified!')
+				await router.push(buildUpdatePasswordPath(returnPath))
 				return true
 			}
-			router.push(sanitizeAuthReturnPath(returnPath))
-			toast.success('Sign in successful!')
+			await router.push(sanitizeAuthReturnPath(returnPath))
+			return true
+		} catch {
+			return false
+		}
+	}
+
+	async function resendSignupConfirmation(): Promise<boolean> {
+		if (isResendingSignupConfirmation.value || !pendingSignup.value)
+			return false
+		clearAuthFeedback('signup-confirmation-resend')
+		isResendingSignupConfirmation.value = true
+		try {
+			const { error } = await supabase.auth.resend({
+				type: 'signup',
+				email: pendingSignup.value.email
+			})
+			if (error) throw error
 			return true
 		} catch {
 			return failAuthOperation(
-				'This verification link could not be completed. It may have expired.'
+				'signup-confirmation-resend',
+				"We couldn't resend the confirmation email. Please wait and try again."
 			)
+		} finally {
+			isResendingSignupConfirmation.value = false
 		}
 	}
 
@@ -738,8 +819,10 @@ export const useUserStore = defineStore('user', () => {
 		profile,
 		currentTheme,
 		currentKeyFormat,
-		userAlreadyRegistered,
-		authOperationError: readonly(authOperationError),
+		userAlreadyRegistered: readonly(userAlreadyRegistered),
+		authFeedback: readonly(authFeedback),
+		pendingSignup: readonly(pendingSignup),
+		isResendingSignupConfirmation: readonly(isResendingSignupConfirmation),
 		isUpdatingSettings,
 		isSigningOut: readonly(isSigningOut),
 		isDeletingAccount: readonly(isDeletingAccount),
@@ -753,7 +836,10 @@ export const useUserStore = defineStore('user', () => {
 		sendPasswordResetEmail,
 		resetPassword,
 		verifyOtp,
-		clearAuthOperationError,
+		resendSignupConfirmation,
+		clearAuthFeedback,
+		consumeUserAlreadyRegistered,
+		clearPendingSignup,
 		fetchProfile,
 		updateSettings,
 		setLocalTheme,

@@ -37,7 +37,7 @@ async function mountPage(
 async function mountLoginPage(query: Record<string, unknown>) {
 	factories.route.mockReturnValue({ query })
 	factories.user.mockReturnValue({
-		authOperationError: null,
+		authFeedback: {},
 		supaUser: null,
 		userAlreadyRegistered: false,
 		signInWithEmail: vi.fn(),
@@ -167,6 +167,7 @@ describe('auth finalising page', () => {
 		expect(wrapper.text()).toContain(callbackFailureMessage)
 		expect(wrapper.text()).not.toContain('unexpected')
 		expect(wrapper.text()).not.toContain('provider')
+		expect(document.title).toBe('Sign in interrupted · Crate Guide')
 		expectFailureActions(wrapper, '/login?redirect=%2Frecords')
 	})
 
@@ -185,14 +186,14 @@ describe('auth finalising page', () => {
 
 	it('clears the hydration timeout when unmounted', async () => {
 		vi.useFakeTimers()
+		const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')
 		const wrapper = await mountPage()
 
-		const timerCount = vi.getTimerCount()
-		expect(timerCount).toBeGreaterThan(0)
+		expect(vi.getTimerCount()).toBeGreaterThan(0)
 		wrapper.unmount()
 		wrappers.delete(wrapper)
 
-		expect(vi.getTimerCount()).toBe(timerCount - 1)
+		expect(clearTimeoutSpy).toHaveBeenCalled()
 	})
 })
 

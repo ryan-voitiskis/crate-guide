@@ -15,7 +15,7 @@ mockNuxtImport('useUserStore', () => factories.user)
 
 const wrappers = new Set<VueWrapper>()
 const failureMessage = 'This confirmation link is invalid or has expired.'
-const failureGuidance = 'Return to login and request a new link if needed.'
+const failureGuidance = 'Request another sign-in link or use your credentials.'
 
 async function mountPage(
 	query: Record<string, string>,
@@ -38,15 +38,19 @@ function expectPersistentFailure(wrapper: VueWrapper) {
 	expect(wrapper.text()).toContain(failureGuidance)
 	const loginLink = wrapper
 		.findAll('a[href^="/login"]')
-		.find((link) => link.text() === 'Back to login')
+		.find((link) => link.text() === 'Go to login')
 	if (!loginLink) throw new Error('Back to login link not found')
-	expect(loginLink.text()).toBe('Back to login')
+	expect(loginLink.text()).toBe('Go to login')
 	expect(loginLink.attributes('href')).toBe('/login?redirect=%2F')
 }
 
 describe('auth confirmation page', () => {
 	beforeEach(() => {
-		factories.user.mockReturnValue({ verifyOtp })
+		factories.user.mockReturnValue({
+			pendingSignup: null,
+			supaUser: null,
+			verifyOtp
+		})
 	})
 
 	afterEach(() => {
@@ -98,6 +102,7 @@ describe('auth confirmation page', () => {
 		await nextTick()
 
 		expect(wrapper.text()).toContain('Verifying sign-in link...')
+		expect(document.title).toBe('Verify sign in · Crate Guide')
 		expect(wrapper.text()).not.toContain(failureMessage)
 
 		resolveVerification(true)
@@ -134,4 +139,31 @@ describe('auth confirmation page', () => {
 			'/records?crate=house'
 		)
 	})
+
+	it.each([
+		[
+			'recovery',
+			'Request a new reset link',
+			'/reset-password?redirect=%2Frecords'
+		],
+		['signup', 'Return to sign up', '/signup?redirect=%2Frecords'],
+		['magiclink', 'Go to login', '/login?redirect=%2Frecords'],
+		['invite', 'Go to login', '/login?redirect=%2Frecords'],
+		['email', 'Go to login', '/login?redirect=%2Frecords'],
+		['email_change', 'Go to login', '/login?redirect=%2Frecords']
+	])(
+		'offers a purpose-specific action for %s failures',
+		async (type, label, href) => {
+			verifyOtp.mockResolvedValue(false)
+			const wrapper = await mountPage({
+				token_hash: 'token-hash',
+				type,
+				redirect: '/records'
+			})
+			const link = wrapper
+				.findAll('a')
+				.find((candidate) => candidate.text() === label)
+			expect(link?.attributes('href')).toBe(href)
+		}
+	)
 })

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { EmailOtpType } from '@supabase/supabase-js'
 import {
+	buildCheckInboxPath,
 	buildLoginRedirectPath,
+	buildResetPasswordPath,
+	buildSignupRedirectPath,
 	sanitizeAuthReturnPath
 } from '../../utils/authRoutes'
 
@@ -15,6 +18,11 @@ const verifyError = ref<string | null>(null)
 const verificationSucceeded = ref(false)
 const returnPath = computed(() => sanitizeAuthReturnPath(route.query.redirect))
 const loginPath = computed(() => buildLoginRedirectPath(returnPath.value))
+const resetPasswordPath = computed(() =>
+	buildResetPasswordPath(returnPath.value)
+)
+const signupPath = computed(() => buildSignupRedirectPath(returnPath.value))
+const checkInboxPath = computed(() => buildCheckInboxPath(returnPath.value))
 
 const validTypes: EmailOtpType[] = [
 	'signup',
@@ -56,6 +64,63 @@ const purpose = computed(() => {
 		pending: 'Verifying account confirmation...',
 		success: 'Account confirmed. Redirecting...'
 	}
+})
+
+const failureAction = computed(() => {
+	const type = route.query.type
+	if (type === 'recovery')
+		return {
+			label: 'Request a new reset link',
+			path: resetPasswordPath.value,
+			description: 'Request a new password reset link to continue.'
+		}
+	if (type === 'signup')
+		return user.pendingSignup?.returnPath === returnPath.value
+			? {
+					label: 'Return to confirmation',
+					path: checkInboxPath.value,
+					description: 'Resend the account confirmation or use another email.'
+				}
+			: {
+					label: 'Return to sign up',
+					path: signupPath.value,
+					description: 'Start sign up again to request a new confirmation.'
+				}
+	if (type === 'invite')
+		return user.supaUser
+			? {
+					label: 'Continue to Crate Guide',
+					path: returnPath.value,
+					description:
+						'Ask the inviter for a new invitation if access is missing.'
+				}
+			: {
+					label: 'Go to login',
+					path: loginPath.value,
+					description: 'Log in, or ask the inviter for a new invitation.'
+				}
+	if (type === 'email_change')
+		return user.supaUser
+			? {
+					label: 'Return to account',
+					path: returnPath.value,
+					description:
+						'Return to your account and request the email change again.'
+				}
+			: {
+					label: 'Go to login',
+					path: loginPath.value,
+					description: 'Log in to request the email change again.'
+				}
+	return {
+		label: 'Go to login',
+		path: loginPath.value,
+		description: 'Request another sign-in link or use your credentials.'
+	}
+})
+
+useHead({
+	title: computed(() => `${purpose.value.title} · Crate Guide`)
 })
 
 function showVerificationError() {
@@ -113,10 +178,12 @@ onMounted(async () => {
 				tone="error"
 				eyebrow="Verification unavailable"
 				:title="verifyError"
-				description="Return to login and request a new link if needed."
+				:description="failureAction.description"
 			/>
-			<Button class="w-full" as-child>
-				<NuxtLink :to="loginPath">Back to login</NuxtLink>
+			<Button class="hover:bg-primary w-full" as-child>
+				<NuxtLink :to="failureAction.path">
+					{{ failureAction.label }}
+				</NuxtLink>
 			</Button>
 		</div>
 	</ShellAuth>

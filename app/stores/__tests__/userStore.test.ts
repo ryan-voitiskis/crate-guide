@@ -121,6 +121,7 @@ const mockSupabaseClient = {
 		resetPasswordForEmail: vi
 			.fn()
 			.mockResolvedValue({ data: null, error: null }),
+		resend: vi.fn().mockResolvedValue({ data: null, error: null }),
 		updateUser: vi.fn().mockResolvedValue({ data: null, error: null }),
 		verifyOtp: vi.fn().mockResolvedValue({ data: null, error: null })
 	}
@@ -386,6 +387,10 @@ describe('userStore', () => {
 			expect(mockRouter.push).toHaveBeenCalledWith(
 				'/auth/check-inbox?redirect=%2F'
 			)
+			expect(store.pendingSignup).toEqual({
+				email: 'test@example.com',
+				returnPath: '/'
+			})
 		})
 
 		it('returns true and navigates to home when a session is created immediately', async () => {
@@ -432,9 +437,10 @@ describe('userStore', () => {
 
 			expect(result).toBe(false)
 			expect(mockRouter.push).not.toHaveBeenCalled()
-			expect(store.authOperationError).toBe(
+			expect(store.authFeedback['email-signup']).toBe(
 				'Your account could not be created. Check the details and try again.'
 			)
+			expect(mockToast.error).not.toHaveBeenCalled()
 		})
 
 		it('preserves the requested destination through confirmation', async () => {
@@ -483,9 +489,10 @@ describe('userStore', () => {
 			const result = await store.signInWithEmail('test@example.com', 'wrong')
 
 			expect(result).toBe(false)
-			expect(store.authOperationError).toBe(
+			expect(store.authFeedback['email-login']).toBe(
 				"We couldn't sign you in. Check your credentials and try again."
 			)
+			expect(mockToast.error).not.toHaveBeenCalled()
 			expect(mockRouter.push).not.toHaveBeenCalled()
 		})
 	})
@@ -560,6 +567,11 @@ describe('userStore', () => {
 			})
 
 			await expect(store.signInWithProvider('github')).resolves.toBe(false)
+			expect(store.authFeedback.github).toBe(
+				"GitHub sign-in couldn't start. Please try again."
+			)
+			expect(store.authFeedback.google).toBeNull()
+			expect(mockToast.error).not.toHaveBeenCalled()
 		})
 	})
 
@@ -918,7 +930,27 @@ describe('userStore', () => {
 			expect(
 				mockSupabaseClient.auth.resetPasswordForEmail
 			).toHaveBeenCalledWith('test@example.com', {
-				redirectTo: 'https://example.com/update-password'
+				redirectTo: 'https://example.com/update-password?redirect=%2F'
+			})
+		})
+
+		it('preserves a safe destination in the recovery link', async () => {
+			const store = useUserStore()
+			mockSupabaseClient.auth.resetPasswordForEmail.mockResolvedValue({
+				data: {},
+				error: null
+			})
+
+			await store.sendPasswordResetEmail(
+				'test@example.com',
+				'/records?crate=house#release-1'
+			)
+
+			expect(
+				mockSupabaseClient.auth.resetPasswordForEmail
+			).toHaveBeenCalledWith('test@example.com', {
+				redirectTo:
+					'https://example.com/update-password?redirect=%2Frecords%3Fcrate%3Dhouse%23release-1'
 			})
 		})
 
@@ -948,6 +980,20 @@ describe('userStore', () => {
 			expect(result).toBe(true)
 			expect(mockRouter.push).toHaveBeenCalledWith('/')
 			expect(mockPasswordRecovery.consume).toHaveBeenCalledOnce()
+		})
+
+		it('returns to the safe requested destination on success', async () => {
+			const store = useUserStore()
+			mockSupabaseClient.auth.updateUser.mockResolvedValue({
+				data: {},
+				error: null
+			})
+
+			await store.resetPassword('Password123', '/records?crate=house#release-1')
+
+			expect(mockRouter.push).toHaveBeenCalledWith(
+				'/records?crate=house#release-1'
+			)
 		})
 
 		it('returns false and keeps recovery active on update errors', async () => {
@@ -984,7 +1030,7 @@ describe('userStore', () => {
 					'Password reset successful!'
 				)
 				expect(mockToast.error).toHaveBeenCalledWith(
-					'Your password was reset, but the home page could not open.',
+					'Your password was reset, but the requested page could not open.',
 					{ duration: 30000 }
 				)
 			} finally {
@@ -1040,9 +1086,11 @@ describe('userStore', () => {
 				type: 'recovery'
 			})
 			expect(mockPasswordRecovery.activate).toHaveBeenCalledOnce()
-			expect(mockRouter.push).toHaveBeenCalledWith('/update-password')
+			expect(mockRouter.push).toHaveBeenCalledWith(
+				'/update-password?redirect=%2F'
+			)
 			expect(mockRouter.push).not.toHaveBeenCalledWith('/')
-			expect(mockToast.success).toHaveBeenCalledWith('Recovery link verified!')
+			expect(mockToast.success).not.toHaveBeenCalled()
 		})
 
 		it('handles verification errors', async () => {
@@ -1056,6 +1104,37 @@ describe('userStore', () => {
 
 			expect(result).toBe(false)
 			expect(mockRouter.push).not.toHaveBeenCalled()
+		})
+	})
+
+	describe('pending signup confirmation', () => {
+		it('consumes the existing-account notice exactly once', async () => {
+			const store = useUserStore()
+			mockSupabaseClient.auth.signUp.mockResolvedValue({
+				data: null,
+				error: { message: 'User already registered' }
+			})
+			await store.signUpWithEmail('test@example.com', 'Password123')
+
+			expect(store.consumeUserAlreadyRegistered()).toBe(true)
+			expect(store.consumeUserAlreadyRegistered()).toBe(false)
+		})
+
+		it('resends only when ephemeral signup context exists', async () => {
+			const store = useUserStore()
+			expect(await store.resendSignupConfirmation()).toBe(false)
+
+			mockSupabaseClient.auth.signUp.mockResolvedValue({
+				data: { session: null },
+				error: null
+			})
+			await store.signUpWithEmail('test@example.com', 'Password123', '/records')
+
+			expect(await store.resendSignupConfirmation()).toBe(true)
+			expect(mockSupabaseClient.auth.resend).toHaveBeenCalledWith({
+				type: 'signup',
+				email: 'test@example.com'
+			})
 		})
 	})
 

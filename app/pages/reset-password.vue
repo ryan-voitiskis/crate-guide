@@ -2,14 +2,29 @@
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import * as z from 'zod'
+import {
+	buildLoginRedirectPath,
+	sanitizeAuthReturnPath
+} from '../utils/authRoutes'
 import { emailSchema } from '../utils/authValidation'
 
 definePageMeta({ layout: 'auth', keepalive: false })
 
 const user = useUserStore()
+const route = useRoute()
 const linkSent = ref(false)
+const formElement = ref<HTMLFormElement | null>(null)
+const returnPath = computed(() => sanitizeAuthReturnPath(route.query.redirect))
+const loginPath = computed(() => buildLoginRedirectPath(returnPath.value))
 
-user.clearAuthOperationError?.()
+useHead({
+	title: computed(() =>
+		linkSent.value
+			? 'Reset link sent · Crate Guide'
+			: 'Reset password · Crate Guide'
+	)
+})
+user.clearAuthFeedback?.('password-reset-request')
 
 const schema = z.object({
 	email: emailSchema
@@ -19,13 +34,26 @@ type ResetPasswordFormValues = z.infer<typeof schema>
 
 const form = useForm({ validationSchema: toTypedSchema(schema) })
 
-const onSubmit = form.handleSubmit(async (values: ResetPasswordFormValues) => {
-	const didSend = await user.sendPasswordResetEmail(values.email)
-	if (didSend) {
-		linkSent.value = true
-		form.resetForm()
-	}
-})
+watch(
+	() => form.values.email,
+	() => user.clearAuthFeedback?.('password-reset-request')
+)
+
+onBeforeUnmount(() => user.clearAuthFeedback?.('password-reset-request'))
+
+const onSubmit = form.handleSubmit(
+	async (values: ResetPasswordFormValues) => {
+		const didSend = await user.sendPasswordResetEmail(
+			values.email,
+			returnPath.value
+		)
+		if (didSend) {
+			linkSent.value = true
+			form.resetForm()
+		}
+	},
+	({ errors }) => focusFirstInvalidAuthField(formElement.value, errors)
+)
 </script>
 
 <template>
@@ -42,14 +70,12 @@ const onSubmit = form.handleSubmit(async (values: ResetPasswordFormValues) => {
 		context-description="Recovery links are single-use. The reset flow verifies the link before accepting a new credential."
 	>
 		<div class="grid gap-4">
-			<PanelAuthStatus
-				v-if="user.authOperationError"
-				tone="error"
-				eyebrow="Delivery failed"
-				:title="user.authOperationError"
-			/>
-
-			<form v-if="!linkSent" class="flex flex-col gap-3" @submit="onSubmit">
+			<form
+				v-if="!linkSent"
+				ref="formElement"
+				class="flex flex-col gap-3"
+				@submit="onSubmit"
+			>
 				<FormField v-slot="{ componentField }" name="email">
 					<FormItem>
 						<FormLabel>Email</FormLabel>
@@ -68,12 +94,18 @@ const onSubmit = form.handleSubmit(async (values: ResetPasswordFormValues) => {
 				</FormField>
 
 				<ButtonLoading
-					class="mt-2 w-full"
+					class="hover:bg-primary mt-2 w-full"
 					type="submit"
 					:loading="form.isSubmitting.value"
 				>
 					Send reset link
 				</ButtonLoading>
+				<PanelAuthStatus
+					v-if="user.authFeedback?.['password-reset-request']"
+					tone="error"
+					eyebrow="Delivery failed"
+					:title="user.authFeedback['password-reset-request']"
+				/>
 			</form>
 			<div v-else class="grid gap-3">
 				<PanelAuthStatus
@@ -90,7 +122,7 @@ const onSubmit = form.handleSubmit(async (values: ResetPasswordFormValues) => {
 			<Separator class="my-1" />
 
 			<Button variant="link" as-child>
-				<NuxtLink to="/login">Back to login</NuxtLink>
+				<NuxtLink :to="loginPath">Back to login</NuxtLink>
 			</Button>
 		</div>
 	</ShellAuth>

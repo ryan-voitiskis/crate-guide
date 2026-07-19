@@ -6,6 +6,7 @@ defineOptions({ inheritAttrs: false })
 
 const props = defineProps<{
 	autocomplete?: InputHTMLAttributes['autocomplete']
+	describedBy?: string
 	defaultValue?: string | number
 	modelValue?: string | number
 	class?: HTMLAttributes['class']
@@ -22,6 +23,14 @@ const emit = defineEmits<{
 
 const attrs = useAttrs()
 const showPassword = ref(false)
+const ariaDescribedBy = computed(() => {
+	const descriptions: string[] = []
+	const inheritedDescription = attrs['aria-describedby']
+	if (typeof inheritedDescription === 'string' && inheritedDescription)
+		descriptions.push(inheritedDescription)
+	if (props.describedBy) descriptions.push(props.describedBy)
+	return descriptions.join(' ')
+})
 </script>
 
 <template>
@@ -29,11 +38,13 @@ const showPassword = ref(false)
 		<Input
 			v-bind="{ ...attrs, ...props }"
 			:type="showPassword ? 'text' : 'password'"
+			:aria-describedby="ariaDescribedBy || undefined"
+			:class="cn('pr-12', props.class)"
 			@update:model-value="emit('update:modelValue', $event)"
 		/>
 		<button
 			type="button"
-			class="text-muted-foreground/70 hover:text-muted-foreground absolute top-0 right-0 h-full cursor-pointer px-3 py-2 transition-colors hover:bg-transparent"
+			class="text-muted-foreground/70 hover:text-muted-foreground focus-visible:ring-ring absolute top-0 right-0 h-full w-11 cursor-pointer rounded-r-md py-2 transition-colors hover:bg-transparent focus-visible:ring-2 focus-visible:outline-none"
 			:aria-label="showPassword ? 'Hide password' : 'Show password'"
 			@click="showPassword = !showPassword"
 		>

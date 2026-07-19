@@ -24,6 +24,14 @@ const state = ref<FinalisingState>(
 )
 let hydrationTimeout: ReturnType<typeof setTimeout> | null = null
 
+useHead({
+	title: computed(() =>
+		state.value === 'callback-error' || state.value === 'timeout-error'
+			? 'Sign in interrupted · Crate Guide'
+			: 'Completing sign in · Crate Guide'
+	)
+})
+
 function clearHydrationTimeout() {
 	if (hydrationTimeout === null) return
 	clearTimeout(hydrationTimeout)
@@ -90,7 +98,7 @@ watch(
 				description="Please try again or return to login."
 			/>
 			<div class="grid gap-3 sm:grid-cols-2">
-				<Button as-child>
+				<Button class="hover:bg-primary" as-child>
 					<NuxtLink :to="retryPath">Try again</NuxtLink>
 				</Button>
 				<Button variant="outline" as-child>
