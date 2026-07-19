@@ -219,6 +219,8 @@ npm run lint:fix             # ESLint with auto-fix
 npm run typecheck            # Nuxt/TypeScript checking
 npm run check:conventions    # Component naming and Tailwind boundaries
 npm run test:typegen-script  # Failure/rollback tests for genTypes
+npm run test:database-type-parity # Tests for the generated type parity gate
+npm run check:database-types # Reject missing, empty, or differing type copies
 npm run test:audio-config    # Shared analyzer/benchmark config tests
 npm run test:conventions     # Convention checker tests
 npm run verify               # Comprehensive read-only verification gate
@@ -245,7 +247,9 @@ replacing the intentional byte-identical copies at `shared/types/database.ts`
 and `supabase/functions/_shared/types/database.ts`. The application and Deno
 Edge Function module trees consume their respective copies. Any failure before
 replacement leaves both files unchanged; a partial replacement restores both
-prior states and reports if restoration cannot complete.
+prior states and reports if restoration cannot complete. Run
+`npm run check:database-types` to check the tracked copies without a database;
+`npm run verify` includes this gate and rejects one-sided drift.
 
 ## Edge Functions
 
