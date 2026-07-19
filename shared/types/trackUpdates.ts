@@ -21,3 +21,8 @@ export type TrackBatchUpdateResult = {
 	track: Track | null
 	error: string | null
 }
+
+export type TrackBatchUpdateOutcome = {
+	results: TrackBatchUpdateResult[]
+	cancelled: boolean
+}

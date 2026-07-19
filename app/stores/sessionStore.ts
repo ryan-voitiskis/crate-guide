@@ -22,6 +22,10 @@ interface AccountOperationContext {
 	userId: string
 }
 
+interface SavedSetMutationProvenance extends AccountOperationContext {
+	revision: number
+}
+
 type PlayedTrackSnapshot = readonly Readonly<PlayedTrackEntry>[]
 
 interface SessionWriteRequestBase {
@@ -103,6 +107,11 @@ export const useSessionStore = defineStore('session', () => {
 	let sessionWriteGeneration = 0
 	let activeSessionWrite: SessionWriteRequest | null = null
 	const pendingSessionWrites: SessionWriteRequest[] = []
+	let savedSetsFetchPromise: Promise<void> | null = null
+	let savedSetsFetchContext: AccountOperationContext | null = null
+	let savedSetMutationRevision = 0
+	const savedSetSaveProvenance = new Map<string, SavedSetMutationProvenance>()
+	const savedSetDeleteTombstones = new Map<string, SavedSetMutationProvenance>()
 
 	// === UI State ===
 	const showTurntableSim = ref(true)
@@ -343,6 +352,10 @@ export const useSessionStore = defineStore('session', () => {
 	function resetAccountState() {
 		accountGeneration += 1
 		invalidateSessionWrites()
+		savedSetsFetchPromise = null
+		savedSetsFetchContext = null
+		savedSetSaveProvenance.clear()
+		savedSetDeleteTombstones.clear()
 
 		currentSession.value = []
 		savedSets.value = []
@@ -373,6 +386,35 @@ export const useSessionStore = defineStore('session', () => {
 		return (
 			context.generation === accountGeneration &&
 			user.supaUserId === context.userId
+		)
+	}
+
+	function nextSavedSetMutationRevision(): number {
+		savedSetMutationRevision += 1
+		return savedSetMutationRevision
+	}
+
+	function isSameAccountContext(
+		left: AccountOperationContext,
+		right: AccountOperationContext
+	): boolean {
+		return left.generation === right.generation && left.userId === right.userId
+	}
+
+	function decodeOwnedSavedSetResponse(
+		data: unknown,
+		context: AccountOperationContext
+	) {
+		if (
+			!data ||
+			typeof data !== 'object' ||
+			Array.isArray(data) ||
+			(data as { user_id?: unknown }).user_id !== context.userId
+		) {
+			throw new Error('Saved set ownership validation failed')
+		}
+		return decodeSavedSetRow(
+			data as Database['public']['Tables']['sets']['Row']
 		)
 	}
 
@@ -427,13 +469,23 @@ export const useSessionStore = defineStore('session', () => {
 		try {
 			const setId = activeSetId.value
 			if (setId) {
-				const { error } = await supabase
+				const { data, error } = await supabase
 					.from('sets')
 					.update({ played_tracks: playedTracks })
 					.eq('id', setId)
+					.eq('user_id', request.context.userId)
+					.select('id, user_id')
+					.single()
 
 				if (!isCurrentSessionWrite(request)) return
 				if (error) throw error
+				if (
+					!data ||
+					data.id !== setId ||
+					data.user_id !== request.context.userId
+				) {
+					throw new Error('Saved set auto-save ownership validation failed')
+				}
 			} else {
 				const { data, error } = await supabase
 					.from('sets')
@@ -442,11 +494,19 @@ export const useSessionStore = defineStore('session', () => {
 						name: null,
 						played_tracks: playedTracks
 					})
-					.select('id')
+					.select('id, user_id')
 					.single()
 
 				if (!isCurrentSessionWrite(request)) return
 				if (error) throw error
+				if (
+					!data ||
+					typeof data.id !== 'string' ||
+					!data.id ||
+					data.user_id !== request.context.userId
+				) {
+					throw new Error('Saved set auto-save ownership validation failed')
+				}
 				activeSetId.value = data.id
 			}
 
@@ -479,12 +539,13 @@ export const useSessionStore = defineStore('session', () => {
 						played_tracks: playedTracks
 					})
 					.eq('id', setId)
+					.eq('user_id', request.context.userId)
 					.select()
 					.single()
 
 				if (!isCurrentSessionWrite(request)) return null
 				if (error) throw error
-				const decoded = decodeSavedSetRow(data)
+				const decoded = decodeOwnedSavedSetResponse(data, request.context)
 				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
 				savedSet = decoded.row
 
@@ -509,12 +570,17 @@ export const useSessionStore = defineStore('session', () => {
 
 				if (!isCurrentSessionWrite(request)) return null
 				if (error) throw error
-				const decoded = decodeSavedSetRow(data)
+				const decoded = decodeOwnedSavedSetResponse(data, request.context)
 				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
 				savedSet = decoded.row
 				savedSets.value.unshift(savedSet)
 				activeSetId.value = savedSet.id
 			}
+			savedSetSaveProvenance.set(savedSet.id, {
+				...request.context,
+				revision: nextSavedSetMutationRevision()
+			})
+			savedSetDeleteTombstones.delete(savedSet.id)
 
 			toast.success('Session saved')
 			showSaveDialog.value = false
@@ -610,12 +676,9 @@ export const useSessionStore = defineStore('session', () => {
 	)
 
 	// === Actions: Set Persistence ===
-	async function fetchSavedSets() {
-		const context = captureAccountContext()
-		if (!context) return
-
+	async function performFetchSavedSets(context: AccountOperationContext) {
 		isLoadingSets.value = true
-		const startingIds = new Set(savedSets.value.map((set) => set.id))
+		const startingRevision = savedSetMutationRevision
 		try {
 			const rows = await fetchAllSupabasePages(async (cursor, pageSize) => {
 				let query = supabase
@@ -628,18 +691,58 @@ export const useSessionStore = defineStore('session', () => {
 			})
 
 			if (!isCurrentAccountContext(context)) return
+			if (rows.some((row) => row.user_id !== context.userId)) {
+				throw new Error('Saved set ownership validation failed')
+			}
 			const decodedRows = rows.map(decodeSavedSetRow)
 			const issues = decodedRows.flatMap((decoded) => decoded.issues)
 			reportDecodeIssues(issues, (message) => toast.warning(message))
 			const fetchedSets = decodedRows.map((decoded) => decoded.row)
-			const fetchedIds = new Set(fetchedSets.map((set) => set.id))
-			const createdDuringFetch = savedSets.value.filter(
-				(set) => !startingIds.has(set.id) && !fetchedIds.has(set.id)
+			const rawFetchedIds = new Set(fetchedSets.map((set) => set.id))
+			const localSetsById = new Map(
+				savedSets.value.map((savedSet) => [savedSet.id, savedSet])
 			)
-			savedSets.value = sortCreatedAtDescIdDesc([
-				...fetchedSets,
-				...createdDuringFetch
-			])
+			const reconciledById = new Map<string, SavedSet>()
+			for (const fetchedSet of fetchedSets) {
+				const tombstone = savedSetDeleteTombstones.get(fetchedSet.id)
+				if (tombstone && isSameAccountContext(tombstone, context)) continue
+				const provenance = savedSetSaveProvenance.get(fetchedSet.id)
+				const localSet = localSetsById.get(fetchedSet.id)
+				if (
+					localSet &&
+					provenance &&
+					isSameAccountContext(provenance, context) &&
+					provenance.revision > startingRevision
+				) {
+					reconciledById.set(fetchedSet.id, localSet)
+				} else {
+					reconciledById.set(fetchedSet.id, fetchedSet)
+				}
+			}
+			for (const [id, provenance] of savedSetSaveProvenance) {
+				if (!isSameAccountContext(provenance, context)) continue
+				const localSet = localSetsById.get(id)
+				const tombstone = savedSetDeleteTombstones.get(id)
+				if (
+					localSet &&
+					provenance.revision > startingRevision &&
+					(!tombstone || !isSameAccountContext(tombstone, context))
+				) {
+					reconciledById.set(id, localSet)
+				} else {
+					savedSetSaveProvenance.delete(id)
+				}
+			}
+			for (const [id, tombstone] of savedSetDeleteTombstones) {
+				if (
+					isSameAccountContext(tombstone, context) &&
+					tombstone.revision <= startingRevision &&
+					!rawFetchedIds.has(id)
+				) {
+					savedSetDeleteTombstones.delete(id)
+				}
+			}
+			savedSets.value = sortCreatedAtDescIdDesc([...reconciledById.values()])
 		} catch (e) {
 			if (!isCurrentAccountContext(context)) return
 			console.error(e)
@@ -647,6 +750,28 @@ export const useSessionStore = defineStore('session', () => {
 		} finally {
 			if (isCurrentAccountContext(context)) isLoadingSets.value = false
 		}
+	}
+
+	function fetchSavedSets(): Promise<void> {
+		const context = captureAccountContext()
+		if (!context) return Promise.resolve()
+		if (
+			savedSetsFetchPromise &&
+			savedSetsFetchContext &&
+			isSameAccountContext(savedSetsFetchContext, context)
+		) {
+			return savedSetsFetchPromise
+		}
+
+		const createdPromise = performFetchSavedSets(context).finally(() => {
+			if (savedSetsFetchPromise === createdPromise) {
+				savedSetsFetchPromise = null
+				savedSetsFetchContext = null
+			}
+		})
+		savedSetsFetchContext = context
+		savedSetsFetchPromise = createdPromise
+		return createdPromise
 	}
 
 	function saveSession(name?: string): Promise<SavedSet | null> {
@@ -668,10 +793,24 @@ export const useSessionStore = defineStore('session', () => {
 		if (!context || !isCurrentAccountContext(context)) return
 
 		try {
-			const { error } = await supabase.from('sets').delete().eq('id', setId)
+			const { data, error } = await supabase
+				.from('sets')
+				.delete()
+				.eq('id', setId)
+				.eq('user_id', context.userId)
+				.select('id, user_id')
+				.single()
 			if (!isCurrentAccountContext(context)) return
 			if (error) throw error
+			if (!data || data.id !== setId || data.user_id !== context.userId) {
+				throw new Error('Saved set deletion ownership validation failed')
+			}
 			savedSets.value = savedSets.value.filter((s) => s.id !== setId)
+			savedSetSaveProvenance.delete(setId)
+			savedSetDeleteTombstones.set(setId, {
+				...context,
+				revision: nextSavedSetMutationRevision()
+			})
 			if (activeSetId.value === setId) {
 				activeSetId.value = null
 			}

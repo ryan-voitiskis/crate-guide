@@ -118,6 +118,7 @@ export function useTrackEnrichmentWorkflow(
 	const lastApplySummary = ref<ApplySummary | null>(null)
 	const workflowView = ref<TrackEnrichmentWorkflowView>('source')
 	let reviewOperationGeneration = 0
+	let applyOperationGeneration = 0
 
 	const currentStep = computed<1 | 2 | 3>(() => {
 		if (showApplyDialog.value || isApplying.value || lastApplySummary.value)
@@ -224,6 +225,8 @@ export function useTrackEnrichmentWorkflow(
 		fileLabel: string,
 		nextRows: TrackEnrichmentRow[]
 	) {
+		applyOperationGeneration++
+		isApplying.value = false
 		selectedFileName.value = fileLabel
 		rows.value = nextRows
 		stagedRowIds.value = new Set(
@@ -242,6 +245,7 @@ export function useTrackEnrichmentWorkflow(
 
 	function resetWorkflow(nextSource?: TrackEnrichmentSourceKind) {
 		reviewOperationGeneration++
+		applyOperationGeneration++
 		if (nextSource) activeSource.value = nextSource
 		selectedFileName.value = null
 		rows.value = []
@@ -278,6 +282,8 @@ export function useTrackEnrichmentWorkflow(
 	}
 
 	function prepareForReview(fileLabel: string, total: number) {
+		applyOperationGeneration++
+		isApplying.value = false
 		workflowView.value = 'source'
 		selectedFileName.value = fileLabel
 		rows.value = []
@@ -442,6 +448,13 @@ export function useTrackEnrichmentWorkflow(
 	}
 
 	async function applyStagedRows() {
+		const operationGeneration = ++applyOperationGeneration
+		const ownsOperation = () => operationGeneration === applyOperationGeneration
+		const finishOwnedOperation = () => {
+			if (!ownsOperation()) return
+			isApplying.value = false
+			showApplyDialog.value = false
+		}
 		const rowsToApply = stagedRows.value
 		const importedAt = new Date().toISOString()
 		const preparedUpdates: {
@@ -472,14 +485,21 @@ export function useTrackEnrichmentWorkflow(
 		)
 
 		try {
-			const results = await tracks.updateTracksBatch(
+			const outcome = await tracks.updateTracksBatch(
 				preparedUpdates.map((entry) => entry.update),
 				{
 					onProgress: (completed) => {
+						if (!ownsOperation()) return
 						applyCompleted.value = completed
 					}
 				}
 			)
+			if (!ownsOperation()) return
+			if (outcome.cancelled) {
+				finishOwnedOperation()
+				return
+			}
+			const results = outcome.results
 			const resultByRowId = new Map(
 				preparedUpdates.map((entry, index) => [entry.row.id, results[index]])
 			)
@@ -520,10 +540,11 @@ export function useTrackEnrichmentWorkflow(
 			} else {
 				toast.success(`Applied ${succeeded} of ${results.length}.`)
 			}
-		} finally {
-			isApplying.value = false
-			showApplyDialog.value = false
+		} catch (error) {
+			finishOwnedOperation()
+			throw error
 		}
+		finishOwnedOperation()
 	}
 
 	function returnToReview() {

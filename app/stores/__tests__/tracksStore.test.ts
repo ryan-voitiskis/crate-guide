@@ -74,6 +74,26 @@ function createMockOwnedTrack(
 	}
 }
 
+function createTrackInput(title = 'Synthetic create') {
+	return {
+		record_id: 'record-1',
+		title,
+		artists: [],
+		extraartists: [],
+		position: 'A1',
+		duration: 180000,
+		bpm: 128,
+		rpm: 33 as const,
+		key: 0,
+		mode: 0,
+		genres: [],
+		time_signature_upper: null,
+		time_signature_lower: null,
+		playable: true,
+		beatport_data: null
+	}
+}
+
 // Stub globals before importing the store
 vi.stubGlobal('useUserStore', () => mockUserStore)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
@@ -818,8 +838,9 @@ describe('tracksStore', () => {
 			expect(store.tracks[0]!.id).toBe('new-track-id')
 			expect(result).not.toHaveProperty('user_id')
 			expect(store.tracks[0]).not.toHaveProperty('user_id')
-			expect(mockQueryBuilder.insert.mock.calls[0]![0]).not.toHaveProperty(
-				'user_id'
+			expect(mockQueryBuilder.insert.mock.calls[0]![0]).toHaveProperty(
+				'user_id',
+				'test-user-id'
 			)
 		})
 
@@ -831,7 +852,8 @@ describe('tracksStore', () => {
 			mockQueryBuilder.single.mockResolvedValue({
 				data: {
 					...createMockTrack({ id: 'new-track-id' }),
-					genres: ['valid', 7]
+					genres: ['valid', 7],
+					user_id: 'test-user-id'
 				},
 				error: null
 			})
@@ -875,7 +897,7 @@ describe('tracksStore', () => {
 				img: 'https://example.test/legacy-track.jpg'
 			}
 			mockQueryBuilder.single.mockResolvedValue({
-				data: createMockTrack({ beatport_data: beatportData }),
+				data: createMockOwnedTrack({ beatport_data: beatportData }),
 				error: null
 			})
 
@@ -904,10 +926,11 @@ describe('tracksStore', () => {
 
 		it('sets isCreatingTrack during creation', async () => {
 			const store = useTracksStore()
-			mockQueryBuilder.single.mockResolvedValue({
-				data: createMockTrack(),
+			const response = createDeferred<{
+				data: ReturnType<typeof createMockOwnedTrack>
 				error: null
-			})
+			}>()
+			mockQueryBuilder.single.mockReturnValue(response.promise)
 
 			const createPromise = store.createTrack({
 				record_id: 'record-1',
@@ -927,7 +950,8 @@ describe('tracksStore', () => {
 				beatport_data: null
 			})
 
-			expect(store.isCreatingTrack).toBe(true)
+			await vi.waitFor(() => expect(store.isCreatingTrack).toBe(true))
+			response.resolve({ data: createMockOwnedTrack(), error: null })
 			await createPromise
 			expect(store.isCreatingTrack).toBe(false)
 		})
@@ -976,15 +1000,20 @@ describe('tracksStore', () => {
 		it('performs optimistic update', async () => {
 			const store = useTracksStore()
 			store.tracks = [createMockTrack({ id: 'track-1', title: 'Original' })]
+			const response = createDeferred<{
+				data: ReturnType<typeof createMockOwnedTrack>
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValue(response.promise)
 
 			// Start update but don't await yet
 			const updatePromise = store.updateTrack('track-1', { title: 'Updated' })
 
 			// Track should be optimistically updated
-			expect(store.tracks[0]!.title).toBe('Updated')
+			await vi.waitFor(() => expect(store.tracks[0]!.title).toBe('Updated'))
 
-			mockQueryBuilder.single.mockResolvedValue({
-				data: createMockTrack({ id: 'track-1', title: 'Updated' }),
+			response.resolve({
+				data: createMockOwnedTrack({ id: 'track-1', title: 'Updated' }),
 				error: null
 			})
 
@@ -1041,7 +1070,8 @@ describe('tracksStore', () => {
 						searched: false,
 						notFound: true,
 						searchedAt: 0
-					}
+					},
+					user_id: 'test-user-id'
 				},
 				error: null
 			})
@@ -1061,14 +1091,19 @@ describe('tracksStore', () => {
 		it('sets isUpdatingTrack during update', async () => {
 			const store = useTracksStore()
 			store.tracks = [createMockTrack({ id: 'track-1' })]
-			mockQueryBuilder.single.mockResolvedValue({
-				data: createMockTrack({ id: 'track-1' }),
+			const response = createDeferred<{
+				data: ReturnType<typeof createMockOwnedTrack>
 				error: null
-			})
+			}>()
+			mockQueryBuilder.single.mockReturnValue(response.promise)
 
 			const updatePromise = store.updateTrack('track-1', { title: 'Updated' })
-			expect(store.isUpdatingTrack).toBe(true)
+			await vi.waitFor(() => expect(store.isUpdatingTrack).toBe(true))
 
+			response.resolve({
+				data: createMockOwnedTrack({ id: 'track-1' }),
+				error: null
+			})
 			await updatePromise
 			expect(store.isUpdatingTrack).toBe(false)
 		})
@@ -1077,7 +1112,7 @@ describe('tracksStore', () => {
 			const store = useTracksStore()
 			store.tracks = [createMockTrack({ id: 'track-1' })]
 			mockQueryBuilder.single.mockResolvedValue({
-				data: createMockTrack({ id: 'track-1' }),
+				data: createMockOwnedTrack({ id: 'track-1' }),
 				error: null
 			})
 
@@ -1118,7 +1153,7 @@ describe('tracksStore', () => {
 			}
 			store.tracks = [createMockTrack({ id: 'track-1' })]
 			mockQueryBuilder.single.mockResolvedValue({
-				data: createMockTrack({
+				data: createMockOwnedTrack({
 					id: 'track-1',
 					beatport_data: beatportNotFound
 				}),
@@ -1144,7 +1179,7 @@ describe('tracksStore', () => {
 			]
 			mockQueryBuilder.single
 				.mockResolvedValueOnce({
-					data: createMockTrack({ id: 'track-1', title: 'Updated 1' }),
+					data: createMockOwnedTrack({ id: 'track-1', title: 'Updated 1' }),
 					error: null
 				})
 				.mockResolvedValueOnce({
@@ -1153,7 +1188,7 @@ describe('tracksStore', () => {
 				})
 
 			const progress: number[] = []
-			const results = await store.updateTracksBatch(
+			const outcome = await store.updateTracksBatch(
 				[
 					{
 						id: 'track-1',
@@ -1170,7 +1205,8 @@ describe('tracksStore', () => {
 				}
 			)
 
-			expect(results).toMatchObject([
+			expect(outcome.cancelled).toBe(false)
+			expect(outcome.results).toMatchObject([
 				{ id: 'track-1', success: true, error: null },
 				{ id: 'track-2', success: false, error: 'Update failed' }
 			])
@@ -1202,14 +1238,22 @@ describe('tracksStore', () => {
 				createMockTrack({ id: 'track-2' })
 			]
 
+			const response = createDeferred<{
+				data: { id: string; user_id: string }
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValue(response.promise)
 			// Start delete but don't await
 			const deletePromise = store.deleteTrack('track-1')
 
 			// Track should be optimistically removed
-			expect(store.tracks.length).toBe(1)
+			await vi.waitFor(() => expect(store.tracks.length).toBe(1))
 			expect(store.tracks[0]!.id).toBe('track-2')
 
-			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
+			response.resolve({
+				data: { id: 'track-1', user_id: 'test-user-id' },
+				error: null
+			})
 			await deletePromise
 		})
 
@@ -1218,7 +1262,7 @@ describe('tracksStore', () => {
 			const track1 = createMockTrack({ id: 'track-1' })
 			const track2 = createMockTrack({ id: 'track-2' })
 			store.tracks = [track1, track2]
-			mockQueryBuilder.eq.mockResolvedValue({
+			mockQueryBuilder.single.mockResolvedValue({
 				data: null,
 				error: new Error('Delete failed')
 			})
@@ -1227,18 +1271,609 @@ describe('tracksStore', () => {
 
 			// Should revert deletion
 			expect(store.tracks.length).toBe(2)
-			expect(store.tracks[0]!.id).toBe('track-1')
+			expect(store.tracks.map((track) => track.id)).toContain('track-1')
 		})
 
 		it('returns true on successful delete', async () => {
 			const store = useTracksStore()
 			store.tracks = [createMockTrack({ id: 'track-1' })]
-			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
+			mockQueryBuilder.single.mockResolvedValue({
+				data: { id: 'track-1', user_id: 'test-user-id' },
+				error: null
+			})
 
 			const result = await store.deleteTrack('track-1')
 
 			expect(result).toBe(true)
 			expect(store.tracks.length).toBe(0)
+		})
+	})
+
+	describe('account-safe mutation reconciliation', () => {
+		it('keeps create activity active until the last concurrent create settles', async () => {
+			const first = createDeferred<{
+				data: ReturnType<typeof createMockOwnedTrack>
+				error: null
+			}>()
+			const second = createDeferred<{
+				data: ReturnType<typeof createMockOwnedTrack>
+				error: null
+			}>()
+			mockQueryBuilder.single
+				.mockReturnValueOnce(first.promise)
+				.mockReturnValueOnce(second.promise)
+			const store = useTracksStore()
+
+			const firstCreate = store.createTrack(createTrackInput('First'))
+			const secondCreate = store.createTrack(createTrackInput('Second'))
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.single).toHaveBeenCalledTimes(2)
+			)
+			expect(store.isCreatingTrack).toBe(true)
+
+			first.resolve({
+				data: createMockOwnedTrack({ id: 'created-first' }),
+				error: null
+			})
+			await firstCreate
+			expect(store.isCreatingTrack).toBe(true)
+
+			second.resolve({
+				data: createMockOwnedTrack({ id: 'created-second' }),
+				error: null
+			})
+			await secondCreate
+			expect(store.isCreatingTrack).toBe(false)
+		})
+
+		it('keeps update activity active across a concurrent update and batch', async () => {
+			const first = createDeferred<{
+				data: ReturnType<typeof createMockOwnedTrack>
+				error: null
+			}>()
+			const second = createDeferred<{
+				data: ReturnType<typeof createMockOwnedTrack>
+				error: null
+			}>()
+			mockQueryBuilder.single
+				.mockReturnValueOnce(first.promise)
+				.mockReturnValueOnce(second.promise)
+			const store = useTracksStore()
+			store.tracks = [
+				createMockTrack({ id: 'track-1' }),
+				createMockTrack({ id: 'track-2' })
+			]
+
+			const update = store.updateTrack('track-1', { title: 'Update' })
+			const batch = store.updateTracksBatch([
+				{ id: 'track-2', updates: { title: 'Batch' } }
+			])
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.single).toHaveBeenCalledTimes(2)
+			)
+			expect(store.isUpdatingTrack).toBe(true)
+
+			second.resolve({
+				data: createMockOwnedTrack({ id: 'track-2', title: 'Batch' }),
+				error: null
+			})
+			await batch
+			expect(store.isUpdatingTrack).toBe(true)
+			first.resolve({
+				data: createMockOwnedTrack({ id: 'track-1', title: 'Update' }),
+				error: null
+			})
+			await update
+			expect(store.isUpdatingTrack).toBe(false)
+		})
+
+		it.each([
+			['success', null],
+			['failure', new Error('Older update failed')]
+		] as const)(
+			'serializes an older %s update before a newer success',
+			async (_label, firstError) => {
+				const first = createDeferred<{
+					data: ReturnType<typeof createMockOwnedTrack> | null
+					error: Error | null
+				}>()
+				mockQueryBuilder.single
+					.mockReturnValueOnce(first.promise)
+					.mockResolvedValueOnce({
+						data: createMockOwnedTrack({
+							id: 'track-1',
+							title: 'Newest server value'
+						}),
+						error: null
+					})
+				const store = useTracksStore()
+				store.tracks = [createMockTrack({ id: 'track-1', title: 'Original' })]
+
+				const older = store.updateTrack('track-1', {
+					title: 'Older optimistic'
+				})
+				const newer = store.updateTrack('track-1', {
+					title: 'Newer optimistic'
+				})
+				await vi.waitFor(() =>
+					expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+				)
+				first.resolve({
+					data: firstError
+						? null
+						: createMockOwnedTrack({
+								id: 'track-1',
+								title: 'Older server value'
+							}),
+					error: firstError
+				})
+				await vi.waitFor(() =>
+					expect(mockQueryBuilder.single).toHaveBeenCalledTimes(2)
+				)
+				await Promise.all([older, newer])
+
+				expect(store.tracks[0]!.title).toBe('Newest server value')
+			}
+		)
+
+		it.each([
+			[false, false, 'Original'],
+			[false, true, null],
+			[true, false, 'Updated on server'],
+			[true, true, null]
+		] as const)(
+			'serializes update(%s) then delete(%s)',
+			async (updateSucceeds, deleteSucceeds, expectedTitle) => {
+				const first = createDeferred<{
+					data: ReturnType<typeof createMockOwnedTrack> | null
+					error: Error | null
+				}>()
+				mockQueryBuilder.single
+					.mockReturnValueOnce(first.promise)
+					.mockResolvedValueOnce(
+						deleteSucceeds
+							? {
+									data: {
+										id: 'track-1',
+										user_id: 'test-user-id'
+									},
+									error: null
+								}
+							: { data: null, error: new Error('Delete failed') }
+					)
+				const store = useTracksStore()
+				store.tracks = [createMockTrack({ id: 'track-1', title: 'Original' })]
+
+				const update = store.updateTrack('track-1', {
+					title: 'Updated optimistic'
+				})
+				const deletion = store.deleteTrack('track-1')
+				await vi.waitFor(() =>
+					expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+				)
+				first.resolve(
+					updateSucceeds
+						? {
+								data: createMockOwnedTrack({
+									id: 'track-1',
+									title: 'Updated on server'
+								}),
+								error: null
+							}
+						: { data: null, error: new Error('Update failed') }
+				)
+				await vi.waitFor(() =>
+					expect(mockQueryBuilder.single).toHaveBeenCalledTimes(2)
+				)
+				await Promise.all([update, deletion])
+
+				const reconciled = store.getTrackById('track-1')
+				if (expectedTitle === null) expect(reconciled).toBeUndefined()
+				else expect(reconciled?.title).toBe(expectedTitle)
+			}
+		)
+
+		it.each([
+			[true, false, null],
+			[false, false, 'Original'],
+			[false, true, 'Updated after rollback']
+		] as const)(
+			'serializes delete(%s) then update(%s)',
+			async (deleteSucceeds, updateSucceeds, expectedTitle) => {
+				const deletionResponse = createDeferred<{
+					data: { id: string; user_id: string } | null
+					error: Error | null
+				}>()
+				mockQueryBuilder.single.mockReturnValueOnce(deletionResponse.promise)
+				if (!deleteSucceeds) {
+					mockQueryBuilder.single.mockResolvedValueOnce(
+						updateSucceeds
+							? {
+									data: createMockOwnedTrack({
+										id: 'track-1',
+										title: 'Updated after rollback'
+									}),
+									error: null
+								}
+							: { data: null, error: new Error('Update failed') }
+					)
+				}
+				const store = useTracksStore()
+				store.tracks = [createMockTrack({ id: 'track-1', title: 'Original' })]
+
+				const deletion = store.deleteTrack('track-1')
+				const update = store.updateTrack('track-1', {
+					title: 'Queued update'
+				})
+				await vi.waitFor(() =>
+					expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+				)
+				deletionResponse.resolve(
+					deleteSucceeds
+						? {
+								data: { id: 'track-1', user_id: 'test-user-id' },
+								error: null
+							}
+						: { data: null, error: new Error('Delete failed') }
+				)
+				if (!deleteSucceeds) {
+					await vi.waitFor(() =>
+						expect(mockQueryBuilder.single).toHaveBeenCalledTimes(2)
+					)
+				}
+				await Promise.all([deletion, update])
+
+				if (expectedTitle === null) {
+					expect(store.getTrackById('track-1')).toBeUndefined()
+					expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+				} else {
+					expect(store.getTrackById('track-1')?.title).toBe(expectedTitle)
+				}
+			}
+		)
+
+		it('does not dispatch queued old-account row work after reset', async () => {
+			const first = createDeferred<{
+				data: ReturnType<typeof createMockOwnedTrack>
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValueOnce(first.promise)
+			const store = useTracksStore()
+			store.tracks = [createMockTrack({ id: 'track-1', title: 'Account A' })]
+
+			const update = store.updateTrack('track-1', { title: 'Old update' })
+			const queuedDelete = store.deleteTrack('track-1')
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+			)
+			store.clearTracks()
+			mockUserStore.supaUser = { id: 'user-b' }
+			store.tracks = [createMockTrack({ id: 'track-b', title: 'Account B' })]
+			first.resolve({
+				data: createMockOwnedTrack({ id: 'track-1' }),
+				error: null
+			})
+
+			await Promise.all([update, queuedDelete])
+			expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+			expect(store.tracks.map((track) => track.id)).toEqual(['track-b'])
+			expect(mockToast.success).not.toHaveBeenCalled()
+		})
+
+		it('removes a row reintroduced while its owned delete is pending', async () => {
+			const response = createDeferred<{
+				data: { id: string; user_id: string }
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValueOnce(response.promise)
+			const store = useTracksStore()
+			store.tracks = [createMockTrack({ id: 'track-1' })]
+
+			const deletion = store.deleteTrack('track-1')
+			await vi.waitFor(() =>
+				expect(store.getTrackById('track-1')).toBeUndefined()
+			)
+			store.tracks = [
+				createMockTrack({ id: 'track-1', title: 'Concurrent fetched copy' })
+			]
+			response.resolve({
+				data: { id: 'track-1', user_id: 'test-user-id' },
+				error: null
+			})
+
+			await expect(deletion).resolves.toBe(true)
+			expect(store.getTrackById('track-1')).toBeUndefined()
+		})
+
+		it('cancels a stale batch before progress or its next dispatch', async () => {
+			const first = createDeferred<{
+				data: ReturnType<typeof createMockOwnedTrack>
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValueOnce(first.promise)
+			const store = useTracksStore()
+			store.tracks = [
+				createMockTrack({ id: 'track-1' }),
+				createMockTrack({ id: 'track-2' })
+			]
+			const progress = vi.fn()
+
+			const batch = store.updateTracksBatch(
+				[
+					{ id: 'track-1', updates: { title: 'First' } },
+					{ id: 'track-2', updates: { title: 'Second' } }
+				],
+				{ onProgress: progress }
+			)
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+			)
+			store.clearTracks()
+			mockUserStore.supaUser = { id: 'user-b' }
+			store.tracks = [createMockTrack({ id: 'track-b' })]
+			first.resolve({
+				data: createMockOwnedTrack({ id: 'track-1' }),
+				error: null
+			})
+
+			await expect(batch).resolves.toEqual({ results: [], cancelled: true })
+			expect(progress).not.toHaveBeenCalled()
+			expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+			expect(store.tracks.map((track) => track.id)).toEqual(['track-b'])
+			expect(store.isUpdatingTrack).toBe(false)
+		})
+
+		it.each([
+			['create', true],
+			['create', false],
+			['update', true],
+			['update', false],
+			['delete', true],
+			['delete', false]
+		] as const)(
+			'isolates a stale %s %s response from the replacement account',
+			async (operation, succeeds) => {
+				const response = createDeferred<{
+					data: unknown
+					error: Error | null
+				}>()
+				mockQueryBuilder.single.mockReturnValueOnce(response.promise)
+				const store = useTracksStore()
+				store.tracks = [createMockTrack({ id: 'track-a' })]
+
+				const mutation =
+					operation === 'create'
+						? store.createTrack(createTrackInput())
+						: operation === 'update'
+							? store.updateTrack('track-a', { title: 'Old update' })
+							: store.deleteTrack('track-a')
+				await vi.waitFor(() =>
+					expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+				)
+				store.clearTracks()
+				mockUserStore.supaUser = { id: 'user-b' }
+				store.tracks = [createMockTrack({ id: 'track-b' })]
+				response.resolve({
+					data: succeeds
+						? operation === 'delete'
+							? { id: 'track-a', user_id: 'test-user-id' }
+							: createMockOwnedTrack({ id: 'track-a' })
+						: null,
+					error: succeeds ? null : new Error('Old account failure')
+				})
+
+				await mutation
+				expect(store.tracks.map((track) => track.id)).toEqual(['track-b'])
+				expect(store.isCreatingTrack).toBe(false)
+				expect(store.isUpdatingTrack).toBe(false)
+				expect(mockToast.success).not.toHaveBeenCalled()
+				expect(mockToast.error).not.toHaveBeenCalled()
+			}
+		)
+
+		it('does not let a stale create clear replacement-account activity', async () => {
+			const oldResponse = createDeferred<{
+				data: ReturnType<typeof createMockOwnedTrack>
+				error: null
+			}>()
+			const replacementResponse = createDeferred<{
+				data: ReturnType<typeof createMockOwnedTrack>
+				error: null
+			}>()
+			mockQueryBuilder.single
+				.mockReturnValueOnce(oldResponse.promise)
+				.mockReturnValueOnce(replacementResponse.promise)
+			const store = useTracksStore()
+
+			const oldCreate = store.createTrack(createTrackInput('Account A'))
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+			)
+			store.clearTracks()
+			mockUserStore.supaUser = { id: 'user-b' }
+			const replacementCreate = store.createTrack(createTrackInput('Account B'))
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.single).toHaveBeenCalledTimes(2)
+			)
+			oldResponse.resolve({
+				data: createMockOwnedTrack({ id: 'track-a' }),
+				error: null
+			})
+			await oldCreate
+			expect(store.isCreatingTrack).toBe(true)
+
+			replacementResponse.resolve({
+				data: createMockOwnedTrack({ id: 'track-b' }, 'user-b'),
+				error: null
+			})
+			await replacementCreate
+			expect(store.isCreatingTrack).toBe(false)
+			expect(store.tracks.map((track) => track.id)).toEqual(['track-b'])
+			expect(mockToast.success).toHaveBeenCalledOnce()
+		})
+
+		it('cannot merge a stale account-A create into an active account-B fetch', async () => {
+			const oldCreateResponse = createDeferred<{
+				data: ReturnType<typeof createMockOwnedTrack>
+				error: null
+			}>()
+			const replacementFetchResponse = createDeferred<{
+				data: Array<ReturnType<typeof createMockOwnedTrack>>
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValueOnce(oldCreateResponse.promise)
+			mockQueryBuilder.limit.mockReturnValueOnce(
+				replacementFetchResponse.promise
+			)
+			const store = useTracksStore()
+
+			const oldCreate = store.createTrack(createTrackInput('Account A'))
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+			)
+			store.clearTracks()
+			mockUserStore.supaUser = { id: 'user-b' }
+			const replacementFetch = store.fetchAllTracks()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
+			)
+
+			oldCreateResponse.resolve({
+				data: createMockOwnedTrack({ id: 'track-a' }),
+				error: null
+			})
+			await oldCreate
+			replacementFetchResponse.resolve({
+				data: [createMockOwnedTrack({ id: 'track-b' }, 'user-b')],
+				error: null
+			})
+			await replacementFetch
+
+			expect(store.tracks.map((track) => track.id)).toEqual(['track-b'])
+			expect(mockToast.success).not.toHaveBeenCalled()
+		})
+
+		it('fails closed when identity switches before mutation dispatch', async () => {
+			const identity = createDeferred<string>()
+			mockUserStore.resolveAuthenticatedUserId.mockReturnValueOnce(
+				identity.promise
+			)
+			const store = useTracksStore()
+
+			const creation = store.createTrack(createTrackInput())
+			mockUserStore.supaUser = { id: 'user-b' }
+			identity.resolve('test-user-id')
+
+			await expect(creation).resolves.toBeNull()
+			expect(mockQueryBuilder.insert).not.toHaveBeenCalled()
+			expect(store.tracks).toEqual([])
+		})
+
+		it('re-finds the requested row after deferred identity confirmation', async () => {
+			const confirmation = createDeferred<string>()
+			mockUserStore.resolveAuthenticatedUserId
+				.mockResolvedValueOnce('test-user-id')
+				.mockReturnValueOnce(confirmation.promise)
+			mockQueryBuilder.single.mockResolvedValueOnce({
+				data: createMockOwnedTrack({
+					id: 'track-target',
+					title: 'Server target'
+				}),
+				error: null
+			})
+			const store = useTracksStore()
+			const target = createMockTrack({
+				id: 'track-target',
+				title: 'Original target'
+			})
+			const other = createMockTrack({
+				id: 'track-other',
+				title: 'Unrelated row'
+			})
+			store.tracks = [target, other]
+
+			const update = store.updateTrack('track-target', {
+				title: 'Optimistic target'
+			})
+			await vi.waitFor(() =>
+				expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledTimes(
+					2
+				)
+			)
+			store.tracks = [other, target]
+			confirmation.resolve('test-user-id')
+			await update
+
+			expect(store.getTrackById('track-target')?.title).toBe('Server target')
+			expect(store.getTrackById('track-other')?.title).toBe('Unrelated row')
+			expect(mockQueryBuilder.eq.mock.calls).toContainEqual([
+				'id',
+				'track-target'
+			])
+		})
+
+		it('pins mutation transports to the captured owner and validates affected rows', async () => {
+			mockQueryBuilder.single
+				.mockResolvedValueOnce({
+					data: createMockOwnedTrack({ id: 'created' }),
+					error: null
+				})
+				.mockResolvedValueOnce({
+					data: createMockOwnedTrack({ id: 'created', title: 'Updated' }),
+					error: null
+				})
+				.mockResolvedValueOnce({
+					data: { id: 'created', user_id: 'test-user-id' },
+					error: null
+				})
+			const store = useTracksStore()
+
+			await store.createTrack(createTrackInput())
+			await store.updateTrack('created', { title: 'Updated' })
+			await store.deleteTrack('created')
+
+			expect(mockQueryBuilder.insert).toHaveBeenCalledWith(
+				expect.objectContaining({ user_id: 'test-user-id' })
+			)
+			expect(mockQueryBuilder.eq.mock.calls).toEqual([
+				['id', 'created'],
+				['user_id', 'test-user-id'],
+				['id', 'created'],
+				['user_id', 'test-user-id']
+			])
+			expect(mockQueryBuilder.select).toHaveBeenLastCalledWith('id, user_id')
+		})
+
+		it('rejects mismatched owners and zero-row deletes without leaking success', async () => {
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined)
+			mockQueryBuilder.single
+				.mockResolvedValueOnce({
+					data: createMockOwnedTrack({ id: 'wrong-create' }, 'user-b'),
+					error: null
+				})
+				.mockResolvedValueOnce({
+					data: createMockOwnedTrack({ id: 'track-1' }, 'user-b'),
+					error: null
+				})
+				.mockResolvedValueOnce({ data: null, error: null })
+			const store = useTracksStore()
+			store.tracks = [createMockTrack({ id: 'track-1', title: 'Original' })]
+
+			try {
+				await expect(store.createTrack(createTrackInput())).resolves.toBeNull()
+				await expect(
+					store.updateTrack('track-1', { title: 'Optimistic' })
+				).resolves.toBeNull()
+				await expect(store.deleteTrack('track-1')).resolves.toBe(false)
+
+				expect(store.getTrackById('track-1')?.title).toBe('Original')
+				expect(store.getTrackById('wrong-create')).toBeUndefined()
+				expect(mockToast.success).not.toHaveBeenCalled()
+			} finally {
+				consoleError.mockRestore()
+			}
 		})
 	})
 

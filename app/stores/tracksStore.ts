@@ -1,3 +1,4 @@
+import { toRaw } from 'vue'
 import { toast } from 'vue-sonner'
 import { getActivePinia } from 'pinia'
 import { sortCreatedAtDescIdDesc } from '~/utils/supabaseOrdering'
@@ -13,6 +14,7 @@ import type { BeatportTrackData } from '~~/shared/types/beatport'
 import type { Json } from '~~/shared/types/database'
 import type {
 	TrackBatchUpdate,
+	TrackBatchUpdateOutcome,
 	TrackBatchUpdateResult,
 	TrackUpdateInput
 } from '~~/shared/types/trackUpdates'
@@ -29,6 +31,24 @@ type FetchContext = {
 	userId: string
 }
 
+type MutationActivity = 'create' | 'update'
+
+type MutationActivityToken = {
+	context: FetchContext
+	activity: MutationActivity
+}
+
+type TrackCreateProvenance = FetchContext & {
+	revision: number
+}
+
+type ApplyTrackUpdateResult = {
+	track: Track | null
+	error: string | null
+	issues: DecodeIssue[]
+	stale: boolean
+}
+
 export const useTracksStore = defineStore('tracks', () => {
 	const supabase = useSupabaseClient<Database>()
 	const pinia = getActivePinia()
@@ -41,7 +61,16 @@ export const useTracksStore = defineStore('tracks', () => {
 	const isUpdatingTrack = ref(false)
 	let fetchPromise: Promise<boolean> | null = null
 	let accountGeneration = 0
+	let accountUserId: string | null = null
 	let activeFetchUserId: string | null = null
+	let mutationRevision = 0
+	const trackCreateProvenance = new Map<string, TrackCreateProvenance>()
+	const trackOperationRevisions = new Map<string, number>()
+	const trackOperationQueues = new Map<string, Promise<void>>()
+	const mutationActivityCounts: Record<MutationActivity, number> = {
+		create: 0,
+		update: 0
+	}
 
 	const tracksCount = computed(() => tracks.value.length)
 	const hasTracks = computed(() => tracks.value.length > 0)
@@ -59,11 +88,139 @@ export const useTracksStore = defineStore('tracks', () => {
 		return groupedTracks
 	})
 
-	function isCurrentFetchContext(context: FetchContext): boolean {
+	function getReactiveUserId(): string | null {
+		const userId = user.supaUserId
+		return typeof userId === 'string' && userId ? userId : null
+	}
+
+	function isCurrentAccountContext(context: FetchContext): boolean {
 		return (
 			context.generation === accountGeneration &&
-			activeFetchUserId === context.userId
+			accountUserId === context.userId &&
+			getReactiveUserId() === context.userId
 		)
+	}
+
+	function adoptAccountContext(
+		generation: number,
+		userId: string
+	): FetchContext | null {
+		if (generation !== accountGeneration) return null
+		if (getReactiveUserId() !== userId) return null
+		if (accountUserId !== null && accountUserId !== userId) return null
+		accountUserId = userId
+		return { generation, userId }
+	}
+
+	function isCurrentFetchContext(context: FetchContext): boolean {
+		return (
+			isCurrentAccountContext(context) && activeFetchUserId === context.userId
+		)
+	}
+
+	function setMutationActivity(
+		activity: MutationActivity,
+		isActive: boolean
+	): void {
+		if (activity === 'create') isCreatingTrack.value = isActive
+		else isUpdatingTrack.value = isActive
+	}
+
+	function beginMutationActivity(
+		context: FetchContext,
+		activity: MutationActivity
+	): MutationActivityToken {
+		mutationActivityCounts[activity] += 1
+		setMutationActivity(activity, true)
+		return { context, activity }
+	}
+
+	function finishMutationActivity(token: MutationActivityToken): void {
+		if (!isCurrentAccountContext(token.context)) return
+		mutationActivityCounts[token.activity] = Math.max(
+			0,
+			mutationActivityCounts[token.activity] - 1
+		)
+		setMutationActivity(
+			token.activity,
+			mutationActivityCounts[token.activity] > 0
+		)
+	}
+
+	async function resolveMutationContext(
+		generation: number
+	): Promise<FetchContext | null> {
+		if (isDemoStore || generation !== accountGeneration) return null
+		try {
+			const userId = await user.resolveAuthenticatedUserId()
+			return adoptAccountContext(generation, userId)
+		} catch (error) {
+			if (generation !== accountGeneration) return null
+			console.error('Auth failed in tracksStore mutation:', error)
+			toast.error('You must be signed in to update your collection.')
+			return null
+		}
+	}
+
+	async function confirmMutationContext(
+		context: FetchContext,
+		suppressErrorToast = false
+	): Promise<boolean> {
+		if (!isCurrentAccountContext(context)) return false
+		try {
+			const userId = await user.resolveAuthenticatedUserId()
+			return isCurrentAccountContext(context) && userId === context.userId
+		} catch (error) {
+			if (!isCurrentAccountContext(context)) return false
+			console.error('Auth failed in tracksStore mutation:', error)
+			if (!suppressErrorToast)
+				toast.error('You must be signed in to update your collection.')
+			return false
+		}
+	}
+
+	function decodeOwnedTrackResponse(data: unknown, context: FetchContext) {
+		if (
+			!data ||
+			typeof data !== 'object' ||
+			Array.isArray(data) ||
+			(data as { user_id?: unknown }).user_id !== context.userId
+		) {
+			throw new Error('Track ownership validation failed')
+		}
+		return decodeTrackRow(data as Database['public']['Tables']['tracks']['Row'])
+	}
+
+	function nextMutationRevision(): number {
+		mutationRevision += 1
+		return mutationRevision
+	}
+
+	async function runSerializedTrackOperation<T>(
+		context: FetchContext,
+		id: string,
+		staleResult: T,
+		operation: () => Promise<T>
+	): Promise<T> {
+		const previous = trackOperationQueues.get(id) ?? Promise.resolve()
+		const run = previous
+			.catch(() => undefined)
+			.then(async () => {
+				if (!isCurrentAccountContext(context)) return staleResult
+				return await operation()
+			})
+		const completion = run.then(
+			() => undefined,
+			() => undefined
+		)
+		trackOperationQueues.set(id, completion)
+		try {
+			return await run
+		} finally {
+			if (trackOperationQueues.get(id) === completion) {
+				trackOperationQueues.delete(id)
+			}
+		}
 	}
 
 	function serializeTrackArtists(
@@ -116,10 +273,12 @@ export const useTracksStore = defineStore('tracks', () => {
 	}
 
 	function toTrackInsertPayload(
-		trackData: TrackCreateInput
+		trackData: TrackCreateInput,
+		userId: string
 	): Database['public']['Tables']['tracks']['Insert'] {
 		return {
 			...trackData,
+			user_id: userId,
 			artists: serializeTrackArtists(trackData.artists),
 			extraartists: serializeTrackArtists(trackData.extraartists),
 			genres: serializeTrackGenres(trackData.genres),
@@ -168,9 +327,10 @@ export const useTracksStore = defineStore('tracks', () => {
 				return false
 			}
 			if (generation !== accountGeneration) return false
+			context = adoptAccountContext(generation, userId)
+			if (!context) return false
 			activeFetchUserId = userId
-			context = { generation, userId }
-			const startingIds = new Set(tracks.value.map((track) => track.id))
+			const startingRevision = mutationRevision
 
 			const rows = await fetchAllSupabasePages(async (cursor, pageSize) => {
 				let query = supabase
@@ -186,19 +346,36 @@ export const useTracksStore = defineStore('tracks', () => {
 				return result
 			})
 			if (!isCurrentFetchContext(context)) return false
+			const completedContext = context
 
 			const decodedRows = rows.map(decodeTrackRow)
 			const issues = decodedRows.flatMap((decoded) => decoded.issues)
 			reportDecodeIssues(issues, (message) => toast.warning(message))
 			const fetchedTracks = decodedRows.map((decoded) => decoded.row)
 			const fetchedIds = new Set(fetchedTracks.map((track) => track.id))
-			const createdDuringFetch = tracks.value.filter(
-				(track) => !startingIds.has(track.id) && !fetchedIds.has(track.id)
-			)
+			const createdDuringFetch = tracks.value.filter((track) => {
+				const provenance = trackCreateProvenance.get(track.id)
+				return (
+					provenance?.generation === completedContext.generation &&
+					provenance.userId === completedContext.userId &&
+					provenance.revision > startingRevision &&
+					!fetchedIds.has(track.id)
+				)
+			})
+			const preservedIds = new Set(createdDuringFetch.map((track) => track.id))
 			tracks.value = sortCreatedAtDescIdDesc([
 				...fetchedTracks,
 				...createdDuringFetch
 			])
+			for (const [id, provenance] of trackCreateProvenance) {
+				if (
+					provenance.generation === completedContext.generation &&
+					provenance.userId === completedContext.userId &&
+					!preservedIds.has(id)
+				) {
+					trackCreateProvenance.delete(id)
+				}
+			}
 			return true
 		} catch (error) {
 			if (!context || !isCurrentFetchContext(context)) return false
@@ -230,37 +407,42 @@ export const useTracksStore = defineStore('tracks', () => {
 		trackData: TrackCreateInput
 	): Promise<Track | null> {
 		if (isDemoStore) return null
-		if (!user.supaUserId) {
-			toast.error('You must be signed in to create tracks.')
-			return null
-		}
-
-		isCreatingTrack.value = true
+		const context = await resolveMutationContext(accountGeneration)
+		if (!context) return null
+		const activity = beginMutationActivity(context, 'create')
 		try {
-			const insertPayload = toTrackInsertPayload(trackData)
+			if (!(await confirmMutationContext(context))) return null
+			const insertPayload = toTrackInsertPayload(trackData, context.userId)
 			const { data, error } = await supabase
 				.from('tracks')
 				.insert(insertPayload)
 				.select()
 				.single()
 
+			if (!isCurrentAccountContext(context)) return null
 			if (error) throw error
 
-			const decoded = decodeTrackRow(data)
+			const decoded = decodeOwnedTrackResponse(data, context)
 			reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
 			tracks.value.unshift(decoded.row)
+			trackCreateProvenance.set(decoded.row.id, {
+				...context,
+				revision: nextMutationRevision()
+			})
 			toast.success('Track created successfully.')
-			return tracks.value[0] ?? null
+			return decoded.row
 		} catch (error) {
+			if (!isCurrentAccountContext(context)) return null
 			console.error('Failed to create track:', error)
 			toast.error('Error creating track.')
 			return null
 		} finally {
-			isCreatingTrack.value = false
+			finishMutationActivity(activity)
 		}
 	}
 
 	async function applyTrackUpdate(
+		context: FetchContext,
 		id: string,
 		updates: TrackUpdateInput,
 		options?: {
@@ -268,53 +450,122 @@ export const useTracksStore = defineStore('tracks', () => {
 			suppressErrorToast?: boolean
 			preconditions?: TrackBatchUpdate['preconditions']
 		}
-	): Promise<{
-		track: Track | null
-		error: string | null
-		issues: DecodeIssue[]
-	}> {
+	): Promise<ApplyTrackUpdateResult> {
 		if (isDemoStore)
-			return { track: null, error: 'Disabled in demo mode.', issues: [] }
-		const trackIndex = tracks.value.findIndex((t: Track) => t.id === id)
-		if (trackIndex === -1) {
-			if (!options?.suppressErrorToast) toast.error('Track not found.')
-			return { track: null, error: 'Track not found.', issues: [] }
-		}
-
-		const originalTrack = tracks.value[trackIndex]
-		tracks.value[trackIndex] = { ...originalTrack, ...updates } as Track
-
-		try {
-			const updatePayload = toTrackUpdatePayload(updates)
-			let query = supabase.from('tracks').update(updatePayload).eq('id', id)
-
-			if (options?.preconditions?.bpmMustBeNull) {
-				query = query.is('bpm', null)
-			}
-			if (options?.preconditions?.keyModeMustBeNull) {
-				query = query.is('key', null).is('mode', null)
-			}
-
-			const { data, error } = await query.select().single()
-
-			if (error) throw error
-
-			const decoded = decodeTrackRow(data)
-			tracks.value[trackIndex] = decoded.row
-			if (!options?.suppressSuccessToast)
-				toast.success('Track updated successfully.')
 			return {
-				track: tracks.value[trackIndex] ?? null,
-				error: null,
-				issues: decoded.issues
+				track: null,
+				error: 'Disabled in demo mode.',
+				issues: [],
+				stale: false
 			}
-		} catch (error) {
-			console.error('Failed to update track:', error)
-			// Revert optimistic update (index was validated above, originalTrack is defined)
-			tracks.value[trackIndex] = originalTrack!
-			if (!options?.suppressErrorToast) toast.error('Error updating track.')
-			return { track: null, error: getErrorMessage(error), issues: [] }
+		const staleResult: ApplyTrackUpdateResult = {
+			track: null,
+			error: null,
+			issues: [],
+			stale: true
 		}
+		return await runSerializedTrackOperation(
+			context,
+			id,
+			staleResult,
+			async () => {
+				if (
+					!(await confirmMutationContext(context, options?.suppressErrorToast))
+				) {
+					return { track: null, error: null, issues: [], stale: true }
+				}
+				const trackIndex = tracks.value.findIndex(
+					(track: Track) => track.id === id
+				)
+				if (trackIndex === -1) {
+					if (!options?.suppressErrorToast) toast.error('Track not found.')
+					return {
+						track: null,
+						error: 'Track not found.',
+						issues: [],
+						stale: false
+					}
+				}
+
+				const originalTrack = tracks.value[trackIndex]!
+				const optimisticTrack = { ...originalTrack, ...updates } as Track
+				const operationRevision = nextMutationRevision()
+				trackOperationRevisions.set(id, operationRevision)
+				tracks.value[trackIndex] = optimisticTrack
+
+				try {
+					const updatePayload = toTrackUpdatePayload(updates)
+					let query = supabase
+						.from('tracks')
+						.update(updatePayload)
+						.eq('id', id)
+						.eq('user_id', context.userId)
+
+					if (options?.preconditions?.bpmMustBeNull) {
+						query = query.is('bpm', null)
+					}
+					if (options?.preconditions?.keyModeMustBeNull) {
+						query = query.is('key', null).is('mode', null)
+					}
+
+					const { data, error } = await query.select().single()
+
+					if (!isCurrentAccountContext(context)) {
+						return { track: null, error: null, issues: [], stale: true }
+					}
+					if (error) throw error
+
+					const decoded = decodeOwnedTrackResponse(data, context)
+					const currentIndex = tracks.value.findIndex(
+						(track) => track.id === id
+					)
+					const ownsOperation =
+						trackOperationRevisions.get(id) === operationRevision
+					if (!ownsOperation || currentIndex === -1) {
+						return { track: null, error: null, issues: [], stale: true }
+					}
+					tracks.value[currentIndex] = decoded.row
+					if (!options?.suppressSuccessToast)
+						toast.success('Track updated successfully.')
+					return {
+						track: decoded.row,
+						error: null,
+						issues: decoded.issues,
+						stale: false
+					}
+				} catch (error) {
+					if (!isCurrentAccountContext(context)) {
+						return { track: null, error: null, issues: [], stale: true }
+					}
+					const currentIndex = tracks.value.findIndex(
+						(track) => track.id === id
+					)
+					const ownsOperation =
+						trackOperationRevisions.get(id) === operationRevision
+					if (!ownsOperation) {
+						return { track: null, error: null, issues: [], stale: true }
+					}
+					console.error('Failed to update track:', error)
+					if (
+						currentIndex !== -1 &&
+						toRaw(tracks.value[currentIndex]) === optimisticTrack
+					) {
+						tracks.value[currentIndex] = originalTrack
+					}
+					if (!options?.suppressErrorToast) toast.error('Error updating track.')
+					return {
+						track: null,
+						error: getErrorMessage(error),
+						issues: [],
+						stale: false
+					}
+				} finally {
+					if (trackOperationRevisions.get(id) === operationRevision) {
+						trackOperationRevisions.delete(id)
+					}
+				}
+			}
+		)
 	}
 
 	async function updateTrack(
@@ -322,17 +573,20 @@ export const useTracksStore = defineStore('tracks', () => {
 		updates: TrackUpdateInput,
 		options?: { silent?: boolean }
 	): Promise<Track | null> {
-		isUpdatingTrack.value = true
+		const context = await resolveMutationContext(accountGeneration)
+		if (!context) return null
+		const activity = beginMutationActivity(context, 'update')
 
 		try {
-			const result = await applyTrackUpdate(id, updates, {
+			const result = await applyTrackUpdate(context, id, updates, {
 				suppressSuccessToast: options?.silent,
 				suppressErrorToast: false
 			})
+			if (result.stale || !isCurrentAccountContext(context)) return null
 			reportDecodeIssues(result.issues, (message) => toast.warning(message))
 			return result.track
 		} finally {
-			isUpdatingTrack.value = false
+			finishMutationActivity(activity)
 		}
 	}
 
@@ -345,14 +599,22 @@ export const useTracksStore = defineStore('tracks', () => {
 				result: TrackBatchUpdateResult
 			) => void
 		}
-	): Promise<TrackBatchUpdateResult[]> {
-		isUpdatingTrack.value = true
+	): Promise<TrackBatchUpdateOutcome> {
+		const context = await resolveMutationContext(accountGeneration)
+		if (!context) return { results: [], cancelled: true }
+		const activity = beginMutationActivity(context, 'update')
 		const results: TrackBatchUpdateResult[] = []
 		const decodeIssues: DecodeIssue[] = []
+		let cancelled = false
 
 		try {
 			for (const batchUpdate of batchUpdates) {
+				if (!isCurrentAccountContext(context)) {
+					cancelled = true
+					break
+				}
 				const result = await applyTrackUpdate(
+					context,
 					batchUpdate.id,
 					batchUpdate.updates,
 					{
@@ -361,6 +623,10 @@ export const useTracksStore = defineStore('tracks', () => {
 						preconditions: batchUpdate.preconditions
 					}
 				)
+				if (result.stale || !isCurrentAccountContext(context)) {
+					cancelled = true
+					break
+				}
 				decodeIssues.push(...result.issues)
 				const batchResult = {
 					id: batchUpdate.id,
@@ -371,34 +637,77 @@ export const useTracksStore = defineStore('tracks', () => {
 				results.push(batchResult)
 				options?.onProgress?.(results.length, batchUpdates.length, batchResult)
 			}
-			reportDecodeIssues(decodeIssues, (message) => toast.warning(message))
-			return results
+			if (isCurrentAccountContext(context)) {
+				reportDecodeIssues(decodeIssues, (message) => toast.warning(message))
+			}
+			return {
+				results,
+				cancelled
+			}
 		} finally {
-			isUpdatingTrack.value = false
+			finishMutationActivity(activity)
 		}
 	}
 
 	async function deleteTrack(id: string): Promise<boolean> {
 		if (isDemoStore) return false
-		// Optimistic update
-		const trackIndex = tracks.value.findIndex((t: Track) => t.id === id)
-		if (trackIndex === -1) {
-			toast.error('Track not found.')
-			return false
-		}
-		const removedTrack = tracks.value.splice(trackIndex, 1)[0]
-		try {
-			const { error } = await supabase.from('tracks').delete().eq('id', id)
-			if (error) throw error
-			toast.success('Track deleted successfully.')
-			return true
-		} catch (error) {
-			console.error('Failed to delete track:', error)
-			// Revert optimistic update (removedTrack is already Track type)
-			tracks.value.splice(trackIndex, 0, removedTrack!)
-			toast.error('Error deleting track.')
-			return false
-		}
+		const context = await resolveMutationContext(accountGeneration)
+		if (!context) return false
+		return await runSerializedTrackOperation(context, id, false, async () => {
+			if (!(await confirmMutationContext(context))) return false
+			const trackIndex = tracks.value.findIndex((t: Track) => t.id === id)
+			if (trackIndex === -1) {
+				toast.error('Track not found.')
+				return false
+			}
+			const removedTrack = tracks.value[trackIndex]!
+			const operationRevision = nextMutationRevision()
+			trackOperationRevisions.set(id, operationRevision)
+			tracks.value.splice(trackIndex, 1)
+			try {
+				const { data, error } = await supabase
+					.from('tracks')
+					.delete()
+					.eq('id', id)
+					.eq('user_id', context.userId)
+					.select('id, user_id')
+					.single()
+				if (
+					!isCurrentAccountContext(context) ||
+					trackOperationRevisions.get(id) !== operationRevision
+				) {
+					return false
+				}
+				if (error) throw error
+				if (!data || data.id !== id || data.user_id !== context.userId) {
+					throw new Error('Track deletion ownership validation failed')
+				}
+				tracks.value = tracks.value.filter((track) => track.id !== id)
+				trackCreateProvenance.delete(id)
+				toast.success('Track deleted successfully.')
+				return true
+			} catch (error) {
+				if (
+					!isCurrentAccountContext(context) ||
+					trackOperationRevisions.get(id) !== operationRevision
+				) {
+					return false
+				}
+				console.error('Failed to delete track:', error)
+				if (!tracks.value.some((track) => track.id === id)) {
+					tracks.value = sortCreatedAtDescIdDesc([
+						...tracks.value,
+						removedTrack
+					])
+				}
+				toast.error('Error deleting track.')
+				return false
+			} finally {
+				if (trackOperationRevisions.get(id) === operationRevision) {
+					trackOperationRevisions.delete(id)
+				}
+			}
+		})
 	}
 
 	function getTrackById(id: string): Track | undefined {
@@ -410,6 +719,9 @@ export const useTracksStore = defineStore('tracks', () => {
 	}
 
 	function removeTracksByRecordId(recordId: string) {
+		for (const track of tracks.value) {
+			if (track.record_id === recordId) trackCreateProvenance.delete(track.id)
+		}
 		tracks.value = tracks.value.filter((track) => track.record_id !== recordId)
 	}
 
@@ -458,8 +770,16 @@ export const useTracksStore = defineStore('tracks', () => {
 	function clearTracks() {
 		accountGeneration += 1
 		fetchPromise = null
+		accountUserId = null
 		activeFetchUserId = null
+		trackCreateProvenance.clear()
+		trackOperationRevisions.clear()
+		trackOperationQueues.clear()
+		mutationActivityCounts.create = 0
+		mutationActivityCounts.update = 0
 		isLoadingTracks.value = false
+		isCreatingTrack.value = false
+		isUpdatingTrack.value = false
 		tracks.value = []
 	}
 

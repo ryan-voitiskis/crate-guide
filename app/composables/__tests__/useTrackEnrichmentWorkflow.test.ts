@@ -265,7 +265,10 @@ describe('useTrackEnrichmentWorkflow', () => {
 			}
 		)
 		workflowMocks.buildUpdate.mockImplementation(toBatchUpdate)
-		mockTracksStore.updateTracksBatch.mockResolvedValue([])
+		mockTracksStore.updateTracksBatch.mockResolvedValue({
+			results: [],
+			cancelled: false
+		})
 	})
 
 	afterEach(() => {
@@ -629,20 +632,23 @@ describe('useTrackEnrichmentWorkflow', () => {
 			) => {
 				options?.onProgress?.(1)
 				options?.onProgress?.(2)
-				return [
-					{
-						id: 'track-key',
-						success: true,
-						track: updatedKeyTrack,
-						error: null
-					},
-					{
-						id: 'track-bpm',
-						success: false,
-						track: null,
-						error: 'Database rejected update'
-					}
-				]
+				return {
+					cancelled: false,
+					results: [
+						{
+							id: 'track-key',
+							success: true,
+							track: updatedKeyTrack,
+							error: null
+						},
+						{
+							id: 'track-bpm',
+							success: false,
+							track: null,
+							error: 'Database rejected update'
+						}
+					]
+				}
 			}
 		)
 
@@ -681,6 +687,138 @@ describe('useTrackEnrichmentWorkflow', () => {
 		expect(toast.error).toHaveBeenCalledOnce()
 		expect(toast.error).toHaveBeenCalledWith('Applied 1 of 2. 1 failed.')
 		expect(toast.success).not.toHaveBeenCalled()
+		expect(workflow.isApplying.value).toBe(false)
+		expect(workflow.showApplyDialog.value).toBe(false)
+	})
+
+	it('cleans its own apply state when the current batch is cancelled', async () => {
+		let resolveBatch!: (value: { results: []; cancelled: true }) => void
+		mockTracksStore.updateTracksBatch.mockReturnValueOnce(
+			new Promise((resolve) => {
+				resolveBatch = resolve
+			})
+		)
+		const workflow = createWorkflow()
+		workflow.rows.value = [createRow()]
+		workflow.stagedRowIds.value = new Set(['row-1'])
+		workflow.showApplyDialog.value = true
+
+		const applying = workflow.applyStagedRows()
+		await vi.waitFor(() =>
+			expect(mockTracksStore.updateTracksBatch).toHaveBeenCalledOnce()
+		)
+		expect(workflow.isApplying.value).toBe(true)
+		expect(workflow.showApplyDialog.value).toBe(true)
+
+		resolveBatch({ results: [], cancelled: true })
+		await applying
+
+		expect(workflow.lastApplySummary.value).toBeNull()
+		expect(workflow.isApplying.value).toBe(false)
+		expect(workflow.showApplyDialog.value).toBe(false)
+		expect(toast.error).not.toHaveBeenCalled()
+		expect(toast.success).not.toHaveBeenCalled()
+	})
+
+	it('ignores stale progress and results after the workflow is reset', async () => {
+		let resolveBatch!: (value: {
+			results: Array<{
+				id: string
+				success: boolean
+				track: Track
+				error: null
+			}>
+			cancelled: false
+		}) => void
+		let reportOldProgress!: (completed: number) => void
+		mockTracksStore.updateTracksBatch.mockImplementationOnce(
+			(_updates, options) => {
+				reportOldProgress = options.onProgress
+				return new Promise((resolve) => {
+					resolveBatch = resolve
+				})
+			}
+		)
+		const workflow = createWorkflow()
+		workflow.rows.value = [createRow()]
+		workflow.stagedRowIds.value = new Set(['row-1'])
+		workflow.showApplyDialog.value = true
+
+		const applying = workflow.applyStagedRows()
+		await vi.waitFor(() =>
+			expect(mockTracksStore.updateTracksBatch).toHaveBeenCalledOnce()
+		)
+		workflow.startAnotherSource()
+		const replacementRow = createRow({ id: 'replacement-row' })
+		workflow.loadPreparedReview('replacement.xml', [replacementRow])
+		vi.mocked(toast.error).mockClear()
+		vi.mocked(toast.success).mockClear()
+
+		reportOldProgress(1)
+		resolveBatch({
+			cancelled: false,
+			results: [
+				{
+					id: 'track-1',
+					success: true,
+					track: createTrack({ id: 'track-1', title: 'Old result' }),
+					error: null
+				}
+			]
+		})
+		await applying
+
+		expect(workflow.rows.value).toEqual([replacementRow])
+		expect(workflow.applyCompleted.value).toBe(0)
+		expect(workflow.applyTotal.value).toBe(0)
+		expect(workflow.lastApplySummary.value).toBeNull()
+		expect(workflow.isApplying.value).toBe(false)
+		expect(workflow.showApplyDialog.value).toBe(false)
+		expect(toast.error).not.toHaveBeenCalled()
+		expect(toast.success).not.toHaveBeenCalled()
+	})
+
+	it('does not let an older rejected apply clear a newer apply', async () => {
+		let rejectOldBatch!: (reason: Error) => void
+		let resolveNewBatch!: (value: { results: []; cancelled: true }) => void
+		let reportOldProgress!: (completed: number) => void
+		mockTracksStore.updateTracksBatch
+			.mockImplementationOnce((_updates, options) => {
+				reportOldProgress = options.onProgress
+				return new Promise((_resolve, reject) => {
+					rejectOldBatch = reject
+				})
+			})
+			.mockImplementationOnce(
+				() =>
+					new Promise((resolve) => {
+						resolveNewBatch = resolve
+					})
+			)
+		const workflow = createWorkflow()
+		workflow.rows.value = [createRow()]
+		workflow.stagedRowIds.value = new Set(['row-1'])
+		workflow.showApplyDialog.value = true
+
+		const oldApply = workflow.applyStagedRows()
+		await vi.waitFor(() =>
+			expect(mockTracksStore.updateTracksBatch).toHaveBeenCalledOnce()
+		)
+		const newApply = workflow.applyStagedRows()
+		await vi.waitFor(() =>
+			expect(mockTracksStore.updateTracksBatch).toHaveBeenCalledTimes(2)
+		)
+		reportOldProgress(1)
+		rejectOldBatch(new Error('Old connection failed'))
+		await expect(oldApply).rejects.toThrow('Old connection failed')
+
+		expect(workflow.applyCompleted.value).toBe(0)
+		expect(workflow.isApplying.value).toBe(true)
+		expect(workflow.showApplyDialog.value).toBe(true)
+		expect(workflow.lastApplySummary.value).toBeNull()
+
+		resolveNewBatch({ results: [], cancelled: true })
+		await newApply
 		expect(workflow.isApplying.value).toBe(false)
 		expect(workflow.showApplyDialog.value).toBe(false)
 	})

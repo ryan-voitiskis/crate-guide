@@ -261,7 +261,7 @@ describe('Login redirects', () => {
 		const libraryKeysets = completions.keysets.filter((completion) =>
 			LIBRARY_TABLES.includes(completion.table)
 		)
-		expect(libraryKeysets).toHaveLength(7)
+		expect(libraryKeysets).toHaveLength(5)
 		for (const table of ['records', 'tracks', 'crates']) {
 			expect(libraryKeysets.filter((query) => query.table === table)).toEqual([
 				{
@@ -275,17 +275,9 @@ describe('Login redirects', () => {
 			])
 		}
 		const setQueries = libraryKeysets.filter((query) => query.table === 'sets')
-		expect(setQueries).toHaveLength(4)
+		expect(setQueries).toHaveLength(2)
 		for (const cursor of [null, 'set-0001']) {
 			expect(setQueries.filter((query) => query.cursor === cursor)).toEqual([
-				{
-					table: 'sets',
-					cursor,
-					equalityFilters: [['user_id', 'e2e-user']],
-					limit: 1000,
-					orders: [['id', false]],
-					selection: '*'
-				},
 				{
 					table: 'sets',
 					cursor,

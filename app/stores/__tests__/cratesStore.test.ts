@@ -589,6 +589,71 @@ describe('cratesStore', () => {
 			expect(mockQueryBuilder.limit.mock.calls).toEqual([[1000], [1000]])
 		})
 
+		it('retains the original tail across a mutable traversal then reconciles an authoritative delete', async () => {
+			const store = useCratesStore()
+			const originalSnapshot = Array.from({ length: 1001 }, (_, index) =>
+				createMockCrate({
+					id: `crate-${String(1001 - index).padStart(4, '0')}`,
+					created_at: '2026-07-12T00:00:00.000Z'
+				})
+			)
+			const removedId = 'crate-0500'
+			let backingCollection = [...originalSnapshot]
+			let activeCursor: string | null = null
+			let firstPageReturned = false
+			mockQueryBuilder.order.mockImplementation(() => {
+				activeCursor = null
+				return mockQueryBuilder
+			})
+			mockQueryBuilder.lt.mockImplementation((_column, cursor: string) => {
+				activeCursor = cursor
+				return mockQueryBuilder
+			})
+			mockQueryBuilder.limit.mockImplementation(async (pageSize: number) => {
+				const page = backingCollection
+					.filter((crate) => activeCursor === null || crate.id < activeCursor)
+					.slice(0, pageSize)
+				if (!firstPageReturned) {
+					firstPageReturned = true
+					queueMicrotask(() => {
+						backingCollection = backingCollection.filter(
+							(crate) => crate.id !== removedId
+						)
+					})
+				}
+				return { data: page, error: null }
+			})
+
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+
+			expect(store.crates.map((crate) => crate.id)).toEqual(
+				originalSnapshot.map((crate) => crate.id)
+			)
+			expect(store.crates.at(-1)?.id).toBe('crate-0001')
+			expect(mockQueryBuilder.lt.mock.calls).toEqual([['id', 'crate-0002']])
+			expect(mockQueryBuilder.limit.mock.calls).toEqual([[1000], [1000]])
+
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+
+			expect(store.crates).toHaveLength(1000)
+			expect(new Set(store.crates.map((crate) => crate.id)).size).toBe(1000)
+			expect(store.crates.map((crate) => crate.id)).toEqual(
+				backingCollection.map((crate) => crate.id)
+			)
+			expect(store.crates.some((crate) => crate.id === removedId)).toBe(false)
+			expect(store.crates.at(-1)?.id).toBe('crate-0001')
+			expect(mockQueryBuilder.lt.mock.calls).toEqual([
+				['id', 'crate-0002'],
+				['id', 'crate-0001']
+			])
+			expect(mockQueryBuilder.limit.mock.calls).toEqual([
+				[1000],
+				[1000],
+				[1000],
+				[1000]
+			])
+		})
+
 		it('restores exact timestamp presentation order after ID traversal', async () => {
 			const store = useCratesStore()
 			mockQueryBuilder.limit.mockResolvedValue({

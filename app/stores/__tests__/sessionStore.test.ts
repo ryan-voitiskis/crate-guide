@@ -37,7 +37,7 @@ const mockUserStore = {
 }
 
 function createMockQueryBuilder() {
-	return {
+	const builder = {
 		insert: vi.fn().mockReturnThis(),
 		update: vi.fn().mockReturnThis(),
 		delete: vi.fn().mockReturnThis(),
@@ -46,8 +46,25 @@ function createMockQueryBuilder() {
 		order: vi.fn().mockReturnThis(),
 		lt: vi.fn().mockReturnThis(),
 		limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-		single: vi.fn().mockResolvedValue({ data: null, error: null })
+		single: vi.fn()
 	}
+	builder.single.mockImplementation(async () => {
+		const equalityCalls = builder.eq.mock.calls as Array<[string, unknown]>
+		const id = [...equalityCalls]
+			.reverse()
+			.find(([column]) => column === 'id')?.[1]
+		const userId = [...equalityCalls]
+			.reverse()
+			.find(([column]) => column === 'user_id')?.[1]
+		return {
+			data: {
+				id: typeof id === 'string' ? id : 'set-1',
+				user_id: typeof userId === 'string' ? userId : 'test-user-id'
+			},
+			error: null
+		}
+	})
+	return builder
 }
 
 let mockQueryBuilder = createMockQueryBuilder()
@@ -1047,7 +1064,10 @@ describe('sessionStore', () => {
 
 		it('drops a queued autosave update when the session is cleared', async () => {
 			vi.useFakeTimers()
-			const update = createDeferred<{ data: null; error: null }>()
+			const update = createDeferred<{
+				data: { id: string; user_id: string }
+				error: null
+			}>()
 			const firstEntry = {
 				track_id: 'track-first',
 				time_added: 1,
@@ -1060,7 +1080,7 @@ describe('sessionStore', () => {
 				adjusted_bpm: 129,
 				transition_rating: 4
 			}
-			mockQueryBuilder.eq.mockReturnValueOnce(update.promise)
+			mockQueryBuilder.single.mockReturnValueOnce(update.promise)
 			const store = useSessionStore()
 			store.activeSetId = 'set-active'
 
@@ -1074,7 +1094,10 @@ describe('sessionStore', () => {
 				expect(mockQueryBuilder.update).toHaveBeenCalledOnce()
 
 				store.clearSession()
-				update.resolve({ data: null, error: null })
+				update.resolve({
+					data: { id: 'set-active', user_id: 'test-user-id' },
+					error: null
+				})
 				await flushAsyncWork()
 
 				expect(mockQueryBuilder.update).toHaveBeenCalledOnce()
@@ -1333,8 +1356,11 @@ describe('sessionStore', () => {
 		})
 
 		it('ignores a late delete from the reset account', async () => {
-			const oldDelete = createDeferred<{ data: null; error: null }>()
-			mockQueryBuilder.eq.mockReturnValueOnce(oldDelete.promise)
+			const oldDelete = createDeferred<{
+				data: { id: string; user_id: string }
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValueOnce(oldDelete.promise)
 			const store = useSessionStore()
 			store.savedSets = [createSavedSet({ id: 'set-a' })]
 			store.activeSetId = 'set-a'
@@ -1346,12 +1372,33 @@ describe('sessionStore', () => {
 			store.savedSets = [createSavedSet({ id: 'set-b', user_id: 'user-b' })]
 			store.activeSetId = 'set-b'
 			store.selectedSetId = 'set-b'
-			oldDelete.resolve({ data: null, error: null })
+			oldDelete.resolve({
+				data: { id: 'set-a', user_id: 'test-user-id' },
+				error: null
+			})
 			await deletePromise
 
 			expect(store.savedSets.map((set) => set.id)).toEqual(['set-b'])
 			expect(store.activeSetId).toBe('set-b')
 			expect(store.selectedSetId).toBe('set-b')
+			expect(mockToast.success).not.toHaveBeenCalled()
+			expect(mockToast.error).not.toHaveBeenCalled()
+		})
+
+		it('silences a late failed delete from the reset account', async () => {
+			const oldDelete = createDeferred<{ data: null; error: Error }>()
+			mockQueryBuilder.single.mockReturnValueOnce(oldDelete.promise)
+			const store = useSessionStore()
+			store.savedSets = [createSavedSet({ id: 'set-a' })]
+
+			const deletePromise = store.deleteSet('set-a')
+			store.resetAccountState()
+			mockUserStore.supaUser = { id: 'user-b' }
+			store.savedSets = [createSavedSet({ id: 'set-b', user_id: 'user-b' })]
+			oldDelete.resolve({ data: null, error: new Error('Old delete failed') })
+			await deletePromise
+
+			expect(store.savedSets.map((set) => set.id)).toEqual(['set-b'])
 			expect(mockToast.success).not.toHaveBeenCalled()
 			expect(mockToast.error).not.toHaveBeenCalled()
 		})
@@ -1370,6 +1417,31 @@ describe('sessionStore', () => {
 			adjusted_bpm: null,
 			transition_rating: 5
 		}
+
+		it('coalesces concurrent loads into one transport chain and starts fresh later', async () => {
+			const response = createDeferred<{ data: SavedSetRow[]; error: null }>()
+			mockQueryBuilder.limit.mockReturnValueOnce(response.promise)
+			const store = useSessionStore()
+
+			const first = store.fetchSavedSets()
+			const concurrent = store.fetchSavedSets()
+			expect(mockSupabaseClient.from).toHaveBeenCalledOnce()
+			response.resolve({
+				data: [createSavedSetRow({ id: 'set-from-first-chain' })],
+				error: null
+			})
+			await Promise.all([first, concurrent])
+			expect(store.savedSets.map((savedSet) => savedSet.id)).toEqual([
+				'set-from-first-chain'
+			])
+
+			mockQueryBuilder.limit.mockResolvedValueOnce({ data: [], error: null })
+			const later = store.fetchSavedSets()
+			expect(later).not.toBe(first)
+			await later
+			expect(store.savedSets).toEqual([])
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
+		})
 
 		it('loads 1001 saved sets with stable ordering and exact keyset pages', async () => {
 			const store = useSessionStore()
@@ -1527,8 +1599,175 @@ describe('sessionStore', () => {
 			expect(ids).toContain('set-a-fetched')
 			expect(ids.filter((id) => id === 'set-a-local')).toHaveLength(1)
 			expect(store.savedSets.find(({ id }) => id === 'set-a-local')?.name).toBe(
-				'Authoritative fetched copy'
+				'Synthetic set'
 			)
+		})
+
+		it('preserves a post-snapshot update over a stale fetched row with the same ID', async () => {
+			const fetchResponse = createDeferred<{
+				data: SavedSetRow[]
+				error: null
+			}>()
+			mockQueryBuilder.limit.mockReturnValueOnce(fetchResponse.promise)
+			mockQueryBuilder.single.mockResolvedValueOnce({
+				data: createSavedSetRow({ id: 'set-existing', name: 'Local update' }),
+				error: null
+			})
+			const store = useSessionStore()
+			store.savedSets = [
+				createSavedSet({ id: 'set-existing', name: 'Before update' })
+			]
+			store.activeSetId = 'set-existing'
+			store.currentSession = [firstEntry]
+
+			const fetchPromise = store.fetchSavedSets()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
+			)
+			await expect(store.saveSession('Local update')).resolves.toMatchObject({
+				id: 'set-existing',
+				name: 'Local update'
+			})
+			fetchResponse.resolve({
+				data: [
+					createSavedSetRow({
+						id: 'set-existing',
+						name: 'Stale fetched value'
+					})
+				],
+				error: null
+			})
+			await fetchPromise
+
+			expect(store.savedSets).toHaveLength(1)
+			expect(store.savedSets[0]!.name).toBe('Local update')
+		})
+
+		it('does not assign revision provenance to a failed concurrent save', async () => {
+			const fetchResponse = createDeferred<{
+				data: SavedSetRow[]
+				error: null
+			}>()
+			mockQueryBuilder.limit.mockReturnValueOnce(fetchResponse.promise)
+			mockQueryBuilder.single.mockResolvedValueOnce({
+				data: null,
+				error: new Error('Save failed')
+			})
+			const store = useSessionStore()
+			store.savedSets = [
+				createSavedSet({ id: 'set-existing', name: 'Before update' })
+			]
+			store.activeSetId = 'set-existing'
+			store.currentSession = [firstEntry]
+
+			const fetchPromise = store.fetchSavedSets()
+			await expect(
+				store.saveSession('Rejected local update')
+			).resolves.toBeNull()
+			fetchResponse.resolve({
+				data: [
+					createSavedSetRow({
+						id: 'set-existing',
+						name: 'Authoritative fetched value'
+					})
+				],
+				error: null
+			})
+			await fetchPromise
+
+			expect(store.savedSets[0]!.name).toBe('Authoritative fetched value')
+		})
+
+		it('tombstones a successful concurrent delete until authoritative absence', async () => {
+			const staleFetch = createDeferred<{
+				data: SavedSetRow[]
+				error: null
+			}>()
+			const deletedRow = createSavedSetRow({ id: 'set-delete' })
+			mockQueryBuilder.limit
+				.mockReturnValueOnce(staleFetch.promise)
+				.mockResolvedValueOnce({ data: [deletedRow], error: null })
+				.mockResolvedValueOnce({ data: [], error: null })
+				.mockResolvedValueOnce({ data: [deletedRow], error: null })
+			mockQueryBuilder.single.mockResolvedValueOnce({
+				data: { id: 'set-delete', user_id: 'test-user-id' },
+				error: null
+			})
+			const store = useSessionStore()
+			store.savedSets = [createSavedSet({ id: 'set-delete' })]
+
+			const fetchPromise = store.fetchSavedSets()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
+			)
+			await store.deleteSet('set-delete')
+			staleFetch.resolve({ data: [], error: null })
+			await fetchPromise
+			expect(store.savedSets).toEqual([])
+
+			await store.fetchSavedSets()
+			expect(store.savedSets).toEqual([])
+			await store.fetchSavedSets()
+			expect(store.savedSets).toEqual([])
+			await store.fetchSavedSets()
+			expect(store.savedSets.map((savedSet) => savedSet.id)).toEqual([
+				'set-delete'
+			])
+		})
+
+		it('does not tombstone a failed concurrent delete', async () => {
+			const fetchResponse = createDeferred<{
+				data: SavedSetRow[]
+				error: null
+			}>()
+			const fetchedRow = createSavedSetRow({
+				id: 'set-delete',
+				name: 'Still authoritative'
+			})
+			mockQueryBuilder.limit.mockReturnValueOnce(fetchResponse.promise)
+			mockQueryBuilder.single.mockResolvedValueOnce({
+				data: null,
+				error: new Error('Delete failed')
+			})
+			const store = useSessionStore()
+			store.savedSets = [createSavedSet({ id: 'set-delete' })]
+
+			const fetchPromise = store.fetchSavedSets()
+			await store.deleteSet('set-delete')
+			fetchResponse.resolve({ data: [fetchedRow], error: null })
+			await fetchPromise
+
+			expect(store.savedSets[0]!.name).toBe('Still authoritative')
+		})
+
+		it('fails closed on fetched and saved rows owned by another account', async () => {
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined)
+			mockQueryBuilder.limit.mockResolvedValueOnce({
+				data: [createSavedSetRow({ id: 'wrong-fetch', user_id: 'user-b' })],
+				error: null
+			})
+			mockQueryBuilder.single.mockResolvedValueOnce({
+				data: createSavedSetRow({ id: 'wrong-save', user_id: 'user-b' }),
+				error: null
+			})
+			const store = useSessionStore()
+			store.savedSets = [createSavedSet({ id: 'existing' })]
+			store.currentSession = [firstEntry]
+
+			try {
+				await store.fetchSavedSets()
+				expect(store.savedSets.map((savedSet) => savedSet.id)).toEqual([
+					'existing'
+				])
+				await expect(store.saveSession('Wrong owner')).resolves.toBeNull()
+				expect(store.savedSets.map((savedSet) => savedSet.id)).toEqual([
+					'existing'
+				])
+			} finally {
+				consoleError.mockRestore()
+			}
 		})
 
 		it('decodes fetched sets, preserves mixed-entry order, and warns once', async () => {
@@ -1721,7 +1960,7 @@ describe('sessionStore', () => {
 		it('serializes a slow initial autosave and updates the created set with the latest snapshot', async () => {
 			vi.useFakeTimers()
 			const insert = createDeferred<{
-				data: { id: string }
+				data: { id: string; user_id: string }
 				error: null
 			}>()
 			mockQueryBuilder.single.mockReturnValueOnce(insert.promise)
@@ -1742,7 +1981,10 @@ describe('sessionStore', () => {
 					name: null,
 					played_tracks: [firstEntry]
 				})
-				insert.resolve({ data: { id: 'set-queued' }, error: null })
+				insert.resolve({
+					data: { id: 'set-queued', user_id: 'test-user-id' },
+					error: null
+				})
 				await flushAsyncWork()
 
 				expect(mockQueryBuilder.insert).toHaveBeenCalledOnce()
@@ -1758,8 +2000,11 @@ describe('sessionStore', () => {
 
 		it('coalesces snapshots queued behind a slow update to one newest follow-up', async () => {
 			vi.useFakeTimers()
-			const firstUpdate = createDeferred<{ data: null; error: null }>()
-			mockQueryBuilder.eq.mockReturnValueOnce(firstUpdate.promise)
+			const firstUpdate = createDeferred<{
+				data: { id: string; user_id: string }
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValueOnce(firstUpdate.promise)
 			const store = useSessionStore()
 			store.activeSetId = 'set-queued'
 
@@ -1780,7 +2025,10 @@ describe('sessionStore', () => {
 					played_tracks: [firstEntry]
 				})
 				expect(store.isAutoSaving).toBe(true)
-				firstUpdate.resolve({ data: null, error: null })
+				firstUpdate.resolve({
+					data: { id: 'set-queued', user_id: 'test-user-id' },
+					error: null
+				})
 				await flushAsyncWork()
 
 				expect(mockQueryBuilder.update).toHaveBeenCalledTimes(2)
@@ -1796,7 +2044,7 @@ describe('sessionStore', () => {
 		it('orders a named manual save after autosave and preserves its captured latest snapshot', async () => {
 			vi.useFakeTimers()
 			const insert = createDeferred<{
-				data: { id: string }
+				data: { id: string; user_id: string }
 				error: null
 			}>()
 			mockQueryBuilder.single
@@ -1823,7 +2071,10 @@ describe('sessionStore', () => {
 				expect(store.isAutoSaving).toBe(true)
 				expect(store.isSavingSession).toBe(true)
 
-				insert.resolve({ data: { id: 'set-queued' }, error: null })
+				insert.resolve({
+					data: { id: 'set-queued', user_id: 'test-user-id' },
+					error: null
+				})
 				await expect(manualSave).resolves.toMatchObject({
 					id: 'set-queued',
 					name: 'Named session',
@@ -1908,6 +2159,68 @@ describe('sessionStore', () => {
 	})
 
 	describe('auto-save failures', () => {
+		it('fails a zero-row owned auto-save update closed', async () => {
+			vi.useFakeTimers()
+			mockQueryBuilder.single.mockResolvedValueOnce({ data: null, error: null })
+			const store = useSessionStore()
+			store.activeSetId = 'set-1'
+
+			try {
+				store.currentSession = [
+					{
+						track_id: 'track-1',
+						time_added: Date.now(),
+						adjusted_bpm: 128,
+						transition_rating: null
+					}
+				]
+				await vi.advanceTimersByTimeAsync(2000)
+
+				expect(store.autoSaveError).toBe(
+					'Auto-save failed. Your current session is not saved yet.'
+				)
+				expect(store.activeSetId).toBe('set-1')
+				expect(mockQueryBuilder.eq.mock.calls).toContainEqual([
+					'user_id',
+					'test-user-id'
+				])
+				expect(mockQueryBuilder.select).toHaveBeenCalledWith('id, user_id')
+				expect(mockToast.error).toHaveBeenCalledOnce()
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
+		it('rejects an auto-save insert response owned by another account', async () => {
+			vi.useFakeTimers()
+			mockQueryBuilder.single.mockResolvedValueOnce({
+				data: { id: 'set-wrong-owner', user_id: 'user-b' },
+				error: null
+			})
+			const store = useSessionStore()
+
+			try {
+				store.currentSession = [
+					{
+						track_id: 'track-1',
+						time_added: Date.now(),
+						adjusted_bpm: 128,
+						transition_rating: null
+					}
+				]
+				await vi.advanceTimersByTimeAsync(2000)
+
+				expect(store.autoSaveError).toBe(
+					'Auto-save failed. Your current session is not saved yet.'
+				)
+				expect(store.activeSetId).toBeNull()
+				expect(mockQueryBuilder.select).toHaveBeenCalledWith('id, user_id')
+				expect(mockToast.error).toHaveBeenCalledOnce()
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
 		it('surfaces create auto-save failures and clears the error after a successful retry', async () => {
 			vi.useFakeTimers()
 			mockQueryBuilder.single
@@ -1916,7 +2229,7 @@ describe('sessionStore', () => {
 					error: new Error('Insert failed')
 				})
 				.mockResolvedValueOnce({
-					data: { id: 'set-1' },
+					data: { id: 'set-1', user_id: 'test-user-id' },
 					error: null
 				})
 			const store = useSessionStore()
@@ -1959,13 +2272,13 @@ describe('sessionStore', () => {
 
 		it('surfaces update auto-save failures and clears the error after a successful retry', async () => {
 			vi.useFakeTimers()
-			mockQueryBuilder.eq
+			mockQueryBuilder.single
 				.mockResolvedValueOnce({
 					data: null,
 					error: new Error('Update failed')
 				})
 				.mockResolvedValueOnce({
-					data: null,
+					data: { id: 'set-1', user_id: 'test-user-id' },
 					error: null
 				})
 			const store = useSessionStore()
