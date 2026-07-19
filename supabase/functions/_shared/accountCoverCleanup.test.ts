@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {
 	ACCOUNT_COVER_ENUMERATION_LIMIT,
+	ACCOUNT_COVER_STORAGE_BATCH_LIMIT,
 	type AccountCoverCleanupAdapter,
 	type AccountCoverCleanupClaim,
 	AccountCoverCleanupError,
@@ -97,6 +98,56 @@ Deno.test(
 		await removeAllAccountCoverObjects(cleanupAdapter, USER_ID)
 
 		assert.deepEqual(removed, [[`${USER_ID}/${deepPath.join('/')}/cover.webp`]])
+	}
+)
+
+Deno.test(
+	'full account deletion reaches 206 root and nested objects in bounded batches',
+	async () => {
+		const rootFiles = Array.from({ length: 205 }, (_, index) =>
+			file(`cover-${index.toString().padStart(3, '0')}.webp`)
+		)
+		const nestedFile = file('alternate.webp')
+		const removed: string[][] = []
+		let didRemoveAll = false
+		const cleanupAdapter = adapter({
+			listFolder(path, offset, limit) {
+				if (didRemoveAll) return Promise.resolve([])
+				if (path === USER_ID) {
+					const entries: AccountCoverStorageEntry[] = [
+						{ id: null, name: 'nested' },
+						...rootFiles
+					]
+					return Promise.resolve(entries.slice(offset, offset + limit))
+				}
+				if (path === `${USER_ID}/nested`) {
+					return Promise.resolve(offset === 0 ? [nestedFile] : [])
+				}
+				throw new Error(`unexpected path: ${path}`)
+			},
+			removeObjects(paths) {
+				removed.push(paths)
+				didRemoveAll = removed.flat().length === 206
+				return Promise.resolve()
+			}
+		})
+
+		await removeAllAccountCoverObjects(cleanupAdapter, USER_ID)
+
+		assert.deepEqual(
+			new Set(removed.flat()),
+			new Set([
+				...rootFiles.map(({ name }) => `${USER_ID}/${name}`),
+				`${USER_ID}/nested/${nestedFile.name}`
+			])
+		)
+		assert.equal(removed.flat().length, 206)
+		assert.ok(
+			removed.every(
+				({ length }) =>
+					length > 0 && length <= ACCOUNT_COVER_STORAGE_BATCH_LIMIT
+			)
+		)
 	}
 )
 

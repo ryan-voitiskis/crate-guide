@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(41);
+SELECT plan(43);
 
 SELECT has_table(
 	'public',
@@ -217,13 +217,21 @@ SELECT is(
 	1::SMALLINT,
 	'the object enumeration accepts only the internally claimed user UUID'
 );
-SELECT ok(
-	position(
-		'LIMIT 101' IN pg_get_functiondef(
-			'public.list_record_cover_account_cleanup_objects(uuid)'::REGPROCEDURE
+SELECT is(
+	trim(
+		regexp_replace(
+			(
+				SELECT prosrc
+				FROM pg_proc
+				WHERE oid = 'public.list_record_cover_account_cleanup_objects(uuid)'::REGPROCEDURE
+			),
+			'\s+',
+			' ',
+			'g'
 		)
-	) > 0,
-	'the object enumeration has a database-fixed 101-row bound'
+	),
+	'SELECT objects.name FROM storage.objects AS objects WHERE objects.bucket_id = ''record-covers'' AND objects.name COLLATE "C" >= target_user_id::TEXT || ''/'' AND objects.name COLLATE "C" < target_user_id::TEXT || ''0'' ORDER BY objects.name COLLATE "C" LIMIT 101;',
+	'the object enumeration body is exactly the bounded covering-index query'
 );
 
 SELECT throws_like(
@@ -254,11 +262,16 @@ SELECT
 		|| object_number::TEXT
 		|| '.webp',
 	'00000000-0000-0000-0000-000000000401'
-FROM generate_series(1, 105) AS object_number;
+FROM generate_series(1, 201) AS object_number;
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('other-bucket', 'other-bucket', FALSE);
 INSERT INTO storage.objects (bucket_id, name, owner_id)
 VALUES
+	(
+		'record-covers',
+		'00000000-0000-0000-0000-000000000401/000-root.webp',
+		'00000000-0000-0000-0000-000000000401'
+	),
 	(
 		'record-covers',
 		'00000000-0000-0000-0000-000000000401/000/deep/legacy/path/below/eight/folders/to/cover.webp',
@@ -270,9 +283,24 @@ VALUES
 		'00000000-0000-0000-0000-000000000402'
 	),
 	(
+		'record-covers',
+		'00000000-0000-0000-0000-000000000403/000-root.webp',
+		'00000000-0000-0000-0000-000000000403'
+	),
+	(
+		'record-covers',
+		'00000000-0000-0000-0000-000000000403/000/deep/legacy-cover.webp',
+		'00000000-0000-0000-0000-000000000403'
+	),
+	(
+		'record-covers',
+		'00000000-0000-0000-0000-0000000004030/record/lookalike.webp',
+		'00000000-0000-0000-0000-000000000403'
+	),
+	(
 		'other-bucket',
-		'00000000-0000-0000-0000-000000000401/record/wrong-bucket.webp',
-		'00000000-0000-0000-0000-000000000401'
+		'00000000-0000-0000-0000-000000000403/record/wrong-bucket.webp',
+		'00000000-0000-0000-0000-000000000403'
 	);
 
 SET LOCAL ROLE service_role;
@@ -298,14 +326,30 @@ SELECT ok(
 	'the service enumeration returns only the claimed account prefix'
 );
 SELECT ok(
-	EXISTS (
-		SELECT 1
+	(
+		SELECT count(*)
 		FROM public.list_record_cover_account_cleanup_objects(
 			'00000000-0000-0000-0000-000000000401'
 		)
-		WHERE object_name LIKE '%/below/eight/folders/to/cover.webp'
+		WHERE object_name IN (
+			'00000000-0000-0000-0000-000000000401/000-root.webp',
+			'00000000-0000-0000-0000-000000000401/000/deep/legacy/path/below/eight/folders/to/cover.webp'
+		)
+	) = 2,
+	'the database enumeration sees root and deep legacy objects'
+);
+SELECT is(
+	(
+		SELECT array_agg(object_name)
+		FROM public.list_record_cover_account_cleanup_objects(
+			'00000000-0000-0000-0000-000000000403'
+		)
 	),
-	'the database enumeration sees deep legacy objects'
+	ARRAY[
+		'00000000-0000-0000-0000-000000000403/000-root.webp',
+		'00000000-0000-0000-0000-000000000403/000/deep/legacy-cover.webp'
+	]::TEXT[],
+	'the half-open range returns exact C-ordered neighbors but excludes another UUID, a lookalike prefix, and another bucket'
 );
 SELECT is(
 	(
@@ -315,7 +359,7 @@ SELECT is(
 		)
 	),
 	(
-		SELECT array_agg(object_name ORDER BY object_name)
+		SELECT array_agg(object_name ORDER BY object_name COLLATE "C")
 		FROM public.list_record_cover_account_cleanup_objects(
 			'00000000-0000-0000-0000-000000000401'
 		)
@@ -323,6 +367,67 @@ SELECT is(
 	'the bounded enumeration is deterministic by exact object name'
 );
 RESET ROLE;
+
+INSERT INTO storage.objects (bucket_id, name)
+SELECT
+	'record-covers',
+	CASE
+		WHEN account_number <= 10 THEN '40000000-0000-4000-8000-'
+		ELSE '60000000-0000-4000-8000-'
+	END
+		|| lpad((account_number % 10 + 1)::TEXT, 12, '0')
+		|| '/record/cover-'
+		|| lpad(object_number::TEXT, 4, '0')
+		|| '.webp'
+FROM generate_series(1, 20) AS account_number
+CROSS JOIN generate_series(1, 500) AS object_number;
+INSERT INTO storage.objects (bucket_id, name)
+SELECT
+	'record-covers',
+	'50000000-0000-4000-8000-000000000042/record/cover-'
+		|| lpad(object_number::TEXT, 4, '0')
+		|| '.webp'
+FROM generate_series(1, 201) AS object_number;
+ANALYZE storage.objects;
+SET LOCAL plan_cache_mode = force_generic_plan;
+PREPARE account_cover_enumeration_plan(UUID) AS
+	SELECT objects.name
+	FROM storage.objects AS objects
+	WHERE objects.bucket_id = 'record-covers'
+		AND objects.name COLLATE "C" >= $1::TEXT || '/'
+		AND objects.name COLLATE "C" < $1::TEXT || '0'
+	ORDER BY objects.name COLLATE "C"
+	LIMIT 101;
+CREATE TEMPORARY TABLE account_cover_enumeration_plans (
+	plan_document JSONB NOT NULL
+);
+DO $$
+DECLARE
+	plan_document JSONB;
+BEGIN
+	EXECUTE
+		'EXPLAIN (FORMAT JSON, COSTS OFF) EXECUTE account_cover_enumeration_plan(''50000000-0000-4000-8000-000000000042'')'
+	INTO plan_document;
+	INSERT INTO account_cover_enumeration_plans VALUES (plan_document);
+END;
+$$;
+SELECT ok(
+	plan_document #>> '{0,Plan,Node Type}' = 'Limit'
+	AND jsonb_array_length(plan_document #> '{0,Plan,Plans}') = 1
+	AND plan_document #>> '{0,Plan,Plans,0,Node Type}' = 'Index Only Scan'
+	AND plan_document #>> '{0,Plan,Plans,0,Index Name}' = 'idx_objects_bucket_id_name'
+	AND plan_document #>> '{0,Plan,Plans,0,Index Cond}' LIKE
+		'%bucket_id = ''record-covers''::text%'
+	AND plan_document #>> '{0,Plan,Plans,0,Index Cond}' LIKE
+		'%name >= (($1)::text || ''/''::text)%'
+	AND plan_document #>> '{0,Plan,Plans,0,Index Cond}' LIKE
+		'%name < (($1)::text || ''0''::text)%'
+	AND NOT (plan_document #> '{0,Plan,Plans,0}' ? 'Filter')
+	AND NOT (plan_document #> '{0,Plan,Plans,0}' ? 'Plans'),
+	'the forced-generic plan puts both UUID bounds in the covering index condition without a residual filter'
+)
+FROM account_cover_enumeration_plans;
+DEALLOCATE account_cover_enumeration_plan;
 
 CREATE TEMPORARY TABLE account_cleanup_claims (
 	label TEXT PRIMARY KEY,
