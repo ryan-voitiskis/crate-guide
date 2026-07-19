@@ -224,6 +224,7 @@ npm run format:check         # Check formatting without writes
 npm run lint                 # ESLint
 npm run lint:fix             # ESLint with auto-fix
 npm run typecheck            # Nuxt/TypeScript checking
+npm run audit:prod           # Audit production dependencies at high severity
 npm run check:conventions    # Component naming and Tailwind boundaries
 npm run test:typegen-script  # Failure/rollback tests for genTypes
 npm run test:database-type-parity # Tests for the generated type parity gate
@@ -242,12 +243,19 @@ production build is also a separate release check. For release and
 deployment-affecting handoffs, run `npm run verify:full`; it adds the production
 build and local database tests, so it requires a running local Supabase stack.
 
+`npm run audit:prod` checks the installed production dependency graph and fails
+on high or critical advisories. The exact `esbuild` development dependency is
+intentional: it keeps the shared Nuxt/Vite production graph on the fixed release
+while the incompatible ESLint inspector copy remains isolated to development.
+Recheck both `npm audit --omit=dev` and `npm explain esbuild` when changing it.
+
 GitHub Actions runs source-controlled CI for every pull request and push to
-`main`. The application job installs Chromium, runs `npm run verify`, and builds
-the production application. The database job starts the tracked local Supabase
-stack and runs `npm run test:db`, without using a linked hosted project. Locally,
-`npm run verify:full` is the nearest equivalent to both jobs; it requires Docker
-and a running local Supabase stack.
+`main`. The application job audits production dependencies before installing
+Chromium, runs `npm run verify`, and builds the production application. The
+database job starts the tracked local Supabase stack and runs `npm run test:db`,
+without using a linked hosted project. Locally, `npm run verify:full` is the
+nearest equivalent to both jobs; it requires Docker and a running local Supabase
+stack.
 
 ### Database
 
