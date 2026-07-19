@@ -3,30 +3,42 @@ import { playwright } from '@vitest/browser-playwright'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
+const nuxtProject = await defineVitestProject({
+	test: {
+		name: 'nuxt',
+		include: ['test/nuxt/**/*.nuxt.test.ts'],
+		environment: 'nuxt',
+		environmentOptions: {
+			nuxt: {
+				rootDir: fileURLToPath(new URL('.', import.meta.url)),
+				domEnvironment: 'happy-dom',
+				mock: { indexedDb: true },
+				overrides: {
+					supabase: {
+						url: 'https://supabase.test.invalid',
+						key: 'test-anon-key',
+						redirect: false
+					}
+				}
+			}
+		}
+	}
+})
+
+const nuxtWebStorageProject = {
+	...nuxtProject,
+	test: {
+		...nuxtProject.test,
+		environment: fileURLToPath(
+			new URL('./test/environment-nuxt-webstorage.ts', import.meta.url)
+		)
+	}
+}
+
 export default defineConfig({
 	test: {
 		projects: [
-			await defineVitestProject({
-				test: {
-					name: 'nuxt',
-					include: ['test/nuxt/**/*.nuxt.test.ts'],
-					environment: 'nuxt',
-					environmentOptions: {
-						nuxt: {
-							rootDir: fileURLToPath(new URL('.', import.meta.url)),
-							domEnvironment: 'happy-dom',
-							mock: { indexedDb: true },
-							overrides: {
-								supabase: {
-									url: 'https://supabase.test.invalid',
-									key: 'test-anon-key',
-									redirect: false
-								}
-							}
-						}
-					}
-				}
-			}),
+			nuxtWebStorageProject,
 			{
 				test: {
 					name: 'browser',
