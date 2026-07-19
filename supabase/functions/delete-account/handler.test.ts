@@ -1,6 +1,12 @@
 import type { User } from '@supabase/supabase-js'
 import assert from 'node:assert/strict'
-import { createDeleteAccountHandler } from './handler.ts'
+import {
+	RECENT_AUTHENTICATION_FUTURE_TOLERANCE_SECONDS,
+	RECENT_AUTHENTICATION_MAX_AGE_SECONDS,
+	createDeleteAccountHandler
+} from './handler.ts'
+
+const NOW_SECONDS = 2_000_000_000
 
 interface StorageEntry {
 	id: string | null
@@ -20,17 +26,33 @@ function request(
 
 function dependencies(
 	overrides: {
+		authenticate?: () => Promise<User>
+		claims?: Record<string, unknown>
+		verifyClaims?: () => Promise<Record<string, unknown>>
+		nowSeconds?: () => number
 		deleteUser?: (userId: string) => Promise<void>
 		listFolder?: (path: string, offset: number) => Promise<StorageEntry[]>
 		removeObjects?: (paths: string[]) => Promise<void>
 	} = {}
 ) {
 	return {
-		authenticate: () =>
-			Promise.resolve({
-				id: 'user-id',
-				email: 'listener@example.com'
-			} as User),
+		authenticate:
+			overrides.authenticate ??
+			(() =>
+				Promise.resolve({
+					id: 'user-id',
+					email: 'listener@example.com'
+				} as User)),
+		verifyClaims:
+			overrides.verifyClaims ??
+			(() =>
+				Promise.resolve(
+					overrides.claims ?? {
+						sub: 'user-id',
+						amr: [{ method: 'password', timestamp: NOW_SECONDS }]
+					}
+				)),
+		nowSeconds: overrides.nowSeconds ?? (() => NOW_SECONDS),
 		createAdmin: () => ({
 			deleteUser: overrides.deleteUser ?? (() => Promise.resolve()),
 			listFolder: overrides.listFolder ?? (() => Promise.resolve([])),
@@ -38,6 +60,200 @@ function dependencies(
 		})
 	}
 }
+
+async function assertRecentAuthenticationRejected(
+	claims: Record<string, unknown>
+): Promise<void> {
+	let didCreateAdmin = false
+	const handler = createDeleteAccountHandler(
+		{ 'Content-Type': 'application/json' },
+		{
+			...dependencies({ claims }),
+			createAdmin: () => {
+				didCreateAdmin = true
+				throw new Error('must not create admin')
+			}
+		}
+	)
+
+	const response = await handler(request())
+	const payload = await response.json()
+
+	assert.equal(response.status, 403)
+	assert.equal(payload.code, 'recent_authentication_required')
+	assert.equal(payload.error, 'Sign in again before deleting your account.')
+	assert.equal(didCreateAdmin, false)
+}
+
+Deno.test('delete-account accepts a fresh password AMR timestamp', async () => {
+	const handler = createDeleteAccountHandler(
+		{ 'Content-Type': 'application/json' },
+		dependencies()
+	)
+
+	const response = await handler(request())
+
+	assert.equal(response.status, 200)
+})
+
+Deno.test(
+	'delete-account accepts the characterized generic OAuth AMR method',
+	async () => {
+		const handler = createDeleteAccountHandler(
+			{ 'Content-Type': 'application/json' },
+			dependencies({
+				claims: {
+					sub: 'user-id',
+					amr: [{ method: 'oauth', timestamp: NOW_SECONDS }]
+				}
+			})
+		)
+
+		const response = await handler(request())
+
+		assert.equal(response.status, 200)
+	}
+)
+
+Deno.test(
+	'delete-account accepts an AMR timestamp exactly 300 seconds old',
+	async () => {
+		const handler = createDeleteAccountHandler(
+			{ 'Content-Type': 'application/json' },
+			dependencies({
+				claims: {
+					sub: 'user-id',
+					amr: [
+						{
+							method: 'password',
+							timestamp: NOW_SECONDS - RECENT_AUTHENTICATION_MAX_AGE_SECONDS
+						}
+					]
+				}
+			})
+		)
+
+		const response = await handler(request())
+
+		assert.equal(response.status, 200)
+	}
+)
+
+Deno.test(
+	'delete-account accepts an AMR timestamp at the future-skew boundary',
+	async () => {
+		const handler = createDeleteAccountHandler(
+			{ 'Content-Type': 'application/json' },
+			dependencies({
+				claims: {
+					sub: 'user-id',
+					amr: [
+						{
+							method: 'password',
+							timestamp:
+								NOW_SECONDS + RECENT_AUTHENTICATION_FUTURE_TOLERANCE_SECONDS
+						}
+					]
+				}
+			})
+		)
+
+		const response = await handler(request())
+
+		assert.equal(response.status, 200)
+	}
+)
+
+Deno.test('delete-account rejects a stale AMR timestamp', () =>
+	assertRecentAuthenticationRejected({
+		sub: 'user-id',
+		amr: [
+			{
+				method: 'password',
+				timestamp: NOW_SECONDS - RECENT_AUTHENTICATION_MAX_AGE_SECONDS - 1
+			}
+		]
+	})
+)
+
+Deno.test('delete-account rejects an AMR timestamp too far in the future', () =>
+	assertRecentAuthenticationRejected({
+		sub: 'user-id',
+		amr: [
+			{
+				method: 'password',
+				timestamp:
+					NOW_SECONDS + RECENT_AUTHENTICATION_FUTURE_TOLERANCE_SECONDS + 1
+			}
+		]
+	})
+)
+
+Deno.test('delete-account rejects missing AMR claims', () =>
+	assertRecentAuthenticationRejected({ sub: 'user-id' })
+)
+
+Deno.test('delete-account rejects a fresh JWT issued-at claim', () =>
+	assertRecentAuthenticationRejected({
+		sub: 'user-id',
+		iat: NOW_SECONDS
+	})
+)
+
+Deno.test('delete-account rejects a user metadata timestamp', () =>
+	assertRecentAuthenticationRejected({
+		sub: 'user-id',
+		user_metadata: { last_authenticated_at: NOW_SECONDS }
+	})
+)
+
+Deno.test('delete-account rejects string-only AMR claims', () =>
+	assertRecentAuthenticationRejected({
+		sub: 'user-id',
+		amr: ['password']
+	})
+)
+
+Deno.test('delete-account rejects a fresh token-refresh AMR entry', () =>
+	assertRecentAuthenticationRejected({
+		sub: 'user-id',
+		amr: [{ method: 'token_refresh', timestamp: NOW_SECONDS }]
+	})
+)
+
+Deno.test(
+	'delete-account ignores a fresh token refresh beside stale OAuth',
+	() =>
+		assertRecentAuthenticationRejected({
+			sub: 'user-id',
+			amr: [
+				{
+					method: 'oauth',
+					timestamp: NOW_SECONDS - RECENT_AUTHENTICATION_MAX_AGE_SECONDS - 1
+				},
+				{ method: 'token_refresh', timestamp: NOW_SECONDS }
+			]
+		})
+)
+
+Deno.test('delete-account rejects malformed AMR entries', () =>
+	assertRecentAuthenticationRejected({
+		sub: 'user-id',
+		amr: [
+			null,
+			{ method: 'password' },
+			{ method: 'password', timestamp: NOW_SECONDS - 0.5 },
+			{ method: 'github', timestamp: NOW_SECONDS }
+		]
+	})
+)
+
+Deno.test('delete-account rejects claims for a different user', () =>
+	assertRecentAuthenticationRejected({
+		sub: 'different-user-id',
+		amr: [{ method: 'password', timestamp: NOW_SECONDS }]
+	})
+)
 
 Deno.test(
 	'delete-account rejects an incorrect email confirmation',

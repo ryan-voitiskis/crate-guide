@@ -16,6 +16,11 @@ import {
 export const PROFILE_SAFE_COLUMNS =
 	'id, name, discogs_avatar_url, discogs_uid, discogs_username, just_completed_discogs_oauth, key_format, list_layout, selected_crate, turntable_pitch_range, turntable_theme, ui_theme'
 
+export type DeleteAccountResult =
+	| { status: 'deleted'; coverCleanupComplete: boolean }
+	| { status: 'recent-auth-required' }
+	| { status: 'failed' }
+
 export const useUserStore = defineStore('user', () => {
 	const supabase = useSupabaseClient<Database>()
 	const isDemoStore = isDemoWorkbenchPinia(getActivePinia())
@@ -220,32 +225,49 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
-	async function getFunctionErrorMessage(
+	async function signOutForReauthentication(): Promise<boolean> {
+		if (isDemoStore) return false
+		try {
+			const { error } = await supabase.auth.signOut({ scope: 'local' })
+			if (error) throw error
+			authenticatedUser.value = null
+			invalidateIdentity(null)
+			return true
+		} catch {
+			console.error('Local sign out for reauthentication failed')
+			return false
+		}
+	}
+
+	async function getFunctionErrorDetails(
 		error: unknown,
 		fallback: string
-	): Promise<string> {
+	): Promise<{ code: string | null; message: string; status: number | null }> {
 		const context = (error as { context?: unknown })?.context
 		if (context instanceof Response) {
 			try {
-				const payload = await context.clone().json()
-				if (
-					payload &&
-					typeof payload === 'object' &&
-					'error' in payload &&
-					typeof payload.error === 'string'
-				) {
-					return payload.error
+				const payload: unknown = await context.clone().json()
+				if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+					const response = payload as Record<string, unknown>
+					return {
+						code: typeof response.code === 'string' ? response.code : null,
+						message:
+							typeof response.error === 'string' ? response.error : fallback,
+						status: context.status
+					}
 				}
 			} catch {
 				// The Edge Function response was not JSON; use the safe fallback.
 			}
 		}
-		return fallback
+		return { code: null, message: fallback, status: null }
 	}
 
-	async function deleteAccount(emailConfirmation: string): Promise<boolean> {
-		if (isDemoStore) return false
-		if (isDeletingAccount.value) return false
+	async function deleteAccount(
+		emailConfirmation: string
+	): Promise<DeleteAccountResult> {
+		if (isDemoStore) return { status: 'failed' }
+		if (isDeletingAccount.value) return { status: 'failed' }
 		isDeletingAccount.value = true
 		try {
 			// getUser performs a server-side session check immediately before the
@@ -262,7 +284,7 @@ export const useUserStore = defineStore('user', () => {
 				toast.error(
 					'Enter the email address for this account to confirm deletion.'
 				)
-				return false
+				return { status: 'failed' }
 			}
 
 			const { data, error } = await supabase.functions.invoke(
@@ -272,12 +294,17 @@ export const useUserStore = defineStore('user', () => {
 				}
 			)
 			if (error) {
-				throw new Error(
-					await getFunctionErrorMessage(
-						error,
-						'Your account could not be deleted. Please try again.'
-					)
+				const details = await getFunctionErrorDetails(
+					error,
+					'Your account could not be deleted. Please try again.'
 				)
+				if (
+					details.status === 403 &&
+					details.code === 'recent_authentication_required'
+				) {
+					return { status: 'recent-auth-required' }
+				}
+				throw new Error(details.message)
 			}
 			if (
 				!data ||
@@ -316,7 +343,7 @@ export const useUserStore = defineStore('user', () => {
 					'Your account was deleted, but this page could not refresh. Reload the page to finish signing out.',
 					{ duration: 30000 }
 				)
-				return true
+				return { status: 'deleted', coverCleanupComplete }
 			}
 
 			if (signOutError) {
@@ -327,7 +354,7 @@ export const useUserStore = defineStore('user', () => {
 			} else {
 				toast.success('Your account and its data have been deleted.')
 			}
-			return true
+			return { status: 'deleted', coverCleanupComplete }
 		} catch (error) {
 			console.error('Account deletion failed')
 			toast.error(
@@ -336,7 +363,7 @@ export const useUserStore = defineStore('user', () => {
 					: 'Your account could not be deleted. Please try again.',
 				{ duration: 30000 }
 			)
-			return false
+			return { status: 'failed' }
 		} finally {
 			isDeletingAccount.value = false
 		}
@@ -655,6 +682,7 @@ export const useUserStore = defineStore('user', () => {
 		signInWithEmail,
 		signInWithProvider,
 		signOut,
+		signOutForReauthentication,
 		deleteAccount,
 		sendPasswordResetEmail,
 		resetPassword,

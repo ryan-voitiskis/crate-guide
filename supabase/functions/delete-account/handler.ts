@@ -9,6 +9,14 @@ const RECORD_COVER_BUCKET = 'record-covers'
 const LIST_PAGE_SIZE = 1000
 const REMOVE_BATCH_SIZE = 100
 const MAX_CLEANUP_PASSES = 3
+export const RECENT_AUTHENTICATION_MAX_AGE_SECONDS = 300
+export const RECENT_AUTHENTICATION_FUTURE_TOLERANCE_SECONDS = 30
+const RECENT_AUTHENTICATION_METHODS: ReadonlySet<string> = new Set([
+	'password',
+	'oauth'
+])
+
+type VerifiedClaims = Record<string, unknown>
 
 interface StorageEntry {
 	id: string | null
@@ -23,7 +31,9 @@ interface AccountDeletionAdmin {
 
 interface HandlerDependencies {
 	authenticate(authHeader: string): Promise<User>
+	verifyClaims(authHeader: string): Promise<VerifiedClaims>
 	createAdmin(): AccountDeletionAdmin
+	nowSeconds(): number
 }
 
 class StorageCleanupError extends Error {}
@@ -59,7 +69,83 @@ function createDefaultAdmin(): AccountDeletionAdmin {
 
 const defaultDependencies: HandlerDependencies = {
 	authenticate: (authHeader) => getUser(createAuthedSupabaseClient(authHeader)),
-	createAdmin: createDefaultAdmin
+	async verifyClaims(authHeader) {
+		const token = getBearerToken(authHeader)
+		if (!token) throw new Error('Invalid authorization header')
+
+		// The Edge Function lock currently predates auth.getClaims(). Verifying the
+		// exact bearer with getUser(token) before decoding that same token is the
+		// installed SDK's equivalent server-verified claims path.
+		const supabase = createAuthedSupabaseClient(authHeader)
+		const { data, error } = await supabase.auth.getUser(token)
+		if (error || !data.user) throw error ?? new Error('User not found')
+
+		const claims = decodeVerifiedJwtPayload(token)
+		if (claims.sub !== data.user.id) throw new Error('JWT subject mismatch')
+		return claims
+	},
+	createAdmin: createDefaultAdmin,
+	nowSeconds: () => Math.floor(Date.now() / 1000)
+}
+
+function getBearerToken(authHeader: string): string | null {
+	return /^Bearer\s+(\S+)$/i.exec(authHeader.trim())?.[1] ?? null
+}
+
+function decodeVerifiedJwtPayload(token: string): VerifiedClaims {
+	const encodedPayload = token.split('.')[1]
+	if (!encodedPayload) throw new Error('Invalid JWT')
+
+	const base64 = encodedPayload
+		.replaceAll('-', '+')
+		.replaceAll('_', '/')
+		.padEnd(Math.ceil(encodedPayload.length / 4) * 4, '=')
+	const bytes = Uint8Array.from(atob(base64), (character) =>
+		character.charCodeAt(0)
+	)
+	const payload: unknown = JSON.parse(new TextDecoder().decode(bytes))
+	if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+		throw new Error('Invalid JWT payload')
+	}
+	return payload as VerifiedClaims
+}
+
+export function hasRecentAuthentication(
+	claims: unknown,
+	userId: string,
+	nowSeconds: number
+): boolean {
+	if (!claims || typeof claims !== 'object' || Array.isArray(claims))
+		return false
+	const verifiedClaims = claims as VerifiedClaims
+	if (verifiedClaims.sub !== userId || !Array.isArray(verifiedClaims.amr)) {
+		return false
+	}
+
+	let newestTimestamp: number | null = null
+	for (const entry of verifiedClaims.amr) {
+		if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue
+		const { method, timestamp } = entry as Record<string, unknown>
+		if (
+			typeof method !== 'string' ||
+			!RECENT_AUTHENTICATION_METHODS.has(method) ||
+			typeof timestamp !== 'number' ||
+			!Number.isFinite(timestamp) ||
+			!Number.isInteger(timestamp)
+		)
+			continue
+		if (newestTimestamp === null || timestamp > newestTimestamp) {
+			newestTimestamp = timestamp
+		}
+	}
+
+	if (newestTimestamp === null) return false
+	if (
+		newestTimestamp >
+		nowSeconds + RECENT_AUTHENTICATION_FUTURE_TOLERANCE_SECONDS
+	)
+		return false
+	return nowSeconds - newestTimestamp <= RECENT_AUTHENTICATION_MAX_AGE_SECONDS
 }
 
 function jsonResponse(
@@ -174,6 +260,27 @@ export function createDeleteAccountHandler(
 				},
 				headers,
 				400
+			)
+		}
+
+		let claims: VerifiedClaims
+		try {
+			claims = await dependencies.verifyClaims(authHeader)
+		} catch {
+			return jsonResponse(
+				{ error: 'Authentication required.', code: 'authentication_required' },
+				headers,
+				401
+			)
+		}
+		if (!hasRecentAuthentication(claims, user.id, dependencies.nowSeconds())) {
+			return jsonResponse(
+				{
+					error: 'Sign in again before deleting your account.',
+					code: 'recent_authentication_required'
+				},
+				headers,
+				403
 			)
 		}
 

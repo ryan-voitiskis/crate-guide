@@ -616,12 +616,42 @@ describe('userStore', () => {
 	})
 
 	describe('deleteAccount', () => {
+		it('signs out locally for reauthentication without normal login navigation', async () => {
+			const store = useUserStore()
+			store.profile = createMockProfile()
+
+			const result = await store.signOutForReauthentication()
+
+			expect(result).toBe(true)
+			expect(mockSupabaseClient.auth.signOut).toHaveBeenCalledWith({
+				scope: 'local'
+			})
+			expect(mockSupaUser.value).toBeNull()
+			expect(store.profile).toBeNull()
+			expect(mockRouter.replace).not.toHaveBeenCalled()
+		})
+
+		it('preserves account state when reauthentication sign-out fails', async () => {
+			const store = useUserStore()
+			store.profile = createMockProfile()
+			mockSupabaseClient.auth.signOut.mockResolvedValue({
+				error: new Error('Sign out failed')
+			})
+
+			const result = await store.signOutForReauthentication()
+
+			expect(result).toBe(false)
+			expect(mockSupaUser.value).not.toBeNull()
+			expect(store.profile).not.toBeNull()
+			expect(mockRouter.replace).not.toHaveBeenCalled()
+		})
+
 		it('revalidates the user and requires their account email', async () => {
 			const store = useUserStore()
 
 			const result = await store.deleteAccount('someone@example.com')
 
-			expect(result).toBe(false)
+			expect(result).toEqual({ status: 'failed' })
 			expect(mockSupabaseClient.auth.getUser).toHaveBeenCalledOnce()
 			expect(mockSupabaseClient.functions.invoke).not.toHaveBeenCalled()
 			expect(mockToast.error).toHaveBeenCalledWith(
@@ -635,7 +665,10 @@ describe('userStore', () => {
 
 			const result = await store.deleteAccount(' TEST@example.com ')
 
-			expect(result).toBe(true)
+			expect(result).toEqual({
+				status: 'deleted',
+				coverCleanupComplete: true
+			})
 			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
 				'delete-account',
 				{ body: { confirmation: ' TEST@example.com ' } }
@@ -667,7 +700,7 @@ describe('userStore', () => {
 
 			const result = await store.deleteAccount('test@example.com')
 
-			expect(result).toBe(false)
+			expect(result).toEqual({ status: 'failed' })
 			expect(mockSupabaseClient.auth.signOut).not.toHaveBeenCalled()
 			expect(mockSupaUser.value).not.toBeNull()
 			expect(mockToast.error).toHaveBeenCalledWith(
@@ -684,7 +717,10 @@ describe('userStore', () => {
 
 			const result = await store.deleteAccount('test@example.com')
 
-			expect(result).toBe(true)
+			expect(result).toEqual({
+				status: 'deleted',
+				coverCleanupComplete: true
+			})
 			expect(mockSupaUser.value).toBeNull()
 			expect(mockToast.warning).toHaveBeenCalledWith(
 				'Your account was deleted. Reload the page if you still appear signed in.',
@@ -701,11 +737,109 @@ describe('userStore', () => {
 
 			const result = await store.deleteAccount('test@example.com')
 
-			expect(result).toBe(true)
+			expect(result).toEqual({
+				status: 'deleted',
+				coverCleanupComplete: false
+			})
 			expect(mockToast.warning).toHaveBeenCalledWith(
 				'Your account was deleted, but a recently uploaded cover may still need cleanup. Contact the project owner if it remains accessible.',
 				{ duration: 30000 }
 			)
+		})
+
+		it('returns a controlled result when recent authentication is required', async () => {
+			const store = useUserStore()
+			const response = new Response(
+				JSON.stringify({
+					error: 'Sign in again before deleting your account.',
+					code: 'recent_authentication_required'
+				}),
+				{ status: 403 }
+			)
+			mockSupabaseClient.functions.invoke.mockResolvedValue({
+				data: null,
+				error: { context: response }
+			})
+
+			const result = await store.deleteAccount('test@example.com')
+
+			expect(result).toEqual({ status: 'recent-auth-required' })
+			expect(mockSupabaseClient.auth.signOut).not.toHaveBeenCalled()
+			expect(mockSupaUser.value).not.toBeNull()
+			expect(mockToast.error).not.toHaveBeenCalledWith(
+				'Your account could not be deleted. Please try again.',
+				{ duration: 30000 }
+			)
+		})
+
+		it('rejects the recent-auth code when the response is not HTTP 403', async () => {
+			const store = useUserStore()
+			const response = new Response(
+				JSON.stringify({
+					error: 'Your account could not be deleted. Please try again.',
+					code: 'recent_authentication_required'
+				}),
+				{ status: 500 }
+			)
+			mockSupabaseClient.functions.invoke.mockResolvedValue({
+				data: null,
+				error: { context: response }
+			})
+
+			const result = await store.deleteAccount('test@example.com')
+
+			expect(result).toEqual({ status: 'failed' })
+			expect(mockSupabaseClient.auth.signOut).not.toHaveBeenCalled()
+			expect(mockSupaUser.value).not.toBeNull()
+			expect(mockToast.error).toHaveBeenCalledWith(
+				'Your account could not be deleted. Please try again.',
+				{ duration: 30000 }
+			)
+		})
+
+		it('does not infer recent authentication from an uncontrolled error', async () => {
+			const store = useUserStore()
+			const response = new Response(
+				JSON.stringify({
+					error: 'Sign in again before deleting your account.'
+				}),
+				{ status: 403 }
+			)
+			mockSupabaseClient.functions.invoke.mockResolvedValue({
+				data: null,
+				error: { context: response }
+			})
+
+			const result = await store.deleteAccount('test@example.com')
+
+			expect(result).toEqual({ status: 'failed' })
+			expect(mockToast.error).toHaveBeenCalledWith(
+				'Sign in again before deleting your account.',
+				{ duration: 30000 }
+			)
+		})
+
+		it('keeps account deletion single-flight', async () => {
+			const store = useUserStore()
+			const deletion = createDeferred<{
+				data: { success: true }
+				error: null
+			}>()
+			mockSupabaseClient.functions.invoke.mockReturnValueOnce(deletion.promise)
+
+			const firstResult = store.deleteAccount('test@example.com')
+			await Promise.resolve()
+			await Promise.resolve()
+			const secondResult = await store.deleteAccount('test@example.com')
+
+			expect(secondResult).toEqual({ status: 'failed' })
+			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledOnce()
+
+			deletion.resolve({ data: { success: true }, error: null })
+			await expect(firstResult).resolves.toEqual({
+				status: 'deleted',
+				coverCleanupComplete: true
+			})
 		})
 	})
 

@@ -1,11 +1,20 @@
 <script setup lang="ts">
 import { AlertTriangle } from 'lucide-vue-next'
+import { buildLoginRedirectPath } from '../../utils/authRoutes'
+
+const props = withDefaults(defineProps<{ openOnMount?: boolean }>(), {
+	openOnMount: false
+})
 
 const user = useUserStore()
+const route = useRoute()
 
 const showDialog = ref(false)
 const confirmationInput = ref('')
 const isDeleting = ref(false)
+const requiresRecentAuthentication = ref(false)
+const isOpeningLogin = ref(false)
+const reauthenticationError = ref<string | null>(null)
 
 const accountEmail = computed(() => user.supaUser?.email ?? '')
 const isConfirmed = computed(
@@ -17,6 +26,8 @@ const isConfirmed = computed(
 
 function openDialog() {
 	confirmationInput.value = ''
+	requiresRecentAuthentication.value = false
+	reauthenticationError.value = null
 	showDialog.value = true
 }
 
@@ -24,11 +35,51 @@ async function handleDelete() {
 	if (!isConfirmed.value || isDeleting.value) return
 
 	isDeleting.value = true
-	const success = await user.deleteAccount(confirmationInput.value)
+	const result = await user.deleteAccount(confirmationInput.value)
 	isDeleting.value = false
 
-	if (success) showDialog.value = false
+	if (result.status === 'deleted') showDialog.value = false
+	if (result.status === 'recent-auth-required') {
+		confirmationInput.value = ''
+		requiresRecentAuthentication.value = true
+	}
 }
+
+async function handleSignInAgain() {
+	if (isOpeningLogin.value) return
+	confirmationInput.value = ''
+	reauthenticationError.value = null
+	isOpeningLogin.value = true
+	try {
+		if (!(await user.signOutForReauthentication())) {
+			throw new Error('Local sign out failed')
+		}
+		await navigateTo(
+			buildLoginRedirectPath('/settings?action=delete-account'),
+			{
+				replace: true
+			}
+		)
+	} catch {
+		reauthenticationError.value =
+			"We couldn't sign you out safely. Please try again."
+	} finally {
+		isOpeningLogin.value = false
+	}
+}
+
+onMounted(async () => {
+	if (!props.openOnMount) return
+	openDialog()
+	await nextTick()
+	const query = { ...route.query }
+	delete query.action
+	try {
+		await navigateTo({ query }, { replace: true })
+	} catch {
+		console.error('Account deletion dialog opened, but query cleanup failed')
+	}
+})
 </script>
 
 <template>
@@ -46,7 +97,21 @@ async function handleDelete() {
 				</DialogDescription>
 			</DialogHeader>
 
-			<div class="space-y-4">
+			<div v-if="requiresRecentAuthentication" class="space-y-4">
+				<div class="border-border bg-muted/40 rounded-lg border p-4">
+					<p class="text-sm font-medium">Sign in again to continue</p>
+					<p class="text-muted-foreground mt-2 text-sm">
+						For your security, account deletion requires a login from the last
+						five minutes. Choose an available sign-in method on the login page,
+						then you will return here.
+					</p>
+				</div>
+				<p v-if="reauthenticationError" class="text-destructive text-sm">
+					{{ reauthenticationError }}
+				</p>
+			</div>
+
+			<div v-else class="space-y-4">
 				<div
 					class="bg-destructive/10 border-destructive/20 rounded-lg border p-4"
 				>
@@ -78,7 +143,24 @@ async function handleDelete() {
 				</div>
 			</div>
 
-			<DialogFooter class="gap-2">
+			<DialogFooter v-if="requiresRecentAuthentication" class="gap-2">
+				<Button
+					variant="outline"
+					:disabled="isOpeningLogin"
+					@click="showDialog = false"
+				>
+					Cancel
+				</Button>
+				<ButtonLoading
+					:disabled="isOpeningLogin"
+					:loading="isOpeningLogin"
+					@click="handleSignInAgain"
+				>
+					Sign in again
+				</ButtonLoading>
+			</DialogFooter>
+
+			<DialogFooter v-else class="gap-2">
 				<Button
 					variant="outline"
 					:disabled="isDeleting"

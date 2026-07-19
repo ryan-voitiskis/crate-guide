@@ -11,7 +11,11 @@ import {
 
 const user = useWorkbenchUserStore()
 const capabilities = useWorkbenchCapabilities()
+const route = useRoute()
 const isDemo = capabilities.mode === 'demo'
+const openDeleteAccountOnReturn = computed(
+	() => route.query.action === 'delete-account'
+)
 
 const settingsSections = computed(() => [
 	{ id: 'integration', label: 'Integration', icon: Plug },
@@ -246,7 +250,10 @@ const settingsSections = computed(() => [
 							<Button v-if="isDemo" variant="destructive" disabled>
 								Delete account
 							</Button>
-							<DialogDeleteAccount v-else />
+							<DialogDeleteAccount
+								v-else
+								:open-on-mount="openDeleteAccountOnReturn"
+							/>
 						</div>
 					</section>
 				</div>
