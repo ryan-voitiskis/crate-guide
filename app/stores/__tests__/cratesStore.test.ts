@@ -25,6 +25,7 @@ function createMockQueryBuilder() {
 		delete: vi.fn().mockReturnThis(),
 		eq: vi.fn().mockReturnThis(),
 		order: vi.fn().mockReturnThis(),
+		range: vi.fn().mockResolvedValue({ data: [], error: null }),
 		single: vi.fn().mockResolvedValue({ data: null, error: null })
 	}
 	return builder
@@ -141,7 +142,7 @@ describe('cratesStore', () => {
 
 		it('returns true for a successful empty response and resets loading', async () => {
 			const store = useCratesStore()
-			mockQueryBuilder.order.mockResolvedValue({ data: [], error: null })
+			mockQueryBuilder.range.mockResolvedValue({ data: [], error: null })
 
 			const fetchPromise = store.fetchAllCrates()
 			expect(store.isLoadingCrates).toBe(true)
@@ -157,7 +158,7 @@ describe('cratesStore', () => {
 				createMockCrate({ id: 'crate-1' }),
 				createMockCrate({ id: 'crate-2' })
 			]
-			mockQueryBuilder.order.mockResolvedValue({ data: mockData, error: null })
+			mockQueryBuilder.range.mockResolvedValue({ data: mockData, error: null })
 
 			const result = await store.fetchAllCrates()
 
@@ -165,11 +166,63 @@ describe('cratesStore', () => {
 			expect(store.crates.length).toBe(2)
 		})
 
+		it('loads 1001 crates with stable ordering and exact page ranges', async () => {
+			const store = useCratesStore()
+			const firstPage = Array.from({ length: 1000 }, (_, index) =>
+				createMockCrate({ id: `crate-${1001 - index}` })
+			)
+			const secondPage = [createMockCrate({ id: 'crate-1' })]
+			mockQueryBuilder.range
+				.mockResolvedValueOnce({ data: firstPage, error: null })
+				.mockResolvedValueOnce({ data: secondPage, error: null })
+
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+
+			expect(store.crates.map((crate) => crate.id)).toEqual([
+				...firstPage.map((crate) => crate.id),
+				'crate-1'
+			])
+			expect(mockQueryBuilder.order.mock.calls).toEqual([
+				['created_at', { ascending: false }],
+				['id', { ascending: false }],
+				['created_at', { ascending: false }],
+				['id', { ascending: false }]
+			])
+			expect(mockQueryBuilder.range.mock.calls).toEqual([
+				[0, 999],
+				[1000, 1999]
+			])
+		})
+
+		it('preserves prior crates when a later page fails', async () => {
+			const store = useCratesStore()
+			const existingCrate = createMockCrate({ id: 'existing-crate' })
+			store.crates = [existingCrate]
+			mockQueryBuilder.range
+				.mockResolvedValueOnce({
+					data: Array.from({ length: 1000 }, (_, index) =>
+						createMockCrate({ id: `crate-${index}` })
+					),
+					error: null
+				})
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Second page failed')
+				})
+
+			await expect(store.fetchAllCrates()).resolves.toBe(false)
+			expect(store.crates).toEqual([existingCrate])
+			expect(mockQueryBuilder.range.mock.calls).toEqual([
+				[0, 999],
+				[1000, 1999]
+			])
+		})
+
 		it('returns false, preserves crates on query failure, and can retry', async () => {
 			const store = useCratesStore()
 			const existingCrate = createMockCrate({ id: 'existing-crate' })
 			store.crates = [existingCrate]
-			mockQueryBuilder.order
+			mockQueryBuilder.range
 				.mockResolvedValueOnce({
 					data: null,
 					error: new Error('Database error')
@@ -198,7 +251,7 @@ describe('cratesStore', () => {
 			}>((resolve) => {
 				resolveQuery = resolve
 			})
-			mockQueryBuilder.order.mockReturnValue(queryResult)
+			mockQueryBuilder.range.mockReturnValue(queryResult)
 
 			const firstFetch = store.fetchAllCrates()
 			const concurrentFetch = store.fetchAllCrates()
@@ -212,7 +265,7 @@ describe('cratesStore', () => {
 			expect(mockSupabaseClient.from).toHaveBeenCalledOnce()
 			expect(store.isLoadingCrates).toBe(false)
 
-			mockQueryBuilder.order.mockResolvedValue({ data: [], error: null })
+			mockQueryBuilder.range.mockResolvedValue({ data: [], error: null })
 			await expect(store.fetchAllCrates()).resolves.toBe(true)
 			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledTimes(2)
 			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)

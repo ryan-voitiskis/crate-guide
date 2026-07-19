@@ -1,6 +1,7 @@
 import { toast } from 'vue-sonner'
 import { getActivePinia } from 'pinia'
 import { adjustKey } from '~/utils/keyFunctions'
+import { fetchAllSupabasePages } from '~/utils/supabasePagination'
 import { decodeSavedSetRow, reportDecodeIssues } from '~/utils/supabaseRows'
 import { getTrackSuggestions } from '~/utils/trackSuggestions'
 import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
@@ -427,15 +428,18 @@ export const useSessionStore = defineStore('session', () => {
 
 		isLoadingSets.value = true
 		try {
-			const { data, error } = await supabase
-				.from('sets')
-				.select('*')
-				.eq('user_id', context.userId)
-				.order('created_at', { ascending: false })
+			const rows = await fetchAllSupabasePages(async (from, to) => {
+				return await supabase
+					.from('sets')
+					.select('*')
+					.eq('user_id', context.userId)
+					.order('created_at', { ascending: false })
+					.order('id', { ascending: false })
+					.range(from, to)
+			})
 
 			if (!isCurrentAccountContext(context)) return
-			if (error) throw error
-			const decodedRows = (data ?? []).map(decodeSavedSetRow)
+			const decodedRows = rows.map(decodeSavedSetRow)
 			const issues = decodedRows.flatMap((decoded) => decoded.issues)
 			reportDecodeIssues(issues, (message) => toast.warning(message))
 			savedSets.value = decodedRows.map((decoded) => decoded.row)

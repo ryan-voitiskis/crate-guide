@@ -1,5 +1,6 @@
 import { toast } from 'vue-sonner'
 import { getActivePinia } from 'pinia'
+import { fetchAllSupabasePages } from '~/utils/supabasePagination'
 import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 
 export const useCratesStore = defineStore('crates', () => {
@@ -33,14 +34,17 @@ export const useCratesStore = defineStore('crates', () => {
 				})
 			if (!userId) return false
 
-			const { data, error } = await supabase
-				.from('crates')
-				.select('*')
-				.eq('user_id', userId)
-				.order('created_at', { ascending: false })
+			const rows = await fetchAllSupabasePages(async (from, to) => {
+				return await supabase
+					.from('crates')
+					.select('*')
+					.eq('user_id', userId)
+					.order('created_at', { ascending: false })
+					.order('id', { ascending: false })
+					.range(from, to)
+			})
 
-			if (error) throw error
-			crates.value = (data as Crate[]) || []
+			crates.value = rows as Crate[]
 			return true
 		} catch (error) {
 			console.error('Failed to fetch crates:', error)

@@ -1,23 +1,26 @@
 export async function getExistingDiscogsIds(
 	releases: Array<{ id: number }>
 ): Promise<Set<number>> {
-	const supabase = getSupabase()
-	const discogsIds = releases.map((release) => release.id)
+	const discogsIds = [...new Set(releases.map((release) => release.id))]
 
 	if (discogsIds.length === 0) return new Set()
+	const supabase = getSupabase()
+	const existingDiscogsIds = new Set<number>()
 
-	const { data: existingRecords, error } = await supabase
-		.from('records')
-		.select('discogs_id')
-		.in('discogs_id', discogsIds)
+	for (let index = 0; index < discogsIds.length; index += 100) {
+		const chunk = discogsIds.slice(index, index + 100)
+		const { data: existingRecords, error } = await supabase
+			.from('records')
+			.select('discogs_id')
+			.in('discogs_id', chunk)
 
-	if (error) throw error
+		if (error) throw error
+		for (const record of existingRecords ?? []) {
+			if (record.discogs_id !== null) existingDiscogsIds.add(record.discogs_id)
+		}
+	}
 
-	return new Set(
-		existingRecords
-			?.map((r: { discogs_id: number | null }) => r.discogs_id)
-			.filter((id): id is number => id !== null) || []
-	)
+	return existingDiscogsIds
 }
 
 export async function importRecordWithTracks(

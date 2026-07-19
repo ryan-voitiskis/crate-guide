@@ -44,6 +44,7 @@ function createMockQueryBuilder() {
 		select: vi.fn().mockReturnThis(),
 		eq: vi.fn().mockReturnThis(),
 		order: vi.fn().mockReturnThis(),
+		range: vi.fn().mockResolvedValue({ data: [], error: null }),
 		single: vi.fn().mockResolvedValue({ data: null, error: null })
 	}
 }
@@ -875,7 +876,7 @@ describe('sessionStore', () => {
 				data: SavedSetRow[]
 				error: null
 			}>()
-			mockQueryBuilder.order
+			mockQueryBuilder.range
 				.mockReturnValueOnce(oldFetch.promise)
 				.mockReturnValueOnce(newFetch.promise)
 			const store = useSessionStore()
@@ -1024,13 +1025,67 @@ describe('sessionStore', () => {
 			transition_rating: 5
 		}
 
+		it('loads 1001 saved sets with stable ordering and exact page ranges', async () => {
+			const store = useSessionStore()
+			const firstPage = Array.from({ length: 1000 }, (_, index) =>
+				createSavedSetRow({ id: `set-${1001 - index}` })
+			)
+			const secondPage = [createSavedSetRow({ id: 'set-1' })]
+			mockQueryBuilder.range
+				.mockResolvedValueOnce({ data: firstPage, error: null })
+				.mockResolvedValueOnce({ data: secondPage, error: null })
+
+			await store.fetchSavedSets()
+
+			expect(store.savedSets.map((set) => set.id)).toEqual([
+				...firstPage.map((set) => set.id),
+				'set-1'
+			])
+			expect(mockQueryBuilder.order.mock.calls).toEqual([
+				['created_at', { ascending: false }],
+				['id', { ascending: false }],
+				['created_at', { ascending: false }],
+				['id', { ascending: false }]
+			])
+			expect(mockQueryBuilder.range.mock.calls).toEqual([
+				[0, 999],
+				[1000, 1999]
+			])
+		})
+
+		it('preserves prior saved sets when a later page fails', async () => {
+			const store = useSessionStore()
+			const existingSet = createSavedSet({ id: 'existing-set' })
+			store.savedSets = [existingSet]
+			mockQueryBuilder.range
+				.mockResolvedValueOnce({
+					data: Array.from({ length: 1000 }, (_, index) =>
+						createSavedSetRow({ id: `set-${index}` })
+					),
+					error: null
+				})
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Second page failed')
+				})
+
+			await store.fetchSavedSets()
+
+			expect(store.savedSets).toEqual([existingSet])
+			expect(mockQueryBuilder.range.mock.calls).toEqual([
+				[0, 999],
+				[1000, 1999]
+			])
+			expect(mockToast.error).toHaveBeenCalledWith('Failed to load saved sets')
+		})
+
 		it('decodes fetched sets, preserves mixed-entry order, and warns once', async () => {
 			const privateValue = 'SYNTHETIC_PRIVATE_VALUE'
 			const consoleWarn = vi
 				.spyOn(console, 'warn')
 				.mockImplementation(() => undefined)
 			const store = useSessionStore()
-			mockQueryBuilder.order.mockResolvedValue({
+			mockQueryBuilder.range.mockResolvedValue({
 				data: [
 					createSavedSetRow({
 						id: 'set-invalid-array',

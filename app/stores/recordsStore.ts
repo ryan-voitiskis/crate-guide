@@ -6,6 +6,7 @@ import {
 	type RecordCoverCrop,
 	processRecordCoverFile
 } from '~/utils/recordCover'
+import { fetchAllSupabasePages } from '~/utils/supabasePagination'
 import { decodeRecordRow, reportDecodeIssues } from '~/utils/supabaseRows'
 import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 
@@ -111,14 +112,17 @@ export const useRecordsStore = defineStore('records', () => {
 				})
 			if (!userId) return false
 
-			const { data, error } = await supabase
-				.from('records')
-				.select('*')
-				.eq('user_id', userId)
-				.order('created_at', { ascending: false })
+			const rows = await fetchAllSupabasePages(async (from, to) => {
+				return await supabase
+					.from('records')
+					.select('*')
+					.eq('user_id', userId)
+					.order('created_at', { ascending: false })
+					.order('id', { ascending: false })
+					.range(from, to)
+			})
 
-			if (error) throw error
-			const decodedRows = (data ?? []).map(decodeRecordRow)
+			const decodedRows = rows.map(decodeRecordRow)
 			const issues = decodedRows.flatMap((decoded) => decoded.issues)
 			reportDecodeIssues(issues, (message) => toast.warning(message))
 			records.value = decodedRows.map((decoded) => decoded.row)

@@ -43,6 +43,7 @@ function createMockQueryBuilder() {
 		eq: vi.fn().mockReturnThis(),
 		is: vi.fn().mockReturnThis(),
 		order: vi.fn().mockReturnThis(),
+		range: vi.fn().mockResolvedValue({ data: [], error: null }),
 		single: vi.fn().mockResolvedValue({ data: null, error: null })
 	}
 	return builder
@@ -143,7 +144,7 @@ describe('tracksStore', () => {
 
 		it('returns true for a successful empty response and resets loading', async () => {
 			const store = useTracksStore()
-			mockQueryBuilder.order.mockResolvedValue({ data: [], error: null })
+			mockQueryBuilder.range.mockResolvedValue({ data: [], error: null })
 
 			const fetchPromise = store.fetchAllTracks()
 			expect(store.isLoadingTracks).toBe(true)
@@ -166,7 +167,7 @@ describe('tracksStore', () => {
 					records: { user_id: 'test-user-id' }
 				}
 			]
-			mockQueryBuilder.order.mockResolvedValue({ data: mockData, error: null })
+			mockQueryBuilder.range.mockResolvedValue({ data: mockData, error: null })
 
 			const result = await store.fetchAllTracks()
 
@@ -177,13 +178,79 @@ describe('tracksStore', () => {
 			expect(store.tracks[0]).toHaveProperty('future_scalar', 'preserved')
 		})
 
+		it('loads 1001 owned tracks with stable ordering and exact page ranges', async () => {
+			const store = useTracksStore()
+			const firstPage = Array.from({ length: 1000 }, (_, index) => ({
+				...createMockTrack({ id: `track-${1001 - index}` }),
+				records: { user_id: 'test-user-id' }
+			}))
+			const secondPage = [
+				{
+					...createMockTrack({ id: 'track-1' }),
+					records: { user_id: 'test-user-id' }
+				}
+			]
+			mockQueryBuilder.range
+				.mockResolvedValueOnce({ data: firstPage, error: null })
+				.mockResolvedValueOnce({ data: secondPage, error: null })
+
+			await expect(store.fetchAllTracks()).resolves.toBe(true)
+
+			expect(store.tracks.map((track) => track.id)).toEqual([
+				...firstPage.map((track) => track.id),
+				'track-1'
+			])
+			expect(mockQueryBuilder.select).toHaveBeenCalledWith(
+				'*, records!inner(user_id)'
+			)
+			expect(mockQueryBuilder.eq).toHaveBeenCalledWith(
+				'records.user_id',
+				'test-user-id'
+			)
+			expect(mockQueryBuilder.order.mock.calls).toEqual([
+				['created_at', { ascending: false }],
+				['id', { ascending: false }],
+				['created_at', { ascending: false }],
+				['id', { ascending: false }]
+			])
+			expect(mockQueryBuilder.range.mock.calls).toEqual([
+				[0, 999],
+				[1000, 1999]
+			])
+		})
+
+		it('preserves prior tracks when a later page fails', async () => {
+			const store = useTracksStore()
+			const existingTrack = createMockTrack({ id: 'existing-track' })
+			store.tracks = [existingTrack]
+			mockQueryBuilder.range
+				.mockResolvedValueOnce({
+					data: Array.from({ length: 1000 }, (_, index) => ({
+						...createMockTrack({ id: `track-${index}` }),
+						records: { user_id: 'test-user-id' }
+					})),
+					error: null
+				})
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Second page failed')
+				})
+
+			await expect(store.fetchAllTracks()).resolves.toBe(false)
+			expect(store.tracks).toEqual([existingTrack])
+			expect(mockQueryBuilder.range.mock.calls).toEqual([
+				[0, 999],
+				[1000, 1999]
+			])
+		})
+
 		it('aggregates invalid nested JSON into one redacted warning', async () => {
 			const privateValue = 'SYNTHETIC_PRIVATE_VALUE'
 			const consoleWarn = vi
 				.spyOn(console, 'warn')
 				.mockImplementation(() => undefined)
 			const store = useTracksStore()
-			mockQueryBuilder.order.mockResolvedValue({
+			mockQueryBuilder.range.mockResolvedValue({
 				data: [
 					{
 						...createMockTrack({ id: 'track-invalid-json' }),
@@ -258,7 +325,7 @@ describe('tracksStore', () => {
 					records: { user_id: 'test-user-id' }
 				}
 			]
-			mockQueryBuilder.order.mockResolvedValue({ data: mockData, error: null })
+			mockQueryBuilder.range.mockResolvedValue({ data: mockData, error: null })
 
 			await store.fetchAllTracks()
 
@@ -269,7 +336,7 @@ describe('tracksStore', () => {
 			const store = useTracksStore()
 			const existingTrack = createMockTrack({ id: 'existing-track' })
 			store.tracks = [existingTrack]
-			mockQueryBuilder.order
+			mockQueryBuilder.range
 				.mockResolvedValueOnce({
 					data: null,
 					error: new Error('Database error')
@@ -294,7 +361,7 @@ describe('tracksStore', () => {
 					resolveQuery = resolve
 				}
 			)
-			mockQueryBuilder.order.mockReturnValue(queryResult)
+			mockQueryBuilder.range.mockReturnValue(queryResult)
 
 			const firstFetch = store.fetchAllTracks()
 			const concurrentFetch = store.fetchAllTracks()
@@ -308,7 +375,7 @@ describe('tracksStore', () => {
 			expect(mockSupabaseClient.from).toHaveBeenCalledOnce()
 			expect(store.isLoadingTracks).toBe(false)
 
-			mockQueryBuilder.order.mockResolvedValue({ data: [], error: null })
+			mockQueryBuilder.range.mockResolvedValue({ data: [], error: null })
 			await expect(store.fetchAllTracks()).resolves.toBe(true)
 			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledTimes(2)
 			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)

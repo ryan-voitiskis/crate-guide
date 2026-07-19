@@ -1,5 +1,6 @@
 import { toast } from 'vue-sonner'
 import { getActivePinia } from 'pinia'
+import { fetchAllSupabasePages } from '~/utils/supabasePagination'
 import {
 	type DecodeIssue,
 	decodeTrackRow,
@@ -138,14 +139,17 @@ export const useTracksStore = defineStore('tracks', () => {
 				})
 			if (!userId) return false
 
-			const { data, error } = await supabase
-				.from('tracks')
-				.select(`*, records!inner(user_id)`)
-				.eq('records.user_id', userId)
-				.order('created_at', { ascending: false })
+			const rows = await fetchAllSupabasePages(async (from, to) => {
+				return await supabase
+					.from('tracks')
+					.select(`*, records!inner(user_id)`)
+					.eq('records.user_id', userId)
+					.order('created_at', { ascending: false })
+					.order('id', { ascending: false })
+					.range(from, to)
+			})
 
-			if (error) throw error
-			const decodedRows = (data ?? []).map((track) => {
+			const decodedRows = rows.map((track) => {
 				const { records: _joinedRecord, ...trackRow } = track
 				return decodeTrackRow(trackRow)
 			})
