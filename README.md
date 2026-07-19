@@ -71,7 +71,7 @@ A DJ-focused vinyl record collection manager with real-time session mixing, harm
 | Entity                | Description                                                       |
 | --------------------- | ----------------------------------------------------------------- |
 | `profiles`            | User preferences, turntable settings, and public Discogs identity |
-| `discogs_credentials` | Private OAuth credentials accessed through identity-bound RPCs    |
+| `discogs_credentials` | Private OAuth credentials accessed by verified Edge repositories  |
 | `records`             | Vinyl records with metadata (artists, labels, year, cover)        |
 | `tracks`              | Tracks with BPM, key, duration, genres, RPM, Beatport metadata    |
 | `crates`              | Color-coded record collections with descriptions                  |
@@ -113,6 +113,9 @@ SITE_URL=http://localhost:3000
 DISCOGS_CONSUMER_KEY=
 DISCOGS_CONSUMER_SECRET=
 DISCOGS_USER_AGENT=CrateGuide/2.0
+DISCOGS_RATE_LIMIT_PER_USER=
+DISCOGS_RATE_LIMIT_GLOBAL=
+DISCOGS_RATE_LIMIT_WINDOW_SECONDS=
 SITE_URL=http://localhost:3000
 ```
 
@@ -174,9 +177,10 @@ The supervised commands intentionally stay in the foreground. If either Nuxt
 or the Edge Functions worker exits unexpectedly, or if the function runtime
 repeatedly fails its health check, the command reports the failure and stops
 its other child process instead of leaving a partially healthy-looking
-development environment. The local `--no-verify-jwt` flag only
-bypasses the gateway check; every Discogs function still verifies the caller
-with `supabase.auth.getUser()` before accessing user-scoped credentials.
+development environment. The local `--no-verify-jwt` flag only bypasses the
+gateway check; every current function still verifies the caller in its handler.
+The Discogs handlers call `supabase.auth.getUser()` before creating a
+service-role repository scoped to that verified user ID.
 
 ### Testing
 
@@ -210,6 +214,9 @@ npm run test:edge
 
 # Supabase SQL tests (requires the running local stack)
 npm run test:db
+
+# Current Discogs/README documentation contract
+npm run check:discogs-docs
 ```
 
 `npm run test:db` runs every pgTAP suite under `supabase/tests` against the
@@ -225,23 +232,28 @@ npm run lint                 # ESLint
 npm run lint:fix             # ESLint with auto-fix
 npm run typecheck            # Nuxt/TypeScript checking
 npm run audit:prod           # Audit production dependencies at high severity
+npm run audit:all            # Audit the complete dependency graph
 npm run check:conventions    # Component naming and Tailwind boundaries
+npm run check:discogs-docs   # Reject stale Discogs documentation contracts
 npm run test:typegen-script  # Failure/rollback tests for genTypes
 npm run test:database-type-parity # Tests for the generated type parity gate
 npm run check:database-types # Reject missing, empty, or differing type copies
 npm run test:audio-config    # Shared analyzer/benchmark config tests
 npm run test:conventions     # Convention checker tests
+npm run test:dependency-topology # Tests for the focused topology gate
+npm run check:dependency-topology # Validate reviewed Vue/crossws/H3 topology
 npm run verify               # Comprehensive read-only verification gate
 npm run verify:full          # Application, build, and local database gate
 npm run build                # Production build (separate from verify)
 ```
 
-`npm run verify` runs formatting, lint, type checking, all application and E2E
-tests, all three Edge gates, and the maintenance/convention tests above. It is
-read-only; run `npm run format` separately when files need formatting. A
-production build is also a separate release check. For release and
-deployment-affecting handoffs, run `npm run verify:full`; it adds the production
-build and local database tests, so it requires a running local Supabase stack.
+`npm run verify` runs formatting, lint, type checking, the application, E2E, and
+browser tests, all three Edge gates, the Discogs documentation contract, and
+the maintenance/convention/dependency-topology tests above. It is read-only;
+run `npm run format` separately when files need formatting. A production build
+is also a separate release check. For release and deployment-affecting
+handoffs, run `npm run verify:full`; it adds the production build and local
+database tests, so it requires a running local Supabase stack.
 
 `npm run audit:prod` checks the installed production dependency graph and fails
 on high or critical advisories. The exact `esbuild` development dependency is
@@ -250,12 +262,12 @@ while the incompatible ESLint inspector copy remains isolated to development.
 Recheck both `npm audit --omit=dev` and `npm explain esbuild` when changing it.
 
 GitHub Actions runs source-controlled CI for every pull request and push to
-`main`. The application job audits production dependencies before installing
-Chromium, runs `npm run verify`, and builds the production application. The
-database job starts the tracked local Supabase stack and runs `npm run test:db`,
-without using a linked hosted project. Locally, `npm run verify:full` is the
-nearest equivalent to both jobs; it requires Docker and a running local Supabase
-stack.
+`main`. The application job checks the focused dependency topology, audits both
+the production and complete dependency graphs, installs Chromium, runs
+`npm run verify`, and builds the production application. The database job
+starts the tracked local Supabase stack and runs `npm run test:db`, without
+using a linked hosted project. Locally, `npm run verify:full` is the nearest
+equivalent to both jobs; it requires Docker and a running local Supabase stack.
 
 ### Database
 
@@ -281,13 +293,20 @@ prior states and reports if restoration cannot complete. Run
 
 ## Edge Functions
 
-Supabase Edge Functions handle Discogs OAuth flow:
+| Function                        | Purpose                                                                                  |
+| ------------------------------- | ---------------------------------------------------------------------------------------- |
+| `get-discogs-request-token`     | Verifies the caller, acquires quota, and starts the Discogs OAuth 1.0 flow.              |
+| `get-discogs-access-token`      | Validates the callback, exchanges/stores credentials, and refreshes public identity.     |
+| `authenticated-discogs-request` | Dispatches only validated folder, folder-release, and release reads with server signing. |
+| `cleanup-record-covers`         | Drains durable obsolete-cover jobs for the verified user without accepting client paths. |
+| `delete-account`                | Requires recent authentication and removes covers, queued cleanup work, and the account. |
 
-| Function                        | Purpose                              |
-| ------------------------------- | ------------------------------------ |
-| `get-discogs-request-token`     | Initiate OAuth 1.0 flow              |
-| `get-discogs-access-token`      | Exchange verifier for access token   |
-| `authenticated-discogs-request` | Dispatch allowed authenticated reads |
+For local emulation, `npm run supa:functions` uses `--no-verify-jwt`; handler
+authentication remains active. The source-controlled deploy tasks in
+`supabase/deno.json` use the default gateway JWT verification, and the
+convention gate rejects deploy commands that disable it. This documents
+repository configuration only—verify the actual function, gateway, migration,
+and secret state in each hosted environment before release.
 
 ## Documentation
 
