@@ -571,9 +571,9 @@ describe('cratesStore', () => {
 				'crate-1'
 			])
 			expect(mockQueryBuilder.order.mock.calls).toEqual([
-				['created_at', { ascending: false }],
+				['created_at', { ascending: false, nullsFirst: false }],
 				['id', { ascending: false }],
-				['created_at', { ascending: false }],
+				['created_at', { ascending: false, nullsFirst: false }],
 				['id', { ascending: false }]
 			])
 			expect(mockQueryBuilder.range.mock.calls).toEqual([
@@ -658,6 +658,80 @@ describe('cratesStore', () => {
 			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledTimes(2)
 			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
 		})
+
+		it('merges crates created during fetch by timestamp and descending id', async () => {
+			const store = useCratesStore()
+			const baselineRows = [
+				createMockCrate({
+					id: 'crate-newest',
+					created_at: '2026-07-19T04:00:00.000004Z'
+				}),
+				createMockCrate({
+					id: 'crate-tied-b',
+					created_at: '2026-07-19T04:00:00.000002Z'
+				}),
+				createMockCrate({
+					id: 'crate-tied-a',
+					created_at: '2026-07-19T04:00:00.000002Z'
+				}),
+				createMockCrate({ id: 'crate-null-z', created_at: null }),
+				createMockCrate({ id: 'crate-null-a', created_at: null })
+			]
+			mockQueryBuilder.range.mockResolvedValue({
+				data: baselineRows,
+				error: null
+			})
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+
+			const fetchResponse = createDeferred<{
+				data: ReturnType<typeof createMockCrate>[]
+				error: null
+			}>()
+			mockQueryBuilder.range.mockReturnValue(fetchResponse.promise)
+			const fetchPromise = store.fetchAllCrates()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+			)
+
+			const createdRows = [
+				createMockCrate({
+					id: 'crate-middle',
+					created_at: '2026-07-19T04:00:00.000003Z'
+				}),
+				createMockCrate({
+					id: 'crate-tied-c',
+					created_at: '2026-07-19T04:00:00.000002Z'
+				}),
+				createMockCrate({ id: 'crate-null-y', created_at: null })
+			]
+			for (const createdRow of createdRows) {
+				mockQueryBuilder.single.mockResolvedValueOnce({
+					data: createdRow,
+					error: null
+				})
+				await expect(
+					store.createCrate({
+						name: createdRow.name,
+						description: createdRow.description,
+						color: createdRow.color,
+						records: []
+					})
+				).resolves.toEqual(createdRow)
+			}
+
+			fetchResponse.resolve({ data: baselineRows, error: null })
+			await expect(fetchPromise).resolves.toBe(true)
+			expect(store.crates.map(({ id }) => id)).toEqual([
+				'crate-newest',
+				'crate-middle',
+				'crate-tied-c',
+				'crate-tied-b',
+				'crate-tied-a',
+				'crate-null-z',
+				'crate-null-y',
+				'crate-null-a'
+			])
+		})
 	})
 
 	describe('createCrate', () => {
@@ -711,6 +785,47 @@ describe('cratesStore', () => {
 			expect(store.isCreatingCrate).toBe(true)
 			await createPromise
 			expect(store.isCreatingCrate).toBe(false)
+		})
+
+		it('keeps create activity true until concurrent success and failure settle', async () => {
+			const firstResponse = createDeferred<{
+				data: ReturnType<typeof createMockCrate>
+				error: null
+			}>()
+			const secondResponse = createDeferred<{ data: null; error: Error }>()
+			mockQueryBuilder.single
+				.mockReturnValueOnce(firstResponse.promise)
+				.mockReturnValueOnce(secondResponse.promise)
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined)
+			const store = useCratesStore()
+			const crateData = {
+				name: 'Concurrent crate',
+				description: null,
+				color: null,
+				records: []
+			}
+
+			try {
+				const firstCreate = store.createCrate(crateData)
+				const secondCreate = store.createCrate(crateData)
+				expect(store.isCreatingCrate).toBe(true)
+
+				const createdCrate = createMockCrate({ id: 'created-first' })
+				firstResponse.resolve({ data: createdCrate, error: null })
+				await expect(firstCreate).resolves.toEqual(createdCrate)
+				expect(store.isCreatingCrate).toBe(true)
+
+				secondResponse.resolve({
+					data: null,
+					error: new Error('Second create failed')
+				})
+				await expect(secondCreate).resolves.toBeNull()
+				expect(store.isCreatingCrate).toBe(false)
+			} finally {
+				consoleError.mockRestore()
+			}
 		})
 
 		it('returns null on creation error', async () => {
@@ -983,7 +1098,42 @@ describe('cratesStore', () => {
 			expect(store.isDeletingCrate).toBe(false)
 		})
 
-		it('restores the newest authoritative row when delete fails', async () => {
+		it('keeps delete activity true until concurrent success and failure settle', async () => {
+			const firstResponse = createDeferred<{ data: null; error: null }>()
+			const secondResponse = createDeferred<{ data: null; error: Error }>()
+			mockQueryBuilder.eq
+				.mockReturnValueOnce(firstResponse.promise)
+				.mockReturnValueOnce(secondResponse.promise)
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined)
+			const store = useCratesStore()
+			const firstCrate = createMockCrate({ id: 'crate-1' })
+			const secondCrate = createMockCrate({ id: 'crate-2' })
+			store.crates = [firstCrate, secondCrate]
+
+			try {
+				const firstDelete = store.deleteCrate('crate-1')
+				const secondDelete = store.deleteCrate('crate-2')
+				expect(store.isDeletingCrate).toBe(true)
+
+				firstResponse.resolve({ data: null, error: null })
+				await expect(firstDelete).resolves.toBe(true)
+				expect(store.isDeletingCrate).toBe(true)
+
+				secondResponse.resolve({
+					data: null,
+					error: new Error('Second delete failed')
+				})
+				await expect(secondDelete).resolves.toBe(false)
+				expect(store.isDeletingCrate).toBe(false)
+				expect(store.crates).toEqual([secondCrate])
+			} finally {
+				consoleError.mockRestore()
+			}
+		})
+
+		it('restores the pre-delete authoritative row when delete fails', async () => {
 			const membershipResponse = createDeferred<{
 				data: ReturnType<typeof createMockCrate>
 				error: null
@@ -1008,7 +1158,7 @@ describe('cratesStore', () => {
 					updated_at: '2026-07-19T04:00:00.000002Z'
 				})
 				membershipResponse.resolve({ data: newestCrate, error: null })
-				await expect(addPromise).resolves.toBe(true)
+				await expect(addPromise).resolves.toBe(false)
 				expect(store.crates).toEqual([])
 
 				deleteResponse.resolve({
@@ -1017,7 +1167,11 @@ describe('cratesStore', () => {
 				})
 				await expect(deletePromise).resolves.toBe(false)
 
-				expect(store.crates).toEqual([newestCrate])
+				expect(store.crates).toHaveLength(1)
+				expect(store.crates[0]).toMatchObject({
+					id: 'crate-1',
+					records: []
+				})
 			} finally {
 				consoleError.mockRestore()
 			}
@@ -1057,6 +1211,166 @@ describe('cratesStore', () => {
 				['Crate deleted successfully.']
 			])
 		})
+
+		it('does not resurrect a pending delete from an older fetch snapshot', async () => {
+			const store = useCratesStore()
+			const initialCrate = createMockCrate({
+				id: 'crate-1',
+				updated_at: '2026-07-19T04:00:00.000001Z'
+			})
+			mockQueryBuilder.range.mockResolvedValue({
+				data: [initialCrate],
+				error: null
+			})
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+
+			const fetchResponse = createDeferred<{
+				data: ReturnType<typeof createMockCrate>[]
+				error: null
+			}>()
+			mockQueryBuilder.range.mockReturnValue(fetchResponse.promise)
+			const fetchPromise = store.fetchAllCrates()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+			)
+
+			const deleteResponse = createDeferred<{ data: null; error: null }>()
+			mockQueryBuilder.eq.mockReturnValue(deleteResponse.promise)
+			const deletePromise = store.deleteCrate('crate-1')
+			expect(store.crates).toEqual([])
+
+			fetchResponse.resolve({ data: [initialCrate], error: null })
+			await expect(fetchPromise).resolves.toBe(true)
+			expect(store.crates).toEqual([])
+			expect(store.isDeletingCrate).toBe(true)
+
+			deleteResponse.resolve({ data: null, error: null })
+			await expect(deletePromise).resolves.toBe(true)
+			expect(store.crates).toEqual([])
+			expect(store.isDeletingCrate).toBe(false)
+		})
+
+		it('keeps a delete rollback behind its revision boundary', async () => {
+			const store = useCratesStore()
+			const initialCrate = createMockCrate({
+				id: 'crate-1',
+				records: [],
+				updated_at: '2026-07-19T04:00:00.000001Z'
+			})
+			mockQueryBuilder.range.mockResolvedValue({
+				data: [initialCrate],
+				error: null
+			})
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+
+			const fetchResponse = createDeferred<{
+				data: ReturnType<typeof createMockCrate>[]
+				error: null
+			}>()
+			const membershipResponse = createDeferred<{
+				data: ReturnType<typeof createMockCrate>
+				error: null
+			}>()
+			const deleteResponse = createDeferred<{ data: null; error: Error }>()
+			mockQueryBuilder.range.mockReturnValue(fetchResponse.promise)
+			mockSupabaseClient.rpc.mockReturnValue(membershipResponse.promise)
+			const fetchPromise = store.fetchAllCrates()
+			const addPromise = store.addRecordToCrate('crate-1', 'record-1')
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.range).toHaveBeenCalledTimes(2)
+			)
+			mockQueryBuilder.eq.mockReturnValue(deleteResponse.promise)
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined)
+
+			try {
+				const deletePromise = store.deleteCrate('crate-1')
+				deleteResponse.resolve({
+					data: null,
+					error: new Error('Delete failed')
+				})
+				await expect(deletePromise).resolves.toBe(false)
+				expect(store.crates).toEqual([initialCrate])
+
+				fetchResponse.resolve({
+					data: [
+						createMockCrate({
+							id: 'crate-1',
+							name: 'Stale fetch',
+							updated_at: '2026-07-19T04:00:00.000002Z'
+						})
+					],
+					error: null
+				})
+				await expect(fetchPromise).resolves.toBe(true)
+				expect(store.crates).toEqual([initialCrate])
+
+				membershipResponse.resolve({
+					data: createMockCrate({
+						id: 'crate-1',
+						records: ['record-1'],
+						updated_at: '2026-07-19T04:00:00.000003Z'
+					}),
+					error: null
+				})
+				await expect(addPromise).resolves.toBe(false)
+				expect(store.crates).toEqual([initialCrate])
+				expect(mockToast.success).not.toHaveBeenCalled()
+			} finally {
+				consoleError.mockRestore()
+			}
+		})
+
+		it('rejects metadata that started before a failed delete boundary', async () => {
+			const store = useCratesStore()
+			const initialCrate = createMockCrate({
+				id: 'crate-1',
+				name: 'Initial',
+				updated_at: '2026-07-19T04:00:00.000001Z'
+			})
+			mockQueryBuilder.range.mockResolvedValue({
+				data: [initialCrate],
+				error: null
+			})
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+
+			const metadataResponse = createDeferred<{
+				data: ReturnType<typeof createMockCrate>
+				error: null
+			}>()
+			const deleteResponse = createDeferred<{ data: null; error: Error }>()
+			mockQueryBuilder.single.mockReturnValue(metadataResponse.promise)
+			const metadataPromise = store.updateCrate('crate-1', { name: 'Pending' })
+			mockQueryBuilder.eq.mockReturnValue(deleteResponse.promise)
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined)
+
+			try {
+				const deletePromise = store.deleteCrate('crate-1')
+				deleteResponse.resolve({
+					data: null,
+					error: new Error('Delete failed')
+				})
+				await expect(deletePromise).resolves.toBe(false)
+				expect(store.crates).toEqual([initialCrate])
+
+				metadataResponse.resolve({
+					data: createMockCrate({
+						id: 'crate-1',
+						name: 'Pending',
+						updated_at: '2026-07-19T04:00:00.000002Z'
+					}),
+					error: null
+				})
+				await expect(metadataPromise).resolves.toBeNull()
+				expect(store.crates).toEqual([initialCrate])
+				expect(store.isUpdatingCrate).toBe(false)
+			} finally {
+				consoleError.mockRestore()
+			}
+		})
 	})
 
 	describe('addRecordToCrate', () => {
@@ -1069,13 +1383,33 @@ describe('cratesStore', () => {
 			expect(result).toBe(false)
 		})
 
-		it('returns false when record already in crate', async () => {
+		it('reconciles an idempotent add when the local record is already present', async () => {
 			const store = useCratesStore()
+			const serverCrate = createMockCrate({
+				id: 'crate-1',
+				records: ['record-1'],
+				updated_at: '2026-07-19T04:00:00.000002Z'
+			})
 			store.crates = [createMockCrate({ id: 'crate-1', records: ['record-1'] })]
+			mockSupabaseClient.rpc.mockResolvedValue({
+				data: serverCrate,
+				error: null
+			})
 
 			const result = await store.addRecordToCrate('crate-1', 'record-1')
 
-			expect(result).toBe(false)
+			expect(result).toBe(true)
+			expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+				'add_record_to_crate',
+				{
+					target_crate_id: 'crate-1',
+					target_record_id: 'record-1'
+				}
+			)
+			expect(store.crates).toEqual([serverCrate])
+			expect(mockToast.info).toHaveBeenCalledWith(
+				'Record is already in this crate.'
+			)
 		})
 
 		it('adds record to crate on success', async () => {
@@ -1411,16 +1745,75 @@ describe('cratesStore', () => {
 			}
 		})
 
+		it('returns false when a fetched v3 removal supersedes delayed add v2', async () => {
+			const store = useCratesStore()
+			const initialCrate = createMockCrate({
+				id: 'crate-1',
+				records: [],
+				updated_at: '2026-07-19T04:00:00.000001Z'
+			})
+			mockQueryBuilder.range.mockResolvedValue({
+				data: [initialCrate],
+				error: null
+			})
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+
+			const addResponse = createDeferred<{
+				data: ReturnType<typeof createMockCrate>
+				error: null
+			}>()
+			mockSupabaseClient.rpc.mockReturnValue(addResponse.promise)
+			const addPromise = store.addRecordToCrate('crate-1', 'record-1')
+
+			const removedV3 = createMockCrate({
+				id: 'crate-1',
+				records: [],
+				updated_at: '2026-07-19T04:00:00.000003Z'
+			})
+			mockQueryBuilder.range.mockResolvedValue({
+				data: [removedV3],
+				error: null
+			})
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+
+			addResponse.resolve({
+				data: createMockCrate({
+					id: 'crate-1',
+					records: ['record-1'],
+					updated_at: '2026-07-19T04:00:00.000002Z'
+				}),
+				error: null
+			})
+			await expect(addPromise).resolves.toBe(false)
+
+			expect(store.crates).toEqual([removedV3])
+			expect(store.isUpdatingCrate).toBe(false)
+			expect(mockToast.success).not.toHaveBeenCalledWith(
+				'Record added to crate.'
+			)
+		})
+
 		it('respects silent option', async () => {
 			const store = useCratesStore()
+			const serverCrate = createMockCrate({
+				id: 'crate-1',
+				records: ['record-1'],
+				updated_at: '2026-07-19T04:00:00.000002Z'
+			})
 			store.crates = [createMockCrate({ id: 'crate-1', records: ['record-1'] })]
+			mockSupabaseClient.rpc.mockResolvedValue({
+				data: serverCrate,
+				error: null
+			})
 
-			// Should not throw despite record already existing
 			const result = await store.addRecordToCrate('crate-1', 'record-1', {
 				silent: true
 			})
 
-			expect(result).toBe(false)
+			expect(result).toBe(true)
+			expect(store.crates).toEqual([serverCrate])
+			expect(mockToast.info).not.toHaveBeenCalled()
+			expect(mockToast.success).not.toHaveBeenCalled()
 		})
 	})
 
@@ -1437,13 +1830,33 @@ describe('cratesStore', () => {
 			expect(result).toBe(false)
 		})
 
-		it('returns false when record not in crate', async () => {
+		it('reconciles an idempotent remove when the local record is absent', async () => {
 			const store = useCratesStore()
+			const serverCrate = createMockCrate({
+				id: 'crate-1',
+				records: [],
+				updated_at: '2026-07-19T04:00:00.000002Z'
+			})
 			store.crates = [createMockCrate({ id: 'crate-1', records: [] })]
+			mockSupabaseClient.rpc.mockResolvedValue({
+				data: serverCrate,
+				error: null
+			})
 
 			const result = await store.removeRecordFromCrate('crate-1', 'record-1')
 
-			expect(result).toBe(false)
+			expect(result).toBe(true)
+			expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+				'remove_record_from_crate',
+				{
+					target_crate_id: 'crate-1',
+					target_record_id: 'record-1'
+				}
+			)
+			expect(store.crates).toEqual([serverCrate])
+			expect(mockToast.info).toHaveBeenCalledWith(
+				'Record is not in this crate.'
+			)
 		})
 
 		it('removes record from crate on success', async () => {
@@ -1501,6 +1914,51 @@ describe('cratesStore', () => {
 			} finally {
 				consoleError.mockRestore()
 			}
+		})
+
+		it('returns false when a fetched v3 add supersedes delayed remove v2', async () => {
+			const store = useCratesStore()
+			const initialCrate = createMockCrate({
+				id: 'crate-1',
+				records: ['record-1'],
+				updated_at: '2026-07-19T04:00:00.000001Z'
+			})
+			mockQueryBuilder.range.mockResolvedValue({
+				data: [initialCrate],
+				error: null
+			})
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+
+			const removeResponse = createDeferred<{
+				data: ReturnType<typeof createMockCrate>
+				error: null
+			}>()
+			mockSupabaseClient.rpc.mockReturnValue(removeResponse.promise)
+			const removePromise = store.removeRecordFromCrate('crate-1', 'record-1')
+
+			const addedV3 = createMockCrate({
+				id: 'crate-1',
+				records: ['record-1'],
+				updated_at: '2026-07-19T04:00:00.000003Z'
+			})
+			mockQueryBuilder.range.mockResolvedValue({ data: [addedV3], error: null })
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+
+			removeResponse.resolve({
+				data: createMockCrate({
+					id: 'crate-1',
+					records: [],
+					updated_at: '2026-07-19T04:00:00.000002Z'
+				}),
+				error: null
+			})
+			await expect(removePromise).resolves.toBe(false)
+
+			expect(store.crates).toEqual([addedV3])
+			expect(store.isUpdatingCrate).toBe(false)
+			expect(mockToast.info).not.toHaveBeenCalledWith(
+				'Record is not in this crate.'
+			)
 		})
 	})
 
@@ -1745,6 +2203,85 @@ describe('cratesStore', () => {
 				records: ['record-2']
 			})
 		})
+
+		it('rejects delayed v2 metadata before merging into a fetched v3 floor', async () => {
+			const store = useCratesStore()
+			const initialCrate = createMockCrate({
+				id: 'crate-1',
+				name: 'Initial',
+				records: ['record-1', 'record-2'],
+				updated_at: '2026-07-19T04:00:00.000001Z'
+			})
+			mockQueryBuilder.range.mockResolvedValue({
+				data: [initialCrate],
+				error: null
+			})
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+
+			const metadataResponse = createDeferred<{
+				data: ReturnType<typeof createMockCrate>
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValue(metadataResponse.promise)
+			const metadataPromise = store.updateCrate('crate-1', {
+				name: 'Delayed local'
+			})
+			store.removeRecordFromAllCrates('record-1')
+
+			const remoteV3 = createMockCrate({
+				id: 'crate-1',
+				name: 'Remote v3',
+				records: ['record-2'],
+				updated_at: '2026-07-19T04:00:00.000003Z'
+			})
+			mockQueryBuilder.range.mockResolvedValue({
+				data: [remoteV3],
+				error: null
+			})
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+			expect(store.crates[0]).toMatchObject({
+				name: 'Delayed local',
+				records: ['record-2']
+			})
+
+			metadataResponse.resolve({
+				data: createMockCrate({
+					id: 'crate-1',
+					name: 'Delayed local',
+					records: ['record-1', 'record-2'],
+					updated_at: '2026-07-19T04:00:00.000002Z'
+				}),
+				error: null
+			})
+			await expect(metadataPromise).resolves.toBeNull()
+			expect(store.crates).toEqual([remoteV3])
+
+			const equalV3 = createMockCrate({
+				...remoteV3,
+				name: 'Equal v3 must not repair anything'
+			})
+			mockQueryBuilder.range.mockResolvedValue({ data: [equalV3], error: null })
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+			expect(store.crates).toEqual([remoteV3])
+
+			const olderV2 = createMockCrate({
+				...remoteV3,
+				name: 'Older v2',
+				updated_at: '2026-07-19T04:00:00.000002Z'
+			})
+			mockQueryBuilder.range.mockResolvedValue({ data: [olderV2], error: null })
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+			expect(store.crates).toEqual([remoteV3])
+
+			const newerV4 = createMockCrate({
+				...remoteV3,
+				name: 'Newer v4',
+				updated_at: '2026-07-19T04:00:00.000004Z'
+			})
+			mockQueryBuilder.range.mockResolvedValue({ data: [newerV4], error: null })
+			await expect(store.fetchAllCrates()).resolves.toBe(true)
+			expect(store.crates).toEqual([newerV4])
+		})
 	})
 
 	describe('clearCrates', () => {
@@ -1816,6 +2353,78 @@ describe('cratesStore', () => {
 			expect(store.isUpdatingCrate).toBe(false)
 			expect(mockToast.success.mock.calls).toEqual([['Record added to crate.']])
 			expect(mockToast.error).not.toHaveBeenCalled()
+		})
+
+		it('does not let an old create finalizer clear replacement activity', async () => {
+			const oldResponse = createDeferred<{
+				data: ReturnType<typeof createMockCrate>
+				error: null
+			}>()
+			const newResponse = createDeferred<{
+				data: ReturnType<typeof createMockCrate>
+				error: null
+			}>()
+			mockQueryBuilder.single
+				.mockReturnValueOnce(oldResponse.promise)
+				.mockReturnValueOnce(newResponse.promise)
+			const store = useCratesStore()
+			const crateData = {
+				name: 'Created crate',
+				description: null,
+				color: null,
+				records: []
+			}
+
+			const oldCreate = store.createCrate(crateData)
+			expect(store.isCreatingCrate).toBe(true)
+			store.clearCrates()
+			expect(store.isCreatingCrate).toBe(false)
+
+			const newCreate = store.createCrate(crateData)
+			expect(store.isCreatingCrate).toBe(true)
+			oldResponse.resolve({
+				data: createMockCrate({ id: 'old-crate' }),
+				error: null
+			})
+			await expect(oldCreate).resolves.toBeNull()
+			expect(store.isCreatingCrate).toBe(true)
+			expect(store.crates).toEqual([])
+
+			const newCrate = createMockCrate({ id: 'new-crate' })
+			newResponse.resolve({ data: newCrate, error: null })
+			await expect(newCreate).resolves.toEqual(newCrate)
+			expect(store.isCreatingCrate).toBe(false)
+			expect(store.crates).toEqual([newCrate])
+		})
+
+		it('does not let an old delete finalizer clear replacement activity', async () => {
+			const oldResponse = createDeferred<{ data: null; error: null }>()
+			const newResponse = createDeferred<{ data: null; error: null }>()
+			mockQueryBuilder.eq
+				.mockReturnValueOnce(oldResponse.promise)
+				.mockReturnValueOnce(newResponse.promise)
+			const store = useCratesStore()
+			store.crates = [createMockCrate({ id: 'old-crate' })]
+
+			const oldDelete = store.deleteCrate('old-crate')
+			expect(store.isDeletingCrate).toBe(true)
+			store.clearCrates()
+			expect(store.isDeletingCrate).toBe(false)
+
+			store.crates = [createMockCrate({ id: 'new-crate' })]
+			const newDelete = store.deleteCrate('new-crate')
+			expect(store.isDeletingCrate).toBe(true)
+			oldResponse.resolve({ data: null, error: null })
+			await expect(oldDelete).resolves.toBe(false)
+			expect(store.isDeletingCrate).toBe(true)
+
+			newResponse.resolve({ data: null, error: null })
+			await expect(newDelete).resolves.toBe(true)
+			expect(store.isDeletingCrate).toBe(false)
+			expect(store.crates).toEqual([])
+			expect(mockToast.success.mock.calls).toEqual([
+				['Crate deleted successfully.']
+			])
 		})
 	})
 })
