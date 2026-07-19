@@ -18,6 +18,7 @@ import {
 	mod,
 	parseBeatportKey,
 	parseKeyComposite,
+	pitchClassDistance,
 	pitchClassMap,
 	scoreHarmony
 } from './keyFunctions'
@@ -38,6 +39,34 @@ describe('mod', () => {
 
 	it('handles zero', () => {
 		expect(mod(0, 12)).toBe(0)
+	})
+})
+
+describe('pitchClassDistance', () => {
+	it('measures the shortest distance across the pitch-class boundary', () => {
+		expect(pitchClassDistance(11.9, 0.1)).toBeCloseTo(0.2)
+		expect(pitchClassDistance(0.1, 11.9)).toBeCloseTo(0.2)
+	})
+
+	it('normalizes negative and greater-than-octave values', () => {
+		expect(pitchClassDistance(-0.1, 0.1)).toBeCloseTo(0.2)
+		expect(pitchClassDistance(12.1, 0.1)).toBeCloseTo(0)
+		expect(pitchClassDistance(25, 11)).toBeCloseTo(2)
+	})
+
+	it('returns six for a tritone in either direction', () => {
+		expect(pitchClassDistance(0, 6)).toBe(6)
+		expect(pitchClassDistance(6, 0)).toBe(6)
+	})
+
+	it('rejects non-finite inputs', () => {
+		expect(() => pitchClassDistance(Number.NaN, 0)).toThrow(RangeError)
+		expect(() => pitchClassDistance(0, Number.POSITIVE_INFINITY)).toThrow(
+			RangeError
+		)
+		expect(() => pitchClassDistance(Number.NEGATIVE_INFINITY, 0)).toThrow(
+			RangeError
+		)
 	})
 })
 
@@ -247,6 +276,63 @@ describe('scoreHarmony', () => {
 		const result = scoreHarmony(a, b)
 		expect(result.harmonicAffinity).toBeCloseTo(0.9, 1)
 		expect(result.keyCombination).toBe(0) // Still same key
+	})
+
+	it('scores same-mode fractional keys across the pitch-class boundary', () => {
+		const forward = scoreHarmony({ key: 11.9, mode: 0 }, { key: 0.1, mode: 0 })
+		const reverse = scoreHarmony({ key: 0.1, mode: 0 }, { key: 11.9, mode: 0 })
+
+		expect(forward.harmonicAffinity).toBeCloseTo(0.8)
+		expect(forward.keyCombination).toBe(0)
+		expect(reverse.harmonicAffinity).toBeCloseTo(
+			forward.harmonicAffinity ?? Number.NaN
+		)
+		expect(reverse.keyCombination).toBe(0)
+	})
+
+	it('preserves mode-change direction across the pitch-class boundary', () => {
+		const minorToMajor = scoreHarmony(
+			{ key: 11.9, mode: 0 },
+			{ key: 0.1, mode: 1 }
+		)
+		const majorToMinor = scoreHarmony(
+			{ key: 0.1, mode: 1 },
+			{ key: 11.9, mode: 0 }
+		)
+
+		expect(minorToMajor.harmonicAffinity).toBeCloseTo(0.8)
+		expect(minorToMajor.keyCombination).toBe(3)
+		expect(majorToMinor.harmonicAffinity).toBeCloseTo(0.8)
+		expect(majorToMinor.keyCombination).toBe(4)
+	})
+
+	it('scores both fifth directions across the pitch-class boundary', () => {
+		const downAFifth = scoreHarmony(
+			{ key: 6.9, mode: 0 },
+			{ key: 0.1, mode: 0 }
+		)
+		const upAFifth = scoreHarmony({ key: 5.1, mode: 0 }, { key: 11.9, mode: 0 })
+
+		expect(downAFifth.harmonicAffinity).toBeCloseTo(0.8)
+		expect(downAFifth.keyCombination).toBe(2)
+		expect(upAFifth.harmonicAffinity).toBeCloseTo(0.8)
+		expect(upAFifth.keyCombination).toBe(1)
+	})
+
+	it('keeps every returned affinity within the documented range', () => {
+		const scores = [
+			scoreHarmony({ key: 11.9, mode: 0 }, { key: 0.1, mode: 0 }),
+			scoreHarmony({ key: 11.9, mode: 0 }, { key: 0.1, mode: 1 }),
+			scoreHarmony({ key: 6.9, mode: 0 }, { key: 0.1, mode: 0 }),
+			scoreHarmony({ key: 5.1, mode: 0 }, { key: 11.9, mode: 0 }),
+			scoreHarmony({ key: 0, mode: 0 }, { key: 6, mode: 0 })
+		]
+
+		for (const { harmonicAffinity } of scores) {
+			expect(harmonicAffinity).not.toBeNull()
+			expect(harmonicAffinity).toBeGreaterThanOrEqual(0)
+			expect(harmonicAffinity).toBeLessThanOrEqual(1)
+		}
 	})
 })
 

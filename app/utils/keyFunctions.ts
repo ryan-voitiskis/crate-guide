@@ -370,6 +370,15 @@ export function mod(n: number, m: number): number {
 	return ((n % m) + m) % m
 }
 
+export function pitchClassDistance(left: number, right: number): number {
+	if (!Number.isFinite(left) || !Number.isFinite(right)) {
+		throw new RangeError('Pitch classes must be finite numbers.')
+	}
+
+	const linearDistance = Math.abs(mod(left, 12) - mod(right, 12))
+	return Math.min(linearDistance, 12 - linearDistance)
+}
+
 // * https://music.stackexchange.com/a/118424/89457
 export function adjustKey(key: number, factor: number): number {
 	return mod(key + 12 * (Math.log(factor) / Math.log(2)), 12)
@@ -379,25 +388,31 @@ export function adjustKey(key: number, factor: number): number {
 // * http://blog.dubspot.com/harmonic-mixing-w-dj-endo-part-1/
 export function scoreHarmony(a: KeyAndMode, b: KeyAndMode): HarmonyScore {
 	if (a.mode === b.mode) {
-		if (Math.abs(a.key - b.key) < 0.5)
+		const sameKeyDistance = pitchClassDistance(a.key, b.key)
+		if (sameKeyDistance < 0.5)
 			return {
-				harmonicAffinity: 1 - Math.abs(a.key - b.key),
+				harmonicAffinity: 1 - sameKeyDistance,
 				keyCombination: 0
 			}
-		if (Math.abs(mod(a.key + 5, 12) - b.key) < 0.5)
+
+		const downFifthDistance = pitchClassDistance(mod(a.key + 5, 12), b.key)
+		if (downFifthDistance < 0.5)
 			return {
-				harmonicAffinity: 1 - Math.abs(mod(a.key + 5, 12) - b.key),
+				harmonicAffinity: 1 - downFifthDistance,
 				keyCombination: 2
 			}
-		if (Math.abs(mod(a.key - 5, 12) - b.key) < 0.5)
+
+		const upFifthDistance = pitchClassDistance(mod(a.key - 5, 12), b.key)
+		if (upFifthDistance < 0.5)
 			return {
-				harmonicAffinity: 1 - Math.abs(mod(a.key - 5, 12) - b.key),
+				harmonicAffinity: 1 - upFifthDistance,
 				keyCombination: 1
 			}
 	} else {
-		if (Math.abs(a.key - b.key) < 0.5)
+		const modeChangeDistance = pitchClassDistance(a.key, b.key)
+		if (modeChangeDistance < 0.5)
 			return {
-				harmonicAffinity: 1 - Math.abs(a.key - b.key),
+				harmonicAffinity: 1 - modeChangeDistance,
 				keyCombination: a.mode < b.mode ? 3 : 4
 			}
 	}
