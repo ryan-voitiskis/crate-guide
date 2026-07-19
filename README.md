@@ -293,13 +293,14 @@ prior states and reports if restoration cannot complete. Run
 
 ## Edge Functions
 
-| Function                        | Purpose                                                                                  |
-| ------------------------------- | ---------------------------------------------------------------------------------------- |
-| `get-discogs-request-token`     | Verifies the caller, acquires quota, and starts the Discogs OAuth 1.0 flow.              |
-| `get-discogs-access-token`      | Validates the callback, exchanges/stores credentials, and refreshes public identity.     |
-| `authenticated-discogs-request` | Dispatches only validated folder, folder-release, and release reads with server signing. |
-| `cleanup-record-covers`         | Drains durable obsolete-cover jobs for the verified user without accepting client paths. |
-| `delete-account`                | Requires recent authentication and removes covers, queued cleanup work, and the account. |
+| Function                         | Purpose                                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------------------- |
+| `get-discogs-request-token`      | Verifies the caller, acquires quota, and starts the Discogs OAuth 1.0 flow.                 |
+| `get-discogs-access-token`       | Validates the callback, exchanges/stores credentials, and refreshes public identity.        |
+| `authenticated-discogs-request`  | Dispatches only validated folder, folder-release, and release reads with server signing.    |
+| `cleanup-record-covers`          | Drains durable obsolete-cover jobs for the verified user without accepting client paths.    |
+| `cleanup-orphaned-record-covers` | Processes one bounded, leased account-cover cleanup batch for an exact service-role caller. |
+| `delete-account`                 | Requires recent authentication and removes covers, queued cleanup work, and the account.    |
 
 For local emulation, `npm run supa:functions` uses `--no-verify-jwt`; handler
 authentication remains active. The source-controlled deploy tasks in

@@ -152,6 +152,8 @@ uploaded into the private `record-covers` bucket, its managed path is shaped as
 - A database trigger atomically enqueues an obsolete managed path when a record
   cover is replaced or the record is deleted. Jobs have no user/record foreign
   key, so they survive the domain deletion and cannot be read by browser roles.
+  While a job exists, its exact path is a database tombstone: records cannot
+  attach that obsolete path again until service cleanup removes the job.
 - The browser invokes `cleanup-record-covers` without sending a path. The
   authenticated service worker loads at most 100 jobs for the verified user,
   validates their path shape again, checks current record references, and sends
@@ -160,14 +162,54 @@ uploaded into the private `record-covers` bucket, its managed path is shaped as
   success even when an object was already missing. Any ambiguous Storage or
   database failure retains the job, increments attempt metadata where possible,
   and returns a controlled deferred result.
+- The records store validates the response counts and drains successful full
+  pages until a short page proves the queue was reached, with finite per-page
+  retries and a separate total-page bound. Each successful cover replacement,
+  record deletion, or bulk deletion requests fresh cleanup ownership and waits
+  for an invocation that began after that database mutation committed. Initial
+  load cleanup remains detached, and unsuccessful work is eligible for a later
+  refresh retry.
+- Each browser invocation has a 20-second timeout and an abort signal. Account
+  reset or sign-out aborts the active request, invalidates its generation, and
+  settles old waiters without issuing a warning for the stale account.
 - The browser directly deletes only a newly uploaded object whose record update
   failed, because no committed trigger job exists for that object.
-- `delete-account` keeps its pre-deletion and post-deletion full-tree Storage
-  passes. Only after the auth user is deleted and the final pass succeeds does
-  it delete that user's now-undrainable jobs. Responses distinguish
-  `cover_cleanup_complete` from `cleanup_queue_complete`; either false is a
-  successful account deletion with incomplete cleanup and triggers the same
-  generic client warning.
+
+Account deletion has an additional service-owned recovery path:
+
+- `delete-account` performs its initial full-tree Storage pass, then persists
+  one `record_cover_account_cleanup_jobs` outbox row before calling
+  `deleteUser`. If enqueueing fails, deletion stops while the identity still
+  exists. After identity deletion, a final full-tree pass closes concurrent
+  upload races; only a confirmed empty tree permits ordinary-job deletion and
+  outbox completion.
+- The outbox has no auth-user foreign key and no browser policies or grants.
+  Service-role-only RPCs claim at most the oldest available job under a
+  two-minute lease, and completion or release must present that claim's token.
+  A release retains the row, records a bounded attempt count, and applies a
+  short retry delay.
+- `cleanup-orphaned-record-covers` is a POST-only, no-body service endpoint. It
+  accepts only an exact `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>`
+  credential, compared timing-safely with the server environment value. It has
+  no browser CORS contract, rejects ordinary authenticated and anonymous
+  tokens, accepts no user/path selector, and returns only generic `processed`
+  and `complete` booleans.
+- One service invocation claims at most one outbox job and processes at most
+  100 listed objects with bounded recursive listing work. A live auth user,
+  remaining objects, or ambiguous Storage/database state releases the lease for
+  retry. Only a confirming empty listing permits ordinary-job deletion and
+  exact outbox completion.
+- After its own work succeeds, ordinary `cleanup-record-covers` also attempts
+  at most one service-selected outbox batch. This opportunistic work is opaque:
+  its result or failure does not change the ordinary caller's already-computed
+  counts or status and exposes no cross-account information.
+- The repository contains no source-controlled hosted schedule for the service
+  endpoint. Its presence supports an operator or future scheduler, but this
+  guide makes no claim that the function is deployed, configured, or scheduled
+  in any hosted project.
+- Account-deletion responses distinguish `cover_cleanup_complete` from
+  `cleanup_queue_complete`; either false means the account deletion succeeded
+  with incomplete cleanup and triggers the same generic client warning.
 
 ## Verification commands
 
