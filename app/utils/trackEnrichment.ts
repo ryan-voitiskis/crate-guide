@@ -16,6 +16,12 @@ import {
 	toRekordboxXmlSource
 } from './rekordboxXml'
 import { isValidBPM } from './track-validation'
+import {
+	type TrackEnrichmentTitleIndex,
+	canBeFuzzyTitleMatch,
+	createTrackEnrichmentTitleIndex,
+	getCandidateShortlist
+} from './trackEnrichmentIndex'
 
 export type TrackEnrichmentConfidence = 'high' | 'medium' | 'manual'
 export type TrackEnrichmentSource = RekordboxXmlTrack | LocalAudioTrackSource
@@ -87,6 +93,10 @@ type CandidateMatchMetadata = {
 	titles: string[]
 	artists: ArtistMatchMetadata
 	albumNames: string[]
+}
+
+type CandidateMatchingContext = {
+	titleIndex: TrackEnrichmentTitleIndex<CandidateMatchMetadata>
 }
 
 type StringSetMatch = {
@@ -223,16 +233,6 @@ function levenshteinDistance(left: string, right: string): number {
 	return previous[right.length] ?? Math.max(left.length, right.length)
 }
 
-function canBeFuzzyMatch(left: string, right: string): boolean {
-	const longestLength = Math.max(left.length, right.length)
-	const allowedLengthDifference = Math.max(2, Math.ceil(longestLength * 0.2))
-
-	if (Math.abs(left.length - right.length) > allowedLengthDifference)
-		return false
-	if (longestLength >= 6 && left[0] !== right[0]) return false
-	return true
-}
-
 function minimumSimilarity(left: string, right: string): number {
 	const shortestLength = Math.min(left.length, right.length)
 	if (shortestLength <= 4) return 1
@@ -250,7 +250,7 @@ function compareStringSets(left: string[], right: string[]): StringSetMatch {
 				return { accepted: true, exact: true, similarity: 1 }
 			}
 
-			if (!canBeFuzzyMatch(leftValue, rightValue)) continue
+			if (!canBeFuzzyTitleMatch(leftValue, rightValue)) continue
 
 			const longestLength = Math.max(leftValue.length, rightValue.length)
 			const similarity =
@@ -578,24 +578,39 @@ function blockCompetingTrackMatches(
 	return rows
 }
 
-function prepareCandidateMetadata(
+function prepareCandidateMatchingContext(
 	tracks: Track[],
 	records: DatabaseRecord[]
-): CandidateMatchMetadata[] {
+): CandidateMatchingContext {
 	const recordsById = new Map(records.map((record) => [record.id, record]))
-	return tracks.map((track) =>
+	const candidates = tracks.map((track) =>
 		createCandidateMatchMetadata(
 			track,
 			recordsById.get(track.record_id) ?? null
 		)
 	)
+	const titleIndex = createTrackEnrichmentTitleIndex(
+		candidates.map((candidate) => ({
+			identity: candidate.track.id,
+			titles: candidate.titles,
+			value: candidate
+		}))
+	)
+
+	return { titleIndex }
 }
 
 function buildTrackEnrichmentRow(
 	source: TrackEnrichmentSource,
-	candidateMetadata: CandidateMatchMetadata[]
+	candidateMatchingContext: CandidateMatchingContext
 ): TrackEnrichmentRow {
 	const sourceMetadata = createSourceMatchMetadata(source)
+	// The index is only a completeness-preserving prefilter. The existing scorer
+	// remains the final authority for title, artist, album, and duration behavior.
+	const candidateMetadata = getCandidateShortlist(
+		candidateMatchingContext.titleIndex,
+		sourceMetadata.titles
+	)
 	const candidates = candidateMetadata
 		.map((candidate) => scoreCandidate(source, sourceMetadata, candidate))
 		.filter((candidate) => candidate !== null)
@@ -681,9 +696,12 @@ export function buildTrackEnrichmentRows({
 	tracks,
 	records
 }: BuildTrackEnrichmentRowsOptions): TrackEnrichmentRow[] {
-	const candidateMetadata = prepareCandidateMetadata(tracks, records)
+	const candidateMatchingContext = prepareCandidateMatchingContext(
+		tracks,
+		records
+	)
 	const builtRows = sources.map((source) =>
-		buildTrackEnrichmentRow(source, candidateMetadata)
+		buildTrackEnrichmentRow(source, candidateMatchingContext)
 	)
 
 	return blockCompetingTrackMatches(builtRows)
@@ -699,14 +717,17 @@ export async function buildTrackEnrichmentRowsAsync({
 	onProgress?: (completed: number, total: number) => void
 	yieldEvery?: number
 }): Promise<TrackEnrichmentRow[]> {
-	const candidateMetadata = prepareCandidateMetadata(tracks, records)
+	const candidateMatchingContext = prepareCandidateMatchingContext(
+		tracks,
+		records
+	)
 	const builtRows: TrackEnrichmentRow[] = []
 	const batchSize = Math.max(1, yieldEvery)
 
 	for (let index = 0; index < sources.length; index++) {
 		const source = sources[index]
 		if (!source) continue
-		builtRows.push(buildTrackEnrichmentRow(source, candidateMetadata))
+		builtRows.push(buildTrackEnrichmentRow(source, candidateMatchingContext))
 
 		const completed = index + 1
 		if (completed % batchSize === 0) {

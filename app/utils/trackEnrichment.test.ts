@@ -125,6 +125,200 @@ function createLocalSource(input: {
 }
 
 describe('buildTrackEnrichmentRows', () => {
+	it('characterizes exact, fuzzy-boundary, normalized-variant, and stable-tie matching', () => {
+		const cases = [
+			{
+				name: 'exact title',
+				sourceTitle: 'Nova',
+				candidateTitle: 'Nova',
+				matched: true
+			},
+			{
+				name: 'short title typo',
+				sourceTitle: 'Nove',
+				candidateTitle: 'Nova',
+				matched: false
+			},
+			{
+				name: 'seven-character typo below the similarity boundary',
+				sourceTitle: 'abcxefg',
+				candidateTitle: 'abcdefg',
+				matched: false
+			},
+			{
+				name: 'eight-character typo at the similarity boundary',
+				sourceTitle: 'abcxefgh',
+				candidateTitle: 'abcdefgh',
+				matched: true
+			},
+			{
+				name: 'long title first-character mismatch',
+				sourceTitle: 'xbcdefgh',
+				candidateTitle: 'abcdefgh',
+				matched: false
+			},
+			{
+				name: 'eligible long-title length difference',
+				sourceTitle: 'abcdefghij',
+				candidateTitle: 'abcdefghijk',
+				matched: true
+			}
+		]
+
+		for (const testCase of cases) {
+			const [row] = buildTrackEnrichmentRows({
+				sources: [
+					createSource({
+						name: testCase.sourceTitle,
+						artist: null,
+						album: null,
+						locationHint: null,
+						totalTimeSeconds: null
+					})
+				],
+				tracks: [
+					createTrack({
+						title: testCase.candidateTitle,
+						artists: [],
+						duration: null
+					})
+				],
+				records: []
+			})
+
+			expect(!!row?.track, testCase.name).toBe(testCase.matched)
+		}
+
+		const [variantRow] = buildTrackEnrichmentRows({
+			sources: [
+				createSource({
+					name: 'Unrelated metadata title',
+					artist: null,
+					album: null,
+					locationHint: 'Album/01 - Cafe Track.wav',
+					totalTimeSeconds: null
+				})
+			],
+			tracks: [
+				createTrack({ id: 'variant', title: 'Café Track', artists: [] }),
+				createTrack({ id: 'tie', title: 'Cafe Track (2024)', artists: [] })
+			],
+			records: []
+		})
+
+		expect(variantRow).toMatchObject({
+			track: { id: 'variant' },
+			score: 53,
+			reasons: ['Title match'],
+			warnings: ['Multiple Crate Guide tracks have similar match scores'],
+			confidence: 'manual'
+		})
+	})
+
+	it('keeps deterministic exhaustive-corpus enrichment output', () => {
+		const tracks = [
+			createTrack({ id: 'track-exact', title: 'Cafe Track' }),
+			createTrack({
+				id: 'track-fuzzy',
+				title: 'Midnight Signals',
+				duration: 240000
+			}),
+			createTrack({ id: 'track-short', title: 'Nova', duration: null })
+		]
+		const sources = [
+			createSource({ index: 0 }),
+			createSource({
+				index: 1,
+				name: 'Midnight Signal',
+				locationHint: null,
+				totalTimeSeconds: 240,
+				album: null
+			}),
+			createSource({
+				index: 2,
+				name: 'Nove',
+				artist: null,
+				album: null,
+				locationHint: null,
+				totalTimeSeconds: null
+			}),
+			createSource({
+				index: 3,
+				name: null,
+				artist: null,
+				album: null,
+				locationHint: null,
+				totalTimeSeconds: null
+			})
+		]
+
+		const rows = buildTrackEnrichmentRows({ sources, tracks, records: [] })
+
+		expect(
+			rows.map((row) => ({
+				id: row.id,
+				trackId: row.track?.id ?? null,
+				confidence: row.confidence,
+				score: row.score,
+				reasons: row.reasons,
+				warnings: row.warnings,
+				canFillBpm: row.canFillBpm,
+				canFillKeyMode: row.canFillKeyMode,
+				defaultStaged: row.defaultStaged,
+				stagingBlockedReason: row.stagingBlockedReason
+			}))
+		).toEqual([
+			{
+				id: 'rekordboxXml-0-track-exact',
+				trackId: 'track-exact',
+				confidence: 'high',
+				score: 90,
+				reasons: ['Title match', 'Artist match', 'Duration corroborates'],
+				warnings: [],
+				canFillBpm: true,
+				canFillKeyMode: true,
+				defaultStaged: true,
+				stagingBlockedReason: null
+			},
+			{
+				id: 'rekordboxXml-1-track-fuzzy',
+				trackId: 'track-fuzzy',
+				confidence: 'high',
+				score: 89,
+				reasons: ['Close title match', 'Artist match', 'Duration corroborates'],
+				warnings: [],
+				canFillBpm: true,
+				canFillKeyMode: true,
+				defaultStaged: true,
+				stagingBlockedReason: null
+			},
+			{
+				id: 'source-rekordboxXml-2',
+				trackId: null,
+				confidence: 'manual',
+				score: 0,
+				reasons: [],
+				warnings: ['No matching Crate Guide track found'],
+				canFillBpm: false,
+				canFillKeyMode: false,
+				defaultStaged: false,
+				stagingBlockedReason: null
+			},
+			{
+				id: 'source-rekordboxXml-3',
+				trackId: null,
+				confidence: 'manual',
+				score: 0,
+				reasons: [],
+				warnings: ['No matching Crate Guide track found'],
+				canFillBpm: false,
+				canFillKeyMode: false,
+				defaultStaged: false,
+				stagingBlockedReason: null
+			}
+		])
+	})
+
 	it('auto-stages strong local matches backed by embedded tags', () => {
 		const [row] = buildTrackEnrichmentRows({
 			sources: [createLocalSource({ bpm: 128, key: 'A minor' })],
