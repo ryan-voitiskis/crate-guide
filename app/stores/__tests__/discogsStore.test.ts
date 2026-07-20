@@ -282,6 +282,28 @@ describe('discogsStore', () => {
 	})
 
 	describe('transfer monitor', () => {
+		it('opens the collection chooser when no transfer is active', () => {
+			const store = useDiscogsStore()
+
+			store.openCollectionImport()
+
+			expect(store.showGetFoldersDialog).toBe(true)
+			expect(store.showImportProgressDialog).toBe(false)
+		})
+
+		it('reopens an active transfer instead of the collection chooser', () => {
+			const store = useDiscogsStore()
+			store.transferStatus = 'running'
+			store.isImporting = true
+			store.showFilterDialog = true
+
+			store.openCollectionImport()
+
+			expect(store.showGetFoldersDialog).toBe(false)
+			expect(store.showFilterDialog).toBe(false)
+			expect(store.showImportProgressDialog).toBe(true)
+		})
+
 		it('minimizes and reopens an active transfer without clearing it', () => {
 			const store = useDiscogsStore()
 			store.transferStatus = 'running'
@@ -858,6 +880,33 @@ describe('discogsStore', () => {
 			await store.importSelectedReleases()
 
 			expect(mockFilterOutExistingReleases).not.toHaveBeenCalled()
+		})
+
+		it('reopens the active monitor instead of starting a second import', async () => {
+			const store = useDiscogsStore()
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease(), selected: true }
+			]
+			const fetchDeferred = createDeferred<{
+				releases: unknown[]
+				failed: DiscogsImportFailure[]
+				cancelled: boolean
+			}>()
+			mockFetchReleaseDetails.mockReturnValueOnce(fetchDeferred.promise)
+
+			const firstImport = store.importSelectedReleases()
+			expect(store.isImporting).toBe(true)
+			store.showImportProgressDialog = false
+			store.showFilterDialog = true
+
+			await store.importSelectedReleases()
+
+			expect(mockFilterOutExistingReleases).toHaveBeenCalledOnce()
+			expect(store.showFilterDialog).toBe(false)
+			expect(store.showImportProgressDialog).toBe(true)
+
+			fetchDeferred.resolve({ releases: [], failed: [], cancelled: false })
+			await firstImport
 		})
 
 		it('opens import progress dialog', async () => {

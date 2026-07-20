@@ -167,6 +167,9 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	let hydratedUserId: string | null = null
 
 	const hasTransferActivity = computed(() => transferStatus.value !== 'idle')
+	const hasActiveTransfer = computed(
+		() => isImporting.value || transferStatus.value === 'running'
+	)
 	const isRetrying = computed(
 		() => transferMode.value === 'retry' && transferStatus.value === 'running'
 	)
@@ -331,7 +334,20 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	}
 
 	function openTransferMonitor() {
-		if (hasTransferActivity.value) showImportProgressDialog.value = true
+		if (hasTransferActivity.value || hasActiveTransfer.value) {
+			showImportProgressDialog.value = true
+		}
+	}
+
+	function openCollectionImport() {
+		if (hasActiveTransfer.value) {
+			showGetFoldersDialog.value = false
+			showFilterDialog.value = false
+			openTransferMonitor()
+			return
+		}
+
+		showGetFoldersDialog.value = true
 	}
 
 	function minimizeTransferMonitor() {
@@ -541,6 +557,13 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	}
 
 	async function importSelectedReleases() {
+		if (hasActiveTransfer.value) {
+			showGetFoldersDialog.value = false
+			showFilterDialog.value = false
+			openTransferMonitor()
+			return
+		}
+
 		const context = captureAccountContext()
 		const selectedReleases = releasesToImport.value.filter((r) => r.selected)
 		if (selectedReleases.length === 0) {
@@ -794,7 +817,13 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	}
 
 	watch(showGetFoldersDialog, (newValue) => {
-		if (newValue && folders.value.length === 0) getFolders()
+		if (!newValue) return
+		if (hasActiveTransfer.value) {
+			showGetFoldersDialog.value = false
+			openTransferMonitor()
+			return
+		}
+		if (folders.value.length === 0) getFolders()
 	})
 	watch(
 		() => currentUserId(),
@@ -819,6 +848,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		transferStatus,
 		transferMode,
 		hasTransferActivity,
+		hasActiveTransfer,
 		transferTone,
 		transferLabel,
 		isRetrying,
@@ -832,6 +862,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		importSelectedReleases,
 		retryFailedReleases,
 		cancelImport,
+		openCollectionImport,
 		openTransferMonitor,
 		minimizeTransferMonitor,
 		dismissTransferMonitor,

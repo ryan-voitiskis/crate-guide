@@ -6,6 +6,7 @@ import {
 	ImagePlus,
 	KeyRound,
 	List,
+	LoaderCircle,
 	MoreHorizontal,
 	Plus
 } from 'lucide-vue-next'
@@ -34,9 +35,10 @@ const density = useState<Density>('workbench-density', () => 'compact')
 const sortKey = ref<RecordSortKey>('artist')
 const sortDirection = ref<SortDirection>('asc')
 
-const discogsImportLabel = computed(() =>
-	discogsAuth.isOAuthed ? 'Import' : 'Connect Discogs'
-)
+const discogsImportLabel = computed(() => {
+	if (discogs.hasActiveTransfer) return 'View import'
+	return discogsAuth.isOAuthed ? 'Import' : 'Connect Discogs'
+})
 
 const trackCounts = computed(() => {
 	const counts = new Map<string, number>()
@@ -94,7 +96,7 @@ const sortedRecords = computed(() => {
 function handleDiscogsImport() {
 	if (!capabilities.canConnectDiscogs) return
 	if (discogsAuth.isOAuthed) {
-		discogs.showGetFoldersDialog = true
+		discogs.openCollectionImport()
 		return
 	}
 
@@ -160,7 +162,11 @@ watch(
 					"
 					@click="handleDiscogsImport"
 				>
-					<CloudDownload v-if="discogsAuth.isOAuthed" class="mr-2" />
+					<LoaderCircle
+						v-if="discogs.hasActiveTransfer"
+						class="mr-2 animate-spin"
+					/>
+					<CloudDownload v-else-if="discogsAuth.isOAuthed" class="mr-2" />
 					<KeyRound v-else class="mr-2" />
 					{{ discogsImportLabel }}
 				</ButtonLoading>
