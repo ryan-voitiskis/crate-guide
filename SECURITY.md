@@ -1,6 +1,6 @@
 # Security Policy
 
-Crate Guide is a personal, non-commercial proof of concept maintained on a
+Crate Guide is a personal, non-commercial open-source project maintained on a
 best-effort basis. Responsible security reports are welcome.
 
 ## Reporting a vulnerability

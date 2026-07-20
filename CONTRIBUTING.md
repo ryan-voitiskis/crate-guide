@@ -1,7 +1,7 @@
 # Contributing to Crate Guide
 
 Thanks for considering a contribution. Crate Guide is a personal,
-non-commercial proof of concept, so small, focused changes that are easy to
+non-commercial open-source project, so small, focused changes that are easy to
 review and maintain are the best fit.
 
 ## Before changing code
