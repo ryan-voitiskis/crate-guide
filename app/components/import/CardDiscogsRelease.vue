@@ -113,7 +113,7 @@ const isSelectableCard = computed(
 			<Checkbox
 				v-else
 				:id="checkboxId"
-				v-model:checked="isSelected"
+				v-model="isSelected"
 				:aria-label="selectionLabel"
 			/>
 		</div>

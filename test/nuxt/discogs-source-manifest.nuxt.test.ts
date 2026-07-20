@@ -86,15 +86,20 @@ describe('Discogs source and manifest UI', () => {
 		expect(getFolders).toHaveBeenCalledOnce()
 	})
 
-	it('names every selectable release checkbox', async () => {
+	it('names and preselects every importable release checkbox', async () => {
 		const wrapper = await mountSuspended(CardDiscogsRelease, {
 			props: { release: release(42), showCheckbox: true }
 		})
 		wrappers.add(wrapper)
 
-		expect(wrapper.get('[role="checkbox"]').attributes('aria-label')).toBe(
+		const checkbox = wrapper.get('[role="checkbox"]')
+		expect(checkbox.attributes('aria-label')).toBe(
 			'Select Test Release 42 by Test Artist for import'
 		)
+		expect(checkbox.attributes('data-state')).toBe('checked')
+
+		await checkbox.trigger('click')
+		expect(wrapper.emitted('update:selected')).toEqual([[false]])
 	})
 
 	it('marks existing releases without exposing a misleading checkbox', async () => {
