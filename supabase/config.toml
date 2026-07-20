@@ -180,6 +180,26 @@ url = ""
 # If enabled, the nonce check will be skipped. Required for local sign in with Google auth.
 skip_nonce_check = false
 
+# Edge Functions verify callers inside their handlers so authentication works
+# with the project's asymmetric signing keys instead of the legacy JWT secret.
+[functions.authenticated-discogs-request]
+verify_jwt = false
+
+[functions.get-discogs-request-token]
+verify_jwt = false
+
+[functions.get-discogs-access-token]
+verify_jwt = false
+
+[functions.cleanup-record-covers]
+verify_jwt = false
+
+[functions.cleanup-orphaned-record-covers]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Configure one of the supported request policies: `oneshot`, `per_worker`.

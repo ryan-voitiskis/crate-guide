@@ -2,16 +2,16 @@ import {
 	type AccountCoverCleanupResult,
 	processOneAccountCoverCleanup
 } from '../_shared/accountCoverCleanup.ts'
-import { requireEnv } from '../_shared/supabaseHelpers.ts'
+import { requireSecretKey } from '../_shared/supabaseHelpers.ts'
 
 interface HandlerDependencies {
-	serviceRoleKey(): string
+	secretKey(): string
 	compareSecrets(actual: string, expected: string): Promise<boolean>
 	processOne(): Promise<AccountCoverCleanupResult>
 }
 
 const defaultDependencies: HandlerDependencies = {
-	serviceRoleKey: () => requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
+	secretKey: requireSecretKey,
 	compareSecrets: timingSafeSecretEqual,
 	processOne: () => processOneAccountCoverCleanup()
 }
@@ -22,10 +22,6 @@ function jsonResponse(
 	status: number
 ): Response {
 	return new Response(JSON.stringify(body), { headers, status })
-}
-
-function getExactBearerToken(authHeader: string | null): string {
-	return /^Bearer ([^\s]+)$/.exec(authHeader ?? '')?.[1] ?? ''
 }
 
 export async function timingSafeSecretEqual(
@@ -59,11 +55,11 @@ export function createCleanupOrphanedRecordCoversHandler(
 			)
 		}
 
-		let isServiceRole = false
+		let isSecretKey = false
 		try {
-			isServiceRole = await dependencies.compareSecrets(
-				getExactBearerToken(request.headers.get('Authorization')),
-				dependencies.serviceRoleKey()
+			isSecretKey = await dependencies.compareSecrets(
+				request.headers.get('apikey') ?? '',
+				dependencies.secretKey()
 			)
 		} catch {
 			return jsonResponse(
@@ -72,7 +68,7 @@ export function createCleanupOrphanedRecordCoversHandler(
 				503
 			)
 		}
-		if (!isServiceRole) {
+		if (!isSecretKey) {
 			return jsonResponse(
 				{ error: 'Authentication required.', code: 'authentication_required' },
 				headers,

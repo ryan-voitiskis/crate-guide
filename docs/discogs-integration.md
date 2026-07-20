@@ -122,9 +122,13 @@ database function:
 | `DISCOGS_RATE_LIMIT_WINDOW_SECONDS` | `getDiscogsRateLimitConfig()`; optional quota window           |
 | `SITE_URL`                          | CORS origin and server-built OAuth callback base URL           |
 
-Shared Supabase helpers also require runtime-provided `SUPABASE_URL`,
-`SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` for caller verification and
-server repositories. Keep real values in environment/secret configuration, not
+Shared Supabase helpers also require runtime-provided `SUPABASE_URL`, the
+`default` entry in hosted `SUPABASE_PUBLISHABLE_KEYS`, and the `default` entry
+in hosted `SUPABASE_SECRET_KEYS` for caller verification and server
+repositories. Singular `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_SECRET_KEY`
+variables are accepted for runtimes that provide them. The legacy
+`SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` names remain only as a local
+CLI fallback. Keep real values in environment/secret configuration, not
 documentation or source control.
 
 ## Errors and diagnostics
@@ -194,7 +198,7 @@ Account deletion has an additional service-owned recovery path:
   present the current claim token; release retains the row, records a bounded
   attempt count, and applies a short retry delay.
 - `cleanup-orphaned-record-covers` is a POST-only, no-body service endpoint. It
-  accepts only an exact `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>`
+  accepts only an exact `apikey: <default SUPABASE_SECRET_KEYS value>`
   credential, compared timing-safely with the server environment value. It has
   no browser CORS contract, rejects ordinary authenticated and anonymous
   tokens, accepts no user/path selector, and returns only generic `processed`

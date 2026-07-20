@@ -12,25 +12,72 @@ export function requireEnv(name: string): string {
 	return value
 }
 
-export function createAuthedSupabaseClient(authHeader: string): SupabaseClient {
-	return createClient(
-		requireEnv('SUPABASE_URL'),
-		requireEnv('SUPABASE_ANON_KEY'),
-		{ global: { headers: { Authorization: authHeader } } }
+export function parseDefaultApiKeyMap(
+	serializedKeys: string,
+	name: string
+): string {
+	try {
+		const keys: unknown = JSON.parse(serializedKeys)
+		if (keys && typeof keys === 'object' && !Array.isArray(keys)) {
+			const defaultKey = Reflect.get(keys, 'default')
+			if (typeof defaultKey === 'string' && defaultKey.trim()) {
+				return defaultKey.trim()
+			}
+		}
+	} catch {
+		// Use the same bounded configuration error for invalid JSON and shape.
+	}
+	throw new Error(
+		`Server configuration error: ${name} must contain a default API key.`
 	)
 }
 
-export function createServiceRoleSupabaseClient(): SupabaseClient {
-	return createClient(
-		requireEnv('SUPABASE_URL'),
-		requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
-		{
-			auth: {
-				autoRefreshToken: false,
-				persistSession: false
-			}
-		}
+function requireSupabaseApiKey(
+	keyMapName: string,
+	singularKeyName: string,
+	localLegacyKeyName: string
+): string {
+	const serializedKeys = Deno.env.get(keyMapName)?.trim()
+	if (serializedKeys) return parseDefaultApiKeyMap(serializedKeys, keyMapName)
+
+	const singularKey = Deno.env.get(singularKeyName)?.trim()
+	if (singularKey) return singularKey
+
+	// The current local stack still injects only the legacy names. Hosted
+	// functions resolve the new key maps first, so disabling hosted legacy keys
+	// cannot make this fallback active in production.
+	return requireEnv(localLegacyKeyName)
+}
+
+export function requirePublishableKey(): string {
+	return requireSupabaseApiKey(
+		'SUPABASE_PUBLISHABLE_KEYS',
+		'SUPABASE_PUBLISHABLE_KEY',
+		'SUPABASE_ANON_KEY'
 	)
+}
+
+export function requireSecretKey(): string {
+	return requireSupabaseApiKey(
+		'SUPABASE_SECRET_KEYS',
+		'SUPABASE_SECRET_KEY',
+		'SUPABASE_SERVICE_ROLE_KEY'
+	)
+}
+
+export function createAuthedSupabaseClient(authHeader: string): SupabaseClient {
+	return createClient(requireEnv('SUPABASE_URL'), requirePublishableKey(), {
+		global: { headers: { Authorization: authHeader } }
+	})
+}
+
+export function createServiceRoleSupabaseClient(): SupabaseClient {
+	return createClient(requireEnv('SUPABASE_URL'), requireSecretKey(), {
+		auth: {
+			autoRefreshToken: false,
+			persistSession: false
+		}
+	})
 }
 
 export async function getUser(supabase: SupabaseClient): Promise<User> {

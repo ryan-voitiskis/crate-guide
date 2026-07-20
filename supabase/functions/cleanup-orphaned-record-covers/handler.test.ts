@@ -4,23 +4,19 @@ import {
 	timingSafeSecretEqual
 } from './handler.ts'
 
-const SERVICE_ROLE_KEY = 'service-role-secret'
+const SECRET_KEY = 'sb_secret_test'
 
-function request(
-	token = SERVICE_ROLE_KEY,
-	method = 'POST',
-	body?: string
-): Request {
+function request(token = SECRET_KEY, method = 'POST', body?: string): Request {
 	return new Request('http://localhost', {
 		method,
-		headers: { Authorization: `Bearer ${token}` },
+		headers: { apikey: token },
 		body
 	})
 }
 
 function dependencies(
 	overrides: {
-		serviceRoleKey?: () => string
+		secretKey?: () => string
 		compareSecrets?: (actual: string, expected: string) => Promise<boolean>
 		processOne?: () => Promise<{
 			processed: boolean
@@ -30,7 +26,7 @@ function dependencies(
 	} = {}
 ) {
 	return {
-		serviceRoleKey: overrides.serviceRoleKey ?? (() => SERVICE_ROLE_KEY),
+		secretKey: overrides.secretKey ?? (() => SECRET_KEY),
 		compareSecrets: overrides.compareSecrets ?? timingSafeSecretEqual,
 		processOne:
 			overrides.processOne ??
@@ -64,7 +60,7 @@ Deno.test('orphan cleanup rejects non-POST methods', async () => {
 		})
 	)
 
-	const response = await handler(request(SERVICE_ROLE_KEY, 'GET'))
+	const response = await handler(request(SECRET_KEY, 'GET'))
 
 	assert.equal(response.status, 405)
 	assert.equal((await response.json()).code, 'method_not_allowed')
@@ -72,7 +68,7 @@ Deno.test('orphan cleanup rejects non-POST methods', async () => {
 })
 
 Deno.test(
-	'orphan cleanup rejects anon, user, missing, and malformed authorization',
+	'orphan cleanup rejects anon, user, missing, and malformed API keys',
 	async () => {
 		let didProcess = false
 		const handler = createCleanupOrphanedRecordCoversHandler(
@@ -88,18 +84,17 @@ Deno.test(
 				}
 			})
 		)
-		const authorizationValues = [
+		const apiKeyValues = [
 			null,
-			'Bearer anon-jwt',
-			'Bearer user-jwt',
-			'Basic service-role-secret',
-			'Bearer service-role-secret extra',
-			' bearer service-role-secret'
+			'anon-jwt',
+			'user-jwt',
+			'sb_secret_test extra',
+			'Bearer sb_secret_test'
 		]
 
-		for (const authorization of authorizationValues) {
+		for (const apiKey of apiKeyValues) {
 			const headers = new Headers()
-			if (authorization !== null) headers.set('Authorization', authorization)
+			if (apiKey !== null) headers.set('apikey', apiKey)
 			const response = await handler(
 				new Request('http://localhost', { method: 'POST', headers })
 			)
@@ -127,7 +122,7 @@ Deno.test('orphan cleanup rejects every request body', async () => {
 	)
 
 	const response = await handler(
-		request(SERVICE_ROLE_KEY, 'POST', JSON.stringify({ user_id: 'forbidden' }))
+		request(SECRET_KEY, 'POST', JSON.stringify({ user_id: 'forbidden' }))
 	)
 
 	assert.equal(response.status, 400)
