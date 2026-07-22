@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { openBrowserDeviceDraftRepository } from '../../app/repositories/library/browser/browserDeviceDraftRepository'
 import {
 	BROWSER_LIBRARY_STORES,
 	openBrowserLibraryDatabase,
@@ -20,6 +21,9 @@ import { createTrackEnrichmentDraftFixture } from '../fixtures/trackEnrichmentDr
 
 const NOW = '2026-07-23T02:00:00.000Z'
 const catalogs = new Set<BrowserWorkspaceCatalog>()
+const deviceDraftRepositories = new Set<
+	Awaited<ReturnType<typeof openBrowserDeviceDraftRepository>>
+>()
 const databases = new Set<string>()
 
 function databaseName(label: string) {
@@ -106,6 +110,31 @@ async function readWorkspaceManifest(
 	}
 }
 
+async function replaceDraftSerializedPayload(
+	databaseName: string,
+	workspaceId: string,
+	repositoryId: string,
+	draftId: string,
+	serializedPayload: string
+) {
+	const database = await openBrowserLibraryDatabase({ databaseName })
+	try {
+		const transaction = database.transaction(
+			BROWSER_LIBRARY_STORES.drafts,
+			'readwrite'
+		)
+		const completion = transactionComplete(transaction)
+		const store = transaction.objectStore(BROWSER_LIBRARY_STORES.drafts)
+		const row = await requestResult(
+			store.get([workspaceId, repositoryId, draftId])
+		)
+		store.put({ ...(row as Record<string, unknown>), serializedPayload })
+		await completion
+	} finally {
+		database.close()
+	}
+}
+
 function draftFixture(
 	workspaceId: string,
 	repositoryId: string,
@@ -133,6 +162,8 @@ function identity(
 }
 
 afterEach(async () => {
+	for (const value of deviceDraftRepositories) value.close()
+	deviceDraftRepositories.clear()
 	for (const value of catalogs) value.close()
 	catalogs.clear()
 	await Promise.all([...databases].map((name) => deleteDatabase(name)))
@@ -140,6 +171,168 @@ afterEach(async () => {
 })
 
 describe('browser workspace catalog', () => {
+	it('persists a Cloud identity without creating a Local workspace or marker', async () => {
+		const name = databaseName('cloud-device-draft')
+		const cloudIdentity = {
+			workspaceId: 'cloud-workspace-a',
+			repositoryId: 'cloud-repository-a'
+		}
+		const repository = await openBrowserDeviceDraftRepository({
+			identity: cloudIdentity,
+			dependencies: dependencies(name)
+		})
+		deviceDraftRepositories.add(repository)
+		expect(await repository.listDrafts()).toEqual({
+			value: [],
+			deviceRevision: 0
+		})
+		const draft = draftFixture(
+			cloudIdentity.workspaceId,
+			cloudIdentity.repositoryId
+		)
+		const claimed = await repository.createDraftAndClaim(
+			draft,
+			'cloud-device-owner',
+			{ deviceRevision: 0, draftRevision: null }
+		)
+		expect(claimed).toMatchObject({
+			deviceRevision: 1,
+			value: { draft: { id: draft.id }, lease: { leaseRevision: 0 } }
+		})
+		await expect(
+			repository.takeOverDraft(draft.id, 'stale-device-owner', {
+				deviceRevision: 0,
+				leaseRevision: 0
+			})
+		).rejects.toMatchObject({
+			code: 'conflict',
+			scope: 'device-revision',
+			expected: 0,
+			actual: 1
+		})
+		repository.close()
+		const reopened = await openBrowserDeviceDraftRepository({
+			identity: cloudIdentity,
+			dependencies: dependencies(name)
+		})
+		deviceDraftRepositories.add(reopened)
+		expect(await reopened.readDraft(draft.id)).toMatchObject({
+			deviceRevision: 1,
+			value: {
+				draft: { status: 'ready', metadata: { draftRevision: 0 } },
+				lease: { status: 'live', lease: { leaseRevision: 0 } }
+			}
+		})
+		const changed = draftFixture(
+			cloudIdentity.workspaceId,
+			cloudIdentity.repositoryId,
+			1,
+			'2026-07-23T02:00:01.000Z'
+		)
+		changed.payload.ui.filter = 'review'
+		expect(
+			await reopened.writeDraft(changed, 'cloud-device-owner', {
+				deviceRevision: 1,
+				draftRevision: 0,
+				leaseRevision: 0
+			})
+		).toMatchObject({
+			deviceRevision: 2,
+			value: { draftRevision: 1, payload: { ui: { filter: 'review' } } }
+		})
+
+		const localCatalog = await catalog(name)
+		expect(await localCatalog.listWorkspaces()).toEqual({
+			catalogRevision: 0,
+			workspaces: []
+		})
+		expect(await localCatalog.readActiveWorkspace()).toEqual({
+			status: 'none',
+			catalogRevision: 0
+		})
+		expect(
+			await reopened.deleteDraft(draft.id, 'cloud-device-owner', {
+				deviceRevision: 2,
+				draftRevision: 1,
+				leaseRevision: 0
+			})
+		).toEqual({ value: undefined, deviceRevision: 3 })
+		reopened.close()
+		const afterDelete = await openBrowserDeviceDraftRepository({
+			identity: cloudIdentity,
+			dependencies: dependencies(name)
+		})
+		deviceDraftRepositories.add(afterDelete)
+		expect(await afterDelete.readDraft(draft.id)).toEqual({
+			value: null,
+			deviceRevision: 3
+		})
+		expect(await localCatalog.listWorkspaces()).toEqual({
+			catalogRevision: 0,
+			workspaces: []
+		})
+		expect(await localCatalog.readActiveWorkspace()).toEqual({
+			status: 'none',
+			catalogRevision: 0
+		})
+		const nextRepositoryIdentity = {
+			workspaceId: cloudIdentity.workspaceId,
+			repositoryId: 'cloud-repository-b'
+		}
+		const nextRepository = await openBrowserDeviceDraftRepository({
+			identity: nextRepositoryIdentity,
+			dependencies: dependencies(name)
+		})
+		deviceDraftRepositories.add(nextRepository)
+		const nextDraft = draftFixture(
+			nextRepositoryIdentity.workspaceId,
+			nextRepositoryIdentity.repositoryId
+		)
+		await expect(
+			nextRepository.createDraftAndClaim(nextDraft, 'next-repository-owner', {
+				deviceRevision: 0,
+				draftRevision: null
+			})
+		).resolves.toMatchObject({ deviceRevision: 1 })
+		expect(await afterDelete.listDrafts()).toEqual({
+			value: [],
+			deviceRevision: 3
+		})
+		expect(await nextRepository.listDrafts()).toMatchObject({
+			deviceRevision: 1,
+			value: [{ draft: { status: 'ready', metadata: { id: draft.id } } }]
+		})
+		const database = await openBrowserLibraryDatabase({ databaseName: name })
+		try {
+			const transaction = database.transaction(
+				[
+					BROWSER_LIBRARY_STORES.workspaces,
+					BROWSER_LIBRARY_STORES.deviceDraftRepositories
+				],
+				'readonly'
+			)
+			const completion = transactionComplete(transaction)
+			const [workspaceCount, deviceState] = await Promise.all([
+				requestResult(
+					transaction.objectStore(BROWSER_LIBRARY_STORES.workspaces).count()
+				),
+				requestResult(
+					transaction
+						.objectStore(BROWSER_LIBRARY_STORES.deviceDraftRepositories)
+						.get([cloudIdentity.workspaceId, cloudIdentity.repositoryId])
+				)
+			])
+			await completion
+			expect(workspaceCount).toBe(0)
+			expect(deviceState).toMatchObject({
+				...cloudIdentity,
+				deviceRevision: 3
+			})
+		} finally {
+			database.close()
+		}
+	})
+
 	it('initializes once and commits create, list, rename, activate, and delete with exact CAS', async () => {
 		const name = databaseName('lifecycle')
 		const value = await catalog(name)
@@ -390,10 +583,12 @@ describe('browser workspace catalog', () => {
 			workspace.workspaceId,
 			workspace.repositoryId
 		)
+		const ownerToken = 'owner-token-a'
 		await expect(
-			value.writeDraft(
+			value.createDraftAndClaim(
 				workspace,
 				draftFixture(workspace.workspaceId, workspace.repositoryId, 2),
+				ownerToken,
 				{
 					repositoryRevision: 0,
 					draftRevision: null
@@ -414,20 +609,78 @@ describe('browser workspace catalog', () => {
 			transientViewState: 'must-not-be-returned'
 		} as BrowserWorkflowDraft
 
-		const written = await value.writeDraft(workspace, draftWithRuntimeField, {
-			repositoryRevision: 0,
-			draftRevision: null
+		const written = await value.createDraftAndClaim(
+			workspace,
+			draftWithRuntimeField,
+			ownerToken,
+			{
+				repositoryRevision: 0,
+				draftRevision: null
+			}
+		)
+		expect(written).toMatchObject({
+			value: {
+				draft: createdDraft,
+				lease: {
+					leaseRevision: 0,
+					acquiredAt: NOW,
+					renewedAt: NOW,
+					expiresAt: '2026-07-23T02:01:00.000Z'
+				}
+			},
+			repositoryRevision: 1
 		})
-		expect(written).toEqual({ value: createdDraft, repositoryRevision: 1 })
-		expect(written.value).not.toHaveProperty('transientViewState')
+		expect(written.value.draft).not.toHaveProperty('transientViewState')
 		expect(await value.readDraft(workspace, createdDraft.id)).toMatchObject({
-			value: createdDraft,
+			value: {
+				draft: { status: 'ready', draft: createdDraft },
+				lease: { status: 'live', lease: { leaseRevision: 0 } }
+			},
 			repositoryRevision: 1
 		})
 		expect(await value.listDrafts(workspace)).toMatchObject({
-			value: [createdDraft],
+			value: [
+				{
+					draft: { status: 'ready', draft: createdDraft },
+					lease: { status: 'live', lease: { leaseRevision: 0 } }
+				}
+			],
 			repositoryRevision: 1
 		})
+		const noOpDraft = draftFixture(
+			workspace.workspaceId,
+			workspace.repositoryId,
+			1,
+			'2026-07-23T02:05:00.000Z'
+		)
+		await expect(
+			value.writeDraft(workspace, noOpDraft, ownerToken, {
+				repositoryRevision: 1,
+				draftRevision: 0,
+				leaseRevision: 0
+			})
+		).rejects.toMatchObject({ code: 'conflict', scope: 'draft-revision' })
+		expect(await value.readDraft(workspace, createdDraft.id)).toMatchObject({
+			repositoryRevision: 1,
+			value: { draft: { metadata: { draftRevision: 0 } } }
+		})
+
+		const wrongOwnerToken = 'owner-token-must-never-leak'
+		let wrongOwnerError: unknown
+		try {
+			await value.deleteDraft(workspace, createdDraft.id, wrongOwnerToken, {
+				repositoryRevision: 1,
+				draftRevision: 0,
+				leaseRevision: 0
+			})
+		} catch (error) {
+			wrongOwnerError = error
+		}
+		expect(wrongOwnerError).toMatchObject({
+			code: 'conflict',
+			scope: 'draft-lease'
+		})
+		expect(JSON.stringify(wrongOwnerError)).not.toContain(wrongOwnerToken)
 
 		const updatedDraft = draftFixture(
 			workspace.workspaceId,
@@ -435,16 +688,19 @@ describe('browser workspace catalog', () => {
 			1,
 			'2026-07-23T02:10:00.000Z'
 		)
+		updatedDraft.payload.ui.filter = 'review'
 		expect(
-			await value.writeDraft(workspace, updatedDraft, {
+			await value.writeDraft(workspace, updatedDraft, ownerToken, {
 				repositoryRevision: 1,
-				draftRevision: 0
+				draftRevision: 0,
+				leaseRevision: 0
 			})
 		).toMatchObject({ value: updatedDraft, repositoryRevision: 2 })
 		await expect(
-			value.writeDraft(workspace, updatedDraft, {
+			value.writeDraft(workspace, updatedDraft, ownerToken, {
 				repositoryRevision: 2,
-				draftRevision: 0
+				draftRevision: 0,
+				leaseRevision: 0
 			})
 		).rejects.toMatchObject({
 			code: 'conflict',
@@ -452,14 +708,290 @@ describe('browser workspace catalog', () => {
 			actual: 1
 		})
 		expect(
-			await value.deleteDraft(workspace, updatedDraft.id, {
+			await value.deleteDraft(workspace, updatedDraft.id, ownerToken, {
 				repositoryRevision: 2,
-				draftRevision: 1
+				draftRevision: 1,
+				leaseRevision: 0
 			})
 		).toEqual({ value: undefined, repositoryRevision: 3 })
 		expect(await value.readDraft(workspace, updatedDraft.id)).toEqual({
 			value: null,
 			repositoryRevision: 3
+		})
+	})
+
+	it('fences draft owners across renew, release, takeover, and exact expiry', async () => {
+		const name = databaseName('draft-lease-lifecycle')
+		let currentTime = NOW
+		const first = await catalog(name, {
+			now: () => new Date(currentTime)
+		})
+		const second = await catalog(name, {
+			now: () => new Date(currentTime)
+		})
+		const observedChanges: unknown[] = []
+		first.subscribe((change) => observedChanges.push(change))
+		second.subscribe((change) => observedChanges.push(change))
+		const created = await first.createWorkspace(
+			{ id: 'workspace-a', name: 'Lease lifecycle' },
+			0
+		)
+		const workspace = identity(created.value)
+		const draft = draftFixture(workspace.workspaceId, workspace.repositoryId)
+		const ownerA = 'lease-owner-a-secret'
+		const ownerB = 'lease-owner-b-secret'
+		const ownerC = 'lease-owner-c-secret'
+		const ownerD = 'lease-owner-d-secret'
+
+		const claimedA = await first.createDraftAndClaim(workspace, draft, ownerA, {
+			repositoryRevision: 0,
+			draftRevision: null
+		})
+		expect(claimedA).toMatchObject({
+			repositoryRevision: 1,
+			value: {
+				draft: { draftRevision: 0 },
+				lease: {
+					leaseRevision: 0,
+					expiresAt: '2026-07-23T02:01:00.000Z'
+				}
+			}
+		})
+
+		currentTime = '2026-07-23T02:00:20.000Z'
+		const renewed = await first.renewDraftLease(workspace, draft.id, ownerA, {
+			repositoryRevision: 1,
+			leaseRevision: 0
+		})
+		expect(renewed).toMatchObject({
+			repositoryRevision: 2,
+			value: {
+				leaseRevision: 1,
+				acquiredAt: NOW,
+				renewedAt: currentTime,
+				expiresAt: '2026-07-23T02:01:20.000Z'
+			}
+		})
+		expect(
+			await readWorkspaceManifest(name, workspace.workspaceId)
+		).toMatchObject({
+			contentRevision: 0,
+			repositoryRevision: 2
+		})
+		expect(await second.readDraft(workspace, draft.id)).toMatchObject({
+			repositoryRevision: 2,
+			value: {
+				draft: { metadata: { draftRevision: 0 } },
+				lease: { status: 'live', lease: { leaseRevision: 1 } }
+			}
+		})
+
+		await first.releaseDraftLease(workspace, draft.id, ownerA, {
+			repositoryRevision: 2,
+			leaseRevision: 1
+		})
+		expect(await second.readDraft(workspace, draft.id)).toMatchObject({
+			repositoryRevision: 3,
+			value: { lease: { status: 'unclaimed', leaseRevision: 2 } }
+		})
+		const claimedB = await second.claimDraft(workspace, draft.id, ownerB, 3)
+		expect(claimedB).toMatchObject({
+			repositoryRevision: 4,
+			value: { lease: { leaseRevision: 3 } }
+		})
+		const claimedC = await first.takeOverDraft(workspace, draft.id, ownerC, {
+			repositoryRevision: 4,
+			leaseRevision: 3
+		})
+		expect(claimedC).toMatchObject({
+			repositoryRevision: 5,
+			value: { lease: { leaseRevision: 4 } }
+		})
+
+		await expect(
+			second.renewDraftLease(workspace, draft.id, ownerB, {
+				repositoryRevision: 5,
+				leaseRevision: 4
+			})
+		).rejects.toMatchObject({ code: 'conflict', scope: 'draft-lease' })
+		const changedDraft = draftFixture(
+			workspace.workspaceId,
+			workspace.repositoryId,
+			1,
+			'2026-07-23T02:00:21.000Z'
+		)
+		changedDraft.payload.ui.filter = 'review'
+		await expect(
+			second.writeDraft(workspace, changedDraft, ownerB, {
+				repositoryRevision: 5,
+				draftRevision: 0,
+				leaseRevision: 4
+			})
+		).rejects.toMatchObject({ code: 'conflict', scope: 'draft-lease' })
+		await expect(
+			second.deleteDraft(workspace, draft.id, ownerB, {
+				repositoryRevision: 5,
+				draftRevision: 0,
+				leaseRevision: 4
+			})
+		).rejects.toMatchObject({ code: 'conflict', scope: 'draft-lease' })
+
+		currentTime = '2026-07-23T02:01:20.000Z'
+		expect(await second.readDraft(workspace, draft.id)).toMatchObject({
+			value: { lease: { status: 'expired', lease: { leaseRevision: 4 } } }
+		})
+		const claimedD = await second.claimDraft(workspace, draft.id, ownerD, 5)
+		expect(claimedD).toMatchObject({
+			repositoryRevision: 6,
+			value: { lease: { leaseRevision: 5 } }
+		})
+		await expect(
+			first.renewDraftLease(workspace, draft.id, ownerC, {
+				repositoryRevision: 6,
+				leaseRevision: 5
+			})
+		).rejects.toMatchObject({ code: 'conflict', scope: 'draft-lease' })
+
+		await vi.waitFor(() => expect(observedChanges.length).toBeGreaterThan(0))
+		const serializedChanges = JSON.stringify(observedChanges)
+		for (const owner of [ownerA, ownerB, ownerC, ownerD]) {
+			expect(serializedChanges).not.toContain(owner)
+		}
+	})
+
+	it('isolates invalid and incompatible payloads while preserving metadata deletion', async () => {
+		const name = databaseName('draft-payload-isolation')
+		const value = await catalog(name)
+		const created = await value.createWorkspace(
+			{ id: 'workspace-a', name: 'Payload isolation' },
+			0
+		)
+		const workspace = identity(created.value)
+		const draft = draftFixture(workspace.workspaceId, workspace.repositoryId)
+		const ownerToken = 'payload-repair-owner'
+		await value.createDraftAndClaim(workspace, draft, ownerToken, {
+			repositoryRevision: 0,
+			draftRevision: null
+		})
+		await replaceDraftSerializedPayload(
+			name,
+			workspace.workspaceId,
+			workspace.repositoryId,
+			draft.id,
+			'{'
+		)
+
+		expect(await value.readDraft(workspace, draft.id)).toMatchObject({
+			repositoryRevision: 1,
+			value: {
+				draft: {
+					status: 'invalid',
+					metadata: { id: draft.id, draftRevision: 0 }
+				},
+				lease: { status: 'live', lease: { leaseRevision: 0 } }
+			}
+		})
+		expect(await value.listDrafts(workspace)).toMatchObject({
+			value: [{ draft: { status: 'invalid' } }]
+		})
+		await value.deleteDraft(workspace, draft.id, ownerToken, {
+			repositoryRevision: 1,
+			draftRevision: 0,
+			leaseRevision: 0
+		})
+
+		await value.createDraftAndClaim(workspace, draft, ownerToken, {
+			repositoryRevision: 2,
+			draftRevision: null
+		})
+		await replaceDraftSerializedPayload(
+			name,
+			workspace.workspaceId,
+			workspace.repositoryId,
+			draft.id,
+			JSON.stringify({ ...draft.payload, schemaVersion: 999 })
+		)
+		expect(await value.readDraft(workspace, draft.id)).toMatchObject({
+			repositoryRevision: 3,
+			value: {
+				draft: {
+					status: 'incompatible',
+					schemaVersion: 999,
+					reason: 'future-schema',
+					metadata: { id: draft.id, draftRevision: 0 }
+				}
+			}
+		})
+		await expect(
+			value.deleteDraft(workspace, draft.id, ownerToken, {
+				repositoryRevision: 3,
+				draftRevision: 0,
+				leaseRevision: 0
+			})
+		).resolves.toEqual({ value: undefined, repositoryRevision: 4 })
+	})
+
+	it('atomically replaces a draft and claims the replacement behind an observed lease fence', async () => {
+		const name = databaseName('replace-and-claim')
+		const value = await catalog(name)
+		const created = await value.createWorkspace(
+			{ id: 'workspace-a', name: 'Replace draft' },
+			0
+		)
+		const workspace = identity(created.value)
+		const original = draftFixture(workspace.workspaceId, workspace.repositoryId)
+		await value.createDraftAndClaim(workspace, original, 'original-owner', {
+			repositoryRevision: 0,
+			draftRevision: null
+		})
+		const replacementFixture = draftFixture(
+			workspace.workspaceId,
+			workspace.repositoryId
+		)
+		replacementFixture.payload.id = 'draft-b'
+		const replacement = { ...replacementFixture, id: 'draft-b' }
+
+		await expect(
+			value.replaceDraftAndClaim(workspace, replacement, 'replacement-owner', {
+				repositoryRevision: 1,
+				draftId: original.id,
+				draftRevision: 0,
+				observedLeaseRevision: 99
+			})
+		).rejects.toMatchObject({
+			code: 'conflict',
+			scope: 'draft-lease',
+			expected: 99,
+			actual: 0
+		})
+		const replaced = await value.replaceDraftAndClaim(
+			workspace,
+			replacement,
+			'replacement-owner',
+			{
+				repositoryRevision: 1,
+				draftId: original.id,
+				draftRevision: 0,
+				observedLeaseRevision: 0
+			}
+		)
+		expect(replaced).toMatchObject({
+			repositoryRevision: 2,
+			value: {
+				draft: { id: 'draft-b', draftRevision: 0 },
+				lease: { leaseRevision: 0 }
+			}
+		})
+		expect(await value.readDraft(workspace, original.id)).toEqual({
+			value: null,
+			repositoryRevision: 2
+		})
+		expect(await value.readDraft(workspace, replacement.id)).toMatchObject({
+			repositoryRevision: 2,
+			value: {
+				draft: { status: 'ready', draft: { id: 'draft-b' } },
+				lease: { status: 'live', lease: { leaseRevision: 0 } }
+			}
 		})
 	})
 
@@ -608,15 +1140,16 @@ describe('browser workspace catalog', () => {
 			)
 		).rejects.toMatchObject(notFound)
 		await expect(
-			value.writeDraft(staleIdentity, staleDraft, {
+			value.createDraftAndClaim(staleIdentity, staleDraft, 'stale-owner', {
 				repositoryRevision: 0,
 				draftRevision: null
 			})
 		).rejects.toMatchObject(notFound)
 		await expect(
-			value.deleteDraft(staleIdentity, staleDraft.id, {
+			value.deleteDraft(staleIdentity, staleDraft.id, 'stale-owner', {
 				repositoryRevision: 0,
-				draftRevision: 0
+				draftRevision: 0,
+				leaseRevision: 0
 			})
 		).rejects.toMatchObject(notFound)
 
@@ -691,13 +1224,13 @@ describe('browser workspace catalog transaction aborts', () => {
 		).resolves.toMatchObject({ catalogRevision: 1 })
 	})
 
-	it('rolls back every draft write with its manifest revision', async () => {
+	it('rolls back every create-and-claim write with its manifest revision', async () => {
 		const name = databaseName('abort-draft')
 		let abortOrdinal: number | null = null
 		const value = await catalog(name, {
 			createBroadcastChannel: () => null,
 			onTransactionStep: ({ command, ordinal }) => {
-				if (command === 'write-draft' && ordinal === abortOrdinal) {
+				if (command === 'create-and-claim-draft' && ordinal === abortOrdinal) {
 					throw new Error(`Abort draft step ${ordinal}`)
 				}
 			}
@@ -709,10 +1242,10 @@ describe('browser workspace catalog transaction aborts', () => {
 		const workspace = identity(created.value)
 		const draft = draftFixture(workspace.workspaceId, workspace.repositoryId)
 
-		for (const ordinal of [1, 2]) {
+		for (const ordinal of [1, 2, 3]) {
 			abortOrdinal = ordinal
 			await expect(
-				value.writeDraft(workspace, draft, {
+				value.createDraftAndClaim(workspace, draft, 'atomic-owner', {
 					repositoryRevision: 0,
 					draftRevision: null
 				})
@@ -721,6 +1254,212 @@ describe('browser workspace catalog transaction aborts', () => {
 				value: null,
 				repositoryRevision: 0
 			})
+		}
+	})
+
+	it('rolls back every lease, draft, replace, and delete write at each step', async () => {
+		type ScenarioContext = Readonly<{
+			value: BrowserWorkspaceCatalog
+			workspace: BrowserWorkspaceIdentity
+			draft: BrowserWorkflowDraft
+			ownerToken: string
+		}>
+		const scenarios: ReadonlyArray<{
+			label: string
+			command: string
+			ordinals: readonly number[]
+			prepare?: (context: ScenarioContext) => Promise<number>
+			action: (
+				context: ScenarioContext,
+				repositoryRevision: number
+			) => Promise<unknown>
+			assert: (
+				context: ScenarioContext,
+				repositoryRevision: number
+			) => Promise<void>
+		}> = [
+			{
+				label: 'renew',
+				command: 'renew-draft-lease',
+				ordinals: [1, 2],
+				action: ({ value, workspace, draft, ownerToken }, revision) =>
+					value.renewDraftLease(workspace, draft.id, ownerToken, {
+						repositoryRevision: revision,
+						leaseRevision: 0
+					}),
+				assert: async ({ value, workspace, draft }, revision) => {
+					expect(await value.readDraft(workspace, draft.id)).toMatchObject({
+						repositoryRevision: revision,
+						value: { lease: { status: 'live', lease: { leaseRevision: 0 } } }
+					})
+				}
+			},
+			{
+				label: 'release',
+				command: 'release-draft-lease',
+				ordinals: [1, 2],
+				action: ({ value, workspace, draft, ownerToken }, revision) =>
+					value.releaseDraftLease(workspace, draft.id, ownerToken, {
+						repositoryRevision: revision,
+						leaseRevision: 0
+					}),
+				assert: async ({ value, workspace, draft }, revision) => {
+					expect(await value.readDraft(workspace, draft.id)).toMatchObject({
+						repositoryRevision: revision,
+						value: { lease: { status: 'live', lease: { leaseRevision: 0 } } }
+					})
+				}
+			},
+			{
+				label: 'claim',
+				command: 'claim-draft-lease',
+				ordinals: [1, 2],
+				prepare: async ({ value, workspace, draft, ownerToken }) => {
+					await value.releaseDraftLease(workspace, draft.id, ownerToken, {
+						repositoryRevision: 1,
+						leaseRevision: 0
+					})
+					return 2
+				},
+				action: ({ value, workspace, draft }, revision) =>
+					value.claimDraft(workspace, draft.id, 'next-owner', revision),
+				assert: async ({ value, workspace, draft }, revision) => {
+					expect(await value.readDraft(workspace, draft.id)).toMatchObject({
+						repositoryRevision: revision,
+						value: { lease: { status: 'unclaimed', leaseRevision: 1 } }
+					})
+				}
+			},
+			{
+				label: 'takeover',
+				command: 'take-over-draft-lease',
+				ordinals: [1, 2],
+				action: ({ value, workspace, draft }, revision) =>
+					value.takeOverDraft(workspace, draft.id, 'next-owner', {
+						repositoryRevision: revision,
+						leaseRevision: 0
+					}),
+				assert: async ({ value, workspace, draft }, revision) => {
+					expect(await value.readDraft(workspace, draft.id)).toMatchObject({
+						repositoryRevision: revision,
+						value: { lease: { status: 'live', lease: { leaseRevision: 0 } } }
+					})
+				}
+			},
+			{
+				label: 'write',
+				command: 'write-draft',
+				ordinals: [1, 2],
+				action: ({ value, workspace, draft, ownerToken }, revision) => {
+					const changed = draftFixture(
+						workspace.workspaceId,
+						workspace.repositoryId,
+						1,
+						'2026-07-23T02:00:01.000Z'
+					)
+					changed.payload.ui.filter = 'review'
+					return value.writeDraft(workspace, changed, ownerToken, {
+						repositoryRevision: revision,
+						draftRevision: draft.draftRevision,
+						leaseRevision: 0
+					})
+				},
+				assert: async ({ value, workspace, draft }, revision) => {
+					expect(await value.readDraft(workspace, draft.id)).toMatchObject({
+						repositoryRevision: revision,
+						value: { draft: { metadata: { draftRevision: 0 } } }
+					})
+				}
+			},
+			{
+				label: 'replace',
+				command: 'replace-and-claim-draft',
+				ordinals: [1, 2, 3, 4, 5],
+				action: ({ value, workspace, draft }, revision) => {
+					const replacement = draftFixture(
+						workspace.workspaceId,
+						workspace.repositoryId
+					)
+					replacement.payload.id = 'draft-b'
+					return value.replaceDraftAndClaim(
+						workspace,
+						{ ...replacement, id: 'draft-b' },
+						'next-owner',
+						{
+							repositoryRevision: revision,
+							draftId: draft.id,
+							draftRevision: draft.draftRevision,
+							observedLeaseRevision: 0
+						}
+					)
+				},
+				assert: async ({ value, workspace, draft }, revision) => {
+					expect(await value.readDraft(workspace, draft.id)).toMatchObject({
+						repositoryRevision: revision,
+						value: { draft: { status: 'ready' }, lease: { status: 'live' } }
+					})
+					expect(await value.readDraft(workspace, 'draft-b')).toEqual({
+						repositoryRevision: revision,
+						value: null
+					})
+				}
+			},
+			{
+				label: 'delete',
+				command: 'delete-draft',
+				ordinals: [1, 2, 3],
+				action: ({ value, workspace, draft, ownerToken }, revision) =>
+					value.deleteDraft(workspace, draft.id, ownerToken, {
+						repositoryRevision: revision,
+						draftRevision: draft.draftRevision,
+						leaseRevision: 0
+					}),
+				assert: async ({ value, workspace, draft }, revision) => {
+					expect(await value.readDraft(workspace, draft.id)).toMatchObject({
+						repositoryRevision: revision,
+						value: { draft: { status: 'ready' }, lease: { status: 'live' } }
+					})
+				}
+			}
+		]
+
+		for (const scenario of scenarios) {
+			for (const ordinal of scenario.ordinals) {
+				let abortOrdinal: number | null = null
+				const name = databaseName(`abort-${scenario.label}-${ordinal}`)
+				const value = await catalog(name, {
+					createBroadcastChannel: () => null,
+					onTransactionStep: ({ command, ordinal: step }) => {
+						if (command === scenario.command && step === abortOrdinal) {
+							throw new Error(`Abort ${command} step ${step}`)
+						}
+					}
+				})
+				const created = await value.createWorkspace(
+					{ id: 'workspace-a', name: `Abort ${scenario.label}` },
+					0
+				)
+				const workspace = identity(created.value)
+				const draft = draftFixture(
+					workspace.workspaceId,
+					workspace.repositoryId
+				)
+				const ownerToken = 'atomic-owner'
+				await value.createDraftAndClaim(workspace, draft, ownerToken, {
+					repositoryRevision: 0,
+					draftRevision: null
+				})
+				const context = { value, workspace, draft, ownerToken }
+				const repositoryRevision = scenario.prepare
+					? await scenario.prepare(context)
+					: 1
+				abortOrdinal = ordinal
+
+				await expect(
+					scenario.action(context, repositoryRevision)
+				).rejects.toMatchObject({ code: 'unknown' })
+				await scenario.assert(context, repositoryRevision)
+			}
 		}
 	})
 
@@ -738,9 +1477,10 @@ describe('browser workspace catalog transaction aborts', () => {
 			0
 		)
 		const countedWorkspace = identity(counted.value)
-		await countCatalog.writeDraft(
+		await countCatalog.createDraftAndClaim(
 			countedWorkspace,
 			draftFixture(countedWorkspace.workspaceId, countedWorkspace.repositoryId),
+			'count-owner',
 			{
 				repositoryRevision: 0,
 				draftRevision: null
@@ -773,9 +1513,10 @@ describe('browser workspace catalog transaction aborts', () => {
 				0
 			)
 			const workspace = identity(created.value)
-			await value.writeDraft(
+			await value.createDraftAndClaim(
 				workspace,
 				draftFixture(workspace.workspaceId, workspace.repositoryId),
+				'preserved-owner',
 				{
 					repositoryRevision: 0,
 					draftRevision: null
@@ -797,7 +1538,7 @@ describe('browser workspace catalog transaction aborts', () => {
 				repositoryId: workspace.repositoryId
 			})
 			expect(await value.readDraft(workspace, 'draft-a')).toMatchObject({
-				value: { id: 'draft-a' },
+				value: { draft: { metadata: { id: 'draft-a' } } },
 				repositoryRevision: 1
 			})
 		}

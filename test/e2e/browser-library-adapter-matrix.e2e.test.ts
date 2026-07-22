@@ -15,7 +15,10 @@ import {
 } from 'playwright'
 import { type ViteDevServer, createServer as createViteServer } from 'vite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { BrowserRepositoryChange } from '../../app/repositories/library/browser/browserLibraryTypes'
+import {
+	BROWSER_LIBRARY_SCHEMA_VERSION,
+	type BrowserRepositoryChange
+} from '../../app/repositories/library/browser/browserLibraryTypes'
 import type {
 	AdapterOutcomeSummary,
 	AdapterSnapshotSummary,
@@ -162,6 +165,36 @@ async function waitForRepositoryEvent(
 				)
 		},
 		{ eventKey, repositoryId, type }
+	)
+}
+
+async function waitForDraftEvent(
+	page: Page,
+	eventKey: string,
+	repositoryId: string,
+	minimumCount: number
+) {
+	await page.waitForFunction(
+		({ eventKey, minimumCount, repositoryId }) => {
+			const harness = (
+				window as unknown as {
+					__browserLibraryAdapterHarness: BrowserLibraryAdapterHarness
+				}
+			).__browserLibraryAdapterHarness
+			return (
+				harness
+					.events(eventKey)
+					.filter(
+						(event) =>
+							event.type === 'commit' &&
+							event.repositoryId === repositoryId &&
+							event.invalidations.some(
+								(invalidation) => invalidation.entity === 'drafts'
+							)
+					).length >= minimumCount
+			)
+		},
+		{ eventKey, minimumCount, repositoryId }
 	)
 }
 
@@ -429,6 +462,164 @@ async function proveBroadcastResetAndDelete(
 	).toBe(true)
 }
 
+async function proveDraftLeaseFencing(
+	pageA: Page,
+	pageB: Page,
+	engine: EngineName,
+	databases: Set<string>
+) {
+	const database = databaseName(engine, 'draft-leases')
+	databases.add(database)
+	const identity = {
+		workspaceId: 'cloud-workspace-a',
+		repositoryId: 'cloud-repository-a'
+	}
+	await Promise.all([
+		invoke(pageA, 'setClock', [database, '2026-07-23T06:00:00.000Z']),
+		invoke(pageB, 'setClock', [database, '2026-07-23T06:00:00.000Z'])
+	])
+	await Promise.all([
+		invoke(pageA, 'openDeviceDraftRepository', [
+			'draft-repository-a',
+			database,
+			identity
+		]),
+		invoke(pageB, 'openDeviceDraftRepository', [
+			'draft-repository-b',
+			database,
+			identity
+		])
+	])
+	await Promise.all([
+		invoke(pageA, 'subscribeDeviceDraftRepository', [
+			'draft-repository-a',
+			'draft-events-a'
+		]),
+		invoke(pageB, 'subscribeDeviceDraftRepository', [
+			'draft-repository-b',
+			'draft-events-b'
+		])
+	])
+	const ownerA = 'engine-owner-a-secret'
+	const ownerB = 'engine-owner-b-secret'
+	const ownerC = 'engine-owner-c-secret'
+
+	const created = await invoke<{
+		deviceRevision: number
+		value: {
+			draft: { draftRevision: number }
+			lease: { leaseRevision: number }
+		}
+	}>(pageA, 'createDraftAndClaim', ['draft-repository-a', ownerA, 0])
+	expect(created).toMatchObject({
+		deviceRevision: 1,
+		value: { draft: { draftRevision: 0 }, lease: { leaseRevision: 0 } }
+	})
+	await waitForDraftEvent(pageB, 'draft-events-b', identity.repositoryId, 1)
+	expect(
+		await invoke(pageB, 'readDraft', ['draft-repository-b', 'draft-a'])
+	).toMatchObject({
+		deviceRevision: 1,
+		value: {
+			draft: { status: 'ready', metadata: { draftRevision: 0 } },
+			lease: { status: 'live', lease: { leaseRevision: 0 } }
+		}
+	})
+
+	const takenOver = await invoke<{
+		deviceRevision: number
+		value: { lease: { leaseRevision: number } }
+	}>(pageB, 'takeOverDraft', ['draft-repository-b', 'draft-a', ownerB, 1, 0])
+	expect(takenOver).toMatchObject({
+		deviceRevision: 2,
+		value: { lease: { leaseRevision: 1 } }
+	})
+	await waitForDraftEvent(pageA, 'draft-events-a', identity.repositoryId, 2)
+	const rejectedA = await invoke<unknown[]>(pageA, 'attemptOldOwnerMutations', [
+		'draft-repository-a',
+		'draft-a',
+		ownerA,
+		2,
+		1
+	])
+	expect(rejectedA).toHaveLength(3)
+	for (const outcome of rejectedA) {
+		expect(outcome).toMatchObject({
+			status: 'rejected',
+			error: { code: 'conflict', scope: 'draft-lease' }
+		})
+	}
+
+	await Promise.all([
+		invoke(pageA, 'setClock', [database, '2026-07-23T06:01:00.000Z']),
+		invoke(pageB, 'setClock', [database, '2026-07-23T06:01:00.000Z'])
+	])
+	expect(
+		await invoke(pageA, 'readDraft', ['draft-repository-a', 'draft-a'])
+	).toMatchObject({
+		deviceRevision: 2,
+		value: { lease: { status: 'expired', lease: { leaseRevision: 1 } } }
+	})
+	const claimedAfterExpiry = await invoke<{
+		deviceRevision: number
+		value: { lease: { leaseRevision: number } }
+	}>(pageA, 'claimDraft', ['draft-repository-a', 'draft-a', ownerC, 2])
+	expect(claimedAfterExpiry).toMatchObject({
+		deviceRevision: 3,
+		value: { lease: { leaseRevision: 2 } }
+	})
+	await waitForDraftEvent(pageB, 'draft-events-b', identity.repositoryId, 3)
+	const rejectedB = await invoke<unknown[]>(pageB, 'attemptOldOwnerMutations', [
+		'draft-repository-b',
+		'draft-a',
+		ownerB,
+		3,
+		2
+	])
+	for (const outcome of rejectedB) {
+		expect(outcome).toMatchObject({
+			status: 'rejected',
+			error: { code: 'conflict', scope: 'draft-lease' }
+		})
+	}
+
+	const eventsA = await invoke<BrowserRepositoryChange[]>(pageA, 'events', [
+		'draft-events-a'
+	])
+	const eventsB = await invoke<BrowserRepositoryChange[]>(pageB, 'events', [
+		'draft-events-b'
+	])
+	for (const event of [...eventsA, ...eventsB]) {
+		expect(event).toMatchObject({
+			workspaceId: identity.workspaceId,
+			repositoryId: identity.repositoryId,
+			repositoryRevision: null,
+			contentRevision: null
+		})
+	}
+	const observable = JSON.stringify({
+		rejectedA,
+		rejectedB,
+		eventsA,
+		eventsB
+	})
+	for (const owner of [ownerA, ownerB, ownerC]) {
+		expect(observable).not.toContain(owner)
+	}
+	await invoke(pageA, 'openCatalog', ['cloud-local-catalog', database])
+	expect(
+		await invoke(pageA, 'localCatalogState', ['cloud-local-catalog'])
+	).toEqual({
+		workspaces: { catalogRevision: 0, workspaces: [] },
+		activeWorkspace: { status: 'none', catalogRevision: 0 }
+	})
+	await Promise.all([
+		invoke(pageA, 'closeDeviceDraftRepository', ['draft-repository-a']),
+		invoke(pageB, 'closeDeviceDraftRepository', ['draft-repository-b']),
+		invoke(pageA, 'closeCatalog', ['cloud-local-catalog'])
+	])
+}
+
 async function expectOperationBlocked(page: Page, operationId: string) {
 	await page.waitForTimeout(100)
 	expect(await invoke(page, 'pending', [operationId])).toEqual({
@@ -543,7 +734,9 @@ async function proveVersionChangeRecovery(
 	expect(
 		await invoke(pageA, 'recoverRepository', ['upgrade-repository'])
 	).toMatchObject({ status: 'recovered', health: { code: 'healthy' } })
-	expect(await invoke(pageB, 'databaseVersion', [database])).toBe(1)
+	expect(await invoke(pageB, 'databaseVersion', [database])).toBe(
+		BROWSER_LIBRARY_SCHEMA_VERSION
+	)
 	expect(
 		await invoke<AdapterOutcomeSummary>(pageA, 'updatePreferences', [
 			'upgrade-repository',
@@ -613,6 +806,12 @@ async function runAdapterMatrix(engine: Engine) {
 			databases
 		)
 		await proveBroadcastResetAndDelete(
+			pages.pageA,
+			pages.pageB,
+			engine.name,
+			databases
+		)
+		await proveDraftLeaseFencing(
 			pages.pageA,
 			pages.pageB,
 			engine.name,

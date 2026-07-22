@@ -1,13 +1,17 @@
+import { openBrowserDeviceDraftRepository } from '../../../app/repositories/library/browser/browserDeviceDraftRepository'
 import { openBrowserLibraryRepository } from '../../../app/repositories/library/browser/browserLibraryRepository'
 import { browserWorkspaceWideLockName } from '../../../app/repositories/library/browser/browserLibraryRuntime'
 import type {
+	BrowserDeviceDraftRepository,
 	BrowserLibraryDependencies,
 	BrowserLibraryRepository,
 	BrowserRepositoryChange,
+	BrowserWorkflowDraft,
 	BrowserWorkspaceCatalog,
 	BrowserWorkspaceIdentity,
 	BrowserWorkspaceManifest
 } from '../../../app/repositories/library/browser/browserLibraryTypes'
+import { BROWSER_LIBRARY_SCHEMA_VERSION } from '../../../app/repositories/library/browser/browserLibraryTypes'
 import { createBrowserWorkspaceCatalog } from '../../../app/repositories/library/browser/browserWorkspaceCatalog'
 import type {
 	RepositoryOutcome,
@@ -17,6 +21,7 @@ import type {
 	LibraryDataset,
 	LibraryPreferences
 } from '../../../shared/types/library'
+import { createTrackEnrichmentDraftFixture } from '../../fixtures/trackEnrichmentDraft'
 
 const FIXTURE_TIMESTAMP = '2026-07-23T06:00:00.000Z'
 const COVER_ASSET_ID = 'record-a/cover.webp'
@@ -86,7 +91,13 @@ export type BrowserLibraryAdapterHarness = {
 	}>
 	closeAll(): Promise<void>
 	closeCatalog(catalogKey: string): void
+	closeDeviceDraftRepository(repositoryKey: string): void
 	closeRepository(repositoryKey: string): void
+	createDraftAndClaim(
+		repositoryKey: string,
+		ownerToken: string,
+		expectedDeviceRevision: number
+	): Promise<unknown>
 	createWorkspace(
 		databaseName: string,
 		workspaceId: string,
@@ -105,13 +116,20 @@ export type BrowserLibraryAdapterHarness = {
 		workspaceId: string
 	): Promise<string>
 	lifecycle(repositoryKey: string): RepositoryEntry['lifecycle']
+	localCatalogState(catalogKey: string): Promise<unknown>
 	manifest(repositoryKey: string): Promise<BrowserWorkspaceManifest | null>
 	openCatalog(catalogKey: string, databaseName: string): Promise<void>
+	openDeviceDraftRepository(
+		repositoryKey: string,
+		databaseName: string,
+		identity: BrowserWorkspaceIdentity
+	): Promise<void>
 	openRepository(
 		repositoryKey: string,
 		databaseName: string,
 		identity: BrowserWorkspaceIdentity
 	): Promise<BrowserWorkspaceManifest | null>
+	readDraft(repositoryKey: string, draftId: string): Promise<unknown>
 	pending(operationId: string): {
 		error: string | null
 		result: unknown
@@ -130,6 +148,7 @@ export type BrowserLibraryAdapterHarness = {
 	): Promise<unknown>
 	recoverRepository(repositoryKey: string): Promise<unknown>
 	releaseWideLock(lockId: string): Promise<void>
+	setClock(databaseName: string, timestamp: string): void
 	replaceSnapshot(
 		repositoryKey: string,
 		title: string,
@@ -147,6 +166,27 @@ export type BrowserLibraryAdapterHarness = {
 		coverText: string
 	): void
 	subscribeRepository(repositoryKey: string, eventKey: string): void
+	subscribeDeviceDraftRepository(repositoryKey: string, eventKey: string): void
+	takeOverDraft(
+		repositoryKey: string,
+		draftId: string,
+		ownerToken: string,
+		expectedDeviceRevision: number,
+		expectedLeaseRevision: number
+	): Promise<unknown>
+	claimDraft(
+		repositoryKey: string,
+		draftId: string,
+		ownerToken: string,
+		expectedDeviceRevision: number
+	): Promise<unknown>
+	attemptOldOwnerMutations(
+		repositoryKey: string,
+		draftId: string,
+		ownerToken: string,
+		expectedDeviceRevision: number,
+		expectedLeaseRevision: number
+	): Promise<unknown>
 	triggerAbortedUpgrade(databaseName: string): Promise<{
 		blocked: boolean
 		errorName: string
@@ -160,10 +200,12 @@ export type BrowserLibraryAdapterHarness = {
 
 const repositories = new Map<string, RepositoryEntry>()
 const catalogs = new Map<string, CatalogEntry>()
+const deviceDraftRepositories = new Map<string, BrowserDeviceDraftRepository>()
 const subscriptions = new Map<string, () => void>()
 const receivedEvents = new Map<string, BrowserRepositoryChange[]>()
 const heldLocks = new Map<string, HeldLock>()
 const pendingOperations = new Map<string, PendingOperation>()
+const clockByDatabase = new Map<string, string>()
 
 function errorMessage(error: unknown): string {
 	if (error instanceof Error) return `${error.name}: ${error.message}`
@@ -205,12 +247,21 @@ function requireCatalog(catalogKey: string): CatalogEntry {
 	return entry
 }
 
+function requireDeviceDraftRepository(repositoryKey: string) {
+	const repository = deviceDraftRepositories.get(repositoryKey)
+	if (!repository) {
+		throw new Error(`Device draft repository ${repositoryKey} is not open.`)
+	}
+	return repository
+}
+
 function dependencies(
 	databaseName: string,
 	lifecycle?: RepositoryEntry['lifecycle']
 ): BrowserLibraryDependencies {
 	return {
 		databaseName,
+		now: () => new Date(clockByDatabase.get(databaseName) ?? FIXTURE_TIMESTAMP),
 		onBlockedUpgrade: () => {
 			if (lifecycle) lifecycle.blockedUpgrade += 1
 		},
@@ -220,6 +271,28 @@ function dependencies(
 		onUnexpectedClose: () => {
 			if (lifecycle) lifecycle.unexpectedClose += 1
 		}
+	}
+}
+
+function draftFixture(
+	identity: BrowserWorkspaceIdentity,
+	draftRevision = 0,
+	updatedAt = FIXTURE_TIMESTAMP
+): BrowserWorkflowDraft {
+	const payload = createTrackEnrichmentDraftFixture()
+	payload.workspace = {
+		workspaceId: identity.workspaceId,
+		repositoryId: identity.repositoryId,
+		repositoryRevision: 0
+	}
+	payload.draftRevision = draftRevision
+	payload.updatedAt = updatedAt
+	return {
+		id: payload.id,
+		kind: 'track-enrichment',
+		draftRevision,
+		updatedAt,
+		payload
 	}
 }
 
@@ -380,6 +453,147 @@ function closeCatalog(catalogKey: string) {
 	catalogs.delete(catalogKey)
 }
 
+async function localCatalogState(catalogKey: string) {
+	const catalog = requireCatalog(catalogKey).catalog
+	return {
+		workspaces: await catalog.listWorkspaces(),
+		activeWorkspace: await catalog.readActiveWorkspace()
+	}
+}
+
+async function openDeviceDraftRepository(
+	repositoryKey: string,
+	databaseName: string,
+	identity: BrowserWorkspaceIdentity
+) {
+	closeDeviceDraftRepository(repositoryKey)
+	deviceDraftRepositories.set(
+		repositoryKey,
+		await openBrowserDeviceDraftRepository({
+			identity,
+			dependencies: dependencies(databaseName)
+		})
+	)
+}
+
+function closeDeviceDraftRepository(repositoryKey: string) {
+	const repository = deviceDraftRepositories.get(repositoryKey)
+	if (!repository) return
+	repository.close()
+	deviceDraftRepositories.delete(repositoryKey)
+}
+
+function setClock(databaseName: string, timestamp: string) {
+	clockByDatabase.set(databaseName, new Date(timestamp).toISOString())
+}
+
+async function createDraftAndClaim(
+	repositoryKey: string,
+	ownerToken: string,
+	expectedDeviceRevision: number
+) {
+	const repository = requireDeviceDraftRepository(repositoryKey)
+	return repository.createDraftAndClaim(
+		draftFixture(repository.identity),
+		ownerToken,
+		{
+			deviceRevision: expectedDeviceRevision,
+			draftRevision: null
+		}
+	)
+}
+
+async function readDraft(repositoryKey: string, draftId: string) {
+	return requireDeviceDraftRepository(repositoryKey).readDraft(draftId)
+}
+
+async function takeOverDraft(
+	repositoryKey: string,
+	draftId: string,
+	ownerToken: string,
+	expectedDeviceRevision: number,
+	expectedLeaseRevision: number
+) {
+	return requireDeviceDraftRepository(repositoryKey).takeOverDraft(
+		draftId,
+		ownerToken,
+		{
+			deviceRevision: expectedDeviceRevision,
+			leaseRevision: expectedLeaseRevision
+		}
+	)
+}
+
+async function claimDraft(
+	repositoryKey: string,
+	draftId: string,
+	ownerToken: string,
+	expectedDeviceRevision: number
+) {
+	return requireDeviceDraftRepository(repositoryKey).claimDraft(
+		draftId,
+		ownerToken,
+		expectedDeviceRevision
+	)
+}
+
+function summarizeCatalogError(error: unknown) {
+	if (!error || typeof error !== 'object')
+		return { message: errorMessage(error) }
+	const value = error as Record<string, unknown>
+	return {
+		code: value.code,
+		scope: value.scope,
+		expected: value.expected,
+		actual: value.actual,
+		message: error instanceof Error ? error.message : undefined
+	}
+}
+
+async function attemptOldOwnerMutations(
+	repositoryKey: string,
+	draftId: string,
+	ownerToken: string,
+	expectedDeviceRevision: number,
+	expectedLeaseRevision: number
+) {
+	const repository = requireDeviceDraftRepository(repositoryKey)
+	const changed = draftFixture(
+		repository.identity,
+		1,
+		new Date(Date.parse(FIXTURE_TIMESTAMP) + 1_000).toISOString()
+	)
+	changed.payload.ui.filter = 'review'
+	const attempts = [
+		() =>
+			repository.renewDraftLease(draftId, ownerToken, {
+				deviceRevision: expectedDeviceRevision,
+				leaseRevision: expectedLeaseRevision
+			}),
+		() =>
+			repository.writeDraft(changed, ownerToken, {
+				deviceRevision: expectedDeviceRevision,
+				draftRevision: 0,
+				leaseRevision: expectedLeaseRevision
+			}),
+		() =>
+			repository.deleteDraft(draftId, ownerToken, {
+				deviceRevision: expectedDeviceRevision,
+				draftRevision: 0,
+				leaseRevision: expectedLeaseRevision
+			})
+	]
+	const outcomes = []
+	for (const attempt of attempts) {
+		try {
+			outcomes.push({ status: 'unexpected-success', value: await attempt() })
+		} catch (error) {
+			outcomes.push({ status: 'rejected', error: summarizeCatalogError(error) })
+		}
+	}
+	return outcomes
+}
+
 async function replaceSnapshot(
 	repositoryKey: string,
 	title: string,
@@ -498,6 +712,19 @@ function subscribeRepository(repositoryKey: string, eventKey: string) {
 	subscriptions.set(eventKey, unsubscribe)
 }
 
+function subscribeDeviceDraftRepository(
+	repositoryKey: string,
+	eventKey: string
+) {
+	subscriptions.get(eventKey)?.()
+	const events: BrowserRepositoryChange[] = []
+	receivedEvents.set(eventKey, events)
+	const unsubscribe = requireDeviceDraftRepository(repositoryKey).subscribe(
+		(change) => events.push(structuredClone(change))
+	)
+	subscriptions.set(eventKey, unsubscribe)
+}
+
 function startPending(operationId: string, run: () => Promise<unknown>) {
 	if (pendingOperations.has(operationId)) {
 		throw new Error(`Pending operation ${operationId} already exists.`)
@@ -606,7 +833,10 @@ async function triggerAbortedUpgrade(databaseName: string) {
 	}>((resolve, reject) => {
 		let blocked = false
 		let upgradeStarted = false
-		const request = indexedDB.open(databaseName, 2)
+		const request = indexedDB.open(
+			databaseName,
+			BROWSER_LIBRARY_SCHEMA_VERSION + 1
+		)
 		request.addEventListener('blocked', () => {
 			blocked = true
 		})
@@ -678,17 +908,22 @@ async function closeAll() {
 	for (const unsubscribe of subscriptions.values()) unsubscribe()
 	subscriptions.clear()
 	receivedEvents.clear()
+	clockByDatabase.clear()
 	for (const entry of repositories.values()) entry.repository.close()
 	repositories.clear()
 	for (const entry of catalogs.values()) entry.catalog.close()
 	catalogs.clear()
+	for (const repository of deviceDraftRepositories.values()) repository.close()
+	deviceDraftRepositories.clear()
 }
 
 const harness: BrowserLibraryAdapterHarness = {
 	awaitPending,
 	closeAll,
 	closeCatalog,
+	closeDeviceDraftRepository,
 	closeRepository,
+	createDraftAndClaim,
 	createWorkspace,
 	databaseVersion,
 	deleteDatabase,
@@ -700,12 +935,15 @@ const harness: BrowserLibraryAdapterHarness = {
 	lifecycle(repositoryKey) {
 		return { ...requireRepository(repositoryKey).lifecycle }
 	},
+	localCatalogState,
 	manifest(repositoryKey) {
 		return requireRepository(repositoryKey).repository.readManifest()
 	},
 	openCatalog,
+	openDeviceDraftRepository,
 	openRepository,
 	pending,
+	readDraft,
 	readOperations,
 	readSnapshot,
 	recordExport,
@@ -713,10 +951,15 @@ const harness: BrowserLibraryAdapterHarness = {
 		return requireRepository(repositoryKey).repository.recoverStorage()
 	},
 	releaseWideLock,
+	setClock,
 	replaceSnapshot,
 	startCatalogDelete,
 	startReplaceSnapshot,
+	subscribeDeviceDraftRepository,
 	subscribeRepository,
+	takeOverDraft,
+	claimDraft,
+	attemptOldOwnerMutations,
 	triggerAbortedUpgrade,
 	updatePreferences
 }

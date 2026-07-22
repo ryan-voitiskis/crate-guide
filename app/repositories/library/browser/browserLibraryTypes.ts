@@ -11,11 +11,14 @@ import type {
 } from '../contracts'
 
 export const BROWSER_LIBRARY_DATABASE_NAME = 'crate-guide-library'
-export const BROWSER_LIBRARY_SCHEMA_VERSION = 1
+export const BROWSER_LIBRARY_SCHEMA_VERSION = 2
 export const BROWSER_LIBRARY_BROADCAST_PROTOCOL_VERSION = 2
 export const BROWSER_LIBRARY_REGISTRY_KEY = 'repository'
 export const BROWSER_LIBRARY_ACTIVE_WORKSPACE_KEY = 'active-workspace'
 export const BROWSER_LIBRARY_BROADCAST_CHANNEL_SUFFIX = 'changes-v1'
+export const BROWSER_DRAFT_LEASE_TTL_MS = 60_000
+export const BROWSER_DRAFT_LEASE_RENEW_INTERVAL_MS = 20_000
+export const BROWSER_WORKFLOW_DRAFT_ENVELOPE_VERSION = 1
 
 export type BrowserStorageHealthCode =
 	| 'healthy'
@@ -134,6 +137,52 @@ export type BrowserDraftCas = Readonly<{
 	draftRevision: number | null
 }>
 
+export type BrowserDraftLeaseCas = Readonly<{
+	repositoryRevision: number
+	leaseRevision: number
+}>
+
+export type BrowserDraftWriteCas = Readonly<{
+	repositoryRevision: number
+	draftRevision: number
+	leaseRevision: number
+}>
+
+export type BrowserDraftReplaceCas = Readonly<{
+	repositoryRevision: number
+	draftId: string
+	draftRevision: number
+	observedLeaseRevision: number | null
+}>
+
+export type BrowserDeviceDraftReadResult<T> = Readonly<{
+	value: T
+	deviceRevision: number
+}>
+
+export type BrowserDeviceDraftCas = Readonly<{
+	deviceRevision: number
+	draftRevision: number | null
+}>
+
+export type BrowserDeviceDraftLeaseCas = Readonly<{
+	deviceRevision: number
+	leaseRevision: number
+}>
+
+export type BrowserDeviceDraftWriteCas = Readonly<{
+	deviceRevision: number
+	draftRevision: number
+	leaseRevision: number
+}>
+
+export type BrowserDeviceDraftReplaceCas = Readonly<{
+	deviceRevision: number
+	draftId: string
+	draftRevision: number
+	observedLeaseRevision: number | null
+}>
+
 export type BrowserCopyReceiptPhase =
 	| 'preparing'
 	| 'metadata'
@@ -171,6 +220,59 @@ export type BrowserWorkflowDraft = Readonly<{
 	draftRevision: number
 	updatedAt: string
 	payload: TrackEnrichmentDraft
+}>
+
+export type BrowserWorkflowDraftMetadata = Readonly<{
+	id: string
+	kind: BrowserWorkflowDraft['kind']
+	draftRevision: number
+	updatedAt: string
+}>
+
+export type BrowserWorkflowDraftReadState =
+	| Readonly<{
+			status: 'ready'
+			metadata: BrowserWorkflowDraftMetadata
+			draft: BrowserWorkflowDraft
+	  }>
+	| Readonly<{
+			status: 'incompatible'
+			metadata: BrowserWorkflowDraftMetadata
+			schemaVersion: number
+			reason: 'future-schema' | 'unsupported-schema'
+	  }>
+	| Readonly<{
+			status: 'invalid'
+			metadata: BrowserWorkflowDraftMetadata
+	  }>
+
+export type BrowserDraftLease = Readonly<{
+	leaseRevision: number
+	acquiredAt: string
+	renewedAt: string
+	expiresAt: string
+}>
+
+export type BrowserDraftLeaseState =
+	| Readonly<{ status: 'unclaimed'; leaseRevision: number | null }>
+	| Readonly<{
+			status: 'live' | 'expired'
+			lease: BrowserDraftLease
+	  }>
+
+export type BrowserWorkflowDraftEntry = Readonly<{
+	draft: BrowserWorkflowDraftReadState
+	lease: BrowserDraftLeaseState
+}>
+
+export type BrowserClaimedDraft = Readonly<{
+	draft: BrowserWorkflowDraft
+	lease: BrowserDraftLease
+}>
+
+export type BrowserClaimedDraftState = Readonly<{
+	draft: BrowserWorkflowDraftReadState
+	lease: BrowserDraftLease
 }>
 
 export type BrowserLibrarySnapshot = Readonly<{
@@ -258,12 +360,43 @@ export type BrowserManagedCover = Readonly<{
 }>
 
 export type BrowserStoredWorkflowDraft = Readonly<{
+	envelopeVersion: typeof BROWSER_WORKFLOW_DRAFT_ENVELOPE_VERSION
 	workspaceId: string
+	repositoryId: string
 	id: string
 	kind: BrowserWorkflowDraft['kind']
 	draftRevision: number
 	updatedAt: string
 	serializedPayload: string
+}>
+
+export type BrowserStoredDraftLease = Readonly<{
+	workspaceId: string
+	repositoryId: string
+	draftId: string
+	leaseRevision: number
+}> &
+	(
+		| Readonly<{
+				ownerToken: string
+				acquiredAt: string
+				renewedAt: string
+				expiresAt: string
+		  }>
+		| Readonly<{
+				ownerToken: null
+				acquiredAt: null
+				renewedAt: null
+				expiresAt: null
+		  }>
+	)
+
+export type BrowserStoredDeviceDraftRepository = Readonly<{
+	workspaceId: string
+	repositoryId: string
+	deviceRevision: number
+	createdAt: string
+	updatedAt: string
 }>
 
 export type CreateBrowserWorkspaceInput = {
@@ -281,6 +414,11 @@ export type OpenBrowserLibraryRepositoryOptions = {
 	workspaceId: string
 	repositoryId: string
 	isCurrentContext(context: WorkspaceOperationContext): boolean
+	dependencies?: BrowserLibraryDependencies
+}
+
+export type OpenBrowserDeviceDraftRepositoryOptions = {
+	identity: BrowserWorkspaceIdentity
 	dependencies?: BrowserLibraryDependencies
 }
 
@@ -324,27 +462,67 @@ export interface BrowserWorkspaceCatalog {
 	): Promise<BrowserWorkspaceReadResult<BrowserWorkspaceOperations>>
 	listDrafts(
 		identity: BrowserWorkspaceIdentity
-	): Promise<BrowserWorkspaceReadResult<readonly BrowserWorkflowDraft[]>>
+	): Promise<BrowserWorkspaceReadResult<readonly BrowserWorkflowDraftEntry[]>>
 	readDraft(
 		identity: BrowserWorkspaceIdentity,
 		draftId: string
-	): Promise<BrowserWorkspaceReadResult<BrowserWorkflowDraft | null>>
+	): Promise<BrowserWorkspaceReadResult<BrowserWorkflowDraftEntry | null>>
 	recordExport(
 		identity: BrowserWorkspaceIdentity,
 		contentRevision: number,
 		expectedRepositoryRevision: number,
 		exportedAt?: string
 	): Promise<BrowserWorkspaceMutationResult<BrowserWorkspaceOperations>>
+	createDraftAndClaim(
+		identity: BrowserWorkspaceIdentity,
+		draft: BrowserWorkflowDraft,
+		ownerToken: string,
+		expected: BrowserDraftCas
+	): Promise<BrowserWorkspaceMutationResult<BrowserClaimedDraft>>
+	claimDraft(
+		identity: BrowserWorkspaceIdentity,
+		draftId: string,
+		ownerToken: string,
+		expectedRepositoryRevision: number
+	): Promise<BrowserWorkspaceMutationResult<BrowserClaimedDraftState>>
+	takeOverDraft(
+		identity: BrowserWorkspaceIdentity,
+		draftId: string,
+		ownerToken: string,
+		expected: BrowserDraftLeaseCas
+	): Promise<BrowserWorkspaceMutationResult<BrowserClaimedDraftState>>
+	renewDraftLease(
+		identity: BrowserWorkspaceIdentity,
+		draftId: string,
+		ownerToken: string,
+		expected: BrowserDraftLeaseCas
+	): Promise<BrowserWorkspaceMutationResult<BrowserDraftLease>>
+	releaseDraftLease(
+		identity: BrowserWorkspaceIdentity,
+		draftId: string,
+		ownerToken: string,
+		expected: BrowserDraftLeaseCas
+	): Promise<BrowserWorkspaceMutationResult<void>>
 	writeDraft(
 		identity: BrowserWorkspaceIdentity,
 		draft: BrowserWorkflowDraft,
-		expected: BrowserDraftCas
+		ownerToken: string,
+		expected: BrowserDraftWriteCas
 	): Promise<BrowserWorkspaceMutationResult<BrowserWorkflowDraft>>
 	deleteDraft(
 		identity: BrowserWorkspaceIdentity,
 		draftId: string,
-		expected: Omit<BrowserDraftCas, 'draftRevision'> & { draftRevision: number }
+		ownerToken: string,
+		expected: Omit<BrowserDraftWriteCas, 'draftRevision'> & {
+			draftRevision: number
+		}
 	): Promise<BrowserWorkspaceMutationResult<void>>
+	replaceDraftAndClaim(
+		identity: BrowserWorkspaceIdentity,
+		draft: BrowserWorkflowDraft,
+		ownerToken: string,
+		expected: BrowserDraftReplaceCas
+	): Promise<BrowserWorkspaceMutationResult<BrowserClaimedDraft>>
 	writeCopyReceipt(
 		identity: BrowserWorkspaceIdentity,
 		receipt: BrowserCopyReceipt | null,
@@ -355,6 +533,58 @@ export interface BrowserWorkspaceCatalog {
 		health: BrowserStorageHealth,
 		expectedRepositoryRevision: number
 	): Promise<BrowserWorkspaceMutationResult<BrowserWorkspaceOperations>>
+	subscribe(listener: (change: BrowserRepositoryChange) => void): () => void
+	close(): void
+}
+
+export interface BrowserDeviceDraftRepository {
+	readonly identity: BrowserWorkspaceIdentity
+	listDrafts(): Promise<
+		BrowserDeviceDraftReadResult<readonly BrowserWorkflowDraftEntry[]>
+	>
+	readDraft(
+		draftId: string
+	): Promise<BrowserDeviceDraftReadResult<BrowserWorkflowDraftEntry | null>>
+	createDraftAndClaim(
+		draft: BrowserWorkflowDraft,
+		ownerToken: string,
+		expected: BrowserDeviceDraftCas
+	): Promise<BrowserDeviceDraftReadResult<BrowserClaimedDraft>>
+	claimDraft(
+		draftId: string,
+		ownerToken: string,
+		expectedDeviceRevision: number
+	): Promise<BrowserDeviceDraftReadResult<BrowserClaimedDraftState>>
+	takeOverDraft(
+		draftId: string,
+		ownerToken: string,
+		expected: BrowserDeviceDraftLeaseCas
+	): Promise<BrowserDeviceDraftReadResult<BrowserClaimedDraftState>>
+	renewDraftLease(
+		draftId: string,
+		ownerToken: string,
+		expected: BrowserDeviceDraftLeaseCas
+	): Promise<BrowserDeviceDraftReadResult<BrowserDraftLease>>
+	releaseDraftLease(
+		draftId: string,
+		ownerToken: string,
+		expected: BrowserDeviceDraftLeaseCas
+	): Promise<BrowserDeviceDraftReadResult<void>>
+	writeDraft(
+		draft: BrowserWorkflowDraft,
+		ownerToken: string,
+		expected: BrowserDeviceDraftWriteCas
+	): Promise<BrowserDeviceDraftReadResult<BrowserWorkflowDraft>>
+	deleteDraft(
+		draftId: string,
+		ownerToken: string,
+		expected: BrowserDeviceDraftWriteCas
+	): Promise<BrowserDeviceDraftReadResult<void>>
+	replaceDraftAndClaim(
+		draft: BrowserWorkflowDraft,
+		ownerToken: string,
+		expected: BrowserDeviceDraftReplaceCas
+	): Promise<BrowserDeviceDraftReadResult<BrowserClaimedDraft>>
 	subscribe(listener: (change: BrowserRepositoryChange) => void): () => void
 	close(): void
 }

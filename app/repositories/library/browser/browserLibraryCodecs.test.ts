@@ -2,13 +2,19 @@ import { createTrackEnrichmentDraftFixture } from 'test/fixtures/trackEnrichment
 import { describe, expect, it } from 'vitest'
 import type { LibraryDataset } from '~~/shared/types/library'
 import {
+	decodeBrowserDeviceDraftRepository,
+	decodeBrowserDraftLease,
+	decodeBrowserDraftLeaseRow,
 	decodeBrowserManagedCover,
 	decodeBrowserRepositoryChange,
 	decodeBrowserRepositoryRegistry,
 	decodeBrowserWorkflowDraft,
+	decodeBrowserWorkflowDraftReadState,
 	decodeBrowserWorkflowDraftRow,
 	decodeBrowserWorkspaceManifest,
 	decodeLibraryDataset,
+	encodeBrowserDraftLeaseRow,
+	encodeBrowserDraftLeaseTombstone,
 	encodeBrowserManagedCover,
 	encodeBrowserRecordRow,
 	encodeBrowserWorkflowDraftRow
@@ -424,7 +430,7 @@ describe('browser library metadata codecs', () => {
 		)
 	})
 
-	it('round-trips drafts with an explicit revision and rejects payload drift', () => {
+	it('separates strict draft envelopes from isolated payload read states', () => {
 		const identity = {
 			workspaceId: 'workspace-a',
 			repositoryId: 'repository-a'
@@ -440,6 +446,11 @@ describe('browser library metadata codecs', () => {
 		const row = encodeBrowserWorkflowDraftRow(identity, draft)
 
 		expect(row.draftRevision).toBe(3)
+		expect(row).toMatchObject({
+			envelopeVersion: 1,
+			workspaceId: identity.workspaceId,
+			repositoryId: identity.repositoryId
+		})
 		expect(
 			decodeBrowserWorkflowDraft(
 				decodeBrowserWorkflowDraftRow(
@@ -449,15 +460,42 @@ describe('browser library metadata codecs', () => {
 				)
 			)
 		).toEqual(draft)
+		const driftedRow = decodeBrowserWorkflowDraftRow(
+			{ ...row, draftRevision: row.draftRevision + 1 },
+			identity.workspaceId,
+			identity.repositoryId
+		)
+		expect(decodeBrowserWorkflowDraftReadState(driftedRow)).toMatchObject({
+			status: 'invalid',
+			metadata: { draftRevision: row.draftRevision + 1 }
+		})
 		expectCodecPath(
-			() =>
-				decodeBrowserWorkflowDraftRow(
-					{ ...row, draftRevision: row.draftRevision + 1 },
-					identity.workspaceId,
-					identity.repositoryId
-				),
+			() => decodeBrowserWorkflowDraft(driftedRow),
 			'/draft/serializedPayload'
 		)
+		const incompatibleRow = decodeBrowserWorkflowDraftRow(
+			{
+				...row,
+				serializedPayload: JSON.stringify({
+					...payload,
+					schemaVersion: 999
+				})
+			},
+			identity.workspaceId,
+			identity.repositoryId
+		)
+		expect(decodeBrowserWorkflowDraftReadState(incompatibleRow)).toMatchObject({
+			status: 'incompatible',
+			schemaVersion: 999,
+			reason: 'future-schema',
+			metadata: { id: draft.id }
+		})
+		expect(
+			decodeBrowserWorkflowDraftReadState({
+				...row,
+				serializedPayload: '{'
+			})
+		).toMatchObject({ status: 'invalid', metadata: { id: draft.id } })
 
 		const unsafePayload = structuredClone(payload)
 		unsafePayload.observations[0]!.locationHint = '/Users/example/Music/a.wav'
@@ -468,6 +506,86 @@ describe('browser library metadata codecs', () => {
 					payload: unsafePayload
 				}),
 			'/draft/payload'
+		)
+	})
+
+	it('strictly binds lease rows while redacting owner capabilities', () => {
+		const identity = {
+			workspaceId: 'workspace-a',
+			repositoryId: 'repository-a'
+		}
+		const ownerToken = 'owner-capability-secret'
+		const row = encodeBrowserDraftLeaseRow(identity, 'draft-a', ownerToken, {
+			leaseRevision: 2,
+			acquiredAt: NOW,
+			renewedAt: '2026-07-23T00:00:20.000Z',
+			expiresAt: '2026-07-23T00:01:20.000Z'
+		})
+		expect(row.ownerToken).toBe(ownerToken)
+		expect(decodeBrowserDraftLease(row)).toEqual({
+			leaseRevision: 2,
+			acquiredAt: NOW,
+			renewedAt: '2026-07-23T00:00:20.000Z',
+			expiresAt: '2026-07-23T00:01:20.000Z'
+		})
+		expect(decodeBrowserDraftLease(row)).not.toHaveProperty('ownerToken')
+		expect(encodeBrowserDraftLeaseTombstone(identity, 'draft-a', 3)).toEqual({
+			workspaceId: identity.workspaceId,
+			repositoryId: identity.repositoryId,
+			draftId: 'draft-a',
+			ownerToken: null,
+			leaseRevision: 3,
+			acquiredAt: null,
+			renewedAt: null,
+			expiresAt: null
+		})
+		expectCodecPath(
+			() =>
+				decodeBrowserDraftLeaseRow(
+					{ ...row, repositoryId: 'repository-b' },
+					identity,
+					'draft-a'
+				),
+			'/draftLease/identity'
+		)
+		expectCodecPath(
+			() =>
+				decodeBrowserDraftLeaseRow(
+					{ ...row, expiresAt: row.renewedAt },
+					identity,
+					'draft-a'
+				),
+			'/draftLease/expiresAt'
+		)
+	})
+
+	it('strictly binds device-draft revisions independently of library revisions', () => {
+		const identity = {
+			workspaceId: 'cloud-workspace-a',
+			repositoryId: 'cloud-repository-a'
+		}
+		const state = {
+			...identity,
+			deviceRevision: 4,
+			createdAt: NOW,
+			updatedAt: '2026-07-23T00:01:00.000Z'
+		}
+		expect(decodeBrowserDeviceDraftRepository(state, identity)).toEqual(state)
+		expectCodecPath(
+			() =>
+				decodeBrowserDeviceDraftRepository(
+					{ ...state, repositoryId: 'other-repository' },
+					identity
+				),
+			'/deviceDraftRepository/identity'
+		)
+		expectCodecPath(
+			() =>
+				decodeBrowserDeviceDraftRepository(
+					{ ...state, createdAt: '2026-07-23T00:02:00.000Z' },
+					identity
+				),
+			'/deviceDraftRepository/updatedAt'
 		)
 	})
 

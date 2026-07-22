@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
 	BROWSER_LIBRARY_SCHEMA,
 	BROWSER_LIBRARY_STORES,
+	BROWSER_LIBRARY_V1_SCHEMA,
 	assertBrowserLibrarySchema,
 	estimateBrowserLibraryStorage,
 	openBrowserLibraryDatabase,
@@ -9,6 +10,15 @@ import {
 	requestResult,
 	transactionComplete
 } from '../../app/repositories/library/browser/browserLibrarySchema'
+import {
+	BROWSER_LIBRARY_REGISTRY_KEY,
+	BROWSER_LIBRARY_SCHEMA_VERSION,
+	BROWSER_WORKFLOW_DRAFT_ENVELOPE_VERSION
+} from '../../app/repositories/library/browser/browserLibraryTypes'
+import { encodeTrackEnrichmentDraft } from '../../app/utils/trackEnrichmentDraftCodec'
+import { createTrackEnrichmentDraftFixture } from '../fixtures/trackEnrichmentDraft'
+
+const NOW = '2026-07-23T01:00:00.000Z'
 
 const databases = new Set<string>()
 
@@ -34,6 +44,80 @@ function deleteDatabase(name: string): Promise<void> {
 			{ once: true }
 		)
 	})
+}
+
+async function createVersionOneDatabase(
+	name: string,
+	options: { includeWorkspace?: boolean } = {}
+) {
+	const includeWorkspace = options.includeWorkspace ?? true
+	const request = indexedDB.open(name, 1)
+	request.addEventListener('upgradeneeded', () => {
+		for (const definition of BROWSER_LIBRARY_V1_SCHEMA) {
+			const store = request.result.createObjectStore(definition.name, {
+				keyPath: definition.keyPath as string | string[]
+			})
+			for (const index of definition.indexes) {
+				store.createIndex(index.name, index.keyPath as string | string[], {
+					unique: index.unique
+				})
+			}
+		}
+	})
+	const database = await requestResult(request)
+	const payload = createTrackEnrichmentDraftFixture()
+	payload.workspace = {
+		workspaceId: 'workspace-a',
+		repositoryId: 'repository-a',
+		repositoryRevision: 0
+	}
+	payload.draftRevision = 0
+	payload.updatedAt = NOW
+	const serializedPayload = encodeTrackEnrichmentDraft(payload)
+	try {
+		const transaction = database.transaction(
+			[
+				BROWSER_LIBRARY_STORES.registry,
+				BROWSER_LIBRARY_STORES.workspaces,
+				BROWSER_LIBRARY_STORES.drafts
+			],
+			'readwrite'
+		)
+		const completion = transactionComplete(transaction)
+		transaction.objectStore(BROWSER_LIBRARY_STORES.registry).put({
+			key: BROWSER_LIBRARY_REGISTRY_KEY,
+			schemaVersion: 1,
+			catalogRevision: 0,
+			createdAt: NOW,
+			updatedAt: NOW
+		})
+		if (includeWorkspace) {
+			transaction.objectStore(BROWSER_LIBRARY_STORES.workspaces).put({
+				id: 'workspace-a',
+				repositoryId: 'repository-a',
+				name: 'Migrated workspace',
+				schemaVersion: 1,
+				createdAt: NOW,
+				updatedAt: NOW,
+				contentRevision: 0,
+				repositoryRevision: 0,
+				lastSuccessfulContentWriteAt: null,
+				coverCompleteness: 'complete'
+			})
+		}
+		transaction.objectStore(BROWSER_LIBRARY_STORES.drafts).put({
+			workspaceId: 'workspace-a',
+			id: payload.id,
+			kind: 'track-enrichment',
+			draftRevision: payload.draftRevision,
+			updatedAt: payload.updatedAt,
+			serializedPayload
+		})
+		await completion
+	} finally {
+		database.close()
+	}
+	return serializedPayload
 }
 
 afterEach(async () => {
@@ -70,6 +154,120 @@ describe('browser library IndexedDB foundation', () => {
 				}
 			}
 			await completion
+		} finally {
+			database.close()
+		}
+	})
+
+	it('migrates populated v1 metadata without decoding or changing draft bytes', async () => {
+		const name = databaseName('v1-populated-migration')
+		const serializedPayload = await createVersionOneDatabase(name)
+		const database = await openBrowserLibraryDatabase({ databaseName: name })
+		try {
+			expect(database.version).toBe(BROWSER_LIBRARY_SCHEMA_VERSION)
+			const transaction = database.transaction(
+				[
+					BROWSER_LIBRARY_STORES.registry,
+					BROWSER_LIBRARY_STORES.workspaces,
+					BROWSER_LIBRARY_STORES.drafts,
+					BROWSER_LIBRARY_STORES.draftLeases,
+					BROWSER_LIBRARY_STORES.deviceDraftRepositories
+				],
+				'readonly'
+			)
+			const completion = transactionComplete(transaction)
+			const [registry, workspace, draft, leaseCount, deviceState] =
+				await Promise.all([
+					requestResult(
+						transaction
+							.objectStore(BROWSER_LIBRARY_STORES.registry)
+							.get(BROWSER_LIBRARY_REGISTRY_KEY)
+					),
+					requestResult(
+						transaction
+							.objectStore(BROWSER_LIBRARY_STORES.workspaces)
+							.get('workspace-a')
+					),
+					requestResult(
+						transaction
+							.objectStore(BROWSER_LIBRARY_STORES.drafts)
+							.get(['workspace-a', 'repository-a', 'draft-a'])
+					),
+					requestResult(
+						transaction.objectStore(BROWSER_LIBRARY_STORES.draftLeases).count()
+					),
+					requestResult(
+						transaction
+							.objectStore(BROWSER_LIBRARY_STORES.deviceDraftRepositories)
+							.get(['workspace-a', 'repository-a'])
+					)
+				])
+			await completion
+			expect(registry).toMatchObject({
+				schemaVersion: BROWSER_LIBRARY_SCHEMA_VERSION
+			})
+			expect(workspace).toMatchObject({
+				repositoryId: 'repository-a',
+				schemaVersion: BROWSER_LIBRARY_SCHEMA_VERSION
+			})
+			expect(draft).toEqual({
+				workspaceId: 'workspace-a',
+				repositoryId: 'repository-a',
+				envelopeVersion: BROWSER_WORKFLOW_DRAFT_ENVELOPE_VERSION,
+				id: 'draft-a',
+				kind: 'track-enrichment',
+				draftRevision: 0,
+				updatedAt: NOW,
+				serializedPayload
+			})
+			expect(leaseCount).toBe(0)
+			expect(deviceState).toEqual({
+				workspaceId: 'workspace-a',
+				repositoryId: 'repository-a',
+				deviceRevision: 0,
+				createdAt: NOW,
+				updatedAt: NOW
+			})
+		} finally {
+			database.close()
+		}
+	})
+
+	it('aborts an unbound v1 draft migration and leaves the v1 bytes intact', async () => {
+		const name = databaseName('v1-unbound-migration')
+		const serializedPayload = await createVersionOneDatabase(name, {
+			includeWorkspace: false
+		})
+		await expect(
+			openBrowserLibraryDatabase({ databaseName: name })
+		).rejects.toMatchObject({ code: 'corrupt' })
+
+		const rawRequest = indexedDB.open(name)
+		const database = await requestResult(rawRequest)
+		try {
+			expect(database.version).toBe(1)
+			expect(
+				database.objectStoreNames.contains(BROWSER_LIBRARY_STORES.draftLeases)
+			).toBe(false)
+			expect(
+				database.objectStoreNames.contains(
+					BROWSER_LIBRARY_STORES.deviceDraftRepositories
+				)
+			).toBe(false)
+			const transaction = database.transaction(
+				BROWSER_LIBRARY_STORES.drafts,
+				'readonly'
+			)
+			const completion = transactionComplete(transaction)
+			const stored = await requestResult(
+				transaction
+					.objectStore(BROWSER_LIBRARY_STORES.drafts)
+					.get(['workspace-a', 'draft-a'])
+			)
+			await completion
+			expect(stored).toMatchObject({ serializedPayload })
+			expect(stored).not.toHaveProperty('repositoryId')
+			expect(stored).not.toHaveProperty('envelopeVersion')
 		} finally {
 			database.close()
 		}
@@ -238,7 +436,7 @@ describe('browser library IndexedDB foundation', () => {
 			onBlockingUpgrade
 		})
 
-		const upgrade = indexedDB.open(name, 2)
+		const upgrade = indexedDB.open(name, BROWSER_LIBRARY_SCHEMA_VERSION + 1)
 		const upgraded = await requestResult(upgrade)
 		try {
 			expect(onBlockingUpgrade).toHaveBeenCalledOnce()

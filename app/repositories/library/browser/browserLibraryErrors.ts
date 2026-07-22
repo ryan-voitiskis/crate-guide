@@ -34,7 +34,9 @@ export class BrowserStorageCodecError extends BrowserStorageError {
 export type BrowserRepositoryConflictScope =
 	| 'catalog-revision'
 	| 'repository-revision'
+	| 'device-revision'
 	| 'draft-revision'
+	| 'draft-lease'
 	| 'workspace-exists'
 	| 'draft-kind'
 	| 'export-revision'

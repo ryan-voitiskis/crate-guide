@@ -21,7 +21,10 @@ import type {
 	BrowserLibraryRepository,
 	BrowserWorkspaceManifest
 } from '../../app/repositories/library/browser/browserLibraryTypes'
-import { BROWSER_LIBRARY_BROADCAST_PROTOCOL_VERSION } from '../../app/repositories/library/browser/browserLibraryTypes'
+import {
+	BROWSER_LIBRARY_BROADCAST_PROTOCOL_VERSION,
+	BROWSER_LIBRARY_SCHEMA_VERSION
+} from '../../app/repositories/library/browser/browserLibraryTypes'
 import { createBrowserWorkspaceCatalog } from '../../app/repositories/library/browser/browserWorkspaceCatalog'
 import {
 	LOCAL_AUDIO_CACHE_DATABASE_NAME,
@@ -1092,11 +1095,16 @@ describe('browser library repository core contract', () => {
 			payload
 		}
 		expect(
-			await catalog.writeDraft(harness.context, draft, {
-				repositoryRevision: 1,
-				draftRevision: null
-			})
-		).toMatchObject({ repositoryRevision: 2, value: draft })
+			await catalog.createDraftAndClaim(
+				harness.context,
+				draft,
+				'operational-rebase-owner',
+				{
+					repositoryRevision: 1,
+					draftRevision: null
+				}
+			)
+		).toMatchObject({ repositoryRevision: 2, value: { draft } })
 
 		expect(
 			await harness.repository.preferences.update(harness.context, {
@@ -1113,7 +1121,7 @@ describe('browser library repository core contract', () => {
 		})
 		expect(await catalog.readDraft(harness.context, draft.id)).toMatchObject({
 			repositoryRevision: 3,
-			value: draft
+			value: { draft: { status: 'ready', draft } }
 		})
 		catalog.close()
 	})
@@ -1788,12 +1796,17 @@ describe('browser library repository core contract', () => {
 				payload
 			}
 		}
-		await catalog.writeDraft(contextA, createDraft(contextA, 2), {
-			repositoryRevision: 2,
-			draftRevision: null
-		})
+		await catalog.createDraftAndClaim(
+			contextA,
+			createDraft(contextA, 2),
+			'workspace-a-owner',
+			{
+				repositoryRevision: 2,
+				draftRevision: null
+			}
+		)
 		const draftB = createDraft(contextB, 1)
-		await catalog.writeDraft(contextB, draftB, {
+		await catalog.createDraftAndClaim(contextB, draftB, 'workspace-b-owner', {
 			repositoryRevision: 1,
 			draftRevision: null
 		})
@@ -1831,7 +1844,7 @@ describe('browser library repository core contract', () => {
 		})
 		expect(await catalog.readDraft(contextB, draftB.id)).toMatchObject({
 			repositoryRevision: 2,
-			value: draftB
+			value: { draft: { status: 'ready', draft: draftB } }
 		})
 		expect((await catalog.listWorkspaces()).workspaces).toMatchObject([
 			{ id: 'workspace-b', repositoryId: workspaceB.repositoryId }
@@ -1849,13 +1862,13 @@ describe('browser library repository core contract', () => {
 			onBlockingUpgrade: blocking
 		}
 		const firstOpen = await openBrowserLibraryDatabase(dependencies)
-		expect(firstOpen.version).toBe(1)
+		expect(firstOpen.version).toBe(BROWSER_LIBRARY_SCHEMA_VERSION)
 		expect([...firstOpen.objectStoreNames].sort()).toEqual(
 			BROWSER_LIBRARY_SCHEMA.map((store) => store.name).sort()
 		)
 		firstOpen.close()
 		const secondOpen = await openBrowserLibraryDatabase(dependencies)
-		expect(secondOpen.version).toBe(1)
+		expect(secondOpen.version).toBe(BROWSER_LIBRARY_SCHEMA_VERSION)
 		expect([...secondOpen.objectStoreNames].sort()).toEqual(
 			BROWSER_LIBRARY_SCHEMA.map((store) => store.name).sort()
 		)
@@ -1881,7 +1894,10 @@ describe('browser library repository core contract', () => {
 			dependencies
 		})
 		repositories.add(repository)
-		const future = await openDatabaseVersion(databaseName, 2)
+		const future = await openDatabaseVersion(
+			databaseName,
+			BROWSER_LIBRARY_SCHEMA_VERSION + 1
+		)
 		expect(blocking).toHaveBeenCalled()
 		expect(
 			await repository.preferences.update(context, { ui_theme: 'dark' })

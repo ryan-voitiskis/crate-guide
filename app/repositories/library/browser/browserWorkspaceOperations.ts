@@ -1,11 +1,17 @@
 import {
+	type BrowserDraftRevisionAuthority,
+	browserDraftRevisionStoreName,
+	readBrowserDraftRevisionState
+} from './browserDraftRevision'
+import {
 	decodeBrowserCopyReceipt,
+	decodeBrowserDraftLease,
+	decodeBrowserDraftLeaseRow,
 	decodeBrowserStorageHealth,
-	decodeBrowserWorkflowDraft,
+	decodeBrowserWorkflowDraftReadState,
 	decodeBrowserWorkflowDraftRow,
 	decodeBrowserWorkspaceManifest,
-	decodeBrowserWorkspaceOperations,
-	encodeBrowserWorkflowDraftRow
+	decodeBrowserWorkspaceOperations
 } from './browserLibraryCodecs'
 import {
 	BrowserRepositoryConflictError,
@@ -13,21 +19,21 @@ import {
 	BrowserStorageCodecError
 } from './browserLibraryErrors'
 import {
+	browserLibraryTimestamp,
 	runBrowserLibraryReadTransaction,
 	runBrowserLibraryTransaction
 } from './browserLibraryRuntime'
 import {
-	BROWSER_LIBRARY_DRAFT_KIND_INDEX,
+	BROWSER_LIBRARY_DRAFT_IDENTITY_INDEX,
 	BROWSER_LIBRARY_STORES,
-	BROWSER_LIBRARY_WORKSPACE_INDEX,
 	requestResult
 } from './browserLibrarySchema'
 import type {
 	BrowserCopyReceipt,
-	BrowserDraftCas,
+	BrowserDraftLeaseState,
 	BrowserLibraryDependencies,
 	BrowserStorageHealth,
-	BrowserWorkflowDraft,
+	BrowserWorkflowDraftEntry,
 	BrowserWorkspaceIdentity,
 	BrowserWorkspaceManifest,
 	BrowserWorkspaceMutationResult,
@@ -121,46 +127,99 @@ export function readBrowserWorkspaceOperations(
 	)
 }
 
+function draftLeaseState(
+	storedLease: unknown,
+	identity: BrowserWorkspaceIdentity,
+	draftId: string,
+	now: string
+): BrowserDraftLeaseState {
+	if (storedLease === undefined) {
+		return { status: 'unclaimed', leaseRevision: null }
+	}
+	const row = decodeBrowserDraftLeaseRow(storedLease, identity, draftId)
+	if (row.ownerToken === null) {
+		return { status: 'unclaimed', leaseRevision: row.leaseRevision }
+	}
+	return {
+		status: Date.parse(now) >= Date.parse(row.expiresAt) ? 'expired' : 'live',
+		lease: decodeBrowserDraftLease(row)
+	}
+}
+
 export function listBrowserWorkspaceDrafts(
 	database: IDBDatabase,
+	dependencies: BrowserLibraryDependencies,
+	authority: BrowserDraftRevisionAuthority,
 	identity: BrowserWorkspaceIdentity
-): Promise<BrowserWorkspaceReadResult<readonly BrowserWorkflowDraft[]>> {
+): Promise<BrowserWorkspaceReadResult<readonly BrowserWorkflowDraftEntry[]>> {
+	const now = browserLibraryTimestamp(dependencies)
 	return runBrowserLibraryReadTransaction(
 		database,
-		[BROWSER_LIBRARY_STORES.workspaces, BROWSER_LIBRARY_STORES.drafts],
+		[
+			browserDraftRevisionStoreName(authority),
+			BROWSER_LIBRARY_STORES.drafts,
+			BROWSER_LIBRARY_STORES.draftLeases
+		],
 		async (transaction) => {
-			const [storedManifest, storedDrafts] = await Promise.all([
-				requestResult(
-					transaction
-						.objectStore(BROWSER_LIBRARY_STORES.workspaces)
-						.get(identity.workspaceId)
-				),
+			const [revisionState, storedDrafts, storedLeases] = await Promise.all([
+				readBrowserDraftRevisionState(transaction, authority, identity, true),
 				requestResult(
 					transaction
 						.objectStore(BROWSER_LIBRARY_STORES.drafts)
-						.index(BROWSER_LIBRARY_WORKSPACE_INDEX)
-						.getAll(identity.workspaceId)
+						.index(BROWSER_LIBRARY_DRAFT_IDENTITY_INDEX)
+						.getAll([identity.workspaceId, identity.repositoryId])
+				),
+				requestResult(
+					transaction
+						.objectStore(BROWSER_LIBRARY_STORES.draftLeases)
+						.index(BROWSER_LIBRARY_DRAFT_IDENTITY_INDEX)
+						.getAll([identity.workspaceId, identity.repositoryId])
 				)
 			])
-			const manifest = requiredManifest(storedManifest, identity)
-			const drafts = storedDrafts
-				.map((row) =>
-					decodeBrowserWorkflowDraft(
-						decodeBrowserWorkflowDraftRow(
-							row,
-							identity.workspaceId,
-							identity.repositoryId
-						)
-					)
+			if (
+				!revisionState.exists &&
+				(storedDrafts.length > 0 || storedLeases.length > 0)
+			) {
+				throw new BrowserStorageCodecError('/deviceDraftRepository')
+			}
+			const leases = new Map<string, unknown>()
+			for (const storedLease of storedLeases) {
+				const row = decodeBrowserDraftLeaseRow(
+					storedLease,
+					identity,
+					String((storedLease as { draftId?: unknown }).draftId)
 				)
+				if (leases.has(row.draftId)) {
+					throw new BrowserStorageCodecError('/draftLease/draftId')
+				}
+				leases.set(row.draftId, row)
+			}
+			const drafts = storedDrafts
+				.map((storedDraft): BrowserWorkflowDraftEntry => {
+					const row = decodeBrowserWorkflowDraftRow(
+						storedDraft,
+						identity.workspaceId,
+						identity.repositoryId
+					)
+					const lease = leases.get(row.id)
+					leases.delete(row.id)
+					return {
+						draft: decodeBrowserWorkflowDraftReadState(row),
+						lease: draftLeaseState(lease, identity, row.id, now)
+					}
+				})
 				.sort(
 					(left, right) =>
-						right.updatedAt.localeCompare(left.updatedAt) ||
-						left.id.localeCompare(right.id)
+						right.draft.metadata.updatedAt.localeCompare(
+							left.draft.metadata.updatedAt
+						) || left.draft.metadata.id.localeCompare(right.draft.metadata.id)
 				)
+			if (leases.size > 0) {
+				throw new BrowserStorageCodecError('/draftLease/orphan')
+			}
 			return {
 				value: drafts,
-				repositoryRevision: manifest.repositoryRevision
+				repositoryRevision: revisionState.repositoryRevision
 			}
 		}
 	)
@@ -168,38 +227,58 @@ export function listBrowserWorkspaceDrafts(
 
 export function readBrowserWorkspaceDraft(
 	database: IDBDatabase,
+	dependencies: BrowserLibraryDependencies,
+	authority: BrowserDraftRevisionAuthority,
 	identity: BrowserWorkspaceIdentity,
 	draftId: string
-): Promise<BrowserWorkspaceReadResult<BrowserWorkflowDraft | null>> {
+): Promise<BrowserWorkspaceReadResult<BrowserWorkflowDraftEntry | null>> {
+	const now = browserLibraryTimestamp(dependencies)
 	return runBrowserLibraryReadTransaction(
 		database,
-		[BROWSER_LIBRARY_STORES.workspaces, BROWSER_LIBRARY_STORES.drafts],
+		[
+			browserDraftRevisionStoreName(authority),
+			BROWSER_LIBRARY_STORES.drafts,
+			BROWSER_LIBRARY_STORES.draftLeases
+		],
 		async (transaction) => {
-			const [storedManifest, storedDraft] = await Promise.all([
-				requestResult(
-					transaction
-						.objectStore(BROWSER_LIBRARY_STORES.workspaces)
-						.get(identity.workspaceId)
-				),
+			const [revisionState, storedDraft, storedLease] = await Promise.all([
+				readBrowserDraftRevisionState(transaction, authority, identity, true),
 				requestResult(
 					transaction
 						.objectStore(BROWSER_LIBRARY_STORES.drafts)
-						.get([identity.workspaceId, draftId])
+						.get([identity.workspaceId, identity.repositoryId, draftId])
+				),
+				requestResult(
+					transaction
+						.objectStore(BROWSER_LIBRARY_STORES.draftLeases)
+						.get([identity.workspaceId, identity.repositoryId, draftId])
 				)
 			])
-			const manifest = requiredManifest(storedManifest, identity)
+			if (
+				!revisionState.exists &&
+				(storedDraft !== undefined || storedLease !== undefined)
+			) {
+				throw new BrowserStorageCodecError('/deviceDraftRepository')
+			}
+			if (storedDraft === undefined && storedLease !== undefined) {
+				throw new BrowserStorageCodecError('/draftLease/orphan')
+			}
 			return {
 				value:
 					storedDraft === undefined
 						? null
-						: decodeBrowserWorkflowDraft(
-								decodeBrowserWorkflowDraftRow(
+						: (() => {
+								const row = decodeBrowserWorkflowDraftRow(
 									storedDraft,
 									identity.workspaceId,
 									identity.repositoryId
 								)
-							),
-				repositoryRevision: manifest.repositoryRevision
+								return {
+									draft: decodeBrowserWorkflowDraftReadState(row),
+									lease: draftLeaseState(storedLease, identity, draftId, now)
+								}
+							})(),
+				repositoryRevision: revisionState.repositoryRevision
 			}
 		}
 	)
@@ -333,161 +412,5 @@ export function writeBrowserWorkspaceStorageHealth(
 		expectedRepositoryRevision,
 		committedAt,
 		(operations) => ({ ...operations, storageHealth: decodedHealth })
-	)
-}
-
-export function writeBrowserWorkspaceDraft(
-	database: IDBDatabase,
-	dependencies: BrowserLibraryDependencies,
-	identity: BrowserWorkspaceIdentity,
-	draft: BrowserWorkflowDraft,
-	expected: BrowserDraftCas,
-	committedAt: string
-): Promise<BrowserOperationalCommit<BrowserWorkflowDraft>> {
-	const encodedDraft = encodeBrowserWorkflowDraftRow(identity, draft)
-	const persistedDraft = decodeBrowserWorkflowDraft(encodedDraft)
-	return runBrowserLibraryTransaction(
-		database,
-		[BROWSER_LIBRARY_STORES.workspaces, BROWSER_LIBRARY_STORES.drafts],
-		'write-draft',
-		dependencies,
-		async (transaction, writer) => {
-			const workspaceStore = transaction.objectStore(
-				BROWSER_LIBRARY_STORES.workspaces
-			)
-			const draftStore = transaction.objectStore(BROWSER_LIBRARY_STORES.drafts)
-			const [storedManifest, storedDraft, storedKindDraft] = await Promise.all([
-				requestResult(workspaceStore.get(identity.workspaceId)),
-				requestResult(draftStore.get([identity.workspaceId, draft.id])),
-				requestResult(
-					draftStore
-						.index(BROWSER_LIBRARY_DRAFT_KIND_INDEX)
-						.get([identity.workspaceId, draft.kind])
-				)
-			])
-			const manifest = requiredManifest(storedManifest, identity)
-			assertRepositoryRevision(manifest, expected.repositoryRevision)
-
-			if (expected.draftRevision === null) {
-				if (persistedDraft.draftRevision !== 0) {
-					throw new BrowserRepositoryConflictError(
-						'draft-revision',
-						0,
-						persistedDraft.draftRevision,
-						'A new Local library draft must start at revision 0.'
-					)
-				}
-				if (storedDraft !== undefined || storedKindDraft !== undefined) {
-					const existing = decodeBrowserWorkflowDraftRow(
-						storedDraft ?? storedKindDraft,
-						identity.workspaceId,
-						identity.repositoryId
-					)
-					throw new BrowserRepositoryConflictError(
-						storedDraft === undefined ? 'draft-kind' : 'draft-revision',
-						null,
-						existing.draftRevision
-					)
-				}
-			} else {
-				if (storedDraft === undefined) {
-					throw new BrowserRepositoryNotFoundError('draft')
-				}
-				const existing = decodeBrowserWorkflowDraftRow(
-					storedDraft,
-					identity.workspaceId,
-					identity.repositoryId
-				)
-				if (existing.draftRevision !== expected.draftRevision) {
-					throw new BrowserRepositoryConflictError(
-						'draft-revision',
-						expected.draftRevision,
-						existing.draftRevision
-					)
-				}
-				if (draft.draftRevision !== expected.draftRevision + 1) {
-					throw new BrowserRepositoryConflictError(
-						'draft-revision',
-						expected.draftRevision + 1,
-						draft.draftRevision
-					)
-				}
-				const existingKindDraft =
-					storedKindDraft === undefined
-						? null
-						: decodeBrowserWorkflowDraftRow(
-								storedKindDraft,
-								identity.workspaceId,
-								identity.repositoryId
-							)
-				if (existingKindDraft !== null && existingKindDraft.id !== draft.id) {
-					throw new BrowserRepositoryConflictError('draft-kind', null, null)
-				}
-			}
-
-			const updatedManifest = nextOperationalManifest(manifest, committedAt)
-			writer.put(draftStore, encodedDraft)
-			writer.put(workspaceStore, updatedManifest)
-			return {
-				result: {
-					value: persistedDraft,
-					repositoryRevision: updatedManifest.repositoryRevision
-				},
-				contentRevision: updatedManifest.contentRevision
-			}
-		}
-	)
-}
-
-export function deleteBrowserWorkspaceDraft(
-	database: IDBDatabase,
-	dependencies: BrowserLibraryDependencies,
-	identity: BrowserWorkspaceIdentity,
-	draftId: string,
-	expected: Omit<BrowserDraftCas, 'draftRevision'> & { draftRevision: number },
-	committedAt: string
-): Promise<BrowserOperationalCommit<void>> {
-	return runBrowserLibraryTransaction(
-		database,
-		[BROWSER_LIBRARY_STORES.workspaces, BROWSER_LIBRARY_STORES.drafts],
-		'delete-draft',
-		dependencies,
-		async (transaction, writer) => {
-			const workspaceStore = transaction.objectStore(
-				BROWSER_LIBRARY_STORES.workspaces
-			)
-			const draftStore = transaction.objectStore(BROWSER_LIBRARY_STORES.drafts)
-			const [storedManifest, storedDraft] = await Promise.all([
-				requestResult(workspaceStore.get(identity.workspaceId)),
-				requestResult(draftStore.get([identity.workspaceId, draftId]))
-			])
-			const manifest = requiredManifest(storedManifest, identity)
-			assertRepositoryRevision(manifest, expected.repositoryRevision)
-			if (storedDraft === undefined) {
-				throw new BrowserRepositoryNotFoundError('draft')
-			}
-			const draft = decodeBrowserWorkflowDraftRow(
-				storedDraft,
-				identity.workspaceId,
-				identity.repositoryId
-			)
-			if (draft.draftRevision !== expected.draftRevision) {
-				throw new BrowserRepositoryConflictError(
-					'draft-revision',
-					expected.draftRevision,
-					draft.draftRevision
-				)
-			}
-			const updatedManifest = nextOperationalManifest(manifest, committedAt)
-			writer.delete(draftStore, [identity.workspaceId, draftId])
-			writer.put(workspaceStore, updatedManifest)
-			return {
-				result: {
-					value: undefined,
-					repositoryRevision: updatedManifest.repositoryRevision
-				},
-				contentRevision: updatedManifest.contentRevision
-			}
-		}
 	)
 }

@@ -1,6 +1,7 @@
 import type { TrackEnrichmentDraft } from '~/types/trackEnrichmentDraft'
 import { RECORD_COVER_STORED_MAX_BYTES } from '~/utils/recordCover'
 import {
+	TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES,
 	decodeTrackEnrichmentDraft,
 	encodeTrackEnrichmentDraft
 } from '~/utils/trackEnrichmentDraftCodec'
@@ -27,15 +28,21 @@ import {
 	BROWSER_LIBRARY_BROADCAST_PROTOCOL_VERSION,
 	BROWSER_LIBRARY_REGISTRY_KEY,
 	BROWSER_LIBRARY_SCHEMA_VERSION,
+	BROWSER_WORKFLOW_DRAFT_ENVELOPE_VERSION,
 	type BrowserActiveWorkspaceMarker,
 	type BrowserCopyReceipt,
+	type BrowserDraftLease,
 	type BrowserManagedCover,
 	type BrowserRepositoryChange,
 	type BrowserRepositoryRegistry,
 	type BrowserStorageHealth,
+	type BrowserStoredDeviceDraftRepository,
+	type BrowserStoredDraftLease,
 	type BrowserStoredPreferences,
 	type BrowserStoredWorkflowDraft,
 	type BrowserWorkflowDraft,
+	type BrowserWorkflowDraftMetadata,
+	type BrowserWorkflowDraftReadState,
 	type BrowserWorkspaceIdentity,
 	type BrowserWorkspaceManifest,
 	type BrowserWorkspaceOperations
@@ -1236,7 +1243,9 @@ export function encodeBrowserWorkflowDraftRow(
 	}
 	return decodeBrowserWorkflowDraftRow(
 		{
+			envelopeVersion: BROWSER_WORKFLOW_DRAFT_ENVELOPE_VERSION,
 			workspaceId: identity.workspaceId,
+			repositoryId: identity.repositoryId,
 			id: draft.id,
 			kind: draft.kind,
 			draftRevision: draft.draftRevision,
@@ -1258,7 +1267,9 @@ export function decodeBrowserWorkflowDraftRow(
 	exactKeys(
 		object,
 		[
+			'envelopeVersion',
 			'workspaceId',
+			'repositoryId',
 			'id',
 			'kind',
 			'draftRevision',
@@ -1267,8 +1278,13 @@ export function decodeBrowserWorkflowDraftRow(
 		],
 		path
 	)
+	if (object.envelopeVersion !== BROWSER_WORKFLOW_DRAFT_ENVELOPE_VERSION) {
+		fail(`${path}/envelopeVersion`)
+	}
 	const workspaceId = identifier(object.workspaceId, `${path}/workspaceId`)
 	if (workspaceId !== expectedWorkspaceId) fail(`${path}/workspaceId`)
+	const repositoryId = identifier(object.repositoryId, `${path}/repositoryId`)
+	if (repositoryId !== expectedRepositoryId) fail(`${path}/repositoryId`)
 	const id = identifier(object.id, `${path}/id`)
 	if (object.kind !== 'track-enrichment') fail(`${path}/kind`)
 	const draftRevision = safeInteger(
@@ -1279,21 +1295,12 @@ export function decodeBrowserWorkflowDraftRow(
 	const serializedPayload = stringValue(
 		object.serializedPayload,
 		`${path}/serializedPayload`,
-		{ maxLength: 8 * 1024 * 1024 }
+		{ maxLength: TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES }
 	)
-	const decoded = decodeTrackEnrichmentDraft(serializedPayload)
-	if (
-		decoded.status !== 'ok' ||
-		decoded.draft.id !== id ||
-		decoded.draft.draftRevision !== draftRevision ||
-		decoded.draft.updatedAt !== updatedAt ||
-		decoded.draft.workspace.workspaceId !== workspaceId ||
-		decoded.draft.workspace.repositoryId !== expectedRepositoryId
-	) {
-		fail(`${path}/serializedPayload`)
-	}
 	return {
+		envelopeVersion: BROWSER_WORKFLOW_DRAFT_ENVELOPE_VERSION,
 		workspaceId,
+		repositoryId,
 		id,
 		kind: 'track-enrichment',
 		draftRevision,
@@ -1302,17 +1309,227 @@ export function decodeBrowserWorkflowDraftRow(
 	}
 }
 
-export function decodeBrowserWorkflowDraft(
+function browserWorkflowDraftMetadata(
 	row: BrowserStoredWorkflowDraft
-): BrowserWorkflowDraft {
-	const decoded = decodeTrackEnrichmentDraft(row.serializedPayload)
-	if (decoded.status !== 'ok') fail('/draft/serializedPayload')
+): BrowserWorkflowDraftMetadata {
 	return {
 		id: row.id,
 		kind: row.kind,
 		draftRevision: row.draftRevision,
-		updatedAt: row.updatedAt,
-		payload: decoded.draft
+		updatedAt: row.updatedAt
+	}
+}
+
+export function decodeBrowserWorkflowDraftReadState(
+	row: BrowserStoredWorkflowDraft
+): BrowserWorkflowDraftReadState {
+	const metadata = browserWorkflowDraftMetadata(row)
+	const decoded = decodeTrackEnrichmentDraft(row.serializedPayload)
+	if (decoded.status === 'incompatible') {
+		return {
+			status: 'incompatible',
+			metadata,
+			schemaVersion: decoded.schemaVersion,
+			reason: decoded.reason
+		}
+	}
+	if (decoded.status === 'invalid') return { status: 'invalid', metadata }
+	if (
+		decoded.draft.id !== row.id ||
+		decoded.draft.draftRevision !== row.draftRevision ||
+		decoded.draft.updatedAt !== row.updatedAt ||
+		decoded.draft.workspace.workspaceId !== row.workspaceId ||
+		decoded.draft.workspace.repositoryId !== row.repositoryId
+	) {
+		return { status: 'invalid', metadata }
+	}
+	return {
+		status: 'ready',
+		metadata,
+		draft: {
+			id: row.id,
+			kind: row.kind,
+			draftRevision: row.draftRevision,
+			updatedAt: row.updatedAt,
+			payload: decoded.draft
+		}
+	}
+}
+
+export function decodeBrowserWorkflowDraft(
+	row: BrowserStoredWorkflowDraft
+): BrowserWorkflowDraft {
+	const state = decodeBrowserWorkflowDraftReadState(row)
+	if (state.status !== 'ready') fail('/draft/serializedPayload')
+	return state.draft
+}
+
+export function encodeBrowserDraftLeaseRow(
+	identity: BrowserWorkspaceIdentity,
+	draftId: string,
+	ownerToken: string,
+	lease: BrowserDraftLease
+): BrowserStoredDraftLease {
+	return decodeBrowserDraftLeaseRow(
+		{
+			workspaceId: identity.workspaceId,
+			repositoryId: identity.repositoryId,
+			draftId,
+			ownerToken,
+			...lease
+		},
+		identity,
+		draftId
+	)
+}
+
+export function decodeBrowserDraftLeaseOwnerToken(value: unknown): string {
+	return identifier(value, '/draftLease/ownerToken')
+}
+
+export function encodeBrowserDraftLeaseTombstone(
+	identity: BrowserWorkspaceIdentity,
+	draftId: string,
+	leaseRevision: number
+): BrowserStoredDraftLease {
+	return decodeBrowserDraftLeaseRow(
+		{
+			workspaceId: identity.workspaceId,
+			repositoryId: identity.repositoryId,
+			draftId,
+			ownerToken: null,
+			leaseRevision,
+			acquiredAt: null,
+			renewedAt: null,
+			expiresAt: null
+		},
+		identity,
+		draftId
+	)
+}
+
+export function decodeBrowserDraftLeaseRow(
+	value: unknown,
+	identity: BrowserWorkspaceIdentity,
+	expectedDraftId: string
+): BrowserStoredDraftLease {
+	const path = '/draftLease'
+	const object = plainObject(value, path)
+	exactKeys(
+		object,
+		[
+			'workspaceId',
+			'repositoryId',
+			'draftId',
+			'ownerToken',
+			'leaseRevision',
+			'acquiredAt',
+			'renewedAt',
+			'expiresAt'
+		],
+		path
+	)
+	const workspaceId = identifier(object.workspaceId, `${path}/workspaceId`)
+	const repositoryId = identifier(object.repositoryId, `${path}/repositoryId`)
+	const draftId = identifier(object.draftId, `${path}/draftId`)
+	if (
+		workspaceId !== identity.workspaceId ||
+		repositoryId !== identity.repositoryId ||
+		draftId !== expectedDraftId
+	) {
+		fail(`${path}/identity`)
+	}
+	const leaseRevision = safeInteger(
+		object.leaseRevision,
+		`${path}/leaseRevision`
+	)
+	if (object.ownerToken === null) {
+		if (
+			object.acquiredAt !== null ||
+			object.renewedAt !== null ||
+			object.expiresAt !== null
+		) {
+			fail(`${path}/ownerToken`)
+		}
+		return {
+			workspaceId,
+			repositoryId,
+			draftId,
+			ownerToken: null,
+			leaseRevision,
+			acquiredAt: null,
+			renewedAt: null,
+			expiresAt: null
+		}
+	}
+	const ownerToken = identifier(object.ownerToken, `${path}/ownerToken`)
+	const acquiredAt = timestamp(object.acquiredAt, `${path}/acquiredAt`)
+	const renewedAt = timestamp(object.renewedAt, `${path}/renewedAt`)
+	const expiresAt = timestamp(object.expiresAt, `${path}/expiresAt`)
+	if (
+		Date.parse(acquiredAt) > Date.parse(renewedAt) ||
+		Date.parse(renewedAt) >= Date.parse(expiresAt)
+	) {
+		fail(`${path}/expiresAt`)
+	}
+	return {
+		workspaceId,
+		repositoryId,
+		draftId,
+		ownerToken,
+		leaseRevision,
+		acquiredAt,
+		renewedAt,
+		expiresAt
+	}
+}
+
+export function decodeBrowserDraftLease(
+	row: BrowserStoredDraftLease
+): BrowserDraftLease {
+	if (row.ownerToken === null) fail('/draftLease/ownerToken')
+	return {
+		leaseRevision: row.leaseRevision,
+		acquiredAt: row.acquiredAt,
+		renewedAt: row.renewedAt,
+		expiresAt: row.expiresAt
+	}
+}
+
+export function decodeBrowserDeviceDraftRepository(
+	value: unknown,
+	identity: BrowserWorkspaceIdentity
+): BrowserStoredDeviceDraftRepository {
+	const path = '/deviceDraftRepository'
+	const object = plainObject(value, path)
+	exactKeys(
+		object,
+		['workspaceId', 'repositoryId', 'deviceRevision', 'createdAt', 'updatedAt'],
+		path
+	)
+	const workspaceId = identifier(object.workspaceId, `${path}/workspaceId`)
+	const repositoryId = identifier(object.repositoryId, `${path}/repositoryId`)
+	if (
+		workspaceId !== identity.workspaceId ||
+		repositoryId !== identity.repositoryId
+	) {
+		fail(`${path}/identity`)
+	}
+	const deviceRevision = safeInteger(
+		object.deviceRevision,
+		`${path}/deviceRevision`
+	)
+	const createdAt = timestamp(object.createdAt, `${path}/createdAt`)
+	const updatedAt = timestamp(object.updatedAt, `${path}/updatedAt`)
+	if (Date.parse(createdAt) > Date.parse(updatedAt)) {
+		fail(`${path}/updatedAt`)
+	}
+	return {
+		workspaceId,
+		repositoryId,
+		deviceRevision,
+		createdAt,
+		updatedAt
 	}
 }
 
