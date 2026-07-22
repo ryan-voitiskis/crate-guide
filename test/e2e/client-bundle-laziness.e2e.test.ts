@@ -25,12 +25,15 @@ type ObservedAsset = {
 
 type SemanticAssets = {
 	cloudRuntime: string
+	deviceDraftRepository: string
 	enrichmentPage: string
 	localAudioWorker: string
 	localAudioWasm: string
 }
 
 const CLOUD_RUNTIME_MODULE = 'utils/cloudWorkbenchRuntime.ts'
+const DEVICE_DRAFT_REPOSITORY_MODULE =
+	'repositories/library/browser/browserDeviceDraftRepository.ts'
 const ENRICHMENT_PAGE_MODULE = 'pages/enrichment.vue'
 const LOCAL_AUDIO_WORKER_PATTERN = 'localAudioAnalysis.worker-'
 const LOCAL_AUDIO_WASM_PATTERN = 'essentia-wasm.es-'
@@ -69,6 +72,7 @@ async function loadSemanticAssets(): Promise<SemanticAssets> {
 	) as ClientBundleConfig
 
 	expect(config.expectedLazyModules).toContain(CLOUD_RUNTIME_MODULE)
+	expect(config.expectedLazyModules).toContain(DEVICE_DRAFT_REPOSITORY_MODULE)
 	expect(config.expectedLazyModules).toContain(ENRICHMENT_PAGE_MODULE)
 	expect(config.workerAssetPatterns).toContain(LOCAL_AUDIO_WORKER_PATTERN)
 	expect(config.wasmAssetPatterns).toContain(LOCAL_AUDIO_WASM_PATTERN)
@@ -79,9 +83,13 @@ async function loadSemanticAssets(): Promise<SemanticAssets> {
 		manifestDirectory: resolve(outputDirectory, 'server/chunks/build')
 	})
 	const cloudRuntime = report.semanticLazyBoundaries[CLOUD_RUNTIME_MODULE]
+	const deviceDraftRepository =
+		report.semanticLazyBoundaries[DEVICE_DRAFT_REPOSITORY_MODULE]
 	const enrichmentPage = report.semanticLazyBoundaries[ENRICHMENT_PAGE_MODULE]
 	expect(cloudRuntime?.isInitial).toBe(false)
 	expect(cloudRuntime?.isPrefetched).toBe(false)
+	expect(deviceDraftRepository?.isInitial).toBe(false)
+	expect(deviceDraftRepository?.isPrefetched).toBe(false)
 	expect(enrichmentPage?.isInitial).toBe(false)
 	expect(enrichmentPage?.isPrefetched).toBe(false)
 
@@ -94,6 +102,7 @@ async function loadSemanticAssets(): Promise<SemanticAssets> {
 
 	return {
 		cloudRuntime: assetPath(cloudRuntime.file),
+		deviceDraftRepository: assetPath(deviceDraftRepository.file),
 		enrichmentPage: assetPath(enrichmentPage.file),
 		localAudioWorker: assetPath(
 			onlyMatchingAsset(
@@ -195,6 +204,7 @@ describe('production client bundle loading', () => {
 
 		await page.waitForLoadState('networkidle')
 		expectNotRequested(observed, semanticAssets.cloudRuntime)
+		expectNotRequested(observed, semanticAssets.deviceDraftRepository)
 		expectNotRequested(observed, semanticAssets.enrichmentPage)
 		expectNotRequested(observed, semanticAssets.localAudioWorker)
 		expectNotRequested(observed, semanticAssets.localAudioWasm)
@@ -216,6 +226,7 @@ describe('production client bundle loading', () => {
 			semanticAssets.cloudRuntime
 		)
 		expect(cloudRuntimeSequence).toBeGreaterThanOrEqual(0)
+		expectNotRequested(observed, semanticAssets.deviceDraftRepository)
 		expectNotRequested(observed, semanticAssets.enrichmentPage)
 		expectNotRequested(observed, semanticAssets.localAudioWorker)
 		expectNotRequested(observed, semanticAssets.localAudioWasm)
@@ -230,6 +241,11 @@ describe('production client bundle loading', () => {
 			semanticAssets.enrichmentPage
 		)
 		expect(enrichmentSequence).toBeGreaterThan(cloudRuntimeSequence)
+		const deviceDraftRepositorySequence = findSequence(
+			observed,
+			semanticAssets.deviceDraftRepository
+		)
+		expect(deviceDraftRepositorySequence).toBeGreaterThan(enrichmentSequence)
 		expectNotRequested(observed, semanticAssets.localAudioWorker)
 		expectNotRequested(observed, semanticAssets.localAudioWasm)
 

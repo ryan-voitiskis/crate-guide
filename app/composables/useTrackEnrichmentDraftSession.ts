@@ -12,7 +12,6 @@ import type {
 	TrackEnrichmentApplyAttempt,
 	TrackEnrichmentWorkflow
 } from '~/composables/useTrackEnrichmentWorkflow'
-import { openBrowserDeviceDraftRepository } from '~/repositories/library/browser/browserDeviceDraftRepository'
 import {
 	BROWSER_DRAFT_LEASE_RENEW_INTERVAL_MS,
 	type BrowserClaimedDraft,
@@ -145,7 +144,12 @@ export function useTrackEnrichmentDraftSession(
 		sortDirection = ref<'asc' | 'desc'>('asc')
 	} = dependencies
 	const openRepository =
-		dependencies.openRepository ?? openBrowserDeviceDraftRepository
+		dependencies.openRepository ??
+		(async (options) => {
+			const { openBrowserDeviceDraftRepository } =
+				await import('~/repositories/library/browser/browserDeviceDraftRepository')
+			return openBrowserDeviceDraftRepository(options)
+		})
 	const now = dependencies.now ?? (() => new Date())
 	const randomUUID =
 		dependencies.randomUUID ?? (() => globalThis.crypto.randomUUID())

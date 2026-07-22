@@ -4,27 +4,28 @@
 		"measuredOn": "2026-07-22",
 		"allowancePercent": 3,
 		"initialJavaScript": {
-			"rawBytes": 971103,
-			"gzipBytes": 298559
+			"rawBytes": 943332,
+			"gzipBytes": 293763
 		},
 		"largestOrdinaryChunk": {
-			"rawBytes": 115842,
-			"gzipBytes": 35146
+			"rawBytes": 146966,
+			"gzipBytes": 42964
 		}
 	},
 	"budgets": {
 		"initialJavaScript": {
-			"rawBytes": 1000237,
-			"gzipBytes": 307516
+			"rawBytes": 971632,
+			"gzipBytes": 302576
 		},
 		"largestOrdinaryChunk": {
-			"rawBytes": 119318,
-			"gzipBytes": 36201
+			"rawBytes": 151375,
+			"gzipBytes": 44253
 		}
 	},
 	"expectedLazyModules": [
 		"utils/cloudWorkbenchRuntime.ts",
 		"pages/enrichment.vue",
+		"repositories/library/browser/browserDeviceDraftRepository.ts",
 		"../node_modules/music-metadata/lib/mpeg/MpegParser.js"
 	],
 	"workerAssetPatterns": ["localAudioAnalysis.worker-", "rekordboxXml.worker-"],

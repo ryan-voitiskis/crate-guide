@@ -36,6 +36,24 @@ export default defineNuxtConfig({
 	css: ['~/assets/css/main.css'],
 	vite: {
 		plugins: [tailwindcss()],
+		build: {
+			rollupOptions: {
+				output: {
+					manualChunks(id) {
+						const moduleId = id.split('?', 1)[0]
+						if (
+							[
+								'/app/types/trackEnrichmentDraft.ts',
+								'/app/utils/trackEnrichmentDraftCodec.ts',
+								'/app/utils/trackEnrichmentDraftPrivacy.ts'
+							].some((suffix) => moduleId.endsWith(suffix))
+						) {
+							return 'track-enrichment-draft-format'
+						}
+					}
+				}
+			}
+		},
 		worker: {
 			format: 'es'
 		}
