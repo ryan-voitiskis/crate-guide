@@ -844,13 +844,13 @@ describe('tracksStore', () => {
 			await expect(Promise.all([firstFetch, concurrentFetch])).resolves.toEqual(
 				[true, true]
 			)
-			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledOnce()
+			expect(mockUserStore.resolveAuthenticatedUserId).not.toHaveBeenCalled()
 			expect(mockSupabaseClient.from).toHaveBeenCalledOnce()
 			expect(store.isLoadingTracks).toBe(false)
 
 			mockQueryBuilder.limit.mockResolvedValue({ data: [], error: null })
 			await expect(store.fetchAllTracks()).resolves.toBe(true)
-			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledTimes(2)
+			expect(mockUserStore.resolveAuthenticatedUserId).not.toHaveBeenCalled()
 			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
 		})
 
@@ -2304,33 +2304,23 @@ describe('tracksStore', () => {
 		})
 
 		it('fails closed when identity switches before mutation dispatch', async () => {
-			const identity = createDeferred<string>()
-			mockUserStore.resolveAuthenticatedUserId.mockReturnValueOnce(
-				identity.promise
-			)
 			const store = useTracksStore()
 
 			const creation = store.createTrack(createTrackInput())
+			store.clearTracks()
 			mockUserStore.supaUser = { id: 'user-b' }
-			identity.resolve('test-user-id')
 
 			await expect(creation).resolves.toBeNull()
 			expect(mockQueryBuilder.insert).not.toHaveBeenCalled()
 			expect(store.tracks).toEqual([])
 		})
 
-		it('re-finds the requested row after deferred identity confirmation', async () => {
-			const confirmation = createDeferred<string>()
-			mockUserStore.resolveAuthenticatedUserId
-				.mockResolvedValueOnce('test-user-id')
-				.mockReturnValueOnce(confirmation.promise)
-			mockQueryBuilder.single.mockResolvedValueOnce({
-				data: createMockOwnedTrack({
-					id: 'track-target',
-					title: 'Server target'
-				}),
+		it('re-finds the requested row after a deferred repository response', async () => {
+			const response = createDeferred<{
+				data: ReturnType<typeof createMockOwnedTrack>
 				error: null
-			})
+			}>()
+			mockQueryBuilder.single.mockReturnValueOnce(response.promise)
 			const store = useTracksStore()
 			const target = createMockTrack({
 				id: 'track-target',
@@ -2346,12 +2336,16 @@ describe('tracksStore', () => {
 				title: 'Optimistic target'
 			})
 			await vi.waitFor(() =>
-				expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledTimes(
-					2
-				)
+				expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
 			)
 			store.tracks = [other, target]
-			confirmation.resolve('test-user-id')
+			response.resolve({
+				data: createMockOwnedTrack({
+					id: 'track-target',
+					title: 'Server target'
+				}),
+				error: null
+			})
 			await update
 
 			expect(store.getTrackById('track-target')?.title).toBe('Server target')

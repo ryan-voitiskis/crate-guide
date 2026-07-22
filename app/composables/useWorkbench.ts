@@ -145,6 +145,15 @@ export function ensureCloudWorkbenchRuntime(pinia: Pinia): WorkbenchRuntime {
 		},
 		repository
 	)
+	watch(
+		() => user.supaUserId,
+		(nextUserId, previousUserId) => {
+			if (nextUserId === previousUserId) return
+			runtime.invalidate()
+			repository.covers.reset()
+		},
+		{ flush: 'sync' }
+	)
 	bindWorkbenchRuntime(pinia, runtime)
 	return runtime
 }
