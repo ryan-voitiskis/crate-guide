@@ -238,6 +238,21 @@ function advanceIndexCursorPastPosition(
 	return true
 }
 
+function createExpiredCachePruneRange(
+	position: CacheIndexCursorPosition | null,
+	cutoff: number
+): IDBKeyRange {
+	return position
+		? IDBKeyRange.bound(position.indexKey, cutoff, false, true)
+		: IDBKeyRange.upperBound(cutoff, true)
+}
+
+function createOverflowCachePruneRange(
+	position: CacheIndexCursorPosition | null
+): IDBKeyRange | undefined {
+	return position ? IDBKeyRange.lowerBound(position.indexKey) : undefined
+}
+
 export function isLocalAudioCacheSessionActive(): boolean {
 	return activeSession
 }
@@ -433,6 +448,7 @@ export async function openLocalAudioCacheSession(
 		let position: CacheIndexCursorPosition | null = null
 
 		while (!exhausted) {
+			const resumePosition: CacheIndexCursorPosition | null = position
 			const transaction = database.transaction(CACHE_STORE_NAME, 'readwrite')
 			const completion = waitForTransaction(
 				transaction,
@@ -441,11 +457,10 @@ export async function openLocalAudioCacheSession(
 			const index = transaction
 				.objectStore(CACHE_STORE_NAME)
 				.index(CACHE_UPDATED_AT_INDEX_NAME)
-			const range = position
-				? IDBKeyRange.bound(position.indexKey, cutoff, false, true)
-				: IDBKeyRange.upperBound(cutoff, true)
+			const range = createExpiredCachePruneRange(resumePosition, cutoff)
 			const request = index.openCursor(range)
 			let visitedInChunk = 0
+			let nextPosition: CacheIndexCursorPosition | null = resumePosition
 			metrics.pruneTransactions += 1
 
 			request.onsuccess = () => {
@@ -455,11 +470,14 @@ export async function openLocalAudioCacheSession(
 					return
 				}
 				visitedInChunk += 1
-				if (position && advanceIndexCursorPastPosition(cursor, position)) {
+				if (
+					resumePosition &&
+					advanceIndexCursorPastPosition(cursor, resumePosition)
+				) {
 					return
 				}
 
-				position = {
+				nextPosition = {
 					indexKey: cursor.key,
 					primaryKey: cursor.primaryKey
 				}
@@ -472,6 +490,7 @@ export async function openLocalAudioCacheSession(
 			}
 
 			await completion
+			position = nextPosition
 			if (visitedInChunk === 0) exhausted = true
 		}
 
@@ -499,16 +518,16 @@ export async function openLocalAudioCacheSession(
 		let position: CacheIndexCursorPosition | null = null
 
 		while (remaining > 0 && !exhausted) {
+			const resumePosition: CacheIndexCursorPosition | null = position
 			const transaction = database.transaction(CACHE_STORE_NAME, 'readwrite')
 			const completion = waitForTransaction(transaction, 'Cache-cap pruning')
 			const index = transaction
 				.objectStore(CACHE_STORE_NAME)
 				.index(CACHE_UPDATED_AT_INDEX_NAME)
-			const range = position
-				? IDBKeyRange.lowerBound(position.indexKey)
-				: undefined
+			const range = createOverflowCachePruneRange(resumePosition)
 			const request = index.openCursor(range)
 			let visitedInChunk = 0
+			let nextPosition: CacheIndexCursorPosition | null = resumePosition
 			metrics.pruneTransactions += 1
 
 			request.onsuccess = () => {
@@ -518,11 +537,14 @@ export async function openLocalAudioCacheSession(
 					return
 				}
 				visitedInChunk += 1
-				if (position && advanceIndexCursorPastPosition(cursor, position)) {
+				if (
+					resumePosition &&
+					advanceIndexCursorPastPosition(cursor, resumePosition)
+				) {
 					return
 				}
 
-				position = {
+				nextPosition = {
 					indexKey: cursor.key,
 					primaryKey: cursor.primaryKey
 				}
@@ -538,6 +560,7 @@ export async function openLocalAudioCacheSession(
 			}
 
 			await completion
+			position = nextPosition
 			if (visitedInChunk === 0) exhausted = true
 		}
 

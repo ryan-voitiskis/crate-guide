@@ -89,7 +89,7 @@ function instrumentIndexCursorVisits() {
 	const originalOpenCursor = FakeIDBIndex.prototype.openCursor
 
 	vi.spyOn(FakeIDBIndex.prototype, 'openCursor').mockImplementation(function (
-		this: FakeIDBIndex,
+		this: IDBIndex,
 		query?: IDBValidKey | IDBKeyRange | null,
 		direction?: IDBCursorDirection
 	) {
