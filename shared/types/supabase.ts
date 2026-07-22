@@ -44,6 +44,8 @@ export type PlayedTrackEntry = {
 	time_added: number
 	adjusted_bpm: number | null
 	transition_rating: number | null
+	track_title?: string
+	artist_display?: string
 }
 
 export type SavedSet = Omit<

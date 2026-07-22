@@ -23,15 +23,24 @@ function formatDate(dateString: string | null): string {
 	})
 }
 
-function getTrackTitle(trackId: string): string {
-	const track = tracks.getTrackById(trackId)
-	return track?.title ?? 'Unknown track'
+function getLiveTrack(trackId: string): Track | undefined {
+	return tracks.getTrackById(trackId)
 }
 
-function getTrackArtists(trackId: string): string {
-	const track = tracks.getTrackById(trackId)
-	if (!track) return ''
-	return track.artists.map((a) => a.name).join(', ')
+function getTrackTitle(entry: PlayedTrackEntry): string {
+	return (
+		entry.track_title ?? getLiveTrack(entry.track_id)?.title ?? 'Unknown track'
+	)
+}
+
+function getTrackArtists(entry: PlayedTrackEntry): string {
+	return (
+		entry.artist_display ??
+		getLiveTrack(entry.track_id)
+			?.artists.map((artist) => artist.name)
+			.join(', ') ??
+		'Artist unavailable'
+	)
 }
 
 function handleOpenChange(open: boolean) {
@@ -152,16 +161,22 @@ onMounted(() => {
 										<div class="flex items-start justify-between gap-2">
 											<div class="min-w-0 flex-1">
 												<div class="truncate text-sm font-medium">
-													{{ getTrackTitle(entry.track_id) }}
+													{{ getTrackTitle(entry) }}
 												</div>
 												<div class="text-muted-foreground text-xs">
-													{{ getTrackArtists(entry.track_id) }}
+													{{ getTrackArtists(entry) }}
 												</div>
 												<div
-													v-if="entry.adjusted_bpm"
+													v-if="entry.adjusted_bpm !== null"
 													class="text-muted-foreground text-xs"
 												>
 													{{ entry.adjusted_bpm.toFixed(1) }} BPM
+												</div>
+												<div
+													v-if="!getLiveTrack(entry.track_id)"
+													class="text-muted-foreground text-xs italic"
+												>
+													No longer in library
 												</div>
 											</div>
 											<div

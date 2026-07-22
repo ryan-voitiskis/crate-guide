@@ -232,21 +232,47 @@ function isTrackAudioFeatures(value: unknown): value is TrackAudioFeatures {
 	)
 }
 
-function isPlayedTrackEntry(value: unknown): value is PlayedTrackEntry {
-	if (!isObject(value)) return false
+type DecodedPlayedTrackEntry = {
+	entry: PlayedTrackEntry | null
+	hasInvalidSnapshot: boolean
+}
 
-	return (
-		typeof value.track_id === 'string' &&
-		value.track_id.trim() !== '' &&
-		isFiniteNumber(value.time_added) &&
-		value.time_added >= 0 &&
-		isNullableFiniteNumber(value.adjusted_bpm) &&
-		(value.transition_rating === null ||
-			(isFiniteNumber(value.transition_rating) &&
-				Number.isInteger(value.transition_rating) &&
-				value.transition_rating >= 1 &&
-				value.transition_rating <= 5))
-	)
+function decodePlayedTrackEntry(value: unknown): DecodedPlayedTrackEntry {
+	if (
+		!isObject(value) ||
+		typeof value.track_id !== 'string' ||
+		value.track_id.trim() === '' ||
+		!isFiniteNumber(value.time_added) ||
+		value.time_added < 0 ||
+		!isNullableFiniteNumber(value.adjusted_bpm) ||
+		(value.transition_rating !== null &&
+			(!isFiniteNumber(value.transition_rating) ||
+				!Number.isInteger(value.transition_rating) ||
+				value.transition_rating < 1 ||
+				value.transition_rating > 5))
+	) {
+		return { entry: null, hasInvalidSnapshot: false }
+	}
+
+	const entry: PlayedTrackEntry = {
+		track_id: value.track_id,
+		time_added: value.time_added,
+		adjusted_bpm: value.adjusted_bpm,
+		transition_rating: value.transition_rating
+	}
+	let hasInvalidSnapshot = false
+
+	for (const field of ['track_title', 'artist_display'] as const) {
+		const snapshotValue = value[field]
+		if (snapshotValue === undefined) continue
+		if (typeof snapshotValue === 'string') {
+			entry[field] = snapshotValue
+		} else {
+			hasInvalidSnapshot = true
+		}
+	}
+
+	return { entry, hasInvalidSnapshot }
 }
 
 function issue(
@@ -315,14 +341,20 @@ export function decodeSavedSetRow(
 	row: Database['public']['Tables']['sets']['Row']
 ): DecodedRow<SavedSet> {
 	const issues: DecodeIssue[] = []
-	const playedTracks = Array.isArray(row.played_tracks)
-		? row.played_tracks.filter(isPlayedTrackEntry)
-		: []
+	const playedTracks: PlayedTrackEntry[] = []
+	let hasInvalidPlayedTrack = !Array.isArray(row.played_tracks)
 
-	if (
-		!Array.isArray(row.played_tracks) ||
-		playedTracks.length !== row.played_tracks.length
-	) {
+	if (Array.isArray(row.played_tracks)) {
+		for (const value of row.played_tracks) {
+			const decoded = decodePlayedTrackEntry(value)
+			if (decoded.entry) playedTracks.push(decoded.entry)
+			if (!decoded.entry || decoded.hasInvalidSnapshot) {
+				hasInvalidPlayedTrack = true
+			}
+		}
+	}
+
+	if (hasInvalidPlayedTrack) {
 		issues.push(issue('saved-set', row.id, 'played_tracks'))
 	}
 

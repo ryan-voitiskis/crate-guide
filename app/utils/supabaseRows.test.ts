@@ -468,7 +468,9 @@ describe('decodeSavedSetRow', () => {
 		track_id: 'track-first',
 		time_added: 0,
 		adjusted_bpm: 0,
-		transition_rating: 1
+		transition_rating: 1,
+		track_title: 'Snapshot title',
+		artist_display: 'Snapshot artist'
 	}
 	const secondValidEntry = {
 		track_id: 'track-second',
@@ -565,5 +567,34 @@ describe('decodeSavedSetRow', () => {
 				field: 'played_tracks'
 			}
 		])
+	})
+
+	it('drops malformed snapshot fields without discarding a valid legacy entry', () => {
+		const privateValue = 'SYNTHETIC_PRIVATE_VALUE'
+		const decoded = decodeSavedSetRow(
+			createSavedSetRow({
+				played_tracks: [
+					{
+						...secondValidEntry,
+						track_title: { privateValue },
+						artist_display: 42
+					},
+					firstValidEntry
+				]
+			})
+		)
+
+		expect(decoded.row.played_tracks).toEqual([
+			secondValidEntry,
+			firstValidEntry
+		])
+		expect(decoded.issues).toEqual([
+			{
+				entity: 'saved-set',
+				id: 'set-synthetic',
+				field: 'played_tracks'
+			}
+		])
+		expect(JSON.stringify(decoded.issues)).not.toContain(privateValue)
 	})
 })

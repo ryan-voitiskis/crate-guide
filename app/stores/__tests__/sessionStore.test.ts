@@ -56,11 +56,15 @@ function createMockQueryBuilder() {
 		const userId = [...equalityCalls]
 			.reverse()
 			.find(([column]) => column === 'user_id')?.[1]
+		const mutationCall =
+			builder.update.mock.calls.at(-1) ?? builder.insert.mock.calls.at(-1)
+		const mutation = (mutationCall?.[0] ?? {}) as Partial<SavedSetRow>
 		return {
-			data: {
+			data: createSavedSetRow({
+				...mutation,
 				id: typeof id === 'string' ? id : 'set-1',
 				user_id: typeof userId === 'string' ? userId : 'test-user-id'
-			},
+			}),
 			error: null
 		}
 	})
@@ -764,13 +768,24 @@ describe('sessionStore', () => {
 
 	describe('loadTrack', () => {
 		it('sets the target deck to 45 RPM for a 45 RPM track', () => {
-			const track = createMockTrack({ rpm: 45 })
+			const track = createMockTrack({
+				rpm: 45,
+				title: 'Historical title',
+				artists: [
+					{ discogs_id: 1, name: 'Artist One', role: null },
+					{ discogs_id: 2, name: 'Artist Two', role: null }
+				]
+			})
 			mockTracksStore.getTrackById.mockReturnValue(track)
 			const store = useSessionStore()
 
 			store.loadTrack(track.id, 0)
 
 			expect(store.decks[0]!.rpm).toBe(45)
+			expect(store.currentSession[0]).toMatchObject({
+				track_title: 'Historical title',
+				artist_display: 'Artist One, Artist Two'
+			})
 		})
 
 		it('sets the target deck to 33 RPM for a 33 RPM track', () => {
@@ -829,7 +844,9 @@ describe('sessionStore', () => {
 				expect(deck.pitch).toBe(7)
 				expect(deck.faderPosition).toBe(7)
 				expect(deck.faderSliding).toBe(false)
-				expect(store.currentSession.at(-1)?.adjusted_bpm).toBe(120)
+				expect(store.currentSession.at(-1)?.adjusted_bpm).toBeCloseTo(
+					120 * 1.0056
+				)
 			} finally {
 				vi.clearAllTimers()
 				vi.useRealTimers()
@@ -857,7 +874,7 @@ describe('sessionStore', () => {
 				const obsoleteAnimation = store.slideFader(0, -20)
 				await vi.advanceTimersByTimeAsync(10)
 
-				store.loadTrack(replacementTrack.id, 0, true)
+				store.loadTrack(replacementTrack.id, 0, true, 1)
 
 				expect(deck.loadedTrack?.id).toBe(replacementTrack.id)
 				expect(deck.pitch).toBe(10)
@@ -876,6 +893,55 @@ describe('sessionStore', () => {
 				expect(store.currentSession.at(-1)?.adjusted_bpm).toBe(102)
 			} finally {
 				vi.clearAllTimers()
+				vi.useRealTimers()
+			}
+		})
+
+		it('records the BPM reachable at a clamped tempo-match pitch', async () => {
+			vi.useFakeTimers()
+			const replacementTrack = createMockTrack({
+				id: 'replacement-track',
+				bpm: 100
+			})
+			mockTracksStore.getTrackById.mockReturnValue(replacementTrack)
+			const store = useSessionStore()
+			store.decks[1]!.loadedTrack = createMockTrack({
+				id: 'source-track',
+				bpm: 140
+			})
+
+			try {
+				store.loadTrack(replacementTrack.id, 0, true, 1)
+
+				expect(store.currentSession.at(-1)?.adjusted_bpm).toBeCloseTo(108)
+				await vi.runAllTimersAsync()
+				expect(store.decks[0]!.pitch).toBe(100)
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
+		it('does not mutate prior history while a replacement animation runs', async () => {
+			vi.useFakeTimers()
+			const firstTrack = createMockTrack({ id: 'first-track', bpm: 100 })
+			const secondTrack = createMockTrack({ id: 'second-track', bpm: 120 })
+			mockTracksStore.getTrackById.mockImplementation((trackId: string) =>
+				trackId === firstTrack.id ? firstTrack : secondTrack
+			)
+			const store = useSessionStore()
+			store.decks[1]!.loadedTrack = createMockTrack({
+				id: 'source-track',
+				bpm: 104
+			})
+
+			try {
+				store.loadTrack(firstTrack.id, 0, true, 1)
+				const firstHistoryEntry = { ...store.currentSession[0]! }
+				store.loadTrack(secondTrack.id, 0, false)
+				await vi.runAllTimersAsync()
+
+				expect(store.currentSession[0]).toEqual(firstHistoryEntry)
+			} finally {
 				vi.useRealTimers()
 			}
 		})
@@ -1643,6 +1709,56 @@ describe('sessionStore', () => {
 			expect(store.savedSets[0]!.name).toBe('Local update')
 		})
 
+		it('preserves an autosave response over a stale overlapping fetch', async () => {
+			vi.useFakeTimers()
+			const fetchResponse = createDeferred<{
+				data: SavedSetRow[]
+				error: null
+			}>()
+			mockQueryBuilder.limit.mockReturnValueOnce(fetchResponse.promise)
+			mockQueryBuilder.single.mockResolvedValueOnce({
+				data: createSavedSetRow({
+					id: 'set-existing',
+					name: 'Current set',
+					played_tracks: [firstEntry]
+				}),
+				error: null
+			})
+			const store = useSessionStore()
+			store.savedSets = [
+				createSavedSet({ id: 'set-existing', name: 'Before autosave' })
+			]
+			store.activeSetId = 'set-existing'
+
+			try {
+				const fetchPromise = store.fetchSavedSets()
+				store.currentSession = [firstEntry]
+				await nextTick()
+				await vi.advanceTimersByTimeAsync(2000)
+				expect(store.savedSets[0]!.played_tracks).toEqual([firstEntry])
+
+				fetchResponse.resolve({
+					data: [
+						createSavedSetRow({
+							id: 'set-existing',
+							name: 'Stale fetched set',
+							played_tracks: []
+						})
+					],
+					error: null
+				})
+				await fetchPromise
+
+				expect(store.savedSets).toHaveLength(1)
+				expect(store.savedSets[0]).toMatchObject({
+					name: 'Current set',
+					played_tracks: [firstEntry]
+				})
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
 		it('does not assign revision provenance to a failed concurrent save', async () => {
 			const fetchResponse = createDeferred<{
 				data: SavedSetRow[]
@@ -1960,7 +2076,7 @@ describe('sessionStore', () => {
 		it('serializes a slow initial autosave and updates the created set with the latest snapshot', async () => {
 			vi.useFakeTimers()
 			const insert = createDeferred<{
-				data: { id: string; user_id: string }
+				data: SavedSetRow
 				error: null
 			}>()
 			mockQueryBuilder.single.mockReturnValueOnce(insert.promise)
@@ -1982,7 +2098,10 @@ describe('sessionStore', () => {
 					played_tracks: [firstEntry]
 				})
 				insert.resolve({
-					data: { id: 'set-queued', user_id: 'test-user-id' },
+					data: createSavedSetRow({
+						id: 'set-queued',
+						played_tracks: [firstEntry]
+					}),
 					error: null
 				})
 				await flushAsyncWork()
@@ -1993,6 +2112,11 @@ describe('sessionStore', () => {
 					played_tracks: [firstEntry, secondEntry]
 				})
 				expect(store.activeSetId).toBe('set-queued')
+				expect(store.savedSets).toHaveLength(1)
+				expect(store.savedSets[0]).toMatchObject({
+					id: 'set-queued',
+					played_tracks: [firstEntry, secondEntry]
+				})
 			} finally {
 				vi.useRealTimers()
 			}
@@ -2001,7 +2125,7 @@ describe('sessionStore', () => {
 		it('coalesces snapshots queued behind a slow update to one newest follow-up', async () => {
 			vi.useFakeTimers()
 			const firstUpdate = createDeferred<{
-				data: { id: string; user_id: string }
+				data: SavedSetRow
 				error: null
 			}>()
 			mockQueryBuilder.single.mockReturnValueOnce(firstUpdate.promise)
@@ -2026,7 +2150,10 @@ describe('sessionStore', () => {
 				})
 				expect(store.isAutoSaving).toBe(true)
 				firstUpdate.resolve({
-					data: { id: 'set-queued', user_id: 'test-user-id' },
+					data: createSavedSetRow({
+						id: 'set-queued',
+						played_tracks: [firstEntry]
+					}),
 					error: null
 				})
 				await flushAsyncWork()
@@ -2035,6 +2162,12 @@ describe('sessionStore', () => {
 				expect(mockQueryBuilder.update).toHaveBeenLastCalledWith({
 					played_tracks: [firstEntry, secondEntry, thirdEntry]
 				})
+				expect(store.savedSets).toHaveLength(1)
+				expect(store.savedSets[0]!.played_tracks).toEqual([
+					firstEntry,
+					secondEntry,
+					thirdEntry
+				])
 				expect(store.isAutoSaving).toBe(false)
 			} finally {
 				vi.useRealTimers()
@@ -2044,7 +2177,7 @@ describe('sessionStore', () => {
 		it('orders a named manual save after autosave and preserves its captured latest snapshot', async () => {
 			vi.useFakeTimers()
 			const insert = createDeferred<{
-				data: { id: string; user_id: string }
+				data: SavedSetRow
 				error: null
 			}>()
 			mockQueryBuilder.single
@@ -2072,7 +2205,10 @@ describe('sessionStore', () => {
 				expect(store.isSavingSession).toBe(true)
 
 				insert.resolve({
-					data: { id: 'set-queued', user_id: 'test-user-id' },
+					data: createSavedSetRow({
+						id: 'set-queued',
+						played_tracks: [firstEntry]
+					}),
 					error: null
 				})
 				await expect(manualSave).resolves.toMatchObject({
@@ -2184,7 +2320,7 @@ describe('sessionStore', () => {
 					'user_id',
 					'test-user-id'
 				])
-				expect(mockQueryBuilder.select).toHaveBeenCalledWith('id, user_id')
+				expect(mockQueryBuilder.select).toHaveBeenCalledWith()
 				expect(mockToast.error).toHaveBeenCalledOnce()
 			} finally {
 				vi.useRealTimers()
@@ -2214,7 +2350,7 @@ describe('sessionStore', () => {
 					'Auto-save failed. Your current session is not saved yet.'
 				)
 				expect(store.activeSetId).toBeNull()
-				expect(mockQueryBuilder.select).toHaveBeenCalledWith('id, user_id')
+				expect(mockQueryBuilder.select).toHaveBeenCalledWith()
 				expect(mockToast.error).toHaveBeenCalledOnce()
 			} finally {
 				vi.useRealTimers()
@@ -2229,7 +2365,7 @@ describe('sessionStore', () => {
 					error: new Error('Insert failed')
 				})
 				.mockResolvedValueOnce({
-					data: { id: 'set-1', user_id: 'test-user-id' },
+					data: createSavedSetRow({ id: 'set-1' }),
 					error: null
 				})
 			const store = useSessionStore()
@@ -2278,7 +2414,7 @@ describe('sessionStore', () => {
 					error: new Error('Update failed')
 				})
 				.mockResolvedValueOnce({
-					data: { id: 'set-1', user_id: 'test-user-id' },
+					data: createSavedSetRow({ id: 'set-1' }),
 					error: null
 				})
 			const store = useSessionStore()
@@ -2368,6 +2504,33 @@ describe('sessionStore', () => {
 			expect(store.deckSelectDialog.open).toBe(true)
 			expect(store.deckSelectDialog.trackId).toBe('suggested')
 			expect(store.deckSelectDialog.sourceDeck).toBe(0)
+		})
+
+		it('matches the explicitly selected source deck in a three-deck flow', async () => {
+			vi.useFakeTimers()
+			const suggested = createMockTrack({ id: 'suggested', bpm: 100 })
+			mockTracksStore.getTrackById.mockReturnValue(suggested)
+			const store = useSessionStore()
+			store.initializeDecks(3)
+			store.decks[0]!.loadedTrack = createMockTrack({
+				id: 'unrelated-deck',
+				bpm: 130
+			})
+			store.decks[2]!.loadedTrack = createMockTrack({
+				id: 'source-deck',
+				bpm: 96
+			})
+
+			try {
+				store.handleSuggestionClick(suggested.id, 2)
+				store.loadToSelectedDeck(1)
+
+				expect(store.currentSession.at(-1)?.adjusted_bpm).toBeCloseTo(96)
+				await vi.runAllTimersAsync()
+				expect(store.decks[1]!.pitch).toBeCloseTo(-50)
+			} finally {
+				vi.useRealTimers()
+			}
 		})
 	})
 

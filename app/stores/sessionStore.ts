@@ -191,7 +191,12 @@ export const useSessionStore = defineStore('session', () => {
 		trackSource.value = source
 	}
 
-	function loadTrack(trackId: string, deckIndex: number, matchTempo = false) {
+	function loadTrack(
+		trackId: string,
+		deckIndex: number,
+		matchTempo = false,
+		sourceDeckIndex: number | null = null
+	) {
 		const track = trackSource.value
 			? trackSource.value.find((candidate) => candidate.id === trackId)
 			: tracks.getTrackById(trackId)
@@ -208,23 +213,30 @@ export const useSessionStore = defineStore('session', () => {
 			deck.rpm = track.rpm
 		}
 
-		let finalAdjustedBpm: number | null = track.bpm
+		const adjustedBpmAtPitch = (pitch: number): number | null => {
+			if (track.bpm === null) return null
+			const factor = 1 + (pitch / 100) * (pitchRange.value / 100)
+			return track.bpm * factor
+		}
+		let finalAdjustedBpm = adjustedBpmAtPitch(deck.pitch)
 
 		// Match tempo to the deck we're transitioning from
-		if (matchTempo && deckCount.value >= 2) {
-			// Find another deck with a loaded track to match
-			const otherDeckIndex = decks.value.findIndex(
-				(d, i) => i !== deckIndex && d.loadedTrack !== null
-			)
-			if (otherDeckIndex !== -1) {
-				const otherBpm = getAdjustedBpm(otherDeckIndex)
-				if (otherBpm && track.bpm) {
-					const targetPitch =
-						((otherBpm / track.bpm - 1) / (pitchRange.value / 100)) * 100
-					const clampedPitch = Math.max(-100, Math.min(100, targetPitch))
-					slideFader(deckIndex, clampedPitch)
-					finalAdjustedBpm = otherBpm
-				}
+		if (
+			matchTempo &&
+			deckCount.value >= 2 &&
+			sourceDeckIndex !== null &&
+			sourceDeckIndex !== deckIndex
+		) {
+			const sourceBpm = getAdjustedBpm(sourceDeckIndex)
+			if (sourceBpm !== null && track.bpm !== null) {
+				const pitchRangeFactor = pitchRange.value / 100
+				const targetPitch =
+					pitchRangeFactor === 0
+						? 0
+						: ((sourceBpm / track.bpm - 1) / pitchRangeFactor) * 100
+				const clampedPitch = Math.max(-100, Math.min(100, targetPitch))
+				void slideFader(deckIndex, clampedPitch)
+				finalAdjustedBpm = adjustedBpmAtPitch(clampedPitch)
 			}
 		}
 
@@ -233,7 +245,9 @@ export const useSessionStore = defineStore('session', () => {
 			track_id: trackId,
 			time_added: Date.now(),
 			adjusted_bpm: finalAdjustedBpm,
-			transition_rating: null
+			transition_rating: null,
+			track_title: track.title,
+			artist_display: track.artists.map((artist) => artist.name).join(', ')
 		})
 	}
 
@@ -306,7 +320,7 @@ export const useSessionStore = defineStore('session', () => {
 		} else if (deckCount.value === 2) {
 			// Load to other deck with tempo match
 			const targetDeck = sourceDeckIndex === 0 ? 1 : 0
-			loadTrack(trackId, targetDeck, true)
+			loadTrack(trackId, targetDeck, true, sourceDeckIndex)
 		} else {
 			// 3-4 decks: show dialog
 			deckSelectDialog.value = {
@@ -318,8 +332,8 @@ export const useSessionStore = defineStore('session', () => {
 	}
 
 	function loadToSelectedDeck(targetDeckIndex: number) {
-		const { trackId } = deckSelectDialog.value
-		loadTrack(trackId, targetDeckIndex, true)
+		const { trackId, sourceDeck } = deckSelectDialog.value
+		loadTrack(trackId, targetDeckIndex, true, sourceDeck)
 		deckSelectDialog.value = { open: false, trackId: '', sourceDeck: -1 }
 	}
 
@@ -418,6 +432,21 @@ export const useSessionStore = defineStore('session', () => {
 		)
 	}
 
+	function publishSavedSet(
+		savedSet: SavedSet,
+		context: AccountOperationContext
+	) {
+		const otherSets = savedSets.value.filter(
+			(existingSet) => existingSet.id !== savedSet.id
+		)
+		savedSets.value = sortCreatedAtDescIdDesc([...otherSets, savedSet])
+		savedSetSaveProvenance.set(savedSet.id, {
+			...context,
+			revision: nextSavedSetMutationRevision()
+		})
+		savedSetDeleteTombstones.delete(savedSet.id)
+	}
+
 	function captureSessionSnapshot(): PlayedTrackSnapshot {
 		return currentSession.value.map((entry) => ({ ...entry }))
 	}
@@ -467,6 +496,7 @@ export const useSessionStore = defineStore('session', () => {
 
 		const playedTracks = cloneSnapshotForWrite(request.playedTracks)
 		try {
+			let savedSet: SavedSet
 			const setId = activeSetId.value
 			if (setId) {
 				const { data, error } = await supabase
@@ -474,18 +504,17 @@ export const useSessionStore = defineStore('session', () => {
 					.update({ played_tracks: playedTracks })
 					.eq('id', setId)
 					.eq('user_id', request.context.userId)
-					.select('id, user_id')
+					.select()
 					.single()
 
 				if (!isCurrentSessionWrite(request)) return
 				if (error) throw error
-				if (
-					!data ||
-					data.id !== setId ||
-					data.user_id !== request.context.userId
-				) {
+				const decoded = decodeOwnedSavedSetResponse(data, request.context)
+				if (decoded.row.id !== setId) {
 					throw new Error('Saved set auto-save ownership validation failed')
 				}
+				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
+				savedSet = decoded.row
 			} else {
 				const { data, error } = await supabase
 					.from('sets')
@@ -494,22 +523,21 @@ export const useSessionStore = defineStore('session', () => {
 						name: null,
 						played_tracks: playedTracks
 					})
-					.select('id, user_id')
+					.select()
 					.single()
 
 				if (!isCurrentSessionWrite(request)) return
 				if (error) throw error
-				if (
-					!data ||
-					typeof data.id !== 'string' ||
-					!data.id ||
-					data.user_id !== request.context.userId
-				) {
+				const decoded = decodeOwnedSavedSetResponse(data, request.context)
+				if (typeof decoded.row.id !== 'string' || !decoded.row.id) {
 					throw new Error('Saved set auto-save ownership validation failed')
 				}
-				activeSetId.value = data.id
+				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
+				savedSet = decoded.row
+				activeSetId.value = savedSet.id
 			}
 
+			publishSavedSet(savedSet, request.context)
 			autoSaveError.value = null
 		} catch (e) {
 			if (!isCurrentSessionWrite(request)) return
@@ -548,15 +576,6 @@ export const useSessionStore = defineStore('session', () => {
 				const decoded = decodeOwnedSavedSetResponse(data, request.context)
 				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
 				savedSet = decoded.row
-
-				const existingIndex = savedSets.value.findIndex(
-					(saved) => saved.id === setId
-				)
-				if (existingIndex !== -1) {
-					savedSets.value[existingIndex] = savedSet
-				} else {
-					savedSets.value.unshift(savedSet)
-				}
 			} else {
 				const { data, error } = await supabase
 					.from('sets')
@@ -573,14 +592,9 @@ export const useSessionStore = defineStore('session', () => {
 				const decoded = decodeOwnedSavedSetResponse(data, request.context)
 				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
 				savedSet = decoded.row
-				savedSets.value.unshift(savedSet)
 				activeSetId.value = savedSet.id
 			}
-			savedSetSaveProvenance.set(savedSet.id, {
-				...request.context,
-				revision: nextSavedSetMutationRevision()
-			})
-			savedSetDeleteTombstones.delete(savedSet.id)
+			publishSavedSet(savedSet, request.context)
 
 			toast.success('Session saved')
 			showSaveDialog.value = false
