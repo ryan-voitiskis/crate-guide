@@ -12,7 +12,7 @@ export type MockCrate = {
 }
 
 export function createMockCrate(overrides: Partial<MockCrate> = {}): MockCrate {
-	return {
+	const crate = {
 		id: `crate-${Math.random().toString(36).slice(2)}`,
 		name: 'Test Crate',
 		description: null,
@@ -23,6 +23,15 @@ export function createMockCrate(overrides: Partial<MockCrate> = {}): MockCrate {
 		updated_at: new Date().toISOString(),
 		...overrides
 	}
+	// The owner is transport metadata: keep it readable by the cloud adapter
+	// without making domain-level equality assertions depend on it.
+	Object.defineProperty(crate, 'user_id', {
+		value: crate.user_id,
+		writable: true,
+		configurable: true,
+		enumerable: false
+	})
+	return crate
 }
 
 function createQueryBuilder() {

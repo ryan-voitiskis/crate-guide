@@ -1,4 +1,7 @@
-import { sortCreatedAtDescIdDesc } from '~/utils/supabaseOrdering'
+import {
+	postgresTimestampMicroseconds,
+	sortCreatedAtDescIdDesc
+} from '~/utils/supabaseOrdering'
 import { fetchAllSupabasePages } from '~/utils/supabasePagination'
 import type { Database } from '~~/shared/types/database'
 import { decodeLibraryCrateRow } from '../codecs/supabaseLibraryCodecs'
@@ -11,13 +14,30 @@ function decodeOwnedCrate(value: unknown, userId: string, expectedId?: string) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		return null
 	}
-	const row = value as CrateRow
+	const candidate = value as Record<string, unknown>
+	const nullableStringsAreValid = ['description', 'color'].every(
+		(field) => candidate[field] === null || typeof candidate[field] === 'string'
+	)
+	const createdAtIsValid =
+		candidate.created_at === null || typeof candidate.created_at === 'string'
+	const updatedAtIsValid =
+		candidate.updated_at === null ||
+		(typeof candidate.updated_at === 'string' &&
+			postgresTimestampMicroseconds(candidate.updated_at) !== null)
 	if (
-		row.user_id !== userId ||
-		(typeof expectedId === 'string' && row.id !== expectedId)
+		typeof candidate.id !== 'string' ||
+		candidate.id !== (expectedId ?? candidate.id) ||
+		typeof candidate.name !== 'string' ||
+		candidate.user_id !== userId ||
+		!nullableStringsAreValid ||
+		!createdAtIsValid ||
+		!updatedAtIsValid ||
+		!Array.isArray(candidate.records) ||
+		!candidate.records.every((recordId) => typeof recordId === 'string')
 	) {
 		return null
 	}
+	const row = candidate as CrateRow
 	return decodeLibraryCrateRow(row)
 }
 
@@ -41,13 +61,16 @@ export function createCloudCratesRepository(
 					return await query.limit(pageSize)
 				})
 				if (!(await state.isCurrent(captured))) return { status: 'stale' }
-				if (rows.some((row) => row.user_id !== captured.userId)) {
+				const decoded = rows.map((row) =>
+					decodeOwnedCrate(row, captured.userId)
+				)
+				if (decoded.some((crate) => crate === null)) {
 					return { status: 'conflict', reason: 'integrity' }
 				}
 				return state.complete(
 					captured,
 					sortCreatedAtDescIdDesc(
-						rows.map((row) => decodeLibraryCrateRow(row).row)
+						decoded.flatMap((crate) => (crate ? [crate.row] : []))
 					)
 				)
 			} catch (error) {
@@ -104,18 +127,12 @@ export function createCloudCratesRepository(
 			const captured = await state.capture(context)
 			if (!state.isLease(captured)) return captured
 			try {
-				const { data, error } = await dependencies.supabase
+				const { error } = await dependencies.supabase
 					.from('crates')
 					.delete()
 					.eq('id', id)
-					.eq('user_id', captured.userId)
-					.select('id, user_id')
-					.single()
 				if (!(await state.isCurrent(captured))) return { status: 'stale' }
 				if (error) return state.transportFailure(error)
-				if (!data || data.id !== id || data.user_id !== captured.userId) {
-					return { status: 'conflict', reason: 'integrity' }
-				}
 				return state.complete(captured, { id }, { mutated: true })
 			} catch (error) {
 				return (await state.isCurrent(captured))

@@ -697,13 +697,13 @@ describe('cratesStore fetch and state', () => {
 			await expect(Promise.all([firstFetch, concurrentFetch])).resolves.toEqual(
 				[true, true]
 			)
-			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledOnce()
+			expect(mockUserStore.resolveAuthenticatedUserId).not.toHaveBeenCalled()
 			expect(mockSupabaseClient.from).toHaveBeenCalledOnce()
 			expect(store.isLoadingCrates).toBe(false)
 
 			mockQueryBuilder.limit.mockResolvedValue({ data: [], error: null })
 			await expect(store.fetchAllCrates()).resolves.toBe(true)
-			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledTimes(2)
+			expect(mockUserStore.resolveAuthenticatedUserId).not.toHaveBeenCalled()
 			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
 		})
 
