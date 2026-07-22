@@ -277,6 +277,8 @@ npm run test:dependency-topology # Tests for the focused topology gate
 npm run check:dependency-topology # Validate reviewed Vue/crossws/H3 topology
 npm run test:security-headers # Unit-test the browser response policy
 npm run check:security-headers # Inspect the built Cloudflare Worker response
+npm run test:client-bundle-budget # Unit-test semantic asset classification
+npm run check:client-bundle-budget # Inspect the built browser asset budget
 npm run verify               # Comprehensive read-only verification gate
 npm run verify:full          # Application, build, and local database gate
 npm run build                # Production build (separate from verify)
@@ -303,6 +305,11 @@ Cloudflare Pages Worker, verifies its HTTPS and local-HTTP responses, and checks
 the generated static-asset routing boundary. See
 [`docs/browser-security.md`](docs/browser-security.md) for the policy and the
 read-only post-deploy check.
+
+The production bundle gate follows Nuxt's semantic entry graph and reports
+Worker, WASM, CSS, and named lazy modules separately from initial JavaScript.
+See [`docs/client-bundle-budget.md`](docs/client-bundle-budget.md) for the
+measured baseline and exact 3% non-regression allowance.
 
 `npm run audit:prod` checks the installed production dependency graph and fails
 on high or critical advisories. The exact `esbuild` development dependency is

@@ -1,0 +1,31 @@
+{
+	"version": 1,
+	"baseline": {
+		"measuredOn": "2026-07-22",
+		"allowancePercent": 3,
+		"initialJavaScript": {
+			"rawBytes": 971103,
+			"gzipBytes": 298559
+		},
+		"largestOrdinaryChunk": {
+			"rawBytes": 115842,
+			"gzipBytes": 35146
+		}
+	},
+	"budgets": {
+		"initialJavaScript": {
+			"rawBytes": 1000237,
+			"gzipBytes": 307516
+		},
+		"largestOrdinaryChunk": {
+			"rawBytes": 119318,
+			"gzipBytes": 36201
+		}
+	},
+	"expectedLazyModules": [
+		"pages/enrichment.vue",
+		"../node_modules/music-metadata/lib/mpeg/MpegParser.js"
+	],
+	"workerAssetPatterns": ["localAudioAnalysis.worker-"],
+	"wasmAssetPatterns": ["essentia-wasm.es-"]
+}
