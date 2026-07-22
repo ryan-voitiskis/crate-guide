@@ -227,7 +227,7 @@ describe('recordsStore account lifecycle and queries', () => {
 			expect(store.isSearching).toBe(false)
 		})
 
-		it('derives an active result set after create, update, and delete', async () => {
+		it('derives an active result set after update and delete', async () => {
 			const created = createMockRecord({
 				id: 'record-1',
 				title: 'Deep House'
@@ -241,23 +241,12 @@ describe('recordsStore account lifecycle and queries', () => {
 				title: 'House Again'
 			})
 			mockQueryBuilder.single
-				.mockResolvedValueOnce({ data: created, error: null })
 				.mockResolvedValueOnce({ data: noLongerMatching, error: null })
 				.mockResolvedValueOnce({ data: matchingAgain, error: null })
 			const store = createRecordsStore()
+			store.records = [created]
 			await store.performSearch('house')
 
-			await store.createRecord({
-				user_id: 'test-user-id',
-				title: 'Deep House',
-				artists: [],
-				labels: [],
-				year: null,
-				cover: null,
-				cover_storage_path: null,
-				discogs_id: null,
-				discogs_release_url: null
-			})
 			expect(store.searchResults.map(({ id }) => id)).toEqual(['record-1'])
 
 			await store.updateRecord('record-1', { title: 'Ambient' })
@@ -318,22 +307,11 @@ describe('recordsStore account lifecycle and queries', () => {
 			const store = createRecordsStore()
 			store.records = [createMockRecord({ id: 'record-1' })]
 			const operations = [
-				store.createRecord({
-					user_id: 'test-user-id',
-					title: 'New Record',
-					artists: [],
-					labels: [],
-					year: null,
-					cover: null,
-					cover_storage_path: null,
-					discogs_id: null,
-					discogs_release_url: null
-				}),
 				store.updateRecord('record-1', { title: 'Updated' }),
 				store.updateRecordWithCover('record-1', {}, { type: 'remove' }),
 				store.removeRecordFromCollection('record-1')
 			]
-			expect(store.isCreatingRecord).toBe(true)
+			expect(store.isCreatingRecord).toBe(false)
 			expect(store.isUpdatingRecord).toBe(true)
 			expect(store.isUpdatingCover).toBe(true)
 			expect(store.isDeletingRecord).toBe(true)

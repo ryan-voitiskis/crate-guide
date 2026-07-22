@@ -85,7 +85,6 @@ export const useCratesStore = defineStore('crates', () => {
 	// Filter only that record while allowing unrelated crate changes to publish.
 	const removedRecordMembershipTombstones = new Set<string>()
 
-	// Dialog state (store-based pattern)
 	const crateToDelete = ref<Crate | null>(null)
 
 	const cratesCount = computed(() => crates.value.length)
@@ -866,7 +865,6 @@ export const useCratesStore = defineStore('crates', () => {
 		}))
 	}
 
-	// Clear crates when user signs out
 	function clearCrates() {
 		accountGeneration += 1
 		fetchPromise = null

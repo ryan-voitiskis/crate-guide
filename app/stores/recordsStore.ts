@@ -482,46 +482,6 @@ export const useRecordsStore = defineStore('records', () => {
 		return createdPromise
 	}
 
-	async function createRecord(
-		recordData: Omit<DatabaseRecord, 'id' | 'created_at' | 'updated_at'>
-	): Promise<DatabaseRecord | null> {
-		const activity = beginMutationActivity('create')
-		let context: RecordAccountContext | null = null
-		try {
-			context = await resolveMutationContext(activity.generation)
-			if (!context) return null
-
-			const { data, error } = await supabase
-				.from('records')
-				.insert({
-					...recordData,
-					user_id: context.userId
-				})
-				.select()
-				.single()
-
-			if (!isCurrentAccountContext(context)) return null
-			if (error) throw error
-
-			const decoded = decodeRecordRow(data)
-			reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
-			recordCommittedMutation(decoded.row.id, context, {
-				kind: 'create',
-				row: decoded.row
-			})
-			upsertRecord(decoded.row)
-			toast.success('Record created successfully.')
-			return decoded.row
-		} catch (error) {
-			if (!context || !isCurrentAccountContext(context)) return null
-			console.error('Failed to create record:', error)
-			toast.error('Error creating record.')
-			return null
-		} finally {
-			finishMutationActivity(activity)
-		}
-	}
-
 	async function createRecordWithTracks(
 		recordInput: ManualRecordWithTracksInput
 	): Promise<DatabaseRecord | null> {
@@ -947,7 +907,6 @@ export const useRecordsStore = defineStore('records', () => {
 		captureAccountContext,
 		isCurrentAccountContext,
 		fetchAllRecords,
-		createRecord,
 		createRecordWithTracks,
 		updateRecord,
 		updateRecordWithCover,
