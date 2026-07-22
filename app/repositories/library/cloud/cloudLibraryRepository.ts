@@ -8,9 +8,12 @@ import {
 	decodeLibrarySavedSetRow,
 	decodeLibraryTrackRow
 } from '../codecs/supabaseLibraryCodecs'
-import type { LibraryRepositoryBundle } from '../contracts'
 import { createCloudCoverResolver } from './cloudCoverResolver'
 import { createCloudCratesRepository } from './cloudCratesRepository'
+import {
+	type CloudLibraryRepository,
+	createCloudInternalCoherentSnapshotCapability
+} from './cloudInternalCoherentSnapshot'
 import { createCloudPreferencesRepository } from './cloudPreferencesRepository'
 import { createCloudRecordsRepository } from './cloudRecordsRepository'
 import {
@@ -22,8 +25,9 @@ import { createCloudTracksRepository } from './cloudTracksRepository'
 
 export function createCloudLibraryRepository(
 	dependencies: CloudLibraryRepositoryDependencies
-): LibraryRepositoryBundle {
+): CloudLibraryRepository {
 	const state = createCloudRepositoryState(dependencies)
+	const coherentSnapshot = createCloudInternalCoherentSnapshotCapability(state)
 	const records = createCloudRecordsRepository(state)
 	const tracks = createCloudTracksRepository(state)
 	const crates = createCloudCratesRepository(state)
@@ -40,6 +44,7 @@ export function createCloudLibraryRepository(
 
 	return {
 		id: dependencies.repositoryId,
+		readInternalCoherentSnapshot: coherentSnapshot.readInternalCoherentSnapshot,
 		async readObservedLibraryView(context) {
 			const captured = await state.capture(context)
 			if (!state.isLease(captured)) return captured
