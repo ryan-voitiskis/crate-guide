@@ -93,22 +93,33 @@ A DJ-focused vinyl record collection manager with real-time session mixing, harm
 git clone <repository-url>
 cd crate-guide
 npm install
-cp .env.example .env
 
 # One-time browser download for Nuxt Test Utils E2E tests
 npx playwright-core install chromium
+
+# Start the reserved local Supabase stack, then write its public URL/key to .env
+npm run supa:stack:start
+npm run setup:local
+
+# Create the untracked Edge env file; add your own Discogs app values if needed
+cp supabase/functions/.env.example supabase/functions/.env
 ```
 
-Root `.env` — Supabase connection:
+Root `.env` — public browser connection values:
 
 ```
 SUPABASE_URL=http://127.0.0.1:42821
-SUPABASE_ANON_KEY=
+SUPABASE_ANON_KEY=<public local anon key from npm run setup:local>
 SITE_URL=http://localhost:3000
 ```
 
 `SITE_URL` must be one absolute HTTP(S) origin with no path, query, fragment,
 or credentials. A root trailing slash is accepted and normalized.
+
+Do not copy `SERVICE_ROLE_KEY`, database passwords, or other secret values from
+`supabase status` into the root `.env`; browser code needs only `API_URL` and
+the public anonymous key. `npm run setup:local` refuses to overwrite an existing
+`.env` unless `-- --force` is explicitly supplied.
 
 `supabase/functions/.env` — Discogs OAuth (for Edge Functions):
 
@@ -156,6 +167,19 @@ ports. The main local endpoints are:
 | Analytics       | `127.0.0.1:42827`                      |
 | Edge inspector  | `127.0.0.1:42828`                      |
 | Pooler          | `127.0.0.1:42829` (currently disabled) |
+
+`npm run dev:all` supervises the Edge worker and Nuxt. Its health check requires
+the exact OPTIONS/CORS contract from `authenticated-discogs-request`, so a
+gateway-level 404 is not treated as a running function.
+
+### Staging secrets
+
+`npm run secrets:staging` is deliberately disabled until a maintainer supplies
+`deployment/staging-project.json` with an authoritative `supabaseProjectRef`.
+The wrapper never trusts an arbitrary environment project ref, validates the
+untracked function env file, and uses the locked local Supabase CLI. Use
+`npm run secrets:staging -- --dry-run` to inspect arguments after that deployment
+record exists; neither this repository nor tests perform a remote upload.
 
 ```bash
 # Full supervised environment (Nuxt + Supabase + Edge Functions)

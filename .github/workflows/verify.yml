@@ -51,6 +51,9 @@ jobs:
 
       - name: Build application
         run: npm run build
+        env:
+          SUPABASE_URL: https://config.test.invalid
+          SUPABASE_ANON_KEY: test-public-anon-key
 
   database:
     runs-on: ubuntu-latest

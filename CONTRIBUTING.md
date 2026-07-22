@@ -21,10 +21,17 @@ commands in the [README](README.md). In brief:
 
 ```bash
 npm install
-cp .env.example .env
 npx playwright-core install chromium
+npm run supa:stack:start
+npm run setup:local
+cp supabase/functions/.env.example supabase/functions/.env
 npm run dev:all
 ```
+
+The setup command reads only the local stack's public API URL and anonymous key
+and refuses to overwrite `.env` without `-- --force`. The separate untracked
+function env file holds Discogs server settings. Never place a service-role key,
+database password, OAuth secret, or hosted credential in the browser `.env`.
 
 Use synthetic or personally controlled development data. Never commit `.env`
 files, credentials, OAuth tokens, production exports, personal data, or private

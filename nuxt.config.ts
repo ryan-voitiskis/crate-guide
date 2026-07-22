@@ -2,6 +2,9 @@
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath } from 'node:url'
 import { buildAnonymousThemeBootstrapScript } from './app/utils/themeBootstrap'
+import { validatePublicRuntimeConfig } from './scripts/runtime-config.mjs'
+
+const publicRuntimeConfig = validatePublicRuntimeConfig()
 
 export default defineNuxtConfig({
 	alias: {
@@ -73,8 +76,8 @@ export default defineNuxtConfig({
 		}
 	},
 	supabase: {
-		url: process.env.SUPABASE_URL,
-		key: process.env.SUPABASE_ANON_KEY,
+		url: publicRuntimeConfig.url,
+		key: publicRuntimeConfig.key,
 		redirect: false,
 		types: '~~/shared/types/database.ts'
 	}

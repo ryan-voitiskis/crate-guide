@@ -7,9 +7,26 @@ import { fileURLToPath } from 'node:url'
 
 export const LOCAL_FUNCTION_HEALTH_URL =
 	'http://127.0.0.1:42821/functions/v1/authenticated-discogs-request'
+const EXPECTED_ALLOW_HEADERS =
+	'authorization, x-client-info, apikey, content-type'
+const EXPECTED_EXPOSE_HEADERS = 'Retry-After, X-Request-ID'
 
-export function isHealthyFunctionStatus(status) {
-	return Number.isInteger(status) && status >= 200 && status < 500
+export function isHealthyFunctionResponse(response) {
+	if (response?.status !== 200 || typeof response.headers?.get !== 'function') {
+		return false
+	}
+	const origin = response.headers.get('Access-Control-Allow-Origin')
+	try {
+		if (!origin || new URL(origin).origin !== origin) return false
+	} catch {
+		return false
+	}
+	return (
+		response.headers.get('Access-Control-Allow-Headers') ===
+			EXPECTED_ALLOW_HEADERS &&
+		response.headers.get('Access-Control-Expose-Headers') ===
+			EXPECTED_EXPOSE_HEADERS
+	)
 }
 
 export async function waitForFunctionRuntime({
@@ -26,7 +43,7 @@ export async function waitForFunctionRuntime({
 				signal: AbortSignal.timeout(1500)
 			})
 			lastStatus = response.status
-			if (isHealthyFunctionStatus(response.status)) return response.status
+			if (isHealthyFunctionResponse(response)) return response.status
 		} catch {
 			lastStatus = null
 		}
@@ -55,7 +72,7 @@ export async function monitorFunctionRuntime({
 				signal: AbortSignal.timeout(1500)
 			})
 			lastStatus = response.status
-			consecutiveFailures = isHealthyFunctionStatus(response.status)
+			consecutiveFailures = isHealthyFunctionResponse(response)
 				? 0
 				: consecutiveFailures + 1
 		} catch {
@@ -105,30 +122,54 @@ function runSupabaseStart() {
 	console.log('✓ Supabase local stack started')
 }
 
-function spawnService(name, command, args) {
+export function spawnService(name, command, args) {
 	const child = spawn(command, args, {
 		env: process.env,
 		stdio: 'inherit'
 	})
-	child.on('error', (error) => {
-		console.error(name + ' failed to start:', error.message)
-	})
 	return { child, name }
 }
 
-function waitForExit(service) {
+export function waitForServiceSettlement(service) {
 	if (service.child.exitCode !== null || service.child.signalCode !== null) {
 		return Promise.resolve({
 			code: service.child.exitCode,
+			event: 'exit',
 			name: service.name,
 			signal: service.child.signalCode
 		})
 	}
-	return new Promise((resolveExit) => {
-		service.child.once('exit', (code, signal) => {
-			resolveExit({ code, name: service.name, signal })
-		})
+	return new Promise((resolveSettlement) => {
+		let settled = false
+		const settle = (result) => {
+			if (settled) return
+			settled = true
+			resolveSettlement({ name: service.name, ...result })
+		}
+		service.child.once('error', (error) =>
+			settle({ code: null, error, event: 'error', signal: null })
+		)
+		service.child.once('exit', (code, signal) =>
+			settle({ code, event: 'exit', signal })
+		)
+		service.child.once('close', (code, signal) =>
+			settle({ code, event: 'close', signal })
+		)
 	})
+}
+
+export function createServiceStopper(services) {
+	let stopping = false
+	return (signal = 'SIGTERM') => {
+		if (stopping) return false
+		stopping = true
+		for (const { child } of services) {
+			if (child.exitCode === null && child.signalCode === null) {
+				child.kill(signal)
+			}
+		}
+		return true
+	}
 }
 
 async function supervise({ withNuxt }) {
@@ -142,27 +183,22 @@ async function supervise({ withNuxt }) {
 		])
 	]
 	let shuttingDown = false
-
+	const stopServices = createServiceStopper(services)
 	const stopChildren = (signal = 'SIGTERM') => {
-		if (shuttingDown) return
-		shuttingDown = true
-		for (const { child } of services) {
-			if (child.exitCode === null && child.signalCode === null)
-				child.kill(signal)
-		}
+		if (stopServices(signal)) shuttingDown = true
 	}
 
 	process.once('SIGINT', () => stopChildren('SIGINT'))
 	process.once('SIGTERM', () => stopChildren('SIGTERM'))
 
-	const functionsExit = waitForExit(services[0])
+	const functionsExit = waitForServiceSettlement(services[0])
 	try {
 		await Promise.race([
 			waitForFunctionRuntime(),
-			functionsExit.then(({ code, signal }) => {
+			functionsExit.then(({ code, error, signal }) => {
 				throw new Error(
-					'Edge Functions exited before becoming healthy (' +
-						(signal ?? code ?? 'unknown') +
+					'Edge Functions failed before becoming healthy (' +
+						(error?.message ?? signal ?? code ?? 'unknown') +
 						').'
 				)
 			})
@@ -183,7 +219,7 @@ async function supervise({ withNuxt }) {
 			(error) => ({ code: 1, error, name: 'Edge Functions health monitor' })
 		)
 		const exit = await Promise.race([
-			...services.map(waitForExit),
+			...services.map(waitForServiceSettlement),
 			healthMonitorExit
 		])
 		if (!shuttingDown) {
