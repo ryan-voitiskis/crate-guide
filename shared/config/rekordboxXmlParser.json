@@ -1,0 +1,33 @@
+{
+	"parserPolicyVersion": "rekordbox-xml-stream-v1",
+	"sanitizedSnapshotVersion": "rekordbox-xml-sanitized-v1",
+	"fixtureGeneratorVersion": "rekordbox-xml-scale-v1",
+	"limits": {
+		"chunkBytes": 262144,
+		"maxFileBytes": 134217728,
+		"maxTracks": 100000,
+		"maxXmlDepth": 32,
+		"maxMarkupBytes": 262144,
+		"maxAttributesPerElement": 64,
+		"maxAttributeBytes": 16384,
+		"maxElementNameBytes": 128,
+		"maxEntityLength": 32,
+		"maxWarnings": 4096,
+		"maxWarningBytes": 512,
+		"maxLocationHintBytes": 4096,
+		"maxPathSegments": 64
+	},
+	"performanceBudgets": {
+		"firstProgressMs": 1000,
+		"maxProgressSilenceMs": 1000,
+		"cancellationMs": 250,
+		"maxMainThreadLongTaskMs": 50,
+		"maxMainThreadHeapGrowthBytes": 268435456,
+		"totalMs": {
+			"1000": 1000,
+			"10000": 3000,
+			"100000": 15000
+		}
+	},
+	"synchronousBaseline": null
+}
