@@ -125,11 +125,15 @@ describe('browser library IndexedDB foundation', () => {
 		).rejects.toMatchObject({ code: 'corrupt' })
 	})
 
-	it('probes with a committed put-and-delete transaction and leaves no marker', async () => {
+	it('commits scalar and Blob values, reopens to verify them, then cleans up', async () => {
 		const name = databaseName('probe')
 		const steps: string[] = []
+		const open = vi.fn((databaseName: string, version?: number) =>
+			indexedDB.open(databaseName, version)
+		)
 		const health = await probeBrowserLibraryStorage({
 			databaseName: name,
+			indexedDB: { open } as unknown as IDBFactory,
 			now: () => new Date('2026-07-23T01:00:00.000Z'),
 			randomUUID: () => 'probe-a',
 			onTransactionStep: (step) =>
@@ -141,7 +145,8 @@ describe('browser library IndexedDB foundation', () => {
 			message: 'Local library storage is available.',
 			checkedAt: '2026-07-23T01:00:00.000Z'
 		})
-		expect(steps).toEqual(['1:put', '2:delete'])
+		expect(steps).toEqual(['1:put', '2:put', '3:delete', '4:delete'])
+		expect(open).toHaveBeenCalledTimes(3)
 
 		const database = await openBrowserLibraryDatabase({ databaseName: name })
 		try {

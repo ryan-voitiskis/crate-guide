@@ -387,50 +387,136 @@ export async function probeBrowserLibraryStorage(
 	}
 
 	let database: IDBDatabase | null = null
+	let ordinal = 0
+	const randomUUID =
+		dependencies.randomUUID ?? (() => globalThis.crypto.randomUUID())
+	let probeId: string
 	try {
-		database = await openBrowserLibraryDatabase(dependencies)
+		probeId = randomUUID()
+	} catch (error) {
+		return storageHealthFromError(error, checkedAt)
+	}
+	const scalarKey = `health-probe:${probeId}:scalar`
+	const blobKey = `health-probe:${probeId}:blob`
+	const scalarValue = 'crate-guide-library-probe-v1'
+	let blobValue: Blob
+	try {
+		blobValue = new Blob([scalarValue], {
+			type: 'application/octet-stream'
+		})
+	} catch (error) {
+		return storageHealthFromError(error, checkedAt)
+	}
+
+	function step(operation: 'delete' | 'put') {
+		ordinal += 1
+		dependencies.onTransactionStep?.({
+			command: 'probe',
+			store: BROWSER_LIBRARY_STORES.registry,
+			operation,
+			ordinal
+		})
+	}
+
+	async function runProbeWrite(
+		callback: (store: IDBObjectStore) => void
+	): Promise<void> {
+		if (!database) throw new Error('The storage probe database is not open.')
 		const transaction = database.transaction(
 			BROWSER_LIBRARY_STORES.registry,
 			'readwrite'
 		)
 		const completion = transactionComplete(transaction)
-		const store = transaction.objectStore(BROWSER_LIBRARY_STORES.registry)
-		const randomUUID =
-			dependencies.randomUUID ?? (() => globalThis.crypto.randomUUID())
-		const probeKey = `health-probe:${randomUUID()}`
-
 		try {
-			dependencies.onTransactionStep?.({
-				command: 'probe',
-				store: BROWSER_LIBRARY_STORES.registry,
-				operation: 'put',
-				ordinal: 1
-			})
-			store.put({ key: probeKey, checkedAt })
-			dependencies.onTransactionStep?.({
-				command: 'probe',
-				store: BROWSER_LIBRARY_STORES.registry,
-				operation: 'delete',
-				ordinal: 2
-			})
-			store.delete(probeKey)
+			callback(transaction.objectStore(BROWSER_LIBRARY_STORES.registry))
 			await completion
 		} catch (error) {
 			try {
 				transaction.abort()
 			} catch {
-				// The transaction may already have aborted because a request failed.
+				// A failed request may already have aborted the transaction.
 			}
 			await completion.catch(() => undefined)
 			throw error
 		}
+	}
 
+	async function cleanup() {
+		await runProbeWrite((store) => {
+			step('delete')
+			store.delete(scalarKey)
+			step('delete')
+			store.delete(blobKey)
+		})
+	}
+
+	try {
+		database = await openBrowserLibraryDatabase(dependencies)
+		await runProbeWrite((store) => {
+			step('put')
+			store.put({ key: scalarKey, kind: 'scalar', value: scalarValue })
+			step('put')
+			store.put({ key: blobKey, kind: 'blob', value: blobValue })
+		})
+		database.close()
+		database = null
+
+		database = await openBrowserLibraryDatabase(dependencies)
+		const readTransaction = database.transaction(
+			BROWSER_LIBRARY_STORES.registry,
+			'readonly'
+		)
+		const readCompletion = transactionComplete(readTransaction)
+		const store = readTransaction.objectStore(BROWSER_LIBRARY_STORES.registry)
+		const [storedScalar, storedBlob] = await Promise.all([
+			requestResult(store.get(scalarKey)),
+			requestResult(store.get(blobKey)),
+			readCompletion
+		])
+		if (
+			!storedScalar ||
+			typeof storedScalar !== 'object' ||
+			(storedScalar as { key?: unknown }).key !== scalarKey ||
+			(storedScalar as { kind?: unknown }).kind !== 'scalar' ||
+			(storedScalar as { value?: unknown }).value !== scalarValue
+		) {
+			throw new BrowserStorageCodecError('/probe/scalar')
+		}
+		const storedBlobValue =
+			storedBlob && typeof storedBlob === 'object'
+				? (storedBlob as { value?: unknown }).value
+				: null
+		if (
+			!storedBlob ||
+			typeof storedBlob !== 'object' ||
+			(storedBlob as { key?: unknown }).key !== blobKey ||
+			(storedBlob as { kind?: unknown }).kind !== 'blob' ||
+			!(storedBlobValue instanceof Blob) ||
+			storedBlobValue.type !== blobValue.type ||
+			storedBlobValue.size !== blobValue.size ||
+			(await storedBlobValue.text()) !== scalarValue
+		) {
+			throw new BrowserStorageCodecError('/probe/blob')
+		}
+		database.close()
+		database = null
+
+		database = await openBrowserLibraryDatabase(dependencies)
+		await cleanup()
 		return {
 			code: 'healthy',
 			message: 'Local library storage is available.',
 			checkedAt
 		}
 	} catch (error) {
+		database?.close()
+		database = null
+		try {
+			database = await openBrowserLibraryDatabase(dependencies)
+			await cleanup()
+		} catch {
+			// Preserve the original probe failure; cleanup is best effort on failure.
+		}
 		return storageHealthFromError(error, checkedAt)
 	} finally {
 		database?.close()

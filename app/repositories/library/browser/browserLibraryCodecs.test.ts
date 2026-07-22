@@ -336,6 +336,9 @@ describe('browser library metadata codecs', () => {
 		}
 
 		expect(decodeBrowserRepositoryChange(message)).toEqual(message)
+		expect(
+			decodeBrowserRepositoryChange({ ...message, workspaceId: null })
+		).toEqual({ ...message, workspaceId: null })
 		expectCodecPath(
 			() =>
 				decodeBrowserRepositoryChange({

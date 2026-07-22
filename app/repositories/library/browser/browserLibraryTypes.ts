@@ -15,6 +15,7 @@ export const BROWSER_LIBRARY_SCHEMA_VERSION = 1
 export const BROWSER_LIBRARY_BROADCAST_PROTOCOL_VERSION = 1
 export const BROWSER_LIBRARY_REGISTRY_KEY = 'repository'
 export const BROWSER_LIBRARY_ACTIVE_WORKSPACE_KEY = 'active-workspace'
+export const BROWSER_LIBRARY_BROADCAST_CHANNEL_SUFFIX = 'changes-v1'
 
 export type BrowserStorageHealthCode =
 	| 'healthy'
@@ -71,6 +72,39 @@ export type BrowserActiveWorkspaceState =
 			catalogRevision: number | null
 			reason: 'invalid-marker' | 'missing-workspace'
 	  }
+
+export type BrowserWorkspaceCatalogSnapshot = Readonly<{
+	catalogRevision: number
+	workspaces: readonly BrowserWorkspaceManifest[]
+}>
+
+export type BrowserCatalogMutationResult<T> = Readonly<{
+	value: T
+	catalogRevision: number
+}>
+
+export type BrowserWorkspaceReadResult<T> = Readonly<{
+	value: T
+	repositoryRevision: number
+}>
+
+export type BrowserWorkspaceMutationResult<T> = BrowserWorkspaceReadResult<T>
+
+export type BrowserWorkspaceCatalogMutationResult<T> = Readonly<{
+	value: T
+	catalogRevision: number
+	repositoryRevision: number
+}>
+
+export type BrowserWorkspaceCatalogCas = Readonly<{
+	catalogRevision: number
+	repositoryRevision: number
+}>
+
+export type BrowserDraftCas = Readonly<{
+	repositoryRevision: number
+	draftRevision: number | null
+}>
 
 export type BrowserCopyReceiptPhase =
 	| 'preparing'
@@ -140,7 +174,7 @@ export type BrowserRepositoryChange = Readonly<{
 	eventId: string
 	senderId: string
 	type: 'commit' | 'delete' | 'reset'
-	workspaceId: string
+	workspaceId: string | null
 	catalogRevision: number | null
 	repositoryRevision: number | null
 	contentRevision: number | null
@@ -231,11 +265,12 @@ export interface BrowserLibraryRepository extends LibraryRepositoryBundle {
 
 export interface BrowserWorkspaceCatalog {
 	probe(): Promise<BrowserStorageHealth>
-	listWorkspaces(): Promise<BrowserWorkspaceManifest[]>
+	listWorkspaces(): Promise<BrowserWorkspaceCatalogSnapshot>
 	readActiveWorkspace(): Promise<BrowserActiveWorkspaceState>
 	createWorkspace(
-		input: CreateBrowserWorkspaceInput
-	): Promise<BrowserWorkspaceManifest>
+		input: CreateBrowserWorkspaceInput,
+		expectedCatalogRevision: number
+	): Promise<BrowserCatalogMutationResult<BrowserWorkspaceManifest>>
 	activateWorkspace(
 		workspaceId: string | null,
 		expectedCatalogRevision: number
@@ -243,39 +278,48 @@ export interface BrowserWorkspaceCatalog {
 	renameWorkspace(
 		workspaceId: string,
 		name: string,
-		expectedRepositoryRevision: number
-	): Promise<BrowserWorkspaceManifest>
+		expected: BrowserWorkspaceCatalogCas
+	): Promise<BrowserWorkspaceCatalogMutationResult<BrowserWorkspaceManifest>>
 	deleteWorkspace(
 		workspaceId: string,
-		expectedRepositoryRevision: number
-	): Promise<void>
-	openWorkspace(workspaceId: string): Promise<BrowserLibraryRepository>
+		expected: BrowserWorkspaceCatalogCas
+	): Promise<BrowserCatalogMutationResult<void>>
 	readOperations(
 		workspaceId: string
-	): Promise<BrowserWorkspaceOperations | null>
-	listDrafts(workspaceId: string): Promise<BrowserWorkflowDraft[]>
+	): Promise<BrowserWorkspaceReadResult<BrowserWorkspaceOperations>>
+	listDrafts(
+		workspaceId: string
+	): Promise<BrowserWorkspaceReadResult<readonly BrowserWorkflowDraft[]>>
 	readDraft(
 		workspaceId: string,
 		draftId: string
-	): Promise<BrowserWorkflowDraft | null>
+	): Promise<BrowserWorkspaceReadResult<BrowserWorkflowDraft | null>>
 	recordExport(
 		workspaceId: string,
 		contentRevision: number,
+		expectedRepositoryRevision: number,
 		exportedAt?: string
-	): Promise<BrowserWorkspaceOperations>
+	): Promise<BrowserWorkspaceMutationResult<BrowserWorkspaceOperations>>
 	writeDraft(
 		workspaceId: string,
 		draft: BrowserWorkflowDraft,
-		expectedDraftRevision: number | null
-	): Promise<BrowserWorkflowDraft>
+		expected: BrowserDraftCas
+	): Promise<BrowserWorkspaceMutationResult<BrowserWorkflowDraft>>
 	deleteDraft(
 		workspaceId: string,
 		draftId: string,
-		expectedDraftRevision: number
-	): Promise<void>
+		expected: Omit<BrowserDraftCas, 'draftRevision'> & { draftRevision: number }
+	): Promise<BrowserWorkspaceMutationResult<void>>
 	writeCopyReceipt(
 		workspaceId: string,
-		receipt: BrowserCopyReceipt | null
-	): Promise<BrowserWorkspaceOperations>
+		receipt: BrowserCopyReceipt | null,
+		expectedRepositoryRevision: number
+	): Promise<BrowserWorkspaceMutationResult<BrowserWorkspaceOperations>>
+	writeStorageHealth(
+		workspaceId: string,
+		health: BrowserStorageHealth,
+		expectedRepositoryRevision: number
+	): Promise<BrowserWorkspaceMutationResult<BrowserWorkspaceOperations>>
+	subscribe(listener: (change: BrowserRepositoryChange) => void): () => void
 	close(): void
 }

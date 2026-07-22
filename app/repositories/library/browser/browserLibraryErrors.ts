@@ -30,6 +30,37 @@ export class BrowserStorageCodecError extends BrowserStorageError {
 	}
 }
 
+export type BrowserRepositoryConflictScope =
+	| 'catalog-revision'
+	| 'repository-revision'
+	| 'draft-revision'
+	| 'workspace-exists'
+	| 'draft-kind'
+	| 'export-revision'
+
+export class BrowserRepositoryConflictError extends Error {
+	readonly code = 'conflict'
+
+	constructor(
+		public readonly scope: BrowserRepositoryConflictScope,
+		public readonly expected: number | null,
+		public readonly actual: number | null,
+		message = 'The Local library changed before this operation could commit.'
+	) {
+		super(message)
+		this.name = 'BrowserRepositoryConflictError'
+	}
+}
+
+export class BrowserRepositoryNotFoundError extends Error {
+	readonly code = 'not-found'
+
+	constructor(public readonly entity: 'workspace' | 'draft') {
+		super(`The requested Local library ${entity} no longer exists.`)
+		this.name = 'BrowserRepositoryNotFoundError'
+	}
+}
+
 function errorName(error: unknown): string | null {
 	return error && typeof error === 'object' && 'name' in error
 		? String(error.name)
@@ -80,6 +111,16 @@ export function classifyBrowserStorageError(
 		default:
 			return new BrowserStorageError('unknown', fallbackMessage, options)
 	}
+}
+
+export function normalizeBrowserRepositoryError(error: unknown): Error {
+	if (
+		error instanceof BrowserRepositoryConflictError ||
+		error instanceof BrowserRepositoryNotFoundError
+	) {
+		return error
+	}
+	return classifyBrowserStorageError(error)
 }
 
 export function storageHealthFromError(

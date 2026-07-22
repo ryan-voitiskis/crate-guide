@@ -1145,6 +1145,12 @@ export function decodeBrowserWorkspaceOperations(
 			`${path}/lastExportedContentRevision`
 		)
 	nullableTimestamp(object.lastExportedAt, `${path}/lastExportedAt`)
+	if (
+		(object.lastExportedContentRevision === null) !==
+		(object.lastExportedAt === null)
+	) {
+		fail(`${path}/lastExportedAt`)
+	}
 	decodeBrowserStorageHealth(object.storageHealth, `${path}/storageHealth`)
 	if (object.copyReceipt !== null)
 		decodeBrowserCopyReceipt(object.copyReceipt, `${path}/copyReceipt`)
@@ -1320,7 +1326,8 @@ export function decodeBrowserRepositoryChange(
 	identifier(object.senderId, `${path}/senderId`)
 	if (!['commit', 'delete', 'reset'].includes(String(object.type)))
 		fail(`${path}/type`)
-	identifier(object.workspaceId, `${path}/workspaceId`)
+	if (object.workspaceId !== null)
+		identifier(object.workspaceId, `${path}/workspaceId`)
 	for (const field of [
 		'catalogRevision',
 		'repositoryRevision',
