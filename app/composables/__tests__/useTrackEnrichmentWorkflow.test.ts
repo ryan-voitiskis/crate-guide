@@ -2,7 +2,15 @@ import { type EffectScope, effectScope, nextTick } from 'vue'
 import { toast } from 'vue-sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LocalAudioReviewSelection } from '~/types/localAudio'
+import type {
+	RekordboxXmlSanitizedSnapshot,
+	RekordboxXmlSanitizedTrack
+} from '~/types/rekordboxXmlWorker'
 import type { RekordboxXmlTrack } from '~/utils/rekordboxXml'
+import {
+	RekordboxXmlWorkerCancelledError,
+	RekordboxXmlWorkerParseError
+} from '~/utils/rekordboxXmlWorkerClient'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
 import type { DatabaseRecord, Track } from '~~/shared/types/supabase'
 import type {
@@ -14,7 +22,7 @@ import type {
 const workflowMocks = vi.hoisted(() => ({
 	buildRows: vi.fn(),
 	buildUpdate: vi.fn(),
-	parseXml: vi.fn()
+	startWorkerParse: vi.fn()
 }))
 
 vi.mock('vue-sonner', () => ({
@@ -25,9 +33,11 @@ vi.mock('vue-sonner', () => ({
 	}
 }))
 
-vi.mock('~/utils/rekordboxXml', async (importOriginal) => ({
-	...(await importOriginal<typeof import('~/utils/rekordboxXml')>()),
-	parseRekordboxXml: workflowMocks.parseXml
+vi.mock('~/utils/rekordboxXmlWorkerClient', async (importOriginal) => ({
+	...(await importOriginal<
+		typeof import('~/utils/rekordboxXmlWorkerClient')
+	>()),
+	startRekordboxXmlWorkerParse: workflowMocks.startWorkerParse
 }))
 
 vi.mock('~/utils/trackEnrichment', async (importOriginal) => ({
@@ -176,8 +186,42 @@ function createRow(
 function createFile(name = 'collection.xml') {
 	return {
 		name,
-		text: vi.fn().mockResolvedValue('<DJ_PLAYLISTS />')
+		size: 1_024
 	} as unknown as File
+}
+
+function createSnapshot(
+	overrides: Partial<RekordboxXmlSanitizedSnapshot> = {}
+): RekordboxXmlSanitizedSnapshot {
+	return {
+		parserPolicyVersion: 'rekordbox-xml-stream-v1',
+		sanitizedSnapshotVersion: 'rekordbox-xml-sanitized-v1',
+		tracks: [createSanitizedSource()],
+		entriesDeclared: 1,
+		warnings: [],
+		errors: [],
+		...overrides
+	}
+}
+
+function createSanitizedSource(
+	overrides: Partial<RekordboxXmlSanitizedTrack> = {}
+): RekordboxXmlSanitizedTrack {
+	return { ...createSource(overrides), ...overrides, location: null }
+}
+
+let workerOperationSequence = 0
+
+function createWorkerHandle(
+	promise: Promise<RekordboxXmlSanitizedSnapshot> = Promise.resolve(
+		createSnapshot()
+	)
+) {
+	return {
+		operationId: `worker-operation-${++workerOperationSequence}`,
+		promise,
+		cancel: vi.fn()
+	}
 }
 
 function createDeferred<T>() {
@@ -286,13 +330,12 @@ const CANCELLED_BATCH_OUTCOME: TrackBatchUpdateOutcome = {
 describe('useTrackEnrichmentWorkflow', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
+		workerOperationSequence = 0
 		mockRecordsStore.records = [createRecord()]
 		mockTracksStore.tracks = [createTrack()]
-		workflowMocks.parseXml.mockReturnValue({
-			tracks: [createSource()],
-			warnings: [],
-			errors: []
-		})
+		workflowMocks.startWorkerParse.mockImplementation(() =>
+			createWorkerHandle()
+		)
 		workflowMocks.buildRows.mockImplementation(
 			async (options: {
 				sources: unknown[]
@@ -328,22 +371,188 @@ describe('useTrackEnrichmentWorkflow', () => {
 		expect(first).not.toHaveProperty('tracks')
 	})
 
-	it('preserves XML warnings, stops on parser errors, and always cleans parsing state', async () => {
-		workflowMocks.parseXml.mockReturnValue({
-			tracks: [],
-			warnings: ['Unsupported field ignored'],
-			errors: ['Invalid XML document']
-		})
+	it('stops on Worker parser errors and always cleans parsing state', async () => {
+		workflowMocks.startWorkerParse.mockReturnValueOnce(
+			createWorkerHandle(
+				Promise.reject(
+					new RekordboxXmlWorkerParseError(
+						'malformed_xml',
+						'Invalid XML document'
+					)
+				)
+			)
+		)
 		const workflow = createWorkflow()
 
 		await workflow.parseFile(createFile())
 
 		expect(requestAnimationFrame).toHaveBeenCalledOnce()
-		expect(workflow.parseWarnings.value).toEqual(['Unsupported field ignored'])
+		expect(workflow.parseWarnings.value).toEqual([])
 		expect(workflow.parseErrors.value).toEqual(['Invalid XML document'])
 		expect(workflowMocks.buildRows).not.toHaveBeenCalled()
 		expect(workflow.workflowView.value).toBe('source')
 		expect(workflow.isParsing.value).toBe(false)
+		expect(workflow.canRetryParsing.value).toBe(false)
+	})
+
+	it('reports byte progress before matching progress and preserves Worker warnings', async () => {
+		const workerResult = createDeferred<RekordboxXmlSanitizedSnapshot>()
+		const matchingResult = createDeferred<TrackEnrichmentRow[]>()
+		let reportWorkerProgress:
+			| ((progress: {
+					bytesRead: number
+					totalBytes: number
+					parsedTracks: number
+					entriesDeclared: number | null
+			  }) => void)
+			| undefined
+		let reportMatchingProgress:
+			| ((completed: number, total: number) => void)
+			| undefined
+		workflowMocks.startWorkerParse.mockImplementationOnce(
+			(_file: File, options: { onProgress?: typeof reportWorkerProgress }) => {
+				reportWorkerProgress = options.onProgress
+				return createWorkerHandle(workerResult.promise)
+			}
+		)
+		workflowMocks.buildRows.mockImplementationOnce(
+			(options: {
+				onProgress?: (completed: number, total: number) => void
+			}) => {
+				reportMatchingProgress = options.onProgress
+				return matchingResult.promise
+			}
+		)
+		const workflow = createWorkflow()
+		const parsing = workflow.parseFile(createFile())
+		await vi.waitFor(() =>
+			expect(workflowMocks.startWorkerParse).toHaveBeenCalledOnce()
+		)
+
+		reportWorkerProgress?.({
+			bytesRead: 512,
+			totalBytes: 1_024,
+			parsedTracks: 3,
+			entriesDeclared: 6
+		})
+		expect(workflow.parsePhase.value).toBe('parsing')
+		expect(workflow.parseProgress.value).toBe(50)
+		expect(workflow.parseCompleted.value).toBe(3)
+		expect(workflow.parseTotal.value).toBe(6)
+
+		workerResult.resolve(
+			createSnapshot({
+				tracks: [createSanitizedSource(), createSanitizedSource({ index: 1 })],
+				entriesDeclared: 2,
+				warnings: ['Unsupported field ignored']
+			})
+		)
+		await vi.waitFor(() =>
+			expect(workflowMocks.buildRows).toHaveBeenCalledOnce()
+		)
+		expect(workflow.parsePhase.value).toBe('matching')
+		expect(workflow.parseWarnings.value).toEqual(['Unsupported field ignored'])
+
+		reportMatchingProgress?.(1, 2)
+		expect(workflow.parseProgress.value).toBe(50)
+		matchingResult.resolve([createRow()])
+		await parsing
+		expect(workflow.workflowView.value).toBe('review')
+		expect(workflow.isParsing.value).toBe(false)
+	})
+
+	it('cancels an active Worker operation without reporting completion', async () => {
+		const workerResult = createDeferred<RekordboxXmlSanitizedSnapshot>()
+		const handle = createWorkerHandle(workerResult.promise)
+		handle.cancel.mockImplementation(() => {
+			workerResult.reject(new RekordboxXmlWorkerCancelledError())
+		})
+		workflowMocks.startWorkerParse.mockReturnValueOnce(handle)
+		const workflow = createWorkflow()
+		const parsing = workflow.parseFile(createFile('cancelled.xml'))
+		await vi.waitFor(() => expect(workflow.isParsing.value).toBe(true))
+		await vi.waitFor(() =>
+			expect(workflowMocks.startWorkerParse).toHaveBeenCalledOnce()
+		)
+
+		workflow.cancelParsing()
+		await parsing
+
+		expect(handle.cancel).toHaveBeenCalledOnce()
+		expect(workflow.rows.value).toEqual([])
+		expect(workflow.parseErrors.value).toEqual([])
+		expect(workflow.parseWarnings.value).toEqual([
+			'Rekordbox XML parsing was cancelled. Retry when you are ready.'
+		])
+		expect(workflow.canRetryParsing.value).toBe(true)
+	})
+
+	it('retries the retained file with a new Worker operation', async () => {
+		const file = createFile('retry.xml')
+		workflowMocks.startWorkerParse
+			.mockReturnValueOnce(
+				createWorkerHandle(
+					Promise.reject(
+						new RekordboxXmlWorkerParseError(
+							'worker_failed',
+							'The parser stopped unexpectedly.',
+							true
+						)
+					)
+				)
+			)
+			.mockReturnValueOnce(createWorkerHandle())
+		const workflow = createWorkflow()
+
+		await workflow.parseFile(file)
+		expect(workflow.canRetryParsing.value).toBe(true)
+		await workflow.retryParsing()
+
+		expect(workflowMocks.startWorkerParse).toHaveBeenCalledTimes(2)
+		expect(workflowMocks.startWorkerParse.mock.calls[0]?.[0]).toBe(file)
+		expect(workflowMocks.startWorkerParse.mock.calls[1]?.[0]).toBe(file)
+		expect(workflow.workflowView.value).toBe('review')
+		expect(workflow.canRetryParsing.value).toBe(false)
+	})
+
+	it('lets a replacement parse own state when the older Worker completes late', async () => {
+		const staleResult = createDeferred<RekordboxXmlSanitizedSnapshot>()
+		const staleHandle = createWorkerHandle(staleResult.promise)
+		workflowMocks.startWorkerParse
+			.mockReturnValueOnce(staleHandle)
+			.mockReturnValueOnce(createWorkerHandle())
+		const workflow = createWorkflow()
+		const staleParsing = workflow.parseFile(createFile('stale.xml'))
+		await vi.waitFor(() =>
+			expect(workflowMocks.startWorkerParse).toHaveBeenCalledOnce()
+		)
+
+		const currentParsing = workflow.parseFile(createFile('current.xml'))
+		await currentParsing
+		expect(staleHandle.cancel).toHaveBeenCalledOnce()
+		expect(workflow.selectedFileName.value).toBe('current.xml')
+		expect(workflow.workflowView.value).toBe('review')
+
+		staleResult.resolve(createSnapshot())
+		await staleParsing
+		expect(workflow.selectedFileName.value).toBe('current.xml')
+		expect(workflowMocks.buildRows).toHaveBeenCalledOnce()
+	})
+
+	it('cancels matching after Worker completion and ignores late rows', async () => {
+		const matchingResult = createDeferred<TrackEnrichmentRow[]>()
+		workflowMocks.buildRows.mockReturnValueOnce(matchingResult.promise)
+		const workflow = createWorkflow()
+		const parsing = workflow.parseFile(createFile())
+		await vi.waitFor(() => expect(workflow.parsePhase.value).toBe('matching'))
+
+		workflow.cancelParsing()
+		matchingResult.resolve([createRow({ id: 'late-row' })])
+		await parsing
+
+		expect(workflow.rows.value).toEqual([])
+		expect(workflow.workflowView.value).toBe('source')
+		expect(workflow.canRetryParsing.value).toBe(true)
 	})
 
 	it('normalizes XML and local review results through the same eligible staging state', async () => {

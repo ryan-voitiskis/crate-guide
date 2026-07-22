@@ -33,10 +33,33 @@ const localSelection = {
 
 const SourceStub = defineComponent({
 	name: 'PanelTrackEnrichmentSource',
-	emits: ['dropFile', 'reviewLocal', 'selectFile', 'selectSource'],
+	emits: [
+		'cancelParsing',
+		'dropFile',
+		'retryParsing',
+		'reviewLocal',
+		'selectFile',
+		'selectSource'
+	],
 	setup(_props, { emit }) {
 		return () =>
 			h('div', { 'data-testid': 'source-panel' }, [
+				h(
+					'button',
+					{
+						'data-testid': 'cancel-parsing',
+						onClick: () => emit('cancelParsing')
+					},
+					'Cancel parsing'
+				),
+				h(
+					'button',
+					{
+						'data-testid': 'retry-parsing',
+						onClick: () => emit('retryParsing')
+					},
+					'Retry parsing'
+				),
 				h(
 					'button',
 					{
@@ -222,6 +245,9 @@ function createWorkflow(): WorkflowHarness {
 		currentPage: ref(1),
 		parseWarnings: ref([]),
 		parseErrors: ref([]),
+		parsePhase: ref('idle'),
+		parseBytesCompleted: ref(0),
+		parseBytesTotal: ref(0),
 		isParsing: ref(false),
 		parseCompleted: ref(0),
 		parseTotal: ref(0),
@@ -256,6 +282,9 @@ function createWorkflow(): WorkflowHarness {
 		canNavigateToStep: vi.fn((step: number) => step === 1),
 		navigateToStep: vi.fn(),
 		parseFile: vi.fn().mockResolvedValue(undefined),
+		cancelParsing: vi.fn(),
+		retryParsing: vi.fn().mockResolvedValue(undefined),
+		canRetryParsing: computed(() => false),
 		reviewLocalSources: vi.fn().mockResolvedValue(undefined),
 		selectSource: vi.fn(),
 		loadPreparedReview,
@@ -364,6 +393,10 @@ describe('enrichment page wiring', () => {
 		expect(workflow.reviewLocalSources).toHaveBeenCalledWith(localSelection)
 		await wrapper.get('[data-testid="drop-file"]').trigger('click')
 		expect(workflow.parseFile).toHaveBeenCalledWith(sourceDropFile)
+		await wrapper.get('[data-testid="cancel-parsing"]').trigger('click')
+		expect(workflow.cancelParsing).toHaveBeenCalledOnce()
+		await wrapper.get('[data-testid="retry-parsing"]').trigger('click')
+		expect(workflow.retryParsing).toHaveBeenCalledOnce()
 
 		const selectedFile = new File(['<DJ_PLAYLISTS />'], 'selected.xml', {
 			type: 'text/xml'

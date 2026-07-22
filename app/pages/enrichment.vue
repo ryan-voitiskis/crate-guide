@@ -45,6 +45,7 @@ const {
 	currentPage,
 	parseWarnings,
 	parseErrors,
+	parsePhase,
 	isParsing,
 	parseCompleted,
 	parseTotal,
@@ -74,6 +75,9 @@ const {
 	canNavigateToStep,
 	navigateToStep,
 	parseFile,
+	cancelParsing,
+	retryParsing,
+	canRetryParsing,
 	reviewLocalSources,
 	selectSource,
 	loadPreparedReview,
@@ -136,6 +140,12 @@ function handleBeforeUnload(event: BeforeUnloadEvent) {
 if (import.meta.client) {
 	useEventListener(window, 'beforeunload', handleBeforeUnload)
 }
+
+watch(isActive, (active) => {
+	if (!active) cancelParsing()
+})
+onDeactivated(cancelParsing)
+onBeforeUnmount(cancelParsing)
 
 onMounted(async () => {
 	const results = await Promise.all([
@@ -286,16 +296,20 @@ function handleFileDrop(file: File) {
 					<PanelTrackEnrichmentSource
 						v-show="currentStep === 1"
 						:active-source="activeSource"
+						:parse-phase="parsePhase"
 						:is-parsing="isParsing"
 						:parse-completed="parseCompleted"
 						:parse-total="parseTotal"
 						:parse-progress="parseProgress"
 						:selected-file-name="selectedFileName"
+						:can-retry-parsing="canRetryParsing"
 						:disabled="!capabilities.canEnrichTracks"
 						@select-file="openFilePicker"
 						@drop-file="handleFileDrop"
 						@select-source="selectSource"
 						@review-local="reviewLocalSources"
+						@cancel-parsing="cancelParsing"
+						@retry-parsing="retryParsing"
 					/>
 
 					<div v-if="lastApplySummary" class="py-8 sm:py-12">

@@ -62,4 +62,69 @@ cancellation support is `false` for the synchronous baseline.
 
 ## Synchronous baseline
 
-Pending the pre-optimization measurement run.
+The baseline was captured on 23 July 2026 on an Apple M5 with 24 GiB memory,
+Node 24.14.0, and Happy DOM 20.10.6. Each size ran in a fresh process after the
+protocol commit, with an 8 GiB V8 heap ceiling for 100k. These Node figures
+characterize the algorithm's blocking/allocation shape; they are not browser
+latency promises.
+
+|  Tracks | Input bytes | XML build | Synchronous parse | Observed heap growth | Progress / cancel  |
+| ------: | ----------: | --------: | ----------------: | -------------------: | ------------------ |
+|   1,000 |     494,838 |   0.95 ms |          56.43 ms |     65,950,368 bytes | none / unsupported |
+|  10,000 |   4,956,925 |   7.08 ms |         402.43 ms |    648,248,296 bytes | none / unsupported |
+| 100,000 |  49,667,766 |  73.43 ms |       6,925.24 ms |  6,245,735,864 bytes | none / unsupported |
+
+All three parses returned their declared count without warnings or errors. The
+output checksums are pinned in `shared/config/rekordboxXmlParser.json`; input
+checksums are pinned in the fixture manifest. The 100k run demonstrates why a
+full DOM in a Worker would be insufficient: it would move roughly 6.2 GB of
+observed allocation off the UI thread without fixing the underlying memory
+model.
+
+## Streaming Worker result
+
+The production path reads 256 KiB `File` slices, transfers each `ArrayBuffer`
+only after the previous chunk is acknowledged, decodes UTF-8 incrementally,
+and tokenizes the required XML attributes without retaining the raw document
+or constructing a DOM. The Worker retains one normalized track object per
+result plus bounded path segments until the common relative-location prefix is
+known. Before crossing the boundary, absolute locations are cleared; result
+batches contain only versioned sanitized tracks and bounded warnings.
+
+The first Chromium run after implementation produced the following result on
+the same Apple M5. Durations are observations, while the looser limits above
+remain the actual checked-in gates.
+
+|  Tracks | First progress | Longest progress gap | Total Worker time | Main-thread long task | Output checksum |
+| ------: | -------------: | -------------------: | ----------------: | --------------------: | --------------: |
+|   1,000 |        30.1 ms |              30.1 ms |           58.0 ms |                  none |      `c9976222` |
+|  10,000 |        23.5 ms |              39.4 ms |          574.1 ms |                  none |      `20fdd99f` |
+| 100,000 |        26.3 ms |             113.3 ms |        6,124.2 ms |                  none |      `ad02ecb7` |
+
+The checksum is an incremental FNV-1a 32-bit checksum over declared entries,
+warnings, errors, and every ordered sanitized track. It avoids constructing a
+second full serialized snapshot in the browser. Chromium exposed only a
+coarsened `performance.memory` value in this run, so the test reported zero
+observable growth and does not present that as a precise allocation result.
+
+Cancellation settled in 11.5 ms immediately after start, within timer
+resolution after first progress, and in 5.5 ms after parsing while result
+batches were beginning. The test also sends duplicate `end` and late `chunk`
+messages directly to the Worker and requires exactly one terminal response.
+
+## Parser and boundary policy
+
+- One UTF-8 XML 1.0 declaration is allowed only at the browser-compatible
+  document position. Multibyte code points may span input chunks.
+- The in-repository tokenizer decodes only the five predefined XML entities and
+  valid numeric character references. DTD, DOCTYPE, entity declarations,
+  unknown entities, invalid UTF-8, invalid XML characters, and malformed
+  structures are rejected with fixed error categories.
+- File bytes, track count, nesting, complete or partial markup, attributes,
+  element names, entity length, warnings, path segments, and relative hints are
+  all bounded. Error messages do not interpolate file contents or private
+  paths.
+- The main-thread client validates operation IDs, monotonic progress, declared
+  count consistency, batch ordering, versions, warning bounds, and the absence
+  of raw locations before accepting completion. Cancellation has a hard
+  termination fallback below the public 250 ms budget.

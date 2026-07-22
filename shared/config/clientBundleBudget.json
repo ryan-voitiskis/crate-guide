@@ -26,6 +26,6 @@
 		"pages/enrichment.vue",
 		"../node_modules/music-metadata/lib/mpeg/MpegParser.js"
 	],
-	"workerAssetPatterns": ["localAudioAnalysis.worker-"],
+	"workerAssetPatterns": ["localAudioAnalysis.worker-", "rekordboxXml.worker-"],
 	"wasmAssetPatterns": ["essentia-wasm.es-"]
 }

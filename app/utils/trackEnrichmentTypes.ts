@@ -1,17 +1,22 @@
 import type { LocalAudioTrackSource } from '~/types/localAudio'
 import type { AudioFeatureSourceKey } from '~~/shared/types/audioFeatures'
-import type { DatabaseRecord, Track } from '~~/shared/types/supabase'
+import type { LibraryRecord } from '~~/shared/types/library'
+import type { Track } from '~~/shared/types/supabase'
 import type { RekordboxXmlTrack } from './rekordboxXml'
 import type { TrackEnrichmentTitleIndex } from './trackEnrichmentIndex'
 
 export type EnrichmentConfidence = 'high' | 'medium' | 'manual'
 export type EnrichmentSource = RekordboxXmlTrack | LocalAudioTrackSource
+export type EnrichmentRecord = Pick<
+	LibraryRecord,
+	'id' | 'title' | 'artists' | 'labels'
+>
 
 export type EnrichmentRow = {
 	id: string
 	source: EnrichmentSource
 	track: Track | null
-	record: DatabaseRecord | null
+	record: EnrichmentRecord | null
 	confidence: EnrichmentConfidence
 	score: number
 	reasons: string[]
@@ -51,7 +56,7 @@ export type SourceMatchMetadata = {
 
 export type CandidateMatchMetadata = {
 	track: Track
-	record: DatabaseRecord | null
+	record: EnrichmentRecord | null
 	titles: string[]
 	artists: ArtistMetadata
 	albumNames: string[]
@@ -59,7 +64,7 @@ export type CandidateMatchMetadata = {
 
 export type CandidateMatch = {
 	track: Track
-	record: DatabaseRecord | null
+	record: EnrichmentRecord | null
 	score: number
 	reasons: string[]
 	warnings: string[]
@@ -80,5 +85,5 @@ export type CandidateMatchingContext = {
 export type BuildEnrichmentRowsOptions = {
 	sources: EnrichmentSource[]
 	tracks: Track[]
-	records: DatabaseRecord[]
+	records: EnrichmentRecord[]
 }

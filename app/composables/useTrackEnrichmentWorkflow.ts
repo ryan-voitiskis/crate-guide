@@ -1,8 +1,13 @@
 import type { ComputedRef, Ref } from 'vue'
-import { nextTick } from 'vue'
+import { nextTick, shallowRef } from 'vue'
 import { toast } from 'vue-sonner'
 import type { LocalAudioReviewSelection } from '~/types/localAudio'
-import { parseRekordboxXml } from '~/utils/rekordboxXml'
+import {
+	RekordboxXmlWorkerCancelledError,
+	RekordboxXmlWorkerParseError,
+	type RekordboxXmlWorkerParseHandle,
+	startRekordboxXmlWorkerParse
+} from '~/utils/rekordboxXmlWorkerClient'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
 import {
 	buildTrackEnrichmentRowsAsync,
@@ -28,6 +33,7 @@ export type ApplySummary = {
 
 export type TrackEnrichmentSourceKind = 'rekordboxXml' | 'localAudio'
 export type TrackEnrichmentWorkflowView = 'source' | 'review'
+export type TrackEnrichmentParsePhase = 'idle' | 'parsing' | 'matching'
 
 type FilterOption = {
 	value: ReviewFilter
@@ -44,6 +50,9 @@ export type TrackEnrichmentWorkflow = {
 	currentPage: Ref<number>
 	parseWarnings: Ref<string[]>
 	parseErrors: Ref<string[]>
+	parsePhase: Ref<TrackEnrichmentParsePhase>
+	parseBytesCompleted: Ref<number>
+	parseBytesTotal: Ref<number>
 	isParsing: Ref<boolean>
 	parseCompleted: Ref<number>
 	parseTotal: Ref<number>
@@ -76,6 +85,9 @@ export type TrackEnrichmentWorkflow = {
 	canNavigateToStep: (step: number) => boolean
 	navigateToStep: (step: number) => void
 	parseFile: (file: File) => Promise<void>
+	cancelParsing: () => void
+	retryParsing: () => Promise<void>
+	canRetryParsing: ComputedRef<boolean>
 	reviewLocalSources: (selection: LocalAudioReviewSelection) => Promise<void>
 	selectSource: (source: TrackEnrichmentSourceKind) => void
 	loadPreparedReview: (fileLabel: string, rows: TrackEnrichmentRow[]) => void
@@ -108,6 +120,9 @@ export function useTrackEnrichmentWorkflow(
 	const currentPage = ref(1)
 	const parseWarnings = ref<string[]>([])
 	const parseErrors = ref<string[]>([])
+	const parsePhase = ref<TrackEnrichmentParsePhase>('idle')
+	const parseBytesCompleted = ref(0)
+	const parseBytesTotal = ref(0)
 	const isParsing = ref(false)
 	const parseCompleted = ref(0)
 	const parseTotal = ref(0)
@@ -117,8 +132,10 @@ export function useTrackEnrichmentWorkflow(
 	const applyTotal = ref(0)
 	const lastApplySummary = ref<ApplySummary | null>(null)
 	const workflowView = ref<TrackEnrichmentWorkflowView>('source')
+	const retryRekordboxFile = shallowRef<File | null>(null)
 	let reviewOperationGeneration = 0
 	let applyOperationGeneration = 0
+	let activeRekordboxParse: RekordboxXmlWorkerParseHandle | null = null
 
 	const currentStep = computed<1 | 2 | 3>(() => {
 		if (showApplyDialog.value || isApplying.value || lastApplySummary.value)
@@ -166,10 +183,21 @@ export function useTrackEnrichmentWorkflow(
 			? 0
 			: Math.round((applyCompleted.value / applyTotal.value) * 100)
 	)
-	const parseProgress = computed(() =>
-		parseTotal.value === 0
+	const parseProgress = computed(() => {
+		if (parsePhase.value === 'parsing') {
+			return parseBytesTotal.value === 0
+				? 0
+				: Math.round((parseBytesCompleted.value / parseBytesTotal.value) * 100)
+		}
+		return parseTotal.value === 0
 			? 0
 			: Math.round((parseCompleted.value / parseTotal.value) * 100)
+	})
+	const canRetryParsing = computed(
+		() =>
+			!isParsing.value &&
+			activeSource.value === 'rekordboxXml' &&
+			retryRekordboxFile.value !== null
 	)
 	const visibleParseWarnings = computed(() => parseWarnings.value.slice(0, 5))
 	const sourceLabel = computed(() =>
@@ -225,6 +253,9 @@ export function useTrackEnrichmentWorkflow(
 		fileLabel: string,
 		nextRows: TrackEnrichmentRow[]
 	) {
+		activeRekordboxParse?.cancel()
+		activeRekordboxParse = null
+		retryRekordboxFile.value = null
 		applyOperationGeneration++
 		isApplying.value = false
 		selectedFileName.value = fileLabel
@@ -244,6 +275,9 @@ export function useTrackEnrichmentWorkflow(
 	}
 
 	function resetWorkflow(nextSource?: TrackEnrichmentSourceKind) {
+		activeRekordboxParse?.cancel()
+		activeRekordboxParse = null
+		retryRekordboxFile.value = null
 		reviewOperationGeneration++
 		applyOperationGeneration++
 		if (nextSource) activeSource.value = nextSource
@@ -254,6 +288,9 @@ export function useTrackEnrichmentWorkflow(
 		currentPage.value = 1
 		parseWarnings.value = []
 		parseErrors.value = []
+		parsePhase.value = 'idle'
+		parseBytesCompleted.value = 0
+		parseBytesTotal.value = 0
 		isParsing.value = false
 		parseCompleted.value = 0
 		parseTotal.value = 0
@@ -292,6 +329,9 @@ export function useTrackEnrichmentWorkflow(
 		currentPage.value = 1
 		parseWarnings.value = []
 		parseErrors.value = []
+		parsePhase.value = 'idle'
+		parseBytesCompleted.value = 0
+		parseBytesTotal.value = 0
 		parseCompleted.value = 0
 		parseTotal.value = total
 		lastApplySummary.value = null
@@ -322,12 +362,35 @@ export function useTrackEnrichmentWorkflow(
 		lastApplySummary.value = null
 	}
 
+	function cancelParsing() {
+		if (!isParsing.value) return
+		reviewOperationGeneration += 1
+		activeRekordboxParse?.cancel()
+		activeRekordboxParse = null
+		isParsing.value = false
+		parsePhase.value = 'idle'
+		parseWarnings.value = [
+			'Rekordbox XML parsing was cancelled. Retry when you are ready.'
+		]
+		parseErrors.value = []
+	}
+
+	async function retryParsing() {
+		if (!canRetryParsing.value || !retryRekordboxFile.value) return
+		await parseFile(retryRekordboxFile.value)
+	}
+
 	async function parseFile(file: File) {
+		activeRekordboxParse?.cancel()
+		activeRekordboxParse = null
+		retryRekordboxFile.value = file
 		const operationGeneration = beginReviewOperation(
 			'rekordboxXml',
 			file.name,
 			0
 		)
+		parsePhase.value = 'parsing'
+		parseBytesTotal.value = file.size
 
 		try {
 			await nextTick()
@@ -336,15 +399,34 @@ export function useTrackEnrichmentWorkflow(
 				requestAnimationFrame(() => resolve())
 			)
 			if (!isCurrentReviewOperation(operationGeneration)) return
-			const fileContents = await file.text()
+			let parseOperationId: string | null = null
+			const parseHandle = startRekordboxXmlWorkerParse(file, {
+				onProgress: (progress) => {
+					if (
+						!isCurrentReviewOperation(operationGeneration) ||
+						activeRekordboxParse?.operationId !== parseOperationId
+					) {
+						return
+					}
+					parseBytesCompleted.value = progress.bytesRead
+					parseBytesTotal.value = progress.totalBytes
+					parseCompleted.value = progress.parsedTracks
+					parseTotal.value = progress.entriesDeclared ?? 0
+				}
+			})
+			parseOperationId = parseHandle.operationId
+			activeRekordboxParse = parseHandle
+			const result = await parseHandle.promise
 			if (!isCurrentReviewOperation(operationGeneration)) return
-			const result = parseRekordboxXml(fileContents)
-			if (!isCurrentReviewOperation(operationGeneration)) return
+			if (activeRekordboxParse?.operationId !== parseHandle.operationId) return
+			activeRekordboxParse = null
 			parseWarnings.value = result.warnings
 			parseErrors.value = result.errors
 
 			if (result.errors.length > 0) return
 
+			parsePhase.value = 'matching'
+			parseCompleted.value = 0
 			parseTotal.value = result.tracks.length
 			const nextRows = await buildTrackEnrichmentRowsAsync({
 				sources: result.tracks,
@@ -357,15 +439,31 @@ export function useTrackEnrichmentWorkflow(
 				}
 			})
 			if (!isCurrentReviewOperation(operationGeneration)) return
+			retryRekordboxFile.value = null
 			loadPreparedReview(file.name, nextRows)
 		} catch (error) {
 			if (!isCurrentReviewOperation(operationGeneration)) return
-			parseErrors.value = [
-				error instanceof Error ? error.message : 'Unknown parse error'
-			]
+			activeRekordboxParse = null
+			parsePhase.value = 'idle'
+			if (error instanceof RekordboxXmlWorkerCancelledError) {
+				parseWarnings.value = [
+					'Rekordbox XML parsing was cancelled. Retry when you are ready.'
+				]
+				parseErrors.value = []
+			} else {
+				if (error instanceof RekordboxXmlWorkerParseError && !error.retryable) {
+					retryRekordboxFile.value = null
+				}
+				parseErrors.value = [
+					error instanceof RekordboxXmlWorkerParseError
+						? error.message
+						: 'The Rekordbox XML file could not be parsed.'
+				]
+			}
 		} finally {
 			if (isCurrentReviewOperation(operationGeneration)) {
 				isParsing.value = false
+				if (parsePhase.value !== 'idle') parsePhase.value = 'idle'
 			}
 		}
 	}
@@ -378,6 +476,7 @@ export function useTrackEnrichmentWorkflow(
 			fileLabel,
 			sources.length
 		)
+		parsePhase.value = 'matching'
 
 		try {
 			const nextRows = await buildTrackEnrichmentRowsAsync({
@@ -581,6 +680,9 @@ export function useTrackEnrichmentWorkflow(
 		currentPage,
 		parseWarnings,
 		parseErrors,
+		parsePhase,
+		parseBytesCompleted,
+		parseBytesTotal,
 		isParsing,
 		parseCompleted,
 		parseTotal,
@@ -613,6 +715,9 @@ export function useTrackEnrichmentWorkflow(
 		canNavigateToStep,
 		navigateToStep,
 		parseFile,
+		cancelParsing,
+		retryParsing,
+		canRetryParsing,
 		reviewLocalSources,
 		selectSource,
 		loadPreparedReview,

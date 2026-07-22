@@ -1,4 +1,4 @@
-import type { DatabaseRecord, Track } from '~~/shared/types/supabase'
+import type { Track } from '~~/shared/types/supabase'
 import {
 	getLocationAlbumHint,
 	getLocationFileName,
@@ -8,6 +8,7 @@ import {
 import type {
 	ArtistMetadata,
 	CandidateMatchMetadata,
+	EnrichmentRecord,
 	EnrichmentSource,
 	SourceMatchMetadata
 } from './trackEnrichmentTypes'
@@ -30,7 +31,7 @@ export function splitEnrichmentArtistNames(
 
 function getCandidateArtistValues(
 	track: Track,
-	record: DatabaseRecord | null
+	record: EnrichmentRecord | null
 ): string[] {
 	const trackArtistNames = track.artists
 		.map((artist) => artist.name)
@@ -62,7 +63,7 @@ export function createArtistMetadata(values: string[]): ArtistMetadata {
 
 export function createCandidateMatchMetadata(
 	track: Track,
-	record: DatabaseRecord | null
+	record: EnrichmentRecord | null
 ): CandidateMatchMetadata {
 	return {
 		track,

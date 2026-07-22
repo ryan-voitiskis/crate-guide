@@ -33,7 +33,6 @@ export type RekordboxXmlWorkerRequest =
 	| {
 			type: 'start'
 			operationId: string
-			fileName: string
 			totalBytes: number
 			parserPolicyVersion: string
 	  }
@@ -61,9 +60,18 @@ export type RekordboxXmlWorkerResponse =
 			truncated: boolean
 	  }
 	| {
+			type: 'tracks'
+			operationId: string
+			startIndex: number
+			tracks: RekordboxXmlSanitizedTrack[]
+	  }
+	| {
 			type: 'complete'
 			operationId: string
-			snapshot: RekordboxXmlSanitizedSnapshot
+			trackCount: number
+			entriesDeclared: number | null
+			parserPolicyVersion: string
+			sanitizedSnapshotVersion: string
 	  }
 	| {
 			type: 'cancelled'
