@@ -1,0 +1,60 @@
+{
+	"databaseName": "crate-guide-local-audio",
+	"schemaVersion": 2,
+	"resultStoreName": "analysis-results",
+	"metadataStoreName": "cache-metadata",
+	"updatedAtIndexName": "updatedAt",
+	"maxEntries": 20000,
+	"maxAgeDays": 90,
+	"readChunkSize": 250,
+	"writeChunkSize": 100,
+	"pruneChunkSize": 500,
+	"workerIdleMs": 30000,
+	"baselineReference": {
+		"capturedAt": "2026-07-22",
+		"runner": "Vitest browser with Playwright Chromium",
+		"hit1000": {
+			"connections": 1000,
+			"transactions": 1000,
+			"wallTimeMs": 119.4
+		},
+		"hit10000": {
+			"connections": 10000,
+			"transactions": 10000,
+			"wallTimeMs": 1208.4
+		},
+		"cold1000": {
+			"connections": 2000,
+			"transactions": 2000,
+			"wallTimeMs": 268.5
+		},
+		"cold10000": {
+			"connections": 20000,
+			"transactions": 20000,
+			"wallTimeMs": 2906
+		}
+	},
+	"performanceBudgets": {
+		"hit1000": {
+			"maxConnections": 1,
+			"maxTransactions": 25,
+			"maxWallTimeMs": 1000
+		},
+		"hit10000": {
+			"maxConnections": 1,
+			"maxTransactions": 130,
+			"maxWallTimeMs": 5000
+		},
+		"cold1000": {
+			"maxConnections": 1,
+			"maxTransactions": 40,
+			"maxWallTimeMs": 1500
+		},
+		"cold10000": {
+			"maxConnections": 1,
+			"maxTransactions": 230,
+			"maxWallTimeMs": 7500
+		},
+		"maxPostBatchHeapGrowthBytes": 67108864
+	}
+}

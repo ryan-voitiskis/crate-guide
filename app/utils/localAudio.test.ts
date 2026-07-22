@@ -5,6 +5,7 @@ import type {
 } from '~/types/localAudio'
 import {
 	LOCAL_AUDIO_ANALYZER_VERSION,
+	LOCAL_AUDIO_CACHE_GENERATION_PREFIX,
 	LOCAL_AUDIO_CONFIGURATION_VERSION,
 	LOCAL_AUDIO_KEY_EXTRACTOR_ARGS,
 	LOCAL_AUDIO_MAX_ANALYSIS_SECONDS,
@@ -93,6 +94,9 @@ describe('localAudio', () => {
 	})
 
 	it('versions cache keys by analyzer, configuration, and tag reader', () => {
+		expect(LOCAL_AUDIO_CACHE_GENERATION_PREFIX).toBe(
+			'essentia.js@0.1.3|center-180s-44k1-v1|native-tags-v3|'
+		)
 		expect(
 			getLocalAudioCacheKey({
 				relativePath: 'Artist/Album/Track.flac',

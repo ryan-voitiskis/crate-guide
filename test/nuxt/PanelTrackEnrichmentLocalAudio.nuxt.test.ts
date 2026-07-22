@@ -44,6 +44,7 @@ function createPanelState(entry: LocalAudioFileEntry) {
 		completedInBatch: ref(0),
 		batchTotal: ref(0),
 		statusMessage: ref('Analysis batch complete'),
+		cacheWarning: ref(null),
 		pickFolder: vi.fn(),
 		setFiles: vi.fn(),
 		scanMetadata: vi.fn(),

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
 	Disc3,
+	HardDrive,
 	Info,
 	Palette,
 	Plug,
@@ -21,6 +22,7 @@ const settingsSections = computed(() => [
 	{ id: 'integration', label: 'Integration', icon: Plug },
 	{ id: 'appearance', label: 'Appearance', icon: Palette },
 	{ id: 'deck', label: 'Deck controls', icon: SlidersHorizontal },
+	{ id: 'local-storage', label: 'Local storage', icon: HardDrive },
 	...(user.supaUser || isDemo
 		? [{ id: 'account', label: 'Account', icon: UserRound }]
 		: []),
@@ -139,6 +141,10 @@ const settingsSections = computed(() => [
 							</div>
 							<SelectPitchRange :local-only="isDemo" />
 						</div>
+					</section>
+
+					<section id="local-storage" class="scroll-mt-3 p-4 sm:p-5">
+						<CardLocalAudioCache />
 					</section>
 
 					<section

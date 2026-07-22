@@ -8,10 +8,24 @@ import {
 	LOCAL_AUDIO_CONFIGURATION_VERSION,
 	LOCAL_AUDIO_SAMPLE_RATE
 } from '../../app/utils/localAudio'
+import {
+	LOCAL_AUDIO_CACHE_PERFORMANCE_BUDGETS,
+	LOCAL_AUDIO_CACHE_WORKER_IDLE_MS
+} from '../../app/utils/localAudioCache'
 
 const DURATION_SECONDS = 12
 const RESPONSE_TIMEOUT_MS = 60_000
 const TRIAD_FREQUENCIES = [261.625565, 329.627557, 391.995436] as const
+
+type ChromiumMemoryPerformance = Performance & {
+	memory?: { usedJSHeapSize?: number }
+}
+
+function readHeapBytes(): number | null {
+	const value = (performance as ChromiumMemoryPerformance).memory
+		?.usedJSHeapSize
+	return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
 
 function createDeterministicSamples(): Float32Array {
 	const samples = new Float32Array(LOCAL_AUDIO_SAMPLE_RATE * DURATION_SECONDS)
@@ -69,6 +83,7 @@ function analyzeInWorker(
 
 describe('local audio analysis worker', () => {
 	it('runs the production Essentia/WASM worker on generated audio', async () => {
+		const heapBefore = readHeapBytes()
 		const worker = new Worker(
 			new URL(
 				'../../app/workers/localAudioAnalysis.worker.ts',
@@ -84,6 +99,7 @@ describe('local audio analysis worker', () => {
 			analyzedDurationSeconds: DURATION_SECONDS,
 			analysisOffsetSeconds: 0
 		}
+		let heapAfterBatch: number | null = null
 
 		try {
 			const response = await analyzeInWorker(worker, request)
@@ -125,8 +141,29 @@ describe('local audio analysis worker', () => {
 			expect(['major', 'minor']).toContain(result.scale)
 			expect(result.keyStrength).not.toBeNull()
 			expect(Number.isFinite(result.keyStrength)).toBe(true)
+			heapAfterBatch = readHeapBytes()
 		} finally {
 			worker.terminate()
+		}
+
+		const heapGrowthBytes =
+			heapBefore === null || heapAfterBatch === null
+				? null
+				: Math.max(0, heapAfterBatch - heapBefore)
+		console.info(
+			JSON.stringify({
+				kind: 'local-audio-worker-batch',
+				workerStarts: 1,
+				idleTerminationMs: LOCAL_AUDIO_CACHE_WORKER_IDLE_MS,
+				heapGrowthBytes,
+				heapMetricSupported: heapGrowthBytes !== null
+			})
+		)
+		expect(LOCAL_AUDIO_CACHE_WORKER_IDLE_MS).toBe(30_000)
+		if (heapGrowthBytes !== null) {
+			expect(heapGrowthBytes).toBeLessThanOrEqual(
+				LOCAL_AUDIO_CACHE_PERFORMANCE_BUDGETS.maxPostBatchHeapGrowthBytes
+			)
 		}
 	})
 })

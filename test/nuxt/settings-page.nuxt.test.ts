@@ -78,6 +78,7 @@ describe('settings page', () => {
 		wrapper = await mountSuspended(SettingsPage, {
 			global: {
 				stubs: {
+					CardLocalAudioCache: true,
 					DetailsDiscogsAuth: true,
 					DialogClearAllData: true,
 					DialogDeleteAccount: true,
@@ -100,6 +101,7 @@ describe('settings page', () => {
 		)
 
 		expect(wrapper.get('#about').text()).toContain('About Crate Guide')
+		expect(wrapper.find('#local-storage').exists()).toBe(true)
 		const projectLinks = wrapper.get('nav[aria-label="Project links"]')
 		const sourceLink = projectLinks
 			.findAll('a')

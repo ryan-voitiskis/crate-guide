@@ -117,12 +117,70 @@ verified track; the continuous center segment recovered its approximately 156
 BPM beatgrid.
 
 The worker runs `RhythmExtractor2013` and `KeyExtractor` over that segment.
-Results are cached in IndexedDB using the analyzer version, configuration
-version, metadata-reader version, sanitized relative path, file size, and
-modification time. Absolute paths are not part of the key or stored provenance.
+Results are cached in the dedicated `crate-guide-local-audio` IndexedDB analysis
+cache using the analyzer version, configuration version, metadata-reader
+version, sanitized relative path, file size, and modification time. Absolute
+paths are not part of the key or stored provenance. Raw audio, file handles, and
+unfinished review state are never cached.
+
+This database is disposable acceleration state, not durable library storage and
+not a backup. A future accountless library must use a different database and
+must not add stores to this cache. Settings reports the result count and last
+successful maintenance time, and offers a confirmed **Clear cache** action that
+clears only the analysis-result and cache-metadata stores.
+
+Each scan opens one schema-v2 connection, prefetches cache keys in 250-key
+readonly transactions, and buffers writes in groups of 100. The connection
+closes after success, failure, a blocked/version-changing upgrade, cancellation,
+or scope disposal. A blocked upgrade is reported instead of deleting the old
+cache; the v1-to-v2 upgrade preserves results and adds the `updatedAt` index and
+cache-metadata store.
+
+Maintenance runs at the start and end of a scan in this fixed order:
+
+1. Remove keys from obsolete analyzer/configuration/tag-reader generations.
+2. Remove writes strictly older than 90 days.
+3. Remove the oldest writes above the 20,000-result cap.
+
+The policy is deliberately oldest-write eviction, not LRU. Cache hits do not
+rewrite `updatedAt`, avoiding a write and transaction for every hit. Deletes are
+chunked in groups of 500, and keys written by the active session are protected
+from that session's pruning pass. Maintenance is best-effort: cache failure is
+shown as a warning, while scanned metadata and analysis remain available for the
+current review.
+
+The Essentia Worker is lazy and sequential. It is reused by another immediate
+batch, then terminated after 30 seconds idle so its WASM heap is released. It is
+also terminated on explicit stop, component disposal, or KeepAlive deactivation
+when no batch is active. Deactivation never kills active work; if a background
+batch finishes while inactive, the Worker terminates at completion.
 
 Folder access uses the File System Access API where available and falls back to
 `webkitdirectory`. No audio bytes are sent to Crate Guide's server.
+
+### Cache performance budget
+
+`shared/config/localAudioCache.json` owns connection, chunk, retention, Worker
+idle, and performance budgets. Before the session refactor, a serial cache hit
+opened one database/transaction per file and a cold entry opened two. The
+following before/after rows were captured on 22 July 2026 with the same Vitest
+Browser / Playwright HeadlessChrome 147 runner. Wall times are regression
+signals for this runner, not product latency promises.
+
+| Scenario    | Baseline connections / transactions / ms | Session connections / transactions / ms |
+| ----------- | ---------------------------------------: | --------------------------------------: |
+| 1,000 hits  |                    1,000 / 1,000 / 119.4 |                           1 / 16 / 18.9 |
+| 10,000 hits |                10,000 / 10,000 / 1,208.4 |                          1 / 88 / 179.0 |
+| 1,000 cold  |                    2,000 / 2,000 / 268.5 |                          1 / 24 / 144.6 |
+| 10,000 cold |                20,000 / 20,000 / 2,906.0 |                       1 / 168 / 1,847.4 |
+
+Browser rows also record Worker starts and post-session heap when Chromium
+exposes `performance.memory`. Cache-only scans must start zero Workers. The
+checked-in heap-growth ceiling is 64 MiB; unsupported memory APIs produce an
+explicit `null` metric rather than failing the functional cache test. Worker
+creation/reuse/idle termination is instrumented separately at the composable
+boundary because a window's JS heap is not a complete measure of a Worker's
+WASM/native memory.
 
 ## Analyzer Configuration and Cache Maintenance
 
@@ -193,6 +251,7 @@ npx vitest run --project stores \
   app/composables/__tests__/useTrackEnrichmentWorkflow.test.ts
 npx vitest run --project nuxt \
   test/nuxt/enrichment-page.nuxt.test.ts \
+  test/nuxt/CardLocalAudioCache.nuxt.test.ts \
   test/nuxt/PanelTrackEnrichmentLocalAudio.nuxt.test.ts \
   test/nuxt/useLocalAudioAnalysis.nuxt.test.ts \
   test/nuxt/localAudioCache.nuxt.test.ts

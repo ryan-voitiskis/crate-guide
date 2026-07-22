@@ -20,6 +20,12 @@ export const LOCAL_AUDIO_MIN_BPM_CONFIDENCE =
 	localAudioAnalysisConfiguration.minimumConfidence.bpm
 export const LOCAL_AUDIO_MIN_KEY_STRENGTH =
 	localAudioAnalysisConfiguration.minimumConfidence.keyStrength
+export const LOCAL_AUDIO_CACHE_GENERATION_PREFIX = [
+	LOCAL_AUDIO_ANALYZER_VERSION,
+	LOCAL_AUDIO_CONFIGURATION_VERSION,
+	LOCAL_AUDIO_METADATA_VERSION,
+	''
+].join('|')
 
 // Tuple order is the Essentia positional API boundary; keep it aligned with the named JSON fields.
 export const LOCAL_AUDIO_RHYTHM_EXTRACTOR_ARGS = [
@@ -72,14 +78,11 @@ export function getLocalAudioCacheKey(input: {
 	size: number
 	lastModified: number
 }): string {
-	return [
-		LOCAL_AUDIO_ANALYZER_VERSION,
-		LOCAL_AUDIO_CONFIGURATION_VERSION,
-		LOCAL_AUDIO_METADATA_VERSION,
+	return `${LOCAL_AUDIO_CACHE_GENERATION_PREFIX}${[
 		input.relativePath,
 		input.size,
 		input.lastModified
-	].join('|')
+	].join('|')}`
 }
 
 export function getLocalAudioAnalysisWindow(durationSeconds: number): {

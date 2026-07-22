@@ -7,7 +7,7 @@ useHead({ title: 'Privacy Notice · Crate Guide' })
 	<LayoutLegalDocument
 		title="Privacy Notice"
 		summary="A plain-language explanation of how the official crate.guide service handles account, library and technical data."
-		effective-date="18 July 2026"
+		effective-date="22 July 2026"
 	>
 		<section>
 			<h2>Scope and operator</h2>
@@ -72,9 +72,13 @@ useHead({ title: 'Privacy Notice · Crate Guide' })
 			<p>
 				Rekordbox XML files and audio files selected for enrichment are read in
 				your browser. Crate Guide does not upload the XML file, audio bytes or
-				absolute local file paths. Audio tags and analysis results are cached in
-				IndexedDB on that device until you clear the site’s browser data. Only
-				metadata changes you review and apply are saved to your hosted library.
+				absolute local file paths. Disposable copies of audio tags and analysis
+				results are cached in a separate IndexedDB analysis cache on that device
+				to make rescans faster. This cache is not your library or a backup: it
+				is automatically pruned after 90 days and above 20,000 results, and you
+				can clear it in Settings or with the site’s browser data controls. Raw
+				audio, file handles and unfinished edits are not cached. Only metadata
+				changes you review and apply are saved to your hosted library.
 			</p>
 			<p>
 				Crate Guide also uses essential browser storage for authentication,

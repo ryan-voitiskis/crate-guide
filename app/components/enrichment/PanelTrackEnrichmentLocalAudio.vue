@@ -37,6 +37,7 @@ const {
 	completedInBatch,
 	batchTotal,
 	statusMessage,
+	cacheWarning,
 	pickFolder,
 	setFiles,
 	scanMetadata,
@@ -200,6 +201,13 @@ function reviewAvailableData() {
 						</div>
 						<p class="text-muted-foreground mt-1 text-xs">
 							{{ statusDetail }}
+						</p>
+						<p
+							v-if="cacheWarning"
+							class="mt-1 text-xs text-amber-700 dark:text-amber-400"
+							role="status"
+						>
+							{{ cacheWarning }} Results remain available for this review.
 						</p>
 					</div>
 
