@@ -1,6 +1,6 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import assert from 'node:assert/strict'
-import oauthSignature from 'npm:oauth-signature@1.5.0'
+import { createHmac } from 'node:crypto'
 import type { DiscogsCredentialRepository } from './credentials.ts'
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest.ts'
 import {
@@ -184,18 +184,31 @@ Deno.test(
 		)
 		const { oauth_signature: signature, ...signatureOAuthParameters } =
 			oauthParameters
-		const expectedSignature = oauthSignature.generate(
+		const sortedParameters = Object.entries({
+			...signatureOAuthParameters,
+			page: '2',
+			per_page: '100'
+		})
+			.map(([key, value]) => [
+				encodeURIComponent(key),
+				encodeURIComponent(value)
+			])
+			.sort(([leftKey], [rightKey]) =>
+				leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0
+			)
+			.map(([key, value]) => `${key}=${value}`)
+			.join('&')
+		const signatureBase = [
 			'GET',
-			'https://api.discogs.com/releases/1',
-			{
-				...signatureOAuthParameters,
-				page: '2',
-				per_page: '100'
-			},
-			config.consumerSecret,
-			'fixture-secret',
-			{ encodeSignature: false }
+			encodeURIComponent('https://api.discogs.com/releases/1'),
+			encodeURIComponent(sortedParameters)
+		].join('&')
+		const expectedSignature = createHmac(
+			'sha1',
+			`${config.consumerSecret}&fixture-secret`
 		)
+			.update(signatureBase)
+			.digest('base64')
 
 		assert.equal(response.status, 200)
 		assert.equal(

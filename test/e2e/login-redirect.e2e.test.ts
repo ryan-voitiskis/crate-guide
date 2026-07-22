@@ -1,6 +1,7 @@
-import { createPage, setup, url } from '@nuxt/test-utils/e2e'
-import type { Page } from 'playwright-core'
+import { setup, url } from '@nuxt/test-utils/e2e'
+import type { NuxtPage as Page } from '@nuxt/test-utils/e2e'
 import { describe, expect, it } from 'vitest'
+import { createErrorAwarePage } from './fixtures/errorAwarePage'
 
 type E2EKeysetCompletion = {
 	table: string
@@ -206,7 +207,7 @@ describe('Login redirects', () => {
 	])(
 		'keeps auth validation usable without overflow at $width×$height',
 		async (viewport) => {
-			const page = await createPage('/login')
+			const page = await createErrorAwarePage('/login')
 			await page.setViewportSize(viewport)
 			await page.reload()
 			await page.getByRole('button', { name: 'Sign in' }).click()
@@ -221,13 +222,11 @@ describe('Login redirects', () => {
 			expect(
 				await page.evaluate(() => document.activeElement?.getAttribute('name'))
 			).toBe('email')
-
-			await page.close()
 		}
 	)
 
 	it('applies the saved anonymous dark theme before auth styles and content', async () => {
-		const page = await createPage('/login')
+		const page = await createErrorAwarePage('/login')
 		await page.addInitScript(() => {
 			localStorage.setItem('crate-guide:anonymous-theme', 'dark')
 		})
@@ -246,12 +245,10 @@ describe('Login redirects', () => {
 				document.documentElement.classList.contains('dark')
 			)
 		).toBe(true)
-
-		await page.close()
 	})
 
 	it('mounts the complete workbench when opening the demo from login', async () => {
-		const page = await createPage('/login')
+		const page = await createErrorAwarePage('/login')
 
 		await page.getByRole('link', { name: 'Demo', exact: true }).click()
 		await page.waitForURL(url('/demo'))
@@ -269,14 +266,10 @@ describe('Login redirects', () => {
 		await expect(
 			page.locator('[data-auth-page-scroll-container]').count()
 		).resolves.toBe(0)
-
-		await page.close()
 	})
 
 	it('loads account data after email login without a page refresh', async () => {
-		const page = await createPage('/login')
-		const pageErrors: string[] = []
-		page.on('pageerror', (error) => pageErrors.push(error.message))
+		const page = await createErrorAwarePage('/login')
 
 		await mockAuthenticatedSupabase(page)
 		await signInViaForm(page)
@@ -342,13 +335,10 @@ describe('Login redirects', () => {
 		expect(trackQuery?.selection).toBe('*')
 		expect(trackQuery?.equalityFilters).toContainEqual(['user_id', 'e2e-user'])
 		expect(completions.singles).toEqual(['profiles'])
-		expect(pageErrors).toEqual([])
-
-		await page.close()
 	})
 
 	it('returns a signed-out protected deep link after email login', async () => {
-		const page = await createPage('/records')
+		const page = await createErrorAwarePage('/records')
 
 		await page.waitForURL(
 			(currentUrl) =>
@@ -363,23 +353,19 @@ describe('Login redirects', () => {
 		await signInViaForm(page, '/records')
 
 		expect(new URL(page.url()).pathname).toBe('/records')
-
-		await page.close()
 	})
 
 	it('redirects to home after successful email login', async () => {
-		const page = await createPage('/login')
+		const page = await createErrorAwarePage('/login')
 
 		await mockAuthenticatedSupabase(page)
 
 		await signInViaForm(page)
 		expect(new URL(page.url()).pathname).toBe('/')
-
-		await page.close()
 	})
 
 	it('redirects authenticated users away from /login', async () => {
-		const page = await createPage('/login')
+		const page = await createErrorAwarePage('/login')
 
 		await mockAuthenticatedSupabase(page)
 		await signInViaForm(page)
@@ -400,12 +386,10 @@ describe('Login redirects', () => {
 
 		await page.waitForURL(url('/'))
 		expect(new URL(page.url()).pathname).toBe('/')
-
-		await page.close()
 	})
 
 	it('allows navigation after the authentication redirect completes', async () => {
-		const page = await createPage('/login')
+		const page = await createErrorAwarePage('/login')
 
 		await mockAuthenticatedSupabase(page)
 		await signInViaForm(page)
@@ -434,12 +418,10 @@ describe('Login redirects', () => {
 			scrollMetrics.clientHeight
 		)
 		expect(scrollMetrics.scrollTop).toBeGreaterThan(0)
-
-		await page.close()
 	})
 
 	it('restores the workbench shell after visiting a legal page', async () => {
-		const page = await createPage('/login')
+		const page = await createErrorAwarePage('/login')
 
 		await mockAuthenticatedSupabase(page)
 		await signInViaForm(page)
@@ -461,12 +443,10 @@ describe('Login redirects', () => {
 		await expect(
 			page.getByRole('contentinfo', { name: 'Workspace status' }).count()
 		).resolves.toBe(1)
-
-		await page.close()
 	})
 
 	it('replaces rendered Settings content after local logout', async () => {
-		const page = await createPage('/login')
+		const page = await createErrorAwarePage('/login')
 
 		await mockAuthenticatedSupabase(page)
 		await signInViaForm(page)
@@ -490,7 +470,5 @@ describe('Login redirects', () => {
 		await expect(
 			page.getByRole('heading', { name: 'Account', exact: true }).count()
 		).resolves.toBe(0)
-
-		await page.close()
 	})
 })

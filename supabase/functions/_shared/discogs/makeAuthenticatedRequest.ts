@@ -1,8 +1,8 @@
-import oauthSignature from 'npm:oauth-signature@1.5.0'
 import { generateToken } from '../generateToken.ts'
 import { type DiscogsConfig, getDiscogsConfig } from './config.ts'
 import type { DiscogsCredentialRepository } from './credentials.ts'
 import { buildOAuthAuthorizationHeader } from './oauthAuthorization.ts'
+import { generateOAuthSignature } from './oauthSignature.ts'
 import { quotaBoundFetch } from './quotaBoundFetch.ts'
 import {
 	DiscogsConnectionRequiredError,
@@ -40,9 +40,8 @@ export async function makeAuthenticatedRequest(
 	const oauth_nonce = await generateToken(12)
 	const oauth_timestamp = Math.floor(Date.now() / 1000).toString()
 
-	// Merge OAuth params with every query param present on the caller-supplied
-	// URL. oauthSignature.generate encodes and sorts keys per the spec; we just
-	// need to hand it the complete param set.
+	// Merge OAuth params with every query parameter present on the caller-supplied
+	// URL. The signer encodes and sorts the complete parameter set per RFC 5849.
 	const oauthParameters: Record<string, string> = {
 		oauth_consumer_key: config.consumerKey,
 		oauth_token: creds.access_token,
@@ -56,13 +55,12 @@ export async function makeAuthenticatedRequest(
 		signatureParams[key] = value
 	}
 
-	const signature = oauthSignature.generate(
+	const signature = await generateOAuthSignature(
 		'GET',
 		baseUrl,
 		signatureParams,
 		config.consumerSecret,
-		creds.access_secret,
-		{ encodeSignature: false }
+		creds.access_secret
 	)
 	const authorization = buildOAuthAuthorizationHeader({
 		...oauthParameters,

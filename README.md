@@ -29,7 +29,7 @@ A DJ-focused vinyl record collection manager with real-time session mixing, harm
 | Styling       | Tailwind CSS v4, shadcn-vue (reka-ui)                  |
 | State         | Pinia                                                  |
 | Backend       | Supabase (PostgreSQL, Auth, Deno Edge Functions)       |
-| Testing       | Vitest projects, Nuxt Test Utils, `playwright-core`    |
+| Testing       | Vitest projects, Nuxt Test Utils, Playwright           |
 | External APIs | Discogs                                                |
 | Audio         | Essentia.js, music-metadata, Web Audio API, Web Worker |
 
@@ -95,7 +95,7 @@ cd crate-guide
 npm install
 
 # One-time browser download for Nuxt Test Utils E2E tests
-npx playwright-core install chromium
+npx playwright install chromium
 
 # Start the reserved local Supabase stack, then write its public URL/key to .env
 npm run supa:stack:start
@@ -216,8 +216,8 @@ Vitest is the single application test runner. Its projects separate pure unit
 tests (`app/utils` and `shared`), Pinia/composable/middleware tests, a configured
 Nitro server project (currently with no test files), Nuxt runtime tests
 (`test/nuxt`), and browser E2E tests (`test/e2e`). The E2E project uses Nuxt
-Test Utils backed by `playwright-core`; there is no separate Playwright Test
-suite.
+Test Utils backed by the exact installed `playwright` runtime; there is no
+separate Playwright Test suite.
 
 ```bash
 # Unit + store/composable + server + Nuxt runtime tests (watch mode)
@@ -245,6 +245,9 @@ npm run test:db
 
 # Current Discogs/README documentation contract
 npm run check:discogs-docs
+
+# Frozen Deno-lock vulnerability audit (queries OSV.dev)
+npm run audit:edge
 ```
 
 `npm run test:db` runs every pgTAP suite under `supabase/tests` against the
@@ -261,11 +264,13 @@ npm run lint:fix             # ESLint with auto-fix
 npm run typecheck            # Nuxt/TypeScript checking
 npm run audit:prod           # Audit production dependencies at high severity
 npm run audit:all            # Audit the complete dependency graph
+npm run audit:edge           # Audit frozen Edge dependencies through OSV
 npm run check:conventions    # Component naming and Tailwind boundaries
 npm run check:discogs-docs   # Reject stale Discogs documentation contracts
 npm run test:typegen-script  # Failure/rollback tests for genTypes
 npm run test:database-type-parity # Tests for the generated type parity gate
 npm run check:database-types # Reject missing, empty, or differing type copies
+npm run check:database-schema-types # Compare copies to the migrated schema
 npm run test:audio-config    # Shared analyzer/benchmark config tests
 npm run test:conventions     # Convention checker tests
 npm run test:dependency-topology # Tests for the focused topology gate
@@ -282,6 +287,13 @@ run `npm run format` separately when files need formatting. A production build
 is also a separate release check. For release and deployment-affecting
 handoffs, run `npm run verify:full`; it adds the production build and local
 database tests, so it requires a running local Supabase stack.
+
+The live schema comparison generates types into a temporary directory and
+byte-compares them with both tracked copies; it never rewrites the CI worktree.
+Edge auditing covers every npm package in `supabase/deno.lock` and fails closed
+on unsupported remote or JSR entries. A temporary high-severity exception in
+`security/edge-audit-suppressions.json` must name the advisory and package plus
+an owner, rationale, and unexpired `YYYY-MM-DD` date.
 
 `npm run audit:prod` checks the installed production dependency graph and fails
 on high or critical advisories. The exact `esbuild` development dependency is
@@ -321,21 +333,23 @@ prior states and reports if restoration cannot complete. Run
 
 ## Edge Functions
 
-| Function                         | Purpose                                                                                     |
-| -------------------------------- | ------------------------------------------------------------------------------------------- |
-| `get-discogs-request-token`      | Verifies the caller, acquires quota, and starts the Discogs OAuth 1.0 flow.                 |
-| `get-discogs-access-token`       | Validates the callback, exchanges/stores credentials, and refreshes public identity.        |
-| `authenticated-discogs-request`  | Dispatches only validated folder, folder-release, and release reads with server signing.    |
-| `cleanup-record-covers`          | Drains durable obsolete-cover jobs for the verified user without accepting client paths.    |
-| `cleanup-orphaned-record-covers` | Processes one bounded, leased account-cover cleanup batch for an exact service-role caller. |
-| `delete-account`                 | Requires recent authentication and removes covers, queued cleanup work, and the account.    |
+| Function                         | Purpose                                                                                      |
+| -------------------------------- | -------------------------------------------------------------------------------------------- |
+| `get-discogs-request-token`      | Verifies the caller, acquires quota, and starts the Discogs OAuth 1.0 flow.                  |
+| `get-discogs-access-token`       | Validates the callback, exchanges/stores credentials, and refreshes public identity.         |
+| `authenticated-discogs-request`  | Dispatches only validated folder, folder-release, and release reads with server signing.     |
+| `cleanup-record-covers`          | Drains durable obsolete-cover jobs for the verified user without accepting client paths.     |
+| `cleanup-orphaned-record-covers` | Processes one bounded, leased account-cover cleanup batch for an exact service-role caller.  |
+| `delete-account`                 | Requires recent authentication, schedules durable bounded cleanup, then deletes the account. |
 
 For local emulation, `npm run supa:functions` uses `--no-verify-jwt`; handler
-authentication remains active. The source-controlled deploy tasks in
-`supabase/deno.json` use the default gateway JWT verification, and the
-convention gate rejects deploy commands that disable it. This documents
-repository configuration only—verify the actual function, gateway, migration,
-and secret state in each hosted environment before release.
+authentication remains active. Source-controlled `supabase/config.toml` sets
+`verify_jwt = false` for these functions so asymmetric project signing keys do
+not depend on legacy gateway verification. Every handler still authenticates
+its caller internally before privileged work. This documents repository
+configuration only—verify the actual function, gateway, migration, and secret
+state in each hosted environment before release.
+Verify each hosted environment separately.
 
 ## Documentation
 

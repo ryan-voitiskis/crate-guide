@@ -22,11 +22,11 @@ before a release.
 - `authenticated-discogs-request` accepts a small structured endpoint union and
   constructs the Discogs URL server-side. It is not an arbitrary URL proxy and
   supports reads only.
-- Source-controlled deployment tasks use `supabase functions deploy` without a
-  JWT bypass. The convention checker rejects a deploy task containing
-  `--no-verify-jwt`. Handlers still authenticate with `getUser()`, providing a
-  second application-layer check after the gateway. Hosted gateway settings
-  remain an environment verification responsibility.
+- Source-controlled `supabase/config.toml` sets `verify_jwt = false` for each
+  function so asymmetric project signing keys do not depend on legacy gateway
+  verification. Every handler still authenticates its caller internally before
+  privileged work. Hosted gateway settings remain an environment verification
+  responsibility.
 - Local function commands use `--no-verify-jwt` only for emulation. That bypasses
   the local gateway check, not handler authentication.
 
@@ -99,9 +99,9 @@ in session storage. Private OAuth values are not part of that snapshot.
 
 Every provider dispatch passes through the quota-bound transport, including
 request-token exchange, access-token exchange, identity, optional avatar, and
-authenticated collection reads. The transport calls the repository's
-`consumeRequestQuota()` immediately before `fetch`; denial cannot dispatch a
-provider request. The service role invokes
+authenticated collection reads. Quota is acquired immediately before fetch.
+The transport calls the repository's `consumeRequestQuota()`; denial cannot
+dispatch a provider request. The service role invokes
 `consume_discogs_request_quota` with the verified user UUID and validated
 configuration; clients cannot supply bucket keys or execute the RPC.
 
@@ -163,7 +163,10 @@ credential-shaped OAuth messages.
 
 Discogs imports may initially retain an external cover URL. When a cover is
 uploaded into the private `record-covers` bucket, its managed path is shaped as
-`<user UUID>/<record UUID>/<file>.webp`. The authenticated Storage insert policy
+`<user UUID>/<record UUID>/<file UUID>.webp`. A row-level database invariant
+requires the exact owning user and record prefix plus the application UUID WebP
+filename. Its forward migration stops with a remediation hint if pre-existing
+rows contain a legacy mismatch. The authenticated Storage insert policy
 requires exactly those two folder components; it rejects both shallower and
 deeper new uploads, while service cleanup remains able to remove older objects
 at any legacy depth.
@@ -179,8 +182,10 @@ at any legacy depth.
   only unreferenced paths to Storage.
 - Storage removal is acknowledged at the request level: `error === null` is
   success even when an object was already missing. Any ambiguous Storage or
-  database failure retains the job, increments attempt metadata where possible,
-  and returns a controlled deferred result.
+  database failure retains the job and returns a controlled deferred result. A
+  service-only set-based RPC marks as many as 100 observed jobs in one database
+  call, using each job's observed attempt count as compare-and-set protection so
+  a stale failure cannot increment a concurrently advanced row twice.
 - The records store validates the response counts and drains successful full
   pages until a short page proves the queue was reached, with finite per-page
   retries and a separate total-page bound. Each successful cover replacement,
@@ -196,12 +201,12 @@ at any legacy depth.
 
 Account deletion has an additional service-owned recovery path:
 
-- `delete-account` performs its initial full-tree Storage pass, then persists
-  one `record_cover_account_cleanup_jobs` outbox row before calling
-  `deleteUser`. If enqueueing fails, deletion stops while the identity still
-  exists. After identity deletion, a final full-tree pass closes concurrent
-  upload races; only a confirmed empty tree permits ordinary-job deletion and
-  outbox completion.
+- `delete-account` idempotently persists one immediately claimable
+  `record_cover_account_cleanup_jobs` outbox row before calling `deleteUser`.
+  If scheduling fails, deletion stops while the identity still exists. The
+  request performs no Storage enumeration, so Auth deletion does not depend on
+  account-sized or never-settling traversal. A successful response explicitly
+  reports that cover and queue cleanup remain queued for the durable worker.
 - The outbox has no auth-user foreign key and no browser policies or grants.
   Service-role-only RPCs claim one available job under a two-minute lease and
   order fairly by the last claim/release attempt, then stable creation and user
@@ -223,6 +228,12 @@ Account deletion has an additional service-owned recovery path:
   database enumeration after removal must be empty before ordinary-job deletion
   and exact outbox completion. A live auth user or ambiguous Storage/database
   state releases the lease for retry.
+- Final outbox completion also removes the deleted account's exact Discogs
+  user-quota bucket. Each worker invocation performs an independent bounded
+  prune of at most 100 expired canonical user buckets. Active windows,
+  unrelated keys, and the `discogs:global` bucket are never pruning targets;
+  quota-maintenance failure does not delay cover traversal, while exact
+  deleted-user retirement remains retryable outbox work.
 - After its own work succeeds, ordinary `cleanup-record-covers` schedules at
   most one service-selected outbox batch through the Edge background lifetime.
   It does not await Auth, Storage, or outbox work from that opportunistic task.

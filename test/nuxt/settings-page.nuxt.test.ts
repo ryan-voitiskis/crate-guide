@@ -158,6 +158,32 @@ describe('settings page', () => {
 		expect(user.updateSettings).toHaveBeenCalledOnce()
 	})
 
+	it('uses the default pitch range while a partial profile is hydrating', async () => {
+		const user = createUser({
+			id: 'listener-user-id',
+			key_format: 'camelot',
+			ui_theme: 'light'
+		} as Profile)
+		factories.user.mockReturnValue(user)
+		wrapper = await mountSuspended(SelectPitchRange, {
+			global: {
+				stubs: {
+					Select: ValueControlStub,
+					SelectContent: true,
+					SelectGroup: true,
+					SelectItem: true,
+					SelectTrigger: true,
+					SelectValue: true
+				}
+			}
+		})
+
+		expect(
+			wrapper.get('[data-testid="value-control"]').attributes('data-value')
+		).toBe('8')
+		expect(user.updateSettings).not.toHaveBeenCalled()
+	})
+
 	it('hydrates turntable finish without writing and persists one user change', async () => {
 		const user = createUser()
 		factories.user.mockReturnValue(user)
