@@ -895,7 +895,9 @@ describe('discogsStore', () => {
 			)
 
 			const importPromise = store.importSelectedReleases()
-			await Promise.resolve()
+			await vi.waitFor(() => {
+				expect(shouldCancel).toBeTypeOf('function')
+			})
 
 			store.cancelImport()
 			expect(shouldCancel?.()).toBe(true)
@@ -1082,6 +1084,43 @@ describe('discogsStore', () => {
 
 			store.openTransferMonitor()
 			expect(store.showImportProgressDialog).toBe(true)
+		})
+
+		it('keeps save-boundary cancellation distinct from provider cancellation', async () => {
+			const store = useDiscogsStore()
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease({ id: 1 }), selected: true }
+			]
+			mockFilterOutExistingReleases.mockResolvedValue({
+				releasesToFetch: [
+					{ ...createMockDiscogsRelease({ id: 1 }), selected: true }
+				],
+				skipped: []
+			})
+			mockFetchReleaseDetails.mockImplementationOnce(async () => {
+				store.cancelImport()
+				return {
+					releases: [createMockDiscogsReleaseFull({ id: 1 })],
+					failed: [],
+					cancelled: false
+				}
+			})
+			mockImportFetchedReleases.mockImplementationOnce(
+				async (
+					_releases: unknown[],
+					_userId: string,
+					shouldCancel: () => boolean
+				) => {
+					expect(shouldCancel()).toBe(true)
+					return { successful: 0, failed: [] }
+				}
+			)
+
+			await store.importSelectedReleases()
+
+			expect(store.transferStatus).toBe('completed')
+			expect(store.showImportProgressDialog).toBe(true)
+			expect(mockToast.info).not.toHaveBeenCalled()
 		})
 
 		it('refreshes stores after successful import', async () => {
@@ -1346,6 +1385,96 @@ describe('discogsStore', () => {
 			expect(mockToast.info).not.toHaveBeenCalled()
 			expect(mockToast.success).not.toHaveBeenCalled()
 		})
+
+		it('does not publish committed results after account reset during save', async () => {
+			const saveDeferred = createDeferred<{
+				successful: number
+				failed: DiscogsImportFailure[]
+			}>()
+			mockFilterOutExistingReleases.mockResolvedValue({
+				releasesToFetch: [
+					{ ...createMockDiscogsRelease({ id: 1 }), selected: true }
+				],
+				skipped: []
+			})
+			mockFetchReleaseDetails.mockResolvedValue({
+				releases: [createMockDiscogsReleaseFull({ id: 1 })],
+				failed: [],
+				cancelled: false
+			})
+			mockImportFetchedReleases.mockReturnValueOnce(saveDeferred.promise)
+			const store = useDiscogsStore()
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease({ id: 1 }), selected: true }
+			]
+
+			const importPromise = store.importSelectedReleases()
+			await vi.waitFor(() => {
+				expect(mockImportFetchedReleases).toHaveBeenCalledOnce()
+			})
+			store.resetAccountState('test-user-id')
+			mockUserStore.supaUser = { id: 'new-user-id' }
+			mockUserStore.profile = {
+				id: 'new-user-id',
+				discogs_username: 'newuser'
+			}
+			saveDeferred.resolve({ successful: 1, failed: [] })
+			await importPromise
+
+			expect(store.transferStatus).toBe('idle')
+			expect(store.importResults).toEqual({
+				successful: 0,
+				skipped: [],
+				failed: []
+			})
+			expect(mockRecordsStore.fetchAllRecords).not.toHaveBeenCalled()
+			expect(mockTracksStore.fetchAllTracks).not.toHaveBeenCalled()
+			expect(window.sessionStorage.length).toBe(0)
+		})
+
+		it('does not publish refresh completion after account reset', async () => {
+			const recordsRefresh = createDeferred<boolean>()
+			mockFilterOutExistingReleases.mockResolvedValue({
+				releasesToFetch: [
+					{ ...createMockDiscogsRelease({ id: 1 }), selected: true }
+				],
+				skipped: []
+			})
+			mockFetchReleaseDetails.mockResolvedValue({
+				releases: [createMockDiscogsReleaseFull({ id: 1 })],
+				failed: [],
+				cancelled: false
+			})
+			mockImportFetchedReleases.mockResolvedValue({
+				successful: 1,
+				failed: []
+			})
+			mockRecordsStore.fetchAllRecords.mockReturnValueOnce(
+				recordsRefresh.promise
+			)
+			const store = useDiscogsStore()
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease({ id: 1 }), selected: true }
+			]
+
+			const importPromise = store.importSelectedReleases()
+			await vi.waitFor(() => {
+				expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledOnce()
+			})
+			store.resetAccountState('test-user-id')
+			mockUserStore.supaUser = { id: 'new-user-id' }
+			mockUserStore.profile = {
+				id: 'new-user-id',
+				discogs_username: 'newuser'
+			}
+			recordsRefresh.resolve(true)
+			await importPromise
+
+			expect(store.transferStatus).toBe('idle')
+			expect(store.libraryRefreshFailed).toBe(false)
+			expect(window.sessionStorage.length).toBe(0)
+			expect(mockToast.warning).not.toHaveBeenCalled()
+		})
 	})
 
 	describe('retryFailedReleases', () => {
@@ -1445,6 +1574,65 @@ describe('discogsStore', () => {
 			})
 		})
 
+		it('keeps provider cancellation and retry accounting explicit', async () => {
+			const store = useDiscogsStore()
+			const replacement = createFailure({
+				releaseId: 1,
+				error: 'Discogs is still unavailable.'
+			})
+			store.importResults = {
+				successful: 4,
+				skipped: [{ label: 'Already imported' }],
+				failed: [createFailure({ releaseId: 1 })]
+			}
+			mockFetchReleaseDetails.mockResolvedValueOnce({
+				releases: [],
+				failed: [replacement],
+				cancelled: true
+			})
+
+			await store.retryFailedReleases()
+
+			expect(store.transferStatus).toBe('cancelled')
+			expect(store.importResults).toEqual({
+				successful: 4,
+				skipped: [{ label: 'Already imported' }],
+				failed: [replacement]
+			})
+			expect(store.retrySummary).toEqual({
+				attempted: 1,
+				recovered: 0,
+				remaining: 1
+			})
+			expect(store.showImportProgressDialog).toBe(false)
+			expect(mockImportFetchedReleases).not.toHaveBeenCalled()
+		})
+
+		it('does not start a second retry while the first is active', async () => {
+			const store = useDiscogsStore()
+			store.importResults = {
+				successful: 0,
+				skipped: [],
+				failed: [createFailure({ releaseId: 1 })]
+			}
+			const fetchDeferred = createDeferred<{
+				releases: unknown[]
+				failed: DiscogsImportFailure[]
+				cancelled: boolean
+			}>()
+			mockFetchReleaseDetails.mockReturnValueOnce(fetchDeferred.promise)
+			const previousResults = store.importResults
+
+			const firstRetry = store.retryFailedReleases()
+			expect(store.isImporting).toBe(true)
+			expect(store.importResults).toBe(previousResults)
+			await store.retryFailedReleases()
+
+			expect(mockFetchReleaseDetails).toHaveBeenCalledOnce()
+			fetchDeferred.resolve({ releases: [], failed: [], cancelled: false })
+			await firstRetry
+		})
+
 		it('does nothing when no record-level failure is retryable', async () => {
 			const store = useDiscogsStore()
 			store.importResults = {
@@ -1513,6 +1701,42 @@ describe('discogsStore', () => {
 				expect(store.transferStatus).toBe('idle')
 			} finally {
 				mockSessionStorage.removeItem = removeItem
+			}
+		})
+
+		it('keeps terminal in-memory state when snapshot persistence throws', async () => {
+			mockFilterOutExistingReleases.mockResolvedValue({
+				releasesToFetch: [],
+				skipped: [{ label: 'Already imported' }]
+			})
+			mockFetchReleaseDetails.mockResolvedValue({
+				releases: [],
+				failed: [],
+				cancelled: false
+			})
+			mockImportFetchedReleases.mockResolvedValue({
+				successful: 0,
+				failed: []
+			})
+			const setItem = mockSessionStorage.setItem
+			mockSessionStorage.setItem = () => {
+				throw new Error('storage unavailable')
+			}
+			try {
+				const store = useDiscogsStore()
+				store.releasesToImport = [
+					{ ...createMockDiscogsRelease({ id: 1 }), selected: true }
+				]
+
+				await expect(store.importSelectedReleases()).resolves.toBeUndefined()
+
+				expect(store.transferStatus).toBe('completed')
+				expect(store.importResults.skipped).toEqual([
+					{ label: 'Already imported' }
+				])
+				expect(window.sessionStorage.length).toBe(0)
+			} finally {
+				mockSessionStorage.setItem = setItem
 			}
 		})
 
