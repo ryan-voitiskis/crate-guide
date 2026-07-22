@@ -11,7 +11,7 @@ export const LOCAL_AUDIO_ANALYZER_VERSION =
 	localAudioAnalysisConfiguration.analyzerVersion
 export const LOCAL_AUDIO_CONFIGURATION_VERSION =
 	localAudioAnalysisConfiguration.configurationVersion
-export const LOCAL_AUDIO_METADATA_VERSION = 'native-tags-v2'
+export const LOCAL_AUDIO_METADATA_VERSION = 'native-tags-v3'
 export const LOCAL_AUDIO_SAMPLE_RATE =
 	localAudioAnalysisConfiguration.sampleRate
 export const LOCAL_AUDIO_MAX_ANALYSIS_SECONDS =
@@ -129,7 +129,11 @@ export async function readLocalAudioTags(
 	file: File
 ): Promise<LocalAudioTagMetadata> {
 	const { parseBlob } = await import('music-metadata')
-	const metadata = await parseBlob(file, { duration: false, skipCovers: true })
+	const metadata = await parseBlob(file, {
+		duration: false,
+		skipCovers: true,
+		skipPostHeaders: true
+	})
 	const nativeBpm = findNativeAudioTag(metadata.native, [
 		'BPM',
 		'TBPM',

@@ -59,7 +59,7 @@ describe('localAudio', () => {
 		}).toEqual({
 			analyzerVersion: 'essentia.js@0.1.3',
 			configurationVersion: 'center-180s-44k1-v1',
-			metadataVersion: 'native-tags-v2',
+			metadataVersion: 'native-tags-v3',
 			sampleRate: 44_100,
 			maxAnalysisSeconds: 180,
 			minBpmConfidence: 1.5,
@@ -100,7 +100,7 @@ describe('localAudio', () => {
 				lastModified: 456
 			})
 		).toBe(
-			'essentia.js@0.1.3|center-180s-44k1-v1|native-tags-v2|Artist/Album/Track.flac|123|456'
+			'essentia.js@0.1.3|center-180s-44k1-v1|native-tags-v3|Artist/Album/Track.flac|123|456'
 		)
 	})
 

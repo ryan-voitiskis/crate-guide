@@ -25,6 +25,7 @@ const {
 	processedCount,
 	errorCount,
 	cachedCount,
+	analysisSkippedCount,
 	analysisCandidateCount,
 	completeDataCount,
 	partialDataCount,
@@ -73,7 +74,7 @@ const statusDetail = computed(() => {
 	if (pendingCount.value > 0) {
 		return `${formatCount(processedCount.value)} scanned · ${formatCount(pendingCount.value)} still unscanned`
 	}
-	return `${formatCount(processedCount.value)} scanned · ${formatCount(readySources.value.length)} contain usable BPM or key data${errorCount.value ? ` · ${formatCount(errorCount.value)} failed` : ''}`
+	return `${formatCount(processedCount.value)} scanned · ${formatCount(readySources.value.length)} contain usable BPM or key data${analysisSkippedCount.value ? ` · ${formatCount(analysisSkippedCount.value)} kept as tags only` : ''}${errorCount.value ? ` · ${formatCount(errorCount.value)} failed` : ''}`
 })
 
 function formatCount(value: number): string {
@@ -100,10 +101,14 @@ async function handleFallbackFiles(event: Event) {
 
 function entryStatus(entry: (typeof entries.value)[number]) {
 	if (entry.status === 'reading-tags') return 'Reading tags'
-	if (entry.status === 'decoding') return 'Decoding'
+	if (entry.status === 'checking-budget') return 'Checking safe decode budget'
+	if (entry.status === 'decoding') return 'Decoding within safe budget'
 	if (entry.status === 'analyzing') return 'Analyzing'
 	if (entry.status === 'cached') return 'Cached'
-	if (entry.status === 'complete') return 'Metadata read'
+	if (entry.status === 'complete') {
+		return entry.source?.analysis ? 'Analyzed' : 'Metadata read'
+	}
+	if (entry.status === 'tags-only') return 'Tags only'
 	if (entry.status === 'error') return 'Error'
 	return 'Queued'
 }
@@ -250,7 +255,7 @@ function reviewAvailableData() {
 
 				<div
 					v-if="entries.length"
-					class="border-border mt-4 grid grid-cols-2 divide-x divide-y rounded-md border sm:grid-cols-3 xl:grid-cols-6 xl:divide-y-0"
+					class="border-border mt-4 grid grid-cols-2 divide-x divide-y rounded-md border sm:grid-cols-3 xl:grid-cols-7 xl:divide-y-0"
 				>
 					<div class="px-3 py-2">
 						<div class="text-muted-foreground text-xs">Files</div>
@@ -283,6 +288,17 @@ function reviewAvailableData() {
 						<div class="text-muted-foreground text-xs">No usable data</div>
 						<div class="font-semibold tabular-nums">
 							{{ formatCount(noDataCount) }}
+						</div>
+					</div>
+					<div class="px-3 py-2">
+						<div class="text-muted-foreground text-xs">Tags only</div>
+						<div
+							class="font-semibold tabular-nums"
+							:class="
+								analysisSkippedCount ? 'text-amber-700 dark:text-amber-400' : ''
+							"
+						>
+							{{ formatCount(analysisSkippedCount) }}
 						</div>
 					</div>
 					<div class="px-3 py-2">
@@ -320,13 +336,24 @@ function reviewAvailableData() {
 						</span>
 						<span
 							class="text-muted-foreground flex max-w-72 items-center gap-1.5"
-							:class="entry.error ? 'text-destructive' : ''"
-							:title="entry.error || entryStatus(entry)"
+							:class="{
+								'text-destructive': entry.error,
+								'text-amber-700 dark:text-amber-400':
+									!entry.error && entry.analysisSkipReason
+							}"
+							:title="
+								entry.error || entry.analysisSkipReason || entryStatus(entry)
+							"
 						>
-							<AlertTriangle v-if="entry.error" class="size-3" />
+							<AlertTriangle
+								v-if="entry.error || entry.analysisSkipReason"
+								class="size-3"
+							/>
 							<CheckCircle2 v-else class="size-3" />
 							<span class="truncate">
-								{{ entry.error || entryStatus(entry) }}
+								{{
+									entry.error || entry.analysisSkipReason || entryStatus(entry)
+								}}
 							</span>
 						</span>
 					</div>
@@ -352,6 +379,8 @@ function reviewAvailableData() {
 			class="border-border bg-muted/30 text-muted-foreground flex flex-wrap gap-x-2 gap-y-1 border-t px-4 py-2.5 text-xs"
 		>
 			<span>Local only</span>
+			<span aria-hidden="true">·</span>
+			<span>Full decode only within the safe memory budget</span>
 			<span aria-hidden="true">·</span>
 			<span>Cached on this device</span>
 		</div>

@@ -117,6 +117,18 @@ test('builds an immutable effective configuration from shared defaults', () => {
 		configurationVersion: 'center-180s-44k1-v1',
 		sampleRate: 44_100,
 		maxAnalysisSeconds: 180,
+		decodeSafety: {
+			policyVersion: 'whole-file-pcm-wav-v1',
+			maxHeaderBytes: 1_048_576,
+			maxTotalPeakBytes: 268_435_456,
+			fixedSafetyMarginBytes: 33_554_432,
+			inputFileCopies: 2,
+			decodedPcmCopies: 2,
+			analysisPcmCopies: 3,
+			maxChannels: 2,
+			maxSampleRate: 192_000,
+			supportedWavBitsPerSample: [16, 24]
+		},
 		minimumConfidence: {
 			bpm: 1.5,
 			keyStrength: 0.8
@@ -148,6 +160,13 @@ test('builds an immutable effective configuration from shared defaults', () => {
 	})
 	assert.equal(Object.isFrozen(effectiveConfiguration), true)
 	assert.equal(Object.isFrozen(effectiveConfiguration.minimumConfidence), true)
+	assert.equal(Object.isFrozen(effectiveConfiguration.decodeSafety), true)
+	assert.equal(
+		Object.isFrozen(
+			effectiveConfiguration.decodeSafety.supportedWavBitsPerSample
+		),
+		true
+	)
 	assert.equal(Object.isFrozen(effectiveConfiguration.rhythmExtractor), true)
 	assert.equal(Object.isFrozen(effectiveConfiguration.keyExtractor), true)
 	assert.equal(Object.isFrozen(effectiveConfiguration.keyProfiles), true)
@@ -319,6 +338,11 @@ test('formats immutable analysis metadata into exact JSON lines', () => {
 
 	assert.equal(Object.isFrozen(metadata), true)
 	assert.equal(Object.isFrozen(metadata.rhythmExtractor), true)
+	assert.equal(Object.isFrozen(metadata.decodeSafety), true)
+	assert.equal(
+		Object.isFrozen(metadata.decodeSafety.supportedWavBitsPerSample),
+		true
+	)
 	assert.equal(Object.isFrozen(metadata.keyProfiles), true)
 	assert.deepEqual(formatBenchmarkReport(output), [
 		JSON.stringify({ track: 'one', analysisMetadata: metadata }),
@@ -473,6 +497,18 @@ test('executes and routes a successful multi-profile benchmark in order', () => 
 		configurationVersion: 'center-180s-44k1-v1',
 		sampleRate: 44_100,
 		maxAnalysisSeconds: 180,
+		decodeSafety: {
+			policyVersion: 'whole-file-pcm-wav-v1',
+			maxHeaderBytes: 1_048_576,
+			maxTotalPeakBytes: 268_435_456,
+			fixedSafetyMarginBytes: 33_554_432,
+			inputFileCopies: 2,
+			decodedPcmCopies: 2,
+			analysisPcmCopies: 3,
+			maxChannels: 2,
+			maxSampleRate: 192_000,
+			supportedWavBitsPerSample: [16, 24]
+		},
 		rhythmExtractor: {
 			maximumTempo: 208,
 			method: 'degara',

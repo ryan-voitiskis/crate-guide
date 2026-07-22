@@ -59,10 +59,12 @@ export type LocalAudioReviewSelection = {
 export type LocalAudioFileStatus =
 	| 'queued'
 	| 'reading-tags'
+	| 'checking-budget'
 	| 'decoding'
 	| 'analyzing'
 	| 'cached'
 	| 'complete'
+	| 'tags-only'
 	| 'error'
 
 export type LocalAudioFileEntry = {
@@ -72,6 +74,7 @@ export type LocalAudioFileEntry = {
 	status: LocalAudioFileStatus
 	fromCache: boolean
 	source: LocalAudioTrackSource | null
+	analysisSkipReason: string | null
 	error: string | null
 }
 

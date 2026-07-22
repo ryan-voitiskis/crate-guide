@@ -90,7 +90,9 @@ describe('demo workbench', () => {
 			throw new Error('Expected seeded demo entities')
 
 		expect(await captured.tracks.deleteTrack(trackId)).toBe(false)
-		expect(await captured.records.deleteRecord(recordId)).toBe(false)
+		expect(await captured.records.removeRecordFromCollection(recordId)).toBe(
+			false
+		)
 		expect(await captured.crates.deleteCrate(crateId)).toBe(false)
 		expect(await captured.session.saveSession('Demo set')).toBeNull()
 		expect(captured.tracks.tracks).toHaveLength(24)

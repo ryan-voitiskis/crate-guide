@@ -19,6 +19,11 @@ import {
 	getCachedLocalAudioResult,
 	putCachedLocalAudioResult
 } from '~/utils/localAudioCache'
+import {
+	LOCAL_AUDIO_DECODE_SKIP_MESSAGES,
+	type LocalAudioDecodeDecision,
+	inspectLocalAudioDecodeSafety
+} from '~/utils/localAudioDecodePolicy'
 import { parseRekordboxTonality } from '~/utils/rekordboxXml'
 
 type DirectoryHandle = {
@@ -59,6 +64,7 @@ export type LocalAudioAnalysisDependencies = {
 		sampleRate: number
 	) => OfflineAudioContext
 	readTags: (file: File) => Promise<LocalAudioTagMetadata>
+	inspectDecodeSafety: (file: File) => Promise<LocalAudioDecodeDecision>
 	getCachedResult: (cacheKey: string) => Promise<CachedLocalAudioResult | null>
 	putCachedResult: (record: CachedLocalAudioResult) => Promise<void>
 	performanceNow: () => number
@@ -75,10 +81,12 @@ const productionDependencies: LocalAudioAnalysisDependencies = {
 			}
 		),
 	createRequestId: () => crypto.randomUUID(),
-	createAudioContext: () => new AudioContext(),
+	createAudioContext: () =>
+		new AudioContext({ sampleRate: LOCAL_AUDIO_SAMPLE_RATE }),
 	createOfflineAudioContext: (numberOfChannels, length, sampleRate) =>
 		new OfflineAudioContext(numberOfChannels, length, sampleRate),
 	readTags: readLocalAudioTags,
+	inspectDecodeSafety: inspectLocalAudioDecodeSafety,
 	getCachedResult: getCachedLocalAudioResult,
 	putCachedResult: putCachedLocalAudioResult,
 	performanceNow: () => performance.now(),
@@ -124,7 +132,7 @@ export function useLocalAudioAnalysis(
 	const processedCount = computed(
 		() =>
 			entries.value.filter((entry) =>
-				['cached', 'complete', 'error'].includes(entry.status)
+				['cached', 'complete', 'tags-only', 'error'].includes(entry.status)
 			).length
 	)
 	const errorCount = computed(
@@ -133,11 +141,19 @@ export function useLocalAudioAnalysis(
 	const cachedCount = computed(
 		() => entries.value.filter((entry) => entry.fromCache).length
 	)
+	const analysisSkippedCount = computed(
+		() =>
+			entries.value.filter(
+				(entry) =>
+					entry.status === 'tags-only' && entry.analysisSkipReason !== null
+			).length
+	)
 	const analysisCandidateCount = computed(
 		() =>
 			entries.value.filter(
 				(entry) =>
 					entry.source &&
+					entry.analysisSkipReason === null &&
 					entry.source.analysis === null &&
 					(entry.source.bpmSource === null ||
 						entry.source.keyModeSource === null)
@@ -200,6 +216,7 @@ export function useLocalAudioAnalysis(
 			status: 'queued',
 			fromCache: false,
 			source: null,
+			analysisSkipReason: null,
 			error: null
 		}
 	}
@@ -335,6 +352,11 @@ export function useLocalAudioAnalysis(
 	}> {
 		const context = dependencies.createAudioContext()
 		try {
+			if (context.sampleRate !== LOCAL_AUDIO_SAMPLE_RATE) {
+				throw new Error(
+					`Browser AudioContext did not honor ${LOCAL_AUDIO_SAMPLE_RATE} Hz`
+				)
+			}
 			const decoded = await context.decodeAudioData(await file.arrayBuffer())
 			const { analyzedDurationSeconds, analysisOffsetSeconds } =
 				getLocalAudioAnalysisWindow(decoded.duration)
@@ -394,6 +416,7 @@ export function useLocalAudioAnalysis(
 		mode: ProcessingMode
 	) {
 		entry.error = null
+		entry.analysisSkipReason = null
 		const cacheKey = getLocalAudioCacheKey({
 			relativePath: entry.relativePath,
 			size: entry.file.size,
@@ -431,19 +454,42 @@ export function useLocalAudioAnalysis(
 			(mode === 'missing-analysis' &&
 				(!hasUsableBpm(tags) || !hasUsableKey(tags)))
 		if (shouldAnalyze) {
-			entry.status = 'decoding'
+			entry.status = 'checking-budget'
 			triggerRef(entries)
-			const decoded = await decodeAndResample(entry.file)
-			tags.durationSeconds ??= decoded.durationSeconds
 			if (cancelRequested.value) throw new Error('Analysis cancelled')
-			entry.status = 'analyzing'
-			triggerRef(entries)
-			analysis = await runWorkerAnalysis(
-				decoded.samples,
-				decoded.durationSeconds,
-				decoded.analyzedDurationSeconds,
-				decoded.analysisOffsetSeconds
-			)
+			const decodeDecision = await dependencies.inspectDecodeSafety(entry.file)
+			if (cancelRequested.value) throw new Error('Analysis cancelled')
+			if (decodeDecision.metadata) {
+				tags.durationSeconds ??= decodeDecision.metadata.durationSeconds
+			}
+
+			if (decodeDecision.kind === 'tags-only') {
+				entry.analysisSkipReason = decodeDecision.message
+			} else {
+				entry.status = 'decoding'
+				triggerRef(entries)
+				let decoded: Awaited<ReturnType<typeof decodeAndResample>> | null = null
+				try {
+					decoded = await decodeAndResample(entry.file)
+				} catch (error) {
+					if (cancelRequested.value) throw error
+					entry.analysisSkipReason =
+						LOCAL_AUDIO_DECODE_SKIP_MESSAGES.decodeFailed
+				}
+
+				if (decoded) {
+					tags.durationSeconds ??= decoded.durationSeconds
+					if (cancelRequested.value) throw new Error('Analysis cancelled')
+					entry.status = 'analyzing'
+					triggerRef(entries)
+					analysis = await runWorkerAnalysis(
+						decoded.samples,
+						decoded.durationSeconds,
+						decoded.analyzedDurationSeconds,
+						decoded.analysisOffsetSeconds
+					)
+				}
+			}
 		}
 
 		entry.source = createLocalAudioTrackSource({
@@ -455,7 +501,7 @@ export function useLocalAudioAnalysis(
 			tags,
 			analysis
 		})
-		entry.status = 'complete'
+		entry.status = entry.analysisSkipReason ? 'tags-only' : 'complete'
 		await dependencies
 			.putCachedResult({
 				cacheKey,
@@ -531,6 +577,7 @@ export function useLocalAudioAnalysis(
 
 	async function analyzeNextBatch(limit: number, forceEssentia = false) {
 		const candidates = entries.value.filter((entry) => {
+			if (entry.analysisSkipReason !== null) return false
 			if (entry.status === 'queued' || entry.status === 'error') return true
 			if (!entry.source) return false
 			return (
@@ -558,6 +605,7 @@ export function useLocalAudioAnalysis(
 		processedCount,
 		errorCount,
 		cachedCount,
+		analysisSkippedCount,
 		analysisCandidateCount,
 		completeDataCount,
 		partialDataCount,

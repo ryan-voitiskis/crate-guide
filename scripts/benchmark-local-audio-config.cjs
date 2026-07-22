@@ -84,6 +84,12 @@ function buildEffectiveConfiguration(environment = {}) {
 		method: rhythmMethod
 	})
 	const keyExtractor = Object.freeze({ ...sharedConfiguration.keyExtractor })
+	const decodeSafety = Object.freeze({
+		...sharedConfiguration.decodeSafety,
+		supportedWavBitsPerSample: Object.freeze([
+			...sharedConfiguration.decodeSafety.supportedWavBitsPerSample
+		])
+	})
 
 	return Object.freeze({
 		analyzerVersion: sharedConfiguration.analyzerVersion,
@@ -91,6 +97,7 @@ function buildEffectiveConfiguration(environment = {}) {
 		sampleRate: sharedConfiguration.sampleRate,
 		maxAnalysisSeconds: sharedConfiguration.maxAnalysisSeconds,
 		minimumConfidence,
+		decodeSafety,
 		rhythmExtractor,
 		keyExtractor,
 		keyProfiles: Object.freeze(keyProfiles),

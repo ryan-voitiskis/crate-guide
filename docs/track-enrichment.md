@@ -12,7 +12,8 @@ staged changes.
 3. The Rekordbox path parses a collection export with
    `app/utils/rekordboxXml.ts`.
 4. The local path scans embedded metadata first. Missing values can be analyzed
-   in explicit batches by an Essentia Web Worker.
+   in explicit batches when the file passes the local decode-safety policy; all
+   other files remain available as tags-only results.
 5. `app/utils/trackEnrichment.ts` matches either source to loaded Crate Guide
    tracks and records.
 6. `useTrackEnrichmentWorkflow` owns source selection, parse/match progress,
@@ -58,14 +59,59 @@ generate compatible XML.
 `useLocalAudioAnalysis` owns folder traversal, cache reads/writes, Web Audio
 decoding, Worker request lifecycles, cancellation, and the sequential processing
 queue. `music-metadata` reads tags without cover artwork or an exhaustive
-duration scan; duration is optional matching evidence and is recovered if a
-file is later decoded. Large-folder status updates are throttled so processing
-does not repeatedly recount the complete file list. Audio that still needs BPM
-or key is decoded with the Web Audio API. A continuous center segment of up to
-three minutes is mixed to mono, resampled to 44.1 kHz when needed, and
-transferred to `app/workers/localAudioAnalysis.worker.ts`. Bounding the segment
-avoids renderer memory failures on long uncompressed files while skipping
-DJ-oriented intro and outro sections. A private benchmark also found that
+duration scan or post-header search; duration is optional matching evidence and
+is recovered from a validated WAV header or successful decode when available.
+Large-folder status updates are throttled so processing does not repeatedly
+recount the complete file list.
+
+Before any whole-file `arrayBuffer` call, AudioContext creation, or Web Audio
+decode, `app/utils/localAudioDecodePolicy.ts` reads at most the first 1 MiB and
+applies the checked-in total-peak envelope. Only a standard RIFF/WAVE file with
+16-bit or 24-bit integer PCM, a `fmt ` and `data` header inside that slice, no
+more than two channels, a sample rate no higher than 192 kHz, internally
+consistent byte rates, and a total estimate at or below 256 MiB may enter the
+whole-file Web Audio path. Unsupported, corrupt, unknown, or oversized input is
+kept as embedded tags and shown as **Tags only**; it is not silently retried
+through the full decoder.
+
+The `whole-file-pcm-wav-v1` estimate is:
+
+```text
+2 × file bytes
++ bounded header bytes
++ 2 × (duration × max(source rate, 44,100) × channels × 4-byte decoded samples)
++ 3 × (min(duration, 180s) × 44,100 × 4-byte analysis samples)
++ 32 MiB fixed safety margin
+```
+
+These terms conservatively cover the retained `File` and full input
+`ArrayBuffer`, decoded PCM plus native decoder working storage at the larger of
+the source and requested output rates, mono/resampled analysis data plus
+Worker/WASM ownership or copies, and fixed browser/cache overhead. The adapter
+requests a 44.1 kHz AudioContext and verifies that rate before reading the full
+file; a browser that does not honor it stays tags-only. Arithmetic overflow,
+missing duration, or metadata outside the validated limits fails closed. The
+centered 180-second window bounds Essentia input only; it does **not** by itself
+bound whole-file decode memory.
+
+| Input                                      | Current result                                                                     |
+| ------------------------------------------ | ---------------------------------------------------------------------------------- |
+| Validated 16/24-bit PCM WAV within 256 MiB | Whole-file decode, centered analysis window, then Essentia                         |
+| PCM WAV above the envelope                 | Tags only: `Analysis skipped: file exceeds the safe decode budget`                 |
+| Corrupt or incomplete WAV metadata         | Tags only: metadata cannot prove safe decoding                                     |
+| AIFF/AIFC, RF64, float/extensible WAV      | Tags only: no verified safe browser decoder                                        |
+| MP3, AAC/ALAC, FLAC, Ogg/Opus, APE, WV     | Embedded tags only until a genuinely bounded codec adapter is independently proven |
+
+No partial decoder is shipped. The WebCodecs/demuxer spike stopped at the plan's
+safety gate: wrapping a decoder is not enough evidence that demuxing, seek, and
+frame allocation are bounded. A future format adapter must cap decoded frames,
+support cancellation, pass generated browser fixtures in CI, meet the benchmark
+parity tolerance, and have acceptable browser support and licensing before the
+matrix above can be broadened.
+
+For admitted audio, a continuous center segment of up to three minutes is mixed
+to mono, resampled to 44.1 kHz when needed, and transferred to
+`app/workers/localAudioAnalysis.worker.ts`. A private benchmark found that
 concatenating separate windows could introduce a 2:3 tempo error on a manually
 verified track; the continuous center segment recovered its approximately 156
 BPM beatgrid.
@@ -81,28 +127,32 @@ Folder access uses the File System Access API where available and falls back to
 ## Analyzer Configuration and Cache Maintenance
 
 `shared/config/localAudioAnalysis.json` is the shared owner of production
-analyzer identity, configuration identity, sample/window limits, confidence
-thresholds, and Essentia extractor parameters. `app/utils/localAudio.ts` maps
-those named fields to the positional arguments consumed by the Worker. The
-private benchmark script also starts from the same JSON defaults, then applies
-explicit environment overrides to an immutable effective configuration.
+analyzer identity, configuration identity, sample/window limits, decode-safety
+policy, confidence thresholds, and Essentia extractor parameters.
+`app/utils/localAudio.ts` maps the analyzer fields to the positional arguments
+consumed by the Worker. The private benchmark script also starts from the same
+JSON defaults, then applies explicit environment overrides to an immutable
+effective configuration.
 
 The benchmark writes selected effective settings into `analysisMetadata` on
 every result and on its summary: analyzer/configuration versions, sample rate,
-maximum analysis duration, rhythm-extractor settings, selected key profiles,
-analysis layout, estimate inclusion, and the loaded Essentia runtime version.
-It does not claim to serialize every threshold or key-extractor field, so retain
-the shared JSON and benchmark environment alongside any private research result.
+maximum analysis duration, the complete decode-safety policy,
+rhythm-extractor settings, selected key profiles, analysis layout, estimate
+inclusion, and the loaded Essentia runtime version. It does not claim to
+serialize every threshold or key-extractor field, so retain the shared JSON and
+benchmark environment alongside any private research result.
 
-Cache invalidation is manual and deliberate. Any change to production analysis
-behavior or extractor arguments must also change `configurationVersion` in the
-shared JSON. An analyzer implementation/dependency change must update
-`analyzerVersion`; a tag-reader behavior change must update
-`LOCAL_AUDIO_METADATA_VERSION` in `app/utils/localAudio.ts`. These values are
-part of the cache key, so the version bump prevents a new behavior from reusing
-old results. Research-only benchmark overrides do not change production cache
-identity and must not be promoted without updating the shared configuration and
-its version.
+Cache invalidation is manual and deliberate. Any change to analyzer output or
+extractor arguments must also change `configurationVersion` in the shared JSON.
+An analyzer implementation/dependency change must update `analyzerVersion`; a
+tag-reader behavior change must update `LOCAL_AUDIO_METADATA_VERSION` in
+`app/utils/localAudio.ts`. These values are part of the cache key, so the version
+bump prevents new result behavior from reusing old results. Decode admission is
+versioned separately by `decodeSafety.policyVersion`: an existing completed
+analysis can be reused without reading or decoding the file, while every new
+decode must pass the current safety policy. Research-only benchmark overrides
+do not change production cache identity and must not be promoted without
+updating the shared configuration and its applicable version.
 
 ## Matching Policy
 
@@ -137,24 +187,32 @@ configuration behavior:
 ```bash
 npx vitest run --project unit \
   app/utils/trackEnrichment.test.ts \
-  app/utils/localAudio.test.ts
+  app/utils/localAudio.test.ts \
+  app/utils/localAudioDecodePolicy.test.ts
 npx vitest run --project stores \
   app/composables/__tests__/useTrackEnrichmentWorkflow.test.ts
 npx vitest run --project nuxt \
   test/nuxt/enrichment-page.nuxt.test.ts \
+  test/nuxt/PanelTrackEnrichmentLocalAudio.nuxt.test.ts \
   test/nuxt/useLocalAudioAnalysis.nuxt.test.ts \
   test/nuxt/localAudioCache.nuxt.test.ts
 npm run test:audio-config
+npm run test:browser
 npm run verify
 npm run build
 ```
 
 The rendered enrichment-page suite protects the thin route's collection-load
-and workflow bindings. The Nuxt local-audio suite exercises Worker success,
-failure, cancellation, and disposal through a fake Worker boundary.
-`app/utils/localAudio.test.ts` pins the shared config mapping and cache-key
-versions, while `scripts/benchmark-local-audio.test.cjs` pins effective
-benchmark settings and output metadata.
+and workflow bindings. The Nuxt local-audio suites exercise the tags-only UX,
+budget refusal, decoder failure, Worker success/failure, cancellation, and
+disposal through injected boundaries. Generated unit fixtures cover exact
+budget boundaries, corrupt headers, extreme metadata, and unsupported
+containers without committing media. The browser suite generates disposable
+16-bit and 24-bit PCM WAVs and exercises Chromium's real `decodeAudioData`
+implementation after policy admission. `app/utils/localAudio.test.ts` pins the
+shared config mapping and cache-key versions, while
+`scripts/benchmark-local-audio.test.cjs` pins effective benchmark settings and
+machine-readable output metadata.
 
 Use a sanitized XML fixture for automated tests. Real collection exports may be
 used for local browser verification but must not be committed.
@@ -169,8 +227,33 @@ node scripts/benchmark-local-audio.cjs /path/to/private-manifest.tsv
 The benchmark requires `ffprobe` and `ffmpeg` on `PATH` as well as the local
 audio, manifest, and analyzer dependencies.
 
-Set `ESSENTIA_KEY_PROFILES` to a comma-separated profile list and
-`ESSENTIA_ANALYSIS_LAYOUT=distributed` to compare research configurations. Do
-not use distributed output as production evidence without checking it against
-the continuous center layout. Do not commit manifests, benchmark output,
-collection paths, or audio files.
+For private memory profiles, record the date, OS and machine model/RAM, browser
+and version, analyzer/runtime versions, `decodeSafety.policyVersion`, source
+container/codec/sample rate/channel count/bit depth/duration/file size, policy
+decision and estimate, observed browser-process and OS peak, result parity, and
+cancellation behavior. Include short and long compressed and uncompressed
+cases, but keep the manifest, raw measurements containing paths, and all media
+outside the repository. Browser JS heap numbers alone are not evidence for
+native decoder or AudioBuffer memory. CI uses only generated disposable
+fixtures; a private file must never be made a required test dependency.
+
+Benchmark overrides are trimmed before use. Empty or whitespace-only values
+fall back to the shared analyzer defaults. Supported overrides are:
+
+- `ESSENTIA_KEY_PROFILES`: a comma-separated list containing `diatonic`,
+  `krumhansl`, `temperley`, `weichai`, `tonictriad`, `temperley2005`, `thpcp`,
+  `shaath`, `gomez`, `noland`, `edmm`, `edma`, `bgate`, or `braw`
+- `ESSENTIA_ANALYSIS_LAYOUT`: `center` or `distributed`
+- `ESSENTIA_RHYTHM_METHOD`: `multifeature` or `degara`
+- `ESSENTIA_INCLUDE_ESTIMATES`: `0` or `1`
+
+Unsupported values fail before ffmpeg or Essentia starts. Use
+`ESSENTIA_ANALYSIS_LAYOUT=distributed` only to compare research configurations;
+do not use distributed output as production evidence without checking it
+against the continuous center layout. Do not commit manifests, benchmark
+output, collection paths, or audio files.
+
+To opt into the disposable installed-tool smoke test, point
+`ESSENTIA_BENCHMARK_SMOKE_MANIFEST` at a small private local manifest and run
+`npm run test:audio-config`. The test never downloads tools or modifies corpus
+files and remains skipped when that variable is absent.

@@ -11,6 +11,10 @@ import type {
 	LocalAudioTagMetadata,
 	LocalAudioWorkerResponse
 } from '~/types/localAudio'
+import {
+	LOCAL_AUDIO_DECODE_SKIP_MESSAGES,
+	type LocalAudioDecodeDecision
+} from '~/utils/localAudioDecodePolicy'
 
 class FakeWorker {
 	onmessage: ((event: MessageEvent<LocalAudioWorkerResponse>) => void) | null =
@@ -65,6 +69,29 @@ function createAnalysis(
 	}
 }
 
+function createSafeDecodeDecision(): LocalAudioDecodeDecision {
+	return {
+		kind: 'safe',
+		metadata: {
+			container: 'wav',
+			codec: 'pcm',
+			durationSeconds: 1,
+			sampleRate: 44_100,
+			channels: 1,
+			bitsPerSample: 16,
+			dataBytes: 88_200
+		},
+		envelope: {
+			fileBytes: 20,
+			headerBytes: 10,
+			decodedPcmBytes: 352_800,
+			analysisPcmBytes: 529_200,
+			fixedSafetyMarginBytes: 33_554_432,
+			totalPeakBytes: 34_436_462
+		}
+	}
+}
+
 function createDependencyFixture(
 	overrides: Partial<LocalAudioAnalysisDependencies> = {}
 ) {
@@ -78,6 +105,7 @@ function createDependencyFixture(
 		getChannelData: () => decodedSamples
 	} as unknown as AudioBuffer
 	const audioContext = {
+		sampleRate: 44_100,
 		decodeAudioData: vi.fn().mockResolvedValue(decodedBuffer),
 		close: vi.fn().mockResolvedValue(undefined)
 	} as unknown as AudioContext
@@ -96,6 +124,7 @@ function createDependencyFixture(
 			)
 		}),
 		readTags: vi.fn().mockResolvedValue(missingTags),
+		inspectDecodeSafety: vi.fn().mockResolvedValue(createSafeDecodeDecision()),
 		getCachedResult: vi.fn().mockResolvedValue(null),
 		putCachedResult: vi.fn().mockResolvedValue(undefined),
 		performanceNow: vi.fn().mockReturnValue(1_000),
@@ -220,10 +249,163 @@ describe('useLocalAudioAnalysis', () => {
 		await batch
 
 		expect(fixture.dependencies.readTags).toHaveBeenCalledTimes(1)
+		expect(fixture.dependencies.inspectDecodeSafety).toHaveBeenCalledTimes(1)
 		expect(fixture.dependencies.createAudioContext).toHaveBeenCalledTimes(1)
 		expect(worker?.postMessage).toHaveBeenCalledTimes(1)
 		expect(analysis.entries.value[0]?.status).toBe('complete')
 		expect(analysis.entries.value[0]?.source?.analysis).toEqual(result)
+	})
+
+	it('keeps an oversized two-hour file as tags-only without decode allocations', async () => {
+		const file = createFile('two-hours.wav')
+		const wholeFileRead = vi.fn(() => Promise.resolve(new ArrayBuffer(0)))
+		Object.defineProperty(file, 'arrayBuffer', { value: wholeFileRead })
+		const fixture = createDependencyFixture({
+			inspectDecodeSafety: vi.fn().mockResolvedValue({
+				kind: 'tags-only',
+				code: 'budget',
+				message: LOCAL_AUDIO_DECODE_SKIP_MESSAGES.budget,
+				metadata: {
+					container: 'wav',
+					codec: 'pcm',
+					durationSeconds: 7_200,
+					sampleRate: 44_100,
+					channels: 2,
+					bitsPerSample: 16,
+					dataBytes: 1_270_080_000
+				},
+				envelope: {
+					fileBytes: 2_540_160_088,
+					headerBytes: 44,
+					decodedPcmBytes: 5_080_320_000,
+					analysisPcmBytes: 95_256_000,
+					fixedSafetyMarginBytes: 33_554_432,
+					totalPeakBytes: 7_749_290_564
+				}
+			})
+		})
+		const { analysis } = await mountAnalysis(fixture.dependencies)
+		analysis.setFiles([file])
+
+		await analysis.analyzeNextBatch(1)
+
+		const entry = analysis.entries.value[0]
+		expect(entry?.status).toBe('tags-only')
+		expect(entry?.analysisSkipReason).toBe(
+			LOCAL_AUDIO_DECODE_SKIP_MESSAGES.budget
+		)
+		expect(entry?.source?.totalTimeSeconds).toBe(7_200)
+		expect(entry?.source?.analysis).toBeNull()
+		expect(analysis.analysisSkippedCount.value).toBe(1)
+		expect(analysis.analysisCandidateCount.value).toBe(0)
+		expect(wholeFileRead).not.toHaveBeenCalled()
+		expect(fixture.dependencies.createAudioContext).not.toHaveBeenCalled()
+		expect(
+			fixture.dependencies.createOfflineAudioContext
+		).not.toHaveBeenCalled()
+		expect(fixture.dependencies.createWorker).not.toHaveBeenCalled()
+		expect(fixture.dependencies.putCachedResult).toHaveBeenCalledWith(
+			expect.objectContaining({ analysis: null })
+		)
+
+		await analysis.analyzeNextBatch(1, true)
+		expect(fixture.dependencies.inspectDecodeSafety).toHaveBeenCalledTimes(1)
+	})
+
+	it('exposes metadata checking as a distinct progress state', async () => {
+		let resolveDecision!: (decision: LocalAudioDecodeDecision) => void
+		const fixture = createDependencyFixture({
+			inspectDecodeSafety: vi.fn(
+				() =>
+					new Promise<LocalAudioDecodeDecision>((resolve) => {
+						resolveDecision = resolve
+					})
+			)
+		})
+		const { analysis } = await mountAnalysis(fixture.dependencies)
+		analysis.setFiles([createFile('checking.wav')])
+
+		const batch = analysis.analyzeNextBatch(1)
+		await vi.waitFor(() => {
+			expect(analysis.entries.value[0]?.status).toBe('checking-budget')
+		})
+		resolveDecision({
+			kind: 'tags-only',
+			code: 'metadata',
+			message: LOCAL_AUDIO_DECODE_SKIP_MESSAGES.metadata,
+			metadata: null,
+			envelope: null
+		})
+		await batch
+
+		expect(analysis.entries.value[0]?.status).toBe('tags-only')
+		expect(fixture.dependencies.createAudioContext).not.toHaveBeenCalled()
+	})
+
+	it('turns a verified-path decoder failure into an honest tags-only result', async () => {
+		const decodeAudioData = vi
+			.fn()
+			.mockRejectedValue(new Error('Synthetic decoder failure'))
+		const close = vi.fn().mockResolvedValue(undefined)
+		const fixture = createDependencyFixture({
+			createAudioContext: vi.fn(
+				() =>
+					({
+						sampleRate: 44_100,
+						decodeAudioData,
+						close
+					}) as unknown as AudioContext
+			)
+		})
+		const { analysis } = await mountAnalysis(fixture.dependencies)
+		analysis.setFiles([createFile('decoder-error.wav')])
+
+		await analysis.analyzeNextBatch(1)
+
+		const entry = analysis.entries.value[0]
+		expect(entry?.status).toBe('tags-only')
+		expect(entry?.analysisSkipReason).toBe(
+			LOCAL_AUDIO_DECODE_SKIP_MESSAGES.decodeFailed
+		)
+		expect(entry?.error).toBeNull()
+		expect(decodeAudioData).toHaveBeenCalledTimes(1)
+		expect(close).toHaveBeenCalledTimes(1)
+		expect(
+			fixture.dependencies.createOfflineAudioContext
+		).not.toHaveBeenCalled()
+		expect(fixture.dependencies.createWorker).not.toHaveBeenCalled()
+	})
+
+	it('refuses a browser decode rate mismatch before reading the full file', async () => {
+		const file = createFile('rate-mismatch.wav')
+		const wholeFileRead = vi.fn(() => Promise.resolve(new ArrayBuffer(0)))
+		Object.defineProperty(file, 'arrayBuffer', { value: wholeFileRead })
+		const decodeAudioData = vi.fn()
+		const close = vi.fn().mockResolvedValue(undefined)
+		const fixture = createDependencyFixture({
+			createAudioContext: vi.fn(
+				() =>
+					({
+						sampleRate: 96_000,
+						decodeAudioData,
+						close
+					}) as unknown as AudioContext
+			)
+		})
+		const { analysis } = await mountAnalysis(fixture.dependencies)
+		analysis.setFiles([file])
+
+		await analysis.analyzeNextBatch(1)
+
+		expect(analysis.entries.value[0]).toMatchObject({
+			status: 'tags-only',
+			analysisSkipReason: LOCAL_AUDIO_DECODE_SKIP_MESSAGES.decodeFailed,
+			error: null
+		})
+		expect(wholeFileRead).not.toHaveBeenCalled()
+		expect(decodeAudioData).not.toHaveBeenCalled()
+		expect(close).toHaveBeenCalledTimes(1)
+		expect(fixture.dependencies.createWorker).not.toHaveBeenCalled()
 	})
 
 	it('settles a matching Worker error response as an entry error', async () => {

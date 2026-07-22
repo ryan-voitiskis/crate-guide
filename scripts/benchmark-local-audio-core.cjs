@@ -142,6 +142,12 @@ function buildBenchmarkMetadata(
 		configurationVersion: effectiveConfiguration.configurationVersion,
 		sampleRate: effectiveConfiguration.sampleRate,
 		maxAnalysisSeconds: effectiveConfiguration.maxAnalysisSeconds,
+		decodeSafety: Object.freeze({
+			...effectiveConfiguration.decodeSafety,
+			supportedWavBitsPerSample: Object.freeze([
+				...effectiveConfiguration.decodeSafety.supportedWavBitsPerSample
+			])
+		}),
 		rhythmExtractor: Object.freeze({
 			...effectiveConfiguration.rhythmExtractor
 		}),
