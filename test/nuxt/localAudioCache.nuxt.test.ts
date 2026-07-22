@@ -1,4 +1,5 @@
 import {
+	IDBIndex as FakeIDBIndex,
 	IDBKeyRange as FakeIDBKeyRange,
 	IDBObjectStore as FakeIDBObjectStore
 } from 'fake-indexeddb'
@@ -21,6 +22,7 @@ import {
 } from '~/utils/localAudioCache'
 
 const CACHE_DB_NAME = LOCAL_AUDIO_CACHE_DATABASE_NAME
+const CACHE_PRUNE_CHUNK_SIZE = 500
 
 function createRecord(
 	cacheKey: string,
@@ -80,6 +82,27 @@ function instrumentConnections(options: { abortTransactions?: boolean } = {}) {
 	})
 
 	return databases
+}
+
+function instrumentIndexCursorVisits() {
+	const visitsPerCursor: number[] = []
+	const originalOpenCursor = FakeIDBIndex.prototype.openCursor
+
+	vi.spyOn(FakeIDBIndex.prototype, 'openCursor').mockImplementation(function (
+		this: FakeIDBIndex,
+		query?: IDBValidKey | IDBKeyRange | null,
+		direction?: IDBCursorDirection
+	) {
+		const request = originalOpenCursor.call(this, query, direction)
+		const cursorIndex = visitsPerCursor.push(0) - 1
+		request.addEventListener('success', () => {
+			if (!request.result) return
+			visitsPerCursor[cursorIndex] = (visitsPerCursor[cursorIndex] ?? 0) + 1
+		})
+		return request
+	})
+
+	return visitsPerCursor
 }
 
 function expectEveryConnectionClosed(databases: IDBDatabase[]) {
@@ -413,7 +436,53 @@ describe('localAudioCache', () => {
 		expect(remaining.has(recent.cacheKey)).toBe(true)
 	})
 
-	it('prunes oldest-write overflow without deleting the active session batch', async () => {
+	it('bounds expiry cursor visits while advancing past a large protected prefix', async () => {
+		const visitsPerCursor = instrumentIndexCursorVisits()
+		const protectedCount = CACHE_PRUNE_CHUNK_SIZE * 2 + 17
+		const now = LOCAL_AUDIO_CACHE_MAX_AGE_MS + 10_000
+		const expired = Array.from({ length: 3 }, (_, index) =>
+			createRecord(activeCacheKey(`expired-after-protected-${index}`), {
+				updatedAt: 2
+			})
+		)
+		await seedRecords(expired)
+
+		const protectedRecords = Array.from(
+			{ length: protectedCount },
+			(_, index) =>
+				createRecord(
+					activeCacheKey(`protected-expired-${String(index).padStart(5, '0')}`),
+					{ updatedAt: 1 }
+				)
+		)
+		const session = await openLocalAudioCacheSession({ now: () => now })
+		for (const record of protectedRecords) await session.put(record)
+		await session.flush()
+
+		const result = await session.prune()
+		const remaining = await session.getMany([
+			...protectedRecords.map((record) => record.cacheKey),
+			...expired.map((record) => record.cacheKey)
+		])
+		await session.close()
+
+		const nonemptyCursorVisits = visitsPerCursor.filter((visits) => visits > 0)
+		expect(result.expiredEntries).toBe(expired.length)
+		expect(
+			protectedRecords.every((record) => remaining.has(record.cacheKey))
+		).toBe(true)
+		expect(expired.some((record) => remaining.has(record.cacheKey))).toBe(false)
+		expect(nonemptyCursorVisits.length).toBeGreaterThan(2)
+		expect(Math.max(...nonemptyCursorVisits)).toBeLessThanOrEqual(
+			CACHE_PRUNE_CHUNK_SIZE
+		)
+		expect(
+			nonemptyCursorVisits.reduce((total, visits) => total + visits, 0)
+		).toBeGreaterThanOrEqual(protectedCount + expired.length)
+	})
+
+	it('bounds overflow cursor visits without deleting a large protected batch', async () => {
+		const visitsPerCursor = instrumentIndexCursorVisits()
 		const records = Array.from(
 			{ length: LOCAL_AUDIO_CACHE_MAX_ENTRIES },
 			(_, index) =>
@@ -423,28 +492,47 @@ describe('localAudioCache', () => {
 		)
 		await seedRecords(records)
 
-		const protectedRecord = createRecord(activeCacheKey('just-written'), {
-			updatedAt: 0
-		})
+		const protectedCount = CACHE_PRUNE_CHUNK_SIZE * 2 + 17
+		const protectedRecords = Array.from(
+			{ length: protectedCount },
+			(_, index) =>
+				createRecord(
+					activeCacheKey(`just-written-${String(index).padStart(5, '0')}`),
+					{ updatedAt: 0 }
+				)
+		)
 		const session = await openLocalAudioCacheSession({ now: () => 1_000_000 })
-		await session.put(protectedRecord)
+		for (const record of protectedRecords) await session.put(record)
 		await session.flush()
 		const result = await session.prune()
 		const remaining = await session.getMany([
-			protectedRecord.cacheKey,
-			records[0]!.cacheKey,
-			records[1]!.cacheKey
+			...protectedRecords.map((record) => record.cacheKey),
+			...records.slice(0, protectedCount + 1).map((record) => record.cacheKey)
 		])
 		await session.close()
 
-		expect(result.overflowEntries).toBe(1)
-		expect(remaining.has(protectedRecord.cacheKey)).toBe(true)
-		expect(remaining.has(records[0]!.cacheKey)).toBe(false)
-		expect(remaining.has(records[1]!.cacheKey)).toBe(true)
+		const nonemptyCursorVisits = visitsPerCursor.filter((visits) => visits > 0)
+		expect(result.overflowEntries).toBe(protectedCount)
+		expect(
+			protectedRecords.every((record) => remaining.has(record.cacheKey))
+		).toBe(true)
+		expect(
+			records
+				.slice(0, protectedCount)
+				.some((record) => remaining.has(record.cacheKey))
+		).toBe(false)
+		expect(remaining.has(records[protectedCount]!.cacheKey)).toBe(true)
+		expect(nonemptyCursorVisits.length).toBeGreaterThan(4)
+		expect(Math.max(...nonemptyCursorVisits)).toBeLessThanOrEqual(
+			CACHE_PRUNE_CHUNK_SIZE
+		)
+		expect(
+			nonemptyCursorVisits.reduce((total, visits) => total + visits, 0)
+		).toBeGreaterThanOrEqual(protectedCount * 2)
 		expect((await getLocalAudioCacheStatus()).entryCount).toBe(
 			LOCAL_AUDIO_CACHE_MAX_ENTRIES
 		)
-	}, 20_000)
+	}, 30_000)
 
 	it('exposes count and last-pruned state and clears only the analysis cache', async () => {
 		await seedRecords([createRecord(activeCacheKey('status'))])

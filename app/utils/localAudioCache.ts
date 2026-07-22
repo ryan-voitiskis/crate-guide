@@ -55,6 +55,11 @@ type CacheMetadataRecord = {
 	value: number
 }
 
+type CacheIndexCursorPosition = {
+	indexKey: IDBValidKey
+	primaryKey: IDBValidKey
+}
+
 export type LocalAudioCacheMetrics = {
 	connectionsOpened: number
 	readTransactions: number
@@ -206,6 +211,31 @@ function assertCacheIdle() {
 	if (activeSession) {
 		throw createCacheError('Local audio analysis cache is busy')
 	}
+}
+
+function advanceIndexCursorPastPosition(
+	cursor: IDBCursor,
+	position: CacheIndexCursorPosition
+): boolean {
+	const indexComparison = indexedDB.cmp(cursor.key, position.indexKey)
+	if (indexComparison > 0) return false
+	if (indexComparison < 0) {
+		cursor.continuePrimaryKey(position.indexKey, position.primaryKey)
+		return true
+	}
+
+	const primaryComparison = indexedDB.cmp(
+		cursor.primaryKey,
+		position.primaryKey
+	)
+	if (primaryComparison > 0) return false
+	if (primaryComparison < 0) {
+		cursor.continuePrimaryKey(position.indexKey, position.primaryKey)
+		return true
+	}
+
+	cursor.continue()
+	return true
 }
 
 export function isLocalAudioCacheSessionActive(): boolean {
@@ -400,6 +430,7 @@ export async function openLocalAudioCacheSession(
 		const cutoff = prunedAt - LOCAL_AUDIO_CACHE_MAX_AGE_MS
 		let deleted = 0
 		let exhausted = false
+		let position: CacheIndexCursorPosition | null = null
 
 		while (!exhausted) {
 			const transaction = database.transaction(CACHE_STORE_NAME, 'readwrite')
@@ -410,8 +441,11 @@ export async function openLocalAudioCacheSession(
 			const index = transaction
 				.objectStore(CACHE_STORE_NAME)
 				.index(CACHE_UPDATED_AT_INDEX_NAME)
-			const request = index.openCursor(IDBKeyRange.upperBound(cutoff, true))
-			let deletedInChunk = 0
+			const range = position
+				? IDBKeyRange.bound(position.indexKey, cutoff, false, true)
+				: IDBKeyRange.upperBound(cutoff, true)
+			const request = index.openCursor(range)
+			let visitedInChunk = 0
 			metrics.pruneTransactions += 1
 
 			request.onsuccess = () => {
@@ -420,17 +454,25 @@ export async function openLocalAudioCacheSession(
 					exhausted = true
 					return
 				}
+				visitedInChunk += 1
+				if (position && advanceIndexCursorPastPosition(cursor, position)) {
+					return
+				}
+
+				position = {
+					indexKey: cursor.key,
+					primaryKey: cursor.primaryKey
+				}
 				const cacheKey = String(cursor.primaryKey)
 				if (!protectedKeys.has(cacheKey)) {
 					cursor.delete()
 					deleted += 1
-					deletedInChunk += 1
 				}
-				if (deletedInChunk < CACHE_PRUNE_CHUNK_SIZE) cursor.continue()
+				if (visitedInChunk < CACHE_PRUNE_CHUNK_SIZE) cursor.continue()
 			}
 
 			await completion
-			if (deletedInChunk === 0) exhausted = true
+			if (visitedInChunk === 0) exhausted = true
 		}
 
 		return deleted
@@ -453,33 +495,50 @@ export async function openLocalAudioCacheSession(
 		const entryCount = await countEntriesForPruning()
 		let remaining = Math.max(0, entryCount - LOCAL_AUDIO_CACHE_MAX_ENTRIES)
 		let deleted = 0
+		let exhausted = false
+		let position: CacheIndexCursorPosition | null = null
 
-		while (remaining > 0) {
+		while (remaining > 0 && !exhausted) {
 			const transaction = database.transaction(CACHE_STORE_NAME, 'readwrite')
 			const completion = waitForTransaction(transaction, 'Cache-cap pruning')
 			const index = transaction
 				.objectStore(CACHE_STORE_NAME)
 				.index(CACHE_UPDATED_AT_INDEX_NAME)
-			const request = index.openCursor()
-			const target = Math.min(remaining, CACHE_PRUNE_CHUNK_SIZE)
-			let deletedInChunk = 0
+			const range = position
+				? IDBKeyRange.lowerBound(position.indexKey)
+				: undefined
+			const request = index.openCursor(range)
+			let visitedInChunk = 0
 			metrics.pruneTransactions += 1
 
 			request.onsuccess = () => {
 				const cursor = request.result
-				if (!cursor) return
+				if (!cursor) {
+					exhausted = true
+					return
+				}
+				visitedInChunk += 1
+				if (position && advanceIndexCursorPastPosition(cursor, position)) {
+					return
+				}
+
+				position = {
+					indexKey: cursor.key,
+					primaryKey: cursor.primaryKey
+				}
 				const cacheKey = String(cursor.primaryKey)
 				if (!protectedKeys.has(cacheKey)) {
 					cursor.delete()
 					deleted += 1
-					deletedInChunk += 1
+					remaining -= 1
 				}
-				if (deletedInChunk < target) cursor.continue()
+				if (remaining > 0 && visitedInChunk < CACHE_PRUNE_CHUNK_SIZE) {
+					cursor.continue()
+				}
 			}
 
 			await completion
-			if (deletedInChunk === 0) break
-			remaining -= deletedInChunk
+			if (visitedInChunk === 0) exhausted = true
 		}
 
 		return deleted
