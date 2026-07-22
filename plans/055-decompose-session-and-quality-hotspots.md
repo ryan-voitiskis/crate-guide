@@ -108,7 +108,9 @@ insufficient to prove score/session equivalence.
      plus a synthetic fader gesture in a real browser. Before observing the
      baseline, record the supported browser engine, hardware/CPU-throttle
      protocol, repetitions, warm-up, an explicit p95/frame budget, and the
-     maintainer who approved that budget in benchmark documentation.
+     budget's engineering provenance and maintainer-acceptance status in
+     benchmark documentation. Broad implementation authority is not acceptance
+     of a model-proposed numeric budget.
    - If the current path stays within budget on the supported baseline, retain
      the simple algorithm and land only the characterization gate.
    - If it exceeds budget, coalesce pointer-driven recomputation to animation
@@ -150,9 +152,9 @@ enrichment candidate scores/order/reasons, and E2E flow count/outcomes.
 Stop if a refactor changes a score/order/session result, creates circular Pinia
 ownership, removes an auto-registered consumer, weakens concurrency tests, or
 turns cohesive scenario tests into fragmented setup-heavy files. If the measured
-suggestion baseline meets the pre-approved budget, stop only the optional
-algorithm-optimization stage and finish the behavior-preserving decomposition,
-test splitting, dead-code proof, and characterization gate.
+suggestion baseline meets the predeclared engineering budget, stop only the
+optional algorithm-optimization stage and finish the behavior-preserving
+decomposition, test splitting, dead-code proof, and characterization gate.
 
 ## Git workflow
 

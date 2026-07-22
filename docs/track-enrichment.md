@@ -167,6 +167,10 @@ following before/after rows were captured on 22 July 2026 with the same Vitest
 Browser / Playwright HeadlessChrome 147 runner. Wall times are regression
 signals for this runner, not product latency promises.
 
+The checked-in caps are engineering regression defaults proposed during
+implementation; they are not maintainer-selected or maintainer-accepted product
+limits.
+
 | Scenario    | Baseline connections / transactions / ms | Session connections / transactions / ms |
 | ----------- | ---------------------------------------: | --------------------------------------: |
 | 1,000 hits  |                    1,000 / 1,000 / 119.4 |                           1 / 16 / 18.9 |

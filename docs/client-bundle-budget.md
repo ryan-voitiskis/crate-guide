@@ -23,6 +23,9 @@ size reduction: Nuxt, Vue, Pinia, Supabase, form validation, sortable behavior,
 and shared workbench code remain in the single client entry. Optional work
 continues to load outside that entry:
 
+These measured allowances are engineering regression defaults, not
+maintainer-selected or maintainer-accepted product limits.
+
 - `utils/cloudWorkbenchRuntime.ts` and the Cloud repository adapter graph it
   owns form a semantic lazy boundary loaded only for Cloud workbench routes;
 - the enrichment route is a semantic Nuxt lazy module;

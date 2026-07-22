@@ -1046,47 +1046,6 @@ export const useTracksStore = defineStore('tracks', () => {
 		tracks.value = tracks.value.filter((track) => track.record_id !== recordId)
 	}
 
-	function searchTracks(query: string): LibraryTrack[] {
-		if (!query.trim()) return tracks.value
-
-		const lowercaseQuery = query.toLowerCase()
-		return tracks.value.filter((track: LibraryTrack) => {
-			// Search in title
-			if (track.title.toLowerCase().includes(lowercaseQuery)) return true
-
-			// Search in artists
-			const artistMatch = track.artists.some((artist: DiscogsArtistDb) =>
-				artist.name.toLowerCase().includes(lowercaseQuery)
-			)
-			if (artistMatch) return true
-
-			// Search in extraartists
-			const extraArtistMatch = track.extraartists.some(
-				(artist: DiscogsArtistDb) =>
-					artist.name.toLowerCase().includes(lowercaseQuery)
-			)
-			if (extraArtistMatch) return true
-
-			// Search in genres
-			const genreMatch = track.genres.some((genre: string) =>
-				genre.toLowerCase().includes(lowercaseQuery)
-			)
-			if (genreMatch) return true
-
-			// Search in position
-			if (
-				track.position &&
-				track.position.toLowerCase().includes(lowercaseQuery)
-			)
-				return true
-
-			// Search in BPM (convert to string for partial matches)
-			if (track.bpm && track.bpm.toString().includes(query)) return true
-
-			return false
-		})
-	}
-
 	// Clear tracks when user signs out
 	function clearTracks() {
 		accountGeneration += 1
@@ -1121,7 +1080,6 @@ export const useTracksStore = defineStore('tracks', () => {
 		getTrackById,
 		getTracksByRecordId,
 		removeTracksByRecordId,
-		searchTracks,
 		clearTracks
 	}
 })

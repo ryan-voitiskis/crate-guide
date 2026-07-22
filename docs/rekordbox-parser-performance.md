@@ -4,13 +4,13 @@ Plan 065 replaces the main-thread DOM parser with a bounded incremental Worker
 pipeline. This protocol, deterministic corpus, and the numeric budgets below
 were checked in before measuring the synchronous implementation.
 
-## Approval and interpretation
+## Authorization and interpretation
 
 - The repository maintainer broadly authorized implementation of the planned
   findings, including the generated scale corpus and measurement gate.
 - Codex proposed these engineering limits and performance budgets; they were
-  not independently selected by the maintainer and are not product latency
-  promises.
+  not independently selected or accepted by the maintainer and are not product
+  latency promises.
 - The compatibility oracle remains `parseRekordboxXml`. Production output must
   match its normal fixtures while refusing unsafe or out-of-policy XML.
 - `parserPolicyVersion` describes accepted XML and limits.
@@ -31,7 +31,7 @@ multi-megabyte XML blobs. They are still deterministic checked-in fixtures: the
 generator, exact counts, version, byte sizes, and hashes are all repository
 state.
 
-## Supported limits and budgets
+## Checked-in engineering limits and budgets
 
 `shared/config/rekordboxXmlParser.json` is the source of truth. Production
 accepts at most 128 MiB and 100,000 tracks, uses 256 KiB input chunks, and
@@ -127,4 +127,4 @@ messages directly to the Worker and requires exactly one terminal response.
 - The main-thread client validates operation IDs, monotonic progress, declared
   count consistency, batch ordering, versions, warning bounds, and the absence
   of raw locations before accepting completion. Cancellation has a hard
-  termination fallback below the public 250 ms budget.
+  termination fallback below the checked-in 250 ms engineering budget.

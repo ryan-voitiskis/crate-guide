@@ -4,12 +4,14 @@ This benchmark characterizes the existing pitch-driven suggestion path before
 any optional optimization. The protocol and pass/fail budget below were checked
 in before observing baseline results.
 
-## Approval and scope
+## Authorization and interpretation
 
-- **Approval basis:** the repository maintainer explicitly authorized
-  implementation of all planned findings, including Plan 055's characterization
-  gate. Codex proposed the numeric budget as the implementation's supported
-  baseline; the values were not independently selected by the maintainer.
+- **Implementation authority:** the repository maintainer authorized the planned
+  Plan 055 characterization work.
+- **Budget provenance:** Codex proposed the numeric values and checked them in
+  before observing the baseline. They are engineering regression defaults, not
+  values independently selected or accepted by the maintainer and not a product
+  latency promise.
 - **Supported engine:** Playwright 1.59.1 bundled Chromium.
 - **Baseline hardware:** Apple M5, 10-core CPU, 24 GB memory. No device serial,
   hardware UUID, or other unique identifier is recorded.
@@ -61,5 +63,5 @@ this snapshot.
 
 The existing algorithm is therefore retained. Plan 055's optional animation
 frame coalescing and bounded top-50 selection are intentionally not implemented:
-the pre-approved STOP condition applies because the supported baseline is
-within budget.
+the predeclared engineering STOP condition applies because the observed baseline
+is within budget.
