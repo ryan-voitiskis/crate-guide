@@ -7,10 +7,12 @@ import type {
 	TrackEnrichmentWorkflow
 } from '~/composables/useTrackEnrichmentWorkflow'
 import EnrichmentPage from '~/pages/enrichment.vue'
+import type { BrowserWorkflowDraftEntry } from '~/repositories/library/browser/browserLibraryTypes'
 import type { LocalAudioReviewSelection } from '~/types/localAudio'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
 
 const workflowFactory = vi.hoisted(() => vi.fn())
+const draftSessionFactory = vi.hoisted(() => vi.fn())
 const storeFactories = vi.hoisted(() => ({
 	records: vi.fn(),
 	tracks: vi.fn(),
@@ -18,6 +20,7 @@ const storeFactories = vi.hoisted(() => ({
 }))
 
 mockNuxtImport('useTrackEnrichmentWorkflow', () => workflowFactory)
+mockNuxtImport('useTrackEnrichmentDraftSession', () => draftSessionFactory)
 mockNuxtImport('useRecordsStore', () => storeFactories.records)
 mockNuxtImport('useTracksStore', () => storeFactories.tracks)
 mockNuxtImport('useUserStore', () => storeFactories.user)
@@ -257,6 +260,10 @@ function createWorkflow(): WorkflowHarness {
 		applyTotal: ref(1),
 		lastApplySummary,
 		workflowView: ref('source'),
+		changedRowIds: ref(new Set()),
+		resumeSummary: ref(null),
+		requiresSourceReconnect: ref(false),
+		isReviewReadOnly: ref(false),
 		currentStep,
 		matchedRows: computed(() => rows.value),
 		readyRows: computed(() => rows.value),
@@ -288,6 +295,8 @@ function createWorkflow(): WorkflowHarness {
 		reviewLocalSources: vi.fn().mockResolvedValue(undefined),
 		selectSource: vi.fn(),
 		loadPreparedReview,
+		loadResumedReview: vi.fn(),
+		setReviewReadOnly: vi.fn(),
 		returnToSource: vi.fn(),
 		startAnotherSource: vi.fn(),
 		setRowStaged: vi.fn(),
@@ -299,7 +308,53 @@ function createWorkflow(): WorkflowHarness {
 	} as unknown as WorkflowHarness
 }
 
+function createDraftSession() {
+	return {
+		activeEntry: ref<BrowserWorkflowDraftEntry | null>(null),
+		discoveryState: ref('none'),
+		hasDraft: ref(false),
+		draftDetails: ref<{
+			id: string
+			sourceLabel: string
+			sourceKind: 'rekordboxXml' | 'localAudio'
+			observationCount: number
+			reviewedCount: number
+			stagedCount: number
+			doneCount: number
+			retryCount: number
+			updatedAt: string
+			requiresReconnect: boolean
+		} | null>(null),
+		isHydrating: ref(false),
+		isTakingOver: ref(false),
+		isTransitioning: ref(false),
+		isDraftMissingConflict: ref(false),
+		isOwned: ref(false),
+		isSourceBlockedByDraft: ref(false),
+		saveStatusLabel: ref<string | null>(null),
+		savedAtAccessibleLabel: ref<string | null>(null),
+		shouldWarnBeforeUnload: ref(false),
+		recoveryMessage: ref<string | null>(null),
+		initialize: vi.fn().mockResolvedValue(undefined),
+		resume: vi.fn().mockResolvedValue(true),
+		takeOver: vi.fn().mockResolvedValue(true),
+		startFresh: vi.fn().mockResolvedValue(true),
+		deleteDraft: vi.fn().mockResolvedValue(true),
+		acknowledgeCompleteAndDelete: vi.fn().mockResolvedValue(true),
+		keepForLater: vi.fn().mockResolvedValue(true),
+		recordApplyAttempt: vi.fn().mockResolvedValue(undefined)
+	}
+}
+
 const wrappers = new Set<VueWrapper>()
+
+function deferred<T>() {
+	let resolve!: (value: T) => void
+	const promise = new Promise<T>((resolvePromise) => {
+		resolve = resolvePromise
+	})
+	return { promise, resolve }
+}
 
 async function mountPage(
 	loadResults: [boolean, boolean],
@@ -313,10 +368,16 @@ async function mountPage(
 			| 'matched'
 			| 'unmatched'
 			| 'done'
-	} | null = null
+	} | null = null,
+	options: { initialize?: Promise<void> } = {}
 ) {
 	const workflow = createWorkflow()
 	workflowFactory.mockReturnValue(workflow)
+	const draftSession = createDraftSession()
+	if (options.initialize) {
+		draftSession.initialize.mockReturnValueOnce(options.initialize)
+	}
+	draftSessionFactory.mockReturnValue(draftSession)
 	const records = {
 		fetchAllRecords: vi.fn().mockResolvedValue(loadResults[0])
 	}
@@ -352,7 +413,7 @@ async function mountPage(
 	await flushPromises()
 	await nextTick()
 
-	return { records, tracks, workflow, wrapper }
+	return { draftSession, records, tracks, workflow, wrapper }
 }
 
 function getButton(wrapper: VueWrapper, text: string) {
@@ -369,11 +430,12 @@ describe('enrichment page wiring', () => {
 		for (const wrapper of wrappers) wrapper.unmount()
 		wrappers.clear()
 		workflowFactory.mockReset()
+		draftSessionFactory.mockReset()
 		document.body.innerHTML = ''
 	})
 
 	it('adapts source, file, review, dialog, and summary UI events to the workflow contract', async () => {
-		const { workflow, wrapper } = await mountPage([true, true])
+		const { draftSession, workflow, wrapper } = await mountPage([true, true])
 
 		expect(wrapper.find('[data-testid="source-panel"]').exists()).toBe(true)
 		expect(document.querySelector('#header-left')?.textContent).toContain(
@@ -445,10 +507,12 @@ describe('enrichment page wiring', () => {
 		expect(workflow.showApplyDialog.value).toBe(false)
 
 		workflow.currentStep.value = 3
+		workflow.stagedRowIds.value = new Set()
 		workflow.lastApplySummary.value = {
 			total: 1,
 			succeeded: 1,
 			failed: 0,
+			remaining: 0,
 			bpm: 1,
 			keyMode: 1
 		}
@@ -456,7 +520,50 @@ describe('enrichment page wiring', () => {
 		await getButton(wrapper, 'Review results').trigger('click')
 		await getButton(wrapper, 'Use another source').trigger('click')
 		expect(workflow.returnToReview).toHaveBeenCalledOnce()
-		expect(workflow.startAnotherSource).toHaveBeenCalledOnce()
+		expect(draftSession.acknowledgeCompleteAndDelete).toHaveBeenCalledOnce()
+		expect(workflow.startAnotherSource).not.toHaveBeenCalled()
+	})
+
+	it('keeps source controls unavailable until draft discovery settles', async () => {
+		const initializing = deferred<undefined>()
+		const { wrapper } = await mountPage([true, true], null, {
+			initialize: initializing.promise
+		})
+
+		expect(wrapper.text()).toContain('Loading collection...')
+		expect(wrapper.find('[data-testid="source-panel"]').exists()).toBe(false)
+
+		initializing.resolve(undefined)
+		await flushPromises()
+		await nextTick()
+		expect(wrapper.find('[data-testid="source-panel"]').exists()).toBe(true)
+	})
+
+	it('shows cancelled work as retryable and never discards an unsaved review', async () => {
+		const { draftSession, workflow, wrapper } = await mountPage([true, true])
+		draftSession.keepForLater.mockResolvedValueOnce(false)
+		workflow.currentStep.value = 3
+		workflow.lastApplySummary.value = {
+			total: 2,
+			succeeded: 1,
+			failed: 0,
+			remaining: 1,
+			bpm: 1,
+			keyMode: 1
+		}
+		await nextTick()
+
+		expect(wrapper.text()).toContain('Enrichment needs attention')
+		expect(wrapper.text()).toContain(
+			'1 staged update was not attempted and remains ready to retry.'
+		)
+		expect(wrapper.text()).not.toContain('Enrichment complete')
+		expect(wrapper.text()).not.toContain('Use another source')
+
+		await getButton(wrapper, 'Keep for later').trigger('click')
+		expect(draftSession.keepForLater).toHaveBeenCalledOnce()
+		expect(workflow.startAnotherSource).not.toHaveBeenCalled()
+		expect(workflow.rows.value).toHaveLength(1)
 	})
 
 	it.each([
@@ -512,8 +619,130 @@ describe('enrichment page wiring', () => {
 		expect(wrapper.find('[data-testid="unmatched-table"]').exists()).toBe(true)
 	})
 
-	it('warns before reloading an active review but not the source picker', async () => {
-		const { workflow } = await mountPage([true, true])
+	it('presents device-local recovery actions without implying remote backup', async () => {
+		vi.stubGlobal(
+			'confirm',
+			vi.fn(() => true)
+		)
+		const { draftSession, workflow, wrapper } = await mountPage([true, true])
+		draftSession.hasDraft.value = true
+		draftSession.discoveryState.value = 'ready'
+		draftSession.saveStatusLabel.value = 'Saved locally 14:32'
+		draftSession.draftDetails.value = {
+			id: 'draft-1',
+			sourceLabel: 'collection.xml',
+			sourceKind: 'rekordboxXml',
+			observationCount: 120,
+			reviewedCount: 18,
+			stagedCount: 12,
+			doneCount: 3,
+			retryCount: 2,
+			updatedAt: '2026-07-23T04:00:00.000Z',
+			requiresReconnect: false
+		}
+		draftSession.activeEntry.value = {
+			draft: {
+				status: 'invalid',
+				metadata: {
+					id: 'draft-1',
+					kind: 'track-enrichment',
+					draftRevision: 1,
+					updatedAt: '2026-07-23T04:00:00.000Z'
+				}
+			},
+			lease: {
+				status: 'live',
+				lease: {
+					leaseRevision: 2,
+					acquiredAt: '2026-07-23T04:00:00.000Z',
+					renewedAt: '2026-07-23T04:00:00.000Z',
+					expiresAt: '2026-07-23T04:01:00.000Z'
+				}
+			}
+		}
+		await nextTick()
+
+		expect(
+			wrapper.get('[data-testid="enrichment-draft-strip"]').text()
+		).toContain('not backed up to Crate Guide')
+		expect(wrapper.text()).toContain('120 tracks')
+		expect(wrapper.text()).toContain('Saved locally 14:32')
+		await getButton(wrapper, 'Resume').trigger('click')
+		expect(draftSession.resume).toHaveBeenCalledOnce()
+		await getButton(wrapper, 'Take over').trigger('click')
+		expect(draftSession.takeOver).toHaveBeenCalledOnce()
+
+		draftSession.isOwned.value = true
+		await nextTick()
+		await getButton(wrapper, 'Start fresh').trigger('click')
+		expect(draftSession.startFresh).toHaveBeenCalledOnce()
+		await getButton(wrapper, 'Delete').trigger('click')
+		expect(draftSession.deleteDraft).toHaveBeenCalledOnce()
+		expect(workflow.startAnotherSource).toHaveBeenCalledOnce()
+	})
+
+	it('shows rematch, reconnect, read-only, and failed-save state in review', async () => {
+		const { draftSession, workflow, wrapper } = await mountPage([true, true])
+		workflow.currentStep.value = 2
+		workflow.isReviewReadOnly.value = true
+		workflow.resumeSummary.value = {
+			total: 9,
+			retained: 4,
+			unchangedUnstaged: 1,
+			changed: 3,
+			dropped: 1
+		}
+		workflow.requiresSourceReconnect.value = true
+		draftSession.saveStatusLabel.value = "Couldn't save—keep this tab open"
+		await nextTick()
+
+		expect(
+			wrapper.get('[data-testid="enrichment-draft-read-only"]').text()
+		).toContain('another tab owns')
+		expect(
+			wrapper.get('[data-testid="enrichment-resume-summary"]').text()
+		).toContain('4 retained')
+		expect(
+			wrapper.get('[data-testid="enrichment-resume-summary"]').text()
+		).toContain('3 changed')
+		expect(
+			wrapper.get('[data-testid="enrichment-reconnect-required"]').text()
+		).toContain('file access is not retained')
+		expect(wrapper.text()).toContain("Couldn't save—keep this tab open")
+	})
+
+	it('fences a review deleted in another tab until the user starts fresh', async () => {
+		const confirm = vi.fn(() => true)
+		vi.stubGlobal('confirm', confirm)
+		const { draftSession, workflow, wrapper } = await mountPage([true, true])
+		draftSession.isDraftMissingConflict.value = true
+		draftSession.isSourceBlockedByDraft.value = true
+		await nextTick()
+
+		expect(
+			wrapper.get('[data-testid="enrichment-draft-missing-conflict"]').text()
+		).toContain('was not recreated')
+		await wrapper.get('[data-testid="select-source"]').trigger('click')
+		expect(workflow.selectSource).not.toHaveBeenCalled()
+		await getButton(wrapper, 'Start fresh').trigger('click')
+		expect(confirm).toHaveBeenCalledWith(
+			'Discard this in-memory review and start fresh? The saved review was already deleted in another tab.'
+		)
+		expect(draftSession.startFresh).toHaveBeenCalledOnce()
+
+		workflow.currentStep.value = 2
+		workflow.isReviewReadOnly.value = true
+		await nextTick()
+		expect(
+			wrapper.get('[data-testid="enrichment-draft-read-only"]').text()
+		).toContain('deleted in another tab')
+		expect(
+			wrapper.get('[data-testid="enrichment-draft-read-only"]').text()
+		).not.toContain('Take over')
+	})
+
+	it('warns only for unsaved, failed, or in-flight work, not a saved review', async () => {
+		const { draftSession, workflow } = await mountPage([true, true])
 		const sourceEvent = new Event('beforeunload', { cancelable: true })
 
 		window.dispatchEvent(sourceEvent)
@@ -521,9 +750,14 @@ describe('enrichment page wiring', () => {
 
 		workflow.currentStep.value = 2
 		await nextTick()
-		const reviewEvent = new Event('beforeunload', { cancelable: true })
-		window.dispatchEvent(reviewEvent)
+		const savedReviewEvent = new Event('beforeunload', { cancelable: true })
+		window.dispatchEvent(savedReviewEvent)
+		expect(savedReviewEvent.defaultPrevented).toBe(false)
 
-		expect(reviewEvent.defaultPrevented).toBe(true)
+		draftSession.shouldWarnBeforeUnload.value = true
+		const dirtyReviewEvent = new Event('beforeunload', { cancelable: true })
+		window.dispatchEvent(dirtyReviewEvent)
+
+		expect(dirtyReviewEvent.defaultPrevented).toBe(true)
 	})
 })

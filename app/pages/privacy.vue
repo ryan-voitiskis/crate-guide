@@ -77,8 +77,20 @@ useHead({ title: 'Privacy Notice · Crate Guide' })
 				to make rescans faster. This cache is not your library or a backup: it
 				is automatically pruned after 90 days and above 20,000 results, and you
 				can clear it in Settings or with the site’s browser data controls. Raw
-				audio, file handles and unfinished edits are not cached. Only metadata
-				changes you review and apply are saved to your hosted library.
+				audio and file handles are not cached.
+			</p>
+			<p>
+				Crate Guide can also keep one sanitized enrichment review draft for each
+				library in this browser. A draft includes the source label,
+				fingerprinted observations, review decisions, partial results and
+				display settings needed to rematch against the current library. It does
+				not include raw XML or audio, absolute paths, files, file handles, raw
+				Crate Guide account IDs or full library rows. For a cloud library, the
+				browser stores a deterministic pseudonymous routing identifier to keep
+				its local draft separate; this is not encryption or anonymization.
+				Drafts are not uploaded or backed up to Crate Guide and can be removed
+				by deleting the review or clearing this site’s browser data. Only
+				metadata changes you review and apply are written to your library.
 			</p>
 			<p>
 				Crate Guide also uses essential browser storage for authentication,

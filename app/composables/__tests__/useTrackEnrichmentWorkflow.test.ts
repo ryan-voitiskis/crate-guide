@@ -1,6 +1,7 @@
 import { type EffectScope, effectScope, nextTick } from 'vue'
 import { toast } from 'vue-sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { TrackEnrichmentApplyAttempt } from '~/composables/useTrackEnrichmentWorkflow'
 import type { LocalAudioReviewSelection } from '~/types/localAudio'
 import type {
 	RekordboxXmlSanitizedSnapshot,
@@ -70,9 +71,21 @@ const { useTrackEnrichmentWorkflow } =
 
 const activeScopes: EffectScope[] = []
 
-function createWorkflow() {
+function createWorkflow(options?: {
+	onApplyAttempt?: (
+		attempt: TrackEnrichmentApplyAttempt
+	) => Promise<void> | void
+}) {
 	const scope = effectScope()
-	const workflow = scope.run(() => useTrackEnrichmentWorkflow())
+	const workflow = scope.run(() =>
+		useTrackEnrichmentWorkflow({
+			records: mockRecordsStore as unknown as ReturnType<
+				typeof useRecordsStore
+			>,
+			tracks: mockTracksStore as unknown as ReturnType<typeof useTracksStore>,
+			onApplyAttempt: options?.onApplyAttempt
+		})
+	)
 	if (!workflow) throw new Error('Failed to create enrichment workflow scope')
 	activeScopes.push(scope)
 	return workflow
@@ -578,6 +591,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 			total: 1,
 			succeeded: 1,
 			failed: 0,
+			remaining: 0,
 			bpm: 1,
 			keyMode: 1
 		}
@@ -713,6 +727,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 			total: 1,
 			succeeded: 0,
 			failed: 1,
+			remaining: 0,
 			bpm: 0,
 			keyMode: 0
 		}
@@ -756,6 +771,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 			total: 1,
 			succeeded: 0,
 			failed: 1,
+			remaining: 0,
 			bpm: 0,
 			keyMode: 0
 		}
@@ -819,6 +835,28 @@ describe('useTrackEnrichmentWorkflow', () => {
 		expect([...workflow.stagedRowIds.value]).toEqual(['eligible'])
 		workflow.setFilteredRowsStaged(false)
 		expect([...workflow.stagedRowIds.value]).toEqual([])
+	})
+
+	it('keeps a resumed review read-only until its device lease is taken over', async () => {
+		const workflow = createWorkflow()
+		const row = createRow()
+		workflow.loadPreparedReview('saved.xml', [row])
+		workflow.setReviewReadOnly(true)
+
+		workflow.setRowStaged(row, false)
+		workflow.clearStagedRows()
+		workflow.openApplyReview()
+		await workflow.applyStagedRows()
+
+		expect(workflow.stagedRowIds.value).toEqual(new Set(['row-1']))
+		expect(mockTracksStore.updateTracksBatch).not.toHaveBeenCalled()
+		expect(toast.warning).toHaveBeenCalledWith(
+			'Take over this draft before changing or applying it.'
+		)
+
+		workflow.setReviewReadOnly(false)
+		workflow.setRowStaged(row, false)
+		expect(workflow.stagedRowIds.value).toEqual(new Set())
 	})
 
 	it('warns without writing for empty staged and empty prepared sets', async () => {
@@ -910,14 +948,15 @@ describe('useTrackEnrichmentWorkflow', () => {
 		expect(
 			workflow.rows.value.find((row) => row.id === 'row-key')
 		).toMatchObject({ applied: true, error: null, track: updatedKeyTrack })
-		expect(
-			workflow.rows.value.find((row) => row.id === 'row-bpm')
-		).toMatchObject({
+		const failedRow = workflow.rows.value.find((row) => row.id === 'row-bpm')
+		expect(failedRow).toMatchObject({
 			applied: false,
 			error: 'Database rejected update',
-			stagingBlockedReason: 'Database rejected update'
+			stagingBlockedReason: null
 		})
 		expect([...workflow.stagedRowIds.value]).toEqual([])
+		workflow.setRowStaged(failedRow!, true)
+		expect([...workflow.stagedRowIds.value]).toEqual(['row-bpm'])
 		expect(
 			workflow.rows.value.find((row) => row.id === 'row-unstaged')
 		).toEqual(unstaged)
@@ -925,6 +964,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 			total: 2,
 			succeeded: 1,
 			failed: 1,
+			remaining: 0,
 			bpm: 0,
 			keyMode: 1
 		})
@@ -957,11 +997,97 @@ describe('useTrackEnrichmentWorkflow', () => {
 		resolveBatch(CANCELLED_BATCH_OUTCOME)
 		await applying
 
-		expect(workflow.lastApplySummary.value).toBeNull()
+		expect(workflow.lastApplySummary.value).toEqual({
+			total: 1,
+			succeeded: 0,
+			failed: 0,
+			remaining: 1,
+			bpm: 0,
+			keyMode: 0
+		})
+		expect(workflow.stagedRowIds.value).toEqual(new Set(['row-1']))
 		expect(workflow.isApplying.value).toBe(false)
 		expect(workflow.showApplyDialog.value).toBe(false)
 		expect(toast.error).not.toHaveBeenCalled()
 		expect(toast.success).not.toHaveBeenCalled()
+		expect(toast.warning).toHaveBeenCalledWith(
+			'Applied 0 of 1. 1 remains to retry.'
+		)
+	})
+
+	it('records confirmed cancelled-batch results before updating only returned rows', async () => {
+		vi.useFakeTimers()
+		vi.setSystemTime(new Date('2026-07-23T04:05:00.000Z'))
+		const onApplyAttempt = vi.fn().mockResolvedValue(undefined)
+		const workflow = createWorkflow({ onApplyAttempt })
+		const first = createRow({
+			id: 'row-first',
+			track: createTrack({ id: 'track-first' })
+		})
+		const second = createRow({
+			id: 'row-second',
+			track: createTrack({ id: 'track-second' })
+		})
+		const updatedFirst = createTrack({
+			id: 'track-first',
+			bpm: 128,
+			key: 9,
+			mode: 0
+		})
+		workflow.rows.value = [first, second]
+		workflow.stagedRowIds.value = new Set([first.id, second.id])
+		mockTracksStore.updateTracksBatch.mockResolvedValueOnce({
+			cancelled: true,
+			requiresReview: false,
+			results: [
+				updatedBatchResult(updatedFirst),
+				{
+					id: 'track-second',
+					status: 'unattempted',
+					success: false,
+					track: null,
+					issue: {
+						code: 'account_replaced',
+						message: 'Workspace changed'
+					},
+					error: 'Workspace changed',
+					operation: null
+				}
+			]
+		})
+
+		await workflow.applyStagedRows()
+
+		expect(onApplyAttempt).toHaveBeenCalledOnce()
+		expect(onApplyAttempt).toHaveBeenCalledWith(
+			expect.objectContaining({
+				attemptedAt: '2026-07-23T04:05:00.000Z',
+				outcome: expect.objectContaining({
+					cancelled: true,
+					results: [expect.objectContaining({ id: 'track-first' })]
+				})
+			})
+		)
+		expect(workflow.rows.value.find(({ id }) => id === first.id)).toMatchObject(
+			{
+				applied: true,
+				track: updatedFirst
+			}
+		)
+		expect(workflow.rows.value.find(({ id }) => id === second.id)).toEqual(
+			second
+		)
+		expect(workflow.stagedRowIds.value).toEqual(new Set([second.id]))
+		expect(workflow.lastApplySummary.value).toMatchObject({
+			total: 2,
+			succeeded: 1,
+			failed: 0,
+			remaining: 1
+		})
+		expect(toast.success).not.toHaveBeenCalled()
+		expect(toast.warning).toHaveBeenCalledWith(
+			'Applied 1 of 2. 1 remains to retry.'
+		)
 	})
 
 	it('ignores stale progress and results after the workflow is reset', async () => {

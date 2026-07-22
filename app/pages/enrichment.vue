@@ -5,16 +5,21 @@ import {
 	ArrowRight,
 	Check,
 	CheckCircle2,
+	Database,
 	FileUp,
 	ListChecks,
 	RefreshCw,
 	Search,
 	ShieldCheck,
+	Trash2,
 	Upload,
 	WandSparkles,
 	X
 } from 'lucide-vue-next'
-import type { ReviewFilter } from '~/composables/useTrackEnrichmentWorkflow'
+import type {
+	ReviewFilter,
+	TrackEnrichmentApplyAttempt
+} from '~/composables/useTrackEnrichmentWorkflow'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
 
 type Density = 'compact' | 'comfortable'
@@ -31,11 +36,20 @@ const records = useWorkbenchRecordsStore()
 const tracks = useWorkbenchTracksStore()
 const preferences = useWorkbenchPreferencesStore()
 const capabilities = useWorkbenchCapabilities()
+const runtime = useWorkbenchRuntime()
 const isActive = usePageActive()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const collectionLoadState = ref<'loading' | 'ready' | 'failed'>('loading')
 const density = useState<Density>('workbench-density', () => 'compact')
+let recordDraftApplyAttempt = async (
+	_attempt: TrackEnrichmentApplyAttempt
+) => {}
+const workflow = useTrackEnrichmentWorkflow({
+	records,
+	tracks,
+	onApplyAttempt: (attempt) => recordDraftApplyAttempt(attempt)
+})
 const {
 	activeSource,
 	selectedFileName,
@@ -54,6 +68,9 @@ const {
 	applyCompleted,
 	applyTotal,
 	lastApplySummary,
+	resumeSummary,
+	requiresSourceReconnect,
+	isReviewReadOnly,
 	currentStep,
 	matchedRows,
 	readyRows,
@@ -88,7 +105,19 @@ const {
 	openApplyReview,
 	applyStagedRows,
 	returnToReview
-} = useTrackEnrichmentWorkflow({ records, tracks })
+} = workflow
+
+const isApplySummaryComplete = computed(() => {
+	const summary = lastApplySummary.value
+	return Boolean(
+		summary &&
+		summary.total > 0 &&
+		summary.failed === 0 &&
+		summary.remaining === 0 &&
+		summary.succeeded === summary.total &&
+		stagedRowIds.value.size === 0
+	)
+})
 
 if (props.initialReview) {
 	loadPreparedReview(props.initialReview.fileName, props.initialReview.rows)
@@ -118,6 +147,32 @@ const {
 	setFilteredRowsStaged
 })
 
+const draftSession = useTrackEnrichmentDraftSession({
+	runtime,
+	workflow,
+	records,
+	tracks,
+	density,
+	sortKey: reviewSortKey,
+	sortDirection: reviewSortDirection
+})
+recordDraftApplyAttempt = draftSession.recordApplyAttempt
+const {
+	activeEntry: activeDraftEntry,
+	discoveryState: draftDiscoveryState,
+	hasDraft,
+	draftDetails,
+	isHydrating: isDraftHydrating,
+	isTakingOver: isDraftTakingOver,
+	isTransitioning: isDraftTransitioning,
+	isDraftMissingConflict,
+	isOwned: isDraftOwned,
+	isSourceBlockedByDraft,
+	saveStatusLabel: draftSaveStatusLabel,
+	savedAtAccessibleLabel: draftSavedAtAccessibleLabel,
+	recoveryMessage: draftRecoveryMessage
+} = draftSession
+
 const workflowSteps = [
 	{ number: 1, label: 'Choose source', shortLabel: 'Source' },
 	{ number: 2, label: 'Review matches', shortLabel: 'Review' },
@@ -125,13 +180,7 @@ const workflowSteps = [
 ] as const
 
 function handleBeforeUnload(event: BeforeUnloadEvent) {
-	if (
-		!isActive.value ||
-		rows.value.length === 0 ||
-		(currentStep.value !== 2 && !showApplyDialog.value && !isApplying.value)
-	) {
-		return
-	}
+	if (!isActive.value || !draftSession.shouldWarnBeforeUnload.value) return
 
 	event.preventDefault()
 	event.returnValue = true
@@ -152,18 +201,67 @@ onMounted(async () => {
 		records.fetchAllRecords(),
 		tracks.fetchAllTracks()
 	])
-	collectionLoadState.value = results.every((result) => result)
-		? 'ready'
-		: 'failed'
+	if (!results.every((result) => result)) {
+		collectionLoadState.value = 'failed'
+		return
+	}
+	if (capabilities.canEnrichTracks) await draftSession.initialize()
+	collectionLoadState.value = 'ready'
 })
 
+async function handleResumeDraft() {
+	await draftSession.resume()
+}
+
+async function handleTakeOverDraft() {
+	if (
+		!window.confirm(
+			'Take over this review? The other tab will become read-only and any unsaved changes there may be lost.'
+		)
+	) {
+		return
+	}
+	if (await draftSession.takeOver()) {
+		if (rows.value.length === 0) await draftSession.resume()
+	}
+}
+
+async function handleStartFresh() {
+	const message = isDraftMissingConflict.value
+		? 'Discard this in-memory review and start fresh? The saved review was already deleted in another tab.'
+		: 'Start a fresh review? The saved review stays recoverable until the replacement is safely stored.'
+	if (!window.confirm(message)) {
+		return
+	}
+	await draftSession.startFresh()
+}
+
+async function handleDeleteDraft() {
+	if (
+		!window.confirm(
+			'Delete this device-local review? This cannot be recovered from Crate Guide because drafts are not backed up.'
+		)
+	) {
+		return
+	}
+	if (await draftSession.deleteDraft()) startAnotherSource()
+}
+
+async function handleCompletedAnotherSource() {
+	await draftSession.acknowledgeCompleteAndDelete()
+}
+
+async function handleKeepDraft() {
+	await draftSession.keepForLater()
+}
+
 function openFilePicker() {
-	if (!capabilities.canEnrichTracks) return
+	if (!capabilities.canEnrichTracks || isSourceBlockedByDraft.value) return
 	fileInput.value?.click()
 }
 
 async function handleFileInput(event: Event) {
-	if (!capabilities.canEnrichTracks) return
+	if (!capabilities.canEnrichTracks || isSourceBlockedByDraft.value) return
 	const input = event.target as HTMLInputElement
 	const file = input.files?.[0]
 	if (!file) return
@@ -173,8 +271,20 @@ async function handleFileInput(event: Event) {
 }
 
 function handleFileDrop(file: File) {
-	if (!capabilities.canEnrichTracks) return
+	if (!capabilities.canEnrichTracks || isSourceBlockedByDraft.value) return
 	void parseFile(file)
+}
+
+function handleSelectSource(source: Parameters<typeof selectSource>[0]) {
+	if (isSourceBlockedByDraft.value) return
+	selectSource(source)
+}
+
+function handleReviewLocal(
+	selection: Parameters<typeof reviewLocalSources>[0]
+) {
+	if (isSourceBlockedByDraft.value) return
+	void reviewLocalSources(selection)
 }
 </script>
 
@@ -293,6 +403,172 @@ function handleFileDrop(file: File) {
 						</div>
 					</NoticeWarning>
 
+					<section
+						v-if="currentStep === 1 && hasDraft"
+						data-testid="enrichment-draft-strip"
+						class="border-border bg-card/50 rounded-md border p-3"
+					>
+						<div class="flex flex-col gap-3 sm:flex-row sm:items-start">
+							<div
+								class="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-md"
+							>
+								<Database class="size-4" />
+							</div>
+							<div class="min-w-0 flex-1">
+								<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+									<h2 class="text-sm font-semibold">
+										Saved review on this device
+									</h2>
+									<span
+										v-if="draftSaveStatusLabel"
+										class="text-muted-foreground font-mono text-[10px]"
+										role="status"
+										aria-live="polite"
+										:title="draftSavedAtAccessibleLabel ?? undefined"
+									>
+										{{ draftSaveStatusLabel }}
+									</span>
+								</div>
+								<p class="text-muted-foreground mt-1 text-xs leading-relaxed">
+									This recovery draft stays in this browser. It is not backed up
+									to Crate Guide or included in library exports.
+								</p>
+								<div
+									v-if="draftDetails"
+									class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs"
+								>
+									<span class="font-medium">
+										{{ draftDetails.sourceLabel }}
+									</span>
+									<span class="text-muted-foreground">
+										{{ draftDetails.observationCount }} tracks
+									</span>
+									<span class="text-muted-foreground">
+										{{ draftDetails.reviewedCount }} reviewed
+									</span>
+									<span class="text-muted-foreground">
+										{{ draftDetails.stagedCount }} staged
+									</span>
+									<span
+										v-if="draftDetails.doneCount"
+										class="text-muted-foreground"
+									>
+										{{ draftDetails.doneCount }} successful writes
+									</span>
+									<span
+										v-if="draftDetails.retryCount"
+										class="text-muted-foreground"
+									>
+										{{ draftDetails.retryCount }} to retry
+									</span>
+								</div>
+								<p
+									v-if="
+										activeDraftEntry?.lease.status === 'live' && !isDraftOwned
+									"
+									class="mt-2 text-xs text-amber-700 dark:text-amber-400"
+								>
+									Another tab is editing this review. Resume opens it read-only
+									until you explicitly take over.
+								</p>
+								<p
+									v-if="draftRecoveryMessage"
+									class="text-destructive mt-2 text-xs"
+								>
+									{{ draftRecoveryMessage }}
+								</p>
+								<p
+									v-else-if="
+										draftDiscoveryState === 'invalid' ||
+										draftDiscoveryState === 'incompatible'
+									"
+									class="text-destructive mt-2 text-xs"
+								>
+									This saved review cannot be resumed safely. Start fresh or
+									delete it; the current library has not been changed.
+								</p>
+							</div>
+						</div>
+						<div class="mt-3 flex flex-wrap gap-2 sm:justify-end">
+							<Button
+								v-if="draftDiscoveryState === 'ready'"
+								size="sm"
+								:disabled="
+									isDraftHydrating || isDraftTakingOver || isDraftTransitioning
+								"
+								@click="handleResumeDraft"
+							>
+								<RefreshCw class="mr-1.5 size-3.5" />
+								{{ isDraftHydrating ? 'Rematching…' : 'Resume' }}
+							</Button>
+							<Button
+								v-if="
+									activeDraftEntry?.lease.status === 'live' && !isDraftOwned
+								"
+								variant="outline"
+								size="sm"
+								:disabled="
+									isDraftTakingOver || isDraftHydrating || isDraftTransitioning
+								"
+								@click="handleTakeOverDraft"
+							>
+								{{ isDraftTakingOver ? 'Taking over…' : 'Take over' }}
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								:disabled="
+									isDraftHydrating ||
+									isDraftTakingOver ||
+									isDraftTransitioning ||
+									(activeDraftEntry?.lease.status === 'live' && !isDraftOwned)
+								"
+								@click="handleStartFresh"
+							>
+								Start fresh
+							</Button>
+							<Button
+								variant="ghost"
+								size="sm"
+								:disabled="
+									isDraftHydrating ||
+									isDraftTakingOver ||
+									isDraftTransitioning ||
+									(activeDraftEntry?.lease.status === 'live' && !isDraftOwned)
+								"
+								@click="handleDeleteDraft"
+							>
+								<Trash2 class="mr-1.5 size-3.5" />
+								Delete
+							</Button>
+						</div>
+					</section>
+
+					<section
+						v-if="currentStep === 1 && isDraftMissingConflict"
+						data-testid="enrichment-draft-missing-conflict"
+						class="border-border rounded-md border bg-amber-500/10 p-3"
+					>
+						<div class="flex flex-wrap items-center justify-between gap-3">
+							<div>
+								<h2 class="text-sm font-semibold">Saved review deleted</h2>
+								<p class="text-muted-foreground mt-1 text-xs leading-relaxed">
+									This saved review was deleted in another tab. The in-memory
+									review is read-only and was not recreated. Start fresh to
+									continue.
+								</p>
+							</div>
+							<Button
+								variant="outline"
+								size="sm"
+								:disabled="isDraftTransitioning"
+								@click="handleStartFresh"
+							>
+								Start fresh
+							</Button>
+						</div>
+					</section>
+
 					<PanelTrackEnrichmentSource
 						v-show="currentStep === 1"
 						:active-source="activeSource"
@@ -303,11 +579,11 @@ function handleFileDrop(file: File) {
 						:parse-progress="parseProgress"
 						:selected-file-name="selectedFileName"
 						:can-retry-parsing="canRetryParsing"
-						:disabled="!capabilities.canEnrichTracks"
+						:disabled="!capabilities.canEnrichTracks || isSourceBlockedByDraft"
 						@select-file="openFilePicker"
 						@drop-file="handleFileDrop"
-						@select-source="selectSource"
-						@review-local="reviewLocalSources"
+						@select-source="handleSelectSource"
+						@review-local="handleReviewLocal"
 						@cancel-parsing="cancelParsing"
 						@retry-parsing="retryParsing"
 					/>
@@ -316,8 +592,18 @@ function handleFileDrop(file: File) {
 						<div
 							class="mx-auto flex max-w-2xl flex-col items-center text-center"
 						>
-							<CheckCircle2 class="text-primary size-10" />
-							<h2 class="mt-4 text-lg font-semibold">Enrichment complete</h2>
+							<CheckCircle2
+								v-if="isApplySummaryComplete"
+								class="text-primary size-10"
+							/>
+							<AlertTriangle v-else class="size-10 text-amber-500" />
+							<h2 class="mt-4 text-lg font-semibold">
+								{{
+									isApplySummaryComplete
+										? 'Enrichment complete'
+										: 'Enrichment needs attention'
+								}}
+							</h2>
 							<p class="text-muted-foreground mt-1 text-sm">
 								{{ lastApplySummary.succeeded }} of {{ lastApplySummary.total }}
 								staged tracks updated.
@@ -350,17 +636,56 @@ function handleFileDrop(file: File) {
 								{{ lastApplySummary.failed }} updates failed. Review the result
 								rows for details.
 							</NoticeError>
+							<NoticeWarning
+								v-if="lastApplySummary.remaining"
+								class="mt-4 w-full"
+							>
+								{{ lastApplySummary.remaining }} staged
+								{{
+									lastApplySummary.remaining === 1
+										? 'update was'
+										: 'updates were'
+								}}
+								not attempted and
+								{{ lastApplySummary.remaining === 1 ? 'remains' : 'remain' }}
+								ready to retry.
+							</NoticeWarning>
 
 							<div class="mt-6 flex flex-wrap justify-center gap-2">
-								<Button variant="outline" @click="returnToReview">
+								<Button
+									variant="outline"
+									:disabled="isDraftTransitioning"
+									@click="returnToReview"
+								>
 									<ArrowLeft class="mr-2 size-4" />
 									Review results
 								</Button>
-								<Button @click="startAnotherSource">
+								<Button
+									v-if="isApplySummaryComplete"
+									:disabled="isDraftTransitioning"
+									@click="handleCompletedAnotherSource"
+								>
 									<FileUp class="mr-2 size-4" />
 									Use another source
 								</Button>
+								<Button
+									variant="outline"
+									:disabled="isDraftTransitioning"
+									@click="handleKeepDraft"
+								>
+									<Database class="mr-2 size-4" />
+									Keep for later
+								</Button>
 							</div>
+							<p
+								v-if="draftSaveStatusLabel"
+								class="text-muted-foreground mt-3 text-xs"
+								role="status"
+								aria-live="polite"
+								:title="draftSavedAtAccessibleLabel ?? undefined"
+							>
+								{{ draftSaveStatusLabel }}
+							</p>
 						</div>
 					</div>
 
@@ -369,6 +694,67 @@ function handleFileDrop(file: File) {
 							data-testid="enrichment-review-workspace"
 							class="flex flex-col md:min-h-0 md:flex-1"
 						>
+							<div
+								v-if="isReviewReadOnly"
+								data-testid="enrichment-draft-read-only"
+								class="border-border flex shrink-0 flex-wrap items-center justify-between gap-2 border-b bg-amber-500/10 px-3 py-2 text-xs"
+							>
+								<span>
+									{{
+										isDraftMissingConflict
+											? 'This saved review was deleted in another tab. Start fresh to continue.'
+											: 'Read-only: another tab owns this device-local review.'
+									}}
+								</span>
+								<Button
+									v-if="isDraftMissingConflict"
+									variant="outline"
+									size="sm"
+									:disabled="isDraftTransitioning"
+									@click="handleStartFresh"
+								>
+									Start fresh
+								</Button>
+								<Button
+									v-else
+									variant="outline"
+									size="sm"
+									:disabled="isDraftTakingOver || isDraftTransitioning"
+									@click="handleTakeOverDraft"
+								>
+									{{ isDraftTakingOver ? 'Taking over…' : 'Take over' }}
+								</Button>
+							</div>
+
+							<div
+								v-if="resumeSummary"
+								data-testid="enrichment-resume-summary"
+								class="border-border bg-muted/30 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b px-3 py-2 text-xs"
+							>
+								<span class="font-medium">
+									Rematched with the current library
+								</span>
+								<span class="text-muted-foreground">
+									{{ resumeSummary.retained }} retained
+								</span>
+								<span class="text-muted-foreground">
+									{{ resumeSummary.changed }} changed
+								</span>
+								<span class="text-muted-foreground">
+									{{ resumeSummary.dropped }} dropped
+								</span>
+							</div>
+
+							<div
+								v-if="requiresSourceReconnect"
+								data-testid="enrichment-reconnect-required"
+								class="border-border shrink-0 border-b bg-sky-500/10 px-3 py-2 text-xs"
+							>
+								Saved audio evidence is available for review. Reconnect the
+								folder to continue scanning or reanalysis; file access is not
+								retained.
+							</div>
+
 							<div
 								class="border-border bg-card/40 grid shrink-0 grid-cols-2 divide-x divide-y overflow-hidden border-b sm:grid-cols-6 sm:divide-y-0"
 							>
@@ -650,10 +1036,21 @@ function handleFileDrop(file: File) {
 											{{ stagedBpmCount }} BPM and {{ stagedKeyModeCount }} key
 											values will be filled
 										</div>
+										<div
+											v-if="draftSaveStatusLabel"
+											class="text-muted-foreground mt-0.5 font-mono text-[10px]"
+											role="status"
+											aria-live="polite"
+											:title="draftSavedAtAccessibleLabel ?? undefined"
+										>
+											{{ draftSaveStatusLabel }}
+										</div>
 									</div>
 								</div>
 								<Button
-									:disabled="stagedRows.length === 0 || isApplying"
+									:disabled="
+										stagedRows.length === 0 || isApplying || isReviewReadOnly
+									"
 									@click="openApplyReview"
 								>
 									<ShieldCheck class="mr-2 size-4" />

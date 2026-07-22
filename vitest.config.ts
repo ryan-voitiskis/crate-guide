@@ -53,6 +53,8 @@ export default defineConfig({
 				},
 				optimizeDeps: {
 					include: [
+						'pinia',
+						'vue',
 						'essentia.js/dist/essentia.js-core.es.js',
 						'essentia.js/dist/essentia-wasm.es.js'
 					]

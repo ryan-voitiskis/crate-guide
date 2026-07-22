@@ -14,10 +14,13 @@ import {
 	buildTrackEnrichmentUpdate,
 	canStageTrackEnrichmentRow
 } from '~/utils/trackEnrichment'
+import type { TrackEnrichmentDraftResumeSummary } from '~/utils/trackEnrichmentDraftResume'
+import type { TrackBatchUpdateOutcome } from '~~/shared/types/trackUpdates'
 
 export type ReviewFilter =
 	| 'ready'
 	| 'review'
+	| 'changed'
 	| 'staged'
 	| 'matched'
 	| 'unmatched'
@@ -27,6 +30,7 @@ export type ApplySummary = {
 	total: number
 	succeeded: number
 	failed: number
+	remaining: number
 	bpm: number
 	keyMode: number
 }
@@ -34,6 +38,26 @@ export type ApplySummary = {
 export type TrackEnrichmentSourceKind = 'rekordboxXml' | 'localAudio'
 export type TrackEnrichmentWorkflowView = 'source' | 'review'
 export type TrackEnrichmentParsePhase = 'idle' | 'parsing' | 'matching'
+
+export type TrackEnrichmentApplyAttempt = {
+	rows: readonly {
+		row: TrackEnrichmentRow
+		requested: { bpm: boolean; keyMode: boolean }
+	}[]
+	outcome: TrackBatchUpdateOutcome
+	attemptedAt: string
+}
+
+export type TrackEnrichmentResumedReview = {
+	fileLabel: string
+	rows: TrackEnrichmentRow[]
+	stagedRowIds: readonly string[]
+	changedRowIds: readonly string[]
+	doneRowIds: readonly string[]
+	selectedFilter: ReviewFilter
+	resumeSummary: TrackEnrichmentDraftResumeSummary
+	requiresReconnect: boolean
+}
 
 type FilterOption = {
 	value: ReviewFilter
@@ -62,6 +86,10 @@ export type TrackEnrichmentWorkflow = {
 	applyTotal: Ref<number>
 	lastApplySummary: Ref<ApplySummary | null>
 	workflowView: Ref<TrackEnrichmentWorkflowView>
+	changedRowIds: Ref<Set<string>>
+	resumeSummary: Ref<TrackEnrichmentDraftResumeSummary | null>
+	requiresSourceReconnect: Ref<boolean>
+	isReviewReadOnly: Ref<boolean>
 	currentStep: ComputedRef<1 | 2 | 3>
 	matchedRows: ComputedRef<TrackEnrichmentRow[]>
 	readyRows: ComputedRef<TrackEnrichmentRow[]>
@@ -91,6 +119,8 @@ export type TrackEnrichmentWorkflow = {
 	reviewLocalSources: (selection: LocalAudioReviewSelection) => Promise<void>
 	selectSource: (source: TrackEnrichmentSourceKind) => void
 	loadPreparedReview: (fileLabel: string, rows: TrackEnrichmentRow[]) => void
+	loadResumedReview: (review: TrackEnrichmentResumedReview) => void
+	setReviewReadOnly: (readOnly: boolean) => void
 	returnToSource: () => void
 	startAnotherSource: () => void
 	setRowStaged: (row: TrackEnrichmentRow, checked: boolean) => void
@@ -101,9 +131,12 @@ export type TrackEnrichmentWorkflow = {
 	returnToReview: () => void
 }
 
-type TrackEnrichmentWorkflowDependencies = {
+export type TrackEnrichmentWorkflowDependencies = {
 	records: ReturnType<typeof useRecordsStore>
 	tracks: ReturnType<typeof useTracksStore>
+	onApplyAttempt?: (
+		attempt: TrackEnrichmentApplyAttempt
+	) => Promise<void> | void
 }
 
 export function useTrackEnrichmentWorkflow(
@@ -132,6 +165,10 @@ export function useTrackEnrichmentWorkflow(
 	const applyTotal = ref(0)
 	const lastApplySummary = ref<ApplySummary | null>(null)
 	const workflowView = ref<TrackEnrichmentWorkflowView>('source')
+	const changedRowIds = ref<Set<string>>(new Set())
+	const resumeSummary = ref<TrackEnrichmentDraftResumeSummary | null>(null)
+	const requiresSourceReconnect = ref(false)
+	const isReviewReadOnly = ref(false)
 	const retryRekordboxFile = shallowRef<File | null>(null)
 	let reviewOperationGeneration = 0
 	let applyOperationGeneration = 0
@@ -159,6 +196,9 @@ export function useTrackEnrichmentWorkflow(
 	const unmatchedRows = computed(() => rows.value.filter((row) => !row.track))
 	const doneRows = computed(() =>
 		rows.value.filter((row) => row.applied || row.alreadyComplete)
+	)
+	const changedRows = computed(() =>
+		rows.value.filter((row) => changedRowIds.value.has(row.id))
 	)
 	const stagedRows = computed(() =>
 		rows.value.filter(
@@ -207,6 +247,15 @@ export function useTrackEnrichmentWorkflow(
 	const filterOptions = computed<FilterOption[]>(() => [
 		{ value: 'ready', label: 'Ready', count: readyRows.value.length },
 		{ value: 'review', label: 'Needs review', count: reviewRows.value.length },
+		...(changedRowIds.value.size > 0
+			? [
+					{
+						value: 'changed' as const,
+						label: 'Changed since last review',
+						count: changedRows.value.length
+					}
+				]
+			: []),
 		{ value: 'staged', label: 'Staged', count: stagedRows.value.length },
 		{ value: 'matched', label: 'All matches', count: matchedRows.value.length },
 		{
@@ -223,6 +272,8 @@ export function useTrackEnrichmentWorkflow(
 				return readyRows.value
 			case 'review':
 				return reviewRows.value
+			case 'changed':
+				return changedRows.value
 			case 'staged':
 				return stagedRows.value
 			case 'matched':
@@ -268,10 +319,33 @@ export function useTrackEnrichmentWorkflow(
 		selectedFilter.value = 'ready'
 		currentPage.value = 1
 		lastApplySummary.value = null
+		changedRowIds.value = new Set()
+		resumeSummary.value = null
+		requiresSourceReconnect.value = false
+		isReviewReadOnly.value = false
 		showApplyDialog.value = false
 		applyCompleted.value = 0
 		applyTotal.value = 0
 		workflowView.value = 'review'
+	}
+
+	function loadResumedReview(review: TrackEnrichmentResumedReview) {
+		loadPreparedReview(review.fileLabel, review.rows)
+		for (const row of rows.value) {
+			if (review.doneRowIds.includes(row.id)) row.applied = true
+		}
+		stagedRowIds.value = new Set(review.stagedRowIds)
+		changedRowIds.value = new Set(review.changedRowIds)
+		resumeSummary.value = review.resumeSummary
+		requiresSourceReconnect.value = review.requiresReconnect
+		selectedFilter.value =
+			review.selectedFilter === 'changed' && changedRowIds.value.size === 0
+				? 'review'
+				: review.selectedFilter
+	}
+
+	function setReviewReadOnly(readOnly: boolean) {
+		isReviewReadOnly.value = readOnly
 	}
 
 	function resetWorkflow(nextSource?: TrackEnrichmentSourceKind) {
@@ -299,6 +373,10 @@ export function useTrackEnrichmentWorkflow(
 		applyCompleted.value = 0
 		applyTotal.value = 0
 		lastApplySummary.value = null
+		changedRowIds.value = new Set()
+		resumeSummary.value = null
+		requiresSourceReconnect.value = false
+		isReviewReadOnly.value = false
 		workflowView.value = 'source'
 	}
 
@@ -518,6 +596,7 @@ export function useTrackEnrichmentWorkflow(
 	}
 
 	function setRowStaged(row: TrackEnrichmentRow, checked: boolean) {
+		if (isReviewReadOnly.value) return
 		if (!canStageTrackEnrichmentRow(row)) return
 		const nextStagedIds = new Set(stagedRowIds.value)
 		if (checked) nextStagedIds.add(row.id)
@@ -526,6 +605,7 @@ export function useTrackEnrichmentWorkflow(
 	}
 
 	function setFilteredRowsStaged(checked: boolean) {
+		if (isReviewReadOnly.value) return
 		const nextStagedIds = new Set(stagedRowIds.value)
 		for (const row of stageableFilteredRows.value) {
 			if (checked) nextStagedIds.add(row.id)
@@ -535,10 +615,15 @@ export function useTrackEnrichmentWorkflow(
 	}
 
 	function clearStagedRows() {
+		if (isReviewReadOnly.value) return
 		stagedRowIds.value = new Set()
 	}
 
 	function openApplyReview() {
+		if (isReviewReadOnly.value) {
+			toast.warning('Take over this draft before changing or applying it.')
+			return
+		}
 		if (stagedRows.value.length === 0) {
 			toast.warning('Stage at least one match to apply.')
 			return
@@ -547,6 +632,10 @@ export function useTrackEnrichmentWorkflow(
 	}
 
 	async function applyStagedRows() {
+		if (isReviewReadOnly.value) {
+			toast.warning('Take over this draft before changing or applying it.')
+			return
+		}
 		const operationGeneration = ++applyOperationGeneration
 		const ownsOperation = () => operationGeneration === applyOperationGeneration
 		const finishOwnedOperation = () => {
@@ -594,13 +683,37 @@ export function useTrackEnrichmentWorkflow(
 				}
 			)
 			if (!ownsOperation()) return
-			if (outcome.cancelled) {
-				finishOwnedOperation()
-				return
-			}
-			const results = outcome.results
+			const confirmedOutcome = outcome.cancelled
+				? {
+						...outcome,
+						results: outcome.results.filter(
+							(result) => result.status !== 'unattempted'
+						)
+					}
+				: outcome
+			await dependencies?.onApplyAttempt?.({
+				rows: preparedUpdates.map(({ row, update }) => ({
+					row,
+					requested: {
+						bpm: update.updates.bpm !== undefined,
+						keyMode:
+							update.updates.key !== undefined ||
+							update.updates.mode !== undefined
+					}
+				})),
+				outcome: confirmedOutcome,
+				attemptedAt: importedAt
+			})
+			if (!ownsOperation()) return
+			const results = confirmedOutcome.results
+			const resultByTrackId = new Map(
+				results.map((result) => [result.id, result])
+			)
 			const resultByRowId = new Map(
-				preparedUpdates.map((entry, index) => [entry.row.id, results[index]])
+				preparedUpdates.map((entry) => [
+					entry.row.id,
+					entry.row.track ? resultByTrackId.get(entry.row.track.id) : undefined
+				])
 			)
 			const currentTracksById = new Map(
 				tracks.tracks.map((track) => [track.id, track])
@@ -616,7 +729,7 @@ export function useTrackEnrichmentWorkflow(
 							currentTracksById.get(result.id) ?? result.track ?? row.track,
 						applied: false,
 						error: result.error,
-						stagingBlockedReason: result.error
+						stagingBlockedReason: row.stagingBlockedReason
 					}
 				}
 
@@ -628,7 +741,9 @@ export function useTrackEnrichmentWorkflow(
 				}
 			})
 			const preparedRowIds = new Set(
-				preparedUpdates.map((entry) => entry.row.id)
+				preparedUpdates.flatMap((entry) =>
+					resultByRowId.get(entry.row.id) ? [entry.row.id] : []
+				)
 			)
 			stagedRowIds.value = new Set(
 				[...stagedRowIds.value].filter((id) => !preparedRowIds.has(id))
@@ -636,22 +751,33 @@ export function useTrackEnrichmentWorkflow(
 
 			const succeeded = results.filter((result) => result.success).length
 			const failed = results.length - succeeded
-			const successfulUpdates = preparedUpdates.filter(
-				(_entry, index) => results[index]?.success
+			const remaining = Math.max(0, preparedUpdates.length - results.length)
+			const successfulUpdates = preparedUpdates.filter((entry) =>
+				entry.row.track
+					? resultByTrackId.get(entry.row.track.id)?.success
+					: false
 			)
-			lastApplySummary.value = {
-				total: results.length,
-				succeeded,
-				failed,
-				bpm: successfulUpdates.filter(
-					(entry) => entry.update.updates.bpm !== undefined
-				).length,
-				keyMode: successfulUpdates.filter(
-					(entry) => entry.update.updates.key !== undefined
-				).length
-			}
+			lastApplySummary.value =
+				results.length || remaining
+					? {
+							total: preparedUpdates.length,
+							succeeded,
+							failed,
+							remaining,
+							bpm: successfulUpdates.filter(
+								(entry) => entry.update.updates.bpm !== undefined
+							).length,
+							keyMode: successfulUpdates.filter(
+								(entry) => entry.update.updates.key !== undefined
+							).length
+						}
+					: null
 
-			if (failed > 0) {
+			if (remaining > 0) {
+				toast.warning(
+					`Applied ${succeeded} of ${preparedUpdates.length}. ${remaining} remains to retry.`
+				)
+			} else if (failed > 0) {
 				toast.error(
 					`Applied ${succeeded} of ${results.length}. ${failed} failed.`
 				)
@@ -692,6 +818,10 @@ export function useTrackEnrichmentWorkflow(
 		applyTotal,
 		lastApplySummary,
 		workflowView,
+		changedRowIds,
+		resumeSummary,
+		requiresSourceReconnect,
+		isReviewReadOnly,
 		currentStep,
 		matchedRows,
 		readyRows,
@@ -721,6 +851,8 @@ export function useTrackEnrichmentWorkflow(
 		reviewLocalSources,
 		selectSource,
 		loadPreparedReview,
+		loadResumedReview,
+		setReviewReadOnly,
 		returnToSource,
 		startAnotherSource,
 		setRowStaged,

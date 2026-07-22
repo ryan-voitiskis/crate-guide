@@ -35,9 +35,13 @@ Never use `backed up`, `synced`, or `saved to your account` for a local draft.
 ## One active review per workspace
 
 The first contract allows one active enrichment draft for each exact
-workspace/repository pair. It does not include an account or Supabase user ID.
-Repository revision is retained as provenance, but a revision change is a reason
-to rematch, not a reason to bind a draft to an obsolete library snapshot.
+workspace/repository pair. It does not store a raw Crate Guide account or
+Supabase user ID. Cloud drafts instead use a deterministic, pseudonymous
+device-local routing alias derived for this purpose. That alias separates cloud
+libraries on the device; it is not encryption or anonymization. Browser-library
+workspace IDs remain byte-identical. Repository revision is retained as
+provenance, but a revision change is a reason to rematch, not a reason to bind a
+draft to an obsolete library snapshot.
 
 On the source step, an active-review strip should show:
 
@@ -54,7 +58,7 @@ delete library content or local-audio analysis cache entries.
 When persistence is connected, save status should use these states:
 
 - `Saving…`
-- `Saved in this browser at 14:32`
+- `Saved locally 14:32`
 - `Couldn't save—keep this tab open`
 - `Open in another tab—review here is read-only`
 
@@ -63,20 +67,30 @@ announced without stealing focus. A second tab must not overwrite the active
 writer; takeover is an explicit later persistence action, not a last-write-wins
 shortcut.
 
+If another tab deletes a draft while this tab still has its review in memory,
+this tab must keep that review visible but read-only, cancel pending saves, and
+block source selection. It must not silently recreate the deleted draft. The
+recovery notice should say that the saved review was deleted elsewhere and
+offer `Start fresh`, which explicitly discards the in-memory review. Resume,
+takeover, keep, replace, and delete transitions are mutually exclusive while a
+destructive action is settling, so a completed delete cannot be followed by a
+stale hydration or replacement write.
+
 ## Persisted data boundary
 
 The versioned draft DTO contains only:
 
 - schema, matcher, parser-provenance, and sanitized-snapshot versions;
-- workspace ID, repository ID and observed repository revision;
+- device-local workspace routing ID, repository ID and observed repository
+  revision;
 - draft revision and timestamps;
 - a sanitized source kind, basename-style label, dataset fingerprint, and
   reconnect requirement;
 - purpose-built observations needed to rematch: display metadata, bounded
   relative location hints, duration, proposed values and their provenance,
   warnings, and minimal analysis confidence/version evidence;
-- separate source, target, proposal, and blank-field precondition bindings for
-  reviewed decisions;
+- separate source/target bindings plus intent-specific proposal/blank-field or
+  current-Evidence fingerprint preconditions for reviewed decisions;
 - sanitized success/failure outcome codes; and
 - useful review filter, sort, density, and anchor state.
 
@@ -111,6 +125,15 @@ decision can be staged again only when all of these remain exact:
 Any mismatch leaves the item unstaged. Unknown future intents retain only inert
 provenance and are always unstaged; the current app must not reinterpret them as
 fill-empty-fields approval.
+
+`evidence-only` is a recognized but inert provenance intent while its atomic
+writer and archive compatibility gates remain closed. Resume checks its exact
+source snapshot/fingerprint/observation identity, current matcher target, target
+update timestamp, and bounded current-Evidence fingerprint, then always returns
+it unstaged and unsupported—even if persisted `staged` was true. It has no fill
+proposal or partial write outcome and cannot change top-level BPM/key values.
+Older readers demote it to unknown, safely unstaged provenance; unknown future
+kinds and future versions of known intents remain inert under the same rule.
 
 Changed items should be grouped under `Changed since last review`, with a
 specific explanation:
@@ -164,8 +187,10 @@ repository operation context; the old outcome is history, not write authority.
 ## Versioning rule
 
 Schema v1 is the first real on-disk contract. Do not manufacture a historical
-schema merely to exercise migration code. A future intent or shape change must
-bump the schema and add a golden fixture plus a pure, explicit migrator. A
-future schema the current app cannot understand is preserved as incompatible
-state and offered for app upgrade or deletion; it is never coerced into a known
-write intent.
+schema merely to exercise migration code. The evidence-only intent is an
+additive part of the not-yet-released schema v2 and retains v2 because older v2
+readers already fail it closed as unknown. After a schema ships, a future intent
+or shape change must bump the schema and add a golden fixture plus a pure,
+explicit migrator. A future schema the current app cannot understand is
+preserved as incompatible state and offered for app upgrade or deletion; it is
+never coerced into a known write intent.
