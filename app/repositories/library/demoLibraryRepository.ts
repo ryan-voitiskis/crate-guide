@@ -88,6 +88,8 @@ export function createDemoLibraryRepository({
 					issues: []
 				}
 			},
+			findExistingDiscogsIds: () => readOnly(),
+			importExternalWithTracks: () => readOnly(),
 			createWithTracks: () => readOnly(),
 			update: () => readOnly(),
 			updateWithCover: () => readOnly(),

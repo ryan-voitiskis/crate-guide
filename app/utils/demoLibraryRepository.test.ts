@@ -51,6 +51,8 @@ describe('demo library repository', () => {
 		})
 
 		const outcomes = await Promise.all([
+			repository.records.findExistingDiscogsIds(context, [1]),
+			repository.records.importExternalWithTracks(context, null as never),
 			repository.records.createWithTracks(context, null as never),
 			repository.records.update(context, null as never),
 			repository.records.updateWithCover(context, null as never),
@@ -77,7 +79,7 @@ describe('demo library repository', () => {
 		])
 
 		expect(outcomes).toEqual(
-			Array.from({ length: 17 }, () => ({
+			Array.from({ length: 19 }, () => ({
 				status: 'unavailable',
 				reason: 'read-only'
 			}))

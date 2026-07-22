@@ -1,5 +1,11 @@
 import { toast } from 'vue-sonner'
-import { getWorkbenchStorePinia } from '~/utils/workbenchPinia'
+import { captureDiscogsLibraryDestination } from '~/utils/discogsLibraryDestination'
+import type { DiscogsLibraryDestination } from '~/utils/discogsLibraryDestination'
+import {
+	ensureWorkbenchRuntime,
+	getWorkbenchRuntime,
+	getWorkbenchStorePinia
+} from '~/utils/workbenchPinia'
 import type {
 	DiscogsImportFailure,
 	DiscogsImportResults,
@@ -38,6 +44,7 @@ function createEmptyImportResults(): DiscogsImportResults {
 
 export const useDiscogsStore = defineStore('discogs', () => {
 	const pinia = getWorkbenchStorePinia()
+	const runtime = getWorkbenchRuntime(pinia) ?? ensureWorkbenchRuntime(pinia!)
 	const user = useUserStore(pinia)
 	const discogsApi = useDiscogsApi(user)
 	let accountGeneration = 0
@@ -66,8 +73,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	const libraryRefreshFailed = ref(false)
 	const shouldCancelImport = ref(false)
 	const importResults = ref<DiscogsImportResults>(createEmptyImportResults())
-	let snapshotUserId: string | null = null
-	let hydratedUserId: string | null = null
+	let snapshotOwnerKey: string | null = null
+	let hydratedOwnerKey: string | null = null
 
 	const hasTransferActivity = computed(() => transferStatus.value !== 'idle')
 	const hasActiveTransfer = computed(
@@ -131,6 +138,10 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		userId: string
 	}
 	type TransferOperationContext = DiscogsTransferOwnership
+	type TransferOperation = {
+		context: TransferOperationContext
+		destination: DiscogsLibraryDestination
+	}
 
 	function currentUserId(): string | null {
 		return user.supaUserId ?? user.profile?.id ?? null
@@ -142,40 +153,68 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			: createDiscogsTransferSnapshotPersistence(window.sessionStorage)
 	}
 
-	function clearTransferSnapshot(userId: string | null) {
-		if (!userId) return
+	function currentSnapshotOwnerKey(userId = currentUserId()): string | null {
+		if (!userId) return null
+		const { context } = runtime.capture()
+		return JSON.stringify([userId, context.workspaceId, context.repositoryId])
+	}
+
+	function transferSnapshotOwnerKey(context: TransferOperationContext): string {
+		return JSON.stringify([
+			context.ownerId,
+			context.workspaceId,
+			context.repositoryId
+		])
+	}
+
+	function clearTransferSnapshot(userId: string | null = currentUserId()) {
+		const owners = new Set(
+			[
+				snapshotOwnerKey,
+				hydratedOwnerKey,
+				currentSnapshotOwnerKey(userId),
+				// Remove pre-workspace snapshots written by earlier app versions too.
+				userId
+			].filter((owner): owner is string => Boolean(owner))
+		)
 		try {
-			transferSnapshotPersistence()?.remove(userId)
+			const persistence = transferSnapshotPersistence()
+			for (const owner of owners) persistence?.remove(owner)
 		} catch {
 			// In-memory ownership must still be released when storage is unavailable.
 		}
-		if (snapshotUserId === userId) snapshotUserId = null
+		snapshotOwnerKey = null
+		hydratedOwnerKey = null
 	}
 
 	function persistTransferSnapshot(
-		userId: string,
+		ownerKey: string,
 		terminal: DiscogsTransferSnapshotPayload
 	) {
 		const persistence = transferSnapshotPersistence()
 		if (!persistence) return
-		persistence.write(userId, terminal)
-		snapshotUserId = userId
+		persistence.write(ownerKey, terminal)
+		snapshotOwnerKey = ownerKey
 	}
 
-	function restoreTransferSnapshot(userId: string) {
-		if (hydratedUserId === userId) return
-		hydratedUserId = userId
+	function restoreTransferSnapshot(ownerKey: string) {
+		if (hydratedOwnerKey === ownerKey) return
+		hydratedOwnerKey = ownerKey
 		const persistence = transferSnapshotPersistence()
 		if (!persistence) return
 		let storedSnapshot: ReturnType<typeof persistence.read>
 		try {
-			storedSnapshot = persistence.read(userId)
+			storedSnapshot = persistence.read(ownerKey)
 		} catch {
 			return
 		}
 		if (storedSnapshot.kind === 'missing') return
 		if (storedSnapshot.kind === 'invalid') {
-			clearTransferSnapshot(userId)
+			try {
+				persistence.remove(ownerKey)
+			} catch {
+				// Invalid persisted state must not block the in-memory transfer view.
+			}
 			return
 		}
 		const { snapshot } = storedSnapshot
@@ -184,7 +223,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		importResults.value = snapshot.results
 		retrySummary.value = snapshot.retrySummary
 		libraryRefreshFailed.value = snapshot.libraryRefreshFailed ?? false
-		snapshotUserId = userId
+		snapshotOwnerKey = ownerKey
 	}
 
 	function captureAccountContext(): AccountOperationContext | null {
@@ -199,13 +238,18 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		)
 	}
 
-	function captureTransferContext(): TransferOperationContext | null {
+	function captureTransferOperation(): TransferOperation | null {
 		const ownerId = currentUserId()
-		return ownerId
+		const destination = captureDiscogsLibraryDestination(runtime)
+		return ownerId && destination
 			? {
-					ownerId,
-					accountGeneration,
-					folderGeneration: folderReviewGeneration
+					context: {
+						ownerId,
+						accountGeneration,
+						folderGeneration: folderReviewGeneration,
+						...destination.context
+					},
+					destination
 				}
 			: null
 	}
@@ -218,13 +262,12 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		// a later folder review does not retarget or cancel the active transfer.
 		return (
 			context.accountGeneration === accountGeneration &&
-			currentUserId() === context.ownerId
+			currentUserId() === context.ownerId &&
+			runtime.isCurrent(context)
 		)
 	}
 
-	function resetAccountState(
-		outgoingUserId = hydratedUserId ?? snapshotUserId ?? currentUserId()
-	) {
+	function resetAccountState(outgoingUserId = currentUserId()) {
 		clearTransferSnapshot(outgoingUserId)
 		accountGeneration += 1
 		folderReviewGeneration += 1
@@ -249,8 +292,29 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		retrySummary.value = null
 		libraryRefreshFailed.value = false
 		importResults.value = createEmptyImportResults()
-		hydratedUserId = null
-		snapshotUserId = null
+		hydratedOwnerKey = null
+		snapshotOwnerKey = null
+	}
+
+	function resetWorkspaceTransferState() {
+		folderReviewGeneration += 1
+		shouldCancelImport.value = true
+		releasesToImport.value = []
+		releaseBeingImported.value = null
+		isLoadingSelectedFolder.value = false
+		showFilterDialog.value = false
+		showImportProgressDialog.value = false
+		importProgress.value = 0
+		isImporting.value = false
+		importPhase.value = null
+		transferStatus.value = 'idle'
+		transferMode.value = null
+		retryStatus.value = null
+		retrySummary.value = null
+		libraryRefreshFailed.value = false
+		importResults.value = createEmptyImportResults()
+		hydratedOwnerKey = null
+		snapshotOwnerKey = null
 	}
 
 	function openTransferMonitor() {
@@ -277,7 +341,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	function dismissTransferMonitor() {
 		showImportProgressDialog.value = false
 		if (isImporting.value) return
-		clearTransferSnapshot(snapshotUserId ?? hydratedUserId ?? currentUserId())
+		clearTransferSnapshot()
 		transferStatus.value = 'idle'
 		transferMode.value = null
 		retryStatus.value = null
@@ -320,7 +384,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 
 	async function fetchFolderReleases() {
 		const context = captureAccountContext()
-		if (!context) return
+		const destination = captureDiscogsLibraryDestination(runtime)
+		if (!context || !destination) return
 		if (!selectedFolder.value) return
 		const selectedFolderValue = selectedFolder.value
 		const folderById = folders.value.find(
@@ -338,6 +403,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		const reviewGeneration = ++folderReviewGeneration
 		const ownsReview = () =>
 			isCurrentAccountContext(context) &&
+			destination.isCurrent() &&
 			reviewGeneration === folderReviewGeneration &&
 			selectedFolder.value === selectedFolderValue
 		isLoadingSelectedFolder.value = true
@@ -358,7 +424,9 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			}
 			let existingDiscogsIds = new Set<number>()
 			try {
-				existingDiscogsIds = await getExistingDiscogsIds(releases)
+				existingDiscogsIds = await destination.findExistingDiscogsIds(
+					releases.map((release) => release.id)
+				)
 			} catch {
 				if (!ownsReview()) return
 				toast.warning(
@@ -423,15 +491,21 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		shouldCancelImport.value = true
 	}
 
-	async function refreshImportedLibrary(): Promise<boolean> {
+	async function refreshImportedLibrary(
+		context: TransferOperationContext
+	): Promise<boolean> {
+		if (!isCurrentTransferContext(context)) return false
 		const recordsStore = useRecordsStore(pinia)
 		const tracksStore = useTracksStore(pinia)
 		const results = await Promise.allSettled([
 			recordsStore.fetchAllRecords({ fresh: true }),
 			tracksStore.fetchAllTracks({ fresh: true })
 		])
-		return results.every(
-			(result) => result.status === 'fulfilled' && result.value === true
+		return (
+			isCurrentTransferContext(context) &&
+			results.every(
+				(result) => result.status === 'fulfilled' && result.value === true
+			)
 		)
 	}
 
@@ -522,18 +596,25 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	}
 
 	async function runTransfer(
-		context: TransferOperationContext,
+		operation: TransferOperation,
 		policy: DiscogsTransferModePolicy
 	) {
+		const { context, destination } = operation
 		await runDiscogsTransfer({
 			ownership: context,
 			policy,
 			isCurrentOwnership: isCurrentTransferContext,
 			isCancellationRequested: () => shouldCancelImport.value,
 			fetch: fetchReleaseDetails,
-			save: importFetchedReleases,
-			refresh: refreshImportedLibrary,
-			persist: (terminal) => persistTransferSnapshot(context.ownerId, terminal),
+			save: (releases, shouldCancel) =>
+				importFetchedReleases(
+					releases,
+					destination.importWithTracks,
+					shouldCancel
+				),
+			refresh: () => refreshImportedLibrary(context),
+			persist: (terminal) =>
+				persistTransferSnapshot(transferSnapshotOwnerKey(context), terminal),
 			onEvent: (event) => applyTransferEvent(context, event)
 		})
 	}
@@ -546,24 +627,32 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			return
 		}
 
-		const context = captureTransferContext()
+		const operation = captureTransferOperation()
 		const selectedReleases = releasesToImport.value.filter((r) => r.selected)
 		if (selectedReleases.length === 0) {
 			toast.error('No releases selected for import')
 			return
 		}
-		if (!context || !user.profile || user.profile.id !== context.ownerId) {
+		if (
+			!operation ||
+			!user.profile ||
+			user.profile.id !== operation.context.ownerId
+		) {
 			toast.error('Profile not loaded.')
 			return
 		}
 
 		showFilterDialog.value = false
 		await runTransfer(
-			context,
+			operation,
 			createDiscogsImportTransferPolicy({
 				selectedReleases,
 				previousResults: importResults.value,
-				prepareTargets: filterOutExistingReleases,
+				prepareTargets: (selected) =>
+					filterOutExistingReleases(
+						selected,
+						operation.destination.findExistingDiscogsIds
+					),
 				formatTargetLabel: (target) => formatReleaseDisplayTitle(target)
 			})
 		)
@@ -571,8 +660,12 @@ export const useDiscogsStore = defineStore('discogs', () => {
 
 	async function retryFailedReleases() {
 		if (isImporting.value) return
-		const context = captureTransferContext()
-		if (!context || !user.profile || user.profile.id !== context.ownerId) {
+		const operation = captureTransferOperation()
+		if (
+			!operation ||
+			!user.profile ||
+			user.profile.id !== operation.context.ownerId
+		) {
 			toast.error('Profile not loaded.')
 			return
 		}
@@ -580,7 +673,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		if (failuresToRetry.length === 0) return
 
 		await runTransfer(
-			context,
+			operation,
 			createDiscogsRetryTransferPolicy({
 				failuresToRetry,
 				previousResults: importResults.value
@@ -613,11 +706,29 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		{ flush: 'sync' }
 	)
 	watch(
-		() => currentUserId(),
-		(userId) => {
-			if (userId) restoreTransferSnapshot(userId)
+		() => currentSnapshotOwnerKey(),
+		(ownerKey, previousOwnerKey) => {
+			if (previousOwnerKey && ownerKey !== previousOwnerKey) {
+				try {
+					transferSnapshotPersistence()?.remove(previousOwnerKey)
+				} catch {
+					// Workspace replacement must proceed even if cleanup is unavailable.
+				}
+				resetWorkspaceTransferState()
+			}
+			if (ownerKey) {
+				const legacyOwner = currentUserId()
+				if (legacyOwner) {
+					try {
+						transferSnapshotPersistence()?.remove(legacyOwner)
+					} catch {
+						// Legacy snapshot cleanup is best effort.
+					}
+				}
+				restoreTransferSnapshot(ownerKey)
+			}
 		},
-		{ immediate: true }
+		{ flush: 'sync', immediate: true }
 	)
 
 	return {

@@ -21,7 +21,10 @@ import {
 const OWNERSHIP = {
 	ownerId: 'account-a',
 	accountGeneration: 7,
-	folderGeneration: 11
+	folderGeneration: 11,
+	workspaceId: 'workspace-a',
+	repositoryId: 'repository-a',
+	activationGeneration: 3
 }
 
 function createFailure(
@@ -178,11 +181,7 @@ describe('Discogs transfer runner', () => {
 			'completed',
 			'settled'
 		])
-		expect(save).toHaveBeenCalledWith(
-			expect.any(Array),
-			OWNERSHIP.ownerId,
-			expect.any(Function)
-		)
+		expect(save).toHaveBeenCalledWith(expect.any(Array), expect.any(Function))
 		expect(seenOwnership).toContainEqual(OWNERSHIP)
 		expect(persisted).toHaveBeenCalledWith(
 			expect.objectContaining({ status: 'completed', mode: 'import' })
@@ -225,11 +224,50 @@ describe('Discogs transfer runner', () => {
 				}
 			}
 		})
-		expect(save).toHaveBeenCalledWith(
-			[],
-			OWNERSHIP.ownerId,
-			expect.any(Function)
-		)
+		expect(save).toHaveBeenCalledWith([], expect.any(Function))
+		expect(refresh).not.toHaveBeenCalled()
+	})
+
+	it('counts an atomic save-time duplicate as skipped without refreshing', async () => {
+		const refresh = vi.fn()
+		const result = await runDiscogsTransfer({
+			ownership: OWNERSHIP,
+			policy: importPolicy(),
+			isCurrentOwnership: () => true,
+			isCancellationRequested: () => false,
+			fetch: async () => ({
+				releases: [createMockDiscogsReleaseFull({ id: 1 })],
+				failed: [],
+				cancelled: false
+			}),
+			save: async () => ({
+				successful: 0,
+				skipped: [
+					{
+						label: 'Already present after preflight',
+						releaseId: 1,
+						reason: 'duplicate' as const
+					}
+				],
+				confirmedReleaseIds: [1],
+				failed: []
+			}),
+			refresh,
+			persist: vi.fn(),
+			onEvent: vi.fn()
+		})
+
+		expect(result).toMatchObject({
+			kind: 'completed',
+			saveOutcome: 'complete',
+			terminal: {
+				results: {
+					successful: 0,
+					skipped: [{ label: 'Already present after preflight' }],
+					failed: []
+				}
+			}
+		})
 		expect(refresh).not.toHaveBeenCalled()
 	})
 
@@ -379,9 +417,20 @@ describe('Discogs transfer runner', () => {
 					cancelled: false
 				}
 			},
-			save: async (_releases, _ownerId, shouldCancel) => {
+			save: async (_releases, shouldCancel) => {
 				expect(shouldCancel()).toBe(true)
-				return { successful: 0, failed: [] }
+				return {
+					successful: 0,
+					skipped: [
+						{
+							label: 'Cancelled before save',
+							releaseId: 1,
+							reason: 'cancelled' as const
+						}
+					],
+					confirmedReleaseIds: [],
+					failed: []
+				}
 			},
 			refresh: vi.fn(),
 			persist: vi.fn(),
@@ -423,9 +472,20 @@ describe('Discogs transfer runner', () => {
 					cancelled: false
 				}
 			},
-			save: async (_releases, _ownerId, shouldCancel) => {
+			save: async (_releases, shouldCancel) => {
 				expect(shouldCancel()).toBe(true)
-				return { successful: 0, failed: [] }
+				return {
+					successful: 0,
+					skipped: [
+						{
+							label: retryable.label,
+							releaseId: 1,
+							reason: 'cancelled' as const
+						}
+					],
+					confirmedReleaseIds: [],
+					failed: []
+				}
 			},
 			refresh: vi.fn(),
 			persist: vi.fn(),
@@ -435,8 +495,8 @@ describe('Discogs transfer runner', () => {
 		expect(result).toMatchObject({
 			kind: 'partial-save',
 			terminal: {
-				results: { successful: 6, skipped: [], failed: [] },
-				retrySummary: { attempted: 1, recovered: 1, remaining: 0 }
+				results: { successful: 5, skipped: [], failed: [retryable] },
+				retrySummary: { attempted: 1, recovered: 0, remaining: 1 }
 			}
 		})
 	})

@@ -3,6 +3,8 @@ import type {
 	CoverReference,
 	CrateCreateInput,
 	CrateMetadataUpdate,
+	ExternalRecordImportResult,
+	ExternalRecordWithTracksInput,
 	LibraryCoverChange,
 	LibraryCrate,
 	LibraryObservedView,
@@ -89,6 +91,14 @@ export type RepositoryCommand<T> = Promise<RepositoryOutcome<T>>
 
 export interface RecordsRepository {
 	list(context: WorkspaceOperationContext): RepositoryCommand<LibraryRecord[]>
+	findExistingDiscogsIds(
+		context: WorkspaceOperationContext,
+		discogsIds: readonly number[]
+	): RepositoryCommand<Set<number>>
+	importExternalWithTracks(
+		context: WorkspaceOperationContext,
+		input: ExternalRecordWithTracksInput
+	): RepositoryCommand<ExternalRecordImportResult>
 	createWithTracks(
 		context: WorkspaceOperationContext,
 		input: ManualRecordWithTracksInput

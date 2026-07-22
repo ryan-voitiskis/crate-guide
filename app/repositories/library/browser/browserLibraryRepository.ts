@@ -3,6 +3,8 @@ import { sortCreatedAtDescIdDesc } from '~/utils/supabaseOrdering'
 import type { DiscogsArtistDb, DiscogsLabelDb } from '~~/shared/types/discogs'
 import type {
 	CoverReference,
+	ExternalRecordImportResult,
+	ExternalRecordWithTracksInput,
 	LibraryDataset,
 	LibraryTrack,
 	ManualRecordTrackInput,
@@ -23,6 +25,7 @@ import type {
 	TracksRepository,
 	WorkspaceOperationContext
 } from '../contracts'
+import { validateExternalRecordWithTracksInput } from '../externalRecordImportValidation'
 import {
 	decodeBrowserCrateRow,
 	decodeBrowserPreferencesRow,
@@ -158,6 +161,17 @@ function recordLabels(
 	return [{ name: trimmedName, catno: trimmedCatno || undefined }]
 }
 
+function normalizeDiscogsIds(discogsIds: readonly number[]): number[] {
+	if (
+		discogsIds.some(
+			(id) => !Number.isSafeInteger(id) || id <= 0 || id > 2_147_483_647
+		)
+	) {
+		throw new BrowserRepositoryDomainConflictError('integrity')
+	}
+	return [...new Set(discogsIds)]
+}
+
 function createManualTrack(
 	input: ManualRecordTrackInput,
 	recordId: string,
@@ -185,6 +199,23 @@ function createManualTrack(
 		time_signature_upper: null,
 		time_signature_lower: null,
 		playable: input.playable ?? true,
+		beatport_data: null,
+		audio_features: null,
+		created_at: timestamp,
+		updated_at: timestamp
+	})
+}
+
+function createExternalTrack(
+	input: ExternalRecordWithTracksInput['tracks'][number],
+	recordId: string,
+	id: string,
+	timestamp: string
+): LibraryTrack {
+	return decodeLibraryTrack({
+		...input,
+		id,
+		record_id: recordId,
 		beatport_data: null,
 		audio_features: null,
 		created_at: timestamp,
@@ -234,6 +265,129 @@ function createRecordsRepository(
 							withoutWorkspaceId(decodeBrowserRecordRow(row, workspaceId))
 						)
 					)
+			)
+		},
+
+		findExistingDiscogsIds(context, discogsIds) {
+			if (!state.isCurrentContext(context)) {
+				return Promise.resolve({ status: 'stale' as const })
+			}
+			let requestedIds: number[]
+			try {
+				requestedIds = normalizeDiscogsIds(discogsIds)
+			} catch (error) {
+				return Promise.resolve(domainConflict(error))
+			}
+			const requested = new Set(requestedIds)
+			return state.read(
+				context,
+				[BROWSER_LIBRARY_STORES.records],
+				async (transaction) =>
+					new Set(
+						(
+							await workspaceRows(
+								transaction,
+								BROWSER_LIBRARY_STORES.records,
+								workspaceId
+							)
+						)
+							.map((row) => decodeBrowserRecordRow(row, workspaceId).discogs_id)
+							.filter((id): id is number => id !== null && requested.has(id))
+					)
+			)
+		},
+
+		async importExternalWithTracks(context, input) {
+			if (!state.isCurrentContext(context)) return { status: 'stale' }
+			let validated: ExternalRecordWithTracksInput
+			try {
+				validated = validateExternalRecordWithTracksInput(input)
+			} catch (error) {
+				return domainConflict(
+					new BrowserRepositoryDomainConflictError('integrity', error)
+				)
+			}
+			let recordId: string
+			let trackIds: string[]
+			try {
+				normalizeDiscogsIds(
+					validated.record.discogs_id === null
+						? []
+						: [validated.record.discogs_id]
+				)
+				if (validated.record.discogs_id === null) {
+					throw new BrowserRepositoryDomainConflictError('integrity')
+				}
+				recordId = browserLibraryRandomUUID(dependencies)
+				trackIds = validated.tracks.map(() =>
+					browserLibraryRandomUUID(dependencies)
+				)
+			} catch (error) {
+				return error instanceof BrowserRepositoryDomainConflictError
+					? domainConflict(error)
+					: transportFailure(error)
+			}
+
+			return state.command<ExternalRecordImportResult>(
+				context,
+				{
+					name: 'import-external-record-with-tracks',
+					stores: [
+						BROWSER_LIBRARY_STORES.records,
+						BROWSER_LIBRARY_STORES.tracks
+					]
+				},
+				async (transaction, writer, _manifest, timestamp) => {
+					const recordStore = transaction.objectStore(
+						BROWSER_LIBRARY_STORES.records
+					)
+					const existing = (
+						await workspaceRows(
+							transaction,
+							BROWSER_LIBRARY_STORES.records,
+							workspaceId
+						)
+					)
+						.map((row) => decodeBrowserRecordRow(row, workspaceId))
+						.find((record) => record.discogs_id === validated.record.discogs_id)
+					if (existing) {
+						return {
+							value: { recordId: existing.id, inserted: false },
+							mutated: false
+						}
+					}
+
+					const record = domainValue(() =>
+						decodeLibraryRecord({
+							...validated.record,
+							id: recordId,
+							created_at: timestamp,
+							updated_at: timestamp
+						})
+					)
+					const tracks = validated.tracks.map((track, index) =>
+						domainValue(() =>
+							createExternalTrack(track, recordId, trackIds[index]!, timestamp)
+						)
+					)
+					writer.add(recordStore, encodeBrowserRecordRow(workspaceId, record))
+					const trackStore = transaction.objectStore(
+						BROWSER_LIBRARY_STORES.tracks
+					)
+					for (const track of tracks) {
+						writer.add(trackStore, encodeBrowserTrackRow(workspaceId, track))
+					}
+					return {
+						value: { recordId: record.id, inserted: true },
+						invalidations: [
+							entityInvalidation('records', [record.id]),
+							entityInvalidation(
+								'tracks',
+								tracks.map((track) => track.id)
+							)
+						]
+					}
+				}
 			)
 		},
 

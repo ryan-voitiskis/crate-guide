@@ -134,6 +134,38 @@ export type ManualRecordWithTracksInput = {
 	tracks: ManualRecordTrackInput[]
 }
 
+export type ExternalRecordInput = Omit<
+	LibraryRecord,
+	'id' | 'cover' | 'created_at' | 'updated_at'
+> & {
+	cover: Extract<CoverReference, { kind: 'none' | 'external' }>
+}
+
+export type ExternalTrackInput = Omit<
+	LibraryTrack,
+	| 'id'
+	| 'record_id'
+	| 'beatport_data'
+	| 'audio_features'
+	| 'created_at'
+	| 'updated_at'
+>
+
+/**
+ * Account-neutral metadata ready for one atomic repository import. Identity,
+ * entity IDs, timestamps, duplicate handling, and persistence belong to the
+ * selected repository rather than the external provider integration.
+ */
+export type ExternalRecordWithTracksInput = {
+	record: ExternalRecordInput
+	tracks: ExternalTrackInput[]
+}
+
+export type ExternalRecordImportResult = {
+	recordId: string
+	inserted: boolean
+}
+
 export type RecordUpdateInput = Partial<
 	Omit<LibraryRecord, 'id' | 'created_at' | 'updated_at'>
 >

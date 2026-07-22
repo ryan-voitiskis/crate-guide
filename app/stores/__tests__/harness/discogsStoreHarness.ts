@@ -37,6 +37,17 @@ export function createFailure(
 
 export function createDiscogsStoreHarness() {
 	const storageValues = new Map<string, string>()
+	const localStorageValues = new Map<string, string>()
+	const localStorage = {
+		get length() {
+			return localStorageValues.size
+		},
+		clear: () => localStorageValues.clear(),
+		getItem: (key: string) => localStorageValues.get(key) ?? null,
+		key: (index: number) => [...localStorageValues.keys()][index] ?? null,
+		removeItem: (key: string) => localStorageValues.delete(key),
+		setItem: (key: string, value: string) => localStorageValues.set(key, value)
+	}
 	const sessionStorage = {
 		get length() {
 			return storageValues.size
@@ -75,13 +86,9 @@ export function createDiscogsStoreHarness() {
 			select: vi.fn().mockReturnThis(),
 			update: vi.fn().mockReturnThis(),
 			eq: vi.fn().mockReturnThis(),
-			in: vi.fn().mockReturnThis(),
+			in: vi.fn().mockResolvedValue({ data: [], error: null }),
 			single: vi.fn().mockResolvedValue({ data: null, error: null })
 		}
-		builder.select.mockResolvedValue({
-			data: [userStore.profile],
-			error: null
-		})
 		return builder
 	}
 
@@ -92,7 +99,7 @@ export function createDiscogsStoreHarness() {
 		rpc
 	}
 
-	vi.stubGlobal('window', { sessionStorage })
+	vi.stubGlobal('window', { localStorage, sessionStorage })
 	vi.stubGlobal('useUserStore', () => userStore)
 	vi.stubGlobal('useRecordsStore', () => recordsStore)
 	vi.stubGlobal('useTracksStore', () => tracksStore)
@@ -104,6 +111,7 @@ export function createDiscogsStoreHarness() {
 	)
 
 	function reset() {
+		localStorage.clear()
 		sessionStorage.clear()
 		queryBuilder = createQueryBuilder()
 		supabaseClient.from.mockReturnValue(queryBuilder)

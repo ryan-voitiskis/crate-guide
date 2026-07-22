@@ -1,3 +1,4 @@
+import type { WorkspaceOperationContext } from '~/repositories/library/contracts'
 import type {
 	DiscogsImportFailure,
 	DiscogsImportResults,
@@ -12,7 +13,7 @@ import type {
 	DiscogsTransferSnapshotPayload
 } from './discogsTransferSnapshot'
 
-export interface DiscogsTransferOwnership {
+export interface DiscogsTransferOwnership extends WorkspaceOperationContext {
 	ownerId: string
 	accountGeneration: number
 	folderGeneration: number
@@ -33,6 +34,13 @@ export interface DiscogsTransferFetchResult {
 
 export interface DiscogsTransferSaveResult {
 	successful: number
+	skipped?: Array<{
+		label: string
+		releaseId: number
+		reason: 'duplicate' | 'cancelled'
+	}>
+	/** Release IDs whose repository outcome was positively confirmed. */
+	confirmedReleaseIds?: number[]
 	failed: DiscogsImportFailure[]
 }
 
@@ -383,7 +391,10 @@ export function createDiscogsImportTransferPolicy(
 		completed: (prepared, fetchFailed, saveResult) => ({
 			results: {
 				successful: saveResult.successful,
-				skipped: [...prepared.skipped],
+				skipped: [
+					...prepared.skipped,
+					...(saveResult.skipped ?? []).map(({ label }) => ({ label }))
+				],
 				failed: reconcileCompletedFailures(previousFailures, selectedIds, [
 					...fetchFailed,
 					...saveResult.failed
@@ -462,7 +473,19 @@ export function createDiscogsRetryTransferPolicy(
 			}
 		},
 		completed: (_prepared, fetchFailed, saveResult) => {
-			const currentFailures = [...fetchFailed, ...saveResult.failed]
+			const unattemptedIds = new Set(
+				(saveResult.skipped ?? [])
+					.filter((skipped) => skipped.reason === 'cancelled')
+					.map((skipped) => skipped.releaseId)
+			)
+			const currentFailures = [
+				...fetchFailed,
+				...saveResult.failed,
+				...previousResults.failed.filter(
+					(failure) =>
+						failure.releaseId !== null && unattemptedIds.has(failure.releaseId)
+				)
+			]
 			const failed = reconcileCompletedFailures(
 				previousResults.failed,
 				attemptedIds,
@@ -473,13 +496,19 @@ export function createDiscogsRetryTransferPolicy(
 					.map((failure) => failure.releaseId)
 					.filter((releaseId): releaseId is number => releaseId !== null)
 			)
-			const recovered = [...attemptedIds].filter(
-				(releaseId) => !failedAttemptIds.has(releaseId)
+			const confirmedIds = saveResult.confirmedReleaseIds
+				? new Set(saveResult.confirmedReleaseIds)
+				: null
+			const recovered = [...attemptedIds].filter((releaseId) =>
+				confirmedIds
+					? confirmedIds.has(releaseId)
+					: !failedAttemptIds.has(releaseId)
 			).length
 			return {
 				results: {
 					...cloneResults(previousResults),
 					successful: previousResults.successful + recovered,
+					skipped: [...previousResults.skipped],
 					failed
 				},
 				retrySummary: {
@@ -524,7 +553,6 @@ export interface RunDiscogsTransferOptions {
 	): Promise<DiscogsTransferFetchResult>
 	save(
 		releases: DiscogsReleaseFull[],
-		ownerId: string,
 		shouldCancel: () => boolean
 	): Promise<DiscogsTransferSaveResult>
 	refresh(): Promise<boolean>
@@ -560,7 +588,10 @@ function classifySaveOutcome(
 	result: DiscogsTransferSaveResult
 ): DiscogsTransferSaveOutcome {
 	if (releaseCount === 0) return 'not-attempted'
-	if (result.successful === releaseCount && result.failed.length === 0) {
+	const handled = result.confirmedReleaseIds
+		? new Set(result.confirmedReleaseIds).size
+		: result.successful + (result.skipped?.length ?? 0)
+	if (handled === releaseCount && result.failed.length === 0) {
 		return 'complete'
 	}
 	if (result.successful === 0 && result.failed.length === releaseCount) {
@@ -662,11 +693,7 @@ export async function runDiscogsTransfer(
 		}
 
 		emit({ type: 'saving' })
-		const saveResult = await options.save(
-			fetchResult.releases,
-			options.ownership.ownerId,
-			shouldCancel
-		)
+		const saveResult = await options.save(fetchResult.releases, shouldCancel)
 		if (!isCurrent()) return finishStale()
 		const saveOutcome = classifySaveOutcome(
 			fetchResult.releases.length,

@@ -7,6 +7,7 @@ import {
 } from 'test/mocks/fixtures/discogs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DiscogsImportFailure } from '../../../shared/types/discogs'
+import { discogsTransferStorageKey } from '../../utils/discogsTransferSnapshot'
 import { useDiscogsStore } from '../discogsStore'
 import {
 	createDiscogsStoreHarness,
@@ -41,6 +42,14 @@ function createTransferSnapshot(userId: string, successful = 0) {
 	})
 }
 
+function snapshotOwner(userId: string): string {
+	return JSON.stringify([
+		userId,
+		`cloud:account:${encodeURIComponent(userId)}`,
+		'cloud-supabase'
+	])
+}
+
 function createDeferred<T>() {
 	let resolve!: (value: T) => void
 	let reject!: (reason?: unknown) => void
@@ -54,12 +63,10 @@ function createDeferred<T>() {
 const mockFilterOutExistingReleases = vi.fn()
 const mockFetchReleaseDetails = vi.fn()
 const mockImportFetchedReleases = vi.fn()
-const mockGetExistingDiscogsIds = vi.fn()
 
 vi.stubGlobal('filterOutExistingReleases', mockFilterOutExistingReleases)
 vi.stubGlobal('fetchReleaseDetails', mockFetchReleaseDetails)
 vi.stubGlobal('importFetchedReleases', mockImportFetchedReleases)
-vi.stubGlobal('getExistingDiscogsIds', mockGetExistingDiscogsIds)
 
 describe('discogsStore retry and recovery', () => {
 	beforeEach(() => {
@@ -68,7 +75,6 @@ describe('discogsStore retry and recovery', () => {
 		setActivePinia(createPinia())
 
 		harness.reset()
-		mockGetExistingDiscogsIds.mockResolvedValue(new Set())
 	})
 
 	describe('retryFailedReleases', () => {
@@ -250,13 +256,15 @@ describe('discogsStore retry and recovery', () => {
 
 	describe('transfer snapshot', () => {
 		it('clears only the explicit outgoing account snapshot on replacement', async () => {
+			const outgoingOwner = snapshotOwner('test-user-id')
+			const incomingOwner = snapshotOwner('new-user-id')
 			window.sessionStorage.setItem(
-				'crate-guide:discogs-transfer:test-user-id',
-				createTransferSnapshot('test-user-id', 1)
+				discogsTransferStorageKey(outgoingOwner),
+				createTransferSnapshot(outgoingOwner, 1)
 			)
 			window.sessionStorage.setItem(
-				'crate-guide:discogs-transfer:new-user-id',
-				createTransferSnapshot('new-user-id', 2)
+				discogsTransferStorageKey(incomingOwner),
+				createTransferSnapshot(incomingOwner, 2)
 			)
 			const store = useDiscogsStore()
 			expect(store.importResults.successful).toBe(1)
@@ -271,14 +279,10 @@ describe('discogsStore retry and recovery', () => {
 			const restoredStore = useDiscogsStore()
 
 			expect(
-				window.sessionStorage.getItem(
-					'crate-guide:discogs-transfer:test-user-id'
-				)
+				window.sessionStorage.getItem(discogsTransferStorageKey(outgoingOwner))
 			).toBeNull()
 			expect(
-				window.sessionStorage.getItem(
-					'crate-guide:discogs-transfer:new-user-id'
-				)
+				window.sessionStorage.getItem(discogsTransferStorageKey(incomingOwner))
 			).not.toBeNull()
 			expect(restoredStore.importResults.successful).toBe(2)
 		})

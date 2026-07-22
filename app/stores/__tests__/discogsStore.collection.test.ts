@@ -1,10 +1,11 @@
-import { createPinia, setActivePinia } from 'pinia'
+import { createPinia, getActivePinia, setActivePinia } from 'pinia'
 import {
 	createMockDiscogsRelease,
 	resetReleaseIdCounter
 } from 'test/mocks/fixtures/discogs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DiscogsApiError } from '../../utils/discogs-errors'
+import { getWorkbenchRuntime } from '../../utils/workbenchPinia'
 import { useDiscogsStore } from '../discogsStore'
 import {
 	type MockDiscogsFolder,
@@ -37,10 +38,6 @@ function createDeferred<T>() {
 	return { promise, reject, resolve }
 }
 
-const mockGetExistingDiscogsIds = vi.fn()
-
-vi.stubGlobal('getExistingDiscogsIds', mockGetExistingDiscogsIds)
-
 describe('discogsStore collection access', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
@@ -48,7 +45,6 @@ describe('discogsStore collection access', () => {
 		setActivePinia(createPinia())
 
 		harness.reset()
-		mockGetExistingDiscogsIds.mockResolvedValue(new Set())
 	})
 
 	describe('getFolders', () => {
@@ -310,16 +306,18 @@ describe('discogsStore collection access', () => {
 				],
 				pagination: { pages: 1 }
 			})
-			mockGetExistingDiscogsIds.mockResolvedValue(new Set([1]))
+			harness.queryBuilder.in.mockResolvedValueOnce({
+				data: [{ discogs_id: 1 }],
+				error: null
+			})
 
 			await store.fetchFolderReleases()
 
-			expect(mockGetExistingDiscogsIds).toHaveBeenCalledWith(
-				expect.arrayContaining([
-					expect.objectContaining({ id: 1 }),
-					expect.objectContaining({ id: 2 })
-				])
+			expect(harness.queryBuilder.eq).toHaveBeenCalledWith(
+				'user_id',
+				'test-user-id'
 			)
+			expect(harness.queryBuilder.in).toHaveBeenCalledWith('discogs_id', [1, 2])
 			expect(store.releasesToImport).toEqual([
 				expect.objectContaining({
 					id: 1,
@@ -342,7 +340,9 @@ describe('discogsStore collection access', () => {
 				releases: [createMockDiscogsRelease({ id: 1 })],
 				pagination: { pages: 1 }
 			})
-			mockGetExistingDiscogsIds.mockRejectedValue(new Error('Database offline'))
+			harness.queryBuilder.in.mockRejectedValueOnce(
+				new Error('Database offline')
+			)
 
 			await store.fetchFolderReleases()
 
@@ -453,6 +453,17 @@ describe('discogsStore collection access', () => {
 				id: 'new-user-id',
 				discogs_username: 'newuser'
 			}
+			const runtime = getWorkbenchRuntime(getActivePinia())
+			if (!runtime) throw new Error('Expected the store workbench runtime.')
+			const current = runtime.capture()
+			runtime.replaceWorkspace(
+				{
+					...current.descriptor,
+					id: 'cloud:account:new-user-id',
+					repositoryRevision: 0
+				},
+				current.repositories
+			)
 			store.folders = [createMockFolder({ id: 2, name: 'New folder' })]
 			store.selectedFolder = 'New folder'
 			const newPromise = store.fetchFolderReleases()

@@ -8,12 +8,15 @@ import { fetchAllSupabasePages } from '~/utils/supabasePagination'
 import type { Database, Json } from '~~/shared/types/database'
 import type { DiscogsArtistDb, DiscogsLabelDb } from '~~/shared/types/discogs'
 import type {
+	ExternalRecordImportResult,
+	ExternalRecordWithTracksInput,
 	LibraryRecord,
 	ManualRecordWithTracksInput,
 	RecordUpdateInput
 } from '~~/shared/types/library'
 import { decodeLibraryRecordRow } from '../codecs/supabaseLibraryCodecs'
 import type { RecordsRepository, RepositoryOutcome } from '../contracts'
+import { validateExternalRecordWithTracksInput } from '../externalRecordImportValidation'
 import type {
 	CloudOperationLease,
 	CloudRepositoryState
@@ -22,6 +25,9 @@ import type {
 type AdapterCoverContext = RecordCoverAccountContext & {
 	workspaceContext: CloudOperationLease['context']
 }
+
+const UUID_PATTERN =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function buildArtistPayload(name?: string | null): DiscogsArtistDb[] {
 	const trimmedName = name?.trim()
@@ -36,6 +42,50 @@ function buildLabelPayload(
 	if (!trimmedName) return []
 	const trimmedCatno = catno?.trim()
 	return [{ name: trimmedName, catno: trimmedCatno || undefined }]
+}
+
+function normalizeDiscogsIds(discogsIds: readonly number[]): number[] {
+	if (
+		discogsIds.some(
+			(id) => !Number.isSafeInteger(id) || id <= 0 || id > 2_147_483_647
+		)
+	) {
+		throw new Error('Discogs release IDs must be positive 32-bit integers.')
+	}
+	return [...new Set(discogsIds)]
+}
+
+function serializeExternalCover(
+	cover: ExternalRecordWithTracksInput['record']['cover']
+): string | null {
+	if (cover.kind === 'external') return cover.url
+	if (cover.kind === 'none') return null
+	throw new Error(
+		'Managed library covers cannot be imported as provider metadata.'
+	)
+}
+
+function validateExternalImportResult(
+	value: unknown,
+	expectedTracks: number
+): ExternalRecordImportResult {
+	const result = validateImportResult(value)
+	if (
+		typeof result.record_id !== 'string' ||
+		!UUID_PATTERN.test(result.record_id) ||
+		typeof result.already_exists !== 'boolean' ||
+		!Number.isSafeInteger(result.tracks_inserted) ||
+		result.tracks_inserted! < 0 ||
+		(result.already_exists
+			? result.tracks_inserted !== 0
+			: result.tracks_inserted !== expectedTracks)
+	) {
+		throw new Error('Invalid response from import function')
+	}
+	return {
+		recordId: result.record_id,
+		inserted: !result.already_exists
+	}
 }
 
 function serializeRecordUpdates(updates: RecordUpdateInput) {
@@ -162,6 +212,84 @@ export function createCloudRecordsRepository(
 					sortCreatedAtDescIdDesc(decoded.map((item) => item.row)),
 					{ issues: decoded.flatMap((item) => item.issues) }
 				)
+			} catch (error) {
+				return (await state.isCurrent(captured))
+					? state.transportFailure(error)
+					: { status: 'stale' }
+			}
+		},
+		async findExistingDiscogsIds(context, discogsIds) {
+			const captured = await state.capture(context)
+			if (!state.isLease(captured)) return captured
+			let requestedIds: number[]
+			try {
+				requestedIds = normalizeDiscogsIds(discogsIds)
+			} catch (error) {
+				return { status: 'conflict', reason: 'integrity', current: error }
+			}
+			if (requestedIds.length === 0) {
+				return state.complete(captured, new Set())
+			}
+
+			try {
+				const existing = new Set<number>()
+				for (let index = 0; index < requestedIds.length; index += 100) {
+					const chunk = requestedIds.slice(index, index + 100)
+					const { data, error } = await dependencies.supabase
+						.from('records')
+						.select('discogs_id')
+						.eq('user_id', captured.userId)
+						.in('discogs_id', chunk)
+					if (!(await state.isCurrent(captured))) return { status: 'stale' }
+					if (error) return state.transportFailure(error)
+					for (const row of data ?? []) {
+						if (row.discogs_id === null || !chunk.includes(row.discogs_id)) {
+							return { status: 'conflict', reason: 'integrity' }
+						}
+						existing.add(row.discogs_id)
+					}
+				}
+				return state.complete(captured, existing)
+			} catch (error) {
+				return (await state.isCurrent(captured))
+					? state.transportFailure(error)
+					: { status: 'stale' }
+			}
+		},
+		async importExternalWithTracks(context, input) {
+			const captured = await state.capture(context)
+			if (!state.isLease(captured)) return captured
+			let validated: ExternalRecordWithTracksInput
+			try {
+				validated = validateExternalRecordWithTracksInput(input)
+			} catch (error) {
+				return { status: 'conflict', reason: 'integrity', current: error }
+			}
+			try {
+				const recordPayload = {
+					...validated.record,
+					user_id: captured.userId,
+					cover: serializeExternalCover(validated.record.cover)
+				}
+				const { data, error } = await dependencies.supabase.rpc(
+					'import_record_with_tracks',
+					{
+						record: recordPayload as Json,
+						tracks: validated.tracks as Json
+					}
+				)
+				if (!(await state.isCurrent(captured))) return { status: 'stale' }
+				if (error) return state.transportFailure(error)
+
+				let result: ExternalRecordImportResult
+				try {
+					result = validateExternalImportResult(data, validated.tracks.length)
+				} catch (validationError) {
+					return state.transportFailure(validationError)
+				}
+				return state.complete(captured, result, {
+					mutated: result.inserted
+				})
 			} catch (error) {
 				return (await state.isCurrent(captured))
 					? state.transportFailure(error)

@@ -1,4 +1,4 @@
-import { createPinia, setActivePinia } from 'pinia'
+import { createPinia, getActivePinia, setActivePinia } from 'pinia'
 import {
 	createMockDiscogsRelease,
 	createMockDiscogsReleaseFull,
@@ -6,6 +6,7 @@ import {
 } from 'test/mocks/fixtures/discogs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DiscogsImportFailure } from '../../../shared/types/discogs'
+import { getWorkbenchRuntime } from '../../utils/workbenchPinia'
 import { useDiscogsStore } from '../discogsStore'
 import {
 	createDiscogsStoreHarness,
@@ -39,12 +40,10 @@ function createDeferred<T>() {
 const mockFilterOutExistingReleases = vi.fn()
 const mockFetchReleaseDetails = vi.fn()
 const mockImportFetchedReleases = vi.fn()
-const mockGetExistingDiscogsIds = vi.fn()
 
 vi.stubGlobal('filterOutExistingReleases', mockFilterOutExistingReleases)
 vi.stubGlobal('fetchReleaseDetails', mockFetchReleaseDetails)
 vi.stubGlobal('importFetchedReleases', mockImportFetchedReleases)
-vi.stubGlobal('getExistingDiscogsIds', mockGetExistingDiscogsIds)
 
 describe('discogsStore import', () => {
 	beforeEach(() => {
@@ -53,7 +52,6 @@ describe('discogsStore import', () => {
 		setActivePinia(createPinia())
 
 		harness.reset()
-		mockGetExistingDiscogsIds.mockResolvedValue(new Set())
 	})
 
 	describe('cancelImport', () => {
@@ -302,7 +300,7 @@ describe('discogsStore import', () => {
 			mockImportFetchedReleases.mockImplementationOnce(
 				async (
 					_releases: unknown[],
-					_userId: string,
+					_importExternal: unknown,
 					shouldCancel: () => boolean
 				) => {
 					expect(shouldCancel()).toBe(true)
@@ -340,7 +338,7 @@ describe('discogsStore import', () => {
 
 			expect(mockImportFetchedReleases).toHaveBeenCalledWith(
 				expect.any(Array),
-				'test-user-id',
+				expect.any(Function),
 				expect.any(Function)
 			)
 			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledWith({
@@ -624,6 +622,64 @@ describe('discogsStore import', () => {
 			expect(mockRecordsStore.fetchAllRecords).not.toHaveBeenCalled()
 			expect(mockTracksStore.fetchAllTracks).not.toHaveBeenCalled()
 			expect(window.sessionStorage.length).toBe(0)
+		})
+
+		it('suppresses refresh, snapshot, and presentation after a workspace switch during save', async () => {
+			const saveDeferred = createDeferred<{
+				successful: number
+				failed: DiscogsImportFailure[]
+			}>()
+			mockFilterOutExistingReleases.mockResolvedValue({
+				releasesToFetch: [
+					{ ...createMockDiscogsRelease({ id: 1 }), selected: true }
+				],
+				skipped: []
+			})
+			mockFetchReleaseDetails.mockResolvedValue({
+				releases: [createMockDiscogsReleaseFull({ id: 1 })],
+				failed: [],
+				cancelled: false
+			})
+			mockImportFetchedReleases.mockReturnValueOnce(saveDeferred.promise)
+			const store = useDiscogsStore()
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease({ id: 1 }), selected: true }
+			]
+
+			const importPromise = store.importSelectedReleases()
+			await vi.waitFor(() => {
+				expect(mockImportFetchedReleases).toHaveBeenCalledOnce()
+			})
+			const runtime = getWorkbenchRuntime(getActivePinia())
+			if (!runtime) throw new Error('Expected the store workbench runtime.')
+			const current = runtime.capture()
+			runtime.replaceWorkspace(
+				{
+					...current.descriptor,
+					id: 'browser:workspace-b',
+					repositoryId: 'browser-repository-b',
+					location: 'browser',
+					displayLabel: 'Other Local library',
+					repositoryRevision: 0
+				},
+				{ ...current.repositories, id: 'browser-repository-b' }
+			)
+			saveDeferred.resolve({ successful: 1, failed: [] })
+			await importPromise
+
+			expect(store.transferStatus).toBe('idle')
+			expect(store.importResults).toEqual({
+				successful: 0,
+				skipped: [],
+				failed: []
+			})
+			expect(mockRecordsStore.fetchAllRecords).not.toHaveBeenCalled()
+			expect(mockTracksStore.fetchAllTracks).not.toHaveBeenCalled()
+			expect(window.sessionStorage.length).toBe(0)
+			expect(mockToast.error).not.toHaveBeenCalled()
+			expect(mockToast.info).not.toHaveBeenCalled()
+			expect(mockToast.success).not.toHaveBeenCalled()
+			expect(mockToast.warning).not.toHaveBeenCalled()
 		})
 
 		it('does not publish refresh completion after account reset', async () => {
