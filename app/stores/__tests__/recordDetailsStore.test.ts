@@ -77,6 +77,11 @@ describe('recordDetailsStore', () => {
 			const store = useRecordDetailsStore()
 			expect(store.recordToAddToCrate).toBeNull()
 		})
+
+		it('starts with dialogGeneration at zero', () => {
+			const store = useRecordDetailsStore()
+			expect(store.dialogGeneration).toBe(0)
+		})
 	})
 
 	describe('selectedRecord computed', () => {
@@ -295,6 +300,22 @@ describe('recordDetailsStore', () => {
 	})
 
 	describe('dialog state management', () => {
+		it('advances the generation for opens, edit transitions and closes', () => {
+			const store = useRecordDetailsStore()
+
+			store.openRecord('record-1')
+			expect(store.dialogGeneration).toBe(1)
+
+			store.toggleEditMode()
+			expect(store.dialogGeneration).toBe(2)
+
+			store.openRecord('record-2', true)
+			expect(store.dialogGeneration).toBe(3)
+
+			store.closeRecord()
+			expect(store.dialogGeneration).toBe(4)
+		})
+
 		it('can set trackToConfirmDelete', () => {
 			const store = useRecordDetailsStore()
 			const track = createMockTrack({ id: 'track-1' })

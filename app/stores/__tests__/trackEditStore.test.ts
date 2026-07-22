@@ -24,6 +24,11 @@ describe('trackEditStore', () => {
 			const store = useTrackEditStore()
 			expect(store.editingTrackId).toBeNull()
 		})
+
+		it('starts with dialogGeneration at zero', () => {
+			const store = useTrackEditStore()
+			expect(store.dialogGeneration).toBe(0)
+		})
 	})
 
 	describe('isDialogOpen computed', () => {
@@ -188,6 +193,22 @@ describe('trackEditStore', () => {
 	})
 
 	describe('workflow scenarios', () => {
+		it('advances the generation for every open, switch and close', () => {
+			const store = useTrackEditStore()
+
+			store.openEditTrackDialog('track-1')
+			expect(store.dialogGeneration).toBe(1)
+
+			store.openEditTrackDialog('track-2')
+			expect(store.dialogGeneration).toBe(2)
+
+			store.openAddTrackDialog()
+			expect(store.dialogGeneration).toBe(3)
+
+			store.closeTrackDialog()
+			expect(store.dialogGeneration).toBe(4)
+		})
+
 		it('supports add -> close flow', () => {
 			const store = useTrackEditStore()
 

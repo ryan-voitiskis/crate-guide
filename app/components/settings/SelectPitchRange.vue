@@ -5,7 +5,7 @@ const props = defineProps<{
 
 const user = useWorkbenchUserStore()
 
-const turntablePitchRange = ref(
+const localTurntablePitchRange = ref(
 	user.profile?.turntable_pitch_range.toString() ?? '8'
 )
 
@@ -16,9 +16,19 @@ const turntablePitchOptions = [
 	{ id: '50', name: '±50%' }
 ]
 
-watch(turntablePitchRange, (value) => {
-	if (!props.localOnly)
-		void user.updateSettings({ turntable_pitch_range: parseInt(value) })
+const turntablePitchRange = computed({
+	get: () =>
+		props.localOnly
+			? localTurntablePitchRange.value
+			: (user.profile?.turntable_pitch_range.toString() ?? '8'),
+	set: (value: string) => {
+		if (!turntablePitchOptions.some((option) => option.id === value)) return
+		if (props.localOnly) {
+			localTurntablePitchRange.value = value
+			return
+		}
+		void user.updateSettings({ turntable_pitch_range: Number(value) })
+	}
 })
 </script>
 

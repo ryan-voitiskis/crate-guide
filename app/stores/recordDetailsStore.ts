@@ -8,6 +8,7 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 	const selectedRecordId = ref<string | null>(null)
 	const isEditMode = ref(false)
 	const editFocus = ref<'cover' | null>(null)
+	const dialogGeneration = ref(0)
 	const trackToConfirmDelete = ref<Track | null>(null)
 
 	// Dialog state (store-based pattern)
@@ -31,12 +32,14 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 		editMode = false,
 		focus: 'cover' | null = null
 	) {
+		dialogGeneration.value += 1
 		selectedRecordId.value = recordId
 		isEditMode.value = editMode
 		editFocus.value = focus
 	}
 
 	function closeRecord() {
+		dialogGeneration.value += 1
 		selectedRecordId.value = null
 		isEditMode.value = false
 		editFocus.value = null
@@ -46,6 +49,7 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 	}
 
 	function toggleEditMode() {
+		dialogGeneration.value += 1
 		isEditMode.value = !isEditMode.value
 	}
 
@@ -55,6 +59,7 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 		recordTracks,
 		isEditMode,
 		editFocus,
+		dialogGeneration,
 		trackToConfirmDelete,
 		recordToRemove,
 		recordToAddToCrate,

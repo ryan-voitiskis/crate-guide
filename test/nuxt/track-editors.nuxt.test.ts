@@ -28,6 +28,16 @@ const COMMON_FIELD_NAMES = [
 	'time_signature_lower'
 ] as const
 
+function createDeferred<T>() {
+	let resolve!: (value: T | PromiseLike<T>) => void
+	let reject!: (reason?: unknown) => void
+	const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+		resolve = resolvePromise
+		reject = rejectPromise
+	})
+	return { promise, reject, resolve }
+}
+
 function getBody() {
 	return new DOMWrapper(document.body)
 }
@@ -85,8 +95,7 @@ function createEditorPinia(options: {
 }) {
 	const pinia = createTestingPinia({
 		createSpy: vi.fn,
-		stubActions: (actionName, store) =>
-			!(store.$id === 'trackEdit' && actionName === 'openAddTrackDialog'),
+		stubActions: (_actionName, store) => store.$id !== 'trackEdit',
 		initialState: {
 			tracks: { tracks: [options.track] },
 			records: { records: [options.record] },
@@ -385,4 +394,120 @@ describe('track editor dialogs', () => {
 		expect(getButton('Cancel Edit').exists()).toBe(true)
 		expect(getButton('Save Changes').exists()).toBe(true)
 	})
+
+	it.each(['success', 'failure'] as const)(
+		'keeps a newer track edit open when an older submission settles with %s',
+		async (outcome) => {
+			const editDialog = await mountAddOrEditDialog('edit')
+			const replacementTrack = createMockTrack({
+				...editDialog.track,
+				id: 'track-2',
+				title: 'Replacement Track',
+				position: 'B1'
+			})
+			const firstUpdate = createDeferred<Track | null>()
+			const secondUpdate = createDeferred<Track | null>()
+			vi.mocked(editDialog.tracks.getTrackById).mockImplementation((id) => {
+				if (id === editDialog.track.id) return editDialog.track
+				if (id === replacementTrack.id) return replacementTrack
+				return undefined
+			})
+			vi.mocked(editDialog.tracks.updateTrack)
+				.mockReturnValueOnce(firstUpdate.promise)
+				.mockReturnValueOnce(secondUpdate.promise)
+
+			await getButton('Update Track').trigger('click')
+			await vi.waitFor(() => {
+				expect(editDialog.tracks.updateTrack).toHaveBeenCalledOnce()
+			})
+			await getButton('Close').trigger('click')
+			await settleDialog()
+			editDialog.trackEdit.openEditTrackDialog(replacementTrack.id)
+			await settleDialog()
+
+			expect(
+				(getBody().get('input[name="title"]').element as HTMLInputElement).value
+			).toBe('Replacement Track')
+			await getButton('Update Track').trigger('click')
+			await vi.waitFor(() => {
+				expect(editDialog.tracks.updateTrack).toHaveBeenCalledTimes(2)
+			})
+			expect(getButton('Update Track').attributes('aria-busy')).toBe('true')
+
+			if (outcome === 'success') firstUpdate.resolve(editDialog.track)
+			else firstUpdate.reject(new Error('First track update failed'))
+			await settleDialog()
+
+			expect(editDialog.trackEdit.isDialogOpen).toBe(true)
+			expect(editDialog.trackEdit.editingTrackId).toBe(replacementTrack.id)
+			expect(
+				(getBody().get('input[name="title"]').element as HTMLInputElement).value
+			).toBe('Replacement Track')
+			expect(getButton('Update Track').attributes('aria-busy')).toBe('true')
+
+			secondUpdate.resolve(null)
+			await settleDialog()
+		}
+	)
+
+	it.each(['success', 'failure'] as const)(
+		'keeps a newer track-details editor active when an older save settles with %s',
+		async (outcome) => {
+			const detailsDialog = await mountDetailsDialog()
+			const replacementTrack = createMockTrack({
+				...detailsDialog.track,
+				id: 'track-2',
+				title: 'Replacement Details Track',
+				position: 'B1'
+			})
+			const firstUpdate = createDeferred<Track | null>()
+			const secondUpdate = createDeferred<Track | null>()
+			vi.mocked(detailsDialog.tracks.getTrackById).mockImplementation((id) => {
+				if (id === detailsDialog.track.id) return detailsDialog.track
+				if (id === replacementTrack.id) return replacementTrack
+				return undefined
+			})
+			vi.mocked(detailsDialog.tracks.updateTrack)
+				.mockReturnValueOnce(firstUpdate.promise)
+				.mockReturnValueOnce(secondUpdate.promise)
+
+			await enterDetailsEditMode()
+			await vi.waitFor(() => {
+				expect(getButton('Save Changes').attributes('disabled')).toBeUndefined()
+			})
+			await getButton('Save Changes').trigger('click')
+			await vi.waitFor(() => {
+				expect(detailsDialog.tracks.updateTrack).toHaveBeenCalledOnce()
+			})
+			await detailsDialog.wrapper.setProps({ trackId: null })
+			await settleDialog()
+			await detailsDialog.wrapper.setProps({ trackId: replacementTrack.id })
+			await settleDialog()
+			await enterDetailsEditMode()
+			await vi.waitFor(() => {
+				expect(getButton('Save Changes').attributes('disabled')).toBeUndefined()
+			})
+
+			expect(
+				(getBody().get('input[name="title"]').element as HTMLInputElement).value
+			).toBe('Replacement Details Track')
+			await getButton('Save Changes').trigger('click')
+			await vi.waitFor(() => {
+				expect(detailsDialog.tracks.updateTrack).toHaveBeenCalledTimes(2)
+			})
+			expect(getButton('Save Changes').attributes('aria-busy')).toBe('true')
+
+			firstUpdate.resolve(outcome === 'success' ? detailsDialog.track : null)
+			await settleDialog()
+
+			expect(getButton('Cancel Edit').exists()).toBe(true)
+			expect(
+				(getBody().get('input[name="title"]').element as HTMLInputElement).value
+			).toBe('Replacement Details Track')
+			expect(getButton('Save Changes').attributes('aria-busy')).toBe('true')
+
+			secondUpdate.resolve(null)
+			await settleDialog()
+		}
+	)
 })

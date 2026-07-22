@@ -136,10 +136,31 @@ const safeArtistsValue = computed({
 const showUnsavedChangesAlert = ref(false)
 
 const isFormInitialized = ref(false)
+const isSubmitting = ref(false)
+let initializedDialogGeneration = -1
+let nextSubmissionId = 0
+let activeSubmissionId: number | null = null
+
+function resetSubmissionState() {
+	activeSubmissionId = null
+	isSubmitting.value = false
+}
 
 watch(
-	[() => recordDetails.selectedRecord, () => recordDetails.isEditMode],
-	([record, isEditMode]) => {
+	[
+		() => recordDetails.dialogGeneration,
+		() => recordDetails.selectedRecord,
+		() => recordDetails.isEditMode
+	],
+	([generation, record, isEditMode]) => {
+		if (generation !== initializedDialogGeneration) {
+			initializedDialogGeneration = generation
+			isFormInitialized.value = false
+			showUnsavedChangesAlert.value = false
+			resetSubmissionState()
+			resetCoverEditor()
+		}
+
 		if (record && isEditMode && !isFormInitialized.value) {
 			resetCoverEditor()
 			setValues({
@@ -195,7 +216,18 @@ function handleToggleEditMode() {
 }
 
 const saveRecord = handleSubmit(async (values) => {
-	if (!recordDetails.selectedRecord) return
+	const recordId = recordDetails.selectedRecordId
+	if (!recordId || recordDetails.selectedRecord?.id !== recordId) return
+	const dialogGeneration = recordDetails.dialogGeneration
+	const submissionId = ++nextSubmissionId
+	activeSubmissionId = submissionId
+	isSubmitting.value = true
+
+	const ownsActiveEditor = () =>
+		activeSubmissionId === submissionId &&
+		recordDetails.dialogGeneration === dialogGeneration &&
+		recordDetails.selectedRecordId === recordId &&
+		recordDetails.isEditMode
 
 	const updates = {
 		title: values.title.trim(),
@@ -217,15 +249,20 @@ const saveRecord = handleSubmit(async (values) => {
 			? { type: 'remove' as const }
 			: { type: 'keep' as const }
 
-	const result = await records.updateRecordWithCover(
-		recordDetails.selectedRecord.id,
-		updates,
-		coverChange
-	)
-	if (!result) return
-	resetCoverEditor()
-	recordDetails.toggleEditMode()
-	isFormInitialized.value = false
+	try {
+		const result = await records.updateRecordWithCover(
+			recordId,
+			updates,
+			coverChange
+		)
+		if (!result || !ownsActiveEditor()) return
+		resetSubmissionState()
+		resetCoverEditor()
+		recordDetails.toggleEditMode()
+		isFormInitialized.value = false
+	} finally {
+		if (ownsActiveEditor()) resetSubmissionState()
+	}
 })
 
 function handleCancelEdit() {
@@ -706,7 +743,7 @@ onUnmounted(() => {
 						</Button>
 						<ButtonLoading
 							:disabled="!meta.valid"
-							:loading="records.isUpdatingRecord || records.isUpdatingCover"
+							:loading="isSubmitting"
 							@click="saveRecord"
 						>
 							Save Changes

@@ -53,14 +53,27 @@ function isTurntableThemeOption(
 	return ['silver', 'black'].includes(value)
 }
 
-const turntableTheme = ref<TurntableThemeOptions>(
+const localTurntableFinish = ref<TurntableThemeOptions>(
 	isTurntableThemeOption(user.profile?.turntable_theme)
 		? user.profile.turntable_theme
 		: 'silver'
 )
 
-watch(turntableTheme, (theme) => {
-	if (!props.localOnly) void user.updateSettings({ turntable_theme: theme })
+const turntableFinish = computed({
+	get: (): TurntableThemeOptions => {
+		if (props.localOnly) return localTurntableFinish.value
+		return isTurntableThemeOption(user.profile?.turntable_theme)
+			? user.profile.turntable_theme
+			: 'silver'
+	},
+	set: (finish: string) => {
+		if (!isTurntableThemeOption(finish)) return
+		if (props.localOnly) {
+			localTurntableFinish.value = finish
+			return
+		}
+		void user.updateSettings({ turntable_theme: finish })
+	}
 })
 </script>
 
@@ -72,7 +85,7 @@ watch(turntableTheme, (theme) => {
 				Choose the hardware finish used by the deck simulator.
 			</p>
 		</div>
-		<RadioGroup v-model="turntableTheme" class="grid grid-cols-2 gap-2">
+		<RadioGroup v-model="turntableFinish" class="grid grid-cols-2 gap-2">
 			<Label
 				class="[&:has([data-state=checked])>div]:border-primary cursor-pointer flex-col"
 			>

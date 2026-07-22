@@ -120,7 +120,7 @@ const settingsSections = computed(() => [
 							<Separator />
 							<SelectorKeyFormat :local-only="isDemo" />
 							<Separator />
-							<SelectorTurntableColor :local-only="isDemo" />
+							<SelectorTurntableFinish :local-only="isDemo" />
 						</div>
 					</section>
 
