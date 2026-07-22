@@ -179,4 +179,7 @@ BROWSER_LIBRARY_REQUIRE_FULL_MATRIX=1 BROWSER_LIBRARY_HEADED=1 npx vitest run --
 
 The matrix deletes only its uniquely named probe databases and temporary
 profiles. It serves a minimal loopback page instead of loading the application,
-and never opens `crate-guide-library` or `crate-guide-local-audio`.
+and never opens `crate-guide-library` or `crate-guide-local-audio`. Because the
+probe creates raw Playwright pages rather than Nuxt pages, it installs the same
+fail-on-page-error, console-error, and relevant request-failure guards directly
+on both pages.

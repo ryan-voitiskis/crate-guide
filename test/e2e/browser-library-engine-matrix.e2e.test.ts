@@ -12,7 +12,7 @@ import {
 	firefox,
 	webkit
 } from 'playwright'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 type EngineName = 'chromium' | 'firefox' | 'webkit'
 type StorageContext = 'ephemeral' | 'persistent-headed' | 'persistent-headless'
@@ -69,6 +69,32 @@ const requireFullMatrix =
 	process.env.BROWSER_LIBRARY_REQUIRE_FULL_MATRIX === '1'
 let probeOrigin = ''
 let probeServer: Server | null = null
+const probeDiagnostics = new Map<Page, string[]>()
+
+function guardProbePage(page: Page, label: string) {
+	const diagnostics: string[] = []
+	probeDiagnostics.set(page, diagnostics)
+	page.on('pageerror', (error) => {
+		diagnostics.push(`${label} pageerror: ${error.message}`)
+	})
+	page.on('console', (message) => {
+		if (message.type() === 'error') {
+			diagnostics.push(`${label} console.error: ${message.text()}`)
+		}
+	})
+	page.on('requestfailed', (request) => {
+		if (
+			!['document', 'fetch', 'script', 'stylesheet', 'xhr'].includes(
+				request.resourceType()
+			)
+		) {
+			return
+		}
+		diagnostics.push(
+			`${label} requestfailed: ${new URL(request.url()).pathname} (${request.failure()?.errorText ?? 'unknown failure'})`
+		)
+	})
+}
 
 function isEngineInstalled(type: BrowserType) {
 	return existsSync(type.executablePath())
@@ -107,9 +133,24 @@ afterAll(async () => {
 	})
 })
 
+afterEach(() => {
+	const diagnostics = [...probeDiagnostics.values()].flat()
+	probeDiagnostics.clear()
+	if (diagnostics.length > 0) {
+		throw new Error(
+			`Unexpected storage-probe browser diagnostics:\n${diagnostics.join('\n')}`
+		)
+	}
+})
+
 async function openProbePages(context: BrowserContext) {
 	const pageA = await context.newPage()
 	const pageB = await context.newPage()
+	// This is a minimal loopback capability probe rather than a Nuxt page, so it
+	// cannot use createErrorAwarePage(). Keep the same fail-on-browser-error
+	// contract on both raw Playwright pages.
+	guardProbePage(pageA, 'page A')
+	guardProbePage(pageB, 'page B')
 	await Promise.all([
 		pageA.goto(probeOrigin, { waitUntil: 'domcontentloaded' }),
 		pageB.goto(probeOrigin, { waitUntil: 'domcontentloaded' })
