@@ -1,7 +1,10 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import assert from 'node:assert/strict'
 import type { DiscogsCredentialRepository } from '../_shared/discogs/credentials.ts'
-import { createDiscogsRequestTokenHandler } from './handler.ts'
+import {
+	buildOAuthCallback,
+	createDiscogsRequestTokenHandler
+} from './handler.ts'
 
 const headers = { 'Content-Type': 'application/json' }
 const config = {
@@ -31,6 +34,24 @@ function authorizedRequest(): Request {
 		headers: { Authorization: 'Bearer valid' }
 	})
 }
+
+Deno.test('builds the OAuth callback from a normalized site origin', () => {
+	assert.equal(
+		buildOAuthCallback('https://crate.guide/'),
+		'https://crate.guide/auth/discogs/capture-verifier'
+	)
+	assert.equal(
+		buildOAuthCallback('https://crate.guide'),
+		'https://crate.guide/auth/discogs/capture-verifier'
+	)
+})
+
+Deno.test('rejects an OAuth callback SITE_URL with a path', () => {
+	assert.throws(
+		() => buildOAuthCallback('https://crate.guide/app'),
+		/SITE_URL must be one absolute HTTP\(S\) origin/
+	)
+})
 
 Deno.test('request-token handler rejects missing authorization', async () => {
 	const handler = createDiscogsRequestTokenHandler(headers, {

@@ -120,7 +120,7 @@ database function:
 | `DISCOGS_RATE_LIMIT_PER_USER`       | `getDiscogsRateLimitConfig()`; optional per-user quota         |
 | `DISCOGS_RATE_LIMIT_GLOBAL`         | `getDiscogsRateLimitConfig()`; optional shared quota           |
 | `DISCOGS_RATE_LIMIT_WINDOW_SECONDS` | `getDiscogsRateLimitConfig()`; optional quota window           |
-| `SITE_URL`                          | CORS origin and server-built OAuth callback base URL           |
+| `SITE_URL`                          | One HTTP(S) origin for CORS and server-built OAuth callbacks   |
 
 Shared Supabase helpers also require runtime-provided `SUPABASE_URL`, the
 `default` entry in hosted `SUPABASE_PUBLISHABLE_KEYS`, and the `default` entry

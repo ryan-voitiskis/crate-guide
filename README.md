@@ -107,6 +107,9 @@ SUPABASE_ANON_KEY=
 SITE_URL=http://localhost:3000
 ```
 
+`SITE_URL` must be one absolute HTTP(S) origin with no path, query, fragment,
+or credentials. A root trailing slash is accepted and normalized.
+
 `supabase/functions/.env` — Discogs OAuth (for Edge Functions):
 
 ```

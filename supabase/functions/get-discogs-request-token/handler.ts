@@ -13,7 +13,7 @@ import {
 	getPublicOAuthErrorMessage
 } from '../_shared/discogs/oauthErrors.ts'
 import { generateToken } from '../_shared/generateToken.ts'
-import { requireEnv } from '../_shared/supabaseHelpers.ts'
+import { getSiteUrlConfig, parseSiteUrl } from '../_shared/siteUrl.ts'
 
 const requestTokenUrl = 'https://api.discogs.com/oauth/request_token'
 
@@ -33,22 +33,15 @@ const defaultDependencies: HandlerDependencies = {
 	getCallback: buildOAuthCallback
 }
 
-export function buildOAuthCallback(siteUrl = requireEnv('SITE_URL')): string {
-	let parsedSiteUrl: URL
+export function buildOAuthCallback(siteUrl?: string): string {
 	try {
-		parsedSiteUrl = new URL(siteUrl)
+		const { siteBaseUrl } = siteUrl ? parseSiteUrl(siteUrl) : getSiteUrlConfig()
+		return new URL('auth/discogs/capture-verifier', siteBaseUrl).toString()
 	} catch {
 		throw new PublicOAuthError(
-			'Server configuration error: SITE_URL must be a valid absolute URL.'
+			'Server configuration error: SITE_URL must be one absolute HTTP(S) origin.'
 		)
 	}
-
-	parsedSiteUrl.pathname = parsedSiteUrl.pathname.endsWith('/')
-		? parsedSiteUrl.pathname
-		: `${parsedSiteUrl.pathname}/`
-	parsedSiteUrl.search = ''
-	parsedSiteUrl.hash = ''
-	return new URL('auth/discogs/capture-verifier', parsedSiteUrl).toString()
 }
 
 function jsonResponse(
