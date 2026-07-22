@@ -7,6 +7,13 @@ import { validatePublicRuntimeConfig } from './scripts/runtime-config.mjs'
 const publicRuntimeConfig = validatePublicRuntimeConfig()
 
 export default defineNuxtConfig({
+	runtimeConfig: {
+		browserSecurity: {
+			supabaseOrigin: publicRuntimeConfig.url
+				? new URL(publicRuntimeConfig.url).origin
+				: ''
+		}
+	},
 	alias: {
 		test: fileURLToPath(new URL('./test', import.meta.url))
 	},

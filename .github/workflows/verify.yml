@@ -58,6 +58,9 @@ jobs:
           SUPABASE_URL: https://config.test.invalid
           SUPABASE_ANON_KEY: test-public-anon-key
 
+      - name: Check built browser security headers
+        run: npm run check:security-headers
+
   database:
     runs-on: ubuntu-latest
     timeout-minutes: 20

@@ -275,6 +275,8 @@ npm run test:audio-config    # Shared analyzer/benchmark config tests
 npm run test:conventions     # Convention checker tests
 npm run test:dependency-topology # Tests for the focused topology gate
 npm run check:dependency-topology # Validate reviewed Vue/crossws/H3 topology
+npm run test:security-headers # Unit-test the browser response policy
+npm run check:security-headers # Inspect the built Cloudflare Worker response
 npm run verify               # Comprehensive read-only verification gate
 npm run verify:full          # Application, build, and local database gate
 npm run build                # Production build (separate from verify)
@@ -294,6 +296,13 @@ Edge auditing covers every npm package in `supabase/deno.lock` and fails closed
 on unsupported remote or JSR entries. A temporary high-severity exception in
 `security/edge-audit-suppressions.json` must name the advisory and package plus
 an owner, rationale, and unexpired `YYYY-MM-DD` date.
+
+Browser containment is source-controlled in the Nitro response path rather
+than a Cloudflare dashboard. `npm run check:security-headers` imports the built
+Cloudflare Pages Worker, verifies its HTTPS and local-HTTP responses, and checks
+the generated static-asset routing boundary. See
+[`docs/browser-security.md`](docs/browser-security.md) for the policy and the
+read-only post-deploy check.
 
 `npm run audit:prod` checks the installed production dependency graph and fails
 on high or critical advisories. The exact `esbuild` development dependency is
