@@ -197,6 +197,15 @@ const keyColour = computed(() => {
 					{{ track.key === null ? 'NO KEY' : 'KEY SET' }}
 				</Badge>
 			</div>
+
+			<PanelTrackEvidence
+				class="border-border mt-5 border-t pt-4"
+				:evidence="track.audio_features"
+				:current-bpm="track.bpm"
+				:current-key="track.key"
+				:current-mode="track.mode"
+				:key-format="preferences.currentKeyFormat"
+			/>
 		</div>
 
 		<div class="border-border shrink-0 border-t p-3">
