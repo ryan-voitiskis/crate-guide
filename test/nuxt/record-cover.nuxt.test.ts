@@ -47,6 +47,14 @@ const TwoRecordCovers = defineComponent({
 	}
 })
 
+function createDeferred<T>() {
+	let resolve!: (value: T) => void
+	const promise = new Promise<T>((resolvePromise) => {
+		resolve = resolvePromise
+	})
+	return { promise, resolve }
+}
+
 describe('record cover presentation', () => {
 	beforeEach(() => {
 		coverMocks.currentUserId = 'user-1'
@@ -221,6 +229,44 @@ describe('record cover presentation', () => {
 		expect(coverMocks.createSignedUrl).toHaveBeenCalledTimes(2)
 		expect(second.get('img').attributes('src')).toBe(
 			'https://supabase.test.invalid/signed/custom.webp'
+		)
+	})
+
+	it('cannot publish a late URL into a recycled cover component', async () => {
+		const deferred = createDeferred<{
+			data: { signedUrl: string }
+			error: null
+		}>()
+		coverMocks.createSignedUrl.mockReturnValueOnce(deferred.promise)
+		const wrapper = await mountSuspended(ImageRecordCover, {
+			props: {
+				record: createMockRecord({
+					cover: 'https://discogs.example/first.jpg',
+					cover_storage_path: 'user-1/record-1/slow.webp',
+					id: 'first-record'
+				})
+			}
+		})
+
+		await wrapper.setProps({
+			record: createMockRecord({
+				cover: 'https://discogs.example/second.jpg',
+				cover_storage_path: null,
+				id: 'second-record'
+			})
+		})
+		await flushPromises()
+		expect(wrapper.get('img').attributes('src')).toBe(
+			'https://discogs.example/second.jpg'
+		)
+
+		deferred.resolve({
+			data: { signedUrl: 'https://supabase.test.invalid/signed/late.webp' },
+			error: null
+		})
+		await flushPromises()
+		expect(wrapper.get('img').attributes('src')).toBe(
+			'https://discogs.example/second.jpg'
 		)
 	})
 

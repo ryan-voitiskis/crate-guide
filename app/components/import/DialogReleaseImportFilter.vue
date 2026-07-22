@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Download, Layers3 } from 'lucide-vue-next'
+import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
 
 const discogs = useDiscogsStore()
 
@@ -23,6 +24,10 @@ const allSelected = computed({
 		importableReleases.value.forEach((release) => (release.selected = value))
 	}
 })
+
+function getReleaseKey(release: DiscogsReleaseToFilter) {
+	return release.id
+}
 </script>
 
 <template>
@@ -69,17 +74,33 @@ const allSelected = computed({
 				</Label>
 			</div>
 
-			<ScrollArea class="bg-workbench-inset min-h-0">
-				<div class="flex flex-col gap-1.5 p-3 sm:p-4">
-					<CardDiscogsRelease
-						v-for="release in discogs.releasesToImport"
-						:key="release.id"
-						:release="release"
-						show-checkbox
-						@update:selected="(val) => (release.selected = val)"
-					/>
-				</div>
-			</ScrollArea>
+			<!-- @vue-generic {DiscogsReleaseToFilter} -->
+			<ListWorkbenchVirtual
+				:items="discogs.releasesToImport"
+				:get-item-key="getReleaseKey"
+				:item-size="70"
+				:header-size="12"
+				:initial-viewport-size="500"
+				label="Discogs releases available for import"
+				item-label="Discogs releases"
+				data-testid="discogs-release-candidates"
+				class="bg-workbench-inset min-h-0"
+			>
+				<template #header><div class="h-3" /></template>
+				<template #default="{ item: release }">
+					<div
+						class="h-full px-3 pb-1.5 sm:px-4"
+						:data-candidate-release-id="release.id"
+					>
+						<CardDiscogsRelease
+							:release="release"
+							show-checkbox
+							class="h-16"
+							@update:selected="(val) => (release.selected = val)"
+						/>
+					</div>
+				</template>
+			</ListWorkbenchVirtual>
 
 			<DialogFooter
 				class="border-border bg-background border-t px-4 py-3 sm:px-5"

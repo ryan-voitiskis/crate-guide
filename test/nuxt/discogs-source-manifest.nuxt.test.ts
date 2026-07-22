@@ -136,4 +136,32 @@ describe('Discogs source and manifest UI', () => {
 		expect(wrapper.text()).toContain('Import 1')
 		expect(wrapper.text()).toContain('In library')
 	})
+
+	it('selects the complete virtualized release corpus from one control', async () => {
+		const releases = Array.from({ length: 10_000 }, (_, index) =>
+			release(index + 1)
+		)
+		factories.discogs.mockReturnValue(
+			reactive({
+				importSelectedReleases: vi.fn(),
+				releasesToImport: releases,
+				showFilterDialog: true
+			})
+		)
+		const wrapper = await mountSuspended(DialogReleaseImportFilter, {
+			global: { stubs: dialogStubs }
+		})
+		wrappers.add(wrapper)
+
+		const list = wrapper.get('[data-testid="discogs-release-candidates"]')
+		expect(list.attributes('data-virtual-total-count')).toBe('10000')
+		expect(
+			wrapper.findAll('[data-candidate-release-id]').length
+		).toBeLessThanOrEqual(48)
+		expect(wrapper.text()).toContain('10000 selected')
+
+		await wrapper.findAll('[role="checkbox"]')[0]!.trigger('click')
+		expect(releases.every((candidate) => !candidate.selected)).toBe(true)
+		expect(wrapper.text()).toContain('0 selected')
+	})
 })

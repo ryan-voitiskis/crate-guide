@@ -1,0 +1,32 @@
+{
+	"corpora": {
+		"candidateRecords": 1000,
+		"candidateReleases": 10000,
+		"records": 1000,
+		"tracks": 10000
+	},
+	"viewports": {
+		"desktop": {
+			"height": 900,
+			"width": 1440
+		},
+		"mobile": {
+			"height": 844,
+			"width": 390
+		}
+	},
+	"structural": {
+		"maxMountedCovers": 48,
+		"maxMountedItems": 48,
+		"maxResponsiveRowTrees": 1,
+		"maxSignedCoverRequestsAtRest": 48,
+		"maxSignedCoverRequestsPerScroll": 48
+	},
+	"timingReference": {
+		"breakpointMs": 150,
+		"filterMs": 100,
+		"initialRenderMs": 250,
+		"scrollMs": 50,
+		"sortMs": 100
+	}
+}

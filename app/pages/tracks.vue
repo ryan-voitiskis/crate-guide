@@ -7,6 +7,7 @@ import {
 	ShieldAlert,
 	WandSparkles
 } from 'lucide-vue-next'
+import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
 
 type TrackSortKey =
 	| 'title'
@@ -19,6 +20,10 @@ type TrackSortKey =
 	| 'genre'
 type SortDirection = 'asc' | 'desc'
 type Density = 'compact' | 'comfortable'
+type TrackWorkbenchRow = {
+	record: DatabaseRecord | null
+	track: Track
+}
 
 const records = useWorkbenchRecordsStore()
 const tracks = useWorkbenchTracksStore()
@@ -86,7 +91,7 @@ function keyStyle(track: Track) {
 	return { color: getKeyColour(track.key, track.mode) }
 }
 
-const sortedTrackRows = computed(() => {
+const sortedTrackRows = computed<TrackWorkbenchRow[]>(() => {
 	const collator = new Intl.Collator(undefined, {
 		numeric: true,
 		sensitivity: 'base'
@@ -141,6 +146,19 @@ const sortedTrackRows = computed(() => {
 		return collator.compare(String(aValue), String(bValue)) * direction
 	})
 })
+
+const trackItemSize = computed(() => {
+	if (isCompactTable.value) return 80
+	return density.value === 'compact' ? 36 : 56
+})
+const trackHeaderSize = computed(() => {
+	if (isCompactTable.value) return 0
+	return density.value === 'compact' ? 32 : 40
+})
+
+function getTrackRowKey(row: TrackWorkbenchRow) {
+	return row.track.id
+}
 
 function setSort(key: TrackSortKey) {
 	if (sortKey.value === key)
@@ -292,96 +310,108 @@ watch(
 					<ControlLibraryDensity v-model="density" />
 				</div>
 
-				<div
+				<!-- @vue-generic {TrackWorkbenchRow} -->
+				<ListWorkbenchVirtual
 					v-if="sortedTrackRows.length"
-					class="workbench-scrollbar min-h-0 flex-1 overflow-auto"
+					:items="sortedTrackRows"
+					:get-item-key="getTrackRowKey"
+					:item-size="trackItemSize"
+					:header-size="trackHeaderSize"
+					:selected-key="selectedTrackId"
+					:data-testid="
+						isCompactTable ? 'compact-track-rows' : 'desktop-track-rows'
+					"
+					label="Track collection"
+					item-label="tracks"
+					class="workbench-scrollbar min-h-0 flex-1"
 				>
-					<div
-						class="border-border bg-muted/70 sticky top-0 z-10 hidden min-w-270 items-center gap-2 border-b pr-2 backdrop-blur-md md:grid"
-						:class="
-							density === 'compact'
-								? 'h-8 grid-cols-[36px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]'
-								: 'h-10 grid-cols-[56px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]'
-						"
-					>
-						<span class="text-muted-foreground pl-2 font-mono text-[9px]">
-							COVER
-						</span>
-						<span class="text-muted-foreground font-mono text-[9px] uppercase">
-							Pos
-						</span>
-						<ButtonLibrarySort
-							label="Title"
-							:active="sortKey === 'title'"
-							:direction="sortDirection"
-							@click="setSort('title')"
-						/>
-						<ButtonLibrarySort
-							label="Artist"
-							:active="sortKey === 'artist'"
-							:direction="sortDirection"
-							@click="setSort('artist')"
-						/>
-						<ButtonLibrarySort
-							label="Release"
-							:active="sortKey === 'release'"
-							:direction="sortDirection"
-							@click="setSort('release')"
-						/>
-						<ButtonLibrarySort
-							label="Cat. no."
-							:active="sortKey === 'catno'"
-							:direction="sortDirection"
-							@click="setSort('catno')"
-						/>
-						<ButtonLibrarySort
-							label="Time"
-							align="right"
-							:active="sortKey === 'duration'"
-							:direction="sortDirection"
-							@click="setSort('duration')"
-						/>
-						<ButtonLibrarySort
-							label="BPM"
-							align="right"
-							:active="sortKey === 'bpm'"
-							:direction="sortDirection"
-							@click="setSort('bpm')"
-						/>
-						<ButtonLibrarySort
-							label="Key"
-							align="center"
-							:active="sortKey === 'key'"
-							:direction="sortDirection"
-							@click="setSort('key')"
-						/>
-						<ButtonLibrarySort
-							label="Genre"
-							:active="sortKey === 'genre'"
-							:direction="sortDirection"
-							@click="setSort('genre')"
-						/>
-						<span />
-					</div>
-
-					<div
-						v-if="!isCompactTable"
-						class="min-w-270"
-						data-testid="desktop-track-rows"
-					>
+					<template #header>
 						<div
-							v-for="row in sortedTrackRows"
-							:key="row.track.id"
+							v-if="!isCompactTable"
+							class="border-border bg-muted/70 sticky top-0 z-10 grid min-w-270 items-center gap-2 border-b pr-2 backdrop-blur-md"
+							:class="
+								density === 'compact'
+									? 'h-8 grid-cols-[36px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]'
+									: 'h-10 grid-cols-[56px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]'
+							"
+						>
+							<span class="text-muted-foreground pl-2 font-mono text-[9px]">
+								COVER
+							</span>
+							<span
+								class="text-muted-foreground font-mono text-[9px] uppercase"
+							>
+								Pos
+							</span>
+							<ButtonLibrarySort
+								label="Title"
+								:active="sortKey === 'title'"
+								:direction="sortDirection"
+								@click="setSort('title')"
+							/>
+							<ButtonLibrarySort
+								label="Artist"
+								:active="sortKey === 'artist'"
+								:direction="sortDirection"
+								@click="setSort('artist')"
+							/>
+							<ButtonLibrarySort
+								label="Release"
+								:active="sortKey === 'release'"
+								:direction="sortDirection"
+								@click="setSort('release')"
+							/>
+							<ButtonLibrarySort
+								label="Cat. no."
+								:active="sortKey === 'catno'"
+								:direction="sortDirection"
+								@click="setSort('catno')"
+							/>
+							<ButtonLibrarySort
+								label="Time"
+								align="right"
+								:active="sortKey === 'duration'"
+								:direction="sortDirection"
+								@click="setSort('duration')"
+							/>
+							<ButtonLibrarySort
+								label="BPM"
+								align="right"
+								:active="sortKey === 'bpm'"
+								:direction="sortDirection"
+								@click="setSort('bpm')"
+							/>
+							<ButtonLibrarySort
+								label="Key"
+								align="center"
+								:active="sortKey === 'key'"
+								:direction="sortDirection"
+								@click="setSort('key')"
+							/>
+							<ButtonLibrarySort
+								label="Genre"
+								:active="sortKey === 'genre'"
+								:direction="sortDirection"
+								@click="setSort('genre')"
+							/>
+							<span />
+						</div>
+					</template>
+
+					<template #default="{ item: row }">
+						<div
+							v-if="!isCompactTable"
 							role="button"
 							tabindex="0"
 							:data-track-id="row.track.id"
-							class="border-border hover:bg-accent/50 focus-visible:ring-ring grid w-full items-center gap-2 border-b pr-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
+							class="border-border hover:bg-accent/50 focus-visible:ring-ring grid h-full min-w-270 items-center gap-2 border-b pr-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
 							:class="[
 								density === 'compact'
-									? 'h-9 grid-cols-[36px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]'
-									: 'h-14 grid-cols-[56px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]',
+									? 'grid-cols-[36px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]'
+									: 'grid-cols-[56px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]',
 								selectedTrackId === row.track.id && 'bg-accent'
 							]"
+							data-virtual-focus-target
 							@click="selectTrack(row.track.id)"
 							@dblclick="editTrack(row.track.id)"
 							@keydown.enter="selectTrack(row.track.id)"
@@ -430,19 +460,14 @@ watch(
 								class="text-destructive size-3.5"
 							/>
 						</div>
-					</div>
 
-					<div
-						v-else
-						class="divide-border divide-y"
-						data-testid="compact-track-rows"
-					>
 						<button
-							v-for="row in sortedTrackRows"
-							:key="row.track.id"
+							v-else
 							type="button"
 							:data-track-id="row.track.id"
-							class="hover:bg-accent/50 flex w-full items-center gap-3 px-3 py-2.5 text-left"
+							class="border-border hover:bg-accent/50 flex h-full w-full items-center gap-3 border-b px-3 text-left"
+							:class="selectedTrackId === row.track.id && 'bg-accent'"
+							data-virtual-focus-target
 							@click="selectTrack(row.track.id)"
 						>
 							<div class="bg-muted size-10 shrink-0 rounded-sm border">
@@ -489,8 +514,8 @@ watch(
 								"
 							/>
 						</button>
-					</div>
-				</div>
+					</template>
+				</ListWorkbenchVirtual>
 
 				<div
 					v-else

@@ -14,9 +14,8 @@ function focusInput() {
 	})
 }
 
-function handleInput(event: Event) {
-	const target = event.target as HTMLInputElement
-	recordsStore.performSearch(target.value)
+function handleSearch(value: string | number) {
+	recordsStore.performSearch(String(value))
 }
 
 // Focus search input when '/' is pressed (unless already focused)
@@ -36,11 +35,11 @@ onKeyStroke('/', (event) => {
 		<Input
 			ref="searchInputRef"
 			data-records-search-input
-			:value="recordsStore.searchQuery"
+			:model-value="recordsStore.searchQuery"
 			name="search"
 			placeholder="Search"
 			class="bg-background pr-12 pl-10"
-			@input="handleInput"
+			@update:model-value="handleSearch"
 		/>
 		<div class="absolute top-1/2 right-3 hidden -translate-y-1/2 md:block">
 			<div
