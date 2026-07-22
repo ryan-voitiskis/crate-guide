@@ -7,6 +7,10 @@ type GuardedPage = {
 	page: NuxtPage
 }
 
+type ErrorAwarePageOptions = {
+	beforeNavigate?: (page: NuxtPage) => Promise<void> | void
+}
+
 const guardedPages = new Set<GuardedPage>()
 const relevantResourceTypes = new Set([
 	'document',
@@ -45,7 +49,10 @@ function isKnownBrowserNoise(errorText: string, isNavigationRequest: boolean) {
 	return isNavigationRequest && errorText === 'net::ERR_ABORTED'
 }
 
-export async function createErrorAwarePage(path: string): Promise<NuxtPage> {
+export async function createErrorAwarePage(
+	path: string,
+	options: ErrorAwarePageOptions = {}
+): Promise<NuxtPage> {
 	const page = await createPage()
 	const guardedPage: GuardedPage = { diagnostics: [], page }
 	guardedPages.add(guardedPage)
@@ -67,6 +74,7 @@ export async function createErrorAwarePage(path: string): Promise<NuxtPage> {
 	})
 
 	try {
+		await options.beforeNavigate?.(page)
 		await page.goto(url(path), { waitUntil: 'hydration' })
 		return page
 	} catch (error) {

@@ -2,7 +2,9 @@
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath } from 'node:url'
 import { buildThemeBootstrapScript } from './app/utils/themeBootstrap'
+import { applyDeferredClientAssetPrefetchPolicy } from './scripts/check-client-bundle-budget.mjs'
 import { validatePublicRuntimeConfig } from './scripts/runtime-config.mjs'
+import clientBundleBudget from './shared/config/clientBundleBudget.json'
 
 const publicRuntimeConfig = validatePublicRuntimeConfig()
 
@@ -18,6 +20,11 @@ export default defineNuxtConfig({
 		test: fileURLToPath(new URL('./test', import.meta.url))
 	},
 	compatibilityDate: '2026-03-01',
+	hooks: {
+		'build:manifest'(manifest) {
+			applyDeferredClientAssetPrefetchPolicy(manifest, clientBundleBudget)
+		}
+	},
 	future: {
 		compatibilityVersion: 4
 	},

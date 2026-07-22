@@ -66,6 +66,15 @@ export async function mockAuthenticatedSupabase(page: Page) {
 				client?: {
 					from?: (table: string) => QueryBuilder
 					auth?: {
+						getSession?: () => Promise<{
+							data: {
+								session: {
+									access_token: string
+									user: { id: string }
+								}
+							}
+							error: null
+						}>
 						getClaims?: () => Promise<{
 							data: { claims: Record<string, unknown> }
 							error: null
@@ -95,6 +104,15 @@ export async function mockAuthenticatedSupabase(page: Page) {
 		}
 
 		const claims = { sub: 'e2e-user', email: 'e2e@example.com' }
+		client.auth.getSession = async () => ({
+			data: {
+				session: {
+					access_token: 'fake',
+					user: { id: 'e2e-user' }
+				}
+			},
+			error: null
+		})
 
 		client.auth.getClaims = async () => ({
 			// Supabase returns a fresh claims object on each navigation. This is

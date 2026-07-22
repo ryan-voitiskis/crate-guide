@@ -35,7 +35,17 @@ maintainer-selected or maintainer-accepted product limits.
 The configuration in `shared/config/clientBundleBudget.json` names those
 semantic modules and optional asset prefixes. The check fails if a named
 boundary disappears or moves into initial JavaScript, even when its generated
-hash changes.
+hash changes. The Nuxt manifest hook also opts only those declared optional
+assets out of browser prefetch; ordinary route and shared-chunk prefetch remains
+available.
+
+The initial client plugin checks `window.location.pathname` before deciding
+whether to load the Cloud workbench runtime. During initial hydration,
+`useRoute()` can still expose Nuxt's placeholder `/` route, which would
+otherwise fetch Cloud-only code on a signed-out public page. The browser proof
+resolves generated asset names through the semantic manifest, then records
+successful responses across `/login`, the default workbench, enrichment, and a
+real local-audio Worker/WASM interaction.
 
 ## Commands and interpretation
 

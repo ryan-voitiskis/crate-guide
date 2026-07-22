@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
 	analyzeClientBundle,
+	applyDeferredClientAssetPrefetchPolicy,
 	assertClientBundleBudget,
 	formatClientBundleReport
 } from './check-client-bundle-budget.mjs'
@@ -20,7 +21,11 @@ const manifest = {
 	entrypoints: ['entry'],
 	modules: {
 		entry: { file: 'entry-hash.js', imports: ['shared'], name: 'entry' },
-		lazy: { file: 'lazy-hash.js', name: 'enrichment' },
+		lazy: {
+			file: 'lazy-hash.js',
+			name: 'enrichment',
+			prefetch: false
+		},
 		shared: { file: 'shared-hash.js', name: 'shared' }
 	}
 }
@@ -71,9 +76,28 @@ test('classifies the semantic entry closure separately from optional assets', ()
 function expectLazyBoundary(report) {
 	assert.deepEqual(report.semanticLazyBoundaries.lazy, {
 		file: 'lazy-hash.js',
-		isInitial: false
+		isInitial: false,
+		isPrefetched: false
 	})
 }
+
+test('disables prefetch only for declared optional client assets', () => {
+	const policyManifest = {
+		entry: { file: 'entry-hash.js', prefetch: true },
+		lazy: { file: 'lazy-hash.js', prefetch: true },
+		worker: { file: 'analysis.worker-hash.js', prefetch: true },
+		wasm: { file: 'analysis-wasm.hash.js', prefetch: true },
+		unrelated: { file: 'useful-route-hash.js', prefetch: true }
+	}
+
+	applyDeferredClientAssetPrefetchPolicy(policyManifest, config)
+
+	assert.equal(policyManifest.lazy.prefetch, false)
+	assert.equal(policyManifest.worker.prefetch, false)
+	assert.equal(policyManifest.wasm.prefetch, false)
+	assert.equal(policyManifest.entry.prefetch, true)
+	assert.equal(policyManifest.unrelated.prefetch, true)
+})
 
 test('reports the offending semantic asset and byte dimension', () => {
 	const report = fixture()

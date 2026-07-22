@@ -23,8 +23,7 @@ export default defineNuxtPlugin(async () => {
 		}
 	})
 
-	const route = useRoute()
-	if (requiresCloudWorkbenchRuntime(route.path)) {
+	if (requiresCloudWorkbenchRuntime(window.location.pathname)) {
 		await loadCloudWorkbenchRuntime()
 	}
 })

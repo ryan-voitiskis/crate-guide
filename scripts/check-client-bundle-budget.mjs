@@ -11,6 +11,22 @@ function matchesAnyPattern(file, patterns) {
 	return patterns.some((pattern) => file.includes(pattern))
 }
 
+export function applyDeferredClientAssetPrefetchPolicy(manifest, config) {
+	const assetPatterns = [
+		...(config.workerAssetPatterns ?? []),
+		...(config.wasmAssetPatterns ?? [])
+	]
+	for (const [moduleId, chunk] of Object.entries(manifest)) {
+		if (
+			(config.expectedLazyModules ?? []).includes(moduleId) ||
+			(typeof chunk.file === 'string' &&
+				matchesAnyPattern(chunk.file, assetPatterns))
+		) {
+			chunk.prefetch = false
+		}
+	}
+}
+
 function describeOwners(manifest, file) {
 	return Object.entries(manifest.modules)
 		.filter(([, module]) => module.file === file)
@@ -88,11 +104,14 @@ export function analyzeClientBundle({ assets, config, manifest }) {
 		(config.expectedLazyModules ?? []).map((moduleId) => {
 			const module = manifest.modules[moduleId]
 			assert.ok(module, 'Missing expected semantic lazy module: ' + moduleId)
+			const resource =
+				manifest.dependencies?.[moduleId]?.preload?.[moduleId] ?? module
 			return [
 				moduleId,
 				{
 					file: module.file,
-					isInitial: initialIds.has(moduleId) || initialFiles.has(module.file)
+					isInitial: initialIds.has(moduleId) || initialFiles.has(module.file),
+					isPrefetched: resource.prefetch !== false
 				}
 			]
 		})
@@ -163,12 +182,20 @@ export function assertClientBundleBudget(report, config) {
 			false,
 			'Expected semantic module to stay outside initial JavaScript: ' + moduleId
 		)
+		assert.equal(
+			report.semanticLazyBoundaries[moduleId].isPrefetched,
+			false,
+			'Expected semantic module not to be prefetched before use: ' + moduleId
+		)
 	}
 }
 
-async function loadBuild(buildDirectory, config) {
-	const buildRoot = resolve(buildDirectory)
-	const chunkDirectory = resolve(buildRoot, '_worker.js/chunks/build')
+export async function loadClientBundleReport({
+	assetDirectory,
+	config,
+	manifestDirectory
+}) {
+	const chunkDirectory = resolve(manifestDirectory)
 	const precomputedFiles = (await readdir(chunkDirectory)).filter((file) =>
 		/^client\.precomputed.*\.mjs$/.test(file)
 	)
@@ -182,17 +209,28 @@ async function loadBuild(buildDirectory, config) {
 		'?bundle-budget=' +
 		Date.now()
 	const manifest = (await import(manifestUrl)).default
-	const assetDirectory = resolve(buildRoot, '_nuxt')
-	const assetFiles = (await readdir(assetDirectory, { withFileTypes: true }))
+	const resolvedAssetDirectory = resolve(assetDirectory)
+	const assetFiles = (
+		await readdir(resolvedAssetDirectory, { withFileTypes: true })
+	)
 		.filter((entry) => entry.isFile())
 		.map((entry) => entry.name)
 	const assets = await Promise.all(
 		assetFiles.map(async (file) => ({
-			bytes: await readFile(resolve(assetDirectory, file)),
+			bytes: await readFile(resolve(resolvedAssetDirectory, file)),
 			file
 		}))
 	)
 	return analyzeClientBundle({ assets, config, manifest })
+}
+
+async function loadBuild(buildDirectory, config) {
+	const buildRoot = resolve(buildDirectory)
+	return loadClientBundleReport({
+		assetDirectory: resolve(buildRoot, '_nuxt'),
+		config,
+		manifestDirectory: resolve(buildRoot, '_worker.js/chunks/build')
+	})
 }
 
 function formatMetric(metric) {
