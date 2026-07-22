@@ -10,9 +10,15 @@ export type E2EKeysetCompletion = {
 	selection: string | null
 }
 
+export type E2ESingleCompletion = {
+	table: string
+	equalityFilters: Array<[column: string, value: unknown]>
+	selection: string | null
+}
+
 export type E2EQueryObservations = {
 	__e2eKeysetCompletions?: E2EKeysetCompletion[]
-	__e2eSingleCompletions?: string[]
+	__e2eSingleCompletions?: E2ESingleCompletion[]
 }
 
 export const LIBRARY_TABLES = ['records', 'tracks', 'crates', 'sets']
@@ -51,6 +57,14 @@ export async function waitForWorkbenchShell(page: Page) {
 }
 
 export async function mockAuthenticatedSupabase(page: Page) {
+	await page.route('**/functions/v1/cleanup-record-covers', async (route) => {
+		await route.fulfill({
+			contentType: 'application/json',
+			json: { processed: 0, removed: 0, deferred: 0 },
+			status: 200
+		})
+	})
+
 	await page.evaluate(() => {
 		type QueryResult = { data: unknown; error: null }
 		type QueryBuilder = PromiseLike<QueryResult> & {
@@ -190,7 +204,11 @@ export async function mockAuthenticatedSupabase(page: Page) {
 					return builder
 				},
 				single: async () => {
-					maybeWindow.__e2eSingleCompletions?.push(table)
+					maybeWindow.__e2eSingleCompletions?.push({
+						table,
+						equalityFilters: [...equalityFilters],
+						selection
+					})
 					return resultForQuery()
 				},
 				then: (

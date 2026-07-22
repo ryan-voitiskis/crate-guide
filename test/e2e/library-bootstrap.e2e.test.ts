@@ -33,7 +33,9 @@ describe('Library bootstrap and pagination', () => {
 					(completion) =>
 						completion.table === 'sets' && completion.cursor === 'set-0001'
 				) &&
-				observations.__e2eSingleCompletions?.includes('profiles')
+				observations.__e2eSingleCompletions?.some(
+					(completion) => completion.table === 'profiles'
+				)
 			)
 		})
 
@@ -77,6 +79,19 @@ describe('Library bootstrap and pagination', () => {
 		const trackQuery = libraryKeysets.find((query) => query.table === 'tracks')
 		expect(trackQuery?.selection).toBe('*')
 		expect(trackQuery?.equalityFilters).toContainEqual(['user_id', 'e2e-user'])
-		expect(completions.singles).toEqual(['profiles'])
+		expect(completions.singles).toEqual([
+			{
+				table: 'profiles',
+				equalityFilters: [['id', 'e2e-user']],
+				selection:
+					'id, name, discogs_avatar_url, discogs_uid, discogs_username, just_completed_discogs_oauth'
+			},
+			{
+				table: 'profiles',
+				equalityFilters: [['id', 'e2e-user']],
+				selection:
+					'id, key_format, list_layout, selected_crate, turntable_pitch_range, turntable_theme, ui_theme'
+			}
+		])
 	})
 })

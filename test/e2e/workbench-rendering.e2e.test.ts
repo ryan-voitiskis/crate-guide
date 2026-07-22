@@ -157,23 +157,6 @@ async function installDeferredCoverSigner(
 	})
 }
 
-async function stubCoverCleanup(
-	page: Awaited<ReturnType<typeof createErrorAwarePage>>
-) {
-	await page.evaluate(() => {
-		type Store = { drainCoverCleanup?: () => Promise<boolean> }
-		type Pinia = { _s: Map<string, Store> }
-		type NuxtWindow = Window & {
-			useNuxtApp?: () => { $pinia?: Pinia }
-		}
-		const records = (window as NuxtWindow)
-			.useNuxtApp?.()
-			.$pinia?._s.get('records')
-		if (!records) throw new Error('Records store is unavailable')
-		records.drainCoverCleanup = async () => true
-	})
-}
-
 async function readCoverRequests(
 	page: Awaited<ReturnType<typeof createErrorAwarePage>>
 ) {
@@ -250,8 +233,12 @@ async function seedRecords(
 						role: null
 					}
 				],
-				cover: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=',
-				cover_storage_path: `e2e-user/record-${String(index).padStart(5, '0')}/cover.webp`,
+				cover: {
+					kind: 'cloud',
+					assetId: `e2e-user/record-${String(index).padStart(5, '0')}/cover.webp`,
+					fallbackUrl:
+						'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='
+				},
 				created_at: '2026-07-22T00:00:00.000Z',
 				discogs_id: index + 1,
 				discogs_release_url: `https://discogs.example/release/${index + 1}`,
@@ -526,7 +513,6 @@ describe('workbench rendering structural budgets', () => {
 		const page = await createErrorAwarePage('/login')
 		await page.setViewportSize(renderingBudget.viewports.desktop)
 		await mockAuthenticatedSupabase(page)
-		await stubCoverCleanup(page)
 		await signInViaForm(page)
 		await waitForWorkbenchShell(page)
 		await installDeferredCoverSigner(page)
