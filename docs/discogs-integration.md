@@ -8,6 +8,35 @@ local/deploy commands. It does not assert that a hosted function, secret, or
 database migration is deployed; verify the target Supabase project separately
 before a release.
 
+## Provider terms and unresolved decisions
+
+The current implementation must not be treated as evidence that every stored
+Discogs field, display surface, portable archive, or future accountless flow is
+provider-approved. Two dated decision records define the unresolved boundaries:
+
+- [Discogs data portability and display](./decisions/discogs-data-portability.md)
+  classifies current fields by source JSON path and records freshness,
+  retention, attribution, archive, reimport, and deletion constraints.
+- [Accountless Discogs connection](./decisions/accountless-discogs.md) evaluates
+  a device-scoped server credential, alternatives, abuse paths, eligibility,
+  credential lifecycle, and privacy UX.
+
+Both decisions remain **STOP - unresolved**. No provider, legal, or maintainer
+approval is recorded. They do not change the current account-bound OAuth flow or
+authorise schema, OAuth, archive, retention, or UI implementation.
+
+The current Discogs API Terms require `Data provided by Discogs.` directly next
+to API-derived data with a link to the exact Discogs page containing it. A
+generic legal-page notice is not the adjacent-attribution implementation. The
+decisions also conservatively retain the Terms' six-hour display and
+necessary-storage constraints until a written decision resolves their effect on
+persistent Local/cloud libraries and archive reimport.
+
+Run `npm run check:discogs-docs` to verify that the dated sources,
+classifications, exclusions, threat model, alternatives, and explicit STOP
+state remain present. Passing that check is source consistency, not external
+approval.
+
 ## Trust boundaries
 
 - The browser derives connection state from public profile fields and never
