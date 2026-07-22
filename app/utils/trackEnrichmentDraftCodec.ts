@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import {
+	TRACK_ENRICHMENT_DRAFT_EVIDENCE_PRECONDITION_VERSION,
 	TRACK_ENRICHMENT_DRAFT_LOCAL_IDENTITY_VERSION,
 	TRACK_ENRICHMENT_DRAFT_LOCAL_SNAPSHOT_VERSION,
 	TRACK_ENRICHMENT_DRAFT_MATCHER_POLICY_VERSION,
@@ -144,6 +145,32 @@ const fillEmptyFieldsDecisionSchema = z
 	})
 	.strict()
 
+const evidenceOnlyDecisionSchema = z
+	.object({
+		kind: z.literal('evidence-only'),
+		intentVersion: z.literal(1),
+		sourceBinding: sourceBindingSchema
+			.extend({ sourceSnapshotId: identifier })
+			.strict(),
+		targetBinding: z.object({ trackId: identifier }).strict(),
+		preconditionBinding: z
+			.object({
+				expectedTargetUpdatedAt: timestamp.nullable(),
+				currentEvidenceFingerprint: z
+					.object({
+						version: z.literal(
+							TRACK_ENRICHMENT_DRAFT_EVIDENCE_PRECONDITION_VERSION
+						),
+						digest: digestFingerprint
+					})
+					.strict()
+			})
+			.strict(),
+		staged: z.boolean(),
+		reviewedAt: timestamp
+	})
+	.strict()
+
 const unknownDecisionSchema = z
 	.object({
 		kind: z.literal('unknown'),
@@ -254,7 +281,13 @@ const draftSchema = z
 			.array(observationSchema)
 			.max(TRACK_ENRICHMENT_DRAFT_MAX_OBSERVATIONS),
 		decisions: z
-			.array(z.union([fillEmptyFieldsDecisionSchema, unknownDecisionSchema]))
+			.array(
+				z.union([
+					fillEmptyFieldsDecisionSchema,
+					evidenceOnlyDecisionSchema,
+					unknownDecisionSchema
+				])
+			)
 			.max(TRACK_ENRICHMENT_DRAFT_MAX_DECISIONS),
 		partialOutcomes: z
 			.array(partialOutcomeSchema)
@@ -281,6 +314,10 @@ const draftSchema = z
 	.strict()
 	.superRefine((draft, context) => {
 		const observationBindings = new Set<string>()
+		const observationsByBinding = new Map<
+			string,
+			TrackEnrichmentDraft['observations'][number]
+		>()
 		const sourceFingerprints = new Set<string>()
 		const snapshotIds = new Set<string>()
 		const ordinals = new Set<number>()
@@ -360,9 +397,9 @@ const draftSchema = z
 				}
 				values.add(value)
 			}
-			observationBindings.add(
-				`${observation.sourceFingerprint}\n${observation.observationFingerprint}`
-			)
+			const observationBinding = `${observation.sourceFingerprint}\n${observation.observationFingerprint}`
+			observationBindings.add(observationBinding)
+			observationsByBinding.set(observationBinding, observation)
 
 			for (const proposal of [
 				observation.proposal.bpm,
@@ -397,28 +434,40 @@ const draftSchema = z
 				})
 			}
 			knownDecisionSources.add(decision.sourceBinding.sourceFingerprint)
-			for (const proposal of [
-				decision.proposalBinding.bpm,
-				decision.proposalBinding.keyMode
-			]) {
-				if (proposal && !allowedProposalSources.has(proposal.source)) {
+			if (
+				decision.kind === 'evidence-only' &&
+				decision.sourceBinding.sourceSnapshotId !==
+					observationsByBinding.get(binding)?.sourceSnapshotId
+			) {
+				context.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ['decisions', index, 'sourceBinding', 'sourceSnapshotId'],
+					message: 'Decision observation identity is not in this draft'
+				})
+			}
+			if (decision.kind === 'fill-empty-fields') {
+				for (const proposal of [
+					decision.proposalBinding.bpm,
+					decision.proposalBinding.keyMode
+				]) {
+					if (!proposal || allowedProposalSources.has(proposal.source)) continue
 					context.addIssue({
 						code: z.ZodIssueCode.custom,
 						path: ['decisions', index, 'proposalBinding'],
 						message: 'Decision proposal source does not match draft source kind'
 					})
 				}
-			}
-			if (
-				decision.staged &&
-				!decision.preconditionBinding.bpmMustBeNull &&
-				!decision.preconditionBinding.keyModeMustBeNull
-			) {
-				context.addIssue({
-					code: z.ZodIssueCode.custom,
-					path: ['decisions', index, 'staged'],
-					message: 'A staged decision must have a blank-field precondition'
-				})
+				if (
+					decision.staged &&
+					!decision.preconditionBinding.bpmMustBeNull &&
+					!decision.preconditionBinding.keyModeMustBeNull
+				) {
+					context.addIssue({
+						code: z.ZodIssueCode.custom,
+						path: ['decisions', index, 'staged'],
+						message: 'A staged decision must have a blank-field precondition'
+					})
+				}
 			}
 		}
 
@@ -511,13 +560,23 @@ function schemaPath(path: (string | number)[]): string {
 		.join('')
 }
 
-function normalizeFutureDecision(value: unknown): unknown {
+function normalizeFutureDecision(
+	value: unknown,
+	recognizeEvidenceOnly: boolean
+): unknown {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return value
 	const decision = value as Record<string, unknown>
-	if (decision.kind === 'fill-empty-fields' || decision.kind === 'unknown') {
+	if (decision.kind === 'unknown') {
 		return value
 	}
 	if (typeof decision.kind !== 'string') return value
+	if (
+		decision.intentVersion === 1 &&
+		(decision.kind === 'fill-empty-fields' ||
+			(recognizeEvidenceOnly && decision.kind === 'evidence-only'))
+	) {
+		return value
+	}
 
 	const binding = decision.sourceBinding
 	const bindingRecord =
@@ -550,9 +609,13 @@ function normalizeFutureDecisions(value: unknown): unknown {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return value
 	const draft = value as Record<string, unknown>
 	if (!Array.isArray(draft.decisions)) return value
+	const recognizeEvidenceOnly =
+		draft.schemaVersion === TRACK_ENRICHMENT_DRAFT_SCHEMA_VERSION
 	return {
 		...draft,
-		decisions: draft.decisions.map(normalizeFutureDecision)
+		decisions: draft.decisions.map((decision) =>
+			normalizeFutureDecision(decision, recognizeEvidenceOnly)
+		)
 	}
 }
 

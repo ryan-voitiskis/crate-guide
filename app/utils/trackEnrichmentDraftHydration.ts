@@ -20,6 +20,7 @@ import {
 	encodeTrackEnrichmentDraft,
 	getCurrentTrackEnrichmentDraftVersions
 } from './trackEnrichmentDraftCodec'
+import { createTrackEnrichmentCurrentEvidenceFingerprint } from './trackEnrichmentDraftEvidencePrecondition'
 import {
 	createLocalAudioDraftObservationSet,
 	createRekordboxDraftObservationSet
@@ -476,17 +477,19 @@ export async function hydrateTrackEnrichmentDraft(input: {
 }): Promise<TrackEnrichmentDraftHydrationResult> {
 	// Hydration is a trust boundary too: callers may have bypassed the decoder
 	// by constructing an in-memory value with hidden runtime fields.
-	encodeTrackEnrichmentDraft(input.draft)
+	const draft = JSON.parse(
+		encodeTrackEnrichmentDraft(input.draft)
+	) as TrackEnrichmentDraft
 	const currentVersions = getCurrentTrackEnrichmentDraftVersions(
-		input.draft.source.kind
+		draft.source.kind
 	)
 	const compatibility = decideTrackEnrichmentDraftCompatibility({
-		sourceKind: input.draft.source.kind,
-		stored: input.draft.versions,
+		sourceKind: draft.source.kind,
+		stored: draft.versions,
 		current: currentVersions,
 		migrators: input.migrators
 	})
-	const ui = cloneUi(input.draft.ui)
+	const ui = cloneUi(draft.ui)
 	if (
 		compatibility.action === 'reimport' ||
 		compatibility.action === 'reconnect'
@@ -494,9 +497,9 @@ export async function hydrateTrackEnrichmentDraft(input: {
 		return { status: compatibility.action, compatibility, ui }
 	}
 
-	const snapshot = await currentSnapshot({ draft: input.draft, compatibility })
+	const snapshot = await currentSnapshot({ draft, compatibility })
 	const sources = await reconstructAndVerifySources({
-		kind: input.draft.source.kind,
+		kind: draft.source.kind,
 		datasetFingerprint: snapshot.datasetFingerprint,
 		observations: snapshot.observations
 	})
@@ -510,7 +513,7 @@ export async function hydrateTrackEnrichmentDraft(input: {
 	).map((row) => ({ ...row, defaultStaged: false }))
 
 	const storedObservationByBinding = new Map(
-		input.draft.observations.map((observation) => [
+		draft.observations.map((observation) => [
 			`${observation.sourceFingerprint}\n${observation.observationFingerprint}`,
 			observation
 		])
@@ -525,8 +528,21 @@ export async function hydrateTrackEnrichmentDraft(input: {
 	const currentTrackById = new Map(
 		input.tracks.map((track) => [track.id, track])
 	)
+	const currentEvidenceFingerprintByTrackId = new Map<
+		string,
+		Promise<string | null>
+	>()
+	const currentEvidenceFingerprint = (track: Track) => {
+		const existing = currentEvidenceFingerprintByTrackId.get(track.id)
+		if (existing) return existing
+		const fingerprint = createTrackEnrichmentCurrentEvidenceFingerprint(
+			track.audio_features
+		)
+		currentEvidenceFingerprintByTrackId.set(track.id, fingerprint)
+		return fingerprint
+	}
 	const decisionByOutcomeBinding = new Map(
-		input.draft.decisions.flatMap((decision) =>
+		draft.decisions.flatMap((decision) =>
 			decision.kind === 'fill-empty-fields'
 				? [
 						[
@@ -544,7 +560,7 @@ export async function hydrateTrackEnrichmentDraft(input: {
 		string,
 		TrackEnrichmentDraftHydratedOutcome
 	>()
-	for (const outcome of input.draft.partialOutcomes) {
+	for (const outcome of draft.partialOutcomes) {
 		const binding = outcomeBindingKey(
 			outcome.sourceFingerprint,
 			outcome.targetTrackId
@@ -586,82 +602,86 @@ export async function hydrateTrackEnrichmentDraft(input: {
 		})
 	}
 
-	const resumeDecisions = input.draft.decisions.map((decision) => {
-		const storedObservation = decision.sourceBinding
-			? (storedObservationByBinding.get(
-					`${decision.sourceBinding.sourceFingerprint}\n${decision.sourceBinding.observationFingerprint}`
-				) ?? null)
-			: null
-		const observation = storedObservation
-			? (currentObservationBySnapshotId.get(
-					storedObservation.sourceSnapshotId
-				) ?? null)
-			: null
-		const row = observation
-			? (rowByOrdinal.get(observation.ordinal) ?? null)
-			: null
-		const currentProposal = row
-			? proposalFromRow(row)
-			: (observation?.proposal ?? { bpm: null, keyMode: null })
-		if (
-			row &&
-			observation &&
-			!proposalsEqual(currentProposal, observation.proposal)
-		) {
-			throw new TrackEnrichmentDraftHydrationError('proposal-mismatch')
-		}
-		const targetTrackId =
-			decision.kind === 'fill-empty-fields'
-				? decision.targetBinding.trackId
+	const resumeDecisions = await Promise.all(
+		draft.decisions.map(async (decision) => {
+			const storedObservation = decision.sourceBinding
+				? (storedObservationByBinding.get(
+						`${decision.sourceBinding.sourceFingerprint}\n${decision.sourceBinding.observationFingerprint}`
+					) ?? null)
 				: null
-		const currentTarget = targetTrackId
-			? (currentTrackById.get(targetTrackId) ?? null)
-			: null
-		const result = decideTrackEnrichmentDraftDecisionResume({
-			decision,
-			currentObservation: observation,
-			currentTargetByStoredId: currentTarget
-				? {
-						id: currentTarget.id,
-						updatedAt: currentTarget.updated_at,
-						bpm: currentTarget.bpm,
-						key: currentTarget.key,
-						mode: currentTarget.mode
-					}
-				: null,
-			rematchedTargetId: row?.track?.id ?? null,
-			currentProposal,
-			currentPreconditions: {
-				bpmMustBeNull: row?.canFillBpm ?? false,
-				keyModeMustBeNull: row?.canFillKeyMode ?? false
-			},
-			stageable: row ? canStageTrackEnrichmentRow(row) : false,
-			retentionAllowedByPolicy: compatibility.canRetainStaging
+			const observation = storedObservation
+				? (currentObservationBySnapshotId.get(
+						storedObservation.sourceSnapshotId
+					) ?? null)
+				: null
+			const row = observation
+				? (rowByOrdinal.get(observation.ordinal) ?? null)
+				: null
+			const currentProposal = row
+				? proposalFromRow(row)
+				: (observation?.proposal ?? { bpm: null, keyMode: null })
+			if (
+				row &&
+				observation &&
+				!proposalsEqual(currentProposal, observation.proposal)
+			) {
+				throw new TrackEnrichmentDraftHydrationError('proposal-mismatch')
+			}
+			const targetTrackId =
+				decision.kind === 'unknown' ? null : decision.targetBinding.trackId
+			const currentTarget = targetTrackId
+				? (currentTrackById.get(targetTrackId) ?? null)
+				: null
+			const result = decideTrackEnrichmentDraftDecisionResume({
+				decision,
+				currentObservation: observation,
+				currentTargetByStoredId: currentTarget
+					? {
+							id: currentTarget.id,
+							updatedAt: currentTarget.updated_at,
+							bpm: currentTarget.bpm,
+							key: currentTarget.key,
+							mode: currentTarget.mode,
+							currentEvidenceFingerprint:
+								decision.kind === 'evidence-only'
+									? await currentEvidenceFingerprint(currentTarget)
+									: null
+						}
+					: null,
+				rematchedTargetId: row?.track?.id ?? null,
+				currentProposal,
+				currentPreconditions: {
+					bpmMustBeNull: row?.canFillBpm ?? false,
+					keyModeMustBeNull: row?.canFillKeyMode ?? false
+				},
+				stageable: row ? canStageTrackEnrichmentRow(row) : false,
+				retentionAllowedByPolicy: compatibility.canRetainStaging
+			})
+			const outcomeDisposition =
+				decision.kind === 'fill-empty-fields'
+					? (hydratedOutcomeByBinding.get(
+							outcomeBindingKey(
+								decision.sourceBinding.sourceFingerprint,
+								decision.targetBinding.trackId
+							)
+						)?.disposition ?? null)
+					: null
+			const staged =
+				result.staged &&
+				(outcomeDisposition === null || outcomeDisposition === 'retry')
+			return {
+				result: { ...result, staged },
+				value: {
+					sourceFingerprint: decision.sourceBinding?.sourceFingerprint ?? null,
+					targetTrackId,
+					rowId: row?.id ?? null,
+					classification: result.classification,
+					staged,
+					outcomeDisposition
+				} satisfies TrackEnrichmentDraftHydratedDecision
+			}
 		})
-		const outcomeDisposition =
-			decision.kind === 'fill-empty-fields'
-				? (hydratedOutcomeByBinding.get(
-						outcomeBindingKey(
-							decision.sourceBinding.sourceFingerprint,
-							decision.targetBinding.trackId
-						)
-					)?.disposition ?? null)
-				: null
-		const staged =
-			result.staged &&
-			(outcomeDisposition === null || outcomeDisposition === 'retry')
-		return {
-			result: { ...result, staged },
-			value: {
-				sourceFingerprint: decision.sourceBinding?.sourceFingerprint ?? null,
-				targetTrackId,
-				rowId: row?.id ?? null,
-				classification: result.classification,
-				staged,
-				outcomeDisposition
-			} satisfies TrackEnrichmentDraftHydratedDecision
-		}
-	})
+	)
 
 	const staged = new Set(
 		resumeDecisions.flatMap(({ result, value }) =>

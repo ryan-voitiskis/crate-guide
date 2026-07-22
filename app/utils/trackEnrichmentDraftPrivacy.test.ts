@@ -55,6 +55,43 @@ describe('track enrichment draft recursive privacy audit', () => {
 		).toEqual([])
 	})
 
+	it('accepts only the bounded evidence-only approval binding, not Evidence payloads', () => {
+		expect(
+			inspectTrackEnrichmentDraftPrivacy({
+				kind: 'evidence-only',
+				sourceBinding: {
+					sourceSnapshotId: 'track-id:42',
+					sourceFingerprint: 'source-a',
+					observationFingerprint: 'b'.repeat(64)
+				},
+				targetBinding: { trackId: 'track-a' },
+				preconditionBinding: {
+					currentEvidenceFingerprint: {
+						version: 'track-enrichment-current-evidence-v1',
+						digest: 'c'.repeat(64)
+					}
+				}
+			})
+		).toEqual([])
+
+		expect(
+			inspectTrackEnrichmentDraftPrivacy({
+				kind: 'evidence-only',
+				preconditionBinding: {
+					currentEvidenceFingerprint: { digest: 'c'.repeat(64) },
+					rawAudio: '/Users/alice/Music/Track.wav'
+				}
+			})
+		).toEqual(
+			expect.arrayContaining([
+				{
+					code: 'forbidden-field',
+					path: '/preconditionBinding/rawAudio'
+				}
+			])
+		)
+	})
+
 	it.each([
 		[{ nested: { RaW_XmL: '<DJ_PLAYLISTS />' } }, '/nested/RaW_XmL'],
 		[{ nested: { aUdIo_FiLe_HaNdLe: {} } }, '/nested/aUdIo_FiLe_HaNdLe'],

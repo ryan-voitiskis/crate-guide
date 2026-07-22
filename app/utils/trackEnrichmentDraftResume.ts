@@ -104,6 +104,7 @@ export type TrackEnrichmentDraftResumeTarget = {
 	bpm: number | null
 	key: number | null
 	mode: number | null
+	currentEvidenceFingerprint: string | null
 }
 
 export type TrackEnrichmentDraftResumeClassification =
@@ -118,8 +119,10 @@ export type TrackEnrichmentDraftResumeClassification =
 	| 'proposal-changed'
 	| 'already-filled'
 	| 'target-changed'
+	| 'evidence-changed'
 	| 'preconditions-changed'
 	| 'no-longer-stageable'
+	| 'unsupported-intent'
 
 export type TrackEnrichmentDraftResumeDecision = {
 	classification: TrackEnrichmentDraftResumeClassification
@@ -168,7 +171,10 @@ export function decideTrackEnrichmentDraftDecisionResume(input: {
 		decision.sourceBinding.sourceFingerprint !==
 			input.currentObservation.sourceFingerprint ||
 		decision.sourceBinding.observationFingerprint !==
-			input.currentObservation.observationFingerprint
+			input.currentObservation.observationFingerprint ||
+		(decision.kind === 'evidence-only' &&
+			decision.sourceBinding.sourceSnapshotId !==
+				input.currentObservation.sourceSnapshotId)
 	) {
 		return { classification: 'source-changed', staged: false }
 	}
@@ -181,6 +187,27 @@ export function decideTrackEnrichmentDraftDecisionResume(input: {
 		input.currentTargetByStoredId.id !== decision.targetBinding.trackId
 	) {
 		return { classification: 'no-longer-matching', staged: false }
+	}
+	if (decision.kind === 'evidence-only') {
+		if (
+			decision.preconditionBinding.expectedTargetUpdatedAt !==
+			input.currentTargetByStoredId.updatedAt
+		) {
+			return { classification: 'target-changed', staged: false }
+		}
+		if (
+			decision.preconditionBinding.currentEvidenceFingerprint.digest !==
+			input.currentTargetByStoredId.currentEvidenceFingerprint
+		) {
+			return { classification: 'evidence-changed', staged: false }
+		}
+		if (!input.retentionAllowedByPolicy) {
+			return { classification: 'policy-changed', staged: false }
+		}
+
+		// The evidence-only writer gate is intentionally closed. A persisted true
+		// value records a prior review request but is never executable approval.
+		return { classification: 'unsupported-intent', staged: false }
 	}
 	if (!proposalsEqual(decision.proposalBinding, input.currentProposal)) {
 		return { classification: 'proposal-changed', staged: false }

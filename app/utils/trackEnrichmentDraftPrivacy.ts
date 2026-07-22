@@ -20,9 +20,9 @@ const MAX_PRIVACY_ISSUES = 100
 const MAX_SCAN_DEPTH = 64
 // This is an explicit upper bound for every node in the largest schema-valid
 // v2 shape, not an arbitrary traversal allowance: 161 nodes per observation
-// includes all 128 warnings and local evidence, 22 covers a fill decision, and
-// 10 covers an outcome. The byte budget below remains the tighter bound for
-// realistic drafts.
+// includes all 128 warnings and local evidence, 22 covers the largest current
+// decision (including evidence-only bindings), and 10 covers an outcome. The
+// byte budget below remains the tighter bound for realistic drafts.
 const MAX_SCAN_NODES =
 	64 +
 	TRACK_ENRICHMENT_DRAFT_MAX_OBSERVATIONS *

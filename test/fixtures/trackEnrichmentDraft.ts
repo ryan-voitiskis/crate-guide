@@ -1,16 +1,47 @@
 import {
+	TRACK_ENRICHMENT_DRAFT_EVIDENCE_PRECONDITION_VERSION,
 	TRACK_ENRICHMENT_DRAFT_LOCAL_IDENTITY_VERSION,
 	TRACK_ENRICHMENT_DRAFT_LOCAL_SNAPSHOT_VERSION,
 	TRACK_ENRICHMENT_DRAFT_MATCHER_POLICY_VERSION,
 	TRACK_ENRICHMENT_DRAFT_PREVIOUS_SCHEMA_VERSION,
 	TRACK_ENRICHMENT_DRAFT_SCHEMA_VERSION,
 	type TrackEnrichmentDraft,
-	type TrackEnrichmentDraftSourceKind
+	type TrackEnrichmentDraftSourceKind,
+	type TrackEnrichmentEvidenceOnlyDecision
 } from '../../app/types/trackEnrichmentDraft'
 
 export const DRAFT_DATASET_FINGERPRINT = 'a'.repeat(64)
 export const DRAFT_OBSERVATION_FINGERPRINT = 'b'.repeat(64)
 export const DRAFT_SOURCE_FINGERPRINT = 'source-fingerprint-a'
+export const DRAFT_CURRENT_EVIDENCE_FINGERPRINT = 'c'.repeat(64)
+
+export function createTrackEnrichmentEvidenceOnlyDecisionFixture(
+	draft: TrackEnrichmentDraft,
+	overrides: Partial<TrackEnrichmentEvidenceOnlyDecision> = {}
+): TrackEnrichmentEvidenceOnlyDecision {
+	const observation = draft.observations[0]
+	if (!observation) throw new Error('Expected an observation fixture')
+	return {
+		kind: 'evidence-only',
+		intentVersion: 1,
+		sourceBinding: {
+			sourceSnapshotId: observation.sourceSnapshotId,
+			sourceFingerprint: observation.sourceFingerprint,
+			observationFingerprint: observation.observationFingerprint
+		},
+		targetBinding: { trackId: 'track-a' },
+		preconditionBinding: {
+			expectedTargetUpdatedAt: null,
+			currentEvidenceFingerprint: {
+				version: TRACK_ENRICHMENT_DRAFT_EVIDENCE_PRECONDITION_VERSION,
+				digest: DRAFT_CURRENT_EVIDENCE_FINGERPRINT
+			}
+		},
+		staged: true,
+		reviewedAt: '2026-07-22T01:04:00.000Z',
+		...overrides
+	}
+}
 
 export function createTrackEnrichmentDraftFixture(
 	sourceKind: TrackEnrichmentDraftSourceKind = 'rekordboxXml'

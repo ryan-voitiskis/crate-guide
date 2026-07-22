@@ -15,6 +15,8 @@ export const TRACK_ENRICHMENT_DRAFT_LOCAL_IDENTITY_VERSION =
 	'local-audio-file-v1'
 export const TRACK_ENRICHMENT_DRAFT_FINGERPRINT_VERSION =
 	'track-enrichment-fingerprint-v1'
+export const TRACK_ENRICHMENT_DRAFT_EVIDENCE_PRECONDITION_VERSION =
+	'track-enrichment-current-evidence-v1'
 
 export type TrackEnrichmentDraftSourceKind = 'rekordboxXml' | 'localAudio'
 
@@ -109,6 +111,37 @@ export type TrackEnrichmentFillEmptyFieldsDecision = {
 }
 
 /**
+ * Records a reviewed request to retain Evidence without approving a BPM/key
+ * write. The writer remains deliberately gated: persisted staging is provenance
+ * only and current hydration must always make this intent inert.
+ *
+ * This additive intent stays in draft schema v2 because v2 has not shipped yet.
+ * The already-defined v2 forward-compatibility rule makes older readers demote
+ * the unfamiliar kind to an unstaged unknown decision instead of a fill approval.
+ */
+export type TrackEnrichmentEvidenceOnlyDecision = {
+	kind: 'evidence-only'
+	intentVersion: 1
+	sourceBinding: {
+		sourceSnapshotId: string
+		sourceFingerprint: string
+		observationFingerprint: string
+	}
+	targetBinding: {
+		trackId: string
+	}
+	preconditionBinding: {
+		expectedTargetUpdatedAt: string | null
+		currentEvidenceFingerprint: {
+			version: typeof TRACK_ENRICHMENT_DRAFT_EVIDENCE_PRECONDITION_VERSION
+			digest: string
+		}
+	}
+	staged: boolean
+	reviewedAt: string
+}
+
+/**
  * A future intent is retained only as inert provenance. Its opaque payload is
  * intentionally discarded by the codec, and it can never restore staging.
  */
@@ -126,6 +159,7 @@ export type TrackEnrichmentUnknownDecision = {
 
 export type TrackEnrichmentDraftDecision =
 	| TrackEnrichmentFillEmptyFieldsDecision
+	| TrackEnrichmentEvidenceOnlyDecision
 	| TrackEnrichmentUnknownDecision
 
 export type TrackEnrichmentDraftPartialOutcome = {

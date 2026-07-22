@@ -4,7 +4,11 @@ import type {
 	TrackEnrichmentDraftObservation,
 	TrackEnrichmentDraftProposal
 } from '~/types/trackEnrichmentDraft'
-import { createTrackEnrichmentDraftFixture } from '../../test/fixtures/trackEnrichmentDraft'
+import {
+	DRAFT_CURRENT_EVIDENCE_FINGERPRINT,
+	createTrackEnrichmentDraftFixture,
+	createTrackEnrichmentEvidenceOnlyDecisionFixture
+} from '../../test/fixtures/trackEnrichmentDraft'
 import {
 	type TrackEnrichmentDraftResumeTarget,
 	decideTrackEnrichmentDraftCompatibility,
@@ -30,7 +34,8 @@ function baseResumeInput() {
 			updatedAt: null,
 			bpm: null,
 			key: null,
-			mode: null
+			mode: null,
+			currentEvidenceFingerprint: null
 		} as TrackEnrichmentDraftResumeTarget | null,
 		rematchedTargetId: 'track-a' as string | null,
 		currentProposal: structuredClone(
@@ -43,6 +48,15 @@ function baseResumeInput() {
 		stageable: true,
 		retentionAllowedByPolicy: true
 	}
+}
+
+function baseEvidenceResumeInput() {
+	const input = baseResumeInput()
+	const draft = createTrackEnrichmentDraftFixture()
+	input.decision = createTrackEnrichmentEvidenceOnlyDecisionFixture(draft)
+	input.currentTargetByStoredId!.currentEvidenceFingerprint =
+		DRAFT_CURRENT_EVIDENCE_FINGERPRINT
+	return input
 }
 
 describe('track enrichment draft compatibility', () => {
@@ -248,6 +262,108 @@ describe('track enrichment staged decision resume', () => {
 			staged: false
 		})
 	})
+
+	it.each([true, false])(
+		'keeps an exact evidence-only decision unsupported and unstaged when persisted staged is %s',
+		(staged) => {
+			const input = baseEvidenceResumeInput()
+			if (input.decision.kind !== 'evidence-only') throw new Error('fixture')
+			input.decision.staged = staged
+
+			expect(decideTrackEnrichmentDraftDecisionResume(input)).toEqual({
+				classification: 'unsupported-intent',
+				staged: false
+			})
+		}
+	)
+
+	it.each([
+		[
+			'source-missing',
+			(input: ReturnType<typeof baseEvidenceResumeInput>) => {
+				input.currentObservation = null
+			}
+		],
+		[
+			'source-changed',
+			(input: ReturnType<typeof baseEvidenceResumeInput>) => {
+				input.currentObservation!.sourceFingerprint = 'changed-source'
+			}
+		],
+		[
+			'source-changed',
+			(input: ReturnType<typeof baseEvidenceResumeInput>) => {
+				input.currentObservation!.observationFingerprint = 'd'.repeat(64)
+			}
+		],
+		[
+			'source-changed',
+			(input: ReturnType<typeof baseEvidenceResumeInput>) => {
+				input.currentObservation!.sourceSnapshotId = 'track-id:changed'
+			}
+		],
+		[
+			'target-deleted',
+			(input: ReturnType<typeof baseEvidenceResumeInput>) => {
+				input.currentTargetByStoredId = null
+			}
+		],
+		[
+			'no-longer-matching',
+			(input: ReturnType<typeof baseEvidenceResumeInput>) => {
+				input.rematchedTargetId = null
+			}
+		],
+		[
+			'no-longer-matching',
+			(input: ReturnType<typeof baseEvidenceResumeInput>) => {
+				input.rematchedTargetId = 'track-b'
+			}
+		],
+		[
+			'no-longer-matching',
+			(input: ReturnType<typeof baseEvidenceResumeInput>) => {
+				input.currentTargetByStoredId!.id = 'track-b'
+			}
+		],
+		[
+			'target-changed',
+			(input: ReturnType<typeof baseEvidenceResumeInput>) => {
+				input.currentTargetByStoredId!.updatedAt = '2026-07-23T02:00:00.000Z'
+			}
+		],
+		[
+			'evidence-changed',
+			(input: ReturnType<typeof baseEvidenceResumeInput>) => {
+				input.currentTargetByStoredId!.currentEvidenceFingerprint = 'd'.repeat(
+					64
+				)
+			}
+		],
+		[
+			'evidence-changed',
+			(input: ReturnType<typeof baseEvidenceResumeInput>) => {
+				input.currentTargetByStoredId!.currentEvidenceFingerprint = null
+			}
+		],
+		[
+			'policy-changed',
+			(input: ReturnType<typeof baseEvidenceResumeInput>) => {
+				input.retentionAllowedByPolicy = false
+			}
+		]
+	] as const)(
+		'classifies evidence-only drift as %s while keeping the writer gate closed',
+		(classification, mutate) => {
+			const input = baseEvidenceResumeInput()
+			mutate(input)
+
+			expect(decideTrackEnrichmentDraftDecisionResume(input)).toEqual({
+				classification,
+				staged: false
+			})
+		}
+	)
 
 	it('prefers a specific current-data classification over a policy fallback', () => {
 		const input = baseResumeInput()

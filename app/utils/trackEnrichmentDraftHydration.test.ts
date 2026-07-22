@@ -5,10 +5,12 @@ import type {
 	TrackEnrichmentDraftObservation,
 	TrackEnrichmentDraftPartialOutcome
 } from '~/types/trackEnrichmentDraft'
+import { TRACK_ENRICHMENT_DRAFT_EVIDENCE_PRECONDITION_VERSION } from '~/types/trackEnrichmentDraft'
 import type { Track } from '~~/shared/types/supabase'
 import type { RekordboxXmlTrack } from './rekordboxXml'
 import { buildTrackEnrichmentRows } from './trackEnrichment'
 import { getCurrentTrackEnrichmentDraftVersions } from './trackEnrichmentDraftCodec'
+import { createTrackEnrichmentCurrentEvidenceFingerprint } from './trackEnrichmentDraftEvidencePrecondition'
 import { createRekordboxDraftObservationSet } from './trackEnrichmentDraftFingerprint'
 import {
 	type TrackEnrichmentDraftHydrationError,
@@ -171,6 +173,43 @@ async function createDraft(
 	})
 }
 
+async function createEvidenceOnlyDraft(
+	source: EnrichmentSource = xmlSource(),
+	target: Track = track()
+): Promise<TrackEnrichmentDraft> {
+	const draft = await createDraft(source, target)
+	const observation = draft.observations[0]
+	if (!observation) throw new Error('Expected an observation')
+	const currentEvidenceFingerprint =
+		await createTrackEnrichmentCurrentEvidenceFingerprint(target.audio_features)
+	if (!currentEvidenceFingerprint) {
+		throw new Error('Expected valid current Evidence')
+	}
+	draft.decisions = [
+		{
+			kind: 'evidence-only',
+			intentVersion: 1,
+			sourceBinding: {
+				sourceSnapshotId: observation.sourceSnapshotId,
+				sourceFingerprint: observation.sourceFingerprint,
+				observationFingerprint: observation.observationFingerprint
+			},
+			targetBinding: { trackId: target.id },
+			preconditionBinding: {
+				expectedTargetUpdatedAt: target.updated_at,
+				currentEvidenceFingerprint: {
+					version: TRACK_ENRICHMENT_DRAFT_EVIDENCE_PRECONDITION_VERSION,
+					digest: currentEvidenceFingerprint
+				}
+			},
+			staged: true,
+			reviewedAt: REVIEWED_AT
+		}
+	]
+	draft.partialOutcomes = []
+	return draft
+}
+
 function setOutcome(
 	draft: TrackEnrichmentDraft,
 	overrides: Partial<TrackEnrichmentDraftPartialOutcome> = {}
@@ -239,6 +278,251 @@ describe('hydrateTrackEnrichmentDraft', () => {
 		expect(result.ui).toEqual(draft.ui)
 		expect(result.ui).not.toBe(draft.ui)
 	})
+
+	it('hydrates an exact evidence-only review as unsupported and never mutates top-level values or Evidence', async () => {
+		const target = track({
+			bpm: 126,
+			key: 8,
+			mode: 1,
+			audio_features: appliedAudioFeatures({ bpm: null, keyMode: null })
+		})
+		const before = structuredClone(target)
+		const draft = await createEvidenceOnlyDraft(xmlSource(), target)
+
+		const result = await hydrateTrackEnrichmentDraft({
+			draft,
+			tracks: [target],
+			records: []
+		})
+
+		expect(result.status).toBe('ready')
+		if (result.status !== 'ready') throw new Error('Expected a ready draft')
+		expect(result.stagedRowIds).toEqual([])
+		expect(result.doneRowIds).toEqual([])
+		expect(result.outcomes).toEqual([])
+		expect(result.decisions).toEqual([
+			{
+				sourceFingerprint: draft.observations[0]!.sourceFingerprint,
+				targetTrackId: target.id,
+				rowId: 'rekordboxXml-0-track-1',
+				classification: 'unsupported-intent',
+				staged: false,
+				outcomeDisposition: null
+			}
+		])
+		expect(result.changedRowIds).toEqual(['rekordboxXml-0-track-1'])
+		expect(result.summary).toEqual({
+			total: 1,
+			retained: 0,
+			unchangedUnstaged: 0,
+			changed: 1,
+			dropped: 0
+		})
+		expect(target).toEqual(before)
+		expect(target.bpm).toBe(126)
+		expect(target.key).toBe(8)
+		expect(target.mode).toBe(1)
+	})
+
+	it.each([
+		['future decision kind', 'future-evidence', 9],
+		['future evidence-only version', 'evidence-only', 2]
+	] as const)(
+		'normalizes a %s to inert unknown provenance before hydration',
+		async (_name, kind, intentVersion) => {
+			const target = track({ bpm: 126, key: 8, mode: 1 })
+			const before = structuredClone(target)
+			const draft = await createDraft(xmlSource(), target)
+			const binding = draft.decisions[0]!.sourceBinding
+			;(draft.decisions as unknown[]) = [
+				{
+					kind,
+					intentVersion,
+					sourceBinding: binding,
+					targetBinding: { trackId: target.id },
+					proposalBinding: {
+						bpm: { value: 140, source: 'rekordboxXml' },
+						keyMode: null
+					},
+					staged: true,
+					reviewedAt: REVIEWED_AT
+				}
+			]
+			draft.partialOutcomes = []
+
+			const result = await hydrateTrackEnrichmentDraft({
+				draft,
+				tracks: [target],
+				records: []
+			})
+
+			expect(result.status).toBe('ready')
+			if (result.status !== 'ready') throw new Error('Expected a ready draft')
+			expect(result.stagedRowIds).toEqual([])
+			expect(result.doneRowIds).toEqual([])
+			expect(result.outcomes).toEqual([])
+			expect(result.decisions[0]).toMatchObject({
+				targetTrackId: null,
+				classification: 'unknown-intent',
+				staged: false
+			})
+			expect(target).toEqual(before)
+		}
+	)
+
+	it.each([
+		{
+			name: 'a deleted target',
+			currentTracks: [] as Track[],
+			classification: 'target-deleted',
+			rowId: 'source-rekordboxXml-0'
+		},
+		{
+			name: 'a rematch to a different target identity',
+			currentTracks: [
+				track({ title: 'Different Track' }),
+				track({ id: 'track-2' })
+			],
+			classification: 'no-longer-matching',
+			rowId: 'rekordboxXml-0-track-2'
+		},
+		{
+			name: 'a target update',
+			currentTracks: [track({ updated_at: '2026-07-23T02:00:00.000Z' })],
+			classification: 'target-changed',
+			rowId: 'rekordboxXml-0-track-1'
+		}
+	] as const)(
+		'keeps evidence-only inert and classifies $name',
+		async ({ currentTracks, classification, rowId }) => {
+			const draft = await createEvidenceOnlyDraft()
+
+			const result = await hydrateTrackEnrichmentDraft({
+				draft,
+				tracks: currentTracks,
+				records: []
+			})
+
+			expect(result.status).toBe('ready')
+			if (result.status !== 'ready') throw new Error('Expected a ready draft')
+			expect(result.stagedRowIds).toEqual([])
+			expect(result.decisions[0]).toMatchObject({
+				classification,
+				rowId,
+				staged: false
+			})
+		}
+	)
+
+	it('unstages evidence-only on an exact Evidence digest change even when target updatedAt is unchanged', async () => {
+		const target = track({
+			audio_features: appliedAudioFeatures({ bpm: null, keyMode: null })
+		})
+		const draft = await createEvidenceOnlyDraft(xmlSource(), target)
+		const changedTarget = structuredClone(target)
+		if (!changedTarget.audio_features) throw new Error('Expected Evidence')
+		changedTarget.audio_features.match.score = 99
+
+		const result = await hydrateTrackEnrichmentDraft({
+			draft,
+			tracks: [changedTarget],
+			records: []
+		})
+
+		expect(result.status).toBe('ready')
+		if (result.status !== 'ready') throw new Error('Expected a ready draft')
+		expect(result.stagedRowIds).toEqual([])
+		expect(result.decisions[0]).toMatchObject({
+			classification: 'evidence-changed',
+			staged: false
+		})
+	})
+
+	it('fails evidence-only resume closed when current Evidence is malformed', async () => {
+		const draft = await createEvidenceOnlyDraft()
+		const malformed = track({
+			audio_features: { version: 1 } as unknown as Track['audio_features']
+		})
+
+		const result = await hydrateTrackEnrichmentDraft({
+			draft,
+			tracks: [malformed],
+			records: []
+		})
+
+		expect(result.status).toBe('ready')
+		if (result.status !== 'ready') throw new Error('Expected a ready draft')
+		expect(result.stagedRowIds).toEqual([])
+		expect(result.decisions[0]).toMatchObject({
+			classification: 'evidence-changed',
+			staged: false
+		})
+	})
+
+	it('keeps evidence-only inert after matcher policy drift', async () => {
+		const draft = await createEvidenceOnlyDraft()
+		draft.versions.matcherPolicyVersion = 'track-enrichment-match-old'
+
+		const result = await hydrateTrackEnrichmentDraft({
+			draft,
+			tracks: [track()],
+			records: []
+		})
+
+		expect(result.status).toBe('ready')
+		if (result.status !== 'ready') throw new Error('Expected a ready draft')
+		expect(result.stagedRowIds).toEqual([])
+		expect(result.decisions[0]).toMatchObject({
+			classification: 'policy-changed',
+			staged: false
+		})
+	})
+
+	it.each([
+		{
+			name: 'source fingerprint and observation drift',
+			migratedSource: xmlSource({ averageBpm: 129 }),
+			classification: 'source-changed'
+		},
+		{
+			name: 'source snapshot identity drift',
+			migratedSource: xmlSource({ trackId: 'xml-2' }),
+			classification: 'source-missing'
+		}
+	] as const)(
+		'keeps evidence-only inert after $name',
+		async ({ migratedSource, classification }) => {
+			const draft = await createEvidenceOnlyDraft()
+			draft.versions.sanitizedSourceSnapshotVersion = 'xml-snapshot-old'
+			const migrated = await createRekordboxDraftObservationSet([
+				migratedSource
+			])
+			const currentVersions =
+				getCurrentTrackEnrichmentDraftVersions('rekordboxXml')
+
+			const result = await hydrateTrackEnrichmentDraft({
+				draft,
+				tracks: [track()],
+				records: [],
+				migrators: [
+					{
+						sourceKind: 'rekordboxXml',
+						fromVersion: 'xml-snapshot-old',
+						toVersion: currentVersions.sanitizedSourceSnapshotVersion,
+						migrate: () => structuredClone(migrated)
+					}
+				]
+			})
+
+			expect(result.status).toBe('ready')
+			if (result.status !== 'ready') throw new Error('Expected a ready draft')
+			expect(result.stagedRowIds).toEqual([])
+			expect(result.decisions[0]).toMatchObject({
+				classification,
+				staged: false
+			})
+		}
+	)
 
 	it('marks a confirmed success Done only when current source, target, proposal, and applied fields still prove it', async () => {
 		const draft = await createDraft()
