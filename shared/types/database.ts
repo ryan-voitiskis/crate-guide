@@ -493,6 +493,7 @@ export type Database = {
 				Args: { maximum_rows: number }
 				Returns: number
 			}
+			read_library_snapshot: { Args: never; Returns: Json }
 			release_record_cover_account_cleanup: {
 				Args: { expected_claim_token: string; target_user_id: string }
 				Returns: boolean
