@@ -82,7 +82,10 @@ Deno.test('scopes reads and writes to the verified user id', async () => {
 
 	assert.equal(selectedUserId, user.id)
 	assert.equal(upsertedRows.length, 3)
-	assert.equal(upsertedRows.every((row) => row.user_id === user.id), true)
+	assert.equal(
+		upsertedRows.every((row) => row.user_id === user.id),
+		true
+	)
 	assert.equal(upsertedRows[0]?.request_token, 'fixture-token')
 	assert.equal(upsertedRows[1]?.access_token, 'access-token')
 	assert.equal(upsertedRows[2]?.request_token, null)
