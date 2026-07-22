@@ -7,6 +7,10 @@ import type {
 	TrackEnrichmentDraftSourceKind,
 	TrackEnrichmentDraftVersions
 } from '~/types/trackEnrichmentDraft'
+import {
+	type TrackEnrichmentDraftOutcomeDisposition,
+	getTrackEnrichmentDraftOutcomeDisposition
+} from './trackEnrichmentDraftOutcome'
 
 export type TrackEnrichmentDraftSnapshotMigrator = {
 	sourceKind: TrackEnrichmentDraftSourceKind
@@ -157,9 +161,6 @@ export function decideTrackEnrichmentDraftDecisionResume(input: {
 	if (decision.kind === 'unknown') {
 		return { classification: 'unknown-intent', staged: false }
 	}
-	if (!decision.staged) {
-		return { classification: 'not-staged', staged: false }
-	}
 	if (!input.currentObservation) {
 		return { classification: 'source-missing', staged: false }
 	}
@@ -213,6 +214,9 @@ export function decideTrackEnrichmentDraftDecisionResume(input: {
 	if (!input.retentionAllowedByPolicy) {
 		return { classification: 'policy-changed', staged: false }
 	}
+	if (!decision.staged) {
+		return { classification: 'not-staged', staged: false }
+	}
 	return { classification: 'retained', staged: true }
 }
 
@@ -254,8 +258,8 @@ export function summarizeTrackEnrichmentDraftResume(
 
 export function getTrackEnrichmentDraftPartialOutcomeState(
 	outcome: TrackEnrichmentDraftPartialOutcome
-): 'done' | 'retry' {
-	return outcome.status === 'succeeded' ? 'done' : 'retry'
+): TrackEnrichmentDraftOutcomeDisposition {
+	return getTrackEnrichmentDraftOutcomeDisposition(outcome)
 }
 
 export function getTrackEnrichmentDraftForWorkspace(

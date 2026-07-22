@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import type { TrackEnrichmentDraft } from '~/types/trackEnrichmentDraft'
-import { createTrackEnrichmentDraftFixture } from '../../test/fixtures/trackEnrichmentDraft'
+import {
+	TRACK_ENRICHMENT_DRAFT_MAX_OBSERVATIONS,
+	TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES,
+	TRACK_ENRICHMENT_DRAFT_SCHEMA_VERSION,
+	type TrackEnrichmentDraft
+} from '~/types/trackEnrichmentDraft'
+import {
+	createTrackEnrichmentDraftFixture,
+	createTrackEnrichmentDraftV1Fixture
+} from '../../test/fixtures/trackEnrichmentDraft'
 import {
 	TrackEnrichmentDraftCodecError,
 	decodeTrackEnrichmentDraft,
@@ -22,7 +30,53 @@ function decodedDraft(serialized: string): TrackEnrichmentDraft {
 	return result.draft
 }
 
+function largeDraft(observationCount: number): TrackEnrichmentDraft {
+	const draft = cloneDraft()
+	const template = draft.observations[0]!
+	draft.observations = Array.from(
+		{ length: observationCount },
+		(_, ordinal) => {
+			const identity = ordinal.toString(16).padStart(64, '0')
+			return {
+				...structuredClone(template),
+				sourceSnapshotId: `snapshot-${ordinal}`,
+				sourceFingerprint: `source-${ordinal}`,
+				observationFingerprint: identity,
+				ordinal,
+				evidence: { kind: 'rekordboxXml' as const, trackId: null }
+			}
+		}
+	)
+	draft.decisions = []
+	draft.partialOutcomes = []
+	draft.ui.anchorSourceFingerprint = null
+	return draft
+}
+
 describe('track enrichment draft strict codec', () => {
+	it.each([50_000, TRACK_ENRICHMENT_DRAFT_MAX_OBSERVATIONS])(
+		'round-trips %i observations within the advertised privacy and schema bounds',
+		(observationCount) => {
+			const startedAt = performance.now()
+			const serialized = encodeTrackEnrichmentDraft(
+				largeDraft(observationCount)
+			)
+			const result = decodeTrackEnrichmentDraft(serialized)
+			const elapsedMs = performance.now() - startedAt
+			const serializedBytes = new TextEncoder().encode(serialized).byteLength
+
+			expect(result.status).toBe('ok')
+			if (result.status !== 'ok')
+				throw new Error('Expected a valid large draft')
+			expect(result.draft.observations).toHaveLength(observationCount)
+			expect(serializedBytes).toBeLessThanOrEqual(
+				TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES
+			)
+			expect(elapsedMs).toBeLessThan(60_000)
+		},
+		120_000
+	)
+
 	it.each(['rekordboxXml', 'localAudio'] as const)(
 		'round-trips a sanitized %s draft without widening nullable preconditions',
 		(sourceKind) => {
@@ -53,11 +107,139 @@ describe('track enrichment draft strict codec', () => {
 			reason: 'unsupported-schema'
 		})
 		expect(
-			decodeTrackEnrichmentDraft(JSON.stringify({ schemaVersion: 2 }))
+			decodeTrackEnrichmentDraft(JSON.stringify({ schemaVersion: 3 }))
 		).toEqual({
 			status: 'incompatible',
-			schemaVersion: 2,
+			schemaVersion: 3,
 			reason: 'future-schema'
+		})
+	})
+
+	it('migrates strict v1 outcomes without inventing review or application history', () => {
+		const legacy = createTrackEnrichmentDraftV1Fixture()
+		const successful = structuredClone(legacy.partialOutcomes[0]!)
+		const definiteFailure = {
+			...successful,
+			targetTrackId: 'track-b',
+			status: 'failed' as const,
+			applied: { bpm: false, keyMode: false },
+			failureCode: 'transport' as const
+		}
+		const ambiguousLegacyFailure = {
+			...successful,
+			targetTrackId: 'track-c',
+			status: 'failed' as const,
+			applied: { bpm: false, keyMode: false },
+			failureCode: 'unknown' as const
+		}
+		legacy.partialOutcomes = [
+			successful,
+			definiteFailure,
+			ambiguousLegacyFailure
+		]
+		legacy.decisions = []
+
+		const result = decodeTrackEnrichmentDraft(JSON.stringify(legacy))
+		expect(result.status).toBe('ok')
+		if (result.status !== 'ok') throw new Error('Expected v1 migration')
+		expect(result.draft.schemaVersion).toBe(
+			TRACK_ENRICHMENT_DRAFT_SCHEMA_VERSION
+		)
+		expect(result.draft.observations).toEqual(legacy.observations)
+		expect(result.draft.decisions).toEqual([])
+		expect(result.draft.partialOutcomes).toEqual([
+			successful,
+			definiteFailure,
+			{ ...ambiguousLegacyFailure, status: 'unknown' }
+		])
+	})
+
+	it('exhaustively migrates the committed v1 status, failure, and applied permutations', () => {
+		const statuses = ['succeeded', 'failed'] as const
+		const failureCodes = [
+			null,
+			'conflict',
+			'not-found',
+			'offline',
+			'permission',
+			'transport',
+			'unknown'
+		] as const
+		const appliedValues = [
+			{ bpm: false, keyMode: false },
+			{ bpm: true, keyMode: false },
+			{ bpm: false, keyMode: true },
+			{ bpm: true, keyMode: true }
+		]
+
+		for (const status of statuses) {
+			for (const failureCode of failureCodes) {
+				for (const applied of appliedValues) {
+					const legacy = createTrackEnrichmentDraftV1Fixture()
+					legacy.partialOutcomes = [
+						{
+							...legacy.partialOutcomes[0]!,
+							status,
+							failureCode,
+							applied
+						}
+					]
+					const result = decodeTrackEnrichmentDraft(JSON.stringify(legacy))
+					const wasValidInV1 =
+						(status === 'succeeded') === (failureCode === null)
+
+					if (!wasValidInV1) {
+						expect(result.status).toBe('invalid')
+						continue
+					}
+
+					expect(result.status).toBe('ok')
+					if (result.status !== 'ok') throw new Error('Expected v1 migration')
+					const migrated = result.draft.partialOutcomes[0]!
+					const hasApplied = applied.bpm || applied.keyMode
+					const becomesUnknown =
+						(status === 'succeeded') !== hasApplied ||
+						(status === 'failed' && failureCode === 'unknown')
+
+					if (becomesUnknown) {
+						expect(migrated).toMatchObject({
+							status: 'unknown',
+							failureCode: 'unknown',
+							applied: { bpm: false, keyMode: false }
+						})
+					} else {
+						expect(migrated).toMatchObject({ status, failureCode, applied })
+					}
+				}
+			}
+		}
+	})
+
+	it('rejects v2-only outcome states disguised as v1 and audits privacy before migration', () => {
+		const v2OutcomeInV1 = createTrackEnrichmentDraftV1Fixture() as unknown as {
+			schemaVersion: 1
+			partialOutcomes: unknown[]
+		}
+		v2OutcomeInV1.partialOutcomes[0] = {
+			...(v2OutcomeInV1.partialOutcomes[0] as object),
+			status: 'unknown',
+			failureCode: 'request-unknown'
+		}
+		expect(
+			decodeTrackEnrichmentDraft(JSON.stringify(v2OutcomeInV1)).status
+		).toBe('invalid')
+
+		const privateLegacy = createTrackEnrichmentDraftV1Fixture() as unknown as {
+			observations: Array<Record<string, unknown>>
+		}
+		privateLegacy.observations[0]!.rawXml = '<DJ_PLAYLISTS />'
+		expect(
+			decodeTrackEnrichmentDraft(JSON.stringify(privateLegacy))
+		).toMatchObject({
+			status: 'invalid',
+			issues: expect.arrayContaining([
+				{ code: 'forbidden-field', path: '/observations/0/rawXml' }
+			])
 		})
 	})
 
@@ -296,12 +478,20 @@ describe('track enrichment draft strict codec', () => {
 		failedWithoutCode.partialOutcomes[0]!.status = 'failed'
 		const succeededWithCode = cloneDraft()
 		succeededWithCode.partialOutcomes[0]!.failureCode = 'transport'
+		const unknownWithoutUnknownCode = cloneDraft()
+		unknownWithoutUnknownCode.partialOutcomes[0]!.status = 'unknown'
+		unknownWithoutUnknownCode.partialOutcomes[0]!.failureCode = 'transport'
+		const failedWithUnknownCode = cloneDraft()
+		failedWithUnknownCode.partialOutcomes[0]!.status = 'failed'
+		failedWithUnknownCode.partialOutcomes[0]!.failureCode = 'request-unknown'
 		const detachedAnchor = cloneDraft()
 		detachedAnchor.ui.anchorSourceFingerprint = 'detached'
 
 		for (const draft of [
 			failedWithoutCode,
 			succeededWithCode,
+			unknownWithoutUnknownCode,
+			failedWithUnknownCode,
 			detachedAnchor
 		]) {
 			expect(decodeTrackEnrichmentDraft(JSON.stringify(draft)).status).toBe(

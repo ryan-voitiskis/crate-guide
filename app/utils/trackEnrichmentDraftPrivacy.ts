@@ -1,3 +1,11 @@
+import {
+	TRACK_ENRICHMENT_DRAFT_MAX_DECISIONS,
+	TRACK_ENRICHMENT_DRAFT_MAX_OBSERVATIONS,
+	TRACK_ENRICHMENT_DRAFT_MAX_OUTCOMES,
+	TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES,
+	TRACK_ENRICHMENT_DRAFT_MAX_WARNINGS_PER_OBSERVATION
+} from '~/types/trackEnrichmentDraft'
+
 export type TrackEnrichmentDraftPrivacyIssue = {
 	code:
 		| 'absolute-path'
@@ -10,11 +18,22 @@ export type TrackEnrichmentDraftPrivacyIssue = {
 
 const MAX_PRIVACY_ISSUES = 100
 const MAX_SCAN_DEPTH = 64
-const MAX_SCAN_NODES = 1_000_000
+// This is an explicit upper bound for every node in the largest schema-valid
+// v2 shape, not an arbitrary traversal allowance: 161 nodes per observation
+// includes all 128 warnings and local evidence, 22 covers a fill decision, and
+// 10 covers an outcome. The byte budget below remains the tighter bound for
+// realistic drafts.
+const MAX_SCAN_NODES =
+	64 +
+	TRACK_ENRICHMENT_DRAFT_MAX_OBSERVATIONS *
+		(33 + TRACK_ENRICHMENT_DRAFT_MAX_WARNINGS_PER_OBSERVATION) +
+	TRACK_ENRICHMENT_DRAFT_MAX_DECISIONS * 22 +
+	TRACK_ENRICHMENT_DRAFT_MAX_OUTCOMES * 10
 const MAX_RELATIVE_PATH_BYTES = 4096
 const MAX_RELATIVE_PATH_SEGMENTS = 64
 const MAX_RELATIVE_PATH_SEGMENT_BYTES = 255
 const CONTROL_CHARACTERS = /\p{Cc}/u
+const TEXT_ENCODER = new TextEncoder()
 
 const FORBIDDEN_NORMALIZED_FIELDS = new Set([
 	'audio',
@@ -109,6 +128,23 @@ function isPlainObject(value: object): boolean {
 	return prototype === Object.prototype || prototype === null
 }
 
+function encodedBytes(value: string): number {
+	return TEXT_ENCODER.encode(value).byteLength
+}
+
+/** Returns a lower bound for this value's bytes in JSON serialization. */
+function minimumJsonBytes(value: unknown): number {
+	if (typeof value === 'string') return encodedBytes(JSON.stringify(value))
+	if (value === null) return 4
+	if (typeof value === 'boolean') return value ? 4 : 5
+	if (typeof value === 'number' && Number.isFinite(value)) {
+		return encodedBytes(JSON.stringify(value))
+	}
+	// A container has at least two bytes, but charging one keeps the estimate a
+	// strict lower bound even for invalid runtime values handled by the audit.
+	return 1
+}
+
 /**
  * Audits any candidate before schema parsing or forward-intent normalization.
  * It reports locations only, so rejected private values are never reflected in
@@ -120,6 +156,8 @@ export function inspectTrackEnrichmentDraftPrivacy(
 	const issues: TrackEnrichmentDraftPrivacyIssue[] = []
 	const ancestors = new WeakSet<object>()
 	let visitedNodes = 0
+	let minimumVisitedBytes = 0
+	let scanLimitReached = false
 
 	function addIssue(
 		code: TrackEnrichmentDraftPrivacyIssue['code'],
@@ -130,9 +168,15 @@ export function inspectTrackEnrichmentDraftPrivacy(
 	}
 
 	function visit(current: unknown, path: string, depth: number) {
-		if (issues.length >= MAX_PRIVACY_ISSUES) return
+		if (issues.length >= MAX_PRIVACY_ISSUES || scanLimitReached) return
 		visitedNodes++
-		if (visitedNodes > MAX_SCAN_NODES || depth > MAX_SCAN_DEPTH) {
+		minimumVisitedBytes += minimumJsonBytes(current)
+		if (
+			visitedNodes > MAX_SCAN_NODES ||
+			minimumVisitedBytes > TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES ||
+			depth > MAX_SCAN_DEPTH
+		) {
+			scanLimitReached = true
 			addIssue('scan-limit', path)
 			return
 		}
@@ -172,6 +216,14 @@ export function inspectTrackEnrichmentDraftPrivacy(
 		} else {
 			for (const [key, nested] of Object.entries(current)) {
 				const nestedPath = `${path}/${escapeJsonPointerSegment(key)}`
+				// JSON must also serialize the quoted key and a colon. Commas and the
+				// closing brace are intentionally omitted to preserve a lower bound.
+				minimumVisitedBytes += encodedBytes(JSON.stringify(key)) + 1
+				if (minimumVisitedBytes > TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES) {
+					scanLimitReached = true
+					addIssue('scan-limit', nestedPath)
+					break
+				}
 				if (isForbiddenField(key)) {
 					addIssue('forbidden-field', nestedPath)
 					continue

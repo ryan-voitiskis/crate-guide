@@ -2,6 +2,7 @@ import {
 	TRACK_ENRICHMENT_DRAFT_LOCAL_IDENTITY_VERSION,
 	TRACK_ENRICHMENT_DRAFT_LOCAL_SNAPSHOT_VERSION,
 	TRACK_ENRICHMENT_DRAFT_MATCHER_POLICY_VERSION,
+	TRACK_ENRICHMENT_DRAFT_PREVIOUS_SCHEMA_VERSION,
 	TRACK_ENRICHMENT_DRAFT_SCHEMA_VERSION,
 	type TrackEnrichmentDraft,
 	type TrackEnrichmentDraftSourceKind
@@ -122,5 +123,49 @@ export function createTrackEnrichmentDraftFixture(
 			density: 'compact',
 			anchorSourceFingerprint: DRAFT_SOURCE_FINGERPRINT
 		}
+	}
+}
+
+export type TrackEnrichmentDraftV1Fixture = Omit<
+	TrackEnrichmentDraft,
+	'schemaVersion' | 'partialOutcomes'
+> & {
+	schemaVersion: typeof TRACK_ENRICHMENT_DRAFT_PREVIOUS_SCHEMA_VERSION
+	partialOutcomes: Array<
+		Omit<
+			TrackEnrichmentDraft['partialOutcomes'][number],
+			'status' | 'failureCode'
+		> & {
+			status: 'succeeded' | 'failed'
+			failureCode:
+				| 'conflict'
+				| 'not-found'
+				| 'offline'
+				| 'permission'
+				| 'transport'
+				| 'unknown'
+				| null
+		}
+	>
+}
+
+export function createTrackEnrichmentDraftV1Fixture(
+	sourceKind: TrackEnrichmentDraftSourceKind = 'rekordboxXml'
+): TrackEnrichmentDraftV1Fixture {
+	const current = createTrackEnrichmentDraftFixture(sourceKind)
+	return {
+		...current,
+		schemaVersion: TRACK_ENRICHMENT_DRAFT_PREVIOUS_SCHEMA_VERSION,
+		partialOutcomes: current.partialOutcomes.map((outcome) => ({
+			...outcome,
+			status: outcome.status === 'unknown' ? 'failed' : outcome.status,
+			failureCode:
+				outcome.failureCode === 'capacity' ||
+				outcome.failureCode === 'invalid' ||
+				outcome.failureCode === 'workspace-changed' ||
+				outcome.failureCode === 'request-unknown'
+					? 'unknown'
+					: outcome.failureCode
+		}))
 	}
 }

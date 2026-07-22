@@ -1,6 +1,12 @@
 import type { AudioFeatureSourceKey } from '~~/shared/types/audioFeatures'
 
-export const TRACK_ENRICHMENT_DRAFT_SCHEMA_VERSION = 1 as const
+export const TRACK_ENRICHMENT_DRAFT_SCHEMA_VERSION = 2 as const
+export const TRACK_ENRICHMENT_DRAFT_PREVIOUS_SCHEMA_VERSION = 1 as const
+export const TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES = 134_217_728
+export const TRACK_ENRICHMENT_DRAFT_MAX_OBSERVATIONS = 100_000
+export const TRACK_ENRICHMENT_DRAFT_MAX_DECISIONS = 100_000
+export const TRACK_ENRICHMENT_DRAFT_MAX_OUTCOMES = 100_000
+export const TRACK_ENRICHMENT_DRAFT_MAX_WARNINGS_PER_OBSERVATION = 128
 export const TRACK_ENRICHMENT_DRAFT_MATCHER_POLICY_VERSION =
 	'track-enrichment-match-v1'
 export const TRACK_ENRICHMENT_DRAFT_LOCAL_SNAPSHOT_VERSION =
@@ -126,7 +132,7 @@ export type TrackEnrichmentDraftPartialOutcome = {
 	intentKind: 'fill-empty-fields'
 	sourceFingerprint: string
 	targetTrackId: string
-	status: 'succeeded' | 'failed'
+	status: 'succeeded' | 'failed' | 'unknown'
 	applied: {
 		bpm: boolean
 		keyMode: boolean
@@ -138,6 +144,10 @@ export type TrackEnrichmentDraftPartialOutcome = {
 		| 'offline'
 		| 'permission'
 		| 'transport'
+		| 'capacity'
+		| 'invalid'
+		| 'workspace-changed'
+		| 'request-unknown'
 		| 'unknown'
 		| null
 }

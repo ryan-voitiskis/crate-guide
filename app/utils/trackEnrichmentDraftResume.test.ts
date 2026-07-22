@@ -173,6 +173,65 @@ describe('track enrichment staged decision resume', () => {
 		})
 	})
 
+	it.each([
+		[
+			'source-missing',
+			(input: ReturnType<typeof baseResumeInput>) => {
+				input.currentObservation = null
+			}
+		],
+		[
+			'target-deleted',
+			(input: ReturnType<typeof baseResumeInput>) => {
+				input.currentTargetByStoredId = null
+			}
+		],
+		[
+			'no-longer-matching',
+			(input: ReturnType<typeof baseResumeInput>) => {
+				input.rematchedTargetId = null
+			}
+		],
+		[
+			'proposal-changed',
+			(input: ReturnType<typeof baseResumeInput>) => {
+				input.currentProposal.bpm!.value = 125
+			}
+		],
+		[
+			'already-filled',
+			(input: ReturnType<typeof baseResumeInput>) => {
+				input.currentTargetByStoredId!.bpm = 124
+			}
+		],
+		[
+			'target-changed',
+			(input: ReturnType<typeof baseResumeInput>) => {
+				input.currentTargetByStoredId!.updatedAt = '2026-07-23T02:00:00.000Z'
+			}
+		],
+		[
+			'policy-changed',
+			(input: ReturnType<typeof baseResumeInput>) => {
+				input.retentionAllowedByPolicy = false
+			}
+		]
+	] as const)(
+		'classifies an intentionally unstaged decision as %s without restoring staging',
+		(classification, mutate) => {
+			const input = baseResumeInput()
+			if (input.decision.kind !== 'fill-empty-fields')
+				throw new Error('fixture')
+			input.decision.staged = false
+			mutate(input)
+
+			expect(decideTrackEnrichmentDraftDecisionResume(input)).toEqual({
+				classification,
+				staged: false
+			})
+		}
+	)
+
 	it('never stages an unknown future intent', () => {
 		const input = baseResumeInput()
 		input.decision = {
@@ -319,16 +378,30 @@ describe('track enrichment staged decision resume', () => {
 })
 
 describe('track enrichment draft recovery invariants', () => {
-	it('keeps successful outcomes done and failed outcomes available to retry', () => {
+	it('separates done, retryable, unknown, and rematch-required outcomes', () => {
 		const success = createTrackEnrichmentDraftFixture().partialOutcomes[0]!
-		const failure = {
+		const retryableFailure = {
 			...success,
 			status: 'failed' as const,
 			failureCode: 'transport' as const
 		}
+		const unknown = {
+			...success,
+			status: 'unknown' as const,
+			failureCode: 'request-unknown' as const
+		}
+		const rematch = {
+			...success,
+			status: 'failed' as const,
+			failureCode: 'conflict' as const
+		}
 
 		expect(getTrackEnrichmentDraftPartialOutcomeState(success)).toBe('done')
-		expect(getTrackEnrichmentDraftPartialOutcomeState(failure)).toBe('retry')
+		expect(getTrackEnrichmentDraftPartialOutcomeState(retryableFailure)).toBe(
+			'retry'
+		)
+		expect(getTrackEnrichmentDraftPartialOutcomeState(unknown)).toBe('review')
+		expect(getTrackEnrichmentDraftPartialOutcomeState(rematch)).toBe('rematch')
 	})
 
 	it('selects one draft per workspace/repository and rejects duplicate slots', () => {

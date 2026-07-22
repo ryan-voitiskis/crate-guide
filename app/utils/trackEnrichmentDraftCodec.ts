@@ -3,6 +3,12 @@ import {
 	TRACK_ENRICHMENT_DRAFT_LOCAL_IDENTITY_VERSION,
 	TRACK_ENRICHMENT_DRAFT_LOCAL_SNAPSHOT_VERSION,
 	TRACK_ENRICHMENT_DRAFT_MATCHER_POLICY_VERSION,
+	TRACK_ENRICHMENT_DRAFT_MAX_DECISIONS,
+	TRACK_ENRICHMENT_DRAFT_MAX_OBSERVATIONS,
+	TRACK_ENRICHMENT_DRAFT_MAX_OUTCOMES,
+	TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES,
+	TRACK_ENRICHMENT_DRAFT_MAX_WARNINGS_PER_OBSERVATION,
+	TRACK_ENRICHMENT_DRAFT_PREVIOUS_SCHEMA_VERSION,
 	TRACK_ENRICHMENT_DRAFT_SCHEMA_VERSION,
 	type TrackEnrichmentDraft,
 	type TrackEnrichmentDraftSourceKind,
@@ -15,11 +21,7 @@ import {
 	sanitizeTrackEnrichmentDraftRelativePath
 } from './trackEnrichmentDraftPrivacy'
 
-const MAX_SERIALIZED_BYTES = 134_217_728
-const MAX_OBSERVATIONS = 100_000
-const MAX_DECISIONS = 100_000
-const MAX_OUTCOMES = 100_000
-const MAX_WARNINGS_PER_OBSERVATION = 128
+export { TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES } from '~/types/trackEnrichmentDraft'
 const CONTROL_CHARACTERS = /\p{Cc}/u
 
 const boundedText = (maximum: number) =>
@@ -106,7 +108,9 @@ const observationSchema = z
 		locationHint: relativePath.nullable(),
 		totalTimeSeconds: z.number().finite().min(0).max(604_800).nullable(),
 		proposal: proposalSchema,
-		warnings: z.array(boundedText(512)).max(MAX_WARNINGS_PER_OBSERVATION),
+		warnings: z
+			.array(boundedText(512))
+			.max(TRACK_ENRICHMENT_DRAFT_MAX_WARNINGS_PER_OBSERVATION),
 		evidence: z.discriminatedUnion('kind', [
 			xmlEvidenceSchema,
 			localEvidenceSchema
@@ -151,7 +155,7 @@ const unknownDecisionSchema = z
 	})
 	.strict()
 
-const partialOutcomeSchema = z
+const legacyPartialOutcomeSchema = z
 	.object({
 		intentKind: z.literal('fill-empty-fields'),
 		sourceFingerprint: fingerprint,
@@ -171,6 +175,51 @@ const partialOutcomeSchema = z
 			.nullable()
 	})
 	.strict()
+	.superRefine((outcome, context) => {
+		// This is the exact committed v1 invariant. Applied booleans were not
+		// constrained in v1, so migration must handle all four combinations.
+		if ((outcome.status === 'failed') !== (outcome.failureCode !== null)) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ['failureCode'],
+				message: 'Failure code does not match legacy outcome status'
+			})
+		}
+	})
+
+const partialOutcomeSchema = z
+	.object({
+		intentKind: z.literal('fill-empty-fields'),
+		sourceFingerprint: fingerprint,
+		targetTrackId: identifier,
+		status: z.enum(['succeeded', 'failed', 'unknown']),
+		applied: z.object({ bpm: z.boolean(), keyMode: z.boolean() }).strict(),
+		attemptedAt: timestamp,
+		failureCode: z
+			.enum([
+				'conflict',
+				'not-found',
+				'offline',
+				'permission',
+				'transport',
+				'capacity',
+				'invalid',
+				'workspace-changed',
+				'request-unknown',
+				'unknown'
+			])
+			.nullable()
+	})
+	.strict()
+
+const legacyDraftMigrationSchema = z
+	.object({
+		schemaVersion: z.literal(TRACK_ENRICHMENT_DRAFT_PREVIOUS_SCHEMA_VERSION),
+		partialOutcomes: z
+			.array(legacyPartialOutcomeSchema)
+			.max(TRACK_ENRICHMENT_DRAFT_MAX_OUTCOMES)
+	})
+	.passthrough()
 
 const draftSchema = z
 	.object({
@@ -201,11 +250,15 @@ const draftSchema = z
 				requiresReconnect: z.boolean()
 			})
 			.strict(),
-		observations: z.array(observationSchema).max(MAX_OBSERVATIONS),
+		observations: z
+			.array(observationSchema)
+			.max(TRACK_ENRICHMENT_DRAFT_MAX_OBSERVATIONS),
 		decisions: z
 			.array(z.union([fillEmptyFieldsDecisionSchema, unknownDecisionSchema]))
-			.max(MAX_DECISIONS),
-		partialOutcomes: z.array(partialOutcomeSchema).max(MAX_OUTCOMES),
+			.max(TRACK_ENRICHMENT_DRAFT_MAX_DECISIONS),
+		partialOutcomes: z
+			.array(partialOutcomeSchema)
+			.max(TRACK_ENRICHMENT_DRAFT_MAX_OUTCOMES),
 		ui: z
 			.object({
 				filter: z.enum([
@@ -387,11 +440,29 @@ const draftSchema = z
 				})
 			}
 			outcomeBindings.add(binding)
-			if ((outcome.status === 'failed') !== (outcome.failureCode !== null)) {
+			const validFailureCode =
+				outcome.status === 'succeeded'
+					? outcome.failureCode === null
+					: outcome.status === 'unknown'
+						? outcome.failureCode === 'request-unknown' ||
+							outcome.failureCode === 'unknown'
+						: outcome.failureCode !== null &&
+							outcome.failureCode !== 'request-unknown' &&
+							outcome.failureCode !== 'unknown'
+			if (!validFailureCode) {
 				context.addIssue({
 					code: z.ZodIssueCode.custom,
 					path: ['partialOutcomes', index, 'failureCode'],
 					message: 'Failure code does not match outcome status'
+				})
+			}
+			const hasConfirmedApplication =
+				outcome.applied.bpm || outcome.applied.keyMode
+			if ((outcome.status === 'succeeded') !== hasConfirmedApplication) {
+				context.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ['partialOutcomes', index, 'applied'],
+					message: 'Applied fields do not match outcome status'
 				})
 			}
 		}
@@ -485,13 +556,77 @@ function normalizeFutureDecisions(value: unknown): unknown {
 	}
 }
 
+function invalidSchemaResult(
+	issues: readonly z.ZodIssue[]
+): TrackEnrichmentDraftDecodeResult {
+	return {
+		status: 'invalid',
+		issues: issues.slice(0, 100).map((issue) => ({
+			code: 'invalid-schema',
+			path: schemaPath(issue.path)
+		}))
+	}
+}
+
+/**
+ * Migrates only data that the strict v1 outcome schema accepted. The migration
+ * never creates observations, decisions, or outcomes. A legacy catch-all
+ * failure is conservatively made unknown because v1 could not prove whether a
+ * write had committed.
+ */
+function migrateTrackEnrichmentDraftV1(
+	draft: z.infer<typeof legacyDraftMigrationSchema>
+): unknown {
+	return {
+		...draft,
+		schemaVersion: TRACK_ENRICHMENT_DRAFT_SCHEMA_VERSION,
+		partialOutcomes: draft.partialOutcomes.map((outcome) => {
+			const hasApplied = outcome.applied.bpm || outcome.applied.keyMode
+			const contradictoryApplication =
+				(outcome.status === 'succeeded') !== hasApplied
+			if (
+				contradictoryApplication ||
+				(outcome.status === 'failed' && outcome.failureCode === 'unknown')
+			) {
+				return {
+					...outcome,
+					status: 'unknown' as const,
+					applied: { bpm: false, keyMode: false },
+					failureCode: 'unknown' as const
+				}
+			}
+			return outcome
+		})
+	}
+}
+
+function validateCurrentDraft(
+	value: unknown
+): TrackEnrichmentDraftDecodeResult {
+	const parsed = draftSchema.safeParse(value)
+	if (!parsed.success) return invalidSchemaResult(parsed.error.issues)
+	return { status: 'ok', draft: parsed.data as TrackEnrichmentDraft }
+}
+
 function validateDraft(value: unknown): TrackEnrichmentDraftDecodeResult {
-	const privacyIssues = inspectTrackEnrichmentDraftPrivacy(value)
-	if (privacyIssues.length > 0)
-		return { status: 'invalid', issues: privacyIssues }
+	const originalPrivacyIssues = inspectTrackEnrichmentDraftPrivacy(value)
+	if (originalPrivacyIssues.length > 0)
+		return { status: 'invalid', issues: originalPrivacyIssues }
+
+	const normalized = normalizeFutureDecisions(value)
 
 	if (value && typeof value === 'object' && !Array.isArray(value)) {
 		const schemaVersion = (value as Record<string, unknown>).schemaVersion
+		if (schemaVersion === TRACK_ENRICHMENT_DRAFT_PREVIOUS_SCHEMA_VERSION) {
+			const legacy = legacyDraftMigrationSchema.safeParse(normalized)
+			if (!legacy.success) return invalidSchemaResult(legacy.error.issues)
+			const migrated = migrateTrackEnrichmentDraftV1(legacy.data)
+			const migratedPrivacyIssues = inspectTrackEnrichmentDraftPrivacy(migrated)
+			if (migratedPrivacyIssues.length > 0) {
+				return { status: 'invalid', issues: migratedPrivacyIssues }
+			}
+			return validateCurrentDraft(migrated)
+		}
 		if (
 			typeof schemaVersion === 'number' &&
 			Number.isSafeInteger(schemaVersion) &&
@@ -508,25 +643,16 @@ function validateDraft(value: unknown): TrackEnrichmentDraftDecodeResult {
 		}
 	}
 
-	const parsed = draftSchema.safeParse(normalizeFutureDecisions(value))
-	if (!parsed.success) {
-		return {
-			status: 'invalid',
-			issues: parsed.error.issues.slice(0, 100).map((issue) => ({
-				code: 'invalid-schema',
-				path: schemaPath(issue.path)
-			}))
-		}
-	}
-	return { status: 'ok', draft: parsed.data as TrackEnrichmentDraft }
+	return validateCurrentDraft(normalized)
 }
 
 export function decodeTrackEnrichmentDraft(
 	serialized: string
 ): TrackEnrichmentDraftDecodeResult {
 	if (
-		serialized.length > MAX_SERIALIZED_BYTES ||
-		new TextEncoder().encode(serialized).byteLength > MAX_SERIALIZED_BYTES
+		serialized.length > TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES ||
+		new TextEncoder().encode(serialized).byteLength >
+			TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES
 	) {
 		return { status: 'invalid', issues: [{ code: 'too-large', path: '' }] }
 	}
@@ -553,8 +679,9 @@ export function encodeTrackEnrichmentDraft(
 	}
 	const serialized = JSON.stringify(result.draft)
 	if (
-		serialized.length > MAX_SERIALIZED_BYTES ||
-		new TextEncoder().encode(serialized).byteLength > MAX_SERIALIZED_BYTES
+		serialized.length > TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES ||
+		new TextEncoder().encode(serialized).byteLength >
+			TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES
 	) {
 		throw new TrackEnrichmentDraftCodecError([{ code: 'too-large', path: '' }])
 	}

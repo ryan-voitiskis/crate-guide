@@ -103,4 +103,13 @@ describe('track enrichment draft recursive privacy audit', () => {
 			])
 		)
 	})
+
+	it('keeps recursive privacy work depth-bounded', () => {
+		let nested: Record<string, unknown> = { value: 'safe' }
+		for (let depth = 0; depth < 65; depth++) nested = { nested }
+
+		expect(inspectTrackEnrichmentDraftPrivacy(nested)).toEqual(
+			expect.arrayContaining([expect.objectContaining({ code: 'scan-limit' })])
+		)
+	})
 })
