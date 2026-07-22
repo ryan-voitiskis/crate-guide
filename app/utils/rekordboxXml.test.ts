@@ -18,7 +18,11 @@ describe('parseRekordboxTonality', () => {
 		['F#', { key: 6, mode: 1 }],
 		['Eb', { key: 3, mode: 1 }],
 		['A Minor', { key: 9, mode: 0 }],
-		['C Major', { key: 0, mode: 1 }]
+		['C Major', { key: 0, mode: 1 }],
+		['a minor', { key: 9, mode: 0 }],
+		['f# MAJOR', { key: 6, mode: 1 }],
+		['dB minor', { key: 1, mode: 0 }],
+		['e♭ Major', { key: 3, mode: 1 }]
 	])('parses %s', (input, expected) => {
 		expect(parseRekordboxTonality(input)).toMatchObject({
 			...expected,

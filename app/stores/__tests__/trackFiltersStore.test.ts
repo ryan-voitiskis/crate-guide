@@ -13,6 +13,7 @@ const mockTracks = [
 		position: 'A1',
 		bpm: 122,
 		key: 5,
+		mode: 0,
 		playable: true
 	},
 	{
@@ -24,6 +25,7 @@ const mockTracks = [
 		position: 'B1',
 		bpm: 138,
 		key: 8,
+		mode: 1,
 		playable: true
 	},
 	{
@@ -35,6 +37,7 @@ const mockTracks = [
 		position: 'A2',
 		bpm: 95,
 		key: 2,
+		mode: 0,
 		playable: false
 	},
 	{
@@ -46,6 +49,7 @@ const mockTracks = [
 		position: 'B2',
 		bpm: 128,
 		key: 5,
+		mode: 1,
 		playable: true
 	},
 	{
@@ -57,6 +61,7 @@ const mockTracks = [
 		position: null,
 		bpm: null,
 		key: null,
+		mode: null,
 		playable: true
 	}
 ]
@@ -131,8 +136,8 @@ describe('trackFiltersStore', () => {
 			expect(store.bpmMax).toBeNull()
 		})
 
-		it('has null selected key', () => {
-			expect(store.selectedKey).toBeNull()
+		it('has null selected key and mode', () => {
+			expect(store.selectedKeyComposite).toBeNull()
 		})
 
 		it('has empty selected genres', () => {
@@ -152,9 +157,17 @@ describe('trackFiltersStore', () => {
 
 		it('includes value, label, and color for each option', () => {
 			const firstOption = store.keyOptions[0]
-			expect(firstOption).toHaveProperty('value')
+			expect(firstOption).toHaveProperty('value', '000')
 			expect(firstOption).toHaveProperty('label')
 			expect(firstOption).toHaveProperty('color')
+		})
+
+		it('gives every key and mode option a unique composite value', () => {
+			const values = store.keyOptions.map((option) => option.value)
+
+			expect(new Set(values).size).toBe(24)
+			expect(values).toContain('005')
+			expect(values).toContain('105')
 		})
 
 		it('calls getFormattedKeyString for labels', () => {
@@ -275,10 +288,16 @@ describe('trackFiltersStore', () => {
 		})
 
 		describe('key filter', () => {
-			it('filters by selected key', () => {
-				store.selectedKey = 5
-				expect(store.filteredTracks).toHaveLength(2)
-				expect(store.filteredTracks.every((t) => t.key === 5)).toBe(true)
+			it('distinguishes minor and major tracks with the same pitch class', () => {
+				store.selectedKeyComposite = '005'
+				expect(store.filteredTracks.map((track) => track.id)).toEqual([
+					'track-1'
+				])
+
+				store.selectedKeyComposite = '105'
+				expect(store.filteredTracks.map((track) => track.id)).toEqual([
+					'track-4'
+				])
 			})
 
 			it('handles key 0 correctly', () => {
@@ -295,13 +314,15 @@ describe('trackFiltersStore', () => {
 						position: 'C1',
 						bpm: 120,
 						key: 0,
+						mode: 1,
 						playable: true
 					}
 				]
 
-				store.selectedKey = 0
+				store.selectedKeyComposite = '100'
 				expect(store.filteredTracks).toHaveLength(1)
 				expect(store.filteredTracks[0]!.key).toBe(0)
+				expect(store.filteredTracks[0]!.mode).toBe(1)
 
 				// Restore original
 				mockTracksStore.tracks = originalTracks
@@ -343,7 +364,7 @@ describe('trackFiltersStore', () => {
 
 			it('returns empty when no tracks match all filters', () => {
 				store.searchQuery = 'Techno'
-				store.selectedKey = 5 // Key 5 is only in house tracks
+				store.selectedKeyComposite = '005'
 				expect(store.filteredTracks).toHaveLength(0)
 			})
 		})
@@ -395,7 +416,7 @@ describe('trackFiltersStore', () => {
 		})
 
 		it('counts selected key as one filter', () => {
-			store.selectedKey = 5
+			store.selectedKeyComposite = '005'
 			expect(store.activeFiltersCount).toBe(1)
 		})
 
@@ -408,7 +429,7 @@ describe('trackFiltersStore', () => {
 			store.searchQuery = 'test'
 			store.showOnlyPlayable = true
 			store.bpmMin = 100
-			store.selectedKey = 5
+			store.selectedKeyComposite = '005'
 			store.selectedGenres = ['house']
 			expect(store.activeFiltersCount).toBe(5)
 		})
@@ -460,21 +481,23 @@ describe('trackFiltersStore', () => {
 		})
 	})
 
-	describe('setSelectedKey', () => {
-		it('sets the selected key', () => {
-			store.setSelectedKey(5)
-			expect(store.selectedKey).toBe(5)
+	describe('setSelectedKeyComposite', () => {
+		it('sets the selected key and mode composite', () => {
+			store.setSelectedKeyComposite('005')
+			expect(store.selectedKeyComposite).toBe('005')
 		})
 
 		it('allows null to clear key', () => {
-			store.setSelectedKey(5)
-			store.setSelectedKey(null)
-			expect(store.selectedKey).toBeNull()
+			store.setSelectedKeyComposite('005')
+			store.setSelectedKeyComposite(null)
+			expect(store.selectedKeyComposite).toBeNull()
 		})
 
-		it('handles key 0', () => {
-			store.setSelectedKey(0)
-			expect(store.selectedKey).toBe(0)
+		it('handles key 0 in either mode', () => {
+			store.setSelectedKeyComposite('000')
+			expect(store.selectedKeyComposite).toBe('000')
+			store.setSelectedKeyComposite('100')
+			expect(store.selectedKeyComposite).toBe('100')
 		})
 	})
 
@@ -513,7 +536,7 @@ describe('trackFiltersStore', () => {
 			store.showOnlyPlayable = true
 			store.bpmMin = 100
 			store.bpmMax = 140
-			store.selectedKey = 5
+			store.selectedKeyComposite = '005'
 			store.selectedGenres = ['house', 'techno']
 
 			store.resetAllFilters()
@@ -522,7 +545,7 @@ describe('trackFiltersStore', () => {
 			expect(store.showOnlyPlayable).toBe(false)
 			expect(store.bpmMin).toBeNull()
 			expect(store.bpmMax).toBeNull()
-			expect(store.selectedKey).toBeNull()
+			expect(store.selectedKeyComposite).toBeNull()
 			expect(store.selectedGenres).toEqual([])
 		})
 

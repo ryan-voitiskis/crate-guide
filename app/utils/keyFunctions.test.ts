@@ -16,8 +16,8 @@ import {
 	getSortableNotation,
 	isKeyFormat,
 	mod,
-	parseBeatportKey,
 	parseKeyComposite,
+	parseLongFormTonality,
 	pitchClassDistance,
 	pitchClassMap,
 	scoreHarmony
@@ -147,6 +147,12 @@ describe('parseKeyComposite', () => {
 		expect(parseKeyComposite('012')).toEqual({ key: null, mode: null })
 		expect(parseKeyComposite('099')).toEqual({ key: null, mode: null })
 	})
+
+	it('rejects partial numeric composite segments', () => {
+		expect(parseKeyComposite('10a')).toEqual({ key: null, mode: null })
+		expect(parseKeyComposite('0a1')).toEqual({ key: null, mode: null })
+		expect(parseKeyComposite('1-1')).toEqual({ key: null, mode: null })
+	})
 })
 
 describe('createKeyComposite', () => {
@@ -173,49 +179,56 @@ describe('createKeyComposite', () => {
 		expect(createKeyComposite(12, 0)).toBe('none')
 		expect(createKeyComposite(0, -1)).toBe('none')
 		expect(createKeyComposite(0, 2)).toBe('none')
+		expect(createKeyComposite(1.5, 0)).toBe('none')
+		expect(createKeyComposite(1, 0.5)).toBe('none')
 	})
 })
 
-describe('parseBeatportKey', () => {
+describe('parseLongFormTonality', () => {
 	it('parses natural notes', () => {
-		expect(parseBeatportKey('C Major')).toEqual({ key: 0, mode: 1 })
-		expect(parseBeatportKey('C Minor')).toEqual({ key: 0, mode: 0 })
-		expect(parseBeatportKey('A Major')).toEqual({ key: 9, mode: 1 })
-		expect(parseBeatportKey('A Minor')).toEqual({ key: 9, mode: 0 })
-		expect(parseBeatportKey('G Major')).toEqual({ key: 7, mode: 1 })
-		expect(parseBeatportKey('G Minor')).toEqual({ key: 7, mode: 0 })
+		expect(parseLongFormTonality('C Major')).toEqual({ key: 0, mode: 1 })
+		expect(parseLongFormTonality('C Minor')).toEqual({ key: 0, mode: 0 })
+		expect(parseLongFormTonality('A Major')).toEqual({ key: 9, mode: 1 })
+		expect(parseLongFormTonality('A Minor')).toEqual({ key: 9, mode: 0 })
+		expect(parseLongFormTonality('G Major')).toEqual({ key: 7, mode: 1 })
+		expect(parseLongFormTonality('G Minor')).toEqual({ key: 7, mode: 0 })
 	})
 
 	it('parses sharp notes', () => {
-		expect(parseBeatportKey('C# Major')).toEqual({ key: 1, mode: 1 })
-		expect(parseBeatportKey('C# Minor')).toEqual({ key: 1, mode: 0 })
-		expect(parseBeatportKey('F# Major')).toEqual({ key: 6, mode: 1 })
-		expect(parseBeatportKey('F# Minor')).toEqual({ key: 6, mode: 0 })
+		expect(parseLongFormTonality('C# Major')).toEqual({ key: 1, mode: 1 })
+		expect(parseLongFormTonality('C# Minor')).toEqual({ key: 1, mode: 0 })
+		expect(parseLongFormTonality('F# Major')).toEqual({ key: 6, mode: 1 })
+		expect(parseLongFormTonality('F# Minor')).toEqual({ key: 6, mode: 0 })
+		expect(parseLongFormTonality('f♯ minor')).toEqual({ key: 6, mode: 0 })
 	})
 
 	it('parses flat notes', () => {
-		expect(parseBeatportKey('Db Major')).toEqual({ key: 1, mode: 1 })
-		expect(parseBeatportKey('Db Minor')).toEqual({ key: 1, mode: 0 })
-		expect(parseBeatportKey('Bb Major')).toEqual({ key: 10, mode: 1 })
-		expect(parseBeatportKey('Bb Minor')).toEqual({ key: 10, mode: 0 })
+		expect(parseLongFormTonality('Db Major')).toEqual({ key: 1, mode: 1 })
+		expect(parseLongFormTonality('Db Minor')).toEqual({ key: 1, mode: 0 })
+		expect(parseLongFormTonality('Bb Major')).toEqual({ key: 10, mode: 1 })
+		expect(parseLongFormTonality('Bb Minor')).toEqual({ key: 10, mode: 0 })
+		expect(parseLongFormTonality('dB major')).toEqual({ key: 1, mode: 1 })
+		expect(parseLongFormTonality('e♭ MINOR')).toEqual({ key: 3, mode: 0 })
 	})
 
-	it('handles case insensitivity for mode', () => {
-		// Note: The regex is case-insensitive but the noteMap uses uppercase keys
-		// So only the Major/Minor part is case-insensitive
-		expect(parseBeatportKey('C major')).toEqual({ key: 0, mode: 1 })
-		expect(parseBeatportKey('A MINOR')).toEqual({ key: 9, mode: 0 })
-		expect(parseBeatportKey('G MaJoR')).toEqual({ key: 7, mode: 1 })
+	it('handles case insensitivity for notes and mode', () => {
+		expect(parseLongFormTonality('c major')).toEqual({ key: 0, mode: 1 })
+		expect(parseLongFormTonality('a MINOR')).toEqual({ key: 9, mode: 0 })
+		expect(parseLongFormTonality('g MaJoR')).toEqual({ key: 7, mode: 1 })
 	})
 
 	it('returns null for empty string', () => {
-		expect(parseBeatportKey('')).toEqual({ key: null, mode: null })
+		expect(parseLongFormTonality('')).toEqual({ key: null, mode: null })
 	})
 
 	it('returns null for invalid format', () => {
-		expect(parseBeatportKey('Cm')).toEqual({ key: null, mode: null })
-		expect(parseBeatportKey('C Maj')).toEqual({ key: null, mode: null })
-		expect(parseBeatportKey('8B')).toEqual({ key: null, mode: null })
+		expect(parseLongFormTonality('Cm')).toEqual({ key: null, mode: null })
+		expect(parseLongFormTonality('C Maj')).toEqual({ key: null, mode: null })
+		expect(parseLongFormTonality('8B')).toEqual({ key: null, mode: null })
+		expect(parseLongFormTonality('Cb Major')).toEqual({
+			key: null,
+			mode: null
+		})
 	})
 })
 

@@ -215,6 +215,38 @@ describe('buildTrackEnrichmentRows', () => {
 		})
 	})
 
+	it('keeps the strongest accepted fuzzy title score regardless of source title order', () => {
+		const candidate = createTrack({
+			title: 'abcdefghijklmnop',
+			artists: [],
+			duration: null
+		})
+		const createOrderedSource = (name: string, filenameTitle: string) =>
+			createSource({
+				name,
+				artist: null,
+				album: null,
+				locationHint: `Album/${filenameTitle}.wav`,
+				totalTimeSeconds: null
+			})
+
+		const [strongThenWeak] = buildTrackEnrichmentRows({
+			sources: [createOrderedSource('abcdefghijklmnoq', 'abcdefghijklmnqr')],
+			tracks: [candidate],
+			records: []
+		})
+		const [weakThenStrong] = buildTrackEnrichmentRows({
+			sources: [createOrderedSource('abcdefghijklmnqr', 'abcdefghijklmnoq')],
+			tracks: [candidate],
+			records: []
+		})
+
+		expect(strongThenWeak?.track?.id).toBe(candidate.id)
+		expect(weakThenStrong?.track?.id).toBe(candidate.id)
+		expect(strongThenWeak?.score).toBe(weakThenStrong?.score)
+		expect(strongThenWeak?.reasons).toEqual(weakThenStrong?.reasons)
+	})
+
 	it('keeps deterministic exhaustive-corpus enrichment output', () => {
 		const tracks = [
 			createTrack({ id: 'track-exact', title: 'Cafe Track' }),

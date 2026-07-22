@@ -242,6 +242,7 @@ function minimumSimilarity(left: string, right: string): number {
 
 function compareStringSets(left: string[], right: string[]): StringSetMatch {
 	let bestSimilarity = 0
+	let bestAcceptedSimilarity = 0
 	let accepted = false
 
 	for (const leftValue of left) {
@@ -258,7 +259,7 @@ function compareStringSets(left: string[], right: string[]): StringSetMatch {
 			bestSimilarity = Math.max(bestSimilarity, similarity)
 
 			if (similarity >= minimumSimilarity(leftValue, rightValue)) {
-				bestSimilarity = similarity
+				bestAcceptedSimilarity = Math.max(bestAcceptedSimilarity, similarity)
 				accepted = true
 			}
 		}
@@ -267,7 +268,7 @@ function compareStringSets(left: string[], right: string[]): StringSetMatch {
 	return {
 		accepted,
 		exact: false,
-		similarity: bestSimilarity
+		similarity: accepted ? bestAcceptedSimilarity : bestSimilarity
 	}
 }
 

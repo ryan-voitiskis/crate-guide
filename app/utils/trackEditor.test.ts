@@ -111,6 +111,16 @@ describe('buildTrackEditorPayload', () => {
 		})
 	})
 
+	it('never truncates malformed BPM input in a payload', () => {
+		const payload = buildTrackEditorPayload(
+			createValues({ bpm: '128abc' }),
+			[],
+			[]
+		)
+
+		expect(payload.bpm).toBeNull()
+	})
+
 	it('filters invalid artists consistently for both artist collections', () => {
 		const validArtist = { discogs_id: 7, name: 'Valid Artist', role: null }
 		const invalidArtist = { name: '   ', role: null }
@@ -298,4 +308,17 @@ describe('trackEditorSchema', () => {
 			expect.objectContaining({ path: [field], message })
 		)
 	})
+
+	it.each(['128abc', '120..5', 'Infinity'])(
+		'rejects malformed BPM input %s',
+		(bpm) => {
+			const result = trackEditorSchema.safeParse({
+				...createTrackEditorInitialValues(),
+				title: 'Test Track',
+				bpm
+			})
+
+			expect(result.success).toBe(false)
+		}
+	)
 })

@@ -23,7 +23,10 @@ export function mmssToMs(input: string): number | null {
 }
 
 export function parseBPM(input: string): number | null {
-	if (!input || !input.trim()) return null
-	const bpm = parseFloat(input)
-	return isNaN(bpm) ? null : bpm
+	const normalized = input.trim()
+	if (!normalized) return null
+	if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) return null
+
+	const bpm = Number(normalized)
+	return Number.isFinite(bpm) && bpm >= 30 && bpm <= 300 ? bpm : null
 }

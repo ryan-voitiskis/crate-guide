@@ -199,14 +199,14 @@ export function getSortableNotation(pitchClass: number, mode: number): number {
 
 export function keyOptionsMapFn(mode: number) {
 	return (i: Key) => ({
-		id: `${mode.toString()}${i.pitchClass.toString().padStart(2, '0')}`,
+		id: createKeyComposite(i.pitchClass, mode),
 		name: `${i.tone} ${mode === 1 ? 'Major' : 'Minor'}`
 	})
 }
 
 export function camelotOptionsMapFn(mode: number) {
 	return (i: Key): Option => ({
-		id: `${mode.toString()}${i.pitchClass.toString().padStart(2, '0')}`,
+		id: createKeyComposite(i.pitchClass, mode),
 		name: mode === 1 ? `${i.camelotMajor}B` : `${i.camelotMinor}A`
 	})
 }
@@ -221,17 +221,6 @@ export function getFormattedKeyString(
 	return style === 'short'
 		? getKeyStringShort(pitchClass, mode)
 		: getKeyString(pitchClass, mode)
-}
-
-// Alternative mapping function that combines key name with camelot notation
-// e.g., "C Major (8B)", "C Minor (5A)"
-export function combinedOptionsMapFnAlt(mode: number) {
-	return (i: Key): Option => ({
-		id: `${mode.toString()}${i.pitchClass.toString().padStart(2, '0')}`,
-		name: `${i.tone} ${mode === 1 ? 'Major' : 'Minor'} (${
-			mode === 1 ? i.camelotMajor : i.camelotMinor
-		}${mode === 1 ? 'B' : 'A'})`
-	})
 }
 
 export const getKeyOptions = (keyFormat: 'key' | 'camelot'): Option[] => {
@@ -271,19 +260,6 @@ export const getKeyOptionsForComposite = (keyFormat: KeyFormat): Option[] => {
 		.concat(keyOptionsMajor)
 }
 
-// Alternative getKeyOptions that returns combined format: "C Major (8B)", "C Minor (5A)"
-export const getKeyOptionsAlt = (): Option[] => {
-	const keyOptionsMajor: Option[] = pitchClassMap.map(
-		combinedOptionsMapFnAlt(1)
-	)
-	const keyOptionsMinor: Option[] = pitchClassMap.map(
-		combinedOptionsMapFnAlt(0)
-	)
-	return [{ id: 'none', name: 'Not specified' }]
-		.concat(keyOptionsMinor)
-		.concat(keyOptionsMajor)
-}
-
 // Helper to parse composite key ID back to separate key and mode values
 // e.g., "100" -> { key: 0, mode: 1 }, "none" -> { key: null, mode: null }
 export function parseKeyComposite(composite: string): {
@@ -291,21 +267,12 @@ export function parseKeyComposite(composite: string): {
 	mode: number | null
 } {
 	if (!composite || composite === 'none') return { key: null, mode: null }
-	if (composite.length !== 3) return { key: null, mode: null }
+	if (!/^[01]\d{2}$/.test(composite)) return { key: null, mode: null }
 
-	const modeChar = composite[0]
-	if (!modeChar) return { key: null, mode: null }
-	const mode = parseInt(modeChar, 10)
-	const key = parseInt(composite.substring(1), 10)
+	const mode = Number(composite[0])
+	const key = Number(composite.slice(1))
 
-	if (
-		isNaN(mode) ||
-		isNaN(key) ||
-		mode < 0 ||
-		mode > 1 ||
-		key < 0 ||
-		key > 11
-	) {
+	if (key < 0 || key > 11) {
 		return { key: null, mode: null }
 	}
 
@@ -319,49 +286,63 @@ export function createKeyComposite(
 	mode: number | null
 ): string {
 	if (key === null || mode === null) return 'none'
-	if (key < 0 || key > 11 || mode < 0 || mode > 1) return 'none'
+	if (
+		!Number.isInteger(key) ||
+		!Number.isInteger(mode) ||
+		key < 0 ||
+		key > 11 ||
+		mode < 0 ||
+		mode > 1
+	) {
+		return 'none'
+	}
 	return `${mode}${key.toString().padStart(2, '0')}`
 }
 
-// Helper to parse Beatport key format like "A Minor" into key and mode values
-// e.g., "A Minor" -> { key: 9, mode: 0 }, "C Major" -> { key: 0, mode: 1 }
-export function parseBeatportKey(keyString: string): {
+const PITCH_CLASS_BY_NOTE: Readonly<Record<string, number>> = {
+	C: 0,
+	'C#': 1,
+	Db: 1,
+	D: 2,
+	'D#': 3,
+	Eb: 3,
+	E: 4,
+	F: 5,
+	'F#': 6,
+	Gb: 6,
+	G: 7,
+	'G#': 8,
+	Ab: 8,
+	A: 9,
+	'A#': 10,
+	Bb: 10,
+	B: 11
+}
+
+export function parsePitchClassNote(noteString: string): number | null {
+	const match = noteString.trim().match(/^([A-G])([#b♯♭]?)$/i)
+	if (!match?.[1]) return null
+
+	const accidental = match[2]?.replace('♯', '#').replace('♭', 'b')
+	const canonicalNote = `${match[1].toUpperCase()}${
+		accidental === '#' ? '#' : accidental ? 'b' : ''
+	}`
+
+	return PITCH_CLASS_BY_NOTE[canonicalNote] ?? null
+}
+
+// Parse source-neutral long-form tonality such as "A Minor" or "C# Major".
+export function parseLongFormTonality(keyString: string): {
 	key: number | null
 	mode: number | null
 } {
-	if (!keyString) return { key: null, mode: null }
+	const match = keyString.trim().match(/^([A-G][#b♯♭]?)\s*(Major|Minor)$/i)
+	if (!match?.[1]) return { key: null, mode: null }
 
-	// Parse format like "A Minor", "C Major", "F# Minor"
-	const match = keyString.match(/^([A-G][#b]?)\s*(Major|Minor)$/i)
-	if (!match) return { key: null, mode: null }
+	const key = parsePitchClassNote(match[1])
+	if (key === null) return { key: null, mode: null }
 
-	const noteMap: Record<string, number> = {
-		C: 0,
-		'C#': 1,
-		Db: 1,
-		D: 2,
-		'D#': 3,
-		Eb: 3,
-		E: 4,
-		F: 5,
-		'F#': 6,
-		Gb: 6,
-		G: 7,
-		'G#': 8,
-		Ab: 8,
-		A: 9,
-		'A#': 10,
-		Bb: 10,
-		B: 11
-	}
-
-	const note = match[1]
-	const modeStr = match[2]?.toLowerCase()
-	if (!note) return { key: null, mode: null }
-	const key = noteMap[note]
-	const mode = modeStr === 'major' ? 1 : 0
-
-	return { key: key ?? null, mode }
+	return { key, mode: match[2]?.toLowerCase() === 'major' ? 1 : 0 }
 }
 
 // % operator returns wrong results for negative nominator in JS, hence workaround fn

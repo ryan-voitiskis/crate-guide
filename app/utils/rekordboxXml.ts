@@ -1,5 +1,9 @@
 import type { RekordboxXmlSource } from '~~/shared/types/audioFeatures'
-import { parseBeatportKey, pitchClassMap } from './keyFunctions'
+import {
+	parseLongFormTonality,
+	parsePitchClassNote,
+	pitchClassMap
+} from './keyFunctions'
 
 export type RekordboxXmlTrack = {
 	sourceType: 'rekordboxXml'
@@ -40,26 +44,6 @@ const INVISIBLE_CHARACTERS = /[\u200b-\u200f\u202a-\u202e\u2060\ufeff]/g
 const QUOTES_AND_APOSTROPHES =
 	/[\u2018\u2019\u201a\u201b\u201c\u201d\u201e\u201f]/g
 const DASHES = /[\u2010-\u2015\u2212]/g
-
-const NOTE_MAP: Record<string, number> = {
-	C: 0,
-	'C#': 1,
-	Db: 1,
-	D: 2,
-	'D#': 3,
-	Eb: 3,
-	E: 4,
-	F: 5,
-	'F#': 6,
-	Gb: 6,
-	G: 7,
-	'G#': 8,
-	Ab: 8,
-	A: 9,
-	'A#': 10,
-	Bb: 10,
-	B: 11
-}
 
 export function stripInvisibleCharacters(input: string): string {
 	return input.replace(INVISIBLE_CHARACTERS, '')
@@ -114,17 +98,6 @@ function parseAverageBpm(value: string | null): number | null {
 	return Math.round(parsed * 10) / 10
 }
 
-function canonicalNote(note: string, accidental: string | undefined): string {
-	const base = note.toUpperCase()
-	const normalizedAccidental = accidental
-		?.replace('\u266f', '#')
-		.replace('\u266d', 'b')
-	if (!normalizedAccidental) return base
-	return normalizedAccidental === '#'
-		? `${base}#`
-		: `${base}${normalizedAccidental.toLowerCase()}`
-}
-
 export function parseRekordboxTonality(tonality: string | null): {
 	key: number | null
 	mode: number | null
@@ -152,18 +125,19 @@ export function parseRekordboxTonality(tonality: string | null): {
 				}
 	}
 
-	const longForm = parseBeatportKey(cleaned)
+	const longForm = parseLongFormTonality(cleaned)
 	if (longForm.key !== null && longForm.mode !== null) {
 		return { ...longForm, warning: null }
 	}
 
 	const shortNoteMatch = cleaned.match(/^([a-g])([#b\u266f\u266d]?)(m?)$/i)
 	if (shortNoteMatch) {
-		const note = canonicalNote(shortNoteMatch[1]!, shortNoteMatch[2])
-		const key = NOTE_MAP[note]
+		const key = parsePitchClassNote(
+			`${shortNoteMatch[1]}${shortNoteMatch[2] ?? ''}`
+		)
 		const mode = shortNoteMatch[3] ? 0 : 1
 
-		return key === undefined
+		return key === null
 			? {
 					key: null,
 					mode: null,
