@@ -15,7 +15,7 @@
 - **Depends on**: none
 - **Category**: bug / concurrency
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: READY
+- **Status**: DONE
 
 ## Why this matters
 
@@ -89,10 +89,10 @@ that are identical but IDs differ so ownership is ID-based, not label-based.
 
 ## Done criteria
 
-- [ ] Folder results publish only for the selected folder/request generation.
-- [ ] Reset/dismiss removes only the explicitly owned snapshot key.
-- [ ] A to B replacement preserves B state and cannot leave A state active.
-- [ ] Focused and full gates pass.
+- [x] Folder results publish only for the selected folder/request generation.
+- [x] Reset/dismiss removes only the explicitly owned snapshot key.
+- [x] A to B replacement preserves B state and cannot leave A state active.
+- [x] Focused and full gates pass.
 
 ## STOP conditions
 

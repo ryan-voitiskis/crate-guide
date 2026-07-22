@@ -16,7 +16,7 @@
 - **Depends on**: Plans 053, 066, and 068
 - **Category**: direction / local persistence
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -161,12 +161,12 @@ Chromium/Firefox/WebKit capability behavior with explicit fail-closed fallback.
 
 ## Done criteria
 
-- [ ] Every mutable domain command is durable and atomic before success is shown.
-- [ ] Reload, multi-tab, schema-upgrade, quota, and Blob behavior pass in a real browser.
-- [ ] Library and disposable analysis cache cannot clear or migrate each other.
-- [ ] Content/operational revisions and storage health support truthful backup UX.
-- [ ] Multiple named Local workspaces remain enumerable when active-marker recovery is required.
-- [ ] Bundle and full repository gates pass.
+- [x] Every mutable domain command is durable and atomic before success is shown.
+- [x] Reload, multi-tab, schema-upgrade, quota, and Blob behavior pass in a real browser.
+- [x] Library and disposable analysis cache cannot clear or migrate each other.
+- [x] Content/operational revisions and storage health support truthful backup UX.
+- [x] Multiple named Local workspaces remain enumerable when active-marker recovery is required.
+- [x] Bundle and full repository gates pass.
 
 ## STOP conditions
 

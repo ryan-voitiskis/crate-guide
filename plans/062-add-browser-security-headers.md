@@ -16,7 +16,7 @@
 - **Depends on**: Plans 052 and 059
 - **Category**: security / defense in depth
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -126,10 +126,10 @@ page errors via Plan 052's fixture.
 
 ## Done criteria
 
-- [ ] The built production response carries enforced frame/base/object containment and standard hardening headers.
-- [ ] A report-only resource policy is derived from observed sources, not guessed.
-- [ ] CI detects missing or materially broadened headers.
-- [ ] A post-deploy read-only smoke command is documented; no dashboard-only dependency remains.
+- [x] The built production response carries enforced frame/base/object containment and standard hardening headers.
+- [x] A report-only resource policy is derived from observed sources, not guessed.
+- [x] CI detects missing or materially broadened headers.
+- [x] A post-deploy read-only smoke command is documented; no dashboard-only dependency remains.
 
 ## STOP conditions
 

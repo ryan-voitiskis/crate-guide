@@ -15,7 +15,7 @@
 - **Depends on**: none
 - **Category**: bug / configuration
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: READY
+- **Status**: DONE
 
 ## Why this matters
 
@@ -88,10 +88,10 @@ between concurrent tests. A documented `https://crate.guide/` value must yield
 
 ## Done criteria
 
-- [ ] Slash and no-slash root URLs yield the same exact CORS origin.
-- [ ] Invalid or ambiguous URLs fail fast with a redacted configuration error.
-- [ ] All browser-facing Edge entrypoints share the tested parser.
-- [ ] Edge, docs, convention, and full gates pass.
+- [x] Slash and no-slash root URLs yield the same exact CORS origin.
+- [x] Invalid or ambiguous URLs fail fast with a redacted configuration error.
+- [x] All browser-facing Edge entrypoints share the tested parser.
+- [x] Edge, docs, convention, and full gates pass.
 
 ## STOP conditions
 

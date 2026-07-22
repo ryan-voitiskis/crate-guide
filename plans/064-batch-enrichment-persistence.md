@@ -16,7 +16,7 @@
 - **Depends on**: Plans 044 and 052
 - **Category**: performance / correctness / database
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -132,11 +132,11 @@ rejection.
 
 ## Done criteria
 
-- [ ] A 500-row apply uses five bounded requests rather than 500 serial requests.
-- [ ] Server identity, row revision, and fill-only preconditions are enforced per item.
-- [ ] Client results/progress remain ordered and truthful under partial failure and account change.
-- [ ] Same-operation retry resolves timeout-after-commit without a false stale/failure result.
-- [ ] SQL, generated types, store/workflow, and full gates pass.
+- [x] A 500-row apply uses five bounded requests rather than 500 serial requests.
+- [x] Server identity, row revision, and fill-only preconditions are enforced per item.
+- [x] Client results/progress remain ordered and truthful under partial failure and account change.
+- [x] Same-operation retry resolves timeout-after-commit without a false stale/failure result.
+- [x] SQL, generated types, store/workflow, and full gates pass.
 
 ## STOP conditions
 

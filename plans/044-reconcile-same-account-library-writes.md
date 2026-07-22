@@ -14,7 +14,7 @@
 - **Depends on**: none (historical Plans 034, 041, and 043 have landed)
 - **Category**: correctness / concurrency / reconciliation
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: READY
+- **Status**: DONE
 
 ## Why this matters
 
@@ -149,12 +149,12 @@ git diff --check
 
 ## Done criteria
 
-- [ ] No record mutation writes or rolls back through an index retained across an await.
-- [ ] A pre-mutation fetch cannot overwrite a successful update or resurrect a deletion.
-- [ ] A committed manual import cannot return an apparent failure because it joined an old fetch.
-- [ ] Fresh fetches are bounded, coalesced at the correct boundary, and account-owned.
-- [ ] Active record search is derived from current records and updates after create, edit, cover change, and delete.
-- [ ] Focused store tests and the full repository gate pass.
+- [x] No record mutation writes or rolls back through an index retained across an await.
+- [x] A pre-mutation fetch cannot overwrite a successful update or resurrect a deletion.
+- [x] A committed manual import cannot return an apparent failure because it joined an old fetch.
+- [x] Fresh fetches are bounded, coalesced at the correct boundary, and account-owned.
+- [x] Active record search is derived from current records and updates after create, edit, cover change, and delete.
+- [x] Focused store tests and the full repository gate pass.
 
 ## STOP conditions
 

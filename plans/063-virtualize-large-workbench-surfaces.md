@@ -16,7 +16,7 @@
 - **Depends on**: Plans 044, 052, 053, and 054
 - **Category**: performance / UX
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: BLOCKED
 
 ## Why this matters
 
@@ -127,10 +127,10 @@ navigation; screen-reader counts; cover load/error; and KeepAlive reactivation.
 
 ## Done criteria
 
-- [ ] Mounted rows/covers remain bounded by viewport plus declared overscan.
-- [ ] Only one responsive tree is mounted per surface.
-- [ ] Full-list selection, ordering, filtering, and accessibility behavior remain exact.
-- [ ] 1k/10k browser and bundle budgets pass with recorded evidence.
+- [x] Mounted rows/covers remain bounded by viewport plus declared overscan.
+- [x] Only one responsive tree is mounted per surface.
+- [x] Full-list selection, ordering, filtering, and accessibility behavior remain exact.
+- [x] 1k/10k browser and bundle budgets pass with recorded evidence.
 
 ## STOP conditions
 

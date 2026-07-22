@@ -16,7 +16,7 @@
 - **Depends on**: Plans 045, 064, 065, 066, 069, and 071
 - **Category**: direction / workflow durability
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -143,11 +143,11 @@ two-tab conflict/takeover; reconnect missing/changed files; accessibility.
 
 ## Done criteria
 
-- [ ] One sanitized draft per workspace survives navigation, reload, and restart.
-- [ ] Resume always rematches current data and never trusts stale staged approval.
-- [ ] Local-audio review versus file-reconnect boundary is explicit.
-- [ ] Drafts are device-local, mode-neutral, owner/revision-safe, and not called backup.
-- [ ] Focused, browser, privacy/docs, and full gates pass.
+- [x] One sanitized draft per workspace survives navigation, reload, and restart.
+- [x] Resume always rematches current data and never trusts stale staged approval.
+- [x] Local-audio review versus file-reconnect boundary is explicit.
+- [x] Drafts are device-local, mode-neutral, owner/revision-safe, and not called backup.
+- [x] Focused, browser, privacy/docs, and full gates pass.
 
 ## STOP conditions
 

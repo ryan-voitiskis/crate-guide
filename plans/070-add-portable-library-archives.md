@@ -16,7 +16,7 @@
 - **Depends on**: Plans 047, 048, 054, 068, and 069
 - **Category**: direction / backup / portability
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: BLOCKED
 
 ## Why this matters
 
@@ -150,7 +150,7 @@ fixtures perform zero repository writes.
 
 ### Step 5: Restore atomically into a new browser workspace
 
-Build a complete source-ref to new-ID map, write a shadow/new workspace in one
+Build a complete source-ref to new-ID map, write a shadow workspace in one
 staged transaction, validate read-back counts/graph/hashes, then activate it.
 Default action is `Restore as a new browser library`. Replacement first offers
 `Download current backup`, requires exact counts/confirmation, and retains the

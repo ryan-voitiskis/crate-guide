@@ -17,7 +17,7 @@
 - **Depends on**: Plans 049, 059, 062, 067, and 071
 - **Category**: direction / integration / security
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: BLOCKED
 
 ## Why this matters
 

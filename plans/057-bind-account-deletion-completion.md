@@ -17,7 +17,7 @@
 - **Depends on**: none
 - **Category**: bug / authentication lifecycle
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: READY
+- **Status**: DONE
 
 ## Why this matters
 
@@ -139,11 +139,11 @@ then every A terminal outcome.
 
 ## Done criteria
 
-- [ ] The deletion request is provably authorized as the captured account.
-- [ ] A stale successful completion cannot sign out, clear, redirect, or toast for B.
-- [ ] A stale caller completion cannot close/reset or clear B's delete dialog state.
-- [ ] The initiating account receives the existing success/reauth/failure behavior when still current.
-- [ ] Focused and full gates pass; only in-scope files and the plan index changed.
+- [x] The deletion request is provably authorized as the captured account.
+- [x] A stale successful completion cannot sign out, clear, redirect, or toast for B.
+- [x] A stale caller completion cannot close/reset or clear B's delete dialog state.
+- [x] The initiating account receives the existing success/reauth/failure behavior when still current.
+- [x] Focused and full gates pass; only in-scope files and the plan index changed.
 
 ## STOP conditions
 

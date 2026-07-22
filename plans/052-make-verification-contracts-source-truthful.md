@@ -13,7 +13,7 @@
 - **Depends on**: Plan 051 (historical Plans 003, 024, 026, and 029 have landed)
 - **Category**: CI / test truthfulness / conventions
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -147,13 +147,13 @@ prove the worktree remains clean afterward.
 
 ## Done criteria
 
-- [ ] Identical but stale generated type copies fail against the migrated schema.
-- [ ] Every E2E flow fails on uncaught application errors and closes its page reliably.
-- [ ] Type-first conventions cover the repository's actual component vocabulary.
-- [ ] Empty or materially stale Discogs documentation fails its contract gate.
-- [ ] README and `config.toml` describe gateway-versus-handler authentication consistently.
-- [ ] Deno dependencies, action references, and Playwright browser/runtime parity have deterministic CI gates.
-- [ ] CI, SQL, E2E, convention, docs, and full gates pass.
+- [x] Identical but stale generated type copies fail against the migrated schema.
+- [x] Every E2E flow fails on uncaught application errors and closes its page reliably.
+- [x] Type-first conventions cover the repository's actual component vocabulary.
+- [x] Empty or materially stale Discogs documentation fails its contract gate.
+- [x] README and `config.toml` describe gateway-versus-handler authentication consistently.
+- [x] Deno dependencies, action references, and Playwright browser/runtime parity have deterministic CI gates.
+- [x] CI, SQL, E2E, convention, docs, and full gates pass.
 
 ## STOP conditions
 

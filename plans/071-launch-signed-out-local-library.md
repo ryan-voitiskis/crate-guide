@@ -16,7 +16,7 @@
 - **Depends on**: Plans 058, 062, 063, 068, 069, and 070
 - **Category**: direction / product UX / routing
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: BLOCKED
 
 ## Why this matters
 

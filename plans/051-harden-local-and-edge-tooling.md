@@ -13,7 +13,7 @@
 - **Depends on**: Plan 059 (historical Plan 029 has landed)
 - **Category**: developer tooling / deployment safety / reproducibility
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -135,12 +135,12 @@ config.
 
 ## Done criteria
 
-- [ ] A missing Edge function is never reported healthy.
-- [ ] Every child spawn/exit path settles and shuts down siblings deterministically.
-- [ ] A staging-labelled command cannot target an arbitrary Supabase project.
-- [ ] Every deployed function resolves the exact tested Supabase SDK under frozen mode.
-- [ ] Fresh-clone setup produces a runnable local public configuration, while a cloud-capable build/startup fails clearly on missing values.
-- [ ] Tooling, Edge, convention, and full gates pass without a remote mutation.
+- [x] A missing Edge function is never reported healthy.
+- [x] Every child spawn/exit path settles and shuts down siblings deterministically.
+- [x] A staging-labelled command cannot target an arbitrary Supabase project.
+- [x] Every deployed function resolves the exact tested Supabase SDK under frozen mode.
+- [x] Fresh-clone setup produces a runnable local public configuration, while a cloud-capable build/startup fails clearly on missing values.
+- [x] Tooling, Edge, convention, and full gates pass without a remote mutation.
 
 ## STOP conditions
 

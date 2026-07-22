@@ -17,7 +17,7 @@
 - **Depends on**: Plans 053, 058, 062, 065, 066, and 071
 - **Category**: direction / offline / PWA
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: BLOCKED
 
 ## Why this matters
 

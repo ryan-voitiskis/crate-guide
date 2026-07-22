@@ -16,7 +16,7 @@
 - **Depends on**: Plan 057
 - **Category**: bug / concurrency
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -79,10 +79,10 @@ theme/key preference side effects.
 
 ## Done criteria
 
-- [ ] A read started before a newer write cannot overwrite that write locally.
-- [ ] Failed-write recovery cannot overwrite a later queued success.
-- [ ] Replacement-account guarantees and serialized updates remain intact.
-- [ ] Focused and full gates pass.
+- [x] A read started before a newer write cannot overwrite that write locally.
+- [x] Failed-write recovery cannot overwrite a later queued success.
+- [x] Replacement-account guarantees and serialized updates remain intact.
+- [x] Focused and full gates pass.
 
 ## STOP conditions
 

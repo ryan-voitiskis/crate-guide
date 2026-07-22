@@ -12,7 +12,7 @@
 - **Depends on**: none
 - **Category**: correctness / validation / naming
 - **Planned at**: commit `aba27ff`, 2026-07-19
-- **Status**: READY
+- **Status**: DONE
 
 ## Why this matters
 
@@ -110,12 +110,12 @@ reversed fuzzy-title arrays.
 
 ## Done criteria
 
-- [ ] Every key/mode filter option and Vue key is unique.
-- [ ] Filtering distinguishes major and minor tracks of the same pitch class.
-- [ ] BPM validation and serialization share one full-string parser.
-- [ ] Long-form key parsing is case-insensitive in practice and has source-neutral naming.
-- [ ] Fuzzy title scores are independent of comparison order.
-- [ ] Dead or vaguely named alternative APIs are removed or made semantic.
+- [x] Every key/mode filter option and Vue key is unique.
+- [x] Filtering distinguishes major and minor tracks of the same pitch class.
+- [x] BPM validation and serialization share one full-string parser.
+- [x] Long-form key parsing is case-insensitive in practice and has source-neutral naming.
+- [x] Fuzzy title scores are independent of comparison order.
+- [x] Dead or vaguely named alternative APIs are removed or made semantic.
 
 ## STOP conditions
 

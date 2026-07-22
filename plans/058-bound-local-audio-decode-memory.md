@@ -15,7 +15,7 @@
 - **Depends on**: Plan 056
 - **Category**: bug / performance / resource safety
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -147,10 +147,10 @@ support and says files remain on-device.
 
 ## Done criteria
 
-- [ ] No file is fully decoded unless its conservative total-peak envelope is within the explicit budget.
-- [ ] Oversized/unknown files retain tags and show an honest recoverable status.
-- [ ] Any partial decoder proves bounded frames, cancellation, and benchmark parity per supported format.
-- [ ] Documentation no longer overstates the 180-second guarantee.
+- [x] No file is fully decoded unless its conservative total-peak envelope is within the explicit budget.
+- [x] Oversized/unknown files retain tags and show an honest recoverable status.
+- [x] Any partial decoder proves bounded frames, cancellation, and benchmark parity per supported format.
+- [x] Documentation no longer overstates the 180-second guarantee.
 
 ## STOP conditions
 

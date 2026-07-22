@@ -13,7 +13,7 @@
 - **Depends on**: none (historical Plans 032, 040, and 042 have landed)
 - **Category**: durability / resource bounds / data lifecycle
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: READY
+- **Status**: DONE
 
 ## Why this matters
 
@@ -135,12 +135,12 @@ every generated account/object afterward.
 
 ## Done criteria
 
-- [ ] Durable cleanup intent exists before wide or failure-prone traversal.
-- [ ] Account deletion request work is explicitly bounded in calls, rows, and time.
-- [ ] Managed cover paths are constrained to their owning record and user.
-- [ ] Expired/user-deletion quota rows retire without touching the global bucket.
-- [ ] A failed 100-job cover batch cannot fan out 100 concurrent database updates.
-- [ ] SQL, Edge, smoke, generated-type, documentation, and full gates pass.
+- [x] Durable cleanup intent exists before wide or failure-prone traversal.
+- [x] Account deletion request work is explicitly bounded in calls, rows, and time.
+- [x] Managed cover paths are constrained to their owning record and user.
+- [x] Expired/user-deletion quota rows retire without touching the global bucket.
+- [x] A failed 100-job cover batch cannot fan out 100 concurrent database updates.
+- [x] SQL, Edge, smoke, generated-type, documentation, and full gates pass.
 
 ## STOP conditions
 

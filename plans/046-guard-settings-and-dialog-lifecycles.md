@@ -13,7 +13,7 @@
 - **Depends on**: Plan 044
 - **Category**: frontend correctness / async lifecycle
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -116,11 +116,11 @@ git diff --check
 
 ## Done criteria
 
-- [ ] Cold hydration displays persisted settings without writing defaults.
-- [ ] User changes persist exactly once in authenticated mode and remain local in demo mode.
-- [ ] Component naming says “finish” consistently.
-- [ ] A late submission or creation cannot close, reset, or toggle a newer dialog across all four editor/create paths.
-- [ ] Focused Nuxt/store tests and the full gate pass.
+- [x] Cold hydration displays persisted settings without writing defaults.
+- [x] User changes persist exactly once in authenticated mode and remain local in demo mode.
+- [x] Component naming says “finish” consistently.
+- [x] A late submission or creation cannot close, reset, or toggle a newer dialog across all four editor/create paths.
+- [x] Focused Nuxt/store tests and the full gate pass.
 
 ## STOP conditions
 

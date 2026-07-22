@@ -13,7 +13,7 @@
 - **Depends on**: none
 - **Category**: tooling / validation / test quality
 - **Planned at**: commit `aba27ff`, 2026-07-19
-- **Status**: READY
+- **Status**: DONE
 
 ## Why this matters
 
@@ -88,11 +88,11 @@ artifacts.
 
 ## Done criteria
 
-- [ ] Whitespace and enumerated overrides are normalized and validated consistently.
-- [ ] Configuration, manifest, comparison, and process-running responsibilities are separate.
-- [ ] CLI routing tests execute behavior rather than regex-match implementation source.
-- [ ] Valid CLI output and exit behavior remain compatible.
-- [ ] Audio tooling and full repository gates pass.
+- [x] Whitespace and enumerated overrides are normalized and validated consistently.
+- [x] Configuration, manifest, comparison, and process-running responsibilities are separate.
+- [x] CLI routing tests execute behavior rather than regex-match implementation source.
+- [x] Valid CLI output and exit behavior remain compatible.
+- [x] Audio tooling and full repository gates pass.
 
 ## STOP conditions
 

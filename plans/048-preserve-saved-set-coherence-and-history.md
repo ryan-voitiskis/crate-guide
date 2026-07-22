@@ -13,7 +13,7 @@
 - **Depends on**: none (historical Plans 012 and 043 have landed)
 - **Category**: correctness / persistence / data evolution
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: READY
+- **Status**: DONE
 
 ## Why this matters
 
@@ -131,12 +131,12 @@ git diff --check
 
 ## Done criteria
 
-- [ ] Successful autosaves immediately reconcile a complete owned saved-set row.
-- [ ] Saved-set fetch/write provenance remains correct under overlap and account reset.
-- [ ] New historical entries remain meaningful after record/track deletion.
-- [ ] Captured adjusted BPM equals the target deck's retained or clamped pitch outcome, and multi-deck loads retain their explicit source deck.
-- [ ] Legacy JSON remains readable with an explicit unavailable fallback.
-- [ ] Decoder, store, UI, E2E, and full gates pass.
+- [x] Successful autosaves immediately reconcile a complete owned saved-set row.
+- [x] Saved-set fetch/write provenance remains correct under overlap and account reset.
+- [x] New historical entries remain meaningful after record/track deletion.
+- [x] Captured adjusted BPM equals the target deck's retained or clamped pitch outcome, and multi-deck loads retain their explicit source deck.
+- [x] Legacy JSON remains readable with an explicit unavailable fallback.
+- [x] Decoder, store, UI, E2E, and full gates pass.
 
 ## STOP conditions
 

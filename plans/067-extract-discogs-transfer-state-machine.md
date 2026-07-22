@@ -15,7 +15,7 @@
 - **Depends on**: Plans 044, 049, and 061
 - **Category**: tech debt / state machine
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -93,10 +93,10 @@ Assert exact state/event sequence and public Pinia output.
 
 ## Done criteria
 
-- [ ] Snapshot validation is pure and owner-explicit.
-- [ ] Import/retry share one lifecycle runner while retaining named result policies.
-- [ ] The Pinia public API, UI states, pacing, cancellation, and accounting are unchanged.
-- [ ] Focused, docs, convention, and full gates pass.
+- [x] Snapshot validation is pure and owner-explicit.
+- [x] Import/retry share one lifecycle runner while retaining named result policies.
+- [x] The Pinia public API, UI states, pacing, cancellation, and accounting are unchanged.
+- [x] Focused, docs, convention, and full gates pass.
 
 ## STOP conditions
 

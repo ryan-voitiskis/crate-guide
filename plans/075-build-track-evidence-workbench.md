@@ -16,7 +16,7 @@
 - **Depends on**: Plans 045, 063, 064, 068, 070, and 074
 - **Category**: direction / provenance UX / data evolution
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: BLOCKED
 
 ## Why this matters
 

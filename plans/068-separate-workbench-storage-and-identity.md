@@ -16,7 +16,7 @@
 - **Depends on**: Plans 044, 047, 048, 051, 054, 055, 057, 060, and 064
 - **Category**: direction / architecture
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -180,12 +180,12 @@ gates pass.
 
 ## Done criteria
 
-- [ ] Stores no longer instantiate persistence transports directly.
-- [ ] Library location, auth identity, and connectivity are distinct typed state.
-- [ ] Cloud behavior/race protection and read-only demo behavior are unchanged.
-- [ ] Identity-, library-, and device-owned preferences follow the frozen switch/archive precedence.
-- [ ] Domain types do not require local data to pretend it has a `user_id` or Supabase path.
-- [ ] Contract, store, Nuxt, E2E, browser, convention, and full gates pass.
+- [x] Stores no longer instantiate persistence transports directly.
+- [x] Library location, auth identity, and connectivity are distinct typed state.
+- [x] Cloud behavior/race protection and read-only demo behavior are unchanged.
+- [x] Identity-, library-, and device-owned preferences follow the frozen switch/archive precedence.
+- [x] Domain types do not require local data to pretend it has a `user_id` or Supabase path.
+- [x] Contract, store, Nuxt, E2E, browser, convention, and full gates pass.
 
 ## STOP conditions
 

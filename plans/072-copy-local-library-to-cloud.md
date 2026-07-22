@@ -15,7 +15,7 @@
 - **Depends on**: Plans 064, 070, and 071
 - **Category**: direction / migration
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: BLOCKED
 
 ## Why this matters
 

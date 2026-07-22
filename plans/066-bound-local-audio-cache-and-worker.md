@@ -15,7 +15,7 @@
 - **Depends on**: Plans 056 and 058
 - **Category**: performance / resource lifecycle
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -90,10 +90,10 @@ batch protection, and quota failure.
 
 ## Done criteria
 
-- [ ] A 10k-file cache scan uses bounded connections/transactions and meets the recorded budget.
-- [ ] Old cache generations/age/oldest-write overflow retire without touching durable library data.
-- [ ] Essentia Worker/WASM terminates after idle/deactivation and is reused for immediate work.
-- [ ] Cache settings, privacy wording, focused/browser/full gates pass.
+- [x] A 10k-file cache scan uses bounded connections/transactions and meets the recorded budget.
+- [x] Old cache generations/age/oldest-write overflow retire without touching durable library data.
+- [x] Essentia Worker/WASM terminates after idle/deactivation and is reused for immediate work.
+- [x] Cache settings, privacy wording, focused/browser/full gates pass.
 
 ## STOP conditions
 

@@ -16,7 +16,7 @@
 - **Depends on**: Plans 045, 052, and 053
 - **Category**: performance / UX / worker
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -98,10 +98,10 @@ stale Worker completion, and 100k-track budget behavior.
 
 ## Done criteria
 
-- [ ] Production parsing performs no synchronous full-file DOM construction on the main thread.
-- [ ] Progress begins during file parsing and cancellation settles within the budget.
-- [ ] Golden output matches current parser semantics exactly or has reviewed fixture updates.
-- [ ] Input/resource bounds, XML security, browser, bundle, and full gates pass.
+- [x] Production parsing performs no synchronous full-file DOM construction on the main thread.
+- [x] Progress begins during file parsing and cancellation settles within the budget.
+- [x] Golden output matches current parser semantics exactly or has reviewed fixture updates.
+- [x] Input/resource bounds, XML security, browser, bundle, and full gates pass.
 
 ## STOP conditions
 

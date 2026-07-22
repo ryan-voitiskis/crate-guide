@@ -13,7 +13,7 @@
 - **Depends on**: Plan 059 (historical Plans 004, 006, and 022 have landed)
 - **Category**: OAuth / reliability / rate limiting
 - **Planned at**: commit `aba27ff`, 2026-07-19
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -109,11 +109,11 @@ copies, and finish with `npm run verify:full`.
 
 ## Done criteria
 
-- [ ] Identity failure after exchange has a safe same-user retry path.
-- [ ] Resumption never repeats the verifier exchange or crosses credential ownership.
-- [ ] Every dispatched Discogs request is represented in quota accounting.
-- [ ] Optional avatar failure cannot invalidate a completed identity.
-- [ ] Edge, docs, schema-if-applicable, and full gates pass.
+- [x] Identity failure after exchange has a safe same-user retry path.
+- [x] Resumption never repeats the verifier exchange or crosses credential ownership.
+- [x] Every dispatched Discogs request is represented in quota accounting.
+- [x] Optional avatar failure cannot invalidate a completed identity.
+- [x] Edge, docs, schema-if-applicable, and full gates pass.
 
 ## STOP conditions
 

@@ -13,7 +13,7 @@
 - **Depends on**: Plans 045 and 048
 - **Category**: maintainability / naming / test organization
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -139,13 +139,13 @@ enrichment candidate scores/order/reasons, and E2E flow count/outcomes.
 
 ## Done criteria
 
-- [ ] Session playback and saved-set persistence have distinct cohesive owners.
-- [ ] Enrichment normalization/comparison/scoring boundaries are independently testable.
-- [ ] Oversized store and E2E suites are split by public behavior without coverage loss.
-- [ ] Every removed API is proven unused and no auto-import contract breaks.
-- [ ] Remaining comments explain non-obvious rationale or invariants.
-- [ ] A checked-in 10k-track interaction characterization either proves the current suggestion path meets budget or the optimized path does so with identical results.
-- [ ] Application, E2E, browser, convention, and full gates pass.
+- [x] Session playback and saved-set persistence have distinct cohesive owners.
+- [x] Enrichment normalization/comparison/scoring boundaries are independently testable.
+- [x] Oversized store and E2E suites are split by public behavior without coverage loss.
+- [x] Every removed API is proven unused and no auto-import contract breaks.
+- [x] Remaining comments explain non-obvious rationale or invariants.
+- [x] A checked-in 10k-track interaction characterization either proves the current suggestion path meets budget or the optimized path does so with identical results.
+- [x] Application, E2E, browser, convention, and full gates pass.
 
 ## STOP conditions
 
