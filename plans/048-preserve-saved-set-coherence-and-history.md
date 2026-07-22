@@ -10,9 +10,9 @@
 - **Priority**: P2
 - **Effort**: L
 - **Risk**: HIGH
-- **Depends on**: Plans 012 and 043
+- **Depends on**: none (historical Plans 012 and 043 have landed)
 - **Category**: correctness / persistence / data evolution
-- **Planned at**: commit `aba27ff`, 2026-07-19
+- **Planned at**: commit `0a0cda6`, 2026-07-22
 - **Status**: READY
 
 ## Why this matters
@@ -27,6 +27,12 @@ A played set is history, not a live foreign-key view. This plan preserves a
 small immutable display snapshot in each played-track JSON entry while keeping
 the live track ID for navigation and compatibility.
 
+History is also currently wrong at capture time. Loading a track without tempo
+matching preserves the deck's existing pitch but records raw track BPM.
+Tempo-match chooses the first other deck, records that deck's BPM even when the
+target pitch is clamped, and the multi-deck suggestion flow discards its
+explicit source deck before loading.
+
 ## Scope
 
 Modify:
@@ -35,6 +41,7 @@ Modify:
 - `app/stores/sessionStore.ts`
 - `app/components/session/DialogSetManager.vue`
 - the session playback path that creates `PlayedTrackEntry`
+- `app/components/session/DialogSelectDeck.vue`
 - `app/utils/supabaseRows.ts`
 - `test/nuxt/set-manager.nuxt.test.ts` or an equivalently focused manager test
 - focused decoder, store, and E2E tests
@@ -48,7 +55,7 @@ make record deletion rewrite historical rows.
 
 ```bash
 git status --short
-rg -n "PlayedTrackEntry|played_tracks|executeAutoSave|activeSetId|Unknown track" shared app
+rg -n "PlayedTrackEntry|played_tracks|executeAutoSave|activeSetId|Unknown track|sourceDeck|loadToSelectedDeck|finalAdjustedBpm|getAdjustedBpm" shared app
 rg -n "autosave|legacy|Unknown track|played_tracks" app/**/*.test.ts test
 ```
 
@@ -80,7 +87,22 @@ with existing JSON.
    - A deleted track remains readable but is not navigable as a live library
      item. Mark that distinction accessibly if the manager exposes navigation.
 
-4. Cover evolution and concurrency.
+4. Record the transition the decks can actually represent.
+   - Pass the explicitly selected source-deck identity through suggestion,
+     target-deck selection, and `loadTrack`; never rediscover it as the first
+     other loaded deck.
+   - When retaining existing pitch, compute history BPM from the target track
+     and retained pitch. When tempo matching, clamp pitch first and derive the
+     recorded BPM from that applied/clamped pitch rather than copying an
+     unreachable source BPM.
+   - Define animation semantics in tests: the history entry records the target
+     pitch selected for the transition, while cancellation/replacement cannot
+     mutate an older history entry. Do not claim the source BPM was reached if
+     the pitch range prevented it.
+   - Keep null behavior for tracks without BPM and preserve the current
+     suggestion scoring contract.
+
+5. Cover evolution and concurrency.
    - An initial autosave appears immediately in the manager without refetch.
    - Autosave update changes the existing row once and keeps provenance.
    - Deleting the underlying record leaves title/artist visible.
@@ -88,6 +110,9 @@ with existing JSON.
      explicitly when unavailable.
    - Malformed/mixed-version JSON reports decode issues without leaking private
      values or discarding unrelated valid entries.
+   - Retained non-zero pitch records adjusted BPM, an unreachable tempo match
+     records the clamped result, and a three-deck suggestion uses the source
+     deck shown in the selection dialog.
 
 ## Test plan
 
@@ -109,6 +134,7 @@ git diff --check
 - [ ] Successful autosaves immediately reconcile a complete owned saved-set row.
 - [ ] Saved-set fetch/write provenance remains correct under overlap and account reset.
 - [ ] New historical entries remain meaningful after record/track deletion.
+- [ ] Captured adjusted BPM equals the target deck's retained or clamped pitch outcome, and multi-deck loads retain their explicit source deck.
 - [ ] Legacy JSON remains readable with an explicit unavailable fallback.
 - [ ] Decoder, store, UI, E2E, and full gates pass.
 

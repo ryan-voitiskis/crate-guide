@@ -10,10 +10,10 @@
 - **Priority**: P2
 - **Effort**: M
 - **Risk**: MED
-- **Depends on**: none
+- **Depends on**: Plan 044
 - **Category**: frontend correctness / async lifecycle
-- **Planned at**: commit `aba27ff`, 2026-07-19
-- **Status**: READY
+- **Planned at**: commit `0a0cda6`, 2026-07-22
+- **Status**: TODO
 
 ## Why this matters
 
@@ -33,10 +33,12 @@ Modify or rename:
   `app/components/settings/SelectorTurntableFinish.vue`
 - `app/pages/settings.vue`
 - `app/components/records/DialogTrackEdit.vue`
+- `app/components/tracks/DialogTrackDetails.vue`
 - `app/components/records/DialogRecordDetails.vue`
+- `app/components/records/DialogRecordCreateManual.vue`
 - `app/stores/trackEditStore.ts` and `app/stores/recordDetailsStore.ts` only if
   a shared dialog generation belongs there
-- `test/nuxt/settings-controls.nuxt.test.ts` or an equivalently focused real-control test
+- `test/nuxt/settings-page.nuxt.test.ts` for the real settings controls
 - focused editor/store tests
 
 Do not change profile defaults, settings database columns, form payloads,
@@ -46,7 +48,7 @@ optimistic store behavior, or generated UI components.
 
 ```bash
 git status --short
-rg -n "turntablePitchRange|turntableTheme|updateSettings|isSubmitting|closeTrackDialog|toggleEditMode|selectedRecord" app/components app/stores
+rg -n "turntablePitchRange|turntableTheme|updateSettings|isSubmitting|closeTrackDialog|toggleEditMode|selectedRecord|showCreateManualDialog|exitEditMode" app/components app/stores
 rg -n "SelectPitchRange|SelectorTurntableColor|late|defer|hydration" test app/stores/__tests__
 ```
 
@@ -78,6 +80,12 @@ navigation state.
      submission flag.
    - Either prevent dismissal while submitting or support dismissal safely;
      do not rely on optimistic values making `hasFormChanges()` false.
+   - Apply the same rule to `DialogTrackDetails.vue`: a late details save may
+     update its submitted track through the store but may exit edit mode only
+     for the same still-active track/details generation.
+   - Apply it to `DialogRecordCreateManual.vue`: a late successful creation may
+     report its result but may close/reset only the same open-generation. If
+     the dialog was dismissed and reopened, its new form and open state win.
 
 4. Add lifecycle tests.
    - Mount settings with a null profile, hydrate `16` and `black`, and assert no
@@ -85,16 +93,19 @@ navigation state.
    - Change each value after hydration and assert one exact update.
    - Submit A, dismiss it, open B, then settle A success and failure. B remains
      open, initialized, and in its original mode.
+   - Repeat that deferred completion case for the track-details editor and for
+     dismiss/reopen of manual record creation. Assert stale completions do not
+     clear the new form or submission state.
 
 ## Test plan
 
 ```bash
 npm run format
 npx vitest run --project nuxt \
-  test/nuxt/settings-controls.nuxt.test.ts \
   test/nuxt/settings-page.nuxt.test.ts \
   test/nuxt/track-editors.nuxt.test.ts \
-  test/nuxt/record-details-cover-editor.nuxt.test.ts
+  test/nuxt/record-details-cover-editor.nuxt.test.ts \
+  test/nuxt/library-mutation-dialogs.nuxt.test.ts
 npx vitest run --project stores \
   app/stores/__tests__/trackEditStore.test.ts \
   app/stores/__tests__/recordDetailsStore.test.ts
@@ -108,7 +119,7 @@ git diff --check
 - [ ] Cold hydration displays persisted settings without writing defaults.
 - [ ] User changes persist exactly once in authenticated mode and remain local in demo mode.
 - [ ] Component naming says “finish” consistently.
-- [ ] A late submission cannot close, reset, or toggle a newer dialog.
+- [ ] A late submission or creation cannot close, reset, or toggle a newer dialog across all four editor/create paths.
 - [ ] Focused Nuxt/store tests and the full gate pass.
 
 ## STOP conditions

@@ -10,9 +10,9 @@
 - **Priority**: P2
 - **Effort**: L
 - **Risk**: HIGH
-- **Depends on**: Plans 032, 040, and 042
+- **Depends on**: none (historical Plans 032, 040, and 042 have landed)
 - **Category**: durability / resource bounds / data lifecycle
-- **Planned at**: commit `aba27ff`, 2026-07-19
+- **Planned at**: commit `0a0cda6`, 2026-07-22
 - **Status**: READY
 
 ## Why this matters
@@ -25,6 +25,11 @@ an Edge time or memory limit before either deletion or retry ownership exists.
 cleanup. Per-user Discogs rate-limit rows have no account-deletion or expiry
 retirement path.
 
+The ordinary record-cover cleanup failure path loads as many as 100 jobs and
+then issues one compare-and-set update per failed job concurrently through
+`Promise.all`. A storage outage can therefore create a second database request
+burst precisely while the system is degraded.
+
 ## Scope
 
 Create forward migrations for cover-path validation and rate-limit retirement.
@@ -35,6 +40,8 @@ Modify:
 - `supabase/functions/delete-account/handler.test.ts`
 - `supabase/functions/_shared/accountCoverCleanup.ts`
 - `supabase/functions/_shared/accountCoverCleanup.test.ts`
+- `supabase/functions/cleanup-record-covers/handler.ts`
+- `supabase/functions/cleanup-record-covers/handler.test.ts`
 - account-cover and rate-limit pgTAP suites
 - generated database type copies
 - relevant account deletion and cleanup documentation
@@ -47,7 +54,7 @@ repository-owned fallback.
 
 ```bash
 git status --short
-rg -n "removeAllAccountCoverObjects|enqueue\(|deleteUser|cover_storage_path|discogs_request_rate_limits" supabase/functions supabase/migrations supabase/tests
+rg -n "removeAllAccountCoverObjects|enqueue\(|deleteUser|cover_storage_path|discogs_request_rate_limits|markAttempts|Promise.all|CLEANUP_JOB_LIMIT" supabase/functions supabase/migrations supabase/tests
 ```
 
 STOP if deletion cannot persist cleanup intent before Auth deletion, or if a
@@ -83,13 +90,29 @@ Preflight live-compatible stored values before adding the invariant.
    - Add bounded service-owned pruning for expired non-global buckets. The
      global row and active windows remain intact.
 
-5. Prove bounded behavior.
+5. Bound ordinary cover-cleanup attempt marking.
+   - Prefer one service-owned set-based function/RPC that accepts the exact
+     owned job IDs plus their observed attempt counts, increments only matching
+     rows, stamps one attempt time, and returns the IDs it changed.
+   - Derive user identity in the authenticated handler and keep the SQL
+     function unavailable to ordinary API roles. Never accept arbitrary user
+     IDs or paths from the client.
+   - If a set-based operation is impossible after a measured spike, use a
+     small explicit concurrency cap; do not retain a 100-request fan-out.
+   - Preserve best-effort semantics: the original storage error remains the
+     public failure, attempt-marking errors are safe diagnostics, and a stale
+     observed count must not clobber a newer retry.
+
+6. Prove bounded behavior.
    - Simulate trees larger than one invocation's page/call budget and a never-
      settling listing dependency. Durable intent exists and the request returns
      within the declared boundary.
    - Prove valid cover paths pass and cross-record/user paths fail.
    - Prove only expired user buckets are pruned and account deletion removes its
      own bucket.
+   - Prove 100 failed cover jobs produce one set-based database call (or the
+     declared bounded maximum), preserve CAS behavior, and never increment a
+     concurrently advanced row twice.
 
 ## Test plan
 
@@ -116,6 +139,7 @@ every generated account/object afterward.
 - [ ] Account deletion request work is explicitly bounded in calls, rows, and time.
 - [ ] Managed cover paths are constrained to their owning record and user.
 - [ ] Expired/user-deletion quota rows retire without touching the global bucket.
+- [ ] A failed 100-job cover batch cannot fan out 100 concurrent database updates.
 - [ ] SQL, Edge, smoke, generated-type, documentation, and full gates pass.
 
 ## STOP conditions

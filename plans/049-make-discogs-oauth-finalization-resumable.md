@@ -10,10 +10,10 @@
 - **Priority**: P1
 - **Effort**: M
 - **Risk**: HIGH
-- **Depends on**: Plans 004, 006, and 022
+- **Depends on**: Plan 059 (historical Plans 004, 006, and 022 have landed)
 - **Category**: OAuth / reliability / rate limiting
 - **Planned at**: commit `aba27ff`, 2026-07-19
-- **Status**: READY
+- **Status**: TODO
 
 ## Why this matters
 
