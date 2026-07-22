@@ -1,13 +1,12 @@
 import { toRaw } from 'vue'
 import { toast } from 'vue-sonner'
-import { type SupabaseClient, createClient } from '@supabase/supabase-js'
 import { getActivePinia } from 'pinia'
 import { validateImportResult } from '~/utils/discogs-validation'
 import {
-	RECORD_COVER_BUCKET,
-	type RecordCoverCrop,
-	processRecordCoverFile
-} from '~/utils/recordCover'
+	type RecordCoverAccountContext,
+	type RecordCoverChange,
+	createRecordCoverCoordinator
+} from '~/utils/recordCoverCoordinator'
 import { sortCreatedAtDescIdDesc } from '~/utils/supabaseOrdering'
 import { fetchAllSupabasePages } from '~/utils/supabasePagination'
 import { decodeRecordRow, reportDecodeIssues } from '~/utils/supabaseRows'
@@ -38,21 +37,7 @@ type ManualRecordWithTracksInput = {
 	tracks: ManualRecordTrackInput[]
 }
 
-export type RecordAccountContext = {
-	generation: number
-	userId: string
-}
-
-type CoverCleanupPage = {
-	processed: number
-	removed: number
-	deferred: 0
-}
-
-type CoverCleanupPageResult =
-	| { status: 'success'; page: CoverCleanupPage; invocationEpoch: number }
-	| { status: 'failed' }
-	| { status: 'cancelled' }
+export type RecordAccountContext = RecordCoverAccountContext
 
 type CoverCleanupDrainOptions = {
 	fresh?: boolean
@@ -75,41 +60,6 @@ type MutationActivityToken = {
 	activity: MutationActivity
 }
 
-type AccountBoundSupabaseClient = Pick<
-	SupabaseClient<Database>,
-	'from' | 'functions' | 'storage'
->
-
-// This mirrors the Edge response contract. It is intentionally separate from
-// the client's total-work guard so changing one bound cannot silently change the
-// other.
-export const COVER_CLEANUP_PAGE_SIZE = 100
-export const COVER_CLEANUP_MAX_PAGES = 100
-// @supabase/functions-js 2.97.0 supports both timeout and signal natively, so
-// each request has a wall-clock bound and remains abortable on account reset.
-export const COVER_CLEANUP_INVOKE_TIMEOUT_MS = 20_000
-const COVER_CLEANUP_RETRY_DELAYS_MS = [0, 250, 1000] as const
-
-function isNonnegativeSafeInteger(value: unknown): value is number {
-	return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
-}
-
-function decodeCoverCleanupPage(value: unknown): CoverCleanupPage | null {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return null
-	const { processed, removed, deferred } = value as Record<string, unknown>
-	if (
-		!isNonnegativeSafeInteger(processed) ||
-		!isNonnegativeSafeInteger(removed) ||
-		!isNonnegativeSafeInteger(deferred) ||
-		processed > COVER_CLEANUP_PAGE_SIZE ||
-		removed > processed ||
-		deferred !== 0
-	)
-		return null
-
-	return { processed, removed, deferred }
-}
-
 function isExpectedRecordRemoval(
 	value: unknown,
 	expectedRecordId: string
@@ -117,24 +67,6 @@ function isExpectedRecordRemoval(
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return false
 	const result = value as Record<string, unknown>
 	return result.success === true && result.record_id === expectedRecordId
-}
-
-function waitForCoverCleanupRetry(
-	delayMs: number,
-	signal: AbortSignal
-): Promise<boolean> {
-	if (signal.aborted) return Promise.resolve(false)
-	return new Promise((resolvePromise) => {
-		let timeoutId: ReturnType<typeof setTimeout> | null = null
-		const finish = (didWait: boolean) => {
-			if (timeoutId !== null) clearTimeout(timeoutId)
-			signal.removeEventListener('abort', handleAbort)
-			resolvePromise(didWait)
-		}
-		const handleAbort = () => finish(false)
-		timeoutId = setTimeout(() => finish(true), delayMs)
-		signal.addEventListener('abort', handleAbort, { once: true })
-	})
 }
 
 function buildArtistPayload(name?: string | null): DiscogsArtistDb[] {
@@ -173,15 +105,6 @@ export const useRecordsStore = defineStore('records', () => {
 	const isDeletingRecord = ref(false)
 	let fetchPromise: Promise<boolean> | null = null
 	let freshFetchPromise: Promise<boolean> | null = null
-	let coverCleanupPromise: Promise<boolean> | null = null
-	let coverCleanupPromiseContext: RecordAccountContext | null = null
-	let activeCoverCleanupController: {
-		context: RecordAccountContext
-		controller: AbortController
-	} | null = null
-	let requestedCoverCleanupEpoch = 0
-	let completedCoverCleanupEpoch = 0
-	let invocationStartedCoverCleanupEpoch = 0
 	let accountGeneration = 0
 	let accountUserId: string | null = null
 	let activeFetchUserId: string | null = null
@@ -197,7 +120,6 @@ export const useRecordsStore = defineStore('records', () => {
 		delete: 0
 	}
 
-	// Search state
 	const searchQuery = ref('')
 	const isSearching = ref(false)
 
@@ -231,7 +153,6 @@ export const useRecordsStore = defineStore('records', () => {
 	const hasSearchResults = computed(() => searchResults.value.length > 0)
 	const resultsCount = computed(() => searchResults.value.length)
 
-	// Display the right data based on search state
 	const displayedRecords = computed(() =>
 		hasSearchQuery.value ? searchResults.value : records.value
 	)
@@ -242,6 +163,33 @@ export const useRecordsStore = defineStore('records', () => {
 			accountUserId === context.userId
 		)
 	}
+
+	function getCoverSupabaseConfig(): { key: string; url: string } {
+		const config = useRuntimeConfig().public.supabase as {
+			key?: unknown
+			url?: unknown
+		}
+		if (
+			typeof config.url !== 'string' ||
+			!config.url ||
+			typeof config.key !== 'string' ||
+			!config.key
+		) {
+			throw new Error('Authenticated account request could not start.')
+		}
+		return { key: config.key, url: config.url }
+	}
+
+	const coverCoordinator = createRecordCoverCoordinator({
+		supabase,
+		resolveAuthenticatedUserId: () => user.resolveAuthenticatedUserId(),
+		isCurrentAccountContext,
+		getSupabaseConfig: getCoverSupabaseConfig,
+		onCleanupFailure: () => {
+			console.error('Failed to drain record cover cleanup.')
+			toast.warning('Some old cover files still need cleanup.')
+		}
+	})
 
 	function adoptAccountContext(
 		generation: number,
@@ -447,41 +395,6 @@ export const useRecordsStore = defineStore('records', () => {
 		}
 
 		return sortCreatedAtDescIdDesc([...reconciled.values()])
-	}
-
-	async function createAccountBoundSupabaseClient(
-		context: RecordAccountContext
-	): Promise<AccountBoundSupabaseClient | null> {
-		if (!isCurrentAccountContext(context)) return null
-		const { data, error } = await supabase.auth.getSession()
-		if (!isCurrentAccountContext(context)) return null
-		const session = data.session
-		if (
-			error ||
-			!session ||
-			session.user.id !== context.userId ||
-			!session.access_token
-		) {
-			throw new Error('Authenticated account request could not start.')
-		}
-
-		const supabaseConfig = useRuntimeConfig().public.supabase as {
-			key?: unknown
-			url?: unknown
-		}
-		if (
-			typeof supabaseConfig.url !== 'string' ||
-			!supabaseConfig.url ||
-			typeof supabaseConfig.key !== 'string' ||
-			!supabaseConfig.key
-		) {
-			throw new Error('Authenticated account request could not start.')
-		}
-
-		const accessToken = session.access_token
-		return createClient<Database>(supabaseConfig.url, supabaseConfig.key, {
-			accessToken: async () => accessToken
-		})
 	}
 
 	async function performFetchAllRecords(generation: number): Promise<boolean> {
@@ -841,202 +754,13 @@ export const useRecordsStore = defineStore('records', () => {
 		return updateRecordForContext(context, id, updates, activity)
 	}
 
-	async function removeUncommittedCoverObject(
-		storageClient: AccountBoundSupabaseClient,
-		context: RecordAccountContext | null,
-		path: string
-	): Promise<boolean> {
-		if (context && !isCurrentAccountContext(context)) return false
-		try {
-			const { error } = await storageClient.storage
-				.from(RECORD_COVER_BUCKET)
-				.remove([path])
-			if (context && !isCurrentAccountContext(context)) return false
-			if (error) throw error
-			return true
-		} catch {
-			if (context && !isCurrentAccountContext(context)) return false
-			console.error('Failed to remove uncommitted record cover object.')
-			return false
-		}
-	}
-
-	async function reconcileSubmittedCoverObject(
-		accountClient: AccountBoundSupabaseClient,
-		context: RecordAccountContext,
-		recordId: string,
-		path: string
-	): Promise<void> {
-		try {
-			const { data, error } = await accountClient
-				.from('records')
-				.select('cover_storage_path')
-				.eq('id', recordId)
-				.eq('user_id', context.userId)
-				.maybeSingle()
-			if (error || data?.cover_storage_path === path) return
-			await removeUncommittedCoverObject(accountClient, null, path)
-		} catch {
-			// An unavailable authoritative read is ambiguous: preserve the object.
-		}
-	}
-
-	function isSameAccountContext(
-		left: RecordAccountContext | null,
-		right: RecordAccountContext
-	): boolean {
-		return left?.generation === right.generation && left.userId === right.userId
-	}
-
-	async function invokeCoverCleanupPage(
-		context: RecordAccountContext,
-		accountClient: AccountBoundSupabaseClient
-	): Promise<CoverCleanupPageResult> {
-		for (const retryDelayMs of COVER_CLEANUP_RETRY_DELAYS_MS) {
-			if (!isCurrentAccountContext(context)) {
-				return { status: 'cancelled' }
-			}
-			const abortController = new AbortController()
-			activeCoverCleanupController = {
-				context,
-				controller: abortController
-			}
-
-			try {
-				if (
-					retryDelayMs > 0 &&
-					!(await waitForCoverCleanupRetry(
-						retryDelayMs,
-						abortController.signal
-					))
-				)
-					return { status: 'cancelled' }
-				if (!isCurrentAccountContext(context)) {
-					return { status: 'cancelled' }
-				}
-				const invocationEpoch = requestedCoverCleanupEpoch
-				invocationStartedCoverCleanupEpoch = invocationEpoch
-				const { data, error } = await accountClient.functions.invoke(
-					'cleanup-record-covers',
-					{
-						signal: abortController.signal,
-						timeout: COVER_CLEANUP_INVOKE_TIMEOUT_MS
-					}
-				)
-				if (!isCurrentAccountContext(context)) {
-					return { status: 'cancelled' }
-				}
-				if (error) continue
-
-				const page = decodeCoverCleanupPage(data)
-				if (page) return { status: 'success', page, invocationEpoch }
-			} catch {
-				if (!isCurrentAccountContext(context)) {
-					return { status: 'cancelled' }
-				}
-			} finally {
-				if (
-					activeCoverCleanupController?.controller === abortController &&
-					isSameAccountContext(activeCoverCleanupController.context, context)
-				) {
-					activeCoverCleanupController = null
-				}
-			}
-		}
-
-		return { status: 'failed' }
-	}
-
-	function reportCoverCleanupFailure(context: RecordAccountContext): false {
-		if (!isCurrentAccountContext(context)) return false
-		console.error('Failed to drain record cover cleanup.')
-		toast.warning('Some old cover files still need cleanup.')
-		return false
-	}
-
-	async function performCoverCleanup(
-		context: RecordAccountContext
-	): Promise<boolean> {
-		if (!isCurrentAccountContext(context)) return false
-		const userId = await user
-			.resolveAuthenticatedUserId()
-			.catch(() => null as string | null)
-		if (
-			!isCurrentAccountContext(context) ||
-			!userId ||
-			userId !== context.userId
-		)
-			return false
-		const accountClient = await createAccountBoundSupabaseClient(context).catch(
-			() => null
-		)
-		if (!accountClient || !isCurrentAccountContext(context)) return false
-
-		for (
-			let pageIndex = 0;
-			pageIndex < COVER_CLEANUP_MAX_PAGES;
-			pageIndex += 1
-		) {
-			if (!isCurrentAccountContext(context)) return false
-			const result = await invokeCoverCleanupPage(context, accountClient)
-			if (!isCurrentAccountContext(context)) return false
-			if (result.status === 'cancelled') return false
-			if (result.status === 'failed') {
-				return reportCoverCleanupFailure(context)
-			}
-			if (result.page.processed < COVER_CLEANUP_PAGE_SIZE) {
-				completedCoverCleanupEpoch = Math.max(
-					completedCoverCleanupEpoch,
-					result.invocationEpoch
-				)
-				if (
-					completedCoverCleanupEpoch >= requestedCoverCleanupEpoch &&
-					invocationStartedCoverCleanupEpoch >= requestedCoverCleanupEpoch
-				)
-					return true
-			}
-		}
-
-		return reportCoverCleanupFailure(context)
-	}
-
-	function drainCoverCleanup(
+	async function drainCoverCleanup(
 		options: CoverCleanupDrainOptions = {}
 	): Promise<boolean> {
-		if (isDemoStore) return Promise.resolve(true)
-		const contextPromise = options.context
-			? Promise.resolve(options.context)
-			: captureAccountContext()
-
-		return contextPromise.then((context) => {
-			if (!context || !isCurrentAccountContext(context)) return false
-			if (options.fresh) {
-				requestedCoverCleanupEpoch += 1
-			} else if (
-				!coverCleanupPromise &&
-				completedCoverCleanupEpoch >= requestedCoverCleanupEpoch
-			) {
-				requestedCoverCleanupEpoch += 1
-			}
-			if (coverCleanupPromise) {
-				return isSameAccountContext(coverCleanupPromiseContext, context)
-					? coverCleanupPromise
-					: false
-			}
-
-			const createdPromise = performCoverCleanup(context).finally(() => {
-				if (
-					coverCleanupPromise === createdPromise &&
-					isSameAccountContext(coverCleanupPromiseContext, context)
-				) {
-					coverCleanupPromise = null
-					coverCleanupPromiseContext = null
-				}
-			})
-			coverCleanupPromise = createdPromise
-			coverCleanupPromiseContext = context
-			return createdPromise
-		})
+		if (isDemoStore) return true
+		const context = options.context ?? (await captureAccountContext())
+		if (!context || !isCurrentAccountContext(context)) return false
+		return coverCoordinator.drain(context, { fresh: options.fresh })
 	}
 
 	async function updateRecordWithCover(
@@ -1044,19 +768,12 @@ export const useRecordsStore = defineStore('records', () => {
 		updates: Partial<
 			Omit<DatabaseRecord, 'id' | 'user_id' | 'created_at' | 'updated_at'>
 		>,
-		coverChange:
-			| { type: 'keep' }
-			| { type: 'remove' }
-			| { type: 'upload'; file: File; crop: RecordCoverCrop }
+		coverChange: RecordCoverChange
 	): Promise<DatabaseRecord | null> {
 		if (coverChange.type === 'keep') return updateRecord(id, updates)
 
 		const activity = beginMutationActivity('cover')
 		let context: RecordAccountContext | null = null
-		let accountStorageClient: AccountBoundSupabaseClient | null = null
-		let newPath: string | null = null
-		let didStartMetadataUpdate = false
-		let didReconcileMetadataResponse = false
 
 		try {
 			context = await resolveMutationContext(activity.generation)
@@ -1065,84 +782,27 @@ export const useRecordsStore = defineStore('records', () => {
 				toast.error('Record not found.')
 				return null
 			}
-
-			if (coverChange.type === 'upload') {
-				const blob = await processRecordCoverFile(
-					coverChange.file,
-					coverChange.crop
-				)
-				if (!isCurrentAccountContext(context)) return null
-				accountStorageClient = await createAccountBoundSupabaseClient(context)
-				if (!accountStorageClient || !isCurrentAccountContext(context))
-					return null
-				newPath = `${context.userId}/${id}/${crypto.randomUUID()}.webp`
-				const { error } = await accountStorageClient.storage
-					.from(RECORD_COVER_BUCKET)
-					.upload(newPath, blob, {
-						cacheControl: '300',
-						contentType: 'image/webp',
-						upsert: false
-					})
-				if (!isCurrentAccountContext(context)) {
-					await removeUncommittedCoverObject(
-						accountStorageClient,
-						null,
-						newPath
-					)
-					return null
-				}
-				if (error) throw error
-			}
-
-			// Once submitted, reconcile against A's authoritative row before deleting;
-			// a response failure can still follow a committed metadata update.
-			didStartMetadataUpdate = true
-			const submittedClient = accountStorageClient
-			const submittedContext = context
-			const submittedPath = newPath
-			const updatedRecord = await updateRecordForContext(
-				submittedContext,
-				id,
-				{
-					...updates,
-					cover_storage_path: newPath
-				},
-				beginMutationActivity('update'),
-				false,
-				submittedPath && submittedClient
-					? async () => {
-							didReconcileMetadataResponse = true
-							await reconcileSubmittedCoverObject(
-								submittedClient,
-								submittedContext,
-								id,
-								submittedPath
-							)
-						}
-					: undefined
-			)
-			if (!isCurrentAccountContext(context)) {
-				if (newPath && accountStorageClient && !didReconcileMetadataResponse) {
-					await reconcileSubmittedCoverObject(
-						accountStorageClient,
-						context,
+			const ownedContext = context
+			const outcome = await coverCoordinator.mutate({
+				context: ownedContext,
+				recordId: id,
+				change: coverChange,
+				persistCoverPath: (coverStoragePath, onResponseFailure) =>
+					updateRecordForContext(
+						ownedContext,
 						id,
-						newPath
+						{
+							...updates,
+							cover_storage_path: coverStoragePath
+						},
+						beginMutationActivity('update'),
+						false,
+						onResponseFailure
 					)
-				}
-				return null
-			}
-
-			if (!updatedRecord) return null
-
-			await drainCoverCleanup({ fresh: true, context })
-			if (!isCurrentAccountContext(context)) return null
-
-			return updatedRecord
+			})
+			if (outcome.status === 'failed') throw outcome.error
+			return outcome.status === 'updated' ? outcome.record : null
 		} catch (error) {
-			if (newPath && accountStorageClient && !didStartMetadataUpdate) {
-				await removeUncommittedCoverObject(accountStorageClient, null, newPath)
-			}
 			if (!context || !isCurrentAccountContext(context)) return null
 			console.error('Failed to update record cover:', error)
 			toast.error(
@@ -1247,15 +907,9 @@ export const useRecordsStore = defineStore('records', () => {
 
 	function clearRecords() {
 		accountGeneration += 1
-		activeCoverCleanupController?.controller.abort()
-		activeCoverCleanupController = null
+		coverCoordinator.reset()
 		fetchPromise = null
 		freshFetchPromise = null
-		coverCleanupPromise = null
-		coverCleanupPromiseContext = null
-		requestedCoverCleanupEpoch = 0
-		completedCoverCleanupEpoch = 0
-		invocationStartedCoverCleanupEpoch = 0
 		accountUserId = null
 		activeFetchUserId = null
 		mutationRevision = 0
