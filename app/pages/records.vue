@@ -12,6 +12,7 @@ import {
 } from 'lucide-vue-next'
 import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
 import { WORKBENCH_MAX_MOUNTED_ITEMS } from '~/utils/workbenchVirtualList'
+import type { LibraryRecord } from '~~/shared/types/library'
 
 type RecordSortKey = 'artist' | 'title' | 'label' | 'catno' | 'year' | 'tracks'
 type SortDirection = 'asc' | 'desc'
@@ -19,7 +20,7 @@ type Density = 'compact' | 'comfortable'
 type ViewMode = 'table' | 'covers'
 type RecordCoverRow = {
 	key: string
-	records: DatabaseRecord[]
+	records: LibraryRecord[]
 }
 type CoverVirtualListHandle = {
 	scrollToIndexStart: (index: number) => void
@@ -190,11 +191,11 @@ function selectRecord(recordId: string) {
 	if (isMobile.value) mobileInspectorOpen.value = true
 }
 
-function artistNames(record: DatabaseRecord) {
+function artistNames(record: LibraryRecord) {
 	return record.artists.map((artist) => artist.name).join(', ')
 }
 
-function getRecordKey(record: DatabaseRecord) {
+function getRecordKey(record: LibraryRecord) {
 	return record.id
 }
 
@@ -211,12 +212,12 @@ function handleCoverRangeChange(range: CoverVirtualRange) {
 		coverRows.value[range.firstVisible]?.records[0]?.id ?? null
 }
 
-function openRecordMenu(record: DatabaseRecord) {
+function openRecordMenu(record: LibraryRecord) {
 	if (!capabilities.canMutateLibrary) return
 	recordDetails.openRecord(record.id)
 }
 
-function openCoverEditor(record: DatabaseRecord) {
+function openCoverEditor(record: LibraryRecord) {
 	if (!capabilities.canMutateLibrary) return
 	recordDetails.openRecord(record.id, true, 'cover')
 }
@@ -353,7 +354,7 @@ watch(
 					</div>
 				</div>
 
-				<!-- @vue-generic {DatabaseRecord} -->
+				<!-- @vue-generic {LibraryRecord} -->
 				<ListWorkbenchVirtual
 					v-if="viewMode === 'table'"
 					:items="sortedRecords"
@@ -444,7 +445,7 @@ watch(
 							@keydown.enter="selectRecord(record.id)"
 						>
 							<ImageRecordCover
-								v-if="record.cover || record.cover_storage_path"
+								v-if="hasRecordCover(record.cover)"
 								:record="record"
 								class="size-full border"
 							/>

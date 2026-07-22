@@ -10,10 +10,10 @@ import {
 	trackToEditorValues
 } from '~/utils/trackEditor'
 
-const tracks = useTracksStore()
+const tracks = useWorkbenchTracksStore()
 const trackEdit = useTrackEditStore()
-const recordDetails = useRecordDetailsStore()
-const user = useUserStore()
+const recordDetails = useWorkbenchRecordDetailsStore()
+const preferences = useWorkbenchPreferencesStore()
 
 const validationSchema = toTypedSchema(trackEditorSchema)
 
@@ -230,7 +230,7 @@ function confirmDiscardAndProceed() {
 				<FormTrackEditorFields
 					v-model:artists="artists"
 					v-model:extraartists="extraartists"
-					:key-format="user.currentKeyFormat"
+					:key-format="preferences.currentKeyFormat"
 					:show-validation-errors="showValidationErrors"
 				/>
 

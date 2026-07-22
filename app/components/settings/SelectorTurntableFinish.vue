@@ -1,9 +1,5 @@
 <script setup lang="ts">
-const props = defineProps<{
-	localOnly?: boolean
-}>()
-
-const user = useWorkbenchUserStore()
+const preferences = useWorkbenchPreferencesStore()
 
 const silverDeckBackground = `linear-gradient(
     135deg,
@@ -53,26 +49,14 @@ function isTurntableThemeOption(
 	return ['silver', 'black'].includes(value)
 }
 
-const localTurntableFinish = ref<TurntableThemeOptions>(
-	isTurntableThemeOption(user.profile?.turntable_theme)
-		? user.profile.turntable_theme
-		: 'silver'
-)
-
 const turntableFinish = computed({
-	get: (): TurntableThemeOptions => {
-		if (props.localOnly) return localTurntableFinish.value
-		return isTurntableThemeOption(user.profile?.turntable_theme)
-			? user.profile.turntable_theme
-			: 'silver'
-	},
+	get: (): TurntableThemeOptions =>
+		isTurntableThemeOption(preferences.preferences.turntable_theme)
+			? preferences.preferences.turntable_theme
+			: 'silver',
 	set: (finish: string) => {
 		if (!isTurntableThemeOption(finish)) return
-		if (props.localOnly) {
-			localTurntableFinish.value = finish
-			return
-		}
-		void user.updateSettings({ turntable_theme: finish })
+		void preferences.updatePreferences({ turntable_theme: finish })
 	}
 })
 </script>

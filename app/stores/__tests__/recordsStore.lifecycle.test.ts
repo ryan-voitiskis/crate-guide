@@ -1,7 +1,8 @@
 import {
-	createMockRecord,
-	createMockRecordWithArtists,
-	createMockRecordWithLabels
+	createMockRecord as createMockDatabaseRecord,
+	createMockLibraryRecord as createMockRecord,
+	createMockLibraryRecordWithArtists as createMockRecordWithArtists,
+	createMockLibraryRecordWithLabels as createMockRecordWithLabels
 } from 'test/mocks/fixtures/records'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -232,11 +233,11 @@ describe('recordsStore account lifecycle and queries', () => {
 				id: 'record-1',
 				title: 'Deep House'
 			})
-			const noLongerMatching = createMockRecord({
+			const noLongerMatching = createMockDatabaseRecord({
 				id: 'record-1',
 				title: 'Ambient'
 			})
-			const matchingAgain = createMockRecord({
+			const matchingAgain = createMockDatabaseRecord({
 				id: 'record-1',
 				title: 'House Again'
 			})

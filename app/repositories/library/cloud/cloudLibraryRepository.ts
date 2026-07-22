@@ -40,7 +40,7 @@ export function createCloudLibraryRepository(
 
 	return {
 		id: dependencies.repositoryId,
-		async readLibrarySnapshot(context) {
+		async readObservedLibraryView(context) {
 			const captured = await state.capture(context)
 			if (!state.isLease(captured)) return captured
 			try {
@@ -117,10 +117,10 @@ export function createCloudLibraryRepository(
 					...decodedCrates.flatMap((decoded) => decoded.issues),
 					...decodedSavedSets.flatMap((decoded) => decoded.issues)
 				]
-				const revision = state.getRevision()
 				return state.complete(
 					captured,
 					{
+						consistency: 'non-atomic-observation' as const,
 						records: sortCreatedAtDescIdDesc(
 							decodedRecords.map((decoded) => decoded.row)
 						),
@@ -133,8 +133,7 @@ export function createCloudLibraryRepository(
 						savedSets: sortCreatedAtDescIdDesc(
 							decodedSavedSets.map((decoded) => decoded.row)
 						),
-						preferences: decodeLibraryPreferences(profileResult.data),
-						repositoryRevision: revision
+						preferences: decodeLibraryPreferences(profileResult.data)
 					},
 					{ expectedRevision: captured.startedRevision, issues }
 				)

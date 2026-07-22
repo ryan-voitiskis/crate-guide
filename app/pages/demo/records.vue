@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import RecordsPage from '../records.vue'
 
-provideDemoWorkbench()
+definePageMeta({ layout: 'demo' })
 </script>
 
 <template>

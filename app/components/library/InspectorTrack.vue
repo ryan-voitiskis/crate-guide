@@ -11,10 +11,11 @@ import {
 	Tag,
 	X
 } from 'lucide-vue-next'
+import type { LibraryRecord, LibraryTrack } from '~~/shared/types/library'
 
 const props = defineProps<{
-	track: Track
-	record: DatabaseRecord | null
+	track: LibraryTrack
+	record: LibraryRecord | null
 	showClose?: boolean
 	readOnly?: boolean
 }>()
@@ -24,7 +25,7 @@ const emit = defineEmits<{
 	edit: []
 }>()
 
-const user = useWorkbenchUserStore()
+const preferences = useWorkbenchPreferencesStore()
 
 const artists = computed(() =>
 	[...props.track.artists, ...props.track.extraartists]
@@ -37,7 +38,7 @@ const formattedKey = computed(() => {
 	return getFormattedKeyString(
 		props.track.key,
 		props.track.mode,
-		user.currentKeyFormat,
+		preferences.currentKeyFormat,
 		'short'
 	)
 })

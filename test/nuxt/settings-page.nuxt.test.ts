@@ -1,17 +1,26 @@
 import { defineComponent, nextTick, reactive } from 'vue'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import type { VueWrapper } from '@vue/test-utils'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import SelectPitchRange from '~/components/settings/SelectPitchRange.vue'
 import SelectorTurntableFinish from '~/components/settings/SelectorTurntableFinish.vue'
 import SettingsPage from '~/pages/settings.vue'
+import type {
+	LibraryLocation,
+	WorkbenchCapabilities
+} from '~/repositories/library/contracts'
+import type { LibraryPreferences } from '~~/shared/types/library'
 import type { Profile } from '~~/shared/types/supabase'
 
 const factories = vi.hoisted(() => ({
+	capabilities: vi.fn(),
+	preferences: vi.fn(),
 	user: vi.fn()
 }))
 
+mockNuxtImport('useWorkbenchCapabilities', () => factories.capabilities)
 mockNuxtImport('useWorkbenchUserStore', () => factories.user)
+mockNuxtImport('useWorkbenchPreferencesStore', () => factories.preferences)
 
 const ValueControlStub = defineComponent({
 	props: {
@@ -33,24 +42,6 @@ const ValueControlStub = defineComponent({
 	`
 })
 
-function createProfile(overrides: Partial<Profile> = {}): Profile {
-	return {
-		discogs_avatar_url: null,
-		discogs_uid: null,
-		discogs_username: null,
-		id: 'listener-user-id',
-		just_completed_discogs_oauth: false,
-		key_format: 'camelot',
-		list_layout: 'grid',
-		name: null,
-		selected_crate: 'all',
-		turntable_pitch_range: 8,
-		turntable_theme: 'silver',
-		ui_theme: 'light',
-		...overrides
-	}
-}
-
 function createUser(profile: Profile | null = null) {
 	return reactive({
 		profile,
@@ -58,23 +49,102 @@ function createUser(profile: Profile | null = null) {
 			email: 'listener@example.com',
 			user_metadata: { full_name: 'Test Listener' }
 		},
-		signOut: vi.fn(),
-		updateSettings: vi.fn().mockResolvedValue(true)
+		signOut: vi.fn()
 	})
+}
+
+function createPreferences(overrides: Partial<LibraryPreferences> = {}) {
+	return reactive({
+		preferences: {
+			ui_theme: 'light',
+			key_format: 'camelot',
+			list_layout: 'grid',
+			selected_crate: 'all',
+			turntable_pitch_range: 8,
+			turntable_theme: 'silver',
+			...overrides
+		} as LibraryPreferences,
+		updatePreferences: vi.fn().mockResolvedValue(true)
+	})
+}
+
+function createCapabilities(location: LibraryLocation): WorkbenchCapabilities {
+	const isCloud = location === 'cloud'
+	return {
+		location,
+		canPersistSessions: isCloud,
+		canMutateLibrary: isCloud,
+		canManageCrates: isCloud,
+		canConnectDiscogs: isCloud,
+		canEnrichTracks: isCloud,
+		canManageAccount: isCloud
+	}
 }
 
 let wrapper: VueWrapper | null = null
 
 describe('settings page', () => {
+	beforeEach(() => {
+		factories.capabilities.mockReturnValue(createCapabilities('cloud'))
+	})
+
 	afterEach(() => {
 		wrapper?.unmount()
 		wrapper = null
 		factories.user.mockReset()
+		factories.preferences.mockReset()
+		factories.capabilities.mockReset()
 		vi.clearAllMocks()
 	})
 
+	it.each([
+		[
+			'cloud' as const,
+			'Cloud backup on',
+			'Saved to your Cloud library and available after sign-in.'
+		],
+		[
+			'browser' as const,
+			'This browser only',
+			'Saved only in this browser. Not backed up to Crate Guide.'
+		],
+		[
+			'demo' as const,
+			'Temporary Demo',
+			'Changes last only for this Demo session.'
+		]
+	])(
+		'describes %s preference durability honestly',
+		async (location, badge, description) => {
+			factories.capabilities.mockReturnValue(createCapabilities(location))
+			factories.user.mockReturnValue(createUser())
+			factories.preferences.mockReturnValue(createPreferences())
+			wrapper = await mountSuspended(SettingsPage, {
+				global: {
+					stubs: {
+						CardLocalAudioCache: true,
+						DetailsDiscogsAuth: true,
+						DialogClearAllData: true,
+						DialogDeleteAccount: true,
+						SelectPitchRange: true,
+						SelectorKeyFormat: true,
+						SelectorTheme: true,
+						SelectorTurntableFinish: true
+					}
+				}
+			})
+
+			const durability = wrapper.get('[data-testid="preference-durability"]')
+			expect(durability.text()).toContain(badge)
+			expect(
+				wrapper.get('[data-testid="preference-durability-copy"]').text()
+			).toBe(description)
+		}
+	)
+
 	it('owns a bounded scroll container and exposes project links', async () => {
 		factories.user.mockReturnValue(createUser())
+		factories.preferences.mockReturnValue(createPreferences())
 		wrapper = await mountSuspended(SettingsPage, {
 			global: {
 				stubs: {
@@ -118,7 +188,9 @@ describe('settings page', () => {
 
 	it('hydrates pitch range without writing and persists one user change', async () => {
 		const user = createUser()
+		const preferences = createPreferences()
 		factories.user.mockReturnValue(user)
+		factories.preferences.mockReturnValue(preferences)
 		wrapper = await mountSuspended(SelectPitchRange, {
 			global: {
 				stubs: {
@@ -135,38 +207,38 @@ describe('settings page', () => {
 		expect(
 			wrapper.get('[data-testid="value-control"]').attributes('data-value')
 		).toBe('8')
-		user.profile = createProfile({
-			turntable_pitch_range: 16,
-			turntable_theme: 'black'
-		})
+		preferences.preferences.turntable_pitch_range = 16
+		preferences.preferences.turntable_theme = 'black'
 		await nextTick()
 
 		expect(
 			wrapper.get('[data-testid="value-control"]').attributes('data-value')
 		).toBe('16')
-		expect(user.updateSettings).not.toHaveBeenCalled()
+		expect(preferences.updatePreferences).not.toHaveBeenCalled()
 
 		await wrapper.get('[data-set-value="24"]').trigger('click')
-		expect(user.updateSettings).toHaveBeenCalledOnce()
-		expect(user.updateSettings).toHaveBeenCalledWith({
+		expect(preferences.updatePreferences).toHaveBeenCalledOnce()
+		expect(preferences.updatePreferences).toHaveBeenCalledWith({
 			turntable_pitch_range: 24
 		})
 
-		user.profile = createProfile({ turntable_pitch_range: 50 })
+		preferences.preferences.turntable_pitch_range = 50
 		await nextTick()
 		expect(
 			wrapper.get('[data-testid="value-control"]').attributes('data-value')
 		).toBe('50')
-		expect(user.updateSettings).toHaveBeenCalledOnce()
+		expect(preferences.updatePreferences).toHaveBeenCalledOnce()
 	})
 
-	it('uses the default pitch range while a partial profile is hydrating', async () => {
+	it('uses the repository default while preferences are hydrating', async () => {
 		const user = createUser({
 			id: 'listener-user-id',
 			key_format: 'camelot',
 			ui_theme: 'light'
 		} as Profile)
+		const preferences = createPreferences()
 		factories.user.mockReturnValue(user)
+		factories.preferences.mockReturnValue(preferences)
 		wrapper = await mountSuspended(SelectPitchRange, {
 			global: {
 				stubs: {
@@ -183,12 +255,14 @@ describe('settings page', () => {
 		expect(
 			wrapper.get('[data-testid="value-control"]').attributes('data-value')
 		).toBe('8')
-		expect(user.updateSettings).not.toHaveBeenCalled()
+		expect(preferences.updatePreferences).not.toHaveBeenCalled()
 	})
 
 	it('hydrates turntable finish without writing and persists one user change', async () => {
 		const user = createUser()
+		const preferences = createPreferences()
 		factories.user.mockReturnValue(user)
+		factories.preferences.mockReturnValue(preferences)
 		wrapper = await mountSuspended(SelectorTurntableFinish, {
 			global: {
 				stubs: {
@@ -201,68 +275,26 @@ describe('settings page', () => {
 		expect(
 			wrapper.get('[data-testid="value-control"]').attributes('data-value')
 		).toBe('silver')
-		user.profile = createProfile({
-			turntable_pitch_range: 16,
-			turntable_theme: 'black'
-		})
+		preferences.preferences.turntable_pitch_range = 16
+		preferences.preferences.turntable_theme = 'black'
 		await nextTick()
 
 		expect(
 			wrapper.get('[data-testid="value-control"]').attributes('data-value')
 		).toBe('black')
-		expect(user.updateSettings).not.toHaveBeenCalled()
+		expect(preferences.updatePreferences).not.toHaveBeenCalled()
 
 		await wrapper.get('[data-set-value="silver"]').trigger('click')
-		expect(user.updateSettings).toHaveBeenCalledOnce()
-		expect(user.updateSettings).toHaveBeenCalledWith({
+		expect(preferences.updatePreferences).toHaveBeenCalledOnce()
+		expect(preferences.updatePreferences).toHaveBeenCalledWith({
 			turntable_theme: 'silver'
 		})
 
-		user.profile = createProfile({ turntable_theme: 'black' })
+		preferences.preferences.turntable_theme = 'black'
 		await nextTick()
 		expect(
 			wrapper.get('[data-testid="value-control"]').attributes('data-value')
 		).toBe('black')
-		expect(user.updateSettings).toHaveBeenCalledOnce()
-	})
-
-	it('keeps demo pitch and finish changes local', async () => {
-		const user = createUser(
-			createProfile({ turntable_pitch_range: 16, turntable_theme: 'black' })
-		)
-		factories.user.mockReturnValue(user)
-		wrapper = await mountSuspended(SelectPitchRange, {
-			props: { localOnly: true },
-			global: {
-				stubs: {
-					Select: ValueControlStub,
-					SelectContent: true,
-					SelectGroup: true,
-					SelectItem: true,
-					SelectTrigger: true,
-					SelectValue: true
-				}
-			}
-		})
-		await wrapper.get('[data-set-value="24"]').trigger('click')
-		expect(
-			wrapper.get('[data-testid="value-control"]').attributes('data-value')
-		).toBe('24')
-		wrapper.unmount()
-
-		wrapper = await mountSuspended(SelectorTurntableFinish, {
-			props: { localOnly: true },
-			global: {
-				stubs: {
-					RadioGroup: ValueControlStub,
-					RadioGroupItem: true
-				}
-			}
-		})
-		await wrapper.get('[data-set-value="silver"]').trigger('click')
-		expect(
-			wrapper.get('[data-testid="value-control"]').attributes('data-value')
-		).toBe('silver')
-		expect(user.updateSettings).not.toHaveBeenCalled()
+		expect(preferences.updatePreferences).toHaveBeenCalledOnce()
 	})
 })

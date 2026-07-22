@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { X } from 'lucide-vue-next'
+import type { LibraryRecord } from '~~/shared/types/library'
 
 defineProps<{
-	records: DatabaseRecord[]
+	records: LibraryRecord[]
 }>()
 
 const emit = defineEmits<{

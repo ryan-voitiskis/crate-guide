@@ -6,7 +6,7 @@ const props = withDefaults(defineProps<{ openOnMount?: boolean }>(), {
 	openOnMount: false
 })
 
-const user = useUserStore()
+const user = useWorkbenchUserStore()
 const route = useRoute()
 
 const showDialog = ref(false)

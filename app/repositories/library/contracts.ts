@@ -1,15 +1,15 @@
-import type { RecordCoverChange } from '~/utils/recordCoverCoordinator'
 import type { DecodeIssue } from '~/utils/supabaseRows'
 import type {
 	CoverReference,
 	CrateCreateInput,
 	CrateMetadataUpdate,
+	LibraryCoverChange,
 	LibraryCrate,
+	LibraryObservedView,
 	LibraryPlayedTrackEntry,
 	LibraryPreferences,
 	LibraryRecord,
 	LibrarySavedSet,
-	LibrarySnapshot,
 	LibraryTrack,
 	LibraryTrackUpdateInput,
 	ManualRecordWithTracksInput,
@@ -39,6 +39,10 @@ export type WorkspaceDescriptor = Readonly<{
 	location: LibraryLocation
 	displayLabel: string
 	readOnly: boolean
+	/**
+	 * Highest adapter-local observation revision accepted by this runtime.
+	 * This is a UI stale-result guard, not a durable or cross-client CAS token.
+	 */
 	repositoryRevision: number
 	capabilities: WorkbenchCapabilities
 }>
@@ -47,7 +51,6 @@ export type WorkspaceOperationContext = Readonly<{
 	workspaceId: string
 	repositoryId: string
 	activationGeneration: number
-	repositoryRevision: number
 }>
 
 export type RepositoryUnavailableReason =
@@ -66,6 +69,7 @@ export type RepositoryOutcome<T> =
 	| {
 			status: 'success'
 			value: T
+			/** Adapter-local monotonic observation token; never an implicit CAS. */
 			repositoryRevision: number
 			issues: DecodeIssue[]
 	  }
@@ -98,7 +102,7 @@ export interface RecordsRepository {
 		input: {
 			id: string
 			updates: RecordUpdateInput
-			change: RecordCoverChange
+			change: LibraryCoverChange
 		}
 	): RepositoryCommand<LibraryRecord>
 	removeFromCollection(
@@ -199,9 +203,13 @@ export interface CoverResolver {
 
 export interface LibraryRepositoryBundle {
 	readonly id: string
-	readLibrarySnapshot(
+	/**
+	 * Reads a best-effort view. Backends may issue multiple storage reads, so
+	 * callers must not use this as an atomic archive/backup snapshot.
+	 */
+	readObservedLibraryView(
 		context: WorkspaceOperationContext
-	): RepositoryCommand<LibrarySnapshot>
+	): RepositoryCommand<LibraryObservedView>
 	readonly records: RecordsRepository
 	readonly tracks: TracksRepository
 	readonly crates: CratesRepository

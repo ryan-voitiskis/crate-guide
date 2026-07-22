@@ -24,9 +24,9 @@ const props = withDefaults(
 	}
 )
 
-const discogs = useDiscogsStore()
-const discogsAuth = useDiscogsAuthStore()
-const manualEntry = useManualRecordEntryStore()
+const discogs = useWorkbenchDiscogsStore()
+const discogsAuth = useWorkbenchDiscogsAuthStore()
+const manualEntry = useWorkbenchManualRecordEntryStore()
 
 const iconComponents = {
 	records: Library,

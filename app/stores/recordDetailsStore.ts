@@ -1,7 +1,8 @@
-import { getActivePinia } from 'pinia'
+import { getWorkbenchStorePinia } from '~/utils/workbenchPinia'
+import type { LibraryRecord, LibraryTrack } from '~~/shared/types/library'
 
 export const useRecordDetailsStore = defineStore('recordDetails', () => {
-	const pinia = getActivePinia()
+	const pinia = getWorkbenchStorePinia()
 	const records = useRecordsStore(pinia)
 	const tracks = useTracksStore(pinia)
 
@@ -9,11 +10,11 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 	const isEditMode = ref(false)
 	const editFocus = ref<'cover' | null>(null)
 	const dialogGeneration = ref(0)
-	const trackToConfirmDelete = ref<Track | null>(null)
+	const trackToConfirmDelete = ref<LibraryTrack | null>(null)
 
 	// Dialog state (store-based pattern)
-	const recordToRemove = ref<DatabaseRecord | null>(null)
-	const recordToAddToCrate = ref<DatabaseRecord | null>(null)
+	const recordToRemove = ref<LibraryRecord | null>(null)
+	const recordToAddToCrate = ref<LibraryRecord | null>(null)
 
 	const selectedRecord = computed(() =>
 		selectedRecordId.value

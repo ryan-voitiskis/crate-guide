@@ -11,7 +11,7 @@ withDefaults(defineProps<Props>(), {
 
 const user = useSupabaseUser()
 const route = useRoute()
-const discogs = useDiscogsStore()
+const discogs = useWorkbenchDiscogsStore()
 
 const isDemo = computed(() => route.path.startsWith('/demo'))
 const isVisible = computed(

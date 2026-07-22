@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Pencil, Plus, Trash } from 'lucide-vue-next'
 
-const recordDetails = useRecordDetailsStore()
+const recordDetails = useWorkbenchRecordDetailsStore()
 const trackEdit = useTrackEditStore()
 </script>
 

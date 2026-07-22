@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import {
-	createMockRecord,
+	createMockLibraryRecord as createMockRecord,
 	resetRecordIdCounter
 } from 'test/mocks/fixtures/records'
 import {

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Upload } from 'lucide-vue-next'
+import type { LibraryTrack } from '~~/shared/types/library'
 
 const props = defineProps<{
-	track?: Track
+	track?: LibraryTrack
 	deckIndex: number
 }>()
 
@@ -12,7 +13,7 @@ const emit = defineEmits<{
 
 const records = useWorkbenchRecordsStore()
 const session = useWorkbenchSessionStore()
-const user = useWorkbenchUserStore()
+const preferences = useWorkbenchPreferencesStore()
 
 const record = computed(() => {
 	if (!props.track) return null
@@ -26,7 +27,7 @@ const keyDisplay = computed(() => {
 	return getFormattedKeyString(
 		props.track.key,
 		props.track.mode,
-		user.currentKeyFormat,
+		preferences.currentKeyFormat,
 		'short'
 	)
 })
@@ -52,7 +53,7 @@ const adjustedKeyDisplay = computed(() => {
 	return getFormattedKeyString(
 		Math.round(adjustedKey.value) % 12,
 		props.track.mode,
-		user.currentKeyFormat,
+		preferences.currentKeyFormat,
 		'short'
 	)
 })

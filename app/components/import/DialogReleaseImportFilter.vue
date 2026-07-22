@@ -2,7 +2,7 @@
 import { Download, Layers3 } from 'lucide-vue-next'
 import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
 
-const discogs = useDiscogsStore()
+const discogs = useWorkbenchDiscogsStore()
 
 const selectedCount = computed(
 	() => discogs.releasesToImport.filter((release) => release.selected).length

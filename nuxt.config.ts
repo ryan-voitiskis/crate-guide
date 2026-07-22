@@ -1,7 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath } from 'node:url'
-import { buildAnonymousThemeBootstrapScript } from './app/utils/themeBootstrap'
+import { buildThemeBootstrapScript } from './app/utils/themeBootstrap'
 import { validatePublicRuntimeConfig } from './scripts/runtime-config.mjs'
 
 const publicRuntimeConfig = validatePublicRuntimeConfig()
@@ -74,8 +74,8 @@ export default defineNuxtConfig({
 			link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
 			script: [
 				{
-					key: 'anonymous-theme-bootstrap',
-					innerHTML: buildAnonymousThemeBootstrapScript(),
+					key: 'theme-bootstrap',
+					innerHTML: buildThemeBootstrapScript(),
 					tagPosition: 'head',
 					tagPriority: 'critical'
 				}

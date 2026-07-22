@@ -2,7 +2,10 @@
 import 'vue-sonner/style.css'
 import { Toaster } from '~/components/ui/sonner'
 
-useUserData()
+const route = useRoute()
+const isCloudWorkbench = computed(() =>
+	requiresCloudWorkbenchRuntime(route.path)
+)
 </script>
 
 <template>
@@ -10,10 +13,7 @@ useUserData()
 		<NuxtPage />
 	</NuxtLayout>
 
-	<DialogCollectionImport />
-	<DialogReleaseImportFilter />
-	<DialogDiscogsImport />
-	<DialogRecordCreateManual />
-	<DialogRecordDetails />
+	<BootstrapCloudWorkbench v-if="isCloudWorkbench" />
+	<DialogsWorkbench v-if="isCloudWorkbench" />
 	<Toaster position="bottom-center" />
 </template>

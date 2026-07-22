@@ -11,12 +11,12 @@ const props = defineProps<{
 }>()
 
 const session = useWorkbenchSessionStore()
-const user = useWorkbenchUserStore()
+const preferences = useWorkbenchPreferencesStore()
 
 const deck = computed(() => session.decks[props.deckIndex])
-const pitchRange = computed(() => user.profile?.turntable_pitch_range ?? 8)
+const pitchRange = computed(() => preferences.preferences.turntable_pitch_range)
 const isSilverTurntableTheme = computed(
-	() => (user.profile?.turntable_theme ?? 'silver') !== 'black'
+	() => preferences.preferences.turntable_theme !== 'black'
 )
 const fullFaderHeight = 226
 const fullTravelStartPercent = 12

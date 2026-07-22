@@ -3,7 +3,7 @@ import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { createTestingPinia } from '@pinia/testing'
 import { DOMWrapper, type VueWrapper, flushPromises } from '@vue/test-utils'
 import type { Pinia } from 'pinia'
-import { createMockRecord } from 'test/mocks/fixtures/records'
+import { createMockLibraryRecord } from 'test/mocks/fixtures/records'
 import { createMockTrack } from 'test/mocks/fixtures/tracks'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import AlertConfirmRemoveRecord from '~/components/records/AlertConfirmRemoveRecord.vue'
@@ -90,7 +90,10 @@ async function mountRemoveRecordDialog() {
 		createSpy: vi.fn,
 		stubActions: true
 	})
-	const record = createMockRecord({ id: 'record-1', title: 'Record One' })
+	const record = createMockLibraryRecord({
+		id: 'record-1',
+		title: 'Record One'
+	})
 	const recordDetails = useRecordDetailsStore(pinia as Pinia)
 	const crates = useCratesStore(pinia as Pinia)
 	recordDetails.recordToRemove = record
@@ -114,8 +117,8 @@ async function mountClearAllDataDialog() {
 	const records = useRecordsStore(pinia as Pinia)
 	const tracks = useTracksStore(pinia as Pinia)
 	records.records = [
-		createMockRecord({ id: 'record-1' }),
-		createMockRecord({ id: 'record-2' })
+		createMockLibraryRecord({ id: 'record-1' }),
+		createMockLibraryRecord({ id: 'record-2' })
 	]
 	tracks.tracks = [createMockTrack({ id: 'track-1' })]
 
@@ -425,10 +428,10 @@ describe('library mutation dialogs', () => {
 		async (outcome) => {
 			const dialog = await mountManualRecordDialog()
 			const firstCreation = createDeferred<ReturnType<
-				typeof createMockRecord
+				typeof createMockLibraryRecord
 			> | null>()
 			const secondCreation = createDeferred<ReturnType<
-				typeof createMockRecord
+				typeof createMockLibraryRecord
 			> | null>()
 			vi.mocked(dialog.records.createRecordWithTracks)
 				.mockReturnValueOnce(firstCreation.promise)
@@ -450,7 +453,7 @@ describe('library mutation dialogs', () => {
 
 			firstCreation.resolve(
 				outcome === 'success'
-					? createMockRecord({ id: 'first-created-record' })
+					? createMockLibraryRecord({ id: 'first-created-record' })
 					: null
 			)
 			await settleDialog()

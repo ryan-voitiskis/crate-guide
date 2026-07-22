@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { ChevronRight, Disc3 } from 'lucide-vue-next'
+import type { LibraryCrate } from '~~/shared/types/library'
 
 const props = withDefaults(
 	defineProps<{
-		crate: Crate
+		crate: LibraryCrate
 		active?: boolean
 	}>(),
 	{ active: false }
 )
 
-const emit = defineEmits<{ select: [crate: Crate] }>()
+const emit = defineEmits<{ select: [crate: LibraryCrate] }>()
 
 const records = useWorkbenchRecordsStore()
 

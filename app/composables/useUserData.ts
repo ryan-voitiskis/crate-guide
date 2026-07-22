@@ -7,7 +7,9 @@ export function useUserData() {
 	const tracks = useTracksStore()
 	const crates = useCratesStore()
 	const session = useSessionStore()
+	const preferences = useLibraryPreferencesStore()
 	const discogs = useDiscogsStore()
+	const runtime = useWorkbenchRuntime()
 	const route = useRoute()
 	const router = useRouter()
 
@@ -23,6 +25,7 @@ export function useUserData() {
 			records.isLoadingRecords ||
 			tracks.isLoadingTracks ||
 			crates.isLoadingCrates ||
+			preferences.isLoadingPreferences ||
 			isLoadingUserData.value
 	)
 
@@ -30,57 +33,75 @@ export function useUserData() {
 		() => records.hasRecords || tracks.hasTracks || crates.hasCrates
 	)
 
-	function getStaleLoadTransition(
+	function isStaleLoad(
+		context: ReturnType<typeof runtime.capture>['context'],
+		location: ReturnType<typeof runtime.capture>['descriptor']['location'],
 		resolvedUserId: string,
 		loadGeneration: number
-	): { replacementUserId: string | null } | null {
+	): boolean {
+		if (!runtime.isCurrent(context)) return true
+		if (location !== 'cloud') return false
 		const reactiveUserId = user.supaUserId
 		const didAuthenticationChange = loadGeneration !== authenticationGeneration
 		const didUserIdentityChange =
 			reactiveUserId !== null && reactiveUserId !== resolvedUserId
 
 		return didAuthenticationChange || didUserIdentityChange
-			? { replacementUserId: reactiveUserId }
-			: null
 	}
 
 	async function performLoadAllUserData(
 		loadGeneration: number
 	): Promise<boolean> {
-		let resolvedUserId: string | null = null
+		const captured = runtime.capture()
+		let resolvedUserId = ''
 		let storePromises: Promise<boolean>[] | null = null
 
 		try {
-			resolvedUserId = await user
-				.resolveAuthenticatedUserId()
-				.catch(() => null as string | null)
-			if (!resolvedUserId) return false
-			const transitionBeforeFetch = getStaleLoadTransition(
-				resolvedUserId,
-				loadGeneration
-			)
-			if (transitionBeforeFetch) {
+			if (captured.descriptor.location === 'cloud') {
+				resolvedUserId = await user.resolveAuthenticatedUserId().catch(() => '')
+				if (!resolvedUserId) return false
+			}
+			if (
+				isStaleLoad(
+					captured.context,
+					captured.descriptor.location,
+					resolvedUserId,
+					loadGeneration
+				)
+			) {
 				return false
 			}
 
-			dataUserId = resolvedUserId
-			storePromises = []
-			storePromises.push(records.fetchAllRecords())
-			storePromises.push(tracks.fetchAllTracks())
-			storePromises.push(crates.fetchAllCrates())
+			dataUserId =
+				captured.descriptor.location === 'cloud' ? resolvedUserId : null
+			storePromises = [
+				records.fetchAllRecords(),
+				tracks.fetchAllTracks(),
+				crates.fetchAllCrates(),
+				preferences.fetchPreferences()
+			]
 			const results = await Promise.all(storePromises)
-			const transitionAfterFetch = getStaleLoadTransition(
-				resolvedUserId,
-				loadGeneration
-			)
-			if (transitionAfterFetch) {
+			if (
+				isStaleLoad(
+					captured.context,
+					captured.descriptor.location,
+					resolvedUserId,
+					loadGeneration
+				)
+			) {
 				return false
 			}
 			const didLoadAllData = results.every(Boolean)
 			hasLoadedData.value = didLoadAllData
 			if (
 				didLoadAllData &&
-				!getStaleLoadTransition(resolvedUserId, loadGeneration)
+				captured.descriptor.location === 'cloud' &&
+				!isStaleLoad(
+					captured.context,
+					captured.descriptor.location,
+					resolvedUserId,
+					loadGeneration
+				)
 			) {
 				void records.drainCoverCleanup().catch(() => undefined)
 			}
@@ -88,10 +109,14 @@ export function useUserData() {
 		} catch (error) {
 			// Drain every started store action before a replacement user load begins.
 			if (storePromises) await Promise.allSettled(storePromises)
-			const staleTransition = resolvedUserId
-				? getStaleLoadTransition(resolvedUserId, loadGeneration)
-				: null
-			if (staleTransition) {
+			if (
+				isStaleLoad(
+					captured.context,
+					captured.descriptor.location,
+					resolvedUserId,
+					loadGeneration
+				)
+			) {
 				return false
 			}
 			console.error('Failed to load user data:', error)
@@ -119,6 +144,12 @@ export function useUserData() {
 	}
 
 	async function bootstrapLoadFromSession() {
+		if (runtime.descriptor.value.location !== 'cloud') {
+			if (!hasLoadedData.value && !isLoadingUserData.value) {
+				await loadAllUserData()
+			}
+			return
+		}
 		if (user.supaUserId || hasLoadedData.value || isLoadingUserData.value)
 			return
 		const userId = await user
@@ -140,6 +171,7 @@ export function useUserData() {
 		records.clearRecords()
 		tracks.clearTracks()
 		crates.clearCrates()
+		preferences.clearPreferences()
 		hasLoadedData.value = false
 		dataUserId = null
 	}
@@ -176,6 +208,11 @@ export function useUserData() {
 				return
 			}
 			if (userId) {
+				if (runtime.descriptor.value.location !== 'cloud') {
+					if (previousUserId && previousUserId !== userId)
+						discogs.resetAccountState(previousUserId)
+					return
+				}
 				const didAuthenticatedUserChange = Boolean(
 					previousUserId && previousUserId !== userId
 				)
@@ -187,7 +224,11 @@ export function useUserData() {
 				if (hasLoadedData.value) return
 				void loadAllUserData()
 			} else if (previousUserId) {
-				clearAllUserData(previousUserId)
+				if (runtime.descriptor.value.location === 'cloud') {
+					clearAllUserData(previousUserId)
+				} else {
+					discogs.resetAccountState(previousUserId)
+				}
 				if (!isSigningOut) void leaveProtectedRoute()
 			}
 		},

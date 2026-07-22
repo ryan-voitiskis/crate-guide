@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import type { ComponentPublicInstance } from 'vue'
 import { ImagePlus, Link, RotateCcw, Trash2, Upload } from 'lucide-vue-next'
-import type { RecordCoverChange } from '~/utils/recordCoverCoordinator'
+import type {
+	CoverReference,
+	LibraryCoverChange,
+	LibraryRecord
+} from '~~/shared/types/library'
 
 type RecordCoverEditorHandle = {
 	focus: () => Promise<void>
-	getChange: () => RecordCoverChange
+	getChange: () => LibraryCoverChange
 	hasPendingChange: () => boolean
 	reset: () => void
 }
 
 const props = defineProps<{
-	record: Pick<DatabaseRecord, 'title' | 'cover' | 'cover_storage_path'> | null
+	record: Pick<LibraryRecord, 'title' | 'cover'> | null
 	isEditMode: boolean
 	urlError?: string
 }>()
@@ -34,31 +38,30 @@ const filePickerButtonRef = ref<ComponentPublicInstance>()
 const editorRef = ref<HTMLElement>()
 let inspectionGeneration = 0
 
+function coverReferenceFromUrl(url: string | null | undefined): CoverReference {
+	return url ? { kind: 'external', url } : { kind: 'none' }
+}
+
 const previewRecord = computed(() => {
 	const title = props.record?.title || 'Record'
 
 	if (pendingPreviewUrl.value) {
 		return {
 			title,
-			cover: pendingPreviewUrl.value,
-			cover_storage_path: null
+			cover: coverReferenceFromUrl(pendingPreviewUrl.value)
 		}
 	}
 
 	if (pendingRemoval.value || inputMode.value === 'url') {
 		return {
 			title,
-			cover: coverUrl.value || null,
-			cover_storage_path: null
+			cover: coverReferenceFromUrl(coverUrl.value)
 		}
 	}
 
 	return {
 		title,
-		cover: props.isEditMode
-			? coverUrl.value || null
-			: props.record?.cover || null,
-		cover_storage_path: props.record?.cover_storage_path || null
+		cover: props.record?.cover ?? coverReferenceFromUrl(coverUrl.value)
 	}
 })
 
@@ -71,8 +74,8 @@ const pendingImageIsLandscape = computed(
 const pendingImageIsPortrait = computed(
 	() => pendingDimensions.value.height > pendingDimensions.value.width
 )
-const hasVisibleCover = computed(
-	() => !!previewRecord.value.cover || !!previewRecord.value.cover_storage_path
+const hasVisibleCover = computed(() =>
+	hasRecordCover(previewRecord.value.cover)
 )
 
 function revokePendingPreview(): void {
@@ -170,7 +173,7 @@ function chooseFile(): void {
 
 function removeCover(): void {
 	clearPendingFile()
-	if (props.record?.cover_storage_path) {
+	if (props.record && isManagedRecordCover(props.record.cover)) {
 		pendingRemoval.value = true
 		return
 	}
@@ -185,14 +188,16 @@ function selectUploadMode(): void {
 function selectUrlMode(): void {
 	clearPendingFile()
 	inputMode.value = 'url'
-	pendingRemoval.value = !!props.record?.cover_storage_path
+	pendingRemoval.value = Boolean(
+		props.record && isManagedRecordCover(props.record.cover)
+	)
 }
 
 function hasPendingChange(): boolean {
 	return pendingFile.value !== null || pendingRemoval.value
 }
 
-function getChange(): RecordCoverChange {
+function getChange(): LibraryCoverChange {
 	if (pendingFile.value) {
 		return {
 			type: 'upload',
@@ -230,10 +235,10 @@ defineExpose<RecordCoverEditorHandle>({
 		<div class="flex items-center justify-between gap-2">
 			<Label>Cover artwork</Label>
 			<span
-				v-if="record?.cover_storage_path"
+				v-if="record && isManagedRecordCover(record.cover)"
 				class="bg-primary/10 text-primary rounded px-1.5 py-0.5 font-mono text-[9px] tracking-wide uppercase"
 			>
-				Uploaded
+				Managed image
 			</span>
 		</div>
 		<div
@@ -357,7 +362,7 @@ defineExpose<RecordCoverEditorHandle>({
 					{{ urlError }}
 				</p>
 				<p
-					v-if="record?.cover_storage_path"
+					v-if="record && isManagedRecordCover(record.cover)"
 					class="text-muted-foreground text-[11px]"
 				>
 					Saving switches from the uploaded image to this URL.

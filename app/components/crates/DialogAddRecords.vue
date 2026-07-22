@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import { Plus, Search } from 'lucide-vue-next'
 import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
+import type { LibraryCrate, LibraryRecord } from '~~/shared/types/library'
 
 const props = defineProps<{
 	open: boolean
-	crate: Crate
+	crate: LibraryCrate
 }>()
 
 const emit = defineEmits<{
 	'update:open': [value: boolean]
 }>()
 
-const recordsStore = useRecordsStore()
-const cratesStore = useCratesStore()
+const recordsStore = useWorkbenchRecordsStore()
+const cratesStore = useWorkbenchCratesStore()
 
 const searchQuery = ref('')
 const addingRecordId = ref<string | null>(null)
@@ -45,7 +46,7 @@ const availableCount = computed(() => {
 	return recordsStore.records.filter((r) => !crateRecordIds.has(r.id)).length
 })
 
-function getRecordKey(record: DatabaseRecord) {
+function getRecordKey(record: LibraryRecord) {
 	return record.id
 }
 
@@ -118,7 +119,7 @@ watch(
 					</p>
 				</div>
 
-				<!-- @vue-generic {DatabaseRecord} -->
+				<!-- @vue-generic {LibraryRecord} -->
 				<ListWorkbenchVirtual
 					v-else
 					:items="filteredRecords"

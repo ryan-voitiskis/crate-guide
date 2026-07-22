@@ -8,7 +8,7 @@ import {
 	XCircle
 } from 'lucide-vue-next'
 
-const discogs = useDiscogsStore()
+const discogs = useWorkbenchDiscogsStore()
 
 const showSkipped = ref(false)
 const showFailures = ref(true)

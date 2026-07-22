@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import CratesPage from '../crates.vue'
 
-provideDemoWorkbench()
+definePageMeta({ layout: 'demo' })
 </script>
 
 <template>

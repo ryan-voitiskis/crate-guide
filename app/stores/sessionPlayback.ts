@@ -1,14 +1,17 @@
 import { type Ref, computed, ref } from 'vue'
 import { adjustKey } from '~/utils/keyFunctions'
 import { getTrackSuggestions } from '~/utils/trackSuggestions'
+import type {
+	LibraryPlayedTrackEntry,
+	LibraryTrack
+} from '~~/shared/types/library'
 import type { ScoredTrack } from '~~/shared/types/session'
-import type { PlayedTrackEntry, Track } from '~~/shared/types/supabase'
 import type { SessionDeck as Deck } from './sessionTypes'
 
 interface SessionPlaybackDependencies {
 	pitchRange: Readonly<Ref<number>>
-	getTrackById(trackId: string): Track | undefined
-	getPlayableTracks(): Track[]
+	getTrackById(trackId: string): LibraryTrack | undefined
+	getPlayableTracks(): LibraryTrack[]
 }
 
 function createEmptyDeck(): Deck {
@@ -27,10 +30,10 @@ export function createSessionPlayback({
 	getTrackById,
 	getPlayableTracks
 }: SessionPlaybackDependencies) {
-	const trackSource = ref<Track[] | null>(null)
+	const trackSource = ref<LibraryTrack[] | null>(null)
 	const deckCount = ref(2)
 	const decks = ref<Deck[]>([createEmptyDeck(), createEmptyDeck()])
-	const currentSession = ref<PlayedTrackEntry[]>([])
+	const currentSession = ref<LibraryPlayedTrackEntry[]>([])
 	const deckSelectDialog = ref({
 		open: false,
 		trackId: '',
@@ -112,7 +115,7 @@ export function createSessionPlayback({
 		}
 	}
 
-	function setTrackSource(source: Track[]) {
+	function setTrackSource(source: LibraryTrack[]) {
 		trackSource.value = source
 	}
 

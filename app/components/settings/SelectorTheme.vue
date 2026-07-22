@@ -1,26 +1,13 @@
 <script setup lang="ts">
 import type { AcceptableValue } from 'reka-ui'
 
-const props = defineProps<{
-	localOnly?: boolean
-}>()
-
-const user = useWorkbenchUserStore()
-const localTheme = ref<ThemeOptions>(user.currentTheme)
-
-const selectedTheme = computed(() =>
-	props.localOnly ? localTheme.value : user.currentTheme
-)
+const preferences = useWorkbenchPreferencesStore()
+const selectedTheme = computed(() => preferences.currentTheme)
 
 function handleThemeChange(value: AcceptableValue) {
 	if (typeof value !== 'string') return
 	const theme = value as ThemeOptions
-	if (props.localOnly) {
-		localTheme.value = theme
-		user.setLocalTheme(theme)
-		return
-	}
-	void user.updateTheme(theme)
+	void preferences.updatePreferences({ ui_theme: theme })
 }
 </script>
 

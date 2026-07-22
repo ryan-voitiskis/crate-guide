@@ -4,20 +4,21 @@ import { toTypedSchema } from '@vee-validate/zod'
 import { Disc3, Pencil, PencilOff, Plus, Trash2 } from 'lucide-vue-next'
 import { useForm } from 'vee-validate'
 import { crateSchema } from '~/utils/schemas/crate'
+import type { LibraryCrate } from '~~/shared/types/library'
 
 const props = defineProps<{
 	open: boolean
-	crate: Crate
+	crate: LibraryCrate
 }>()
 
 const emit = defineEmits<{
 	'update:open': [value: boolean]
-	delete: [crate: Crate]
-	addRecord: [crate: Crate]
+	delete: [crate: LibraryCrate]
+	addRecord: [crate: LibraryCrate]
 }>()
 
-const records = useRecordsStore()
-const cratesStore = useCratesStore()
+const records = useWorkbenchRecordsStore()
+const cratesStore = useWorkbenchCratesStore()
 
 // Edit mode state
 const isEditMode = ref(false)
@@ -49,7 +50,7 @@ const crateRecords = computed(() =>
 
 const recordCount = computed(() => props.crate.records.length)
 
-function initializeFormFromCrate(crate: Crate) {
+function initializeFormFromCrate(crate: LibraryCrate) {
 	resetForm({
 		values: {
 			name: crate.name,

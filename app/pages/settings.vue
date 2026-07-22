@@ -14,6 +14,24 @@ const user = useWorkbenchUserStore()
 const capabilities = useWorkbenchCapabilities()
 const route = useRoute()
 const isDemo = capabilities.location === 'demo'
+const preferenceDurability = computed(() => {
+	if (capabilities.location === 'cloud') {
+		return {
+			badge: 'Cloud backup on',
+			description: 'Saved to your Cloud library and available after sign-in.'
+		}
+	}
+	if (capabilities.location === 'browser') {
+		return {
+			badge: 'This browser only',
+			description: 'Saved only in this browser. Not backed up to Crate Guide.'
+		}
+	}
+	return {
+		badge: 'Temporary Demo',
+		description: 'Changes last only for this Demo session.'
+	}
+})
 const openDeleteAccountOnReturn = computed(
 	() => route.query.action === 'delete-account'
 )
@@ -50,12 +68,19 @@ const settingsSections = computed(() => [
 					<p class="text-muted-foreground mt-1 max-w-xl text-sm">
 						Tune your library, notation and playback workspace.
 					</p>
+					<p
+						data-testid="preference-durability-copy"
+						class="text-muted-foreground mt-1 max-w-xl text-xs"
+					>
+						{{ preferenceDurability.description }}
+					</p>
 				</div>
 				<div
+					data-testid="preference-durability"
 					class="border-border bg-muted/30 hidden items-center gap-2 rounded-sm border px-2.5 py-1.5 font-mono text-[10px] tracking-wide uppercase lg:flex"
 				>
 					<span class="size-1.5 rounded-full bg-emerald-500" />
-					Preferences local
+					{{ preferenceDurability.badge }}
 				</div>
 			</header>
 
@@ -118,11 +143,11 @@ const settingsSections = computed(() => [
 							</div>
 						</div>
 						<div class="space-y-5">
-							<SelectorTheme :local-only="isDemo" />
+							<SelectorTheme />
 							<Separator />
-							<SelectorKeyFormat :local-only="isDemo" />
+							<SelectorKeyFormat />
 							<Separator />
-							<SelectorTurntableFinish :local-only="isDemo" />
+							<SelectorTurntableFinish />
 						</div>
 					</section>
 
@@ -139,7 +164,7 @@ const settingsSections = computed(() => [
 									Set the control range used by the turntable simulation.
 								</p>
 							</div>
-							<SelectPitchRange :local-only="isDemo" />
+							<SelectPitchRange />
 						</div>
 					</section>
 

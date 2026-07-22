@@ -1,11 +1,11 @@
 import { toast } from 'vue-sonner'
-import { getActivePinia } from 'pinia'
+import { getWorkbenchStorePinia } from '~/utils/workbenchPinia'
 
 const defaultOAuthErrorMessage =
 	'Failed to authenticate with Discogs. Please try again.'
 
 export const useDiscogsAuthStore = defineStore('discogsAuth', () => {
-	const pinia = getActivePinia()
+	const pinia = getWorkbenchStorePinia()
 	const user = useUserStore(pinia)
 	const discogs = useDiscogsStore(pinia)
 

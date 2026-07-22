@@ -22,11 +22,13 @@ vi.mock('vue-sonner', () => ({
 
 const harness = createSessionStoreHarness()
 const mockTracksStore = harness.tracksStore
+const mockPreferencesStore = harness.preferencesStore
 const mockUserStore = harness.userStore
 const mockSupabaseClient = harness.supabaseClient
 
 // Stub Nuxt composables (these are auto-imported in the store)
 vi.stubGlobal('useTracksStore', () => mockTracksStore)
+vi.stubGlobal('useLibraryPreferencesStore', () => mockPreferencesStore)
 vi.stubGlobal('useUserStore', () => mockUserStore)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
 
@@ -90,7 +92,7 @@ describe('sessionStore deck playback', () => {
 		})
 
 		it('calculates correctly with custom pitch range', () => {
-			mockUserStore.profile = { turntable_pitch_range: 16 }
+			mockPreferencesStore.preferences.turntable_pitch_range = 16
 			const store = useSessionStore()
 			store.decks[0]!.loadedTrack = createMockTrackWithBpm(128)
 			store.decks[0]!.pitch = 50 // Half positive pitch

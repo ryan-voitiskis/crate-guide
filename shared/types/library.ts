@@ -11,6 +11,16 @@ export type CoverReference =
 	| { kind: 'cloud'; assetId: string; fallbackUrl: string | null }
 	| { kind: 'browser'; assetId: string; fallbackUrl: string | null }
 
+export type LibraryCoverCrop = {
+	positionX: number
+	positionY: number
+}
+
+export type LibraryCoverChange =
+	| { type: 'keep' }
+	| { type: 'remove' }
+	| { type: 'upload'; file: File; crop: LibraryCoverCrop }
+
 export type LibraryRecord = {
 	id: string
 	title: string
@@ -82,13 +92,21 @@ export type LibraryPreferences = {
 	turntable_theme: TurntableThemeOptions
 }
 
-export type LibrarySnapshot = {
+export type LibraryDataset = {
 	records: LibraryRecord[]
 	tracks: LibraryTrack[]
 	crates: LibraryCrate[]
 	savedSets: LibrarySavedSet[]
 	preferences: LibraryPreferences
-	repositoryRevision: number
+}
+
+/**
+ * A best-effort adapter observation. Its entity groups are not guaranteed to
+ * come from one storage transaction and must never be used as an archive or
+ * backup snapshot.
+ */
+export type LibraryObservedView = LibraryDataset & {
+	consistency: 'non-atomic-observation'
 }
 
 export type ManualRecordTrackInput = {
@@ -117,7 +135,7 @@ export type ManualRecordWithTracksInput = {
 }
 
 export type RecordUpdateInput = Partial<
-	Omit<LibraryRecord, 'id' | 'cover' | 'created_at' | 'updated_at'>
+	Omit<LibraryRecord, 'id' | 'created_at' | 'updated_at'>
 >
 
 export type TrackCreateInput = Omit<

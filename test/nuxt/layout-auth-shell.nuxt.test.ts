@@ -1,8 +1,14 @@
+import { defineComponent, h } from 'vue'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import type { VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
+import {
+	useWorkbenchDiscogsStore,
+	useWorkbenchRuntime
+} from '~/composables/useWorkbench'
 import AuthLayout from '~/layouts/auth.vue'
 import DefaultLayout from '~/layouts/default.vue'
+import DemoLayout from '~/layouts/demo.vue'
 
 const wrappers = new Set<VueWrapper>()
 const layoutStubs = {
@@ -70,5 +76,41 @@ describe('authenticated workbench layout shell', () => {
 		expect(wrapper.find('[data-auth-page-scroll-container]').exists()).toBe(
 			false
 		)
+	})
+
+	it('provides the isolated Demo runtime above persistent layout chrome', async () => {
+		let chromeRuntime: ReturnType<typeof useWorkbenchRuntime> | undefined
+		let chromeDiscogs: ReturnType<typeof useWorkbenchDiscogsStore> | undefined
+		const HeaderProbe = defineComponent({
+			setup() {
+				chromeRuntime = useWorkbenchRuntime()
+				chromeDiscogs = useWorkbenchDiscogsStore()
+				return () => h('header', { 'data-testid': 'demo-header-probe' })
+			}
+		})
+
+		const wrapper = await mountSuspended(DemoLayout, {
+			global: {
+				stubs: {
+					HeaderApp: HeaderProbe,
+					NavMain: { template: '<nav />' },
+					StatusWorkbench: { template: '<footer />' },
+					DialogsWorkbench: { template: '<div />' }
+				}
+			},
+			slots: { default: '<div data-testid="page">Demo page</div>' }
+		})
+		wrappers.add(wrapper)
+
+		expect(wrapper.find('[data-testid="demo-header-probe"]').exists()).toBe(
+			true
+		)
+		expect(chromeRuntime?.descriptor.value).toMatchObject({
+			id: 'demo',
+			location: 'demo',
+			readOnly: true
+		})
+		expect(chromeRuntime?.capture().repositories.id).toBe('demo-repository')
+		expect(chromeDiscogs?.$id).toBe('discogs')
 	})
 })

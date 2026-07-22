@@ -3,7 +3,7 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { createTestingPinia } from '@pinia/testing'
 import { DOMWrapper, type VueWrapper, flushPromises } from '@vue/test-utils'
 import type { Pinia } from 'pinia'
-import { createMockRecord } from 'test/mocks/fixtures/records'
+import { createMockLibraryRecord } from 'test/mocks/fixtures/records'
 import { createMockTrack } from 'test/mocks/fixtures/tracks'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import DialogTrackEdit from '~/components/records/DialogTrackEdit.vue'
@@ -12,7 +12,7 @@ import { useRecordsStore } from '~/stores/recordsStore'
 import { useTrackEditStore } from '~/stores/trackEditStore'
 import { useTracksStore } from '~/stores/tracksStore'
 import { createTrackEditorInitialValues } from '~/utils/trackEditor'
-import type { DatabaseRecord, Track } from '~~/shared/types/supabase'
+import type { LibraryRecord, LibraryTrack } from '~~/shared/types/library'
 
 const wrappers = new Set<VueWrapper>()
 const COMMON_FIELD_NAMES = [
@@ -57,10 +57,10 @@ async function settleDialog() {
 }
 
 function createEditorFixture() {
-	const record = createMockRecord({
+	const record = createMockLibraryRecord({
 		id: 'record-1',
 		title: 'Editor Test Record',
-		cover: null
+		cover: { kind: 'none' }
 	})
 	const track = createMockTrack({
 		id: 'track-1',
@@ -89,8 +89,8 @@ function createEditorFixture() {
 }
 
 function createEditorPinia(options: {
-	record: DatabaseRecord
-	track: Track
+	record: LibraryRecord
+	track: LibraryTrack
 	mode: 'add' | 'edit' | 'details'
 }) {
 	const pinia = createTestingPinia({
@@ -405,8 +405,8 @@ describe('track editor dialogs', () => {
 				title: 'Replacement Track',
 				position: 'B1'
 			})
-			const firstUpdate = createDeferred<Track | null>()
-			const secondUpdate = createDeferred<Track | null>()
+			const firstUpdate = createDeferred<LibraryTrack | null>()
+			const secondUpdate = createDeferred<LibraryTrack | null>()
 			vi.mocked(editDialog.tracks.getTrackById).mockImplementation((id) => {
 				if (id === editDialog.track.id) return editDialog.track
 				if (id === replacementTrack.id) return replacementTrack
@@ -460,8 +460,8 @@ describe('track editor dialogs', () => {
 				title: 'Replacement Details Track',
 				position: 'B1'
 			})
-			const firstUpdate = createDeferred<Track | null>()
-			const secondUpdate = createDeferred<Track | null>()
+			const firstUpdate = createDeferred<LibraryTrack | null>()
+			const secondUpdate = createDeferred<LibraryTrack | null>()
 			vi.mocked(detailsDialog.tracks.getTrackById).mockImplementation((id) => {
 				if (id === detailsDialog.track.id) return detailsDialog.track
 				if (id === replacementTrack.id) return replacementTrack

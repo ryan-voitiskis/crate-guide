@@ -25,16 +25,20 @@ const coverRecord = computed(() => {
 })
 const coverUrl = ref<string | null>(null)
 let coverRequest = 0
+let acceptingCoverResults = true
 
 watch(
 	() =>
-		[coverRecord.value?.cover_storage_path, coverRecord.value?.cover] as const,
+		coverRecord.value
+			? getCoverReferenceKey(coverRecord.value.cover)
+			: 'no-record',
 	async () => {
 		const request = ++coverRequest
 		const nextUrl = coverRecord.value
 			? await getCoverUrl(coverRecord.value)
 			: null
-		if (request === coverRequest) coverUrl.value = nextUrl
+		if (acceptingCoverResults && request === coverRequest)
+			coverUrl.value = nextUrl
 	},
 	{ immediate: true }
 )
@@ -98,6 +102,8 @@ watch(
 
 // Cleanup on unmount
 onUnmounted(() => {
+	acceptingCoverResults = false
+	coverRequest += 1
 	if (animationId) {
 		cancelAnimationFrame(animationId)
 		animationId = null

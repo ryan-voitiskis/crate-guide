@@ -23,6 +23,7 @@
 		}
 	},
 	"expectedLazyModules": [
+		"utils/cloudWorkbenchRuntime.ts",
 		"pages/enrichment.vue",
 		"../node_modules/music-metadata/lib/mpeg/MpegParser.js"
 	],

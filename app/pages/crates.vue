@@ -11,6 +11,7 @@ import {
 	Search,
 	Trash2
 } from 'lucide-vue-next'
+import type { LibraryCrate } from '~~/shared/types/library'
 
 const crates = useWorkbenchCratesStore()
 const records = useWorkbenchRecordsStore()
@@ -92,11 +93,11 @@ function openCreateDialog() {
 	showCreateDialog.value = true
 }
 
-function handleCreated(crate: Crate) {
+function handleCreated(crate: LibraryCrate) {
 	selectedCrateId.value = crate.id
 }
 
-function selectCrate(crate: Crate) {
+function selectCrate(crate: LibraryCrate) {
 	selectedCrateId.value = crate.id
 }
 
@@ -105,7 +106,7 @@ function openDetail() {
 	if (selectedCrate.value) showDetailDialog.value = true
 }
 
-function handleDelete(crate: Crate) {
+function handleDelete(crate: LibraryCrate) {
 	if (!capabilities.canManageCrates) return
 	crates.crateToDelete = crate
 }

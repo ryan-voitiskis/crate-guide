@@ -21,11 +21,13 @@ vi.mock('vue-sonner', () => ({
 const harness = createSessionStoreHarness()
 const mockTracksStore = harness.tracksStore
 const mockUserStore = harness.userStore
+const mockPreferencesStore = harness.preferencesStore
 const mockSupabaseClient = harness.supabaseClient
 
 // Stub Nuxt composables (these are auto-imported in the store)
 vi.stubGlobal('useTracksStore', () => mockTracksStore)
 vi.stubGlobal('useUserStore', () => mockUserStore)
+vi.stubGlobal('useLibraryPreferencesStore', () => mockPreferencesStore)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
 
 describe('sessionStore suggestions and history', () => {

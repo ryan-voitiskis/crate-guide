@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ImageOff } from 'lucide-vue-next'
+import type { LibraryRecord } from '~~/shared/types/library'
 
 const props = withDefaults(
 	defineProps<{
-		record: Pick<DatabaseRecord, 'cover' | 'cover_storage_path' | 'title'>
+		record: Pick<LibraryRecord, 'cover' | 'title'>
 		alt?: string
 		showLabel?: boolean
 		objectPosition?: string
@@ -23,10 +24,10 @@ let coverRequest = 0
 let acceptingCoverResults = true
 
 watch(
-	() => [props.record.cover_storage_path, props.record.cover] as const,
+	() => getCoverReferenceKey(props.record.cover),
 	async () => {
 		const request = ++coverRequest
-		const fallbackUrl = props.record.cover
+		const fallbackUrl = getCoverFallbackUrl(props.record.cover)
 		coverUrl.value = null
 		loaded.value = false
 		failed.value = false

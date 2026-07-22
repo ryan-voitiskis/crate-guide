@@ -70,6 +70,7 @@ export default defineConfig({
 				test: {
 					name: 'unit',
 					include: [
+						'app/repositories/**/*.test.ts',
 						'app/utils/**/*.test.ts',
 						'app/workers/**/*.test.ts',
 						'shared/**/*.test.ts'

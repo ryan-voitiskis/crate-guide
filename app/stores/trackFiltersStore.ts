@@ -1,10 +1,10 @@
-import { getActivePinia } from 'pinia'
 import { createKeyComposite, parseKeyComposite } from '~/utils/keyFunctions'
+import { getWorkbenchStorePinia } from '~/utils/workbenchPinia'
 
 export const useTrackFiltersStore = defineStore('trackFilters', () => {
-	const pinia = getActivePinia()
+	const pinia = getWorkbenchStorePinia()
 	const tracks = useTracksStore(pinia)
-	const user = useUserStore(pinia)
+	const preferences = useLibraryPreferencesStore(pinia)
 	const trackSource = ref<Track[] | null>(null)
 
 	const keyOptions = computed(() => {
@@ -13,7 +13,7 @@ export const useTrackFiltersStore = defineStore('trackFilters', () => {
 			for (let key = 0; key < 12; key++) {
 				options.push({
 					value: createKeyComposite(key, mode),
-					label: getFormattedKeyString(key, mode, user.currentKeyFormat),
+					label: getFormattedKeyString(key, mode, preferences.currentKeyFormat),
 					color: getKeyColour(key, mode)
 				})
 			}

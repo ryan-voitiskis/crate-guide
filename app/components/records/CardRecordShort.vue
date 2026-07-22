@@ -7,10 +7,11 @@ import {
 	Pencil,
 	Trash2
 } from 'lucide-vue-next'
+import type { LibraryRecord } from '~~/shared/types/library'
 
 const recordDetails = useWorkbenchRecordDetailsStore()
 const props = defineProps<{
-	record: DatabaseRecord
+	record: LibraryRecord
 	selected?: boolean
 	readOnly?: boolean
 }>()

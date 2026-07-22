@@ -1,101 +1,51 @@
-const SIGNED_URL_LIFETIME_SECONDS = 300
-const SIGNED_URL_REUSE_WINDOW_MS = 240_000
-const MAX_SIGNED_URL_CACHE_ENTRIES = 500
+import type { CoverReference, LibraryRecord } from '~~/shared/types/library'
 
-type SignedCoverUrlCacheEntry = {
-	url: string
-	expiresAt: number
-	lastUsedAt: number
-}
-
-const signedCoverUrlCache = new Map<string, SignedCoverUrlCacheEntry>()
-const signedCoverUrlRequests = new Map<string, Promise<string | null>>()
-
-function getSignedCoverUrlCacheKey(userId: string, path: string): string {
-	return JSON.stringify([userId, path])
-}
-
-function pruneSignedCoverUrlCache(now: number) {
-	for (const [key, entry] of signedCoverUrlCache) {
-		if (entry.expiresAt <= now) signedCoverUrlCache.delete(key)
+export function getCoverFallbackUrl(reference: CoverReference): string | null {
+	if (reference.kind === 'external') return reference.url
+	if (reference.kind === 'cloud' || reference.kind === 'browser') {
+		return reference.fallbackUrl
 	}
+	return null
+}
 
-	while (signedCoverUrlCache.size > MAX_SIGNED_URL_CACHE_ENTRIES) {
-		let leastRecentlyUsedKey: string | null = null
-		let leastRecentlyUsedAt = Number.POSITIVE_INFINITY
-
-		for (const [key, entry] of signedCoverUrlCache) {
-			if (entry.lastUsedAt < leastRecentlyUsedAt) {
-				leastRecentlyUsedKey = key
-				leastRecentlyUsedAt = entry.lastUsedAt
-			}
-		}
-
-		if (!leastRecentlyUsedKey) break
-		signedCoverUrlCache.delete(leastRecentlyUsedKey)
+export function getCoverReferenceKey(reference: CoverReference): string {
+	switch (reference.kind) {
+		case 'none':
+			return 'none'
+		case 'external':
+			return `external:${reference.url}`
+		case 'cloud':
+		case 'browser':
+			return `${reference.kind}:${reference.assetId}:${reference.fallbackUrl ?? ''}`
 	}
 }
 
-export function resetRecordCoverUrlCacheForTests() {
-	signedCoverUrlCache.clear()
-	signedCoverUrlRequests.clear()
+export function hasRecordCover(reference: CoverReference): boolean {
+	return reference.kind !== 'none'
+}
+
+export function isManagedRecordCover(reference: CoverReference): boolean {
+	return reference.kind === 'cloud' || reference.kind === 'browser'
 }
 
 export function useRecordCover() {
-	const supabase = useSupabaseClient<Database>()
-	const user = useUserStore()
+	const runtime = useWorkbenchRuntime()
 
 	async function getCoverUrl(
-		record: Pick<DatabaseRecord, 'cover' | 'cover_storage_path'>
+		record: Pick<LibraryRecord, 'cover'>
 	): Promise<string | null> {
-		if (!record.cover_storage_path) return record.cover
-
-		let userId: string
+		const captured = runtime.capture()
 		try {
-			userId = await user.resolveAuthenticatedUserId()
+			const resolved = await captured.repositories.covers.resolve(
+				captured.context,
+				record.cover
+			)
+			return runtime.isCurrent(captured.context) ? resolved : null
 		} catch {
-			return record.cover
+			return runtime.isCurrent(captured.context)
+				? getCoverFallbackUrl(record.cover)
+				: null
 		}
-
-		const now = Date.now()
-		pruneSignedCoverUrlCache(now)
-		const cacheKey = getSignedCoverUrlCacheKey(
-			userId,
-			record.cover_storage_path
-		)
-		const cachedEntry = signedCoverUrlCache.get(cacheKey)
-		if (cachedEntry) {
-			cachedEntry.lastUsedAt = now
-			return cachedEntry.url
-		}
-
-		let signedUrlRequest = signedCoverUrlRequests.get(cacheKey)
-		if (!signedUrlRequest) {
-			signedUrlRequest = (async () => {
-				const { data, error } = await supabase.storage
-					.from(RECORD_COVER_BUCKET)
-					.createSignedUrl(
-						record.cover_storage_path!,
-						SIGNED_URL_LIFETIME_SECONDS
-					)
-
-				if (error || !data.signedUrl) return null
-
-				const createdAt = Date.now()
-				signedCoverUrlCache.set(cacheKey, {
-					url: data.signedUrl,
-					expiresAt: createdAt + SIGNED_URL_REUSE_WINDOW_MS,
-					lastUsedAt: createdAt
-				})
-				pruneSignedCoverUrlCache(createdAt)
-				return data.signedUrl
-			})().finally(() => {
-				signedCoverUrlRequests.delete(cacheKey)
-			})
-			signedCoverUrlRequests.set(cacheKey, signedUrlRequest)
-		}
-
-		return (await signedUrlRequest) ?? record.cover
 	}
 
 	return { getCoverUrl }

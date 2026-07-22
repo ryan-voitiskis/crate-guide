@@ -3,12 +3,12 @@ import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { createTestingPinia } from '@pinia/testing'
 import { DOMWrapper, type VueWrapper, flushPromises } from '@vue/test-utils'
 import type { Pinia } from 'pinia'
-import { createMockRecord } from 'test/mocks/fixtures/records'
+import { createMockLibraryRecord } from 'test/mocks/fixtures/records'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import DialogAddToCrate from '~/components/shared/DialogAddToCrate.vue'
 import { useCratesStore } from '~/stores/cratesStore'
 import { useRecordDetailsStore } from '~/stores/recordDetailsStore'
-import type { Crate } from '~~/shared/types/supabase'
+import type { LibraryCrate } from '~~/shared/types/library'
 
 const mockToast = vi.hoisted(() =>
 	Object.assign(vi.fn(), {
@@ -30,10 +30,9 @@ mockNuxtImport('useUserStore', () => () => mockUser)
 
 const wrappers = new Set<VueWrapper>()
 
-function createCrate(id: string, recordIds: string[] = []): Crate {
+function createCrate(id: string, recordIds: string[] = []): LibraryCrate {
 	return {
 		id,
-		user_id: 'test-user-id',
 		name: id,
 		description: null,
 		color: null,
@@ -70,7 +69,10 @@ async function settleDialog() {
 }
 
 async function mountDialog() {
-	const record = createMockRecord({ id: 'record-1', title: 'Test Record' })
+	const record = createMockLibraryRecord({
+		id: 'record-1',
+		title: 'Test Record'
+	})
 	const addSuccess = createCrate('add-success')
 	const addFailure = createCrate('add-failure')
 	const removeSuccess = createCrate('remove-success', [record.id])

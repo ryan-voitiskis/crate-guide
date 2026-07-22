@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { ChevronRight, Star, Trash2 } from 'lucide-vue-next'
+import type {
+	LibraryPlayedTrackEntry,
+	LibraryTrack
+} from '~~/shared/types/library'
 
 const session = useWorkbenchSessionStore()
 const tracks = useWorkbenchTracksStore()
@@ -23,17 +27,17 @@ function formatDate(dateString: string | null): string {
 	})
 }
 
-function getLiveTrack(trackId: string): Track | undefined {
+function getLiveTrack(trackId: string): LibraryTrack | undefined {
 	return tracks.getTrackById(trackId)
 }
 
-function getTrackTitle(entry: PlayedTrackEntry): string {
+function getTrackTitle(entry: LibraryPlayedTrackEntry): string {
 	return (
 		entry.track_title ?? getLiveTrack(entry.track_id)?.title ?? 'Unknown track'
 	)
 }
 
-function getTrackArtists(entry: PlayedTrackEntry): string {
+function getTrackArtists(entry: LibraryPlayedTrackEntry): string {
 	return (
 		entry.artist_display ??
 		getLiveTrack(entry.track_id)

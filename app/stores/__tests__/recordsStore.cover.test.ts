@@ -1,6 +1,10 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { createMockRecord } from 'test/mocks/fixtures/records'
+import {
+	createMockLibraryRecord as createDomainRecord,
+	createMockRecord
+} from 'test/mocks/fixtures/records'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ensureDemoWorkbenchRuntime } from '~/composables/useWorkbench'
 import { markDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 import {
 	cleanupResponse,
@@ -343,10 +347,12 @@ describe('recordsStore cover workflows', () => {
 		})
 
 		it('does not invoke cleanup from the demo workbench store', async () => {
-			setActivePinia(markDemoWorkbenchPinia(createPinia()))
+			const pinia = markDemoWorkbenchPinia(createPinia())
+			ensureDemoWorkbenchRuntime(pinia)
+			setActivePinia(pinia)
 			const store = createRecordsStore()
 
-			await expect(store.drainCoverCleanup()).resolves.toBe(true)
+			await expect(store.drainCoverCleanup()).resolves.toBe(false)
 
 			expect(mockUserStore.resolveAuthenticatedUserId).not.toHaveBeenCalled()
 			expect(mockBoundFunctionsInvoke).not.toHaveBeenCalled()
@@ -416,7 +422,9 @@ describe('recordsStore cover workflows', () => {
 
 		it('uploads an immutable WebP path and persists it on the record', async () => {
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1', cover: null })]
+			store.records = [
+				createDomainRecord({ id: 'record-1', cover: { kind: 'none' } })
+			]
 			mockQueryBuilder.single.mockImplementation(async () => {
 				const uploadedPath = mockStorageBucket.upload.mock.calls[0]?.[0]
 				return {
@@ -470,7 +478,7 @@ describe('recordsStore cover workflows', () => {
 			const upload = createDeferred<{ data: null; error: null }>()
 			mockStorageBucket.upload.mockReturnValueOnce(upload.promise)
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1' })]
+			store.records = [createDomainRecord({ id: 'record-1' })]
 
 			const update = store.updateRecordWithCover(
 				'record-1',
@@ -489,7 +497,7 @@ describe('recordsStore cover workflows', () => {
 			store.clearRecords()
 			mockUserStore.supaUser = { id: 'replacement-user-id' }
 			store.records = [
-				createMockRecord({ id: 'record-b', user_id: 'replacement-user-id' })
+				createDomainRecord({ id: 'record-b', title: 'Replacement record' })
 			]
 			upload.resolve({ data: null, error: null })
 
@@ -508,7 +516,7 @@ describe('recordsStore cover workflows', () => {
 			const upload = createDeferred<{ data: null; error: null }>()
 			mockStorageBucket.upload.mockReturnValueOnce(upload.promise)
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1' })]
+			store.records = [createDomainRecord({ id: 'record-1' })]
 
 			const update = store.updateRecordWithCover(
 				'record-1',
@@ -527,7 +535,7 @@ describe('recordsStore cover workflows', () => {
 			store.clearRecords()
 			mockUserStore.supaUser = { id: 'replacement-user-id' }
 			store.records = [
-				createMockRecord({ id: 'record-b', user_id: 'replacement-user-id' })
+				createDomainRecord({ id: 'record-b', title: 'Replacement record' })
 			]
 			upload.reject(new Error('ambiguous upload transport failure'))
 
@@ -548,7 +556,7 @@ describe('recordsStore cover workflows', () => {
 			}>()
 			mockQueryBuilder.single.mockReturnValueOnce(metadata.promise)
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1' })]
+			store.records = [createDomainRecord({ id: 'record-1' })]
 
 			const update = store.updateRecordWithCover(
 				'record-1',
@@ -571,7 +579,10 @@ describe('recordsStore cover workflows', () => {
 			store.clearRecords()
 			mockUserStore.supaUser = { id: 'replacement-user-id' }
 			store.records = [
-				createMockRecord({ id: 'record-1', user_id: 'replacement-user-id' })
+				createDomainRecord({
+					id: 'record-1',
+					title: 'Replacement record'
+				})
 			]
 			metadata.resolve({
 				data: createMockRecord({
@@ -592,7 +603,7 @@ describe('recordsStore cover workflows', () => {
 			])
 			expect(mockStorageBucket.remove).not.toHaveBeenCalled()
 			expect(mockSupabaseClient.storage.from).not.toHaveBeenCalled()
-			expect(store.records[0]!.user_id).toBe('replacement-user-id')
+			expect(store.records[0]!.title).toBe('Replacement record')
 			expect(mockToast.success).not.toHaveBeenCalled()
 		})
 
@@ -603,7 +614,7 @@ describe('recordsStore cover workflows', () => {
 			}>()
 			mockQueryBuilder.single.mockReturnValueOnce(metadata.promise)
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1' })]
+			store.records = [createDomainRecord({ id: 'record-1' })]
 
 			const update = store.updateRecordWithCover(
 				'record-1',
@@ -626,7 +637,10 @@ describe('recordsStore cover workflows', () => {
 			store.clearRecords()
 			mockUserStore.supaUser = { id: 'replacement-user-id' }
 			store.records = [
-				createMockRecord({ id: 'record-1', user_id: 'replacement-user-id' })
+				createDomainRecord({
+					id: 'record-1',
+					title: 'Replacement record'
+				})
 			]
 			metadata.reject(new Error('ambiguous metadata transport failure'))
 
@@ -634,13 +648,13 @@ describe('recordsStore cover workflows', () => {
 			expect(mockBoundSupabaseClient.from).toHaveBeenCalledWith('records')
 			expect(mockStorageBucket.remove).toHaveBeenCalledWith([uploadedPath])
 			expect(mockSupabaseClient.storage.from).not.toHaveBeenCalled()
-			expect(store.records[0]!.user_id).toBe('replacement-user-id')
+			expect(store.records[0]!.title).toBe('Replacement record')
 			expect(mockToast.error).not.toHaveBeenCalled()
 		})
 
 		it('removes the new object when the database update fails', async () => {
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1' })]
+			store.records = [createDomainRecord({ id: 'record-1' })]
 			mockQueryBuilder.single.mockResolvedValue({
 				data: null,
 				error: new Error('Update failed')
@@ -665,9 +679,13 @@ describe('recordsStore cover workflows', () => {
 		it('drains the durable queue after a successful replacement', async () => {
 			const store = createRecordsStore()
 			store.records = [
-				createMockRecord({
+				createDomainRecord({
 					id: 'record-1',
-					cover_storage_path: 'test-user-id/record-1/old.webp'
+					cover: {
+						kind: 'cloud',
+						assetId: 'test-user-id/record-1/old.webp',
+						fallbackUrl: null
+					}
 				})
 			]
 			mockQueryBuilder.single.mockImplementation(async () => ({
@@ -695,10 +713,13 @@ describe('recordsStore cover workflows', () => {
 		it('clears the storage override before draining its queued object', async () => {
 			const store = createRecordsStore()
 			store.records = [
-				createMockRecord({
+				createDomainRecord({
 					id: 'record-1',
-					cover: 'https://discogs.example/fallback.jpg',
-					cover_storage_path: 'test-user-id/record-1/custom.webp'
+					cover: {
+						kind: 'cloud',
+						assetId: 'test-user-id/record-1/custom.webp',
+						fallbackUrl: 'https://discogs.example/fallback.jpg'
+					}
 				})
 			]
 			mockQueryBuilder.single.mockResolvedValue({
@@ -749,9 +770,13 @@ describe('recordsStore cover workflows', () => {
 				mockQueryBuilder.single.mockReturnValueOnce(metadata.promise)
 				const store = createRecordsStore()
 				store.records = [
-					createMockRecord({
+					createDomainRecord({
 						id: 'record-1',
-						cover_storage_path: 'test-user-id/record-1/old.webp'
+						cover: {
+							kind: 'cloud',
+							assetId: 'test-user-id/record-1/old.webp',
+							fallbackUrl: null
+						}
 					})
 				]
 				const removal = store.updateRecordWithCover(
@@ -766,10 +791,14 @@ describe('recordsStore cover workflows', () => {
 				store.clearRecords()
 				mockUserStore.supaUser = { id: 'replacement-user-id' }
 				store.records = [
-					createMockRecord({
+					createDomainRecord({
 						id: 'record-1',
-						cover_storage_path: 'replacement-user-id/record-1/b.webp',
-						user_id: 'replacement-user-id'
+						title: 'Replacement record',
+						cover: {
+							kind: 'cloud',
+							assetId: 'replacement-user-id/record-1/b.webp',
+							fallbackUrl: null
+						}
 					})
 				]
 				mockToast.success.mockClear()
@@ -778,9 +807,12 @@ describe('recordsStore cover workflows', () => {
 
 				await expect(removal).resolves.toBeNull()
 				expect(mockBoundFunctionsInvoke).not.toHaveBeenCalled()
-				expect(store.records[0]!.cover_storage_path).toBe(
-					'replacement-user-id/record-1/b.webp'
-				)
+				expect(store.records[0]!.cover).toEqual({
+					kind: 'cloud',
+					assetId: 'replacement-user-id/record-1/b.webp',
+					fallbackUrl: null
+				})
+				expect(store.records[0]!.title).toBe('Replacement record')
 				expect(mockToast.success).not.toHaveBeenCalled()
 				expect(mockToast.error).not.toHaveBeenCalled()
 			}

@@ -1,17 +1,13 @@
 import { toRaw } from 'vue'
 import { toast } from 'vue-sonner'
-import { getActivePinia } from 'pinia'
-import {
-	ensureCloudWorkbenchRuntime,
-	ensureDemoWorkbenchRuntime
-} from '~/composables/useWorkbench'
 import type { WorkspaceOperationContext } from '~/repositories/library/contracts'
 import { sortCreatedAtDescIdDesc } from '~/utils/supabaseOrdering'
 import { type DecodeIssue, reportDecodeIssues } from '~/utils/supabaseRows'
 import { TRACK_ENRICHMENT_BATCH_SIZE } from '~/utils/trackEnrichmentBatch'
 import {
+	ensureWorkbenchRuntime,
 	getWorkbenchRuntime,
-	isDemoWorkbenchPinia
+	getWorkbenchStorePinia
 } from '~/utils/workbenchPinia'
 import type { LibraryTrack, TrackCreateInput } from '~~/shared/types/library'
 import type {
@@ -89,12 +85,8 @@ const TRACK_BATCH_ISSUE_MESSAGES: Record<TrackBatchIssueCode, string> = {
 }
 
 export const useTracksStore = defineStore('tracks', () => {
-	const pinia = getActivePinia()
-	const runtime =
-		getWorkbenchRuntime(pinia) ??
-		(isDemoWorkbenchPinia(pinia)
-			? ensureDemoWorkbenchRuntime(pinia!)
-			: ensureCloudWorkbenchRuntime(pinia!))
+	const pinia = getWorkbenchStorePinia()
+	const runtime = getWorkbenchRuntime(pinia) ?? ensureWorkbenchRuntime(pinia!)
 
 	const tracks = ref<LibraryTrack[]>([])
 	const isLoadingTracks = ref(false)
@@ -120,7 +112,7 @@ export const useTracksStore = defineStore('tracks', () => {
 		() => new Map(tracks.value.map((track) => [track.id, track]))
 	)
 	const tracksByRecordId = computed(() => {
-		const groupedTracks = new Map<string, Track[]>()
+		const groupedTracks = new Map<string, LibraryTrack[]>()
 		for (const track of tracks.value) {
 			const recordTracks = groupedTracks.get(track.record_id) ?? []
 			recordTracks.push(track)
@@ -138,9 +130,7 @@ export const useTracksStore = defineStore('tracks', () => {
 	function captureContext(generation: number): FetchContext | null {
 		if (generation !== accountGeneration) return null
 		const captured = runtime.capture()
-		return captured.descriptor.readOnly
-			? null
-			: { ...captured.context, generation }
+		return { ...captured.context, generation }
 	}
 
 	function isCurrentFetchContext(context: FetchContext): boolean {
@@ -185,6 +175,7 @@ export const useTracksStore = defineStore('tracks', () => {
 	async function resolveMutationContext(
 		generation: number
 	): Promise<FetchContext | null> {
+		if (runtime.capture().descriptor.readOnly) return null
 		return captureContext(generation)
 	}
 
@@ -376,9 +367,6 @@ export const useTracksStore = defineStore('tracks', () => {
 	}
 
 	function fetchAllTracks(options: LibraryFetchOptions = {}): Promise<boolean> {
-		if (runtime.capture().descriptor.location === 'demo') {
-			return Promise.resolve(true)
-		}
 		if (options.fresh) {
 			if (freshFetchPromise) return freshFetchPromise
 
@@ -481,7 +469,7 @@ export const useTracksStore = defineStore('tracks', () => {
 					return { track: null, error: null, issues: [], stale: true }
 				}
 				const trackIndex = tracks.value.findIndex(
-					(track: Track) => track.id === id
+					(track: LibraryTrack) => track.id === id
 				)
 				if (trackIndex === -1) {
 					if (!options?.suppressErrorToast) toast.error('Track not found.')
@@ -494,7 +482,10 @@ export const useTracksStore = defineStore('tracks', () => {
 				}
 
 				const originalTrack = tracks.value[trackIndex]!
-				const optimisticTrack = { ...originalTrack, ...updates } as Track
+				const optimisticTrack = {
+					...originalTrack,
+					...updates
+				} as LibraryTrack
 				const operationRevision = nextMutationRevision()
 				trackOperationRevisions.set(id, operationRevision)
 				tracks.value[trackIndex] = optimisticTrack
@@ -580,7 +571,7 @@ export const useTracksStore = defineStore('tracks', () => {
 		id: string,
 		updates: TrackUpdateInput,
 		options?: { silent?: boolean }
-	): Promise<Track | null> {
+	): Promise<LibraryTrack | null> {
 		const context = await resolveMutationContext(accountGeneration)
 		if (!context) return null
 		const activity = beginMutationActivity(context, 'update')
@@ -632,7 +623,7 @@ export const useTracksStore = defineStore('tracks', () => {
 		const optimisticTrack = {
 			...originalTrack,
 			...batchUpdate.updates
-		} as Track
+		} as LibraryTrack
 		const operationRevision = nextMutationRevision()
 		trackOperationRevisions.set(batchUpdate.id, operationRevision)
 		tracks.value[trackIndex] = optimisticTrack
@@ -966,7 +957,9 @@ export const useTracksStore = defineStore('tracks', () => {
 		if (!context) return false
 		return await runSerializedTrackOperation(context, id, false, async () => {
 			if (!(await confirmMutationContext(context))) return false
-			const trackIndex = tracks.value.findIndex((t: Track) => t.id === id)
+			const trackIndex = tracks.value.findIndex(
+				(t: LibraryTrack) => t.id === id
+			)
 			if (trackIndex === -1) {
 				toast.error('Track not found.')
 				return false
@@ -1032,11 +1025,11 @@ export const useTracksStore = defineStore('tracks', () => {
 		})
 	}
 
-	function getTrackById(id: string): Track | undefined {
+	function getTrackById(id: string): LibraryTrack | undefined {
 		return tracksById.value.get(id)
 	}
 
-	function getTracksByRecordId(recordId: string): Track[] {
+	function getTracksByRecordId(recordId: string): LibraryTrack[] {
 		return [...(tracksByRecordId.value.get(recordId) ?? [])]
 	}
 
@@ -1053,11 +1046,11 @@ export const useTracksStore = defineStore('tracks', () => {
 		tracks.value = tracks.value.filter((track) => track.record_id !== recordId)
 	}
 
-	function searchTracks(query: string): Track[] {
+	function searchTracks(query: string): LibraryTrack[] {
 		if (!query.trim()) return tracks.value
 
 		const lowercaseQuery = query.toLowerCase()
-		return tracks.value.filter((track: Track) => {
+		return tracks.value.filter((track: LibraryTrack) => {
 			// Search in title
 			if (track.title.toLowerCase().includes(lowercaseQuery)) return true
 

@@ -1,10 +1,10 @@
 import { nextTick } from 'vue'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { type VueWrapper, flushPromises } from '@vue/test-utils'
-import { createMockRecord } from 'test/mocks/fixtures/records'
+import { createMockLibraryRecord } from 'test/mocks/fixtures/records'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import FormRecordCoverEditor from '~/components/records/FormRecordCoverEditor.vue'
-import type { RecordCoverChange } from '~/utils/recordCoverCoordinator'
+import type { LibraryCoverChange } from '~~/shared/types/library'
 
 class ControlledImage {
 	static instances: ControlledImage[] = []
@@ -28,7 +28,7 @@ class ControlledImage {
 }
 
 type CoverEditorVm = {
-	getChange: () => RecordCoverChange
+	getChange: () => LibraryCoverChange
 	hasPendingChange: () => boolean
 	reset: () => void
 }
@@ -48,18 +48,17 @@ function findButton(wrapper: VueWrapper, label: string) {
 }
 
 async function mountEditor(
-	overrides: Parameters<typeof createMockRecord>[0] = {}
+	overrides: Parameters<typeof createMockLibraryRecord>[0] = {}
 ) {
-	const record = createMockRecord({
-		cover: null,
-		cover_storage_path: null,
+	const record = createMockLibraryRecord({
+		cover: { kind: 'none' },
 		...overrides
 	})
 	const wrapper = await mountSuspended(FormRecordCoverEditor, {
 		props: {
 			record,
 			isEditMode: true,
-			modelValue: record.cover ?? ''
+			modelValue: getCoverFallbackUrl(record.cover) ?? ''
 		},
 		global: {
 			stubs: {
@@ -119,8 +118,11 @@ describe('FormRecordCoverEditor', () => {
 
 	it('reports storage removal while keeping URL edits in the model contract', async () => {
 		const uploadedWrapper = await mountEditor({
-			cover: 'https://example.com/fallback.jpg',
-			cover_storage_path: 'user-a/record-1/cover.webp'
+			cover: {
+				kind: 'cloud',
+				assetId: 'user-a/record-1/cover.webp',
+				fallbackUrl: 'https://example.com/fallback.jpg'
+			}
 		})
 
 		await findButton(uploadedWrapper, 'Remove cover').trigger('click')
@@ -128,7 +130,7 @@ describe('FormRecordCoverEditor', () => {
 		expect(editorVm(uploadedWrapper).getChange()).toEqual({ type: 'remove' })
 
 		const urlWrapper = await mountEditor({
-			cover: 'https://example.com/original.jpg'
+			cover: { kind: 'external', url: 'https://example.com/original.jpg' }
 		})
 		await findButton(urlWrapper, 'Image URL').trigger('click')
 		await urlWrapper

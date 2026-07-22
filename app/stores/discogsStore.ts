@@ -1,5 +1,5 @@
 import { toast } from 'vue-sonner'
-import { getActivePinia } from 'pinia'
+import { getWorkbenchStorePinia } from '~/utils/workbenchPinia'
 import type {
 	DiscogsImportFailure,
 	DiscogsImportResults,
@@ -37,9 +37,9 @@ function createEmptyImportResults(): DiscogsImportResults {
 }
 
 export const useDiscogsStore = defineStore('discogs', () => {
-	const pinia = getActivePinia()
+	const pinia = getWorkbenchStorePinia()
 	const user = useUserStore(pinia)
-	const discogsApi = useDiscogsApi()
+	const discogsApi = useDiscogsApi(user)
 	let accountGeneration = 0
 	let folderReviewGeneration = 0
 	const folders = ref<DiscogsFolder[]>([])

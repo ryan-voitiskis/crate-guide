@@ -1,6 +1,6 @@
 <script setup lang="ts">
-const recordDetails = useRecordDetailsStore()
-const cratesStore = useCratesStore()
+const recordDetails = useWorkbenchRecordDetailsStore()
+const cratesStore = useWorkbenchCratesStore()
 const { removeRecordFromCollection } = useLibraryMutations()
 
 const record = computed(() => recordDetails.recordToRemove)

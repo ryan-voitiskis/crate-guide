@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { AlertTriangle } from 'lucide-vue-next'
 
-const records = useRecordsStore()
-const tracks = useTracksStore()
+const records = useWorkbenchRecordsStore()
+const tracks = useWorkbenchTracksStore()
 const { deleteAllUserData } = useLibraryMutations()
 
 const showDialog = ref(false)

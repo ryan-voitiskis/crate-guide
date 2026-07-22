@@ -13,6 +13,7 @@ export function createCloudCoverResolver(
 ): CoverResolver {
 	const cache = new Map<string, CacheEntry>()
 	const requests = new Map<string, Promise<string | null>>()
+	let generation = 0
 
 	function prune(now: number): void {
 		for (const [key, entry] of cache) {
@@ -29,10 +30,12 @@ export function createCloudCoverResolver(
 		async resolve(context, reference) {
 			if (reference.kind === 'none') return null
 			if (reference.kind === 'external') return reference.url
-			if (reference.kind === 'browser') return reference.fallbackUrl
+			if (reference.kind === 'browser') return null
 
+			const resolverGeneration = generation
 			const captured = await state.capture(context)
 			if (!state.isLease(captured)) return null
+			if (resolverGeneration !== generation) return null
 			const key = `${captured.userId}:${reference.assetId}`
 			const now = Date.now()
 			prune(now)
@@ -45,7 +48,12 @@ export function createCloudCoverResolver(
 				const { data, error } = await state.dependencies.supabase.storage
 					.from(RECORD_COVER_BUCKET)
 					.createSignedUrl(reference.assetId, SIGNED_URL_LIFETIME_SECONDS)
-				if (!(await state.isCurrent(captured)) || error || !data?.signedUrl) {
+				if (
+					resolverGeneration !== generation ||
+					!(await state.isCurrent(captured)) ||
+					error ||
+					!data?.signedUrl
+				) {
 					return reference.fallbackUrl
 				}
 				cache.set(key, {
@@ -61,6 +69,7 @@ export function createCloudCoverResolver(
 			return created
 		},
 		reset() {
+			generation += 1
 			cache.clear()
 			requests.clear()
 		}

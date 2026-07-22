@@ -72,7 +72,7 @@ const mockTracksStore = {
 }
 
 const mockCurrentKeyFormat = ref<'key' | 'camelot'>('key')
-const mockUserStore = {
+const mockPreferencesStore = {
 	get currentKeyFormat() {
 		return mockCurrentKeyFormat.value
 	}
@@ -105,7 +105,7 @@ const mockGetKeyColour = vi.fn((key: number) => `hsl(${key * 30}, 70%, 50%)`)
 
 // Stub globals before importing store
 vi.stubGlobal('useTracksStore', () => mockTracksStore)
-vi.stubGlobal('useUserStore', () => mockUserStore)
+vi.stubGlobal('useLibraryPreferencesStore', () => mockPreferencesStore)
 vi.stubGlobal('getFormattedKeyString', mockGetFormattedKeyString)
 vi.stubGlobal('getKeyColour', mockGetKeyColour)
 

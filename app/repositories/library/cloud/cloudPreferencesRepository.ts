@@ -18,7 +18,7 @@ export function createCloudPreferencesRepository(
 			try {
 				const { data, error } = await dependencies.supabase
 					.from('profiles')
-					.select('*')
+					.select(PREFERENCE_COLUMNS)
 					.eq('id', captured.userId)
 					.single()
 				if (!(await state.isCurrent(captured))) return { status: 'stale' }
@@ -26,7 +26,9 @@ export function createCloudPreferencesRepository(
 				if (!data || data.id !== captured.userId) {
 					return { status: 'conflict', reason: 'integrity' }
 				}
-				return state.complete(captured, decodeLibraryPreferences(data))
+				return state.complete(captured, decodeLibraryPreferences(data), {
+					expectedRevision: captured.startedRevision
+				})
 			} catch (error) {
 				return (await state.isCurrent(captured))
 					? state.transportFailure(error)

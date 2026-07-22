@@ -1,12 +1,8 @@
 import { computed, ref } from 'vue'
-import { getActivePinia } from 'pinia'
 import {
-	ensureCloudWorkbenchRuntime,
-	ensureDemoWorkbenchRuntime
-} from '~/composables/useWorkbench'
-import {
+	ensureWorkbenchRuntime,
 	getWorkbenchRuntime,
-	isDemoWorkbenchPinia
+	getWorkbenchStorePinia
 } from '~/utils/workbenchPinia'
 import { createSessionPlayback } from './sessionPlayback'
 import { createSessionSavedSets } from './sessionSavedSets'
@@ -15,15 +11,13 @@ import type { SessionDeck } from './sessionTypes'
 export type Deck = SessionDeck
 
 export const useSessionStore = defineStore('session', () => {
-	const pinia = getActivePinia()
-	const runtime =
-		getWorkbenchRuntime(pinia) ??
-		(isDemoWorkbenchPinia(pinia)
-			? ensureDemoWorkbenchRuntime(pinia!)
-			: ensureCloudWorkbenchRuntime(pinia!))
-	const user = useUserStore(pinia)
+	const pinia = getWorkbenchStorePinia()
+	const runtime = getWorkbenchRuntime(pinia) ?? ensureWorkbenchRuntime(pinia!)
+	const preferences = useLibraryPreferencesStore(pinia)
 	const tracks = useTracksStore(pinia)
-	const pitchRange = computed(() => user.profile?.turntable_pitch_range ?? 8)
+	const pitchRange = computed(
+		() => preferences.preferences.turntable_pitch_range
+	)
 
 	const playback = createSessionPlayback({
 		pitchRange,

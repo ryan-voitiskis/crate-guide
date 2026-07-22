@@ -18,7 +18,6 @@ import type {
 import type {
 	TrackBatchIssue,
 	TrackBatchIssueCode,
-	TrackBatchUpdate,
 	TrackBatchUpdateOutcome,
 	TrackBatchUpdateResult
 } from '~~/shared/types/trackUpdates'

@@ -15,10 +15,10 @@ type TrackDraft = {
 	keyComposite: string
 }
 
-const manualEntry = useManualRecordEntryStore()
-const records = useRecordsStore()
-const recordDetails = useRecordDetailsStore()
-const user = useUserStore()
+const manualEntry = useWorkbenchManualRecordEntryStore()
+const records = useWorkbenchRecordsStore()
+const recordDetails = useWorkbenchRecordDetailsStore()
+const preferences = useWorkbenchPreferencesStore()
 
 const currentYear = new Date().getFullYear()
 const maxYear = currentYear + 5
@@ -51,7 +51,7 @@ const dialogOpen = computed({
 })
 
 const keyOptions = computed(() =>
-	getKeyOptionsForComposite(user.currentKeyFormat)
+	getKeyOptionsForComposite(preferences.currentKeyFormat)
 )
 
 const recordErrors = computed<Partial<Record<RecordField, string>>>(() => {

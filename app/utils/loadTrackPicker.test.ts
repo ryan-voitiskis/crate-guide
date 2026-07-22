@@ -1,4 +1,4 @@
-import { createMockRecord } from 'test/mocks/fixtures/records'
+import { createMockLibraryRecord as createMockRecord } from 'test/mocks/fixtures/records'
 import { createMockTrack } from 'test/mocks/fixtures/tracks'
 import { describe, expect, it } from 'vitest'
 import {

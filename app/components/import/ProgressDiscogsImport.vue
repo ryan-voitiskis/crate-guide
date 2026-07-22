@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Loader2 } from 'lucide-vue-next'
 
-const discogs = useDiscogsStore()
+const discogs = useWorkbenchDiscogsStore()
 
 const attemptMessage = computed(() => {
 	const status = discogs.retryStatus

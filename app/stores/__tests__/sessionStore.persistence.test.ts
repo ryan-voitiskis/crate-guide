@@ -22,6 +22,7 @@ vi.mock('vue-sonner', () => ({
 
 const harness = createSessionStoreHarness()
 const mockTracksStore = harness.tracksStore
+const mockPreferencesStore = harness.preferencesStore
 const mockUserStore = harness.userStore
 const mockSupabaseClient = harness.supabaseClient
 let mockQueryBuilder = harness.queryBuilder
@@ -42,6 +43,7 @@ function createDeferred<T>() {
 
 // Stub Nuxt composables (these are auto-imported in the store)
 vi.stubGlobal('useTracksStore', () => mockTracksStore)
+vi.stubGlobal('useLibraryPreferencesStore', () => mockPreferencesStore)
 vi.stubGlobal('useUserStore', () => mockUserStore)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
 

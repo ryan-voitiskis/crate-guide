@@ -2,11 +2,11 @@ import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { createTestingPinia } from '@pinia/testing'
 import { type VueWrapper, flushPromises } from '@vue/test-utils'
 import type { Pinia } from 'pinia'
-import { createMockRecord } from 'test/mocks/fixtures/records'
+import { createMockLibraryRecord } from 'test/mocks/fixtures/records'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import DialogAddRecords from '~/components/crates/DialogAddRecords.vue'
 import { useRecordsStore } from '~/stores/recordsStore'
-import type { Crate } from '~~/shared/types/supabase'
+import type { LibraryCrate, LibraryRecord } from '~~/shared/types/library'
 
 const coverMocks = vi.hoisted(() => ({ getCoverUrl: vi.fn() }))
 
@@ -24,7 +24,7 @@ const dialogStubs = {
 	DialogTitle: { template: '<h2><slot /></h2>' }
 }
 
-function createCrate(): Crate {
+function createCrate(): LibraryCrate {
 	return {
 		color: null,
 		created_at: '2026-07-22T00:00:00.000Z',
@@ -32,8 +32,7 @@ function createCrate(): Crate {
 		id: 'crate-large',
 		name: 'Large crate',
 		records: [],
-		updated_at: '2026-07-22T00:00:00.000Z',
-		user_id: 'test-user-id'
+		updated_at: '2026-07-22T00:00:00.000Z'
 	}
 }
 
@@ -46,15 +45,18 @@ describe('workbench candidate virtualization', () => {
 	})
 
 	it('filters the complete crate candidate set while resolving only mounted covers', async () => {
-		coverMocks.getCoverUrl.mockImplementation(
-			async (record: DatabaseRecord) => record.cover
+		coverMocks.getCoverUrl.mockImplementation(async (record: LibraryRecord) =>
+			getCoverFallbackUrl(record.cover)
 		)
 		const pinia = createTestingPinia({ createSpy: vi.fn, stubActions: true })
 		const records = useRecordsStore(pinia as Pinia)
 		records.records = Array.from({ length: 1_000 }, (_, index) =>
-			createMockRecord({
-				cover: `https://covers.example/${index}.jpg`,
-				cover_storage_path: `test-user-id/record-${index}/cover.webp`,
+			createMockLibraryRecord({
+				cover: {
+					kind: 'cloud',
+					assetId: `test-user-id/record-${index}/cover.webp`,
+					fallbackUrl: `https://covers.example/${index}.jpg`
+				},
 				id: `record-${String(index).padStart(4, '0')}`,
 				title: `Candidate Record ${String(index).padStart(4, '0')}`
 			})
@@ -75,7 +77,7 @@ describe('workbench candidate virtualization', () => {
 		expect(coverMocks.getCoverUrl.mock.calls.length).toBeLessThanOrEqual(48)
 		expect(
 			coverMocks.getCoverUrl.mock.calls.some(
-				([record]) => (record as DatabaseRecord).id === 'record-0999'
+				([record]) => (record as LibraryRecord).id === 'record-0999'
 			)
 		).toBe(false)
 

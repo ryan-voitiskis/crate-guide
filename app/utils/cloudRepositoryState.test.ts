@@ -1,15 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { createCloudRepositoryState } from '~/repositories/library/cloud/cloudRepositoryState'
-import type { LibrarySnapshot } from '~~/shared/types/library'
+import type { LibraryDataset } from '~~/shared/types/library'
 
 const context = {
 	workspaceId: 'cloud-library',
 	repositoryId: 'cloud-supabase',
-	activationGeneration: 0,
-	repositoryRevision: 0
+	activationGeneration: 0
 }
 
-const snapshot: LibrarySnapshot = {
+const dataset: LibraryDataset = {
 	records: [],
 	tracks: [],
 	crates: [],
@@ -21,8 +20,7 @@ const snapshot: LibrarySnapshot = {
 		selected_crate: '',
 		turntable_pitch_range: 8,
 		turntable_theme: 'silver'
-	},
-	repositoryRevision: 0
+	}
 }
 
 function createHarness() {
@@ -65,7 +63,7 @@ describe('cloud repository publication state', () => {
 			state.complete(mutationLease, { id: 'record-1' }, { mutated: true })
 		).toMatchObject({ status: 'success', repositoryRevision: 1 })
 
-		const outcome = state.complete(snapshotLease, snapshot, {
+		const outcome = state.complete(snapshotLease, dataset, {
 			expectedRevision: snapshotLease.startedRevision
 		})
 		expect(outcome).toEqual({ status: 'stale' })

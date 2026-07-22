@@ -23,6 +23,16 @@ vi.mock('vue-sonner', () => ({
 
 const mockProcessRecordCoverFile = vi.fn()
 
+vi.mock('@supabase/supabase-js', async (importOriginal) => ({
+	...(await importOriginal<typeof import('@supabase/supabase-js')>()),
+	createClient: mockCreateSupabaseClient
+}))
+
+vi.mock('~/utils/recordCover', async (importOriginal) => ({
+	...(await importOriginal<typeof import('~/utils/recordCover')>()),
+	processRecordCoverFile: mockProcessRecordCoverFile
+}))
+
 const mockUserStore: {
 	supaUser: { id: string } | null
 	resolveAuthenticatedUserId: ReturnType<typeof vi.fn>
@@ -181,14 +191,6 @@ vi.stubGlobal('useTracksStore', () => mockTracksStore)
 
 export async function resetRecordsStoreHarness(): Promise<void> {
 	if (!recordsStoreFactory) {
-		vi.doMock('@supabase/supabase-js', async (importOriginal) => ({
-			...(await importOriginal<typeof import('@supabase/supabase-js')>()),
-			createClient: mockCreateSupabaseClient
-		}))
-		vi.doMock('~/utils/recordCover', async (importOriginal) => ({
-			...(await importOriginal<typeof import('~/utils/recordCover')>()),
-			processRecordCoverFile: mockProcessRecordCoverFile
-		}))
 		recordsStoreFactory = (await import('../recordsStore')).useRecordsStore
 		const cleanupContract = await import('~/utils/recordCoverCoordinator')
 		coverCleanupInvokeTimeoutMs =

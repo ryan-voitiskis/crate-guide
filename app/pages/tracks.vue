@@ -8,6 +8,7 @@ import {
 	WandSparkles
 } from 'lucide-vue-next'
 import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
+import type { LibraryRecord, LibraryTrack } from '~~/shared/types/library'
 
 type TrackSortKey =
 	| 'title'
@@ -21,14 +22,14 @@ type TrackSortKey =
 type SortDirection = 'asc' | 'desc'
 type Density = 'compact' | 'comfortable'
 type TrackWorkbenchRow = {
-	record: DatabaseRecord | null
-	track: Track
+	record: LibraryRecord | null
+	track: LibraryTrack
 }
 
 const records = useWorkbenchRecordsStore()
 const tracks = useWorkbenchTracksStore()
 const trackFilters = useWorkbenchTrackFiltersStore()
-const user = useWorkbenchUserStore()
+const preferences = useWorkbenchPreferencesStore()
 const capabilities = useWorkbenchCapabilities()
 const { getHref } = useNavigation()
 
@@ -70,23 +71,23 @@ const missingAnalysisCount = computed(
 		).length
 )
 
-function formatArtists(track: Track) {
+function formatArtists(track: LibraryTrack) {
 	return [...track.artists, ...track.extraartists]
 		.map((artist) => artist.name)
 		.join(', ')
 }
 
-function formatKey(track: Track): string {
+function formatKey(track: LibraryTrack): string {
 	if (track.key === null || track.mode === null) return '—'
 	return getFormattedKeyString(
 		track.key,
 		track.mode,
-		user.currentKeyFormat,
+		preferences.currentKeyFormat,
 		'short'
 	)
 }
 
-function keyStyle(track: Track) {
+function keyStyle(track: LibraryTrack) {
 	if (track.key === null || track.mode === null) return {}
 	return { color: getKeyColour(track.key, track.mode) }
 }

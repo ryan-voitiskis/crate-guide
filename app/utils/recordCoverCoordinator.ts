@@ -1,19 +1,13 @@
 import { type SupabaseClient, createClient } from '@supabase/supabase-js'
-import {
-	RECORD_COVER_BUCKET,
-	type RecordCoverCrop,
-	processRecordCoverFile
-} from './recordCover'
+import type { LibraryCoverChange } from '~~/shared/types/library'
+import { RECORD_COVER_BUCKET, processRecordCoverFile } from './recordCover'
 
 export type RecordCoverAccountContext = Readonly<{
 	generation: number
 	userId: string
 }>
 
-export type RecordCoverChange =
-	| { type: 'keep' }
-	| { type: 'remove' }
-	| { type: 'upload'; file: File; crop: RecordCoverCrop }
+export type RecordCoverChange = LibraryCoverChange
 
 export type RecordCoverMutationOutcome<TRecord = DatabaseRecord> =
 	| { status: 'updated'; record: TRecord }

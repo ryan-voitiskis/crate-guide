@@ -39,10 +39,26 @@ function buildLabelPayload(
 }
 
 function serializeRecordUpdates(updates: RecordUpdateInput) {
+	const { cover, ...recordUpdates } = updates
+	if (cover?.kind === 'browser') {
+		throw new Error(
+			'Browser-managed covers cannot be written to cloud storage.'
+		)
+	}
 	return {
-		...updates,
+		...recordUpdates,
 		...(updates.artists ? { artists: updates.artists as Json } : {}),
-		...(updates.labels ? { labels: updates.labels as Json } : {})
+		...(updates.labels ? { labels: updates.labels as Json } : {}),
+		...(cover !== undefined
+			? {
+					cover:
+						cover.kind === 'external'
+							? cover.url
+							: cover.kind === 'cloud'
+								? cover.fallbackUrl
+								: null
+				}
+			: {})
 	}
 }
 

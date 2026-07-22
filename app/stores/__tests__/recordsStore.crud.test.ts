@@ -1,4 +1,7 @@
-import { createMockRecord } from 'test/mocks/fixtures/records'
+import {
+	createMockLibraryRecord as createDomainRecord,
+	createMockRecord
+} from 'test/mocks/fixtures/records'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { decodeLibraryRecordRow } from '~/repositories/library/codecs/supabaseLibraryCodecs'
 import {
@@ -250,7 +253,7 @@ describe('recordsStore CRUD', () => {
 			store.clearRecords()
 			mockUserStore.supaUser = { id: 'replacement-user-id' }
 			store.records = [
-				createMockRecord({ id: 'record-b', user_id: 'replacement-user-id' })
+				createDomainRecord({ id: 'record-b', title: 'Replacement record' })
 			]
 			accountAImport.resolve({
 				data: {
@@ -272,7 +275,7 @@ describe('recordsStore CRUD', () => {
 	describe('updateRecord', () => {
 		it('returns null when record not found', async () => {
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'existing-record' })]
+			store.records = [createDomainRecord({ id: 'existing-record' })]
 
 			const result = await store.updateRecord('non-existent', {
 				title: 'Updated'
@@ -283,7 +286,9 @@ describe('recordsStore CRUD', () => {
 
 		it('performs optimistic update', async () => {
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1', title: 'Original' })]
+			store.records = [
+				createDomainRecord({ id: 'record-1', title: 'Original' })
+			]
 
 			const updatePromise = store.updateRecord('record-1', { title: 'Updated' })
 
@@ -300,7 +305,9 @@ describe('recordsStore CRUD', () => {
 
 		it('reverts on update error', async () => {
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1', title: 'Original' })]
+			store.records = [
+				createDomainRecord({ id: 'record-1', title: 'Original' })
+			]
 			mockQueryBuilder.single.mockResolvedValue({
 				data: null,
 				error: new Error('Update failed')
@@ -313,7 +320,9 @@ describe('recordsStore CRUD', () => {
 
 		it('updates with server response on success', async () => {
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1', title: 'Original' })]
+			store.records = [
+				createDomainRecord({ id: 'record-1', title: 'Original' })
+			]
 			const serverResponse = createMockRecord({
 				id: 'record-1',
 				title: 'Updated',
@@ -334,7 +343,7 @@ describe('recordsStore CRUD', () => {
 				.spyOn(console, 'warn')
 				.mockImplementation(() => undefined)
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1' })]
+			store.records = [createDomainRecord({ id: 'record-1' })]
 			mockQueryBuilder.single.mockResolvedValue({
 				data: { ...createMockRecord({ id: 'record-1' }), labels: 'invalid' },
 				error: null
@@ -356,7 +365,7 @@ describe('recordsStore CRUD', () => {
 
 		it('sets isUpdatingRecord during update', async () => {
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1' })]
+			store.records = [createDomainRecord({ id: 'record-1' })]
 			mockQueryBuilder.single.mockResolvedValue({
 				data: createMockRecord({ id: 'record-1' }),
 				error: null
@@ -395,11 +404,11 @@ describe('recordsStore CRUD', () => {
 					.spyOn(console, 'error')
 					.mockImplementation(() => undefined)
 				const store = createRecordsStore()
-				const target = createMockRecord({
+				const target = createDomainRecord({
 					id: 'record-target',
 					title: 'Original target'
 				})
-				const unrelated = createMockRecord({
+				const unrelated = createDomainRecord({
 					id: 'record-unrelated',
 					title: 'Unrelated'
 				})
@@ -442,10 +451,11 @@ describe('recordsStore CRUD', () => {
 				data: DatabaseRecord[]
 				error: null
 			}>()
-			const original = createMockRecord({
+			const originalRow = createMockRecord({
 				id: 'record-1',
 				title: 'Original'
 			})
+			const original = decodeLibraryRecordRow(originalRow).row
 			const updated = createMockRecord({
 				id: 'record-1',
 				title: 'Updated on server'
@@ -466,7 +476,7 @@ describe('recordsStore CRUD', () => {
 			await expect(
 				store.updateRecord('record-1', { title: 'Updated on server' })
 			).resolves.toEqual(expectedUpdate)
-			oldFetchResponse.resolve({ data: [original], error: null })
+			oldFetchResponse.resolve({ data: [originalRow], error: null })
 			await expect(oldFetch).resolves.toBe(true)
 
 			expect(store.getRecordById('record-1')).toEqual(expectedUpdate)
@@ -487,7 +497,9 @@ describe('recordsStore CRUD', () => {
 					error: null
 				})
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1', title: 'Original' })]
+			store.records = [
+				createDomainRecord({ id: 'record-1', title: 'Original' })
+			]
 
 			const first = store.updateRecord('record-1', { title: 'First update' })
 			const second = store.updateRecord('record-1', { title: 'Second update' })
@@ -518,7 +530,9 @@ describe('recordsStore CRUD', () => {
 			}>()
 			mockQueryBuilder.single.mockReturnValueOnce(updateResponse.promise)
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1', title: 'Original' })]
+			store.records = [
+				createDomainRecord({ id: 'record-1', title: 'Original' })
+			]
 
 			const update = store.updateRecord('record-1', { title: 'Updated' })
 			const deletion = store.removeRecordFromCollection('record-1')
@@ -563,7 +577,7 @@ describe('recordsStore CRUD', () => {
 				mockQueryBuilder.single.mockReturnValueOnce(accountAUpdate.promise)
 				const store = createRecordsStore()
 				store.records = [
-					createMockRecord({ id: 'record-1', title: 'Account A' })
+					createDomainRecord({ id: 'record-1', title: 'Account A' })
 				]
 				const update = store.updateRecord('record-1', { title: 'A optimistic' })
 				expect(store.records[0]!.title).toBe('A optimistic')
@@ -574,10 +588,9 @@ describe('recordsStore CRUD', () => {
 				store.clearRecords()
 				mockUserStore.supaUser = { id: 'replacement-user-id' }
 				store.records = [
-					createMockRecord({
+					createDomainRecord({
 						id: 'record-1',
-						title: 'Account B',
-						user_id: 'replacement-user-id'
+						title: 'Account B'
 					})
 				]
 				mockToast.success.mockClear()
@@ -595,7 +608,7 @@ describe('recordsStore CRUD', () => {
 	describe('record removal lifecycle', () => {
 		it('waits for cleanup begun after the committed removal epoch', async () => {
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1' })]
+			store.records = [createDomainRecord({ id: 'record-1' })]
 			const oldEmptyPage = createDeferred<ReturnType<typeof cleanupResponse>>()
 			const postDeletePage =
 				createDeferred<ReturnType<typeof cleanupResponse>>()
@@ -629,9 +642,13 @@ describe('recordsStore CRUD', () => {
 		it('drains managed cover cleanup after the record is removed', async () => {
 			const store = createRecordsStore()
 			store.records = [
-				createMockRecord({
+				createDomainRecord({
 					id: 'record-1',
-					cover_storage_path: 'test-user-id/record-1/custom.webp'
+					cover: {
+						kind: 'cloud',
+						assetId: 'test-user-id/record-1/custom.webp',
+						fallbackUrl: null
+					}
 				})
 			]
 			const result = await store.removeRecordFromCollection('record-1')
@@ -647,7 +664,7 @@ describe('recordsStore CRUD', () => {
 				.mockImplementation(() => undefined)
 			try {
 				const store = createRecordsStore()
-				store.records = [createMockRecord({ id: 'record-1' })]
+				store.records = [createDomainRecord({ id: 'record-1' })]
 				mockBoundFunctionsInvoke.mockResolvedValue({
 					data: null,
 					error: new Error('private cleanup failure')
@@ -674,7 +691,7 @@ describe('recordsStore CRUD', () => {
 
 		it('returns false when the server cannot find the record', async () => {
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'existing-record' })]
+			store.records = [createDomainRecord({ id: 'existing-record' })]
 			mockSupabaseClient.rpc.mockResolvedValueOnce({
 				data: null,
 				error: new Error('Record not found')
@@ -688,8 +705,8 @@ describe('recordsStore CRUD', () => {
 		it('waits for the committed RPC before removing local state', async () => {
 			const store = createRecordsStore()
 			store.records = [
-				createMockRecord({ id: 'record-1' }),
-				createMockRecord({ id: 'record-2' })
+				createDomainRecord({ id: 'record-1' }),
+				createDomainRecord({ id: 'record-2' })
 			]
 			const removalResponse =
 				createDeferred<ReturnType<typeof successfulRemovalResponse>>()
@@ -712,8 +729,8 @@ describe('recordsStore CRUD', () => {
 
 		it('keeps local state unchanged on removal error', async () => {
 			const store = createRecordsStore()
-			const record1 = createMockRecord({ id: 'record-1' })
-			const record2 = createMockRecord({ id: 'record-2' })
+			const record1 = createDomainRecord({ id: 'record-1' })
+			const record2 = createDomainRecord({ id: 'record-2' })
 			store.records = [record1, record2]
 			mockSupabaseClient.rpc.mockResolvedValueOnce({
 				data: null,
@@ -730,7 +747,7 @@ describe('recordsStore CRUD', () => {
 
 		it('returns true on successful removal', async () => {
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1' })]
+			store.records = [createDomainRecord({ id: 'record-1' })]
 			const result = await store.removeRecordFromCollection('record-1')
 
 			expect(result).toBe(true)
@@ -742,7 +759,8 @@ describe('recordsStore CRUD', () => {
 				data: DatabaseRecord[]
 				error: null
 			}>()
-			const deletedRecord = createMockRecord({ id: 'record-1' })
+			const deletedRecordRow = createMockRecord({ id: 'record-1' })
+			const deletedRecord = decodeLibraryRecordRow(deletedRecordRow).row
 			mockQueryBuilder.limit.mockReturnValueOnce(oldFetchResponse.promise)
 			const store = createRecordsStore()
 			store.records = [deletedRecord]
@@ -754,7 +772,7 @@ describe('recordsStore CRUD', () => {
 			await expect(store.removeRecordFromCollection('record-1')).resolves.toBe(
 				true
 			)
-			oldFetchResponse.resolve({ data: [deletedRecord], error: null })
+			oldFetchResponse.resolve({ data: [deletedRecordRow], error: null })
 			await expect(oldFetch).resolves.toBe(true)
 
 			expect(store.getRecordById('record-1')).toBeUndefined()
@@ -762,7 +780,7 @@ describe('recordsStore CRUD', () => {
 
 		it('sets isDeletingRecord during removal', async () => {
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1' })]
+			store.records = [createDomainRecord({ id: 'record-1' })]
 
 			const removalPromise = store.removeRecordFromCollection('record-1')
 			expect(store.isDeletingRecord).toBe(true)
@@ -775,7 +793,7 @@ describe('recordsStore CRUD', () => {
 	describe('removeRecordFromCollection', () => {
 		it('calls the transactional cleanup RPC', async () => {
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ id: 'record-1' })]
+			store.records = [createDomainRecord({ id: 'record-1' })]
 
 			await store.removeRecordFromCollection('record-1')
 
@@ -787,8 +805,11 @@ describe('recordsStore CRUD', () => {
 
 		it('removes only record-owned local state on success', async () => {
 			const store = createRecordsStore()
-			const record = createMockRecord({ id: 'record-1', title: 'Record One' })
-			store.records = [record, createMockRecord({ id: 'record-2' })]
+			const record = createDomainRecord({
+				id: 'record-1',
+				title: 'Record One'
+			})
+			store.records = [record, createDomainRecord({ id: 'record-2' })]
 			await store.performSearch('Record One')
 
 			const result = await store.removeRecordFromCollection('record-1')
@@ -801,7 +822,7 @@ describe('recordsStore CRUD', () => {
 
 		it('keeps local state unchanged when the RPC fails', async () => {
 			const store = createRecordsStore()
-			const record = createMockRecord({ id: 'record-1' })
+			const record = createDomainRecord({ id: 'record-1' })
 			store.records = [record]
 			await store.performSearch(record.title)
 			mockSupabaseClient.rpc.mockResolvedValue({
@@ -830,7 +851,7 @@ describe('recordsStore CRUD', () => {
 			'keeps local state unchanged for a $label success payload',
 			async ({ data }) => {
 				const store = createRecordsStore()
-				const record = createMockRecord({ id: 'record-1' })
+				const record = createDomainRecord({ id: 'record-1' })
 				store.records = [record]
 				mockSupabaseClient.rpc.mockResolvedValueOnce({ data, error: null })
 
@@ -855,7 +876,7 @@ describe('recordsStore CRUD', () => {
 				const accountARemoval = createDeferred<typeof response>()
 				mockSupabaseClient.rpc.mockReturnValueOnce(accountARemoval.promise)
 				const store = createRecordsStore()
-				store.records = [createMockRecord({ id: 'record-1' })]
+				store.records = [createDomainRecord({ id: 'record-1' })]
 				const removal = store.removeRecordFromCollection('record-1')
 				await vi.waitFor(() =>
 					expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
@@ -867,10 +888,9 @@ describe('recordsStore CRUD', () => {
 				store.clearRecords()
 				mockUserStore.supaUser = { id: 'replacement-user-id' }
 				store.records = [
-					createMockRecord({
+					createDomainRecord({
 						id: 'record-1',
-						title: 'Account B',
-						user_id: 'replacement-user-id'
+						title: 'Account B'
 					})
 				]
 				mockToast.success.mockClear()

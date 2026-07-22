@@ -1,17 +1,13 @@
 import { toast } from 'vue-sonner'
-import { getActivePinia } from 'pinia'
-import {
-	ensureCloudWorkbenchRuntime,
-	ensureDemoWorkbenchRuntime
-} from '~/composables/useWorkbench'
 import type { WorkspaceOperationContext } from '~/repositories/library/contracts'
 import {
 	compareCreatedAtDescIdDesc,
 	postgresTimestampMicroseconds
 } from '~/utils/supabaseOrdering'
 import {
+	ensureWorkbenchRuntime,
 	getWorkbenchRuntime,
-	isDemoWorkbenchPinia
+	getWorkbenchStorePinia
 } from '~/utils/workbenchPinia'
 import type {
 	CrateCreateInput,
@@ -57,12 +53,8 @@ type PendingMembershipOperation = {
 }
 
 export const useCratesStore = defineStore('crates', () => {
-	const pinia = getActivePinia()
-	const runtime =
-		getWorkbenchRuntime(pinia) ??
-		(isDemoWorkbenchPinia(pinia)
-			? ensureDemoWorkbenchRuntime(pinia!)
-			: ensureCloudWorkbenchRuntime(pinia!))
+	const pinia = getWorkbenchStorePinia()
+	const runtime = getWorkbenchRuntime(pinia) ?? ensureWorkbenchRuntime(pinia!)
 
 	const crates = ref<LibraryCrate[]>([])
 	const isLoadingCrates = ref(false)
@@ -99,9 +91,7 @@ export const useCratesStore = defineStore('crates', () => {
 
 	function captureAccountContext(): AccountContext | null {
 		const captured = runtime.capture()
-		return captured.descriptor.readOnly
-			? null
-			: { ...captured.context, generation: accountGeneration }
+		return { ...captured.context, generation: accountGeneration }
 	}
 
 	function isCurrentAccountContext(context: AccountContext): boolean {
@@ -413,9 +403,6 @@ export const useCratesStore = defineStore('crates', () => {
 	}
 
 	function fetchAllCrates(): Promise<boolean> {
-		if (runtime.capture().descriptor.location === 'demo') {
-			return Promise.resolve(true)
-		}
 		if (fetchPromise) return fetchPromise
 
 		const createdPromise = performFetchAllCrates(accountGeneration).finally(
@@ -638,6 +625,7 @@ export const useCratesStore = defineStore('crates', () => {
 		crateId: string,
 		recordId: string
 	): Promise<MembershipResult | null> {
+		if (isReadOnlyWorkbench()) return null
 		const account = captureAccountContext()
 		if (!account) {
 			toast.error('Error updating crate.')

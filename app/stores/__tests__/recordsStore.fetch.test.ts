@@ -1,4 +1,7 @@
-import { createMockRecord } from 'test/mocks/fixtures/records'
+import {
+	createMockLibraryRecord as createDomainRecord,
+	createMockRecord
+} from 'test/mocks/fixtures/records'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
 	createDeferred,
@@ -41,9 +44,9 @@ describe('recordsStore fetch and reconciliation', () => {
 		it('recordsCount returns correct count', () => {
 			const store = createRecordsStore()
 			store.records = [
-				createMockRecord(),
-				createMockRecord(),
-				createMockRecord()
+				createDomainRecord(),
+				createDomainRecord(),
+				createDomainRecord()
 			]
 
 			expect(store.recordsCount).toBe(3)
@@ -56,7 +59,7 @@ describe('recordsStore fetch and reconciliation', () => {
 
 		it('hasRecords returns true when records exist', () => {
 			const store = createRecordsStore()
-			store.records = [createMockRecord()]
+			store.records = [createDomainRecord()]
 
 			expect(store.hasRecords).toBe(true)
 		})
@@ -74,21 +77,21 @@ describe('recordsStore fetch and reconciliation', () => {
 
 		it('hasSearchQuery returns true when query exists', async () => {
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ title: 'Test' })]
+			store.records = [createDomainRecord({ title: 'Test' })]
 			await store.performSearch('test')
 			expect(store.hasSearchQuery).toBe(true)
 		})
 
 		it('hasSearchResults returns false when no results', async () => {
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ title: 'House' })]
+			store.records = [createDomainRecord({ title: 'House' })]
 			await store.performSearch('techno')
 			expect(store.hasSearchResults).toBe(false)
 		})
 
 		it('hasSearchResults returns true when results exist', async () => {
 			const store = createRecordsStore()
-			store.records = [createMockRecord({ title: 'House Music' })]
+			store.records = [createDomainRecord({ title: 'House Music' })]
 			await store.performSearch('house')
 			expect(store.hasSearchResults).toBe(true)
 		})
@@ -96,9 +99,9 @@ describe('recordsStore fetch and reconciliation', () => {
 		it('resultsCount returns correct count', async () => {
 			const store = createRecordsStore()
 			store.records = [
-				createMockRecord({ title: 'House 1' }),
-				createMockRecord({ title: 'House 2' }),
-				createMockRecord({ title: 'Techno' })
+				createDomainRecord({ title: 'House 1' }),
+				createDomainRecord({ title: 'House 2' }),
+				createDomainRecord({ title: 'Techno' })
 			]
 			await store.performSearch('house')
 			expect(store.resultsCount).toBe(2)
@@ -106,7 +109,7 @@ describe('recordsStore fetch and reconciliation', () => {
 
 		it('displayedRecords returns all records when no search', () => {
 			const store = createRecordsStore()
-			const records = [createMockRecord(), createMockRecord()]
+			const records = [createDomainRecord(), createDomainRecord()]
 			store.records = records
 
 			expect(store.displayedRecords).toEqual(records)
@@ -114,11 +117,11 @@ describe('recordsStore fetch and reconciliation', () => {
 
 		it('displayedRecords returns search results when searching', async () => {
 			const store = createRecordsStore()
-			const houseRecord = createMockRecord({
+			const houseRecord = createDomainRecord({
 				id: 'house',
 				title: 'House Music'
 			})
-			store.records = [houseRecord, createMockRecord({ title: 'Techno' })]
+			store.records = [houseRecord, createDomainRecord({ title: 'Techno' })]
 
 			await store.performSearch('house')
 
@@ -130,7 +133,7 @@ describe('recordsStore fetch and reconciliation', () => {
 		it('returns false and preserves records when user is not signed in', async () => {
 			mockUserStore.supaUser = null
 			const store = createRecordsStore()
-			const existingRecord = createMockRecord({ id: 'existing-record' })
+			const existingRecord = createDomainRecord({ id: 'existing-record' })
 			store.records = [existingRecord]
 
 			const result = await store.fetchAllRecords()
@@ -418,7 +421,7 @@ describe('recordsStore fetch and reconciliation', () => {
 
 		it('preserves prior records when a later page fails', async () => {
 			const store = createRecordsStore()
-			const existingRecord = createMockRecord({ id: 'existing-record' })
+			const existingRecord = createDomainRecord({ id: 'existing-record' })
 			store.records = [existingRecord]
 			mockQueryBuilder.limit
 				.mockResolvedValueOnce({
@@ -500,7 +503,7 @@ describe('recordsStore fetch and reconciliation', () => {
 
 		it('returns false, preserves records on query failure, and can retry', async () => {
 			const store = createRecordsStore()
-			const existingRecord = createMockRecord({ id: 'existing-record' })
+			const existingRecord = createDomainRecord({ id: 'existing-record' })
 			store.records = [existingRecord]
 			mockQueryBuilder.limit
 				.mockResolvedValueOnce({

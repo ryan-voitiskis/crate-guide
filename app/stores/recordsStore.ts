@@ -1,19 +1,15 @@
 import { toRaw } from 'vue'
 import { toast } from 'vue-sonner'
-import { getActivePinia } from 'pinia'
-import {
-	ensureCloudWorkbenchRuntime,
-	ensureDemoWorkbenchRuntime
-} from '~/composables/useWorkbench'
 import type { WorkspaceOperationContext } from '~/repositories/library/contracts'
-import type { RecordCoverChange } from '~/utils/recordCoverCoordinator'
 import { sortCreatedAtDescIdDesc } from '~/utils/supabaseOrdering'
 import { reportDecodeIssues } from '~/utils/supabaseRows'
 import {
+	ensureWorkbenchRuntime,
 	getWorkbenchRuntime,
-	isDemoWorkbenchPinia
+	getWorkbenchStorePinia
 } from '~/utils/workbenchPinia'
 import type {
+	LibraryCoverChange,
 	LibraryRecord,
 	ManualRecordWithTracksInput,
 	RecordUpdateInput
@@ -45,12 +41,8 @@ type MutationActivityToken = {
 }
 
 export const useRecordsStore = defineStore('records', () => {
-	const pinia = getActivePinia()
-	const runtime =
-		getWorkbenchRuntime(pinia) ??
-		(isDemoWorkbenchPinia(pinia)
-			? ensureDemoWorkbenchRuntime(pinia!)
-			: ensureCloudWorkbenchRuntime(pinia!))
+	const pinia = getWorkbenchStorePinia()
+	const runtime = getWorkbenchRuntime(pinia) ?? ensureWorkbenchRuntime(pinia!)
 	const tracksStore = useTracksStore(pinia)
 
 	const records = ref<LibraryRecord[]>([])
@@ -342,9 +334,6 @@ export const useRecordsStore = defineStore('records', () => {
 	function fetchAllRecords(
 		options: LibraryFetchOptions = {}
 	): Promise<boolean> {
-		if (runtime.capture().descriptor.location === 'demo') {
-			return Promise.resolve(true)
-		}
 		if (options.fresh) {
 			if (freshFetchPromise) return freshFetchPromise
 
@@ -565,7 +554,7 @@ export const useRecordsStore = defineStore('records', () => {
 	async function drainCoverCleanup(
 		options: CoverCleanupDrainOptions = {}
 	): Promise<boolean> {
-		if (runtime.capture().descriptor.location === 'demo') return true
+		if (runtime.capture().descriptor.readOnly) return false
 		const context = options.context ?? (await captureAccountContext())
 		if (!context || !isCurrentAccountContext(context)) return false
 		const repositories = repositoriesFor(context)
@@ -587,7 +576,7 @@ export const useRecordsStore = defineStore('records', () => {
 	async function updateRecordWithCover(
 		id: string,
 		updates: RecordUpdateInput,
-		coverChange: RecordCoverChange
+		coverChange: LibraryCoverChange
 	): Promise<LibraryRecord | null> {
 		if (coverChange.type === 'keep') return updateRecord(id, updates)
 

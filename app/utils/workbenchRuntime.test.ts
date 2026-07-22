@@ -5,14 +5,14 @@ import type {
 	WorkspaceDescriptor
 } from '~/repositories/library/contracts'
 import { createDemoLibraryRepository } from '~/repositories/library/demoLibraryRepository'
-import type { LibrarySnapshot } from '~~/shared/types/library'
+import type { LibraryDataset } from '~~/shared/types/library'
 import {
 	bindWorkbenchRuntime,
 	createWorkbenchRuntime,
 	getWorkbenchRuntime
 } from './workbenchPinia'
 
-const snapshot: LibrarySnapshot = {
+const dataset: LibraryDataset = {
 	records: [],
 	tracks: [],
 	crates: [],
@@ -24,8 +24,7 @@ const snapshot: LibrarySnapshot = {
 		selected_crate: '',
 		turntable_pitch_range: 8,
 		turntable_theme: 'silver'
-	},
-	repositoryRevision: 0
+	}
 }
 
 const descriptor: WorkspaceDescriptor = {
@@ -49,7 +48,7 @@ const descriptor: WorkspaceDescriptor = {
 function createRepository(id: string): LibraryRepositoryBundle {
 	return createDemoLibraryRepository({
 		id,
-		snapshot,
+		dataset,
 		isCurrentContext: () => true
 	})
 }

@@ -61,7 +61,7 @@ describe('userStore auth lifecycle and profile', () => {
 			mockSupaUser.value = null
 
 			expect(store.profile).toBeNull()
-			expect(mockSetTheme).toHaveBeenLastCalledWith('auto')
+			expect(mockSetTheme).not.toHaveBeenCalled()
 
 			profileRequest.resolve({
 				data: createMockProfile({ id: 'test-user-id', ui_theme: 'dark' }),
@@ -71,7 +71,7 @@ describe('userStore auth lifecycle and profile', () => {
 
 			expect(store.profile).toBeNull()
 			expect(mockSetTheme).not.toHaveBeenCalledWith('dark')
-			expect(mockSetTheme).toHaveBeenLastCalledWith('auto')
+			expect(mockSetTheme).not.toHaveBeenCalled()
 			expect(mockToast.error).not.toHaveBeenCalled()
 		})
 
@@ -108,7 +108,7 @@ describe('userStore auth lifecycle and profile', () => {
 				'replacement-user-id'
 			)
 			expect(store.profile).toEqual(replacementProfile)
-			expect(mockSetTheme).toHaveBeenLastCalledWith('light')
+			expect(mockSetTheme).not.toHaveBeenCalled()
 
 			firstProfileRequest.resolve({
 				data: createMockProfile({ id: 'test-user-id', ui_theme: 'dark' }),
@@ -117,7 +117,7 @@ describe('userStore auth lifecycle and profile', () => {
 			await drainLifecycleTasks()
 
 			expect(store.profile).toEqual(replacementProfile)
-			expect(mockSetTheme).toHaveBeenLastCalledWith('light')
+			expect(mockSetTheme).not.toHaveBeenCalled()
 			expect(mockToast.error).not.toHaveBeenCalled()
 		})
 
@@ -200,10 +200,10 @@ describe('userStore auth lifecycle and profile', () => {
 
 			expect(result).toBe(true)
 			expect(store.profile).toEqual(mockProfile)
-			expect(store.currentKeyFormat).toBe('camelot')
+			expect(store.profile?.id).toBe(mockProfile.id)
 		})
 
-		it('calls setTheme with profile theme', async () => {
+		it('does not let a profile read change presentation theme', async () => {
 			const store = useUserStore()
 			const mockProfile = { id: 'test-user-id', ui_theme: 'dark' }
 			mockQueryBuilder.single.mockResolvedValue({
@@ -213,7 +213,7 @@ describe('userStore auth lifecycle and profile', () => {
 
 			await store.fetchProfile()
 
-			expect(mockSetTheme).toHaveBeenCalledWith('dark')
+			expect(mockSetTheme).not.toHaveBeenCalled()
 		})
 
 		it('returns false on fetch error', async () => {

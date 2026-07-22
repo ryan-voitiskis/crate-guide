@@ -1,13 +1,15 @@
 <script setup lang="ts">
+import type { LibraryPlayedTrackEntry } from '~~/shared/types/library'
+
 const props = defineProps<{
-	entry: PlayedTrackEntry
+	entry: LibraryPlayedTrackEntry
 	index: number
 	isFirst: boolean
 }>()
 
 const session = useWorkbenchSessionStore()
 const tracks = useWorkbenchTracksStore()
-const user = useWorkbenchUserStore()
+const preferences = useWorkbenchPreferencesStore()
 
 const track = computed(() => tracks.getTrackById(props.entry.track_id))
 
@@ -34,7 +36,7 @@ const keyDisplay = computed(() => {
 	return getFormattedKeyString(
 		track.value.key,
 		track.value.mode,
-		user.currentKeyFormat,
+		preferences.currentKeyFormat,
 		'short'
 	)
 })

@@ -9,6 +9,7 @@ import {
 	trackEditorSchema,
 	trackToEditorValues
 } from '~/utils/trackEditor'
+import type { LibraryTrack } from '~~/shared/types/library'
 
 const props = defineProps<{
 	trackId: string | null
@@ -18,9 +19,9 @@ const emit = defineEmits<{
 	close: []
 }>()
 
-const tracks = useTracksStore()
-const records = useRecordsStore()
-const user = useUserStore()
+const tracks = useWorkbenchTracksStore()
+const records = useWorkbenchRecordsStore()
+const preferences = useWorkbenchPreferencesStore()
 
 const isEditMode = ref(false)
 const showUnsavedChangesAlert = ref(false)
@@ -178,9 +179,13 @@ function confirmDiscardAndProceed() {
 	emit('close')
 }
 
-function formatKey(track: Track): string {
+function formatKey(track: LibraryTrack): string {
 	if (track.key === null || track.mode === null) return 'Not specified'
-	return getFormattedKeyString(track.key, track.mode, user.currentKeyFormat)
+	return getFormattedKeyString(
+		track.key,
+		track.mode,
+		preferences.currentKeyFormat
+	)
 }
 </script>
 
@@ -238,7 +243,7 @@ function formatKey(track: Track): string {
 						v-if="isEditMode"
 						v-model:artists="artists"
 						v-model:extraartists="extraartists"
-						:key-format="user.currentKeyFormat"
+						:key-format="preferences.currentKeyFormat"
 						:show-validation-errors="true"
 					/>
 

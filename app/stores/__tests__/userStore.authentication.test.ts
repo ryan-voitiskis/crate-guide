@@ -1,6 +1,5 @@
 import { toast } from 'vue-sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Profile } from '~/../../shared/types/supabase'
 import { useUserStore as createPiniaUserStore } from '../userStore'
 import {
 	createDeferred,
@@ -73,19 +72,14 @@ describe('userStore authentication', () => {
 			const store = useUserStore()
 			expect(store.userAlreadyRegistered).toBe(false)
 		})
-
-		it('starts with isUpdatingSettings as false', () => {
-			const store = useUserStore()
-			expect(store.isUpdatingSettings).toBe(false)
-		})
 	})
 
-	describe('currentTheme computed', () => {
+	describe('deviceTheme', () => {
 		it('returns auto when profile is null and no anonymous preference is saved', () => {
 			const store = useUserStore()
 			store.profile = null
 
-			expect(store.currentTheme).toBe('auto')
+			expect(store.deviceTheme).toBe('auto')
 		})
 
 		it('returns the saved anonymous theme when profile is null', () => {
@@ -93,75 +87,14 @@ describe('userStore authentication', () => {
 			const store = useUserStore()
 			store.profile = null
 
-			expect(store.currentTheme).toBe('dark')
+			expect(store.deviceTheme).toBe('dark')
 		})
 
-		it('returns profile theme when set', () => {
+		it('does not let identity profile data own presentation', () => {
 			const store = useUserStore()
 			store.profile = createMockProfile({ ui_theme: 'dark' })
 
-			expect(store.currentTheme).toBe('dark')
-		})
-
-		it('returns auto when profile theme is auto', () => {
-			const store = useUserStore()
-			store.profile = createMockProfile({ ui_theme: 'auto' })
-
-			expect(store.currentTheme).toBe('auto')
-		})
-
-		it('returns the anonymous theme when profile has no theme', () => {
-			const store = useUserStore()
-			store.profile = createMockProfile() as unknown as Profile
-			store.profile.ui_theme = null as unknown as Profile['ui_theme']
-
-			expect(store.currentTheme).toBe('auto')
-		})
-	})
-
-	describe('currentKeyFormat computed', () => {
-		it('defaults to key when profile is null', () => {
-			const store = useUserStore()
-			store.profile = null
-
-			expect(store.currentKeyFormat).toBe('key')
-		})
-
-		it('returns profile key format when valid', () => {
-			const store = useUserStore()
-			store.profile = createMockProfile({ key_format: 'camelot' })
-
-			expect(store.currentKeyFormat).toBe('camelot')
-		})
-
-		it('falls back to key when profile key format is invalid', () => {
-			const store = useUserStore()
-			store.profile = createMockProfile({
-				key_format: 'invalid' as unknown as Profile['key_format']
-			})
-
-			expect(store.currentKeyFormat).toBe('key')
-		})
-
-		it('falls back to local preference when profile key format is invalid', async () => {
-			const store = useUserStore()
-			store.profile = null
-			mockSupaUser.value = null
-			mockSupabaseClient.auth.getSession.mockResolvedValue({
-				data: { session: null },
-				error: null
-			})
-			mockSupabaseClient.auth.getUser.mockResolvedValue({
-				data: { user: null },
-				error: null
-			})
-
-			await store.updateKeyFormat('camelot')
-			store.profile = createMockProfile({
-				key_format: 'invalid' as unknown as Profile['key_format']
-			})
-
-			expect(store.currentKeyFormat).toBe('camelot')
+			expect(store.deviceTheme).toBe('auto')
 		})
 	})
 
@@ -398,14 +331,14 @@ describe('userStore authentication', () => {
 			expect(store.isSigningOut).toBe(false)
 		})
 
-		it('restores the anonymous theme on success', async () => {
+		it('does not let sign-out overwrite the active workspace theme', async () => {
 			mockGetSavedAnonymousThemePreference.mockReturnValue('auto')
 			const store = useUserStore()
 			store.profile = createMockProfile({ ui_theme: 'dark' })
 
 			await store.signOut()
 
-			expect(mockSetTheme).toHaveBeenLastCalledWith('auto')
+			expect(mockSetTheme).not.toHaveBeenCalled()
 		})
 
 		it('handles sign out errors', async () => {

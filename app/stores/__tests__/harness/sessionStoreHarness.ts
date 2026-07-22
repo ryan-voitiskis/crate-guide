@@ -83,6 +83,16 @@ export function createSessionStoreHarness() {
 			return userStore.supaUser.id
 		})
 	}
+	const preferencesStore = {
+		preferences: {
+			turntable_pitch_range: 8,
+			turntable_theme: 'silver' as const,
+			ui_theme: 'auto' as const,
+			key_format: 'key' as const,
+			list_layout: 'cover',
+			selected_crate: ''
+		}
+	}
 	let queryBuilder = createQueryBuilder()
 	const supabaseClient = {
 		from: vi.fn(() => queryBuilder)
@@ -94,6 +104,7 @@ export function createSessionStoreHarness() {
 		tracksStore.playableTracks = []
 		tracksStore.getTrackById.mockReset()
 		userStore.profile = { turntable_pitch_range: 8 }
+		preferencesStore.preferences.turntable_pitch_range = 8
 		userStore.supaUser = { id: 'test-user-id' }
 		userStore.resolveAuthenticatedUserId.mockClear()
 		return queryBuilder
@@ -106,6 +117,7 @@ export function createSessionStoreHarness() {
 		reset,
 		supabaseClient,
 		tracksStore,
+		preferencesStore,
 		userStore
 	}
 }

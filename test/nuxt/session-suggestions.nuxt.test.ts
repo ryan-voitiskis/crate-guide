@@ -6,14 +6,16 @@ import CardTrackSuggestion from '~/components/session/CardTrackSuggestion.vue'
 import type { ScoredTrack } from '../../shared/types/session'
 
 const factories = vi.hoisted(() => ({
+	preferences: vi.fn(),
 	records: vi.fn(),
-	session: vi.fn(),
-	user: vi.fn()
+	runtime: vi.fn(),
+	session: vi.fn()
 }))
 
-mockNuxtImport('useRecordsStore', () => factories.records)
-mockNuxtImport('useSessionStore', () => factories.session)
-mockNuxtImport('useUserStore', () => factories.user)
+mockNuxtImport('useWorkbenchRecordsStore', () => factories.records)
+mockNuxtImport('useWorkbenchSessionStore', () => factories.session)
+mockNuxtImport('useWorkbenchPreferencesStore', () => factories.preferences)
+mockNuxtImport('useWorkbenchRuntime', () => factories.runtime)
 
 const handleSuggestionClick = vi.hoisted(() => vi.fn())
 const wrappers = new Set<VueWrapper>()
@@ -34,10 +36,22 @@ function createScoredTrack(overrides: Partial<ScoredTrack> = {}): ScoredTrack {
 describe('session suggestion presentation', () => {
 	beforeEach(() => {
 		factories.records.mockReturnValue({
-			getRecordById: vi.fn(() => ({ cover: null, labels: [] }))
+			getRecordById: vi.fn(() => ({
+				cover: { kind: 'none' },
+				labels: []
+			}))
 		})
 		factories.session.mockReturnValue({ handleSuggestionClick })
-		factories.user.mockReturnValue({ currentKeyFormat: 'traditional' })
+		factories.preferences.mockReturnValue({ currentKeyFormat: 'key' })
+		factories.runtime.mockReturnValue({
+			capture: () => ({
+				context: { id: 'test-workspace' },
+				repositories: {
+					covers: { resolve: vi.fn().mockResolvedValue(null) }
+				}
+			}),
+			isCurrent: () => true
+		})
 	})
 
 	afterEach(() => {

@@ -29,7 +29,7 @@ const props = defineProps<{
 
 const records = useWorkbenchRecordsStore()
 const tracks = useWorkbenchTracksStore()
-const user = useWorkbenchUserStore()
+const preferences = useWorkbenchPreferencesStore()
 const capabilities = useWorkbenchCapabilities()
 const isActive = usePageActive()
 
@@ -574,7 +574,7 @@ function handleFileDrop(file: File) {
 									v-if="selectedFilter === 'unmatched'"
 									class="shrink-0 md:min-h-0 md:flex-1 md:shrink md:rounded-none md:border-x-0"
 									:rows="pagedReviewRows"
-									:key-format="user.currentKeyFormat"
+									:key-format="preferences.currentKeyFormat"
 									:source-label="sourceLabel"
 									:density="density"
 									:sort-key="reviewSortKey"
@@ -590,7 +590,7 @@ function handleFileDrop(file: File) {
 									:filtered-selection-state="visibleSelectionState"
 									:stageable-row-count="visibleStageableRows.length"
 									:is-applying="isApplying"
-									:key-format="user.currentKeyFormat"
+									:key-format="preferences.currentKeyFormat"
 									:source-label="sourceLabel"
 									:density="density"
 									:sort-key="reviewSortKey"

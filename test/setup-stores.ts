@@ -3,7 +3,43 @@
  */
 import { computed, readonly, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import { vi } from 'vitest'
+import { beforeEach, vi } from 'vitest'
+
+function getTestUserId(): string | null {
+	const storeFactory = (globalThis as { useUserStore?: () => unknown })
+		.useUserStore
+	if (!storeFactory) return null
+	const store = storeFactory() as {
+		supaUser?: { id?: unknown; sub?: unknown } | null
+		supaUserId?: unknown
+	}
+	if (typeof store.supaUserId === 'string' && store.supaUserId)
+		return store.supaUserId
+	const subject = store.supaUser?.sub
+	if (typeof subject === 'string' && subject) return subject
+	const legacyId = store.supaUser?.id
+	return typeof legacyId === 'string' && legacyId ? legacyId : null
+}
+
+beforeEach(async () => {
+	const [{ ensureCloudWorkbenchRuntime }, { registerWorkbenchRuntimeFactory }] =
+		await Promise.all([
+			import('~/utils/cloudWorkbenchRuntime'),
+			import('~/utils/workbenchPinia')
+		])
+	registerWorkbenchRuntimeFactory((pinia) =>
+		ensureCloudWorkbenchRuntime(pinia, {
+			identity: {
+				getUserId: getTestUserId,
+				async resolveAuthenticatedUserId() {
+					const userId = getTestUserId()
+					if (!userId) throw new Error('User not logged in.')
+					return userId
+				}
+			}
+		})
+	)
+})
 
 // Provide Nuxt auto-imports as globals
 globalThis.defineStore = defineStore

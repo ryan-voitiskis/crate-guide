@@ -3,11 +3,11 @@ import { toTypedSchema } from '@vee-validate/zod'
 import { Pencil, PencilOff } from 'lucide-vue-next'
 import { useForm } from 'vee-validate'
 import { z } from 'zod'
-import type { RecordCoverChange } from '~/utils/recordCoverCoordinator'
+import type { LibraryCoverChange } from '~~/shared/types/library'
 import { Separator } from '../ui/separator'
 
-const records = useRecordsStore()
-const recordDetails = useRecordDetailsStore()
+const records = useWorkbenchRecordsStore()
+const recordDetails = useWorkbenchRecordDetailsStore()
 
 const dialogOpen = computed({
 	get: () => !!recordDetails.selectedRecordId,
@@ -60,7 +60,7 @@ const [coverValue] = form.defineField('cover')
 const artists = ref<DiscogsArtistDb[]>([])
 const coverEditorRef = ref<{
 	focus: () => Promise<void>
-	getChange: () => RecordCoverChange
+	getChange: () => LibraryCoverChange
 	hasPendingChange: () => boolean
 	reset: () => void
 }>()
@@ -106,7 +106,7 @@ watch(
 			setValues({
 				title: record.title || '',
 				year: record.year?.toString() || '',
-				cover: record.cover || ''
+				cover: getCoverFallbackUrl(record.cover) || ''
 			})
 			artists.value = record.artists || []
 			isFormInitialized.value = true
@@ -130,7 +130,7 @@ function hasFormChanges(): boolean {
 	return (
 		(current.title || '') !== (form.title || '') ||
 		(current.year?.toString() || '') !== (form.year || '') ||
-		(current.cover || '') !== (form.cover || '') ||
+		(getCoverFallbackUrl(current.cover) || '') !== (form.cover || '') ||
 		coverEditorRef.value?.hasPendingChange() === true ||
 		JSON.stringify(current.artists || []) !==
 			JSON.stringify(artists.value || [])
@@ -168,15 +168,25 @@ const saveRecord = handleSubmit(async (values) => {
 		recordDetails.selectedRecordId === recordId &&
 		recordDetails.isEditMode
 
+	const coverChange = coverEditorRef.value?.getChange() ?? {
+		type: 'keep' as const
+	}
+	const currentFallbackUrl = getCoverFallbackUrl(
+		recordDetails.selectedRecord.cover
+	)
+	const shouldUpdateCover =
+		coverChange.type !== 'keep' || (values.cover || null) !== currentFallbackUrl
 	const updates = {
 		title: values.title.trim(),
 		year: values.year ? Number(values.year) : null,
-		cover: values.cover || null,
-		artists: artists.value
-	}
-
-	const coverChange = coverEditorRef.value?.getChange() ?? {
-		type: 'keep' as const
+		artists: artists.value,
+		...(shouldUpdateCover
+			? {
+					cover: values.cover
+						? ({ kind: 'external', url: values.cover } as const)
+						: ({ kind: 'none' } as const)
+				}
+			: {})
 	}
 
 	try {

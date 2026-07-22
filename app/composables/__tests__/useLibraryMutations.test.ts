@@ -22,14 +22,15 @@ const session = {
 	clearSession: vi.fn()
 }
 const user = {
-	deleteAllUserData: vi.fn()
+	deleteAllUserData: vi.fn(),
+	supaUserId: 'account-a' as string | null
 }
 
-vi.stubGlobal('useRecordsStore', () => records)
-vi.stubGlobal('useTracksStore', () => tracks)
-vi.stubGlobal('useCratesStore', () => crates)
-vi.stubGlobal('useSessionStore', () => session)
-vi.stubGlobal('useUserStore', () => user)
+vi.stubGlobal('useWorkbenchRecordsStore', () => records)
+vi.stubGlobal('useWorkbenchTracksStore', () => tracks)
+vi.stubGlobal('useWorkbenchCratesStore', () => crates)
+vi.stubGlobal('useWorkbenchSessionStore', () => session)
+vi.stubGlobal('useWorkbenchUserStore', () => user)
 
 function createDeferred<T>() {
 	let resolve!: (value: T | PromiseLike<T>) => void
@@ -44,6 +45,7 @@ const accountContext = { generation: 1, userId: 'account-a' }
 describe('useLibraryMutations', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
+		user.supaUserId = 'account-a'
 		records.captureAccountContext.mockResolvedValue(accountContext)
 		records.isCurrentAccountContext.mockReturnValue(true)
 		records.drainCoverCleanup.mockResolvedValue(true)

@@ -3,7 +3,7 @@ import type { ReviewFilter } from '~/composables/useTrackEnrichmentWorkflow'
 import { createDemoEnrichmentReview } from '~/demo/enrichmentFixtures'
 import EnrichmentPage from '../enrichment.vue'
 
-provideDemoWorkbench()
+definePageMeta({ layout: 'demo' })
 
 const route = useRoute()
 const reviewFilters: ReviewFilter[] = [

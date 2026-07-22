@@ -1,48 +1,42 @@
-import { defineComponent, h } from 'vue'
+import { type PropType, defineComponent, h } from 'vue'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
-import { createMockRecord } from 'test/mocks/fixtures/records'
+import { createMockLibraryRecord } from 'test/mocks/fixtures/records'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ImageRecordCover from '~/components/records/ImageRecordCover.vue'
-import {
-	resetRecordCoverUrlCacheForTests,
-	useRecordCover
-} from '~/composables/useRecordCover'
+import type { CoverReference, LibraryRecord } from '~~/shared/types/library'
 
-const coverMocks = vi.hoisted(() => ({
-	currentUserId: 'user-1',
-	createSignedUrl: vi.fn(),
-	resolveAuthenticatedUserId: vi.fn()
-}))
-
-mockNuxtImport('useUserStore', () => () => ({
-	resolveAuthenticatedUserId: coverMocks.resolveAuthenticatedUserId
-}))
-
-mockNuxtImport('useSupabaseClient', () => () => ({
-	auth: {
-		getSession: vi.fn().mockResolvedValue({
-			data: { session: null },
-			error: null
-		}),
-		onAuthStateChange: vi.fn(() => ({
-			data: { subscription: { unsubscribe: vi.fn() } }
-		}))
-	},
-	storage: {
-		from: () => ({ createSignedUrl: coverMocks.createSignedUrl })
+const coverMocks = vi.hoisted(() => {
+	const state = {
+		context: { id: 'workspace-a' },
+		resolve: vi.fn()
 	}
-}))
+	return {
+		state,
+		runtime: {
+			capture: vi.fn(() => ({
+				context: state.context,
+				repositories: { covers: { resolve: state.resolve } }
+			})),
+			isCurrent: vi.fn((context) => context === state.context)
+		}
+	}
+})
+
+mockNuxtImport('useWorkbenchRuntime', () => () => coverMocks.runtime)
 
 const TwoRecordCovers = defineComponent({
 	props: {
-		record: { type: Object, required: true }
+		record: {
+			type: Object as PropType<Pick<LibraryRecord, 'cover' | 'title'>>,
+			required: true
+		}
 	},
 	setup(props) {
 		return () =>
 			h('div', [
-				h(ImageRecordCover, { record: props.record as DatabaseRecord }),
-				h(ImageRecordCover, { record: props.record as DatabaseRecord })
+				h(ImageRecordCover, { record: props.record }),
+				h(ImageRecordCover, { record: props.record })
 			])
 	}
 })
@@ -55,30 +49,37 @@ function createDeferred<T>() {
 	return { promise, resolve }
 }
 
+function createRecord(cover: CoverReference) {
+	return createMockLibraryRecord({ cover })
+}
+
 describe('record cover presentation', () => {
 	beforeEach(() => {
-		coverMocks.currentUserId = 'user-1'
-		coverMocks.resolveAuthenticatedUserId.mockImplementation(
-			async () => coverMocks.currentUserId
-		)
-		coverMocks.createSignedUrl.mockResolvedValue({
-			data: { signedUrl: 'https://supabase.test.invalid/signed/custom.webp' },
-			error: null
-		})
-		resetRecordCoverUrlCacheForTests()
+		coverMocks.state.context = { id: 'workspace-a' }
+		coverMocks.state.resolve
+			.mockReset()
+			.mockImplementation(
+				async (_context: unknown, reference: CoverReference) => {
+					if (reference.kind === 'external') return reference.url
+					if (reference.kind === 'cloud' || reference.kind === 'browser') {
+						return reference.fallbackUrl
+					}
+					return null
+				}
+			)
+		coverMocks.runtime.capture.mockClear()
+		coverMocks.runtime.isCurrent.mockClear()
 	})
 
 	afterEach(() => {
 		document.body.innerHTML = ''
 		vi.clearAllMocks()
-		vi.useRealTimers()
-		resetRecordCoverUrlCacheForTests()
 	})
 
 	it('states clearly when artwork is missing', async () => {
 		const wrapper = await mountSuspended(ImageRecordCover, {
 			props: {
-				record: createMockRecord({ cover: null }),
+				record: createRecord({ kind: 'none' }),
 				showLabel: true
 			}
 		})
@@ -89,50 +90,54 @@ describe('record cover presentation', () => {
 		)
 	})
 
-	it('gives uploaded artwork precedence over the external fallback', async () => {
+	it('renders the active repository resolver result', async () => {
+		coverMocks.state.resolve.mockResolvedValueOnce(
+			'https://assets.example/resolved.webp'
+		)
+		const record = createRecord({
+			kind: 'cloud',
+			assetId: 'record-1/custom.webp',
+			fallbackUrl: 'https://assets.example/fallback.jpg'
+		})
 		const wrapper = await mountSuspended(ImageRecordCover, {
-			props: {
-				record: createMockRecord({
-					cover: 'https://discogs.example/fallback.jpg',
-					cover_storage_path: 'user-1/record-1/custom.webp'
-				})
-			}
+			props: { record }
 		})
 		await flushPromises()
 
-		expect(coverMocks.createSignedUrl).toHaveBeenCalledWith(
-			'user-1/record-1/custom.webp',
-			300
+		expect(coverMocks.state.resolve).toHaveBeenCalledWith(
+			coverMocks.state.context,
+			record.cover
 		)
 		expect(wrapper.get('img').attributes('src')).toBe(
-			'https://supabase.test.invalid/signed/custom.webp'
+			'https://assets.example/resolved.webp'
 		)
 	})
 
-	it('falls back to the external artwork when private access fails', async () => {
-		coverMocks.createSignedUrl.mockResolvedValueOnce({
-			data: { signedUrl: '' },
-			error: new Error('Access denied')
-		})
+	it('uses the reference fallback when a resolver throws', async () => {
+		coverMocks.state.resolve.mockRejectedValueOnce(new Error('Unavailable'))
 		const wrapper = await mountSuspended(ImageRecordCover, {
 			props: {
-				record: createMockRecord({
-					cover: 'https://discogs.example/fallback.jpg',
-					cover_storage_path: 'user-1/record-1/custom.webp'
+				record: createRecord({
+					kind: 'browser',
+					assetId: 'cover-1',
+					fallbackUrl: 'https://assets.example/fallback.jpg'
 				})
 			}
 		})
 		await flushPromises()
 
 		expect(wrapper.get('img').attributes('src')).toBe(
-			'https://discogs.example/fallback.jpg'
+			'https://assets.example/fallback.jpg'
 		)
 	})
 
 	it('replaces a failed image with an unavailable state', async () => {
 		const wrapper = await mountSuspended(ImageRecordCover, {
 			props: {
-				record: createMockRecord(),
+				record: createRecord({
+					kind: 'external',
+					url: 'https://assets.example/cover.jpg'
+				}),
 				showLabel: true
 			}
 		})
@@ -145,175 +150,70 @@ describe('record cover presentation', () => {
 		)
 	})
 
-	it('coalesces concurrent cover instances by user identity and storage path', async () => {
-		const record = createMockRecord({
-			cover_storage_path: 'user-1/record-1/shared.webp'
+	it('delegates each mounted cover to the repository boundary', async () => {
+		const record = createRecord({
+			kind: 'external',
+			url: 'https://assets.example/shared.jpg'
 		})
-
 		const wrapper = await mountSuspended(TwoRecordCovers, {
 			props: { record }
 		})
 		await flushPromises()
 
 		expect(wrapper.findAllComponents(ImageRecordCover)).toHaveLength(2)
-		expect(coverMocks.createSignedUrl).toHaveBeenCalledTimes(1)
-	})
-
-	it('reuses successful URLs for 240 seconds and signs again after expiry', async () => {
-		vi.useFakeTimers()
-		vi.setSystemTime(new Date('2026-07-19T00:00:00.000Z'))
-		const record = createMockRecord({
-			cover_storage_path: 'user-1/record-1/expiring.webp'
-		})
-
-		const first = await mountSuspended(ImageRecordCover, { props: { record } })
-		await flushPromises()
-		first.unmount()
-
-		vi.advanceTimersByTime(239_999)
-		const cached = await mountSuspended(ImageRecordCover, { props: { record } })
-		await flushPromises()
-		cached.unmount()
-		expect(coverMocks.createSignedUrl).toHaveBeenCalledTimes(1)
-
-		vi.advanceTimersByTime(2)
-		await mountSuspended(ImageRecordCover, { props: { record } })
-		await flushPromises()
-		expect(coverMocks.createSignedUrl).toHaveBeenCalledTimes(2)
-	})
-
-	it('never shares cached URLs across authenticated identities', async () => {
-		const record = createMockRecord({
-			cover_storage_path: 'shared/record-1/identity.webp'
-		})
-
-		const first = await mountSuspended(ImageRecordCover, { props: { record } })
-		await flushPromises()
-		first.unmount()
-
-		coverMocks.currentUserId = 'user-2'
-		await mountSuspended(ImageRecordCover, { props: { record } })
-		await flushPromises()
-
-		expect(coverMocks.createSignedUrl).toHaveBeenCalledTimes(2)
-	})
-
-	it('does not cache failures and preserves each external fallback', async () => {
-		coverMocks.createSignedUrl.mockResolvedValueOnce({
-			data: { signedUrl: '' },
-			error: new Error('Access denied')
-		})
-		const firstRecord = createMockRecord({
-			cover: 'https://discogs.example/first.jpg',
-			cover_storage_path: 'user-1/record-1/retry.webp'
-		})
-		const first = await mountSuspended(ImageRecordCover, {
-			props: { record: firstRecord }
-		})
-		await flushPromises()
-
-		expect(first.get('img').attributes('src')).toBe(
-			'https://discogs.example/first.jpg'
-		)
-		first.unmount()
-
-		const secondRecord = createMockRecord({
-			cover: 'https://discogs.example/second.jpg',
-			cover_storage_path: 'user-1/record-1/retry.webp'
-		})
-		const second = await mountSuspended(ImageRecordCover, {
-			props: { record: secondRecord }
-		})
-		await flushPromises()
-
-		expect(coverMocks.createSignedUrl).toHaveBeenCalledTimes(2)
-		expect(second.get('img').attributes('src')).toBe(
-			'https://supabase.test.invalid/signed/custom.webp'
-		)
+		expect(coverMocks.state.resolve).toHaveBeenCalledTimes(2)
 	})
 
 	it('cannot publish a late URL into a recycled cover component', async () => {
-		const deferred = createDeferred<{
-			data: { signedUrl: string }
-			error: null
-		}>()
-		coverMocks.createSignedUrl.mockReturnValueOnce(deferred.promise)
+		const deferred = createDeferred<string | null>()
+		coverMocks.state.resolve.mockReturnValueOnce(deferred.promise)
 		const wrapper = await mountSuspended(ImageRecordCover, {
 			props: {
-				record: createMockRecord({
-					cover: 'https://discogs.example/first.jpg',
-					cover_storage_path: 'user-1/record-1/slow.webp',
-					id: 'first-record'
+				record: createRecord({
+					kind: 'cloud',
+					assetId: 'slow.webp',
+					fallbackUrl: 'https://assets.example/first.jpg'
 				})
 			}
 		})
 
 		await wrapper.setProps({
-			record: createMockRecord({
-				cover: 'https://discogs.example/second.jpg',
-				cover_storage_path: null,
-				id: 'second-record'
+			record: createRecord({
+				kind: 'external',
+				url: 'https://assets.example/second.jpg'
 			})
 		})
 		await flushPromises()
 		expect(wrapper.get('img').attributes('src')).toBe(
-			'https://discogs.example/second.jpg'
+			'https://assets.example/second.jpg'
 		)
 
-		deferred.resolve({
-			data: { signedUrl: 'https://supabase.test.invalid/signed/late.webp' },
-			error: null
-		})
+		deferred.resolve('https://assets.example/late.webp')
 		await flushPromises()
 		expect(wrapper.get('img').attributes('src')).toBe(
-			'https://discogs.example/second.jpg'
+			'https://assets.example/second.jpg'
 		)
 	})
 
-	it('bounds successful signed URLs to the 500 least-recently-used entries', async () => {
-		vi.useFakeTimers()
-		vi.setSystemTime(new Date('2026-07-19T00:00:00.000Z'))
-		coverMocks.createSignedUrl.mockImplementation(async (path: string) => ({
-			data: { signedUrl: `https://supabase.test.invalid/signed/${path}` },
-			error: null
-		}))
-		let getCoverUrl:
-			| ReturnType<typeof useRecordCover>['getCoverUrl']
-			| undefined
-		const ResolverHarness = defineComponent({
-			setup() {
-				getCoverUrl = useRecordCover().getCoverUrl
-				return () => h('div')
+	it('rejects a resolver result from a replaced workspace', async () => {
+		const deferred = createDeferred<string | null>()
+		coverMocks.state.resolve.mockReturnValueOnce(deferred.promise)
+		const wrapper = await mountSuspended(ImageRecordCover, {
+			props: {
+				record: createRecord({
+					kind: 'cloud',
+					assetId: 'workspace-a.webp',
+					fallbackUrl: null
+				}),
+				showLabel: true
 			}
 		})
-		await mountSuspended(ResolverHarness)
-		if (!getCoverUrl) throw new Error('Cover resolver did not mount')
 
-		for (let index = 0; index < 500; index++) {
-			await getCoverUrl({
-				cover: null,
-				cover_storage_path: `user-1/record-${index}/cover.webp`
-			})
-			vi.advanceTimersByTime(1)
-		}
-		await getCoverUrl({
-			cover: null,
-			cover_storage_path: 'user-1/record-0/cover.webp'
-		})
-		vi.advanceTimersByTime(1)
-		await getCoverUrl({
-			cover: null,
-			cover_storage_path: 'user-1/record-500/cover.webp'
-		})
-		await getCoverUrl({
-			cover: null,
-			cover_storage_path: 'user-1/record-0/cover.webp'
-		})
-		await getCoverUrl({
-			cover: null,
-			cover_storage_path: 'user-1/record-1/cover.webp'
-		})
+		coverMocks.state.context = { id: 'workspace-b' }
+		deferred.resolve('https://assets.example/stale.webp')
+		await flushPromises()
 
-		expect(coverMocks.createSignedUrl).toHaveBeenCalledTimes(502)
+		expect(wrapper.find('img').exists()).toBe(false)
+		expect(wrapper.text()).toContain('No cover artwork')
 	})
 })

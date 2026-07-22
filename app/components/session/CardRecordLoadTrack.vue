@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { LoadTrackRecordResult } from '~/utils/loadTrackPicker'
+import type { LibraryTrack } from '~~/shared/types/library'
 
 const props = withDefaults(
 	defineProps<{
@@ -20,7 +21,7 @@ defineEmits<{
 	toggleExpanded: []
 }>()
 
-const user = useWorkbenchUserStore()
+const preferences = useWorkbenchPreferencesStore()
 
 const displayedTracks = computed(() =>
 	props.expanded ? props.result.tracks : props.result.previewTracks
@@ -38,17 +39,17 @@ const hiddenTrackCount = computed(
 	() => props.result.tracks.length - props.result.previewTracks.length
 )
 
-function getTrackKeyDisplay(track: Track): string | null {
+function getTrackKeyDisplay(track: LibraryTrack): string | null {
 	if (track.key === null || track.mode === null) return null
 	return getFormattedKeyString(
 		track.key,
 		track.mode,
-		user.currentKeyFormat,
+		preferences.currentKeyFormat,
 		'short'
 	)
 }
 
-function getTrackKeyColor(track: Track): string | null {
+function getTrackKeyColor(track: LibraryTrack): string | null {
 	if (track.key === null || track.mode === null) return null
 	return getKeyColour(track.key, track.mode)
 }

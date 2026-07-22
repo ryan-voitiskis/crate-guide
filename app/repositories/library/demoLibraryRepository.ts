@@ -1,4 +1,8 @@
-import type { CoverReference, LibrarySnapshot } from '~~/shared/types/library'
+import type {
+	CoverReference,
+	LibraryDataset,
+	LibraryObservedView
+} from '~~/shared/types/library'
 import type {
 	LibraryRepositoryBundle,
 	RepositoryOutcome,
@@ -7,7 +11,8 @@ import type {
 
 type DemoRepositoryOptions = {
 	id: string
-	snapshot: LibrarySnapshot
+	dataset: LibraryDataset
+	repositoryRevision?: number
 	isCurrentContext(context: WorkspaceOperationContext): boolean
 }
 
@@ -15,15 +20,15 @@ function cloneCover(reference: CoverReference): CoverReference {
 	return { ...reference }
 }
 
-function cloneSnapshot(snapshot: LibrarySnapshot): LibrarySnapshot {
+function cloneDataset(dataset: LibraryDataset): LibraryDataset {
 	return {
-		records: snapshot.records.map((record) => ({
+		records: dataset.records.map((record) => ({
 			...record,
 			artists: record.artists.map((artist) => ({ ...artist })),
 			labels: record.labels.map((label) => ({ ...label })),
 			cover: cloneCover(record.cover)
 		})),
-		tracks: snapshot.tracks.map((track) => ({
+		tracks: dataset.tracks.map((track) => ({
 			...track,
 			artists: track.artists.map((artist) => ({ ...artist })),
 			extraartists: track.extraartists.map((artist) => ({ ...artist })),
@@ -33,16 +38,22 @@ function cloneSnapshot(snapshot: LibrarySnapshot): LibrarySnapshot {
 				? structuredClone(track.audio_features)
 				: null
 		})),
-		crates: snapshot.crates.map((crate) => ({
+		crates: dataset.crates.map((crate) => ({
 			...crate,
 			records: [...crate.records]
 		})),
-		savedSets: snapshot.savedSets.map((savedSet) => ({
+		savedSets: dataset.savedSets.map((savedSet) => ({
 			...savedSet,
 			played_tracks: savedSet.played_tracks.map((entry) => ({ ...entry }))
 		})),
-		preferences: { ...snapshot.preferences },
-		repositoryRevision: snapshot.repositoryRevision
+		preferences: { ...dataset.preferences }
+	}
+}
+
+function observeDataset(dataset: LibraryDataset): LibraryObservedView {
+	return {
+		...cloneDataset(dataset),
+		consistency: 'non-atomic-observation'
 	}
 }
 
@@ -52,17 +63,18 @@ function readOnly<T>(): Promise<RepositoryOutcome<T>> {
 
 export function createDemoLibraryRepository({
 	id,
-	snapshot,
+	dataset,
+	repositoryRevision = 0,
 	isCurrentContext
 }: DemoRepositoryOptions): LibraryRepositoryBundle {
 	return {
 		id,
-		async readLibrarySnapshot(context) {
+		async readObservedLibraryView(context) {
 			if (!isCurrentContext(context)) return { status: 'stale' }
 			return {
 				status: 'success',
-				value: cloneSnapshot(snapshot),
-				repositoryRevision: snapshot.repositoryRevision,
+				value: observeDataset(dataset),
+				repositoryRevision,
 				issues: []
 			}
 		},
@@ -71,8 +83,8 @@ export function createDemoLibraryRepository({
 				if (!isCurrentContext(context)) return { status: 'stale' }
 				return {
 					status: 'success',
-					value: cloneSnapshot(snapshot).records,
-					repositoryRevision: snapshot.repositoryRevision,
+					value: cloneDataset(dataset).records,
+					repositoryRevision,
 					issues: []
 				}
 			},
@@ -87,8 +99,8 @@ export function createDemoLibraryRepository({
 				if (!isCurrentContext(context)) return { status: 'stale' }
 				return {
 					status: 'success',
-					value: cloneSnapshot(snapshot).tracks,
-					repositoryRevision: snapshot.repositoryRevision,
+					value: cloneDataset(dataset).tracks,
+					repositoryRevision,
 					issues: []
 				}
 			},
@@ -102,8 +114,8 @@ export function createDemoLibraryRepository({
 				if (!isCurrentContext(context)) return { status: 'stale' }
 				return {
 					status: 'success',
-					value: cloneSnapshot(snapshot).crates,
-					repositoryRevision: snapshot.repositoryRevision,
+					value: cloneDataset(dataset).crates,
+					repositoryRevision,
 					issues: []
 				}
 			},
@@ -118,8 +130,8 @@ export function createDemoLibraryRepository({
 				if (!isCurrentContext(context)) return { status: 'stale' }
 				return {
 					status: 'success',
-					value: cloneSnapshot(snapshot).savedSets,
-					repositoryRevision: snapshot.repositoryRevision,
+					value: cloneDataset(dataset).savedSets,
+					repositoryRevision,
 					issues: []
 				}
 			},
@@ -131,8 +143,8 @@ export function createDemoLibraryRepository({
 				if (!isCurrentContext(context)) return { status: 'stale' }
 				return {
 					status: 'success',
-					value: { ...snapshot.preferences },
-					repositoryRevision: snapshot.repositoryRevision,
+					value: { ...dataset.preferences },
+					repositoryRevision,
 					issues: []
 				}
 			},

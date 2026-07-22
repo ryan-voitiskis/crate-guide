@@ -3,13 +3,13 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { createTestingPinia } from '@pinia/testing'
 import { DOMWrapper, type VueWrapper, flushPromises } from '@vue/test-utils'
 import type { Pinia } from 'pinia'
-import { createMockRecord } from 'test/mocks/fixtures/records'
+import { createMockLibraryRecord } from 'test/mocks/fixtures/records'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import DialogRecordDetails from '~/components/records/DialogRecordDetails.vue'
 import { useRecordDetailsStore } from '~/stores/recordDetailsStore'
 import { useRecordsStore } from '~/stores/recordsStore'
 import { useTracksStore } from '~/stores/tracksStore'
-import type { DatabaseRecord } from '~~/shared/types/supabase'
+import type { LibraryRecord } from '~~/shared/types/library'
 
 class ControlledImage {
 	static instances: ControlledImage[] = []
@@ -75,11 +75,10 @@ async function settleDialog() {
 	await nextTick()
 }
 
-async function mountDialog(overrides: Partial<DatabaseRecord> = {}) {
-	const record = createMockRecord({
+async function mountDialog(overrides: Partial<LibraryRecord> = {}) {
+	const record = createMockLibraryRecord({
 		id: 'record-cover-editor',
-		cover: null,
-		cover_storage_path: null,
+		cover: { kind: 'none' },
 		...overrides
 	})
 	const pinia = createTestingPinia({
@@ -114,17 +113,15 @@ async function mountDialog(overrides: Partial<DatabaseRecord> = {}) {
 }
 
 async function mountLifecycleDialog() {
-	const firstRecord = createMockRecord({
+	const firstRecord = createMockLibraryRecord({
 		id: 'record-lifecycle-1',
 		title: 'First Lifecycle Record',
-		cover: null,
-		cover_storage_path: null
+		cover: { kind: 'none' }
 	})
-	const replacementRecord = createMockRecord({
+	const replacementRecord = createMockLibraryRecord({
 		id: 'record-lifecycle-2',
 		title: 'Replacement Lifecycle Record',
-		cover: null,
-		cover_storage_path: null
+		cover: { kind: 'none' }
 	})
 	const pinia = createTestingPinia({
 		createSpy: vi.fn,
@@ -265,7 +262,7 @@ describe('record details cover inspection', () => {
 		unmountWrapper(resetDialog.wrapper)
 
 		const removeDialog = await mountDialog({
-			cover: 'https://example.com/current.jpg'
+			cover: { kind: 'external', url: 'https://example.com/current.jpg' }
 		})
 		const removeInspection = await chooseFile('remove.png')
 		await findButton('Remove cover').trigger('click')
@@ -339,8 +336,8 @@ describe('record details cover inspection', () => {
 		'keeps a newer record editor active when an older save settles with %s',
 		async (outcome) => {
 			const lifecycle = await mountLifecycleDialog()
-			const firstUpdate = createDeferred<DatabaseRecord | null>()
-			const secondUpdate = createDeferred<DatabaseRecord | null>()
+			const firstUpdate = createDeferred<LibraryRecord | null>()
+			const secondUpdate = createDeferred<LibraryRecord | null>()
 			vi.mocked(lifecycle.records.updateRecordWithCover)
 				.mockReturnValueOnce(firstUpdate.promise)
 				.mockReturnValueOnce(secondUpdate.promise)

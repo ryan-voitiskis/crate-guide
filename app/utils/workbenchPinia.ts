@@ -1,5 +1,5 @@
 import { type InjectionKey, type Ref, readonly, shallowRef } from 'vue'
-import type { Pinia } from 'pinia'
+import { type Pinia, getActivePinia, setActivePinia } from 'pinia'
 import type {
 	LibraryRepositoryBundle,
 	WorkbenchCapabilities,
@@ -74,8 +74,7 @@ export function createWorkbenchRuntime(
 			context: {
 				workspaceId: capturedDescriptor.id,
 				repositoryId: capturedDescriptor.repositoryId,
-				activationGeneration,
-				repositoryRevision: capturedDescriptor.repositoryRevision
+				activationGeneration
 			}
 		}
 	}
@@ -133,6 +132,9 @@ export const workbenchRuntimeKey: InjectionKey<WorkbenchRuntime> =
 	Symbol('workbench-runtime')
 
 const runtimeByPinia = new WeakMap<Pinia, WorkbenchRuntime>()
+type WorkbenchRuntimeFactory = (pinia: Pinia) => WorkbenchRuntime
+let workbenchRuntimeFactory: WorkbenchRuntimeFactory | null = null
+let explicitStorePinia: Pinia | undefined
 
 export function bindWorkbenchRuntime(
 	pinia: Pinia,
@@ -145,6 +147,45 @@ export function getWorkbenchRuntime(
 	pinia: Pinia | undefined
 ): WorkbenchRuntime | null {
 	return pinia ? (runtimeByPinia.get(pinia) ?? null) : null
+}
+
+export function registerWorkbenchRuntimeFactory(
+	factory: WorkbenchRuntimeFactory
+): void {
+	workbenchRuntimeFactory = factory
+}
+
+export function ensureWorkbenchRuntime(pinia: Pinia): WorkbenchRuntime {
+	const existing = getWorkbenchRuntime(pinia)
+	if (existing) return existing
+	if (!workbenchRuntimeFactory) {
+		throw new Error(
+			'No workbench runtime is available. The route runtime must load before its stores.'
+		)
+	}
+	return workbenchRuntimeFactory(pinia)
+}
+
+/**
+ * Pinia's global active instance can differ from an explicitly selected
+ * workbench. Store setup reads must run with the owning Pinia active so a Demo
+ * store can never capture the application runtime or auth client.
+ */
+export function runWithActivePinia<T>(pinia: Pinia, operation: () => T): T {
+	const previousPinia = getActivePinia()
+	const previousExplicitPinia = explicitStorePinia
+	explicitStorePinia = pinia
+	setActivePinia(pinia)
+	try {
+		return operation()
+	} finally {
+		explicitStorePinia = previousExplicitPinia
+		setActivePinia(previousPinia)
+	}
+}
+
+export function getWorkbenchStorePinia(): Pinia | undefined {
+	return explicitStorePinia ?? getActivePinia()
 }
 
 export function requireWorkbenchRuntime(

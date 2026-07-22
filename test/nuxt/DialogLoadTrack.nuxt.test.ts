@@ -3,19 +3,18 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { createTestingPinia } from '@pinia/testing'
 import { DOMWrapper, type VueWrapper, flushPromises } from '@vue/test-utils'
 import type { Pinia } from 'pinia'
-import { createMockRecord } from 'test/mocks/fixtures/records'
+import { createMockLibraryRecord } from 'test/mocks/fixtures/records'
 import { createMockTrack } from 'test/mocks/fixtures/tracks'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import DialogLoadTrack from '~/components/session/DialogLoadTrack.vue'
 import { useSessionStore } from '~/stores/sessionStore'
-import type { Crate } from '~~/shared/types/supabase'
+import type { LibraryCrate } from '~~/shared/types/library'
 
 const wrappers = new Set<VueWrapper>()
 
-function createCrate(recordId: string): Crate {
+function createCrate(recordId: string): LibraryCrate {
 	return {
 		id: 'crate-1',
-		user_id: 'test-user',
 		name: 'Listening crate',
 		description: null,
 		color: null,
@@ -36,10 +35,10 @@ async function settleDialog() {
 }
 
 async function mountDialog(options: { open?: boolean } = {}) {
-	const record = createMockRecord({
+	const record = createMockLibraryRecord({
 		id: 'record-1',
 		title: 'Test Record',
-		cover: null
+		cover: { kind: 'none' }
 	})
 	const tracks = Array.from({ length: 6 }, (_, index) =>
 		createMockTrack({
