@@ -4,6 +4,7 @@ import { resetTrackIdCounter } from 'test/mocks/fixtures/tracks'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useSessionStore } from '../sessionStore'
 import {
+	type SavedSetRow,
 	createSavedSetRow,
 	createSessionStoreHarness
 } from './harness/sessionStoreHarness'
