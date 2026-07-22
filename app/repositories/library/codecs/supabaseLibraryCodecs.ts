@@ -19,6 +19,15 @@ type TrackRow = Database['public']['Tables']['tracks']['Row']
 type CrateRow = Database['public']['Tables']['crates']['Row']
 type SavedSetRow = Database['public']['Tables']['sets']['Row']
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
+type ProfilePreferencesRow = Pick<
+	ProfileRow,
+	| 'key_format'
+	| 'list_layout'
+	| 'selected_crate'
+	| 'turntable_pitch_range'
+	| 'turntable_theme'
+	| 'ui_theme'
+>
 
 function decodeCoverReference(row: RecordRow): CoverReference {
 	if (row.cover_storage_path) {
@@ -64,7 +73,9 @@ export function decodeLibrarySavedSetRow(
 	return { row: savedSet, issues: decoded.issues }
 }
 
-export function decodeLibraryPreferences(row: ProfileRow): LibraryPreferences {
+export function decodeLibraryPreferences(
+	row: ProfilePreferencesRow
+): LibraryPreferences {
 	return {
 		ui_theme:
 			row.ui_theme === 'light' || row.ui_theme === 'dark'
