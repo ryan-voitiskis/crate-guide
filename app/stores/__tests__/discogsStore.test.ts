@@ -104,6 +104,17 @@ function createDeferred<T>() {
 	return { promise, reject, resolve }
 }
 
+function createTransferSnapshot(userId: string, successful = 0) {
+	return JSON.stringify({
+		version: 1,
+		userId,
+		status: 'completed',
+		mode: 'import',
+		results: { successful, skipped: [], failed: [] },
+		retrySummary: null
+	})
+}
+
 // Create a chainable mock query builder
 function createMockQueryBuilder() {
 	const builder = {
@@ -490,6 +501,49 @@ describe('discogsStore', () => {
 	})
 
 	describe('fetchFolderReleases', () => {
+		it('publishes only the newest same-account folder review by ID', async () => {
+			const first = createDeferred<{
+				releases: ReturnType<typeof createMockDiscogsRelease>[]
+				pagination: { pages: number }
+			}>()
+			const second = createDeferred<{
+				releases: ReturnType<typeof createMockDiscogsRelease>[]
+				pagination: { pages: number }
+			}>()
+			mockDiscogsApi.getFolderReleases
+				.mockReturnValueOnce(first.promise)
+				.mockReturnValueOnce(second.promise)
+			const store = useDiscogsStore()
+			store.folders = [
+				createMockFolder({ id: 1, name: 'Same name' }),
+				createMockFolder({ id: 2, name: 'Same name' })
+			]
+
+			store.selectedFolder = '1'
+			const firstReview = store.fetchFolderReleases()
+			store.selectedFolder = '2'
+			const secondReview = store.fetchFolderReleases()
+
+			first.resolve({
+				releases: [createMockDiscogsRelease({ id: 1 })],
+				pagination: { pages: 1 }
+			})
+			await firstReview
+			expect(store.releasesToImport).toEqual([])
+			expect(store.isLoadingSelectedFolder).toBe(true)
+
+			second.resolve({
+				releases: [createMockDiscogsRelease({ id: 2 })],
+				pagination: { pages: 1 }
+			})
+			await secondReview
+			expect(store.releasesToImport).toEqual([
+				expect.objectContaining({ id: 2 })
+			])
+			expect(store.isLoadingSelectedFolder).toBe(false)
+			expect(mockToast.error).not.toHaveBeenCalled()
+		})
+
 		it('does nothing when no folder is selected', async () => {
 			const store = useDiscogsStore()
 			store.selectedFolder = undefined
@@ -1413,6 +1467,55 @@ describe('discogsStore', () => {
 	})
 
 	describe('transfer snapshot', () => {
+		it('clears only the explicit outgoing account snapshot on replacement', async () => {
+			window.sessionStorage.setItem(
+				'crate-guide:discogs-transfer:test-user-id',
+				createTransferSnapshot('test-user-id', 1)
+			)
+			window.sessionStorage.setItem(
+				'crate-guide:discogs-transfer:new-user-id',
+				createTransferSnapshot('new-user-id', 2)
+			)
+			const store = useDiscogsStore()
+			expect(store.importResults.successful).toBe(1)
+
+			mockUserStore.supaUser = { id: 'new-user-id' }
+			mockUserStore.profile = {
+				id: 'new-user-id',
+				discogs_username: 'new-user'
+			}
+			store.resetAccountState('test-user-id')
+			setActivePinia(createPinia())
+			const restoredStore = useDiscogsStore()
+
+			expect(
+				window.sessionStorage.getItem(
+					'crate-guide:discogs-transfer:test-user-id'
+				)
+			).toBeNull()
+			expect(
+				window.sessionStorage.getItem(
+					'crate-guide:discogs-transfer:new-user-id'
+				)
+			).not.toBeNull()
+			expect(restoredStore.importResults.successful).toBe(2)
+		})
+
+		it('resets in-memory state even when outgoing snapshot removal throws', () => {
+			const store = useDiscogsStore()
+			store.transferStatus = 'completed'
+			const removeItem = mockSessionStorage.removeItem
+			mockSessionStorage.removeItem = () => {
+				throw new Error('storage unavailable')
+			}
+			try {
+				expect(() => store.resetAccountState('test-user-id')).not.toThrow()
+				expect(store.transferStatus).toBe('idle')
+			} finally {
+				mockSessionStorage.removeItem = removeItem
+			}
+		})
+
 		it('restores sanitized completed results for the same user until dismissed', async () => {
 			mockFilterOutExistingReleases.mockResolvedValue({
 				releasesToFetch: [

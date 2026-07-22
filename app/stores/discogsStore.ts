@@ -143,6 +143,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	const user = useUserStore(pinia)
 	const discogsApi = useDiscogsApi()
 	let accountGeneration = 0
+	let folderReviewGeneration = 0
 	const folders = ref<DiscogsFolder[]>([])
 	const selectedFolder = ref<string | undefined>(undefined)
 	const releasesToImport = ref<DiscogsReleaseToFilter[]>([])
@@ -239,9 +240,13 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		return `${TRANSFER_STORAGE_PREFIX}:${encodeURIComponent(userId)}`
 	}
 
-	function clearTransferSnapshot(userId = currentUserId() ?? snapshotUserId) {
+	function clearTransferSnapshot(userId: string | null) {
 		if (typeof window === 'undefined' || !userId) return
-		window.sessionStorage.removeItem(transferStorageKey(userId))
+		try {
+			window.sessionStorage.removeItem(transferStorageKey(userId))
+		} catch {
+			// In-memory ownership must still be released when storage is unavailable.
+		}
 		if (snapshotUserId === userId) snapshotUserId = null
 	}
 
@@ -315,9 +320,12 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		)
 	}
 
-	function resetAccountState() {
-		clearTransferSnapshot()
+	function resetAccountState(
+		outgoingUserId = hydratedUserId ?? snapshotUserId ?? currentUserId()
+	) {
+		clearTransferSnapshot(outgoingUserId)
 		accountGeneration += 1
+		folderReviewGeneration += 1
 		shouldCancelImport.value = true
 		folders.value = []
 		folderError.value = null
@@ -340,6 +348,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		libraryRefreshFailed.value = false
 		importResults.value = createEmptyImportResults()
 		hydratedUserId = null
+		snapshotUserId = null
 	}
 
 	function openTransferMonitor() {
@@ -366,7 +375,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	function dismissTransferMonitor() {
 		showImportProgressDialog.value = false
 		if (isImporting.value) return
-		clearTransferSnapshot()
+		clearTransferSnapshot(snapshotUserId ?? hydratedUserId ?? currentUserId())
 		transferStatus.value = 'idle'
 		transferMode.value = null
 		retryStatus.value = null
@@ -411,18 +420,34 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		const context = captureAccountContext()
 		if (!context) return
 		if (!selectedFolder.value) return
-		if (isLoadingSelectedFolder.value) return
-		const folder = folders.value.find((f) => f.name === selectedFolder.value)
+		const selectedFolderValue = selectedFolder.value
+		const folderById = folders.value.find(
+			(candidate) => String(candidate.id) === selectedFolder.value
+		)
+		const foldersByLegacyName = folderById
+			? []
+			: folders.value.filter(
+					(candidate) => candidate.name === selectedFolderValue
+				)
+		const folder =
+			folderById ??
+			(foldersByLegacyName.length === 1 ? foldersByLegacyName[0] : undefined)
 		if (!folder) return
+		const reviewGeneration = ++folderReviewGeneration
+		const ownsReview = () =>
+			isCurrentAccountContext(context) &&
+			reviewGeneration === folderReviewGeneration &&
+			selectedFolder.value === selectedFolderValue
 		isLoadingSelectedFolder.value = true
+		releasesToImport.value = []
 		try {
 			const releases: DiscogsRelease[] = []
 			let allReleasesFetched = false
 			let page = 1
 			while (!allReleasesFetched) {
-				if (!isCurrentAccountContext(context)) return
+				if (!ownsReview()) return
 				const data = await discogsApi.getFolderReleases(folder.id, page, 100)
-				if (!isCurrentAccountContext(context)) return
+				if (!ownsReview()) return
 				if (!data.releases) throw new Error('No releases found.')
 				if (!data.pagination) throw new Error('No pagination on response.')
 				releases.push(...data.releases)
@@ -433,12 +458,12 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			try {
 				existingDiscogsIds = await getExistingDiscogsIds(releases)
 			} catch {
-				if (!isCurrentAccountContext(context)) return
+				if (!ownsReview()) return
 				toast.warning(
 					'Could not compare this folder with your library. Existing records will still be skipped safely.'
 				)
 			}
-			if (!isCurrentAccountContext(context)) return
+			if (!ownsReview()) return
 			releasesToImport.value = releases.map((release) => {
 				const alreadyImported = existingDiscogsIds.has(release.id)
 				return {
@@ -450,10 +475,10 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			showGetFoldersDialog.value = false
 			showFilterDialog.value = true
 		} catch (e) {
-			if (!isCurrentAccountContext(context)) return
+			if (!ownsReview()) return
 			toast.error(isError(e) ? e.message : 'Error fetching folder.')
 		} finally {
-			if (isCurrentAccountContext(context)) {
+			if (ownsReview()) {
 				isLoadingSelectedFolder.value = false
 			}
 		}
@@ -843,15 +868,30 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		}
 	}
 
-	watch(showGetFoldersDialog, (newValue) => {
-		if (!newValue) return
-		if (hasActiveTransfer.value) {
-			showGetFoldersDialog.value = false
-			openTransferMonitor()
-			return
-		}
-		if (folders.value.length === 0) getFolders()
-	})
+	watch(
+		selectedFolder,
+		() => {
+			folderReviewGeneration += 1
+			isLoadingSelectedFolder.value = false
+			releasesToImport.value = []
+		},
+		{ flush: 'sync' }
+	)
+	watch(
+		showGetFoldersDialog,
+		(newValue) => {
+			folderReviewGeneration += 1
+			isLoadingSelectedFolder.value = false
+			if (!newValue) return
+			if (hasActiveTransfer.value) {
+				showGetFoldersDialog.value = false
+				openTransferMonitor()
+				return
+			}
+			if (folders.value.length === 0) getFolders()
+		},
+		{ flush: 'sync' }
+	)
 	watch(
 		() => currentUserId(),
 		(userId) => {

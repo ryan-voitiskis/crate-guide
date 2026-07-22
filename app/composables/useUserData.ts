@@ -144,10 +144,10 @@ export function useUserData() {
 		dataUserId = null
 	}
 
-	function clearAllUserData() {
+	function clearAllUserData(outgoingUserId: string | null = user.supaUserId) {
 		clearLibraryData()
 		session.resetAccountState()
-		discogs.resetAccountState()
+		discogs.resetAccountState(outgoingUserId)
 	}
 
 	async function leaveProtectedRoute() {
@@ -182,12 +182,12 @@ export function useUserData() {
 				const hasDataForDifferentUser =
 					dataUserId !== null && dataUserId !== userId
 				if (didAuthenticatedUserChange || hasDataForDifferentUser) {
-					clearAllUserData()
+					clearAllUserData(previousUserId)
 				}
 				if (hasLoadedData.value) return
 				void loadAllUserData()
 			} else if (previousUserId) {
-				clearAllUserData()
+				clearAllUserData(previousUserId)
 				if (!isSigningOut) void leaveProtectedRoute()
 			}
 		},

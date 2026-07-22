@@ -102,7 +102,7 @@ const discogs = useDiscogsStore()
 						:key="folder.id"
 						class="hover:bg-muted/40 has-data-[state=checked]:bg-primary/5 flex cursor-pointer items-center gap-3 px-3 py-2.5 transition-colors"
 					>
-						<RadioGroupItem :value="folder.name" />
+						<RadioGroupItem :value="String(folder.id)" />
 						<FolderOpen class="text-muted-foreground size-4" />
 						<span class="min-w-0 flex-1 truncate text-sm font-medium">
 							{{ folder.name }}

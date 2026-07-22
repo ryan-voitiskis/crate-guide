@@ -416,6 +416,9 @@ describe('useUserData', () => {
 			expect(mockCratesStore.clearCrates).toHaveBeenCalledOnce()
 			expect(mockSessionStore.resetAccountState).toHaveBeenCalledOnce()
 			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledOnce()
+			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledWith(
+				'user-123'
+			)
 			expect(mockRouter.replace).toHaveBeenCalledOnce()
 			expect(mockRouter.replace).toHaveBeenCalledWith('/login')
 			const replaceOrder = invocationOrder(mockRouter.replace)
@@ -522,6 +525,7 @@ describe('useUserData', () => {
 			expect(mockCratesStore.clearCrates).toHaveBeenCalledOnce()
 			expect(mockSessionStore.resetAccountState).toHaveBeenCalledOnce()
 			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledOnce()
+			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledWith('user-a')
 			expect(mockRouter.replace).not.toHaveBeenCalled()
 			const replacementFetchOrder = invocationOrder(
 				mockRecordsStore.fetchAllRecords
