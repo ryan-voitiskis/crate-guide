@@ -17,6 +17,7 @@ import {
 import {
 	browserLibraryRandomUUID,
 	browserLibraryTimestamp,
+	browserWorkspaceWideLockName,
 	runBrowserLibraryReadTransaction,
 	runBrowserLibraryTransaction,
 	withOptionalBrowserLibraryLock
@@ -24,6 +25,7 @@ import {
 import {
 	BROWSER_LIBRARY_STORES,
 	BROWSER_LIBRARY_WORKSPACE_INDEX,
+	estimateBrowserLibraryStorage,
 	openBrowserLibraryDatabase,
 	probeBrowserLibraryStorage,
 	requestResult
@@ -48,6 +50,7 @@ import {
 	type BrowserWorkspaceCatalogCas,
 	type BrowserWorkspaceCatalogMutationResult,
 	type BrowserWorkspaceCatalogSnapshot,
+	type BrowserWorkspaceIdentity,
 	type BrowserWorkspaceManifest,
 	type BrowserWorkspaceMutationResult,
 	type BrowserWorkspaceOperations,
@@ -106,9 +109,20 @@ function requiredRegistry(value: unknown): BrowserRepositoryRegistry {
 	return decodeBrowserRepositoryRegistry(value)
 }
 
-function requiredManifest(value: unknown): BrowserWorkspaceManifest {
+function requiredManifest(
+	value: unknown,
+	identity?: BrowserWorkspaceIdentity
+): BrowserWorkspaceManifest {
 	if (value === undefined) throw new BrowserRepositoryNotFoundError('workspace')
-	return decodeBrowserWorkspaceManifest(value)
+	const manifest = decodeBrowserWorkspaceManifest(value)
+	if (
+		identity &&
+		(manifest.id !== identity.workspaceId ||
+			manifest.repositoryId !== identity.repositoryId)
+	) {
+		throw new BrowserRepositoryNotFoundError('workspace')
+	}
+	return manifest
 }
 
 function assertCatalogRevision(
@@ -268,6 +282,10 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 		})
 	}
 
+	estimateStorage() {
+		return estimateBrowserLibraryStorage(this.dependencies)
+	}
+
 	listWorkspaces(): Promise<BrowserWorkspaceCatalogSnapshot> {
 		return this.#read(() =>
 			runBrowserLibraryReadTransaction(
@@ -356,11 +374,19 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 							reason: 'missing-workspace'
 						}
 					}
-					decodeBrowserWorkspaceManifest(storedWorkspace)
+					const manifest = decodeBrowserWorkspaceManifest(storedWorkspace)
+					if (manifest.repositoryId !== marker.repositoryId) {
+						return {
+							status: 'corrupt',
+							catalogRevision: registry.catalogRevision,
+							reason: 'repository-mismatch'
+						}
+					}
 					return {
 						status: 'active',
 						catalogRevision: registry.catalogRevision,
-						workspaceId: marker.workspaceId
+						workspaceId: marker.workspaceId,
+						repositoryId: marker.repositoryId
 					}
 				}
 			)
@@ -375,6 +401,7 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 			const timestamp = browserLibraryTimestamp(this.dependencies)
 			const workspaceId =
 				input.id ?? browserLibraryRandomUUID(this.dependencies)
+			const repositoryId = browserLibraryRandomUUID(this.dependencies)
 			const name = input.name.trim()
 			const result = await runBrowserLibraryTransaction<
 				BrowserCatalogMutationResult<BrowserWorkspaceManifest>
@@ -412,6 +439,7 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 
 					const manifest = decodeBrowserWorkspaceManifest({
 						id: workspaceId,
+						repositoryId,
 						name,
 						schemaVersion: BROWSER_LIBRARY_SCHEMA_VERSION,
 						createdAt: timestamp,
@@ -451,6 +479,7 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 							decodeBrowserActiveWorkspaceMarker({
 								key: BROWSER_LIBRARY_ACTIVE_WORKSPACE_KEY,
 								workspaceId,
+								repositoryId,
 								catalogRevision: next.catalogRevision,
 								updatedAt: timestamp
 							})
@@ -462,6 +491,7 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 			this.#publish({
 				type: 'commit',
 				workspaceId,
+				repositoryId,
 				catalogRevision: result.catalogRevision,
 				repositoryRevision: result.value.repositoryRevision,
 				contentRevision: result.value.contentRevision,
@@ -473,7 +503,7 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 	}
 
 	activateWorkspace(
-		workspaceId: string | null,
+		identity: BrowserWorkspaceIdentity | null,
 		expectedCatalogRevision: number
 	): Promise<BrowserActiveWorkspaceState> {
 		return this.#enqueue(async () => {
@@ -494,17 +524,17 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 							)
 						)
 						assertCatalogRevision(registry, expectedCatalogRevision)
-						if (workspaceId !== null) {
+						if (identity !== null) {
 							const storedWorkspace = await requestResult(
 								transaction
 									.objectStore(BROWSER_LIBRARY_STORES.workspaces)
-									.get(workspaceId)
+									.get(identity.workspaceId)
 							)
-							requiredManifest(storedWorkspace)
+							requiredManifest(storedWorkspace, identity)
 						}
 						const next = nextRegistry(registry, timestamp)
 						writer.put(registryStore, next)
-						if (workspaceId === null) {
+						if (identity === null) {
 							writer.delete(registryStore, BROWSER_LIBRARY_ACTIVE_WORKSPACE_KEY)
 							return {
 								status: 'none',
@@ -515,7 +545,8 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 							registryStore,
 							decodeBrowserActiveWorkspaceMarker({
 								key: BROWSER_LIBRARY_ACTIVE_WORKSPACE_KEY,
-								workspaceId,
+								workspaceId: identity.workspaceId,
+								repositoryId: identity.repositoryId,
 								catalogRevision: next.catalogRevision,
 								updatedAt: timestamp
 							})
@@ -523,13 +554,15 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 						return {
 							status: 'active',
 							catalogRevision: next.catalogRevision,
-							workspaceId
+							workspaceId: identity.workspaceId,
+							repositoryId: identity.repositoryId
 						}
 					}
 				)
 			this.#publish({
 				type: 'commit',
-				workspaceId,
+				workspaceId: identity?.workspaceId ?? null,
+				repositoryId: identity?.repositoryId ?? null,
 				catalogRevision: result.catalogRevision,
 				repositoryRevision: null,
 				contentRevision: null,
@@ -537,7 +570,7 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 				invalidations: [
 					{
 						entity: 'workspace',
-						ids: workspaceId === null ? [] : [workspaceId]
+						ids: identity === null ? [] : [identity.workspaceId]
 					}
 				]
 			})
@@ -546,7 +579,6 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 	}
 
 	renameWorkspace(
-		workspaceId: string,
 		name: string,
 		expected: BrowserWorkspaceCatalogCas
 	): Promise<BrowserWorkspaceCatalogMutationResult<BrowserWorkspaceManifest>> {
@@ -566,10 +598,10 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 					)
 					const [storedRegistry, storedManifest] = await Promise.all([
 						requestResult(registryStore.get(BROWSER_LIBRARY_REGISTRY_KEY)),
-						requestResult(workspaceStore.get(workspaceId))
+						requestResult(workspaceStore.get(expected.workspaceId))
 					])
 					const registry = requiredRegistry(storedRegistry)
-					const manifest = requiredManifest(storedManifest)
+					const manifest = requiredManifest(storedManifest, expected)
 					assertCatalogRevision(registry, expected.catalogRevision)
 					assertRepositoryRevision(manifest, expected.repositoryRevision)
 					const renamed = decodeBrowserWorkspaceManifest({
@@ -590,25 +622,25 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 			)
 			this.#publish({
 				type: 'commit',
-				workspaceId,
+				workspaceId: expected.workspaceId,
+				repositoryId: expected.repositoryId,
 				catalogRevision: result.catalogRevision,
 				repositoryRevision: result.repositoryRevision,
 				contentRevision: result.value.contentRevision,
 				committedAt: timestamp,
-				invalidations: [{ entity: 'workspace', ids: [workspaceId] }]
+				invalidations: [{ entity: 'workspace', ids: [expected.workspaceId] }]
 			})
 			return result
 		})
 	}
 
 	deleteWorkspace(
-		workspaceId: string,
 		expected: BrowserWorkspaceCatalogCas
 	): Promise<BrowserCatalogMutationResult<void>> {
 		return this.#enqueue(() =>
 			withOptionalBrowserLibraryLock(
 				this.dependencies,
-				`${this.#databaseName}:workspace:${workspaceId}:wide-write`,
+				browserWorkspaceWideLockName(this.#databaseName, expected.workspaceId),
 				async () => {
 					const timestamp = browserLibraryTimestamp(this.dependencies)
 					const result = await runBrowserLibraryTransaction(
@@ -628,7 +660,7 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 									requestResult(
 										registryStore.get(BROWSER_LIBRARY_REGISTRY_KEY)
 									),
-									requestResult(workspaceStore.get(workspaceId)),
+									requestResult(workspaceStore.get(expected.workspaceId)),
 									requestResult(
 										registryStore.get(BROWSER_LIBRARY_ACTIVE_WORKSPACE_KEY)
 									),
@@ -638,13 +670,13 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 												transaction
 													.objectStore(storeName)
 													.index(BROWSER_LIBRARY_WORKSPACE_INDEX)
-													.getAllKeys(workspaceId)
+													.getAllKeys(expected.workspaceId)
 											)
 										)
 									)
 								])
 							const registry = requiredRegistry(storedRegistry)
-							const manifest = requiredManifest(storedManifest)
+							const manifest = requiredManifest(storedManifest, expected)
 							assertCatalogRevision(registry, expected.catalogRevision)
 							assertRepositoryRevision(manifest, expected.repositoryRevision)
 
@@ -656,13 +688,13 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 							}
 							writer.delete(
 								transaction.objectStore(BROWSER_LIBRARY_STORES.operations),
-								workspaceId
+								expected.workspaceId
 							)
 							writer.delete(
 								transaction.objectStore(BROWSER_LIBRARY_STORES.preferences),
-								workspaceId
+								expected.workspaceId
 							)
-							writer.delete(workspaceStore, workspaceId)
+							writer.delete(workspaceStore, expected.workspaceId)
 							if (storedMarker !== undefined) {
 								let marker: BrowserActiveWorkspaceMarker | null = null
 								try {
@@ -670,7 +702,10 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 								} catch {
 									// Preserve a corrupt marker for explicit diagnosis/recovery.
 								}
-								if (marker?.workspaceId === workspaceId) {
+								if (
+									marker?.workspaceId === expected.workspaceId &&
+									marker.repositoryId === expected.repositoryId
+								) {
 									writer.delete(
 										registryStore,
 										BROWSER_LIBRARY_ACTIVE_WORKSPACE_KEY
@@ -684,13 +719,14 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 					)
 					this.#publish({
 						type: 'delete',
-						workspaceId,
+						workspaceId: expected.workspaceId,
+						repositoryId: expected.repositoryId,
 						catalogRevision: result.catalogRevision,
 						repositoryRevision: null,
 						contentRevision: null,
 						committedAt: timestamp,
 						invalidations: [
-							{ entity: 'workspace', ids: [workspaceId] },
+							{ entity: 'workspace', ids: [expected.workspaceId] },
 							...WORKSPACE_INDEXED_STORES.map(
 								(entity): BrowserRepositoryInvalidation => ({
 									entity:
@@ -700,8 +736,8 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 									ids: []
 								})
 							),
-							{ entity: 'operations', ids: [workspaceId] },
-							{ entity: 'preferences', ids: [workspaceId] }
+							{ entity: 'operations', ids: [expected.workspaceId] },
+							{ entity: 'preferences', ids: [expected.workspaceId] }
 						]
 					})
 					return result
@@ -711,32 +747,30 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 	}
 
 	readOperations(
-		workspaceId: string
+		identity: BrowserWorkspaceIdentity
 	): Promise<BrowserWorkspaceReadResult<BrowserWorkspaceOperations>> {
 		return this.#read(() =>
-			readBrowserWorkspaceOperations(this.database, workspaceId)
+			readBrowserWorkspaceOperations(this.database, identity)
 		)
 	}
 
 	listDrafts(
-		workspaceId: string
+		identity: BrowserWorkspaceIdentity
 	): Promise<BrowserWorkspaceReadResult<readonly BrowserWorkflowDraft[]>> {
-		return this.#read(() =>
-			listBrowserWorkspaceDrafts(this.database, workspaceId)
-		)
+		return this.#read(() => listBrowserWorkspaceDrafts(this.database, identity))
 	}
 
 	readDraft(
-		workspaceId: string,
+		identity: BrowserWorkspaceIdentity,
 		draftId: string
 	): Promise<BrowserWorkspaceReadResult<BrowserWorkflowDraft | null>> {
 		return this.#read(() =>
-			readBrowserWorkspaceDraft(this.database, workspaceId, draftId)
+			readBrowserWorkspaceDraft(this.database, identity, draftId)
 		)
 	}
 
 	#publishOperationalCommit<T>(
-		workspaceId: string,
+		identity: BrowserWorkspaceIdentity,
 		committedAt: string,
 		commit: BrowserOperationalCommit<T>,
 		entity: 'operations' | 'drafts',
@@ -745,7 +779,8 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 	): BrowserWorkspaceMutationResult<T> {
 		this.#publish({
 			type,
-			workspaceId,
+			workspaceId: identity.workspaceId,
+			repositoryId: identity.repositoryId,
 			catalogRevision: null,
 			repositoryRevision: commit.result.repositoryRevision,
 			contentRevision: commit.contentRevision,
@@ -756,7 +791,7 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 	}
 
 	recordExport(
-		workspaceId: string,
+		identity: BrowserWorkspaceIdentity,
 		contentRevision: number,
 		expectedRepositoryRevision: number,
 		exportedAt?: string
@@ -766,24 +801,24 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 			const commit = await recordBrowserWorkspaceExport(
 				this.database,
 				this.dependencies,
-				workspaceId,
+				identity,
 				contentRevision,
 				expectedRepositoryRevision,
 				committedAt,
 				exportedAt
 			)
 			return this.#publishOperationalCommit(
-				workspaceId,
+				identity,
 				committedAt,
 				commit,
 				'operations',
-				[workspaceId]
+				[identity.workspaceId]
 			)
 		})
 	}
 
 	writeCopyReceipt(
-		workspaceId: string,
+		identity: BrowserWorkspaceIdentity,
 		receipt: BrowserCopyReceipt | null,
 		expectedRepositoryRevision: number
 	): Promise<BrowserWorkspaceMutationResult<BrowserWorkspaceOperations>> {
@@ -792,23 +827,23 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 			const commit = await writeBrowserWorkspaceCopyReceipt(
 				this.database,
 				this.dependencies,
-				workspaceId,
+				identity,
 				receipt,
 				expectedRepositoryRevision,
 				committedAt
 			)
 			return this.#publishOperationalCommit(
-				workspaceId,
+				identity,
 				committedAt,
 				commit,
 				'operations',
-				[workspaceId]
+				[identity.workspaceId]
 			)
 		})
 	}
 
 	writeStorageHealth(
-		workspaceId: string,
+		identity: BrowserWorkspaceIdentity,
 		health: BrowserStorageHealth,
 		expectedRepositoryRevision: number
 	): Promise<BrowserWorkspaceMutationResult<BrowserWorkspaceOperations>> {
@@ -817,23 +852,23 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 			const commit = await writeBrowserWorkspaceStorageHealth(
 				this.database,
 				this.dependencies,
-				workspaceId,
+				identity,
 				health,
 				expectedRepositoryRevision,
 				committedAt
 			)
 			return this.#publishOperationalCommit(
-				workspaceId,
+				identity,
 				committedAt,
 				commit,
 				'operations',
-				[workspaceId]
+				[identity.workspaceId]
 			)
 		})
 	}
 
 	writeDraft(
-		workspaceId: string,
+		identity: BrowserWorkspaceIdentity,
 		draft: BrowserWorkflowDraft,
 		expected: BrowserDraftCas
 	): Promise<BrowserWorkspaceMutationResult<BrowserWorkflowDraft>> {
@@ -842,13 +877,13 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 			const commit = await writeBrowserWorkspaceDraft(
 				this.database,
 				this.dependencies,
-				workspaceId,
+				identity,
 				draft,
 				expected,
 				committedAt
 			)
 			return this.#publishOperationalCommit(
-				workspaceId,
+				identity,
 				committedAt,
 				commit,
 				'drafts',
@@ -858,7 +893,7 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 	}
 
 	deleteDraft(
-		workspaceId: string,
+		identity: BrowserWorkspaceIdentity,
 		draftId: string,
 		expected: Omit<BrowserDraftCas, 'draftRevision'> & { draftRevision: number }
 	): Promise<BrowserWorkspaceMutationResult<void>> {
@@ -867,13 +902,13 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 			const commit = await deleteBrowserWorkspaceDraft(
 				this.database,
 				this.dependencies,
-				workspaceId,
+				identity,
 				draftId,
 				expected,
 				committedAt
 			)
 			return this.#publishOperationalCommit(
-				workspaceId,
+				identity,
 				committedAt,
 				commit,
 				'drafts',

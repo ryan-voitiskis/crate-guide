@@ -36,7 +36,7 @@ function createDataset(): LibraryDataset {
 				year: 2026,
 				cover: {
 					kind: 'browser',
-					assetId: 'cover-a',
+					assetId: 'record-a/cover-a',
 					fallbackUrl: null
 				},
 				discogs_id: 10,
@@ -163,7 +163,8 @@ describe('browser library domain codecs', () => {
 		for (const url of [
 			'https://user:password@cdn.example.test/cover.webp',
 			'https://cdn.example.test/cover.webp?access_token=secret',
-			'https://cdn.example.test/cover.webp?api_key=secret'
+			'https://cdn.example.test/cover.webp?api_key=secret',
+			'https://cdn.example.test/cover.webp#access_token=secret'
 		]) {
 			const credentialed = createDataset()
 			credentialed.records[0]!.cover = { kind: 'external', url }
@@ -183,6 +184,137 @@ describe('browser library domain codecs', () => {
 		const rawAudio = createDataset() as LibraryDataset & { rawAudio: Blob }
 		rawAudio.rawAudio = new Blob(['private audio'])
 		expectCodecPath(() => decodeLibraryDataset(rawAudio), '/snapshot/rawAudio')
+
+		const fragmentCases: Array<{
+			mutate(dataset: LibraryDataset): void
+			path: string
+		}> = [
+			{
+				mutate(dataset) {
+					dataset.records[0]!.cover = {
+						kind: 'browser',
+						assetId: 'record-a/cover.webp',
+						fallbackUrl:
+							'https://cdn.example.test/fallback.webp#access_token=secret'
+					}
+				},
+				path: '/snapshot/records/0/cover/fallbackUrl'
+			},
+			{
+				mutate(dataset) {
+					dataset.records[0]!.discogs_release_url =
+						'https://www.discogs.com/release/10#access_token=secret'
+				},
+				path: '/snapshot/records/0/discogs_release_url'
+			},
+			{
+				mutate(dataset) {
+					dataset.records[0]!.labels[0]!.thumbnail_url =
+						'https://images.discogs.com/label.jpg#access_token=secret'
+				},
+				path: '/snapshot/records/0/labels/0/thumbnail_url'
+			},
+			{
+				mutate(dataset) {
+					dataset.tracks[0]!.beatport_data = {
+						accessed: Date.parse(NOW),
+						url: 'https://www.beatport.com/track/example/1#access_token=secret',
+						genre: 'House',
+						bpm: 124,
+						key: 'A Minor',
+						img: 'https://geo-media.beatport.com/image.jpg'
+					}
+				},
+				path: '/snapshot/tracks/0/beatport_data/url'
+			},
+			{
+				mutate(dataset) {
+					dataset.tracks[0]!.beatport_data = {
+						accessed: Date.parse(NOW),
+						url: 'https://www.beatport.com/track/example/1',
+						genre: 'House',
+						bpm: 124,
+						key: 'A Minor',
+						img: 'https://geo-media.beatport.com/image.jpg#access_token=secret'
+					}
+				},
+				path: '/snapshot/tracks/0/beatport_data/img'
+			}
+		]
+		for (const fragmentCase of fragmentCases) {
+			const dataset = createDataset()
+			fragmentCase.mutate(dataset)
+			expectCodecPath(() => decodeLibraryDataset(dataset), fragmentCase.path)
+		}
+	})
+
+	it('accepts logical cover asset IDs but rejects paths, URIs, and raw files', () => {
+		const logical = createDataset()
+		logical.records[0]!.cover = {
+			kind: 'browser',
+			assetId: 'record-a/550e8400-e29b-41d4-a716-446655440000.webp',
+			fallbackUrl: null
+		}
+		expect(decodeLibraryDataset(logical)).toEqual(logical)
+
+		for (const assetId of [
+			'/Users/alice/Music/cover.webp',
+			'\\\\server\\private\\cover.webp',
+			'C:\\Users\\alice\\cover.webp',
+			'file:///Users/alice/cover.webp',
+			'https://private.example.test/cover.webp?signature=secret',
+			'../private/cover.webp',
+			'record-a/../private.webp',
+			'record-a%2F..%2Fprivate.webp',
+			'record-a%252F..%252Fprivate.webp',
+			'record-a/%252e%252e/private.webp'
+		]) {
+			const pathLike = createDataset()
+			pathLike.records[0]!.cover = {
+				kind: 'browser',
+				assetId,
+				fallbackUrl: null
+			}
+			expectCodecPath(
+				() => decodeLibraryDataset(pathLike),
+				'/snapshot/records/0/cover/assetId'
+			)
+		}
+
+		const signedFallback = createDataset()
+		signedFallback.records[0]!.cover = {
+			kind: 'browser',
+			assetId: 'record-a/cover.webp',
+			fallbackUrl:
+				'https://private.example.test/cover.webp?X-Amz-Signature=secret'
+		}
+		expectCodecPath(
+			() => decodeLibraryDataset(signedFallback),
+			'/snapshot/records/0/cover/fallbackUrl'
+		)
+
+		const relabeledCloudPath = createDataset()
+		relabeledCloudPath.records[0]!.cover = {
+			kind: 'browser',
+			assetId: 'account-id/file.webp',
+			fallbackUrl: null
+		}
+		expectCodecPath(
+			() => decodeLibraryDataset(relabeledCloudPath),
+			'/snapshot/records/0/cover/assetId'
+		)
+
+		const rawFile = createDataset()
+		rawFile.records[0]!.cover = {
+			kind: 'browser',
+			assetId: 'record-a/cover.webp',
+			fallbackUrl: null,
+			file: new File(['raw'], 'cover.webp', { type: 'image/webp' })
+		} as never
+		expectCodecPath(
+			() => decodeLibraryDataset(rawFile),
+			'/snapshot/records/0/cover/file'
+		)
 	})
 
 	it('rejects broken and duplicate graph references', () => {
@@ -213,6 +345,7 @@ describe('browser library metadata codecs', () => {
 	it('requires the exact supported schema version and revision invariants', () => {
 		const manifest = {
 			id: 'workspace-a',
+			repositoryId: 'repository-a',
 			name: 'Local library',
 			schemaVersion: BROWSER_LIBRARY_SCHEMA_VERSION,
 			createdAt: NOW,
@@ -254,7 +387,7 @@ describe('browser library metadata codecs', () => {
 	it('bounds managed WebP cover bytes and verifies workspace ownership', () => {
 		const cover: BrowserManagedCover = {
 			workspaceId: 'workspace-a',
-			assetId: 'cover-a',
+			assetId: 'record-a/cover-a',
 			recordId: 'record-a',
 			blob: new Blob([new Uint8Array(2 * 1024 * 1024)], {
 				type: 'image/webp'
@@ -267,6 +400,14 @@ describe('browser library metadata codecs', () => {
 		expectCodecPath(
 			() => decodeBrowserManagedCover(cover, 'workspace-b'),
 			'/cover/workspaceId'
+		)
+		expectCodecPath(
+			() =>
+				decodeBrowserManagedCover(
+					{ ...cover, assetId: '/Users/alice/private-cover.webp' },
+					'workspace-a'
+				),
+			'/cover/assetId'
 		)
 		expectCodecPath(
 			() =>
@@ -284,6 +425,10 @@ describe('browser library metadata codecs', () => {
 	})
 
 	it('round-trips drafts with an explicit revision and rejects payload drift', () => {
+		const identity = {
+			workspaceId: 'workspace-a',
+			repositoryId: 'repository-a'
+		}
 		const payload = createTrackEnrichmentDraftFixture()
 		const draft: BrowserWorkflowDraft = {
 			id: payload.id,
@@ -292,19 +437,24 @@ describe('browser library metadata codecs', () => {
 			updatedAt: payload.updatedAt,
 			payload
 		}
-		const row = encodeBrowserWorkflowDraftRow('workspace-a', draft)
+		const row = encodeBrowserWorkflowDraftRow(identity, draft)
 
 		expect(row.draftRevision).toBe(3)
 		expect(
 			decodeBrowserWorkflowDraft(
-				decodeBrowserWorkflowDraftRow(row, 'workspace-a')
+				decodeBrowserWorkflowDraftRow(
+					row,
+					identity.workspaceId,
+					identity.repositoryId
+				)
 			)
 		).toEqual(draft)
 		expectCodecPath(
 			() =>
 				decodeBrowserWorkflowDraftRow(
 					{ ...row, draftRevision: row.draftRevision + 1 },
-					'workspace-a'
+					identity.workspaceId,
+					identity.repositoryId
 				),
 			'/draft/serializedPayload'
 		)
@@ -313,7 +463,7 @@ describe('browser library metadata codecs', () => {
 		unsafePayload.observations[0]!.locationHint = '/Users/example/Music/a.wav'
 		expectCodecPath(
 			() =>
-				encodeBrowserWorkflowDraftRow('workspace-a', {
+				encodeBrowserWorkflowDraftRow(identity, {
 					...draft,
 					payload: unsafePayload
 				}),
@@ -328,6 +478,7 @@ describe('browser library metadata codecs', () => {
 			senderId: 'sender-a',
 			type: 'commit',
 			workspaceId: 'workspace-a',
+			repositoryId: 'repository-a',
 			catalogRevision: 1,
 			repositoryRevision: 3,
 			contentRevision: 2,
@@ -337,8 +488,28 @@ describe('browser library metadata codecs', () => {
 
 		expect(decodeBrowserRepositoryChange(message)).toEqual(message)
 		expect(
-			decodeBrowserRepositoryChange({ ...message, workspaceId: null })
-		).toEqual({ ...message, workspaceId: null })
+			decodeBrowserRepositoryChange({
+				...message,
+				workspaceId: null,
+				repositoryId: null
+			})
+		).toEqual({ ...message, workspaceId: null, repositoryId: null })
+		expectCodecPath(
+			() =>
+				decodeBrowserRepositoryChange({
+					...message,
+					workspaceId: null
+				}),
+			'/broadcast/repositoryId'
+		)
+		expectCodecPath(
+			() =>
+				decodeBrowserRepositoryChange({
+					...message,
+					protocolVersion: 1
+				}),
+			'/broadcast/protocolVersion'
+		)
 		expectCodecPath(
 			() =>
 				decodeBrowserRepositoryChange({

@@ -28,6 +28,7 @@ import type {
 	BrowserLibraryDependencies,
 	BrowserStorageHealth,
 	BrowserWorkflowDraft,
+	BrowserWorkspaceIdentity,
 	BrowserWorkspaceManifest,
 	BrowserWorkspaceMutationResult,
 	BrowserWorkspaceOperations,
@@ -39,9 +40,19 @@ export type BrowserOperationalCommit<T> = Readonly<{
 	contentRevision: number
 }>
 
-function requiredManifest(value: unknown): BrowserWorkspaceManifest {
+function requiredManifest(
+	value: unknown,
+	identity: BrowserWorkspaceIdentity
+): BrowserWorkspaceManifest {
 	if (value === undefined) throw new BrowserRepositoryNotFoundError('workspace')
-	return decodeBrowserWorkspaceManifest(value)
+	const manifest = decodeBrowserWorkspaceManifest(value)
+	if (
+		manifest.id !== identity.workspaceId ||
+		manifest.repositoryId !== identity.repositoryId
+	) {
+		throw new BrowserRepositoryNotFoundError('workspace')
+	}
+	return manifest
 }
 
 function requiredOperations(
@@ -83,7 +94,7 @@ function nextOperationalManifest(
 
 export function readBrowserWorkspaceOperations(
 	database: IDBDatabase,
-	workspaceId: string
+	identity: BrowserWorkspaceIdentity
 ): Promise<BrowserWorkspaceReadResult<BrowserWorkspaceOperations>> {
 	return runBrowserLibraryReadTransaction(
 		database,
@@ -93,17 +104,17 @@ export function readBrowserWorkspaceOperations(
 				requestResult(
 					transaction
 						.objectStore(BROWSER_LIBRARY_STORES.workspaces)
-						.get(workspaceId)
+						.get(identity.workspaceId)
 				),
 				requestResult(
 					transaction
 						.objectStore(BROWSER_LIBRARY_STORES.operations)
-						.get(workspaceId)
+						.get(identity.workspaceId)
 				)
 			])
-			const manifest = requiredManifest(storedManifest)
+			const manifest = requiredManifest(storedManifest, identity)
 			return {
-				value: requiredOperations(storedOperations, workspaceId),
+				value: requiredOperations(storedOperations, identity.workspaceId),
 				repositoryRevision: manifest.repositoryRevision
 			}
 		}
@@ -112,7 +123,7 @@ export function readBrowserWorkspaceOperations(
 
 export function listBrowserWorkspaceDrafts(
 	database: IDBDatabase,
-	workspaceId: string
+	identity: BrowserWorkspaceIdentity
 ): Promise<BrowserWorkspaceReadResult<readonly BrowserWorkflowDraft[]>> {
 	return runBrowserLibraryReadTransaction(
 		database,
@@ -122,20 +133,24 @@ export function listBrowserWorkspaceDrafts(
 				requestResult(
 					transaction
 						.objectStore(BROWSER_LIBRARY_STORES.workspaces)
-						.get(workspaceId)
+						.get(identity.workspaceId)
 				),
 				requestResult(
 					transaction
 						.objectStore(BROWSER_LIBRARY_STORES.drafts)
 						.index(BROWSER_LIBRARY_WORKSPACE_INDEX)
-						.getAll(workspaceId)
+						.getAll(identity.workspaceId)
 				)
 			])
-			const manifest = requiredManifest(storedManifest)
+			const manifest = requiredManifest(storedManifest, identity)
 			const drafts = storedDrafts
 				.map((row) =>
 					decodeBrowserWorkflowDraft(
-						decodeBrowserWorkflowDraftRow(row, workspaceId)
+						decodeBrowserWorkflowDraftRow(
+							row,
+							identity.workspaceId,
+							identity.repositoryId
+						)
 					)
 				)
 				.sort(
@@ -153,7 +168,7 @@ export function listBrowserWorkspaceDrafts(
 
 export function readBrowserWorkspaceDraft(
 	database: IDBDatabase,
-	workspaceId: string,
+	identity: BrowserWorkspaceIdentity,
 	draftId: string
 ): Promise<BrowserWorkspaceReadResult<BrowserWorkflowDraft | null>> {
 	return runBrowserLibraryReadTransaction(
@@ -164,21 +179,25 @@ export function readBrowserWorkspaceDraft(
 				requestResult(
 					transaction
 						.objectStore(BROWSER_LIBRARY_STORES.workspaces)
-						.get(workspaceId)
+						.get(identity.workspaceId)
 				),
 				requestResult(
 					transaction
 						.objectStore(BROWSER_LIBRARY_STORES.drafts)
-						.get([workspaceId, draftId])
+						.get([identity.workspaceId, draftId])
 				)
 			])
-			const manifest = requiredManifest(storedManifest)
+			const manifest = requiredManifest(storedManifest, identity)
 			return {
 				value:
 					storedDraft === undefined
 						? null
 						: decodeBrowserWorkflowDraft(
-								decodeBrowserWorkflowDraftRow(storedDraft, workspaceId)
+								decodeBrowserWorkflowDraftRow(
+									storedDraft,
+									identity.workspaceId,
+									identity.repositoryId
+								)
 							),
 				repositoryRevision: manifest.repositoryRevision
 			}
@@ -190,7 +209,7 @@ async function mutateBrowserWorkspaceOperations(
 	database: IDBDatabase,
 	dependencies: BrowserLibraryDependencies,
 	command: string,
-	workspaceId: string,
+	identity: BrowserWorkspaceIdentity,
 	expectedRepositoryRevision: number,
 	committedAt: string,
 	update: (
@@ -211,15 +230,18 @@ async function mutateBrowserWorkspaceOperations(
 				BROWSER_LIBRARY_STORES.operations
 			)
 			const [storedManifest, storedOperations] = await Promise.all([
-				requestResult(workspaceStore.get(workspaceId)),
-				requestResult(operationsStore.get(workspaceId))
+				requestResult(workspaceStore.get(identity.workspaceId)),
+				requestResult(operationsStore.get(identity.workspaceId))
 			])
-			const manifest = requiredManifest(storedManifest)
+			const manifest = requiredManifest(storedManifest, identity)
 			assertRepositoryRevision(manifest, expectedRepositoryRevision)
-			const operations = requiredOperations(storedOperations, workspaceId)
+			const operations = requiredOperations(
+				storedOperations,
+				identity.workspaceId
+			)
 			const updatedOperations = decodeBrowserWorkspaceOperations(
 				update(operations, manifest),
-				workspaceId
+				identity.workspaceId
 			)
 			const updatedManifest = nextOperationalManifest(manifest, committedAt)
 			writer.put(operationsStore, updatedOperations)
@@ -238,7 +260,7 @@ async function mutateBrowserWorkspaceOperations(
 export function recordBrowserWorkspaceExport(
 	database: IDBDatabase,
 	dependencies: BrowserLibraryDependencies,
-	workspaceId: string,
+	identity: BrowserWorkspaceIdentity,
 	contentRevision: number,
 	expectedRepositoryRevision: number,
 	committedAt: string,
@@ -248,7 +270,7 @@ export function recordBrowserWorkspaceExport(
 		database,
 		dependencies,
 		'record-export',
-		workspaceId,
+		identity,
 		expectedRepositoryRevision,
 		committedAt,
 		(operations, manifest) => {
@@ -276,7 +298,7 @@ export function recordBrowserWorkspaceExport(
 export function writeBrowserWorkspaceCopyReceipt(
 	database: IDBDatabase,
 	dependencies: BrowserLibraryDependencies,
-	workspaceId: string,
+	identity: BrowserWorkspaceIdentity,
 	receipt: BrowserCopyReceipt | null,
 	expectedRepositoryRevision: number,
 	committedAt: string
@@ -287,7 +309,7 @@ export function writeBrowserWorkspaceCopyReceipt(
 		database,
 		dependencies,
 		'write-copy-receipt',
-		workspaceId,
+		identity,
 		expectedRepositoryRevision,
 		committedAt,
 		(operations) => ({ ...operations, copyReceipt: decodedReceipt })
@@ -297,7 +319,7 @@ export function writeBrowserWorkspaceCopyReceipt(
 export function writeBrowserWorkspaceStorageHealth(
 	database: IDBDatabase,
 	dependencies: BrowserLibraryDependencies,
-	workspaceId: string,
+	identity: BrowserWorkspaceIdentity,
 	health: BrowserStorageHealth,
 	expectedRepositoryRevision: number,
 	committedAt: string
@@ -307,7 +329,7 @@ export function writeBrowserWorkspaceStorageHealth(
 		database,
 		dependencies,
 		'write-storage-health',
-		workspaceId,
+		identity,
 		expectedRepositoryRevision,
 		committedAt,
 		(operations) => ({ ...operations, storageHealth: decodedHealth })
@@ -317,12 +339,12 @@ export function writeBrowserWorkspaceStorageHealth(
 export function writeBrowserWorkspaceDraft(
 	database: IDBDatabase,
 	dependencies: BrowserLibraryDependencies,
-	workspaceId: string,
+	identity: BrowserWorkspaceIdentity,
 	draft: BrowserWorkflowDraft,
 	expected: BrowserDraftCas,
 	committedAt: string
 ): Promise<BrowserOperationalCommit<BrowserWorkflowDraft>> {
-	const encodedDraft = encodeBrowserWorkflowDraftRow(workspaceId, draft)
+	const encodedDraft = encodeBrowserWorkflowDraftRow(identity, draft)
 	const persistedDraft = decodeBrowserWorkflowDraft(encodedDraft)
 	return runBrowserLibraryTransaction(
 		database,
@@ -335,15 +357,15 @@ export function writeBrowserWorkspaceDraft(
 			)
 			const draftStore = transaction.objectStore(BROWSER_LIBRARY_STORES.drafts)
 			const [storedManifest, storedDraft, storedKindDraft] = await Promise.all([
-				requestResult(workspaceStore.get(workspaceId)),
-				requestResult(draftStore.get([workspaceId, draft.id])),
+				requestResult(workspaceStore.get(identity.workspaceId)),
+				requestResult(draftStore.get([identity.workspaceId, draft.id])),
 				requestResult(
 					draftStore
 						.index(BROWSER_LIBRARY_DRAFT_KIND_INDEX)
-						.get([workspaceId, draft.kind])
+						.get([identity.workspaceId, draft.kind])
 				)
 			])
-			const manifest = requiredManifest(storedManifest)
+			const manifest = requiredManifest(storedManifest, identity)
 			assertRepositoryRevision(manifest, expected.repositoryRevision)
 
 			if (expected.draftRevision === null) {
@@ -358,7 +380,8 @@ export function writeBrowserWorkspaceDraft(
 				if (storedDraft !== undefined || storedKindDraft !== undefined) {
 					const existing = decodeBrowserWorkflowDraftRow(
 						storedDraft ?? storedKindDraft,
-						workspaceId
+						identity.workspaceId,
+						identity.repositoryId
 					)
 					throw new BrowserRepositoryConflictError(
 						storedDraft === undefined ? 'draft-kind' : 'draft-revision',
@@ -370,7 +393,11 @@ export function writeBrowserWorkspaceDraft(
 				if (storedDraft === undefined) {
 					throw new BrowserRepositoryNotFoundError('draft')
 				}
-				const existing = decodeBrowserWorkflowDraftRow(storedDraft, workspaceId)
+				const existing = decodeBrowserWorkflowDraftRow(
+					storedDraft,
+					identity.workspaceId,
+					identity.repositoryId
+				)
 				if (existing.draftRevision !== expected.draftRevision) {
 					throw new BrowserRepositoryConflictError(
 						'draft-revision',
@@ -388,7 +415,11 @@ export function writeBrowserWorkspaceDraft(
 				const existingKindDraft =
 					storedKindDraft === undefined
 						? null
-						: decodeBrowserWorkflowDraftRow(storedKindDraft, workspaceId)
+						: decodeBrowserWorkflowDraftRow(
+								storedKindDraft,
+								identity.workspaceId,
+								identity.repositoryId
+							)
 				if (existingKindDraft !== null && existingKindDraft.id !== draft.id) {
 					throw new BrowserRepositoryConflictError('draft-kind', null, null)
 				}
@@ -411,7 +442,7 @@ export function writeBrowserWorkspaceDraft(
 export function deleteBrowserWorkspaceDraft(
 	database: IDBDatabase,
 	dependencies: BrowserLibraryDependencies,
-	workspaceId: string,
+	identity: BrowserWorkspaceIdentity,
 	draftId: string,
 	expected: Omit<BrowserDraftCas, 'draftRevision'> & { draftRevision: number },
 	committedAt: string
@@ -427,15 +458,19 @@ export function deleteBrowserWorkspaceDraft(
 			)
 			const draftStore = transaction.objectStore(BROWSER_LIBRARY_STORES.drafts)
 			const [storedManifest, storedDraft] = await Promise.all([
-				requestResult(workspaceStore.get(workspaceId)),
-				requestResult(draftStore.get([workspaceId, draftId]))
+				requestResult(workspaceStore.get(identity.workspaceId)),
+				requestResult(draftStore.get([identity.workspaceId, draftId]))
 			])
-			const manifest = requiredManifest(storedManifest)
+			const manifest = requiredManifest(storedManifest, identity)
 			assertRepositoryRevision(manifest, expected.repositoryRevision)
 			if (storedDraft === undefined) {
 				throw new BrowserRepositoryNotFoundError('draft')
 			}
-			const draft = decodeBrowserWorkflowDraftRow(storedDraft, workspaceId)
+			const draft = decodeBrowserWorkflowDraftRow(
+				storedDraft,
+				identity.workspaceId,
+				identity.repositoryId
+			)
 			if (draft.draftRevision !== expected.draftRevision) {
 				throw new BrowserRepositoryConflictError(
 					'draft-revision',
@@ -444,7 +479,7 @@ export function deleteBrowserWorkspaceDraft(
 				)
 			}
 			const updatedManifest = nextOperationalManifest(manifest, committedAt)
-			writer.delete(draftStore, [workspaceId, draftId])
+			writer.delete(draftStore, [identity.workspaceId, draftId])
 			writer.put(workspaceStore, updatedManifest)
 			return {
 				result: {

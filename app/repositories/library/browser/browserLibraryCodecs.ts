@@ -36,6 +36,7 @@ import {
 	type BrowserStoredPreferences,
 	type BrowserStoredWorkflowDraft,
 	type BrowserWorkflowDraft,
+	type BrowserWorkspaceIdentity,
 	type BrowserWorkspaceManifest,
 	type BrowserWorkspaceOperations
 } from './browserLibraryTypes'
@@ -113,6 +114,25 @@ function identifier(value: unknown, path: string): string {
 	return stringValue(value, path, { maxLength: MAX_ID_LENGTH })
 }
 
+function logicalAssetId(value: unknown, path: string): string {
+	const decoded = identifier(value, path)
+	if (
+		decoded.length > MAX_ID_LENGTH ||
+		decoded
+			.split('/')
+			.some(
+				(segment) =>
+					segment === '' ||
+					segment === '.' ||
+					segment === '..' ||
+					!/^[A-Za-z0-9._-]+$/.test(segment)
+			)
+	) {
+		fail(path)
+	}
+	return decoded
+}
+
 function nullableString(
 	value: unknown,
 	path: string,
@@ -182,6 +202,7 @@ function safeUrl(value: unknown, path: string): string {
 	}
 	if (url.protocol !== 'https:' && url.protocol !== 'http:') fail(path)
 	if (url.username !== '' || url.password !== '') fail(path)
+	if (url.hash !== '') fail(path)
 	for (const key of url.searchParams.keys()) {
 		const lowerKey = key.toLowerCase()
 		const normalizedKey = lowerKey.replace(/[^a-z0-9]/g, '')
@@ -267,7 +288,7 @@ function decodeCover(value: unknown, path: string): CoverReference {
 		exactKeys(object, ['kind', 'assetId', 'fallbackUrl'], path)
 		return {
 			kind,
-			assetId: identifier(object.assetId, `${path}/assetId`),
+			assetId: logicalAssetId(object.assetId, `${path}/assetId`),
 			fallbackUrl: nullableSafeUrl(object.fallbackUrl, `${path}/fallbackUrl`)
 		}
 	}
@@ -520,7 +541,7 @@ export function decodeLibraryRecord(
 		],
 		path
 	)
-	identifier(object.id, `${path}/id`)
+	const id = identifier(object.id, `${path}/id`)
 	stringValue(object.title, `${path}/title`, {
 		maxLength: MAX_LONG_TEXT_LENGTH
 	})
@@ -531,7 +552,10 @@ export function decodeLibraryRecord(
 		decodeLabel(label, `${path}/labels/${index}`)
 	)
 	nullableFiniteNumber(object.year, `${path}/year`)
-	decodeCover(object.cover, `${path}/cover`)
+	const cover = decodeCover(object.cover, `${path}/cover`)
+	if (cover.kind === 'browser' && !cover.assetId.startsWith(`${id}/`)) {
+		fail(`${path}/cover/assetId`)
+	}
 	if (object.discogs_id !== null)
 		safeInteger(object.discogs_id, `${path}/discogs_id`)
 	nullableSafeUrl(object.discogs_release_url, `${path}/discogs_release_url`)
@@ -984,6 +1008,7 @@ export function decodeBrowserWorkspaceManifest(
 		object,
 		[
 			'id',
+			'repositoryId',
 			'name',
 			'schemaVersion',
 			'createdAt',
@@ -996,6 +1021,7 @@ export function decodeBrowserWorkspaceManifest(
 		path
 	)
 	identifier(object.id, `${path}/id`)
+	identifier(object.repositoryId, `${path}/repositoryId`)
 	stringValue(object.name, `${path}/name`)
 	if (
 		safeInteger(object.schemaVersion, `${path}/schemaVersion`, 1) !==
@@ -1051,11 +1077,12 @@ export function decodeBrowserActiveWorkspaceMarker(
 	const object = plainObject(value, path)
 	exactKeys(
 		object,
-		['key', 'workspaceId', 'catalogRevision', 'updatedAt'],
+		['key', 'workspaceId', 'repositoryId', 'catalogRevision', 'updatedAt'],
 		path
 	)
 	if (object.key !== BROWSER_LIBRARY_ACTIVE_WORKSPACE_KEY) fail(`${path}/key`)
 	identifier(object.workspaceId, `${path}/workspaceId`)
+	identifier(object.repositoryId, `${path}/repositoryId`)
 	safeInteger(object.catalogRevision, `${path}/catalogRevision`)
 	timestamp(object.updatedAt, `${path}/updatedAt`)
 	return structuredClone(object) as BrowserActiveWorkspaceMarker
@@ -1176,8 +1203,9 @@ export function decodeBrowserManagedCover(
 	)
 	const workspaceId = identifier(object.workspaceId, `${path}/workspaceId`)
 	if (workspaceId !== expectedWorkspaceId) fail(`${path}/workspaceId`)
-	identifier(object.assetId, `${path}/assetId`)
-	identifier(object.recordId, `${path}/recordId`)
+	const assetId = logicalAssetId(object.assetId, `${path}/assetId`)
+	const recordId = identifier(object.recordId, `${path}/recordId`)
+	if (!assetId.startsWith(`${recordId}/`)) fail(`${path}/assetId`)
 	if (
 		!(object.blob instanceof Blob) ||
 		object.blob.type !== 'image/webp' ||
@@ -1192,7 +1220,7 @@ export function decodeBrowserManagedCover(
 }
 
 export function encodeBrowserWorkflowDraftRow(
-	workspaceId: string,
+	identity: BrowserWorkspaceIdentity,
 	draft: BrowserWorkflowDraft
 ): BrowserStoredWorkflowDraft {
 	const payload = decodeTrackEnrichmentDraftPayload(draft.payload)
@@ -1201,26 +1229,29 @@ export function encodeBrowserWorkflowDraftRow(
 		draft.id !== payload.id ||
 		draft.draftRevision !== payload.draftRevision ||
 		draft.updatedAt !== payload.updatedAt ||
-		payload.workspace.workspaceId !== workspaceId
+		payload.workspace.workspaceId !== identity.workspaceId ||
+		payload.workspace.repositoryId !== identity.repositoryId
 	) {
 		fail('/draft/payload')
 	}
 	return decodeBrowserWorkflowDraftRow(
 		{
-			workspaceId,
+			workspaceId: identity.workspaceId,
 			id: draft.id,
 			kind: draft.kind,
 			draftRevision: draft.draftRevision,
 			updatedAt: draft.updatedAt,
 			serializedPayload: encodeTrackEnrichmentDraft(payload)
 		},
-		workspaceId
+		identity.workspaceId,
+		identity.repositoryId
 	)
 }
 
 export function decodeBrowserWorkflowDraftRow(
 	value: unknown,
-	expectedWorkspaceId: string
+	expectedWorkspaceId: string,
+	expectedRepositoryId: string
 ): BrowserStoredWorkflowDraft {
 	const path = '/draft'
 	const object = plainObject(value, path)
@@ -1256,7 +1287,8 @@ export function decodeBrowserWorkflowDraftRow(
 		decoded.draft.id !== id ||
 		decoded.draft.draftRevision !== draftRevision ||
 		decoded.draft.updatedAt !== updatedAt ||
-		decoded.draft.workspace.workspaceId !== workspaceId
+		decoded.draft.workspace.workspaceId !== workspaceId ||
+		decoded.draft.workspace.repositoryId !== expectedRepositoryId
 	) {
 		fail(`${path}/serializedPayload`)
 	}
@@ -1312,6 +1344,7 @@ export function decodeBrowserRepositoryChange(
 			'senderId',
 			'type',
 			'workspaceId',
+			'repositoryId',
 			'catalogRevision',
 			'repositoryRevision',
 			'contentRevision',
@@ -1326,8 +1359,15 @@ export function decodeBrowserRepositoryChange(
 	identifier(object.senderId, `${path}/senderId`)
 	if (!['commit', 'delete', 'reset'].includes(String(object.type)))
 		fail(`${path}/type`)
-	if (object.workspaceId !== null)
+	if (object.workspaceId !== null) {
 		identifier(object.workspaceId, `${path}/workspaceId`)
+	}
+	if (object.repositoryId !== null) {
+		identifier(object.repositoryId, `${path}/repositoryId`)
+	}
+	if ((object.workspaceId === null) !== (object.repositoryId === null)) {
+		fail(`${path}/repositoryId`)
+	}
 	for (const field of [
 		'catalogRevision',
 		'repositoryRevision',

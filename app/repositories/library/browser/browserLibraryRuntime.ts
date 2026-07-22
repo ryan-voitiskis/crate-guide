@@ -109,6 +109,18 @@ export function browserLibraryTimestamp(
 	return (dependencies.now?.() ?? new Date()).toISOString()
 }
 
+export function nextBrowserEntityTimestamp(
+	existingTimestamp: string | null,
+	wallClockTimestamp: string
+): string {
+	if (existingTimestamp === null) return wallClockTimestamp
+	const existingMilliseconds = Date.parse(existingTimestamp)
+	const wallClockMilliseconds = Date.parse(wallClockTimestamp)
+	return wallClockMilliseconds > existingMilliseconds
+		? wallClockTimestamp
+		: new Date(existingMilliseconds + 1).toISOString()
+}
+
 export function browserLibraryRandomUUID(
 	dependencies: BrowserLibraryDependencies
 ): string {
@@ -120,6 +132,13 @@ export function browserLibraryRandomUUID(
 		)
 	}
 	return randomUUID.call(globalThis.crypto)
+}
+
+export function browserWorkspaceWideLockName(
+	databaseName: string,
+	workspaceId: string
+): string {
+	return `${databaseName}:workspace:${workspaceId}:wide-write`
 }
 
 export async function withOptionalBrowserLibraryLock<T>(

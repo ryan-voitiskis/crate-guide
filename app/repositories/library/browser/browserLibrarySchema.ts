@@ -8,8 +8,40 @@ import {
 	BROWSER_LIBRARY_DATABASE_NAME,
 	BROWSER_LIBRARY_SCHEMA_VERSION,
 	type BrowserLibraryDependencies,
+	type BrowserStorageEstimateOutcome,
 	type BrowserStorageHealth
 } from './browserLibraryTypes'
+
+export async function estimateBrowserLibraryStorage(
+	dependencies: BrowserLibraryDependencies = {}
+): Promise<BrowserStorageEstimateOutcome> {
+	const storageManager =
+		dependencies.storageManager === undefined
+			? globalThis.navigator?.storage
+			: dependencies.storageManager
+	if (!storageManager?.estimate) return { status: 'unsupported' }
+
+	try {
+		const estimate = await storageManager.estimate()
+		if (
+			typeof estimate.usage !== 'number' ||
+			!Number.isFinite(estimate.usage) ||
+			estimate.usage < 0 ||
+			typeof estimate.quota !== 'number' ||
+			!Number.isFinite(estimate.quota) ||
+			estimate.quota < 0
+		) {
+			return { status: 'error' }
+		}
+		return {
+			status: 'available',
+			usageBytes: estimate.usage,
+			quotaBytes: estimate.quota
+		}
+	} catch {
+		return { status: 'error' }
+	}
+}
 
 export const BROWSER_LIBRARY_STORES = {
 	registry: 'registry',
@@ -320,7 +352,11 @@ export function openBrowserLibraryDatabase(
 			}
 		})
 		request.addEventListener('blocked', () => {
-			dependencies.onBlockedUpgrade?.()
+			try {
+				dependencies.onBlockedUpgrade?.()
+			} catch {
+				// Diagnostics must not prevent the blocked open from settling.
+			}
 			if (settled) return
 			settled = true
 			reject(
@@ -345,11 +381,20 @@ export function openBrowserLibraryDatabase(
 		request.addEventListener('success', () => {
 			const database = request.result
 			database.addEventListener('versionchange', () => {
-				dependencies.onBlockingUpgrade?.()
-				database.close()
+				try {
+					dependencies.onBlockingUpgrade?.()
+				} catch {
+					// Diagnostics must not keep this connection blocking an upgrade.
+				} finally {
+					database.close()
+				}
 			})
 			database.addEventListener('close', () => {
-				dependencies.onUnexpectedClose?.()
+				try {
+					dependencies.onUnexpectedClose?.()
+				} catch {
+					// Diagnostics cannot change storage lifecycle handling.
+				}
 			})
 			if (settled) {
 				database.close()

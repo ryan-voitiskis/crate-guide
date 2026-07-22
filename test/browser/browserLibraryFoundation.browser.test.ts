@@ -3,6 +3,7 @@ import {
 	BROWSER_LIBRARY_SCHEMA,
 	BROWSER_LIBRARY_STORES,
 	assertBrowserLibrarySchema,
+	estimateBrowserLibraryStorage,
 	openBrowserLibraryDatabase,
 	probeBrowserLibraryStorage,
 	requestResult,
@@ -215,7 +216,9 @@ describe('browser library IndexedDB foundation', () => {
 				return blockedRequest
 			}
 		} as unknown as IDBFactory
-		const onBlockedUpgrade = vi.fn()
+		const onBlockedUpgrade = vi.fn(() => {
+			throw new Error('Diagnostic hook failure')
+		})
 		await expect(
 			openBrowserLibraryDatabase({
 				indexedDB: blockedFactory,
@@ -227,7 +230,9 @@ describe('browser library IndexedDB foundation', () => {
 
 	it('closes a live connection on versionchange and reports the blocking tab', async () => {
 		const name = databaseName('versionchange')
-		const onBlockingUpgrade = vi.fn()
+		const onBlockingUpgrade = vi.fn(() => {
+			throw new Error('Diagnostic hook failure')
+		})
 		const database = await openBrowserLibraryDatabase({
 			databaseName: name,
 			onBlockingUpgrade
@@ -258,5 +263,35 @@ describe('browser library IndexedDB foundation', () => {
 		expect(health.code).toBe('unavailable')
 		expect(health.message).not.toContain('/Users/example')
 		expect(health.checkedAt).toBe('2026-07-23T01:00:00.000Z')
+	})
+
+	it('reports only finite approximate storage estimates without privacy inference', async () => {
+		await expect(
+			estimateBrowserLibraryStorage({ storageManager: null })
+		).resolves.toEqual({ status: 'unsupported' })
+		await expect(
+			estimateBrowserLibraryStorage({
+				storageManager: {
+					estimate: async () => ({ usage: 1_024, quota: 8_192 })
+				}
+			})
+		).resolves.toEqual({
+			status: 'available',
+			usageBytes: 1_024,
+			quotaBytes: 8_192
+		})
+		for (const estimate of [
+			async () => ({ usage: Number.POSITIVE_INFINITY, quota: 8_192 }),
+			async () => ({ usage: 1_024 }),
+			async () => {
+				throw new DOMException('Private mode detail', 'UnknownError')
+			}
+		]) {
+			await expect(
+				estimateBrowserLibraryStorage({
+					storageManager: { estimate } as Pick<StorageManager, 'estimate'>
+				})
+			).resolves.toEqual({ status: 'error' })
+		}
 	})
 })

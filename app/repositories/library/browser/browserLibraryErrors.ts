@@ -1,3 +1,4 @@
+import type { RepositoryConflictReason } from '../contracts'
 import type {
 	BrowserStorageHealth,
 	BrowserStorageHealthCode
@@ -55,9 +56,31 @@ export class BrowserRepositoryConflictError extends Error {
 export class BrowserRepositoryNotFoundError extends Error {
 	readonly code = 'not-found'
 
-	constructor(public readonly entity: 'workspace' | 'draft') {
+	constructor(
+		public readonly entity:
+			| 'workspace'
+			| 'draft'
+			| 'record'
+			| 'track'
+			| 'crate'
+			| 'saved-set'
+			| 'cover'
+	) {
 		super(`The requested Local library ${entity} no longer exists.`)
 		this.name = 'BrowserRepositoryNotFoundError'
+	}
+}
+
+export class BrowserRepositoryDomainConflictError extends Error {
+	readonly code = 'domain-conflict'
+
+	constructor(
+		public readonly reason: RepositoryConflictReason,
+		public readonly current?: unknown,
+		options?: ErrorOptions
+	) {
+		super('The Local library command failed a domain precondition.', options)
+		this.name = 'BrowserRepositoryDomainConflictError'
 	}
 }
 
@@ -116,7 +139,8 @@ export function classifyBrowserStorageError(
 export function normalizeBrowserRepositoryError(error: unknown): Error {
 	if (
 		error instanceof BrowserRepositoryConflictError ||
-		error instanceof BrowserRepositoryNotFoundError
+		error instanceof BrowserRepositoryNotFoundError ||
+		error instanceof BrowserRepositoryDomainConflictError
 	) {
 		return error
 	}

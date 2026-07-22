@@ -11,7 +11,9 @@ import {
 	BROWSER_LIBRARY_SCHEMA_VERSION,
 	type BrowserLibraryDependencies,
 	type BrowserWorkflowDraft,
-	type BrowserWorkspaceCatalog
+	type BrowserWorkspaceCatalog,
+	type BrowserWorkspaceIdentity,
+	type BrowserWorkspaceManifest
 } from '../../app/repositories/library/browser/browserLibraryTypes'
 import { createBrowserWorkspaceCatalog } from '../../app/repositories/library/browser/browserWorkspaceCatalog'
 import { createTrackEnrichmentDraftFixture } from '../fixtures/trackEnrichmentDraft'
@@ -106,11 +108,13 @@ async function readWorkspaceManifest(
 
 function draftFixture(
 	workspaceId: string,
+	repositoryId: string,
 	draftRevision = 0,
 	updatedAt = NOW
 ): BrowserWorkflowDraft {
 	const payload = createTrackEnrichmentDraftFixture()
 	payload.workspace.workspaceId = workspaceId
+	payload.workspace.repositoryId = repositoryId
 	payload.draftRevision = draftRevision
 	payload.updatedAt = updatedAt
 	return {
@@ -120,6 +124,12 @@ function draftFixture(
 		updatedAt,
 		payload
 	}
+}
+
+function identity(
+	manifest: Pick<BrowserWorkspaceManifest, 'id' | 'repositoryId'>
+): BrowserWorkspaceIdentity {
+	return { workspaceId: manifest.id, repositoryId: manifest.repositoryId }
 }
 
 afterEach(async () => {
@@ -159,17 +169,15 @@ describe('browser workspace catalog', () => {
 		expect(await value.readActiveWorkspace()).toEqual({
 			status: 'active',
 			catalogRevision: 2,
-			workspaceId: 'workspace-a'
+			workspaceId: 'workspace-a',
+			repositoryId: createdA.value.repositoryId
 		})
 
-		const renamed = await value.renameWorkspace(
-			'workspace-a',
-			'Archive crate',
-			{
-				catalogRevision: 2,
-				repositoryRevision: 0
-			}
-		)
+		const renamed = await value.renameWorkspace('Archive crate', {
+			...identity(createdA.value),
+			catalogRevision: 2,
+			repositoryRevision: 0
+		})
 		expect(renamed).toMatchObject({
 			catalogRevision: 3,
 			repositoryRevision: 1,
@@ -183,13 +191,15 @@ describe('browser workspace catalog', () => {
 			(await value.listWorkspaces()).workspaces.map(({ id }) => id)
 		).toEqual(['workspace-a', 'workspace-b'])
 
-		expect(await value.activateWorkspace('workspace-b', 3)).toEqual({
+		expect(await value.activateWorkspace(identity(createdB.value), 3)).toEqual({
 			status: 'active',
 			catalogRevision: 4,
-			workspaceId: 'workspace-b'
+			workspaceId: 'workspace-b',
+			repositoryId: createdB.value.repositoryId
 		})
 		expect(
-			await value.deleteWorkspace('workspace-b', {
+			await value.deleteWorkspace({
+				...identity(createdB.value),
 				catalogRevision: 4,
 				repositoryRevision: 0
 			})
@@ -215,7 +225,10 @@ describe('browser workspace catalog', () => {
 		const name = databaseName('cas')
 		const first = await catalog(name, { createBroadcastChannel: () => null })
 		const second = await catalog(name, { createBroadcastChannel: () => null })
-		await first.createWorkspace({ id: 'workspace-a', name: 'First' }, 0)
+		const created = await first.createWorkspace(
+			{ id: 'workspace-a', name: 'First' },
+			0
+		)
 
 		await expect(
 			second.createWorkspace({ id: 'workspace-b', name: 'Stale' }, 0)
@@ -225,13 +238,15 @@ describe('browser workspace catalog', () => {
 			expected: 0,
 			actual: 1
 		})
-		const renamed = await first.renameWorkspace('workspace-a', 'Renamed', {
+		const renamed = await first.renameWorkspace('Renamed', {
+			...identity(created.value),
 			catalogRevision: 1,
 			repositoryRevision: 0
 		})
 		expect(renamed.repositoryRevision).toBe(1)
 		await expect(
-			second.renameWorkspace('workspace-a', 'Lost edit', {
+			second.renameWorkspace('Lost edit', {
+				...identity(created.value),
 				catalogRevision: 2,
 				repositoryRevision: 0
 			})
@@ -247,7 +262,7 @@ describe('browser workspace catalog', () => {
 	it('enumerates intact workspaces without repairing absent, malformed, or dangling active markers', async () => {
 		const name = databaseName('marker-recovery')
 		const value = await catalog(name)
-		await value.createWorkspace(
+		const created = await value.createWorkspace(
 			{ id: 'workspace-a', name: 'Safe workspace' },
 			0
 		)
@@ -274,6 +289,7 @@ describe('browser workspace catalog', () => {
 		await writeRegistryValue(name, {
 			key: BROWSER_LIBRARY_ACTIVE_WORKSPACE_KEY,
 			workspaceId: 'missing-workspace',
+			repositoryId: 'missing-repository',
 			catalogRevision: 1,
 			updatedAt: NOW
 		})
@@ -284,19 +300,24 @@ describe('browser workspace catalog', () => {
 		})
 		expect((await value.listWorkspaces()).workspaces).toHaveLength(1)
 
-		expect(await value.activateWorkspace('workspace-a', 1)).toEqual({
+		expect(await value.activateWorkspace(identity(created.value), 1)).toEqual({
 			status: 'active',
 			catalogRevision: 2,
-			workspaceId: 'workspace-a'
+			workspaceId: 'workspace-a',
+			repositoryId: created.value.repositoryId
 		})
 	})
 
 	it('increments only repository revision for exports, receipts, and storage health', async () => {
 		const name = databaseName('operations')
 		const value = await catalog(name)
-		await value.createWorkspace({ id: 'workspace-a', name: 'Operations' }, 0)
+		const created = await value.createWorkspace(
+			{ id: 'workspace-a', name: 'Operations' },
+			0
+		)
+		const workspace = identity(created.value)
 
-		const initial = await value.readOperations('workspace-a')
+		const initial = await value.readOperations(workspace)
 		expect(initial).toMatchObject({
 			repositoryRevision: 0,
 			value: {
@@ -307,7 +328,7 @@ describe('browser workspace catalog', () => {
 			}
 		})
 		const exported = await value.recordExport(
-			'workspace-a',
+			workspace,
 			0,
 			0,
 			'2026-07-23T02:05:00.000Z'
@@ -327,13 +348,13 @@ describe('browser workspace catalog', () => {
 			createdAt: NOW,
 			updatedAt: NOW
 		}
-		const copied = await value.writeCopyReceipt('workspace-a', receipt, 1)
+		const copied = await value.writeCopyReceipt(workspace, receipt, 1)
 		expect(copied).toMatchObject({
 			repositoryRevision: 2,
 			value: { copyReceipt: receipt }
 		})
 		const unhealthy = await value.writeStorageHealth(
-			'workspace-a',
+			workspace,
 			{
 				code: 'quota',
 				message: 'Storage is full.',
@@ -350,32 +371,41 @@ describe('browser workspace catalog', () => {
 			repositoryRevision: 3
 		})
 
-		await expect(value.recordExport('workspace-a', 0, 2)).rejects.toMatchObject(
-			{
-				code: 'conflict',
-				scope: 'repository-revision',
-				actual: 3
-			}
-		)
+		await expect(value.recordExport(workspace, 0, 2)).rejects.toMatchObject({
+			code: 'conflict',
+			scope: 'repository-revision',
+			actual: 3
+		})
 	})
 
 	it('round-trips workflow drafts with explicit draft and repository CAS', async () => {
 		const name = databaseName('drafts')
 		const value = await catalog(name)
-		await value.createWorkspace({ id: 'workspace-a', name: 'Drafts' }, 0)
-		const createdDraft = draftFixture('workspace-a')
+		const created = await value.createWorkspace(
+			{ id: 'workspace-a', name: 'Drafts' },
+			0
+		)
+		const workspace = identity(created.value)
+		const createdDraft = draftFixture(
+			workspace.workspaceId,
+			workspace.repositoryId
+		)
 		await expect(
-			value.writeDraft('workspace-a', draftFixture('workspace-a', 2), {
-				repositoryRevision: 0,
-				draftRevision: null
-			})
+			value.writeDraft(
+				workspace,
+				draftFixture(workspace.workspaceId, workspace.repositoryId, 2),
+				{
+					repositoryRevision: 0,
+					draftRevision: null
+				}
+			)
 		).rejects.toMatchObject({
 			code: 'conflict',
 			scope: 'draft-revision',
 			expected: 0,
 			actual: 2
 		})
-		expect(await value.readDraft('workspace-a', createdDraft.id)).toEqual({
+		expect(await value.readDraft(workspace, createdDraft.id)).toEqual({
 			value: null,
 			repositoryRevision: 0
 		})
@@ -384,40 +414,35 @@ describe('browser workspace catalog', () => {
 			transientViewState: 'must-not-be-returned'
 		} as BrowserWorkflowDraft
 
-		const written = await value.writeDraft(
-			'workspace-a',
-			draftWithRuntimeField,
-			{
-				repositoryRevision: 0,
-				draftRevision: null
-			}
-		)
+		const written = await value.writeDraft(workspace, draftWithRuntimeField, {
+			repositoryRevision: 0,
+			draftRevision: null
+		})
 		expect(written).toEqual({ value: createdDraft, repositoryRevision: 1 })
 		expect(written.value).not.toHaveProperty('transientViewState')
-		expect(await value.readDraft('workspace-a', createdDraft.id)).toMatchObject(
-			{
-				value: createdDraft,
-				repositoryRevision: 1
-			}
-		)
-		expect(await value.listDrafts('workspace-a')).toMatchObject({
+		expect(await value.readDraft(workspace, createdDraft.id)).toMatchObject({
+			value: createdDraft,
+			repositoryRevision: 1
+		})
+		expect(await value.listDrafts(workspace)).toMatchObject({
 			value: [createdDraft],
 			repositoryRevision: 1
 		})
 
 		const updatedDraft = draftFixture(
-			'workspace-a',
+			workspace.workspaceId,
+			workspace.repositoryId,
 			1,
 			'2026-07-23T02:10:00.000Z'
 		)
 		expect(
-			await value.writeDraft('workspace-a', updatedDraft, {
+			await value.writeDraft(workspace, updatedDraft, {
 				repositoryRevision: 1,
 				draftRevision: 0
 			})
 		).toMatchObject({ value: updatedDraft, repositoryRevision: 2 })
 		await expect(
-			value.writeDraft('workspace-a', updatedDraft, {
+			value.writeDraft(workspace, updatedDraft, {
 				repositoryRevision: 2,
 				draftRevision: 0
 			})
@@ -427,12 +452,12 @@ describe('browser workspace catalog', () => {
 			actual: 1
 		})
 		expect(
-			await value.deleteDraft('workspace-a', updatedDraft.id, {
+			await value.deleteDraft(workspace, updatedDraft.id, {
 				repositoryRevision: 2,
 				draftRevision: 1
 			})
 		).toEqual({ value: undefined, repositoryRevision: 3 })
-		expect(await value.readDraft('workspace-a', updatedDraft.id)).toEqual({
+		expect(await value.readDraft(workspace, updatedDraft.id)).toEqual({
 			value: null,
 			repositoryRevision: 3
 		})
@@ -469,9 +494,13 @@ describe('browser workspace catalog', () => {
 		const value = await catalog(name, {
 			lockManager: { request } as unknown as LockManager
 		})
-		await value.createWorkspace({ id: 'workspace-a', name: 'Lock' }, 0)
+		const created = await value.createWorkspace(
+			{ id: 'workspace-a', name: 'Lock' },
+			0
+		)
 
-		await value.deleteWorkspace('workspace-a', {
+		await value.deleteWorkspace({
+			...identity(created.value),
 			catalogRevision: 1,
 			repositoryRevision: 0
 		})
@@ -480,6 +509,145 @@ describe('browser workspace catalog', () => {
 			{ mode: 'exclusive' },
 			expect.any(Function)
 		)
+	})
+
+	it('rejects stale catalog identities after a workspace id is recreated', async () => {
+		const name = databaseName('recreated-catalog-identity')
+		const value = await catalog(name, { createBroadcastChannel: () => null })
+		const original = await value.createWorkspace(
+			{ id: 'workspace-a', name: 'Original' },
+			0
+		)
+		const originalIdentity = identity(original.value)
+		await value.deleteWorkspace({
+			...originalIdentity,
+			catalogRevision: 1,
+			repositoryRevision: 0
+		})
+		const replacement = await value.createWorkspace(
+			{ id: 'workspace-a', name: 'Replacement' },
+			2
+		)
+		expect(replacement.value.repositoryId).not.toBe(
+			originalIdentity.repositoryId
+		)
+
+		await expect(
+			value.activateWorkspace(originalIdentity, 3)
+		).rejects.toMatchObject({ code: 'not-found', entity: 'workspace' })
+		await expect(
+			value.renameWorkspace('Stale rename', {
+				...originalIdentity,
+				catalogRevision: 3,
+				repositoryRevision: 0
+			})
+		).rejects.toMatchObject({ code: 'not-found', entity: 'workspace' })
+		await expect(
+			value.deleteWorkspace({
+				...originalIdentity,
+				catalogRevision: 3,
+				repositoryRevision: 0
+			})
+		).rejects.toMatchObject({ code: 'not-found', entity: 'workspace' })
+		expect(await value.listWorkspaces()).toMatchObject({
+			catalogRevision: 3,
+			workspaces: [
+				{
+					id: 'workspace-a',
+					name: 'Replacement',
+					repositoryId: replacement.value.repositoryId,
+					repositoryRevision: 0
+				}
+			]
+		})
+	})
+
+	it('rejects every operational family for a stale recreated identity', async () => {
+		const name = databaseName('recreated-operational-identity')
+		const value = await catalog(name, { createBroadcastChannel: () => null })
+		const original = await value.createWorkspace(
+			{ id: 'workspace-a', name: 'Original' },
+			0
+		)
+		const staleIdentity = identity(original.value)
+		await value.deleteWorkspace({
+			...staleIdentity,
+			catalogRevision: 1,
+			repositoryRevision: 0
+		})
+		const replacement = await value.createWorkspace(
+			{ id: 'workspace-a', name: 'Replacement' },
+			2
+		)
+		const staleDraft = draftFixture(
+			staleIdentity.workspaceId,
+			staleIdentity.repositoryId
+		)
+		const notFound = { code: 'not-found', entity: 'workspace' }
+
+		await expect(value.readOperations(staleIdentity)).rejects.toMatchObject(
+			notFound
+		)
+		await expect(value.listDrafts(staleIdentity)).rejects.toMatchObject(
+			notFound
+		)
+		await expect(
+			value.readDraft(staleIdentity, staleDraft.id)
+		).rejects.toMatchObject(notFound)
+		await expect(value.recordExport(staleIdentity, 0, 0)).rejects.toMatchObject(
+			notFound
+		)
+		await expect(
+			value.writeCopyReceipt(staleIdentity, null, 0)
+		).rejects.toMatchObject(notFound)
+		await expect(
+			value.writeStorageHealth(
+				staleIdentity,
+				{ code: 'healthy', message: '', checkedAt: NOW },
+				0
+			)
+		).rejects.toMatchObject(notFound)
+		await expect(
+			value.writeDraft(staleIdentity, staleDraft, {
+				repositoryRevision: 0,
+				draftRevision: null
+			})
+		).rejects.toMatchObject(notFound)
+		await expect(
+			value.deleteDraft(staleIdentity, staleDraft.id, {
+				repositoryRevision: 0,
+				draftRevision: 0
+			})
+		).rejects.toMatchObject(notFound)
+
+		const replacementIdentity = identity(replacement.value)
+		expect(await value.readOperations(replacementIdentity)).toMatchObject({
+			repositoryRevision: 0,
+			value: { lastExportedContentRevision: null, copyReceipt: null }
+		})
+		expect(await value.listDrafts(replacementIdentity)).toEqual({
+			value: [],
+			repositoryRevision: 0
+		})
+	})
+
+	it('reports an active marker bound to another repository incarnation', async () => {
+		const name = databaseName('marker-repository-mismatch')
+		const value = await catalog(name)
+		await value.createWorkspace({ id: 'workspace-a', name: 'Current' }, 0)
+		await writeRegistryValue(name, {
+			key: BROWSER_LIBRARY_ACTIVE_WORKSPACE_KEY,
+			workspaceId: 'workspace-a',
+			repositoryId: 'different-repository',
+			catalogRevision: 1,
+			updatedAt: NOW
+		})
+
+		expect(await value.readActiveWorkspace()).toEqual({
+			status: 'corrupt',
+			catalogRevision: 1,
+			reason: 'repository-mismatch'
+		})
 	})
 })
 
@@ -534,18 +702,22 @@ describe('browser workspace catalog transaction aborts', () => {
 				}
 			}
 		})
-		await value.createWorkspace({ id: 'workspace-a', name: 'Draft abort' }, 0)
-		const draft = draftFixture('workspace-a')
+		const created = await value.createWorkspace(
+			{ id: 'workspace-a', name: 'Draft abort' },
+			0
+		)
+		const workspace = identity(created.value)
+		const draft = draftFixture(workspace.workspaceId, workspace.repositoryId)
 
 		for (const ordinal of [1, 2]) {
 			abortOrdinal = ordinal
 			await expect(
-				value.writeDraft('workspace-a', draft, {
+				value.writeDraft(workspace, draft, {
 					repositoryRevision: 0,
 					draftRevision: null
 				})
 			).rejects.toMatchObject({ code: 'unknown' })
-			expect(await value.readDraft('workspace-a', draft.id)).toEqual({
+			expect(await value.readDraft(workspace, draft.id)).toEqual({
 				value: null,
 				repositoryRevision: 0
 			})
@@ -561,15 +733,21 @@ describe('browser workspace catalog transaction aborts', () => {
 				if (command === 'delete-workspace') steps.push(ordinal)
 			}
 		})
-		await countCatalog.createWorkspace(
+		const counted = await countCatalog.createWorkspace(
 			{ id: 'workspace-a', name: 'Count', activate: true },
 			0
 		)
-		await countCatalog.writeDraft('workspace-a', draftFixture('workspace-a'), {
-			repositoryRevision: 0,
-			draftRevision: null
-		})
-		await countCatalog.deleteWorkspace('workspace-a', {
+		const countedWorkspace = identity(counted.value)
+		await countCatalog.writeDraft(
+			countedWorkspace,
+			draftFixture(countedWorkspace.workspaceId, countedWorkspace.repositoryId),
+			{
+				repositoryRevision: 0,
+				draftRevision: null
+			}
+		)
+		await countCatalog.deleteWorkspace({
+			...countedWorkspace,
 			catalogRevision: 1,
 			repositoryRevision: 1
 		})
@@ -590,18 +768,24 @@ describe('browser workspace catalog transaction aborts', () => {
 					}
 				}
 			})
-			await value.createWorkspace(
+			const created = await value.createWorkspace(
 				{ id: 'workspace-a', name: 'Preserved', activate: true },
 				0
 			)
-			await value.writeDraft('workspace-a', draftFixture('workspace-a'), {
-				repositoryRevision: 0,
-				draftRevision: null
-			})
+			const workspace = identity(created.value)
+			await value.writeDraft(
+				workspace,
+				draftFixture(workspace.workspaceId, workspace.repositoryId),
+				{
+					repositoryRevision: 0,
+					draftRevision: null
+				}
+			)
 			enabled = true
 
 			await expect(
-				value.deleteWorkspace('workspace-a', {
+				value.deleteWorkspace({
+					...workspace,
 					catalogRevision: 1,
 					repositoryRevision: 1
 				})
@@ -609,9 +793,10 @@ describe('browser workspace catalog transaction aborts', () => {
 			expect(await value.readActiveWorkspace()).toEqual({
 				status: 'active',
 				catalogRevision: 1,
-				workspaceId: 'workspace-a'
+				workspaceId: 'workspace-a',
+				repositoryId: workspace.repositoryId
 			})
-			expect(await value.readDraft('workspace-a', 'draft-a')).toMatchObject({
+			expect(await value.readDraft(workspace, 'draft-a')).toMatchObject({
 				value: { id: 'draft-a' },
 				repositoryRevision: 1
 			})
@@ -629,6 +814,7 @@ describe('browser workspace catalog transaction aborts', () => {
 			const completion = transactionComplete(transaction)
 			transaction.objectStore(BROWSER_LIBRARY_STORES.workspaces).put({
 				id: 'orphan',
+				repositoryId: 'orphan-repository',
 				name: 'Orphan',
 				schemaVersion: BROWSER_LIBRARY_SCHEMA_VERSION,
 				createdAt: NOW,

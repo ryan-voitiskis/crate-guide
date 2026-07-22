@@ -12,7 +12,7 @@ import type {
 
 export const BROWSER_LIBRARY_DATABASE_NAME = 'crate-guide-library'
 export const BROWSER_LIBRARY_SCHEMA_VERSION = 1
-export const BROWSER_LIBRARY_BROADCAST_PROTOCOL_VERSION = 1
+export const BROWSER_LIBRARY_BROADCAST_PROTOCOL_VERSION = 2
 export const BROWSER_LIBRARY_REGISTRY_KEY = 'repository'
 export const BROWSER_LIBRARY_ACTIVE_WORKSPACE_KEY = 'active-workspace'
 export const BROWSER_LIBRARY_BROADCAST_CHANNEL_SUFFIX = 'changes-v1'
@@ -31,10 +31,30 @@ export type BrowserStorageHealth = Readonly<{
 	checkedAt: string
 }>
 
+export type BrowserRepositoryRecoveryOutcome =
+	| Readonly<{
+			status: 'recovered'
+			health: BrowserStorageHealth & Readonly<{ code: 'healthy' }>
+	  }>
+	| Readonly<{ status: 'not-found' }>
+	| Readonly<{
+			status: 'failed'
+			health: BrowserStorageHealth
+	  }>
+
+export type BrowserStorageEstimateOutcome =
+	| Readonly<{
+			status: 'available'
+			usageBytes: number
+			quotaBytes: number
+	  }>
+	| Readonly<{ status: 'unsupported' | 'error' }>
+
 export type BrowserCoverCompleteness = 'complete' | 'missing'
 
 export type BrowserWorkspaceManifest = Readonly<{
 	id: string
+	repositoryId: string
 	name: string
 	schemaVersion: number
 	createdAt: string
@@ -56,6 +76,7 @@ export type BrowserRepositoryRegistry = Readonly<{
 export type BrowserActiveWorkspaceMarker = Readonly<{
 	key: typeof BROWSER_LIBRARY_ACTIVE_WORKSPACE_KEY
 	workspaceId: string
+	repositoryId: string
 	catalogRevision: number
 	updatedAt: string
 }>
@@ -66,16 +87,22 @@ export type BrowserActiveWorkspaceState =
 			status: 'active'
 			catalogRevision: number
 			workspaceId: string
+			repositoryId: string
 	  }
 	| {
 			status: 'corrupt'
 			catalogRevision: number | null
-			reason: 'invalid-marker' | 'missing-workspace'
+			reason: 'invalid-marker' | 'missing-workspace' | 'repository-mismatch'
 	  }
 
 export type BrowserWorkspaceCatalogSnapshot = Readonly<{
 	catalogRevision: number
 	workspaces: readonly BrowserWorkspaceManifest[]
+}>
+
+export type BrowserWorkspaceIdentity = Readonly<{
+	workspaceId: string
+	repositoryId: string
 }>
 
 export type BrowserCatalogMutationResult<T> = Readonly<{
@@ -96,10 +123,11 @@ export type BrowserWorkspaceCatalogMutationResult<T> = Readonly<{
 	repositoryRevision: number
 }>
 
-export type BrowserWorkspaceCatalogCas = Readonly<{
-	catalogRevision: number
-	repositoryRevision: number
-}>
+export type BrowserWorkspaceCatalogCas = BrowserWorkspaceIdentity &
+	Readonly<{
+		catalogRevision: number
+		repositoryRevision: number
+	}>
 
 export type BrowserDraftCas = Readonly<{
 	repositoryRevision: number
@@ -175,6 +203,7 @@ export type BrowserRepositoryChange = Readonly<{
 	senderId: string
 	type: 'commit' | 'delete' | 'reset'
 	workspaceId: string | null
+	repositoryId: string | null
 	catalogRevision: number | null
 	repositoryRevision: number | null
 	contentRevision: number | null
@@ -207,6 +236,7 @@ export type BrowserLibraryDependencies = {
 		file: File,
 		crop: Extract<LibraryCoverChange, { type: 'upload' }>['crop']
 	) => Promise<Blob>
+	storageManager?: Pick<StorageManager, 'estimate'> | null
 	onTransactionStep?: (step: BrowserTransactionStep) => void
 	onBlockedUpgrade?: () => void
 	onBlockingUpgrade?: () => void
@@ -247,6 +277,13 @@ export type ReplaceBrowserSnapshotInput = {
 	covers?: ReadonlyMap<string, Blob> | Readonly<Record<string, Blob>>
 }
 
+export type OpenBrowserLibraryRepositoryOptions = {
+	workspaceId: string
+	repositoryId: string
+	isCurrentContext(context: WorkspaceOperationContext): boolean
+	dependencies?: BrowserLibraryDependencies
+}
+
 export interface BrowserLibraryRepository extends LibraryRepositoryBundle {
 	readonly workspaceId: string
 	readManifest(): Promise<BrowserWorkspaceManifest | null>
@@ -257,14 +294,14 @@ export interface BrowserLibraryRepository extends LibraryRepositoryBundle {
 		context: WorkspaceOperationContext,
 		input: ReplaceBrowserSnapshotInput
 	): Promise<RepositoryOutcome<LibraryDataset>>
-	readManagedCover(assetId: string): Promise<Blob | null>
-	recoverStorage(): Promise<BrowserStorageHealth>
+	recoverStorage(): Promise<BrowserRepositoryRecoveryOutcome>
 	subscribe(listener: (change: BrowserRepositoryChange) => void): () => void
 	close(): void
 }
 
 export interface BrowserWorkspaceCatalog {
 	probe(): Promise<BrowserStorageHealth>
+	estimateStorage(): Promise<BrowserStorageEstimateOutcome>
 	listWorkspaces(): Promise<BrowserWorkspaceCatalogSnapshot>
 	readActiveWorkspace(): Promise<BrowserActiveWorkspaceState>
 	createWorkspace(
@@ -272,51 +309,49 @@ export interface BrowserWorkspaceCatalog {
 		expectedCatalogRevision: number
 	): Promise<BrowserCatalogMutationResult<BrowserWorkspaceManifest>>
 	activateWorkspace(
-		workspaceId: string | null,
+		identity: BrowserWorkspaceIdentity | null,
 		expectedCatalogRevision: number
 	): Promise<BrowserActiveWorkspaceState>
 	renameWorkspace(
-		workspaceId: string,
 		name: string,
 		expected: BrowserWorkspaceCatalogCas
 	): Promise<BrowserWorkspaceCatalogMutationResult<BrowserWorkspaceManifest>>
 	deleteWorkspace(
-		workspaceId: string,
 		expected: BrowserWorkspaceCatalogCas
 	): Promise<BrowserCatalogMutationResult<void>>
 	readOperations(
-		workspaceId: string
+		identity: BrowserWorkspaceIdentity
 	): Promise<BrowserWorkspaceReadResult<BrowserWorkspaceOperations>>
 	listDrafts(
-		workspaceId: string
+		identity: BrowserWorkspaceIdentity
 	): Promise<BrowserWorkspaceReadResult<readonly BrowserWorkflowDraft[]>>
 	readDraft(
-		workspaceId: string,
+		identity: BrowserWorkspaceIdentity,
 		draftId: string
 	): Promise<BrowserWorkspaceReadResult<BrowserWorkflowDraft | null>>
 	recordExport(
-		workspaceId: string,
+		identity: BrowserWorkspaceIdentity,
 		contentRevision: number,
 		expectedRepositoryRevision: number,
 		exportedAt?: string
 	): Promise<BrowserWorkspaceMutationResult<BrowserWorkspaceOperations>>
 	writeDraft(
-		workspaceId: string,
+		identity: BrowserWorkspaceIdentity,
 		draft: BrowserWorkflowDraft,
 		expected: BrowserDraftCas
 	): Promise<BrowserWorkspaceMutationResult<BrowserWorkflowDraft>>
 	deleteDraft(
-		workspaceId: string,
+		identity: BrowserWorkspaceIdentity,
 		draftId: string,
 		expected: Omit<BrowserDraftCas, 'draftRevision'> & { draftRevision: number }
 	): Promise<BrowserWorkspaceMutationResult<void>>
 	writeCopyReceipt(
-		workspaceId: string,
+		identity: BrowserWorkspaceIdentity,
 		receipt: BrowserCopyReceipt | null,
 		expectedRepositoryRevision: number
 	): Promise<BrowserWorkspaceMutationResult<BrowserWorkspaceOperations>>
 	writeStorageHealth(
-		workspaceId: string,
+		identity: BrowserWorkspaceIdentity,
 		health: BrowserStorageHealth,
 		expectedRepositoryRevision: number
 	): Promise<BrowserWorkspaceMutationResult<BrowserWorkspaceOperations>>
