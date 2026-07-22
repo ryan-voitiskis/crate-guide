@@ -1,3 +1,4 @@
+import { toRaw } from 'vue'
 import { toast } from 'vue-sonner'
 import { type SupabaseClient, createClient } from '@supabase/supabase-js'
 import { getActivePinia } from 'pinia'
@@ -57,6 +58,15 @@ type CoverCleanupDrainOptions = {
 	fresh?: boolean
 	context?: RecordAccountContext
 }
+
+type LibraryFetchOptions = {
+	fresh?: boolean
+}
+
+type RecordMutationProvenance = RecordAccountContext & { revision: number } & (
+		| { kind: 'create' | 'update'; row: DatabaseRecord }
+		| { kind: 'delete' }
+	)
 
 type MutationActivity = 'create' | 'update' | 'cover' | 'delete'
 
@@ -153,6 +163,7 @@ export const useRecordsStore = defineStore('records', () => {
 	const isUpdatingCover = ref(false)
 	const isDeletingRecord = ref(false)
 	let fetchPromise: Promise<boolean> | null = null
+	let freshFetchPromise: Promise<boolean> | null = null
 	let coverCleanupPromise: Promise<boolean> | null = null
 	let coverCleanupPromiseContext: RecordAccountContext | null = null
 	let activeCoverCleanupController: {
@@ -165,6 +176,11 @@ export const useRecordsStore = defineStore('records', () => {
 	let accountGeneration = 0
 	let accountUserId: string | null = null
 	let activeFetchUserId: string | null = null
+	let mutationRevision = 0
+	let operationRevision = 0
+	const recordMutationProvenance = new Map<string, RecordMutationProvenance>()
+	const recordOperationRevisions = new Map<string, number>()
+	const recordOperationQueues = new Map<string, Promise<void>>()
 	const mutationActivityCounts: Record<MutationActivity, number> = {
 		create: 0,
 		update: 0,
@@ -174,7 +190,6 @@ export const useRecordsStore = defineStore('records', () => {
 
 	// Search state
 	const searchQuery = ref('')
-	const searchResults = ref<DatabaseRecord[]>([])
 	const isSearching = ref(false)
 
 	const recordsCount = computed(() => records.value.length)
@@ -183,8 +198,27 @@ export const useRecordsStore = defineStore('records', () => {
 		() => new Map(records.value.map((record) => [record.id, record]))
 	)
 
-	// Search computed properties
-	const hasSearchQuery = computed(() => searchQuery.value.trim().length > 0)
+	// Search is derived from the authoritative library so active results cannot
+	// retain stale record objects after a mutation or refresh.
+	const hasSearchQuery = computed(() => searchQuery.value.length > 0)
+	const searchResults = computed(() => {
+		const query = searchQuery.value
+		if (!query) return []
+
+		return records.value.filter(
+			(record) =>
+				record.title.toLowerCase().includes(query) ||
+				record.artists.some((artist) =>
+					artist.name.toLowerCase().includes(query)
+				) ||
+				record.labels.some(
+					(label) =>
+						label.name.toLowerCase().includes(query) ||
+						label.catno?.toLowerCase().includes(query)
+				) ||
+				Boolean(record.year?.toString().includes(query))
+		)
+	})
 	const hasSearchResults = computed(() => searchResults.value.length > 0)
 	const resultsCount = computed(() => searchResults.value.length)
 
@@ -302,6 +336,110 @@ export const useRecordsStore = defineStore('records', () => {
 		}
 	}
 
+	function nextOperationRevision(): number {
+		operationRevision += 1
+		return operationRevision
+	}
+
+	function recordCommittedMutation(
+		id: string,
+		context: RecordAccountContext,
+		mutation:
+			| { kind: 'create' | 'update'; row: DatabaseRecord }
+			| { kind: 'delete' }
+	): void {
+		mutationRevision += 1
+		recordMutationProvenance.set(id, {
+			...context,
+			...mutation,
+			revision: mutationRevision
+		})
+	}
+
+	function upsertRecord(record: DatabaseRecord): void {
+		const currentIndex = records.value.findIndex(({ id }) => id === record.id)
+		if (currentIndex !== -1) {
+			records.value[currentIndex] = record
+			return
+		}
+		records.value = sortCreatedAtDescIdDesc([...records.value, record])
+	}
+
+	function runSerializedRecordOperation<T>(
+		context: RecordAccountContext,
+		id: string,
+		staleResult: T,
+		operation: () => Promise<T>
+	): Promise<T> {
+		const previous = recordOperationQueues.get(id)
+		const run = previous
+			? previous
+					.catch(() => undefined)
+					.then(async () => {
+						if (!isCurrentAccountContext(context)) return staleResult
+						return await operation()
+					})
+			: isCurrentAccountContext(context)
+				? operation()
+				: Promise.resolve(staleResult)
+		const completion = run.then(
+			() => undefined,
+			() => undefined
+		)
+		recordOperationQueues.set(id, completion)
+		void completion.finally(() => {
+			if (recordOperationQueues.get(id) === completion) {
+				recordOperationQueues.delete(id)
+			}
+		})
+		return run
+	}
+
+	function reconcileFetchedRecords(
+		context: RecordAccountContext,
+		startingRevision: number,
+		fetchedRecords: DatabaseRecord[]
+	): DatabaseRecord[] {
+		const reconciled = new Map(
+			fetchedRecords.map((record) => [record.id, record])
+		)
+
+		for (const [id, provenance] of recordMutationProvenance) {
+			if (
+				provenance.generation !== context.generation ||
+				provenance.userId !== context.userId
+			) {
+				continue
+			}
+
+			if (provenance.revision > startingRevision) {
+				if (provenance.kind === 'delete') reconciled.delete(id)
+				else if (provenance.kind === 'update' || !reconciled.has(id)) {
+					reconciled.set(id, provenance.row)
+				} else {
+					// A response that already contains a concurrently created row has
+					// observed the insert and is the authoritative representation.
+					recordMutationProvenance.delete(id)
+				}
+				continue
+			}
+
+			const fetchedRecord = reconciled.get(id)
+			const confirmsMutation =
+				provenance.kind === 'delete'
+					? !fetchedRecord
+					: provenance.kind === 'create'
+						? Boolean(fetchedRecord)
+						: Boolean(
+								fetchedRecord &&
+								JSON.stringify(fetchedRecord) === JSON.stringify(provenance.row)
+							)
+			if (confirmsMutation) recordMutationProvenance.delete(id)
+		}
+
+		return sortCreatedAtDescIdDesc([...reconciled.values()])
+	}
+
 	async function createAccountBoundSupabaseClient(
 		context: RecordAccountContext
 	): Promise<AccountBoundSupabaseClient | null> {
@@ -353,7 +491,7 @@ export const useRecordsStore = defineStore('records', () => {
 			context = adoptAccountContext(generation, userId)
 			if (!context) return false
 			activeFetchUserId = userId
-			const startingIds = new Set(records.value.map((record) => record.id))
+			const startingRevision = mutationRevision
 
 			const rows = await fetchAllSupabasePages(async (cursor, pageSize) => {
 				let query = supabase
@@ -370,14 +508,11 @@ export const useRecordsStore = defineStore('records', () => {
 			const issues = decodedRows.flatMap((decoded) => decoded.issues)
 			reportDecodeIssues(issues, (message) => toast.warning(message))
 			const fetchedRecords = decodedRows.map((decoded) => decoded.row)
-			const fetchedIds = new Set(fetchedRecords.map((record) => record.id))
-			const createdDuringFetch = records.value.filter(
-				(record) => !startingIds.has(record.id) && !fetchedIds.has(record.id)
+			records.value = reconcileFetchedRecords(
+				context,
+				startingRevision,
+				fetchedRecords
 			)
-			records.value = sortCreatedAtDescIdDesc([
-				...fetchedRecords,
-				...createdDuringFetch
-			])
 			return true
 		} catch (error) {
 			if (!context || !isCurrentFetchContext(context)) return false
@@ -392,8 +527,28 @@ export const useRecordsStore = defineStore('records', () => {
 		}
 	}
 
-	function fetchAllRecords(): Promise<boolean> {
+	function fetchAllRecords(
+		options: LibraryFetchOptions = {}
+	): Promise<boolean> {
 		if (isDemoStore) return Promise.resolve(true)
+		if (options.fresh) {
+			if (freshFetchPromise) return freshFetchPromise
+
+			const generation = accountGeneration
+			const priorFetch = fetchPromise
+			const createdFreshPromise = (async () => {
+				if (priorFetch) await priorFetch
+				if (generation !== accountGeneration) return false
+				// A normal traversal started after the fresh request is already a valid
+				// post-write snapshot, so it may be shared. Otherwise start one now.
+				return await (fetchPromise ?? fetchAllRecords())
+			})().finally(() => {
+				if (freshFetchPromise === createdFreshPromise) freshFetchPromise = null
+			})
+			freshFetchPromise = createdFreshPromise
+			return createdFreshPromise
+		}
+
 		if (fetchPromise) return fetchPromise
 
 		const createdPromise = performFetchAllRecords(accountGeneration).finally(
@@ -428,7 +583,11 @@ export const useRecordsStore = defineStore('records', () => {
 
 			const decoded = decodeRecordRow(data)
 			reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
-			records.value.unshift(decoded.row)
+			recordCommittedMutation(decoded.row.id, context, {
+				kind: 'create',
+				row: decoded.row
+			})
+			upsertRecord(decoded.row)
 			toast.success('Record created successfully.')
 			return decoded.row
 		} catch (error) {
@@ -494,13 +653,25 @@ export const useRecordsStore = defineStore('records', () => {
 			if (error) throw error
 
 			const result = validateImportResult(data)
+			if (!result.record_id) {
+				throw new Error('Manual record import did not return a record ID')
+			}
 
-			await Promise.all([fetchAllRecords(), tracksStore.fetchAllTracks()])
-			if (!isCurrentAccountContext(context)) return null
-
-			const createdRecord = result.record_id
-				? getRecordById(result.record_id)
-				: records.value[0]
+			// The RPC is committed at this point. Keep an ownership-validated local
+			// representation so a refresh problem cannot look like a failed create or
+			// invite the user to submit the same record again.
+			const committedRecord: DatabaseRecord = {
+				...recordPayload,
+				id: result.record_id,
+				cover_storage_path: null,
+				created_at: null,
+				updated_at: null
+			}
+			recordCommittedMutation(committedRecord.id, context, {
+				kind: 'create',
+				row: committedRecord
+			})
+			upsertRecord(committedRecord)
 
 			const tracksInserted = result.tracks_inserted ?? trackPayloads.length
 			toast.success(
@@ -509,7 +680,28 @@ export const useRecordsStore = defineStore('records', () => {
 					: 'Record created successfully.'
 			)
 
-			return createdRecord ?? null
+			const refreshResults = await Promise.allSettled([
+				fetchAllRecords({ fresh: true }),
+				tracksStore.fetchAllTracks({ fresh: true })
+			])
+			if (!isCurrentAccountContext(context)) return null
+			let createdRecord = getRecordById(committedRecord.id)
+			const refreshSucceeded =
+				Boolean(createdRecord) &&
+				refreshResults.every(
+					(result) => result.status === 'fulfilled' && result.value === true
+				)
+			if (!createdRecord) {
+				upsertRecord(committedRecord)
+				createdRecord = committedRecord
+			}
+			if (!refreshSucceeded) {
+				toast.warning(
+					'Record created, but your library could not be fully refreshed.'
+				)
+			}
+
+			return createdRecord
 		} catch (error) {
 			if (!context || !isCurrentAccountContext(context)) return null
 			console.error('Failed to create record with tracks:', error)
@@ -530,59 +722,86 @@ export const useRecordsStore = defineStore('records', () => {
 		confirmBeforeServer = false,
 		onResponseFailure?: () => Promise<void>
 	): Promise<DatabaseRecord | null> {
-		if (!isCurrentAccountContext(context)) {
-			finishMutationActivity(activity)
-			return null
-		}
-
-		// Optimistic update
-		const recordIndex = records.value.findIndex(
-			(r: DatabaseRecord) => r.id === id
-		)
-		if (recordIndex === -1) {
-			toast.error('Record not found.')
-			finishMutationActivity(activity)
-			return null
-		}
-
-		const originalRecord = records.value[recordIndex]
-		records.value[recordIndex] = {
-			...originalRecord,
-			...updates
-		} as DatabaseRecord
-
 		try {
-			if (confirmBeforeServer && !(await confirmMutationContext(context))) {
-				if (isCurrentAccountContext(context)) {
-					records.value[recordIndex] = originalRecord!
+			if (!isCurrentAccountContext(context)) return null
+			return await runSerializedRecordOperation(context, id, null, async () => {
+				const recordIndex = records.value.findIndex(
+					(record) => record.id === id
+				)
+				if (recordIndex === -1) {
+					toast.error('Record not found.')
+					return null
 				}
-				return null
-			}
-			const { data, error } = await supabase
-				.from('records')
-				.update(updates)
-				.eq('id', id)
-				.select()
-				.single()
 
-			if (!isCurrentAccountContext(context)) return null
-			if (error) {
-				await onResponseFailure?.()
-				throw error
-			}
+				const originalRecord = records.value[recordIndex]!
+				const optimisticRecord = {
+					...originalRecord,
+					...updates
+				} as DatabaseRecord
+				const currentOperationRevision = nextOperationRevision()
+				recordOperationRevisions.set(id, currentOperationRevision)
+				records.value[recordIndex] = optimisticRecord
 
-			const decoded = decodeRecordRow(data)
-			reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
-			records.value[recordIndex] = decoded.row
-			toast.success('Record updated successfully.')
-			return decoded.row
-		} catch (error) {
-			if (!isCurrentAccountContext(context)) return null
-			console.error('Failed to update record:', error)
-			// Revert optimistic update (index was validated above, originalRecord is defined)
-			records.value[recordIndex] = originalRecord!
-			toast.error('Error updating record.')
-			return null
+				const rollbackIfOwned = () => {
+					const currentIndex = records.value.findIndex(
+						(record) => record.id === id
+					)
+					if (
+						recordOperationRevisions.get(id) === currentOperationRevision &&
+						currentIndex !== -1 &&
+						toRaw(records.value[currentIndex]) === optimisticRecord
+					) {
+						records.value[currentIndex] = originalRecord
+					}
+				}
+
+				try {
+					if (confirmBeforeServer && !(await confirmMutationContext(context))) {
+						if (isCurrentAccountContext(context)) rollbackIfOwned()
+						return null
+					}
+					const { data, error } = await supabase
+						.from('records')
+						.update(updates)
+						.eq('id', id)
+						.select()
+						.single()
+
+					if (!isCurrentAccountContext(context)) return null
+					if (error) {
+						await onResponseFailure?.()
+						throw error
+					}
+					if (recordOperationRevisions.get(id) !== currentOperationRevision) {
+						return null
+					}
+
+					const decoded = decodeRecordRow(data)
+					reportDecodeIssues(decoded.issues, (message) =>
+						toast.warning(message)
+					)
+					recordCommittedMutation(id, context, {
+						kind: 'update',
+						row: decoded.row
+					})
+					upsertRecord(decoded.row)
+					toast.success('Record updated successfully.')
+					return decoded.row
+				} catch (error) {
+					if (!isCurrentAccountContext(context)) return null
+					if (recordOperationRevisions.get(id) !== currentOperationRevision) {
+						return null
+					}
+					console.error('Failed to update record:', error)
+					rollbackIfOwned()
+					toast.error('Error updating record.')
+					return null
+				} finally {
+					if (recordOperationRevisions.get(id) === currentOperationRevision) {
+						recordOperationRevisions.delete(id)
+					}
+				}
+			})
 		} finally {
 			finishMutationActivity(activity)
 		}
@@ -929,8 +1148,6 @@ export const useRecordsStore = defineStore('records', () => {
 	async function deleteRecord(id: string): Promise<boolean> {
 		const activity = beginMutationActivity('delete')
 		let context: RecordAccountContext | null = null
-		let recordIndex = -1
-		let removedRecord: DatabaseRecord | undefined
 		let confirmBeforeServer = false
 
 		try {
@@ -938,35 +1155,91 @@ export const useRecordsStore = defineStore('records', () => {
 			if (context) confirmBeforeServer = true
 			else context = await resolveMutationContext(activity.generation)
 			if (!context) return false
+			const operationContext = context
+			return await runSerializedRecordOperation(
+				operationContext,
+				id,
+				false,
+				async () => {
+					const recordIndex = records.value.findIndex(
+						(record) => record.id === id
+					)
+					if (recordIndex === -1) {
+						toast.error('Record not found.')
+						return false
+					}
 
-			// Optimistic update
-			recordIndex = records.value.findIndex((r: DatabaseRecord) => r.id === id)
-			if (recordIndex === -1) {
-				toast.error('Record not found.')
-				return false
-			}
-			removedRecord = records.value.splice(recordIndex, 1)[0]
-			if (confirmBeforeServer && !(await confirmMutationContext(context))) {
-				if (isCurrentAccountContext(context) && removedRecord) {
-					records.value.splice(recordIndex, 0, removedRecord)
+					const removedRecord = records.value[recordIndex]!
+					const previousRecordId = records.value[recordIndex - 1]?.id
+					const nextRecordId = records.value[recordIndex + 1]?.id
+					const currentOperationRevision = nextOperationRevision()
+					recordOperationRevisions.set(id, currentOperationRevision)
+					records.value.splice(recordIndex, 1)
+
+					const rollbackIfOwned = () => {
+						if (
+							recordOperationRevisions.get(id) === currentOperationRevision &&
+							!records.value.some((record) => record.id === id)
+						) {
+							const nextIndex = nextRecordId
+								? records.value.findIndex(
+										(record) => record.id === nextRecordId
+									)
+								: -1
+							if (nextIndex !== -1) {
+								records.value.splice(nextIndex, 0, removedRecord)
+								return
+							}
+							const previousIndex = previousRecordId
+								? records.value.findIndex(
+										(record) => record.id === previousRecordId
+									)
+								: -1
+							records.value.splice(previousIndex + 1, 0, removedRecord)
+						}
+					}
+
+					try {
+						if (
+							confirmBeforeServer &&
+							!(await confirmMutationContext(operationContext))
+						) {
+							if (isCurrentAccountContext(operationContext)) rollbackIfOwned()
+							return false
+						}
+
+						const { error } = await supabase
+							.from('records')
+							.delete()
+							.eq('id', id)
+						if (!isCurrentAccountContext(operationContext)) return false
+						if (recordOperationRevisions.get(id) !== currentOperationRevision) {
+							return false
+						}
+						if (error) throw error
+
+						recordCommittedMutation(id, operationContext, { kind: 'delete' })
+						records.value = records.value.filter((record) => record.id !== id)
+						await drainCoverCleanup({ fresh: true, context: operationContext })
+						if (!isCurrentAccountContext(operationContext)) return false
+						toast.success('Record deleted successfully.')
+						return true
+					} catch (error) {
+						if (!isCurrentAccountContext(operationContext)) return false
+						if (recordOperationRevisions.get(id) !== currentOperationRevision) {
+							return false
+						}
+						console.error('Failed to delete record:', error)
+						rollbackIfOwned()
+						toast.error('Error deleting record.')
+						return false
+					} finally {
+						if (recordOperationRevisions.get(id) === currentOperationRevision) {
+							recordOperationRevisions.delete(id)
+						}
+					}
 				}
-				return false
-			}
-
-			const { error } = await supabase.from('records').delete().eq('id', id)
-			if (!isCurrentAccountContext(context)) return false
-			if (error) throw error
-			await drainCoverCleanup({ fresh: true, context })
-			if (!isCurrentAccountContext(context)) return false
-			toast.success('Record deleted successfully.')
-			return true
-		} catch (error) {
-			if (!context || !isCurrentAccountContext(context)) return false
-			console.error('Failed to delete record:', error)
-			// Revert optimistic update (removedRecord is already DatabaseRecord)
-			if (removedRecord) records.value.splice(recordIndex, 0, removedRecord)
-			toast.error('Error deleting record.')
-			return false
+			)
 		} finally {
 			finishMutationActivity(activity)
 		}
@@ -980,32 +1253,52 @@ export const useRecordsStore = defineStore('records', () => {
 		let context: RecordAccountContext | null = null
 		try {
 			context = originatingContext ?? null
-			if (context) {
-				if (
-					!isCurrentAccountContext(context) ||
-					!(await confirmMutationContext(context))
-				)
-					return false
-			} else {
+			if (!context) {
 				context = await resolveMutationContext(activity.generation)
 			}
 			if (!context) return false
-			const { error } = await supabase.rpc('remove_record_from_collection', {
-				target_record_id: id
-			})
+			const operationContext = context
+			return await runSerializedRecordOperation(
+				operationContext,
+				id,
+				false,
+				async () => {
+					if (
+						originatingContext &&
+						!(await confirmMutationContext(operationContext))
+					) {
+						return false
+					}
+					const currentOperationRevision = nextOperationRevision()
+					recordOperationRevisions.set(id, currentOperationRevision)
+					try {
+						const { error } = await supabase.rpc(
+							'remove_record_from_collection',
+							{ target_record_id: id }
+						)
 
-			if (!isCurrentAccountContext(context)) return false
-			if (error) throw error
+						if (
+							!isCurrentAccountContext(operationContext) ||
+							recordOperationRevisions.get(id) !== currentOperationRevision
+						) {
+							return false
+						}
+						if (error) throw error
 
-			records.value = records.value.filter((record) => record.id !== id)
-			searchResults.value = searchResults.value.filter(
-				(record) => record.id !== id
+						recordCommittedMutation(id, operationContext, { kind: 'delete' })
+						records.value = records.value.filter((record) => record.id !== id)
+						await drainCoverCleanup({ fresh: true, context: operationContext })
+						if (!isCurrentAccountContext(operationContext)) return false
+
+						toast.success('Record removed from collection')
+						return true
+					} finally {
+						if (recordOperationRevisions.get(id) === currentOperationRevision) {
+							recordOperationRevisions.delete(id)
+						}
+					}
+				}
 			)
-			await drainCoverCleanup({ fresh: true, context })
-			if (!isCurrentAccountContext(context)) return false
-
-			toast.success('Record removed from collection')
-			return true
 		} catch (error) {
 			if (!context || !isCurrentAccountContext(context)) return false
 			console.error('Failed to remove record from collection:', error)
@@ -1028,30 +1321,9 @@ export const useRecordsStore = defineStore('records', () => {
 	}
 
 	async function performSearch(query: string) {
-		searchQuery.value = query
-
-		if (!query.trim()) {
-			searchResults.value = []
-			return
-		}
-
 		isSearching.value = true
 		try {
-			searchResults.value = records.value.filter(
-				(record: DatabaseRecord) =>
-					record.title.toLowerCase().includes(query.toLowerCase()) ||
-					record.artists.some((artist: DiscogsArtistDb) =>
-						artist.name.toLowerCase().includes(query.toLowerCase())
-					) ||
-					record.labels.some((label: DiscogsLabelDb) =>
-						label.name.toLowerCase().includes(query.toLowerCase())
-					) ||
-					(record.year && record.year.toString().includes(query))
-			)
-		} catch (error) {
-			console.error('Failed to search records:', error)
-			toast.error('Error searching your collection')
-			searchResults.value = []
+			searchQuery.value = query.trim().toLowerCase()
 		} finally {
 			isSearching.value = false
 		}
@@ -1059,7 +1331,6 @@ export const useRecordsStore = defineStore('records', () => {
 
 	function clearSearch() {
 		searchQuery.value = ''
-		searchResults.value = []
 	}
 
 	function clearRecords() {
@@ -1067,6 +1338,7 @@ export const useRecordsStore = defineStore('records', () => {
 		activeCoverCleanupController?.controller.abort()
 		activeCoverCleanupController = null
 		fetchPromise = null
+		freshFetchPromise = null
 		coverCleanupPromise = null
 		coverCleanupPromiseContext = null
 		requestedCoverCleanupEpoch = 0
@@ -1074,6 +1346,11 @@ export const useRecordsStore = defineStore('records', () => {
 		invocationStartedCoverCleanupEpoch = 0
 		accountUserId = null
 		activeFetchUserId = null
+		mutationRevision = 0
+		operationRevision = 0
+		recordMutationProvenance.clear()
+		recordOperationRevisions.clear()
+		recordOperationQueues.clear()
 		for (const activity of Object.keys(
 			mutationActivityCounts
 		) as MutationActivity[]) {
@@ -1082,7 +1359,6 @@ export const useRecordsStore = defineStore('records', () => {
 		}
 		isLoadingRecords.value = false
 		records.value = []
-		searchResults.value = []
 		searchQuery.value = ''
 	}
 

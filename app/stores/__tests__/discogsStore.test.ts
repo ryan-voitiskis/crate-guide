@@ -47,11 +47,11 @@ const mockUserStore = {
 }
 
 const mockRecordsStore = {
-	fetchAllRecords: vi.fn().mockResolvedValue(undefined)
+	fetchAllRecords: vi.fn().mockResolvedValue(true)
 }
 
 const mockTracksStore = {
-	fetchAllTracks: vi.fn().mockResolvedValue(undefined)
+	fetchAllTracks: vi.fn().mockResolvedValue(true)
 }
 
 const mockDiscogsApi = {
@@ -167,6 +167,8 @@ describe('discogsStore', () => {
 		mockUserStore.profile = { id: 'test-user-id', discogs_username: 'testuser' }
 		mockUserStore.fetchProfile.mockResolvedValue(true)
 		mockGetExistingDiscogsIds.mockResolvedValue(new Set())
+		mockRecordsStore.fetchAllRecords.mockResolvedValue(true)
+		mockTracksStore.fetchAllTracks.mockResolvedValue(true)
 
 		// Reset rpc mock to default success
 		mockRpc.mockResolvedValue({ data: null, error: null })
@@ -1054,8 +1056,45 @@ describe('discogsStore', () => {
 				'test-user-id',
 				expect.any(Function)
 			)
-			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalled()
-			expect(mockTracksStore.fetchAllTracks).toHaveBeenCalled()
+			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledWith({
+				fresh: true
+			})
+			expect(mockTracksStore.fetchAllTracks).toHaveBeenCalledWith({
+				fresh: true
+			})
+		})
+
+		it('keeps a completed import distinct from a failed library refresh', async () => {
+			const store = useDiscogsStore()
+			store.releasesToImport = [
+				{ ...createMockDiscogsRelease(), selected: true }
+			]
+			mockFilterOutExistingReleases.mockResolvedValue({
+				releasesToFetch: [{ ...createMockDiscogsRelease(), selected: true }],
+				skipped: []
+			})
+			mockFetchReleaseDetails.mockResolvedValue({
+				releases: [{ id: 1, title: 'Test' }],
+				failed: [],
+				cancelled: false
+			})
+			mockImportFetchedReleases.mockResolvedValue({
+				successful: 1,
+				failed: []
+			})
+			mockRecordsStore.fetchAllRecords.mockResolvedValueOnce(false)
+
+			await store.importSelectedReleases()
+
+			expect(store.transferStatus).toBe('completed')
+			expect(store.importResults.successful).toBe(1)
+			expect(store.libraryRefreshFailed).toBe(true)
+			expect(store.transferTone).toBe('warning')
+			expect(store.transferLabel).toContain('refresh needed')
+			expect(mockToast.warning).toHaveBeenCalledWith(
+				'Discogs changes were saved, but your library could not be refreshed.'
+			)
+			expect(mockToast.error).not.toHaveBeenCalled()
 		})
 
 		it('does not refresh stores when no imports succeed', async () => {
@@ -1310,8 +1349,12 @@ describe('discogsStore', () => {
 			})
 			expect(store.transferMode).toBe('retry')
 			expect(store.transferStatus).toBe('completed')
-			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledOnce()
-			expect(mockTracksStore.fetchAllTracks).toHaveBeenCalledOnce()
+			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledWith({
+				fresh: true
+			})
+			expect(mockTracksStore.fetchAllTracks).toHaveBeenCalledWith({
+				fresh: true
+			})
 		})
 
 		it('replaces attempted failures while preserving unrelated failures', async () => {

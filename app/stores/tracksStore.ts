@@ -38,9 +38,14 @@ type MutationActivityToken = {
 	activity: MutationActivity
 }
 
-type TrackCreateProvenance = FetchContext & {
-	revision: number
+type LibraryFetchOptions = {
+	fresh?: boolean
 }
+
+type TrackMutationProvenance = FetchContext & { revision: number } & (
+		| { kind: 'create' | 'update'; row: Track }
+		| { kind: 'delete' }
+	)
 
 type ApplyTrackUpdateResult = {
 	track: Track | null
@@ -60,11 +65,12 @@ export const useTracksStore = defineStore('tracks', () => {
 	const isCreatingTrack = ref(false)
 	const isUpdatingTrack = ref(false)
 	let fetchPromise: Promise<boolean> | null = null
+	let freshFetchPromise: Promise<boolean> | null = null
 	let accountGeneration = 0
 	let accountUserId: string | null = null
 	let activeFetchUserId: string | null = null
 	let mutationRevision = 0
-	const trackCreateProvenance = new Map<string, TrackCreateProvenance>()
+	const trackMutationProvenance = new Map<string, TrackMutationProvenance>()
 	const trackOperationRevisions = new Map<string, number>()
 	const trackOperationQueues = new Map<string, Promise<void>>()
 	const mutationActivityCounts: Record<MutationActivity, number> = {
@@ -194,6 +200,68 @@ export const useTracksStore = defineStore('tracks', () => {
 	function nextMutationRevision(): number {
 		mutationRevision += 1
 		return mutationRevision
+	}
+
+	function recordCommittedTrackMutation(
+		id: string,
+		context: FetchContext,
+		mutation: { kind: 'create' | 'update'; row: Track } | { kind: 'delete' }
+	): void {
+		trackMutationProvenance.set(id, {
+			...context,
+			...mutation,
+			revision: nextMutationRevision()
+		})
+	}
+
+	function upsertTrack(track: Track): void {
+		const currentIndex = tracks.value.findIndex(({ id }) => id === track.id)
+		if (currentIndex !== -1) {
+			tracks.value[currentIndex] = track
+			return
+		}
+		tracks.value = sortCreatedAtDescIdDesc([...tracks.value, track])
+	}
+
+	function reconcileFetchedTracks(
+		context: FetchContext,
+		startingRevision: number,
+		fetchedTracks: Track[]
+	): Track[] {
+		const reconciled = new Map(fetchedTracks.map((track) => [track.id, track]))
+
+		for (const [id, provenance] of trackMutationProvenance) {
+			if (
+				provenance.generation !== context.generation ||
+				provenance.userId !== context.userId
+			) {
+				continue
+			}
+
+			if (provenance.revision > startingRevision) {
+				if (provenance.kind === 'delete') reconciled.delete(id)
+				else if (provenance.kind === 'update' || !reconciled.has(id)) {
+					reconciled.set(id, provenance.row)
+				} else {
+					trackMutationProvenance.delete(id)
+				}
+				continue
+			}
+
+			const fetchedTrack = reconciled.get(id)
+			const confirmsMutation =
+				provenance.kind === 'delete'
+					? !fetchedTrack
+					: provenance.kind === 'create'
+						? Boolean(fetchedTrack)
+						: Boolean(
+								fetchedTrack &&
+								JSON.stringify(fetchedTrack) === JSON.stringify(provenance.row)
+							)
+			if (confirmsMutation) trackMutationProvenance.delete(id)
+		}
+
+		return sortCreatedAtDescIdDesc([...reconciled.values()])
 	}
 
 	async function runSerializedTrackOperation<T>(
@@ -352,30 +420,11 @@ export const useTracksStore = defineStore('tracks', () => {
 			const issues = decodedRows.flatMap((decoded) => decoded.issues)
 			reportDecodeIssues(issues, (message) => toast.warning(message))
 			const fetchedTracks = decodedRows.map((decoded) => decoded.row)
-			const fetchedIds = new Set(fetchedTracks.map((track) => track.id))
-			const createdDuringFetch = tracks.value.filter((track) => {
-				const provenance = trackCreateProvenance.get(track.id)
-				return (
-					provenance?.generation === completedContext.generation &&
-					provenance.userId === completedContext.userId &&
-					provenance.revision > startingRevision &&
-					!fetchedIds.has(track.id)
-				)
-			})
-			const preservedIds = new Set(createdDuringFetch.map((track) => track.id))
-			tracks.value = sortCreatedAtDescIdDesc([
-				...fetchedTracks,
-				...createdDuringFetch
-			])
-			for (const [id, provenance] of trackCreateProvenance) {
-				if (
-					provenance.generation === completedContext.generation &&
-					provenance.userId === completedContext.userId &&
-					!preservedIds.has(id)
-				) {
-					trackCreateProvenance.delete(id)
-				}
-			}
+			tracks.value = reconcileFetchedTracks(
+				completedContext,
+				startingRevision,
+				fetchedTracks
+			)
 			return true
 		} catch (error) {
 			if (!context || !isCurrentFetchContext(context)) return false
@@ -390,8 +439,24 @@ export const useTracksStore = defineStore('tracks', () => {
 		}
 	}
 
-	function fetchAllTracks(): Promise<boolean> {
+	function fetchAllTracks(options: LibraryFetchOptions = {}): Promise<boolean> {
 		if (isDemoStore) return Promise.resolve(true)
+		if (options.fresh) {
+			if (freshFetchPromise) return freshFetchPromise
+
+			const generation = accountGeneration
+			const priorFetch = fetchPromise
+			const createdFreshPromise = (async () => {
+				if (priorFetch) await priorFetch
+				if (generation !== accountGeneration) return false
+				return await (fetchPromise ?? fetchAllTracks())
+			})().finally(() => {
+				if (freshFetchPromise === createdFreshPromise) freshFetchPromise = null
+			})
+			freshFetchPromise = createdFreshPromise
+			return createdFreshPromise
+		}
+
 		if (fetchPromise) return fetchPromise
 
 		const createdPromise = performFetchAllTracks(accountGeneration).finally(
@@ -424,11 +489,11 @@ export const useTracksStore = defineStore('tracks', () => {
 
 			const decoded = decodeOwnedTrackResponse(data, context)
 			reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
-			tracks.value.unshift(decoded.row)
-			trackCreateProvenance.set(decoded.row.id, {
-				...context,
-				revision: nextMutationRevision()
+			recordCommittedTrackMutation(decoded.row.id, context, {
+				kind: 'create',
+				row: decoded.row
 			})
+			upsertTrack(decoded.row)
 			toast.success('Track created successfully.')
 			return decoded.row
 		} catch (error) {
@@ -516,15 +581,16 @@ export const useTracksStore = defineStore('tracks', () => {
 					if (error) throw error
 
 					const decoded = decodeOwnedTrackResponse(data, context)
-					const currentIndex = tracks.value.findIndex(
-						(track) => track.id === id
-					)
 					const ownsOperation =
 						trackOperationRevisions.get(id) === operationRevision
-					if (!ownsOperation || currentIndex === -1) {
+					if (!ownsOperation) {
 						return { track: null, error: null, issues: [], stale: true }
 					}
-					tracks.value[currentIndex] = decoded.row
+					recordCommittedTrackMutation(id, context, {
+						kind: 'update',
+						row: decoded.row
+					})
+					upsertTrack(decoded.row)
 					if (!options?.suppressSuccessToast)
 						toast.success('Track updated successfully.')
 					return {
@@ -661,6 +727,8 @@ export const useTracksStore = defineStore('tracks', () => {
 				return false
 			}
 			const removedTrack = tracks.value[trackIndex]!
+			const previousTrackId = tracks.value[trackIndex - 1]?.id
+			const nextTrackId = tracks.value[trackIndex + 1]?.id
 			const operationRevision = nextMutationRevision()
 			trackOperationRevisions.set(id, operationRevision)
 			tracks.value.splice(trackIndex, 1)
@@ -682,8 +750,8 @@ export const useTracksStore = defineStore('tracks', () => {
 				if (!data || data.id !== id || data.user_id !== context.userId) {
 					throw new Error('Track deletion ownership validation failed')
 				}
+				recordCommittedTrackMutation(id, context, { kind: 'delete' })
 				tracks.value = tracks.value.filter((track) => track.id !== id)
-				trackCreateProvenance.delete(id)
 				toast.success('Track deleted successfully.')
 				return true
 			} catch (error) {
@@ -695,10 +763,16 @@ export const useTracksStore = defineStore('tracks', () => {
 				}
 				console.error('Failed to delete track:', error)
 				if (!tracks.value.some((track) => track.id === id)) {
-					tracks.value = sortCreatedAtDescIdDesc([
-						...tracks.value,
-						removedTrack
-					])
+					const nextIndex = nextTrackId
+						? tracks.value.findIndex((track) => track.id === nextTrackId)
+						: -1
+					if (nextIndex !== -1) tracks.value.splice(nextIndex, 0, removedTrack)
+					else {
+						const previousIndex = previousTrackId
+							? tracks.value.findIndex((track) => track.id === previousTrackId)
+							: -1
+						tracks.value.splice(previousIndex + 1, 0, removedTrack)
+					}
 				}
 				toast.error('Error deleting track.')
 				return false
@@ -719,8 +793,18 @@ export const useTracksStore = defineStore('tracks', () => {
 	}
 
 	function removeTracksByRecordId(recordId: string) {
-		for (const track of tracks.value) {
-			if (track.record_id === recordId) trackCreateProvenance.delete(track.id)
+		const removedTracks = tracks.value.filter(
+			(track) => track.record_id === recordId
+		)
+		const userId = getReactiveUserId()
+		const context =
+			!isDemoStore && userId
+				? adoptAccountContext(accountGeneration, userId)
+				: null
+		if (context) {
+			for (const track of removedTracks) {
+				recordCommittedTrackMutation(track.id, context, { kind: 'delete' })
+			}
 		}
 		tracks.value = tracks.value.filter((track) => track.record_id !== recordId)
 	}
@@ -770,9 +854,11 @@ export const useTracksStore = defineStore('tracks', () => {
 	function clearTracks() {
 		accountGeneration += 1
 		fetchPromise = null
+		freshFetchPromise = null
 		accountUserId = null
 		activeFetchUserId = null
-		trackCreateProvenance.clear()
+		mutationRevision = 0
+		trackMutationProvenance.clear()
 		trackOperationRevisions.clear()
 		trackOperationQueues.clear()
 		mutationActivityCounts.create = 0

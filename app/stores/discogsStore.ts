@@ -44,6 +44,7 @@ interface TransferSnapshot {
 	mode: Exclude<TransferMode, null>
 	results: DiscogsImportResults
 	retrySummary: DiscogsRetrySummary | null
+	libraryRefreshFailed?: boolean
 }
 
 function createEmptyImportResults(): DiscogsImportResults {
@@ -91,6 +92,8 @@ function isTransferSnapshot(
 			snapshot.status !== 'cancelled' &&
 			snapshot.status !== 'failed') ||
 		(snapshot.mode !== 'import' && snapshot.mode !== 'retry') ||
+		(snapshot.libraryRefreshFailed !== undefined &&
+			typeof snapshot.libraryRefreshFailed !== 'boolean') ||
 		!snapshot.results ||
 		typeof snapshot.results !== 'object'
 	) {
@@ -161,6 +164,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	const transferMode = ref<TransferMode>(null)
 	const retryStatus = ref<DiscogsRetryStatus | null>(null)
 	const retrySummary = ref<DiscogsRetrySummary | null>(null)
+	const libraryRefreshFailed = ref(false)
 	const shouldCancelImport = ref(false)
 	const importResults = ref<DiscogsImportResults>(createEmptyImportResults())
 	let snapshotUserId: string | null = null
@@ -185,7 +189,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		if (transferStatus.value === 'running') return 'active'
 		if (
 			transferStatus.value === 'completed' &&
-			importResults.value.failed.length === 0
+			importResults.value.failed.length === 0 &&
+			!libraryRefreshFailed.value
 		)
 			return 'success'
 		return 'warning'
@@ -212,7 +217,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 				: null,
 			importResults.value.failed.length > 0
 				? `${importResults.value.failed.length} failed`
-				: null
+				: null,
+			libraryRefreshFailed.value ? 'refresh needed' : null
 		].filter((part): part is string => Boolean(part))
 
 		return resultParts.length > 0
@@ -256,7 +262,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			status: transferStatus.value,
 			mode: transferMode.value,
 			results: importResults.value,
-			retrySummary: retrySummary.value
+			retrySummary: retrySummary.value,
+			libraryRefreshFailed: libraryRefreshFailed.value
 		}
 		try {
 			window.sessionStorage.setItem(
@@ -289,6 +296,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			transferMode.value = snapshot.mode
 			importResults.value = snapshot.results
 			retrySummary.value = snapshot.retrySummary
+			libraryRefreshFailed.value = snapshot.libraryRefreshFailed ?? false
 			snapshotUserId = userId
 		} catch {
 			clearTransferSnapshot(userId)
@@ -329,6 +337,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		transferMode.value = null
 		retryStatus.value = null
 		retrySummary.value = null
+		libraryRefreshFailed.value = false
 		importResults.value = createEmptyImportResults()
 		hydratedUserId = null
 	}
@@ -362,6 +371,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		transferMode.value = null
 		retryStatus.value = null
 		retrySummary.value = null
+		libraryRefreshFailed.value = false
 		importResults.value = createEmptyImportResults()
 	}
 
@@ -549,11 +559,22 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	async function refreshImportedLibrary(context: AccountOperationContext) {
 		const recordsStore = useRecordsStore(pinia)
 		const tracksStore = useTracksStore(pinia)
-		await Promise.all([
-			recordsStore.fetchAllRecords(),
-			tracksStore.fetchAllTracks()
+		const results = await Promise.allSettled([
+			recordsStore.fetchAllRecords({ fresh: true }),
+			tracksStore.fetchAllTracks({ fresh: true })
 		])
-		return isCurrentAccountContext(context)
+		if (!isCurrentAccountContext(context)) {
+			return { current: false, succeeded: false }
+		}
+		const succeeded = results.every(
+			(result) => result.status === 'fulfilled' && result.value === true
+		)
+		if (!succeeded) {
+			toast.warning(
+				'Discogs changes were saved, but your library could not be refreshed.'
+			)
+		}
+		return { current: true, succeeded }
 	}
 
 	async function importSelectedReleases() {
@@ -587,6 +608,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		importPhase.value = 'fetching'
 		retryStatus.value = null
 		retrySummary.value = null
+		libraryRefreshFailed.value = false
 		importResults.value = {
 			successful: 0,
 			skipped: [],
@@ -653,7 +675,9 @@ export const useDiscogsStore = defineStore('discogs', () => {
 
 			// Refresh local stores with newly imported data
 			if (successful > 0) {
-				if (!(await refreshImportedLibrary(context))) return
+				const refresh = await refreshImportedLibrary(context)
+				if (!refresh.current) return
+				libraryRefreshFailed.value = !refresh.succeeded
 			}
 			transferStatus.value = 'completed'
 			persistTransferSnapshot()
@@ -711,6 +735,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		importPhase.value = 'fetching'
 		retryStatus.value = null
 		retrySummary.value = null
+		libraryRefreshFailed.value = false
 
 		try {
 			const {
@@ -779,7 +804,9 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			}
 
 			if (successful > 0) {
-				if (!(await refreshImportedLibrary(context))) return
+				const refresh = await refreshImportedLibrary(context)
+				if (!refresh.current) return
+				libraryRefreshFailed.value = !refresh.succeeded
 			}
 			transferStatus.value = 'completed'
 			persistTransferSnapshot()
@@ -854,6 +881,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		isRetrying,
 		retryStatus,
 		retrySummary,
+		libraryRefreshFailed,
 		retryableFailures,
 		canRetryFailed,
 		importResults,

@@ -773,6 +773,40 @@ describe('tracksStore', () => {
 			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledTimes(2)
 			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
 		})
+
+		it('waits for an older traversal and coalesces simultaneous fresh callers', async () => {
+			const oldResponse = createDeferred<{
+				data: Array<ReturnType<typeof createMockOwnedTrack>>
+				error: null
+			}>()
+			const freshResponse = createDeferred<{
+				data: Array<ReturnType<typeof createMockOwnedTrack>>
+				error: null
+			}>()
+			mockQueryBuilder.limit
+				.mockReturnValueOnce(oldResponse.promise)
+				.mockReturnValueOnce(freshResponse.promise)
+			const store = useTracksStore()
+
+			const oldFetch = store.fetchAllTracks()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
+			)
+			const firstFresh = store.fetchAllTracks({ fresh: true })
+			const secondFresh = store.fetchAllTracks({ fresh: true })
+			expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
+
+			oldResponse.resolve({ data: [], error: null })
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.limit).toHaveBeenCalledTimes(2)
+			)
+			freshResponse.resolve({ data: [], error: null })
+
+			await expect(
+				Promise.all([oldFetch, firstFresh, secondFresh])
+			).resolves.toEqual([true, true, true])
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
+		})
 	})
 
 	describe('createTrack', () => {
@@ -1290,6 +1324,68 @@ describe('tracksStore', () => {
 	})
 
 	describe('account-safe mutation reconciliation', () => {
+		it('preserves a committed update over an older fetch response', async () => {
+			const oldFetchResponse = createDeferred<{
+				data: Array<ReturnType<typeof createMockOwnedTrack>>
+				error: null
+			}>()
+			const original = createMockTrack({ id: 'track-1', title: 'Original' })
+			const updated = createMockOwnedTrack({
+				id: 'track-1',
+				title: 'Updated on server'
+			})
+			mockQueryBuilder.limit.mockReturnValueOnce(oldFetchResponse.promise)
+			mockQueryBuilder.single.mockResolvedValueOnce({
+				data: updated,
+				error: null
+			})
+			const store = useTracksStore()
+			store.tracks = [original]
+			const oldFetch = store.fetchAllTracks()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
+			)
+
+			await expect(
+				store.updateTrack('track-1', { title: 'Updated on server' })
+			).resolves.toMatchObject({ title: 'Updated on server' })
+			oldFetchResponse.resolve({
+				data: [createMockOwnedTrack({ id: 'track-1', title: 'Original' })],
+				error: null
+			})
+			await expect(oldFetch).resolves.toBe(true)
+
+			expect(store.getTrackById('track-1')?.title).toBe('Updated on server')
+		})
+
+		it('does not resurrect a committed delete from an older fetch', async () => {
+			const oldFetchResponse = createDeferred<{
+				data: Array<ReturnType<typeof createMockOwnedTrack>>
+				error: null
+			}>()
+			const deletedTrack = createMockTrack({ id: 'track-1' })
+			mockQueryBuilder.limit.mockReturnValueOnce(oldFetchResponse.promise)
+			mockQueryBuilder.single.mockResolvedValueOnce({
+				data: { id: 'track-1', user_id: 'test-user-id' },
+				error: null
+			})
+			const store = useTracksStore()
+			store.tracks = [deletedTrack]
+			const oldFetch = store.fetchAllTracks()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
+			)
+
+			await expect(store.deleteTrack('track-1')).resolves.toBe(true)
+			oldFetchResponse.resolve({
+				data: [createMockOwnedTrack({ id: 'track-1' })],
+				error: null
+			})
+			await expect(oldFetch).resolves.toBe(true)
+
+			expect(store.getTrackById('track-1')).toBeUndefined()
+		})
+
 		it('keeps create activity active until the last concurrent create settles', async () => {
 			const first = createDeferred<{
 				data: ReturnType<typeof createMockOwnedTrack>

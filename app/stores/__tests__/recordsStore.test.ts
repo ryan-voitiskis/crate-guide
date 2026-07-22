@@ -1601,6 +1601,40 @@ describe('recordsStore', () => {
 			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledTimes(2)
 			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
 		})
+
+		it('waits for an older traversal and coalesces simultaneous fresh callers', async () => {
+			const oldResponse = createDeferred<{
+				data: DatabaseRecord[]
+				error: null
+			}>()
+			const freshResponse = createDeferred<{
+				data: DatabaseRecord[]
+				error: null
+			}>()
+			mockQueryBuilder.limit
+				.mockReturnValueOnce(oldResponse.promise)
+				.mockReturnValueOnce(freshResponse.promise)
+			const store = useRecordsStore()
+
+			const oldFetch = store.fetchAllRecords()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
+			)
+			const firstFresh = store.fetchAllRecords({ fresh: true })
+			const secondFresh = store.fetchAllRecords({ fresh: true })
+			expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
+
+			oldResponse.resolve({ data: [], error: null })
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.limit).toHaveBeenCalledTimes(2)
+			)
+			freshResponse.resolve({ data: [], error: null })
+
+			await expect(
+				Promise.all([oldFetch, firstFresh, secondFresh])
+			).resolves.toEqual([true, true, true])
+			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
+		})
 	})
 
 	describe('createRecord', () => {
@@ -1893,6 +1927,101 @@ describe('recordsStore', () => {
 			expect(store.records[0]!.id).toBe('manual-record-id')
 		})
 
+		it('starts a post-commit traversal after an older manual-create fetch', async () => {
+			const oldResponse = createDeferred<{
+				data: DatabaseRecord[]
+				error: null
+			}>()
+			const createdRecord = createMockRecord({
+				id: 'manual-record-id',
+				title: 'Authoritative manual record'
+			})
+			mockQueryBuilder.limit
+				.mockReturnValueOnce(oldResponse.promise)
+				.mockResolvedValueOnce({ data: [createdRecord], error: null })
+			mockSupabaseClient.rpc.mockResolvedValue({
+				data: {
+					success: true,
+					record_id: 'manual-record-id',
+					tracks_inserted: 1
+				},
+				error: null
+			})
+			const store = useRecordsStore()
+			const oldFetch = store.fetchAllRecords()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
+			)
+
+			const creation = store.createRecordWithTracks({
+				title: 'Manual record',
+				tracks: [{ title: 'Track' }]
+			})
+			await vi.waitFor(() =>
+				expect(mockSupabaseClient.rpc).toHaveBeenCalledOnce()
+			)
+			expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
+
+			oldResponse.resolve({ data: [], error: null })
+			await expect(oldFetch).resolves.toBe(true)
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.limit).toHaveBeenCalledTimes(2)
+			)
+			await expect(creation).resolves.toEqual(createdRecord)
+
+			expect(store.records.filter(({ id }) => id === createdRecord.id)).toEqual(
+				[createdRecord]
+			)
+			expect(mockTracksStore.fetchAllTracks).toHaveBeenCalledWith({
+				fresh: true
+			})
+		})
+
+		it('returns committed manual creation when presentation refresh fails', async () => {
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined)
+			mockSupabaseClient.rpc.mockResolvedValue({
+				data: {
+					success: true,
+					record_id: 'manual-record-id',
+					tracks_inserted: 0
+				},
+				error: null
+			})
+			mockQueryBuilder.limit.mockResolvedValue({
+				data: null,
+				error: new Error('Refresh failed')
+			})
+			mockTracksStore.fetchAllTracks.mockResolvedValueOnce(false)
+			const store = useRecordsStore()
+
+			try {
+				const result = await store.createRecordWithTracks({
+					title: 'Manual record',
+					tracks: []
+				})
+
+				expect(result).toMatchObject({
+					id: 'manual-record-id',
+					title: 'Manual record',
+					user_id: 'test-user-id'
+				})
+				expect(store.getRecordById('manual-record-id')).toEqual(result)
+				expect(mockToast.success).toHaveBeenCalledWith(
+					'Record created successfully.'
+				)
+				expect(mockToast.warning).toHaveBeenCalledWith(
+					'Record created, but your library could not be fully refreshed.'
+				)
+				expect(mockToast.error).not.toHaveBeenCalledWith(
+					'Error creating record.'
+				)
+			} finally {
+				consoleError.mockRestore()
+			}
+		})
+
 		it('returns null on RPC error', async () => {
 			const store = useRecordsStore()
 			mockSupabaseClient.rpc.mockResolvedValue({
@@ -2050,6 +2179,177 @@ describe('recordsStore', () => {
 
 			await updatePromise
 			expect(store.isUpdatingRecord).toBe(false)
+		})
+
+		it.each([
+			{
+				label: 'success',
+				response: createMockRecord({
+					id: 'record-target',
+					title: 'Server target'
+				}),
+				expectedTitle: 'Server target'
+			},
+			{
+				label: 'failure',
+				response: null,
+				expectedTitle: 'Original target'
+			}
+		])(
+			're-finds a reordered record before $label commit or rollback',
+			async ({ response, expectedTitle }) => {
+				const serverResponse = createDeferred<{
+					data: DatabaseRecord | null
+					error: Error | null
+				}>()
+				mockQueryBuilder.single.mockReturnValueOnce(serverResponse.promise)
+				const consoleError = vi
+					.spyOn(console, 'error')
+					.mockImplementation(() => undefined)
+				const store = useRecordsStore()
+				const target = createMockRecord({
+					id: 'record-target',
+					title: 'Original target'
+				})
+				const unrelated = createMockRecord({
+					id: 'record-unrelated',
+					title: 'Unrelated'
+				})
+				store.records = [target, unrelated]
+
+				try {
+					const update = store.updateRecord('record-target', {
+						title: 'Optimistic target'
+					})
+					const optimisticTarget = store.getRecordById('record-target')!
+					store.records = [unrelated, optimisticTarget]
+					await vi.waitFor(() =>
+						expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+					)
+
+					serverResponse.resolve({
+						data: response,
+						error: response ? null : new Error('Update failed')
+					})
+					await update
+
+					expect(store.records.map(({ id }) => id)).toEqual([
+						'record-unrelated',
+						'record-target'
+					])
+					expect(store.getRecordById('record-target')?.title).toBe(
+						expectedTitle
+					)
+					expect(store.getRecordById('record-unrelated')?.title).toBe(
+						'Unrelated'
+					)
+				} finally {
+					consoleError.mockRestore()
+				}
+			}
+		)
+
+		it('preserves a committed update over an older fetch response', async () => {
+			const oldFetchResponse = createDeferred<{
+				data: DatabaseRecord[]
+				error: null
+			}>()
+			const original = createMockRecord({
+				id: 'record-1',
+				title: 'Original'
+			})
+			const updated = createMockRecord({
+				id: 'record-1',
+				title: 'Updated on server'
+			})
+			mockQueryBuilder.limit.mockReturnValueOnce(oldFetchResponse.promise)
+			mockQueryBuilder.single.mockResolvedValueOnce({
+				data: updated,
+				error: null
+			})
+			const store = useRecordsStore()
+			store.records = [original]
+			const oldFetch = store.fetchAllRecords()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
+			)
+
+			await expect(
+				store.updateRecord('record-1', { title: 'Updated on server' })
+			).resolves.toEqual(updated)
+			oldFetchResponse.resolve({ data: [original], error: null })
+			await expect(oldFetch).resolves.toBe(true)
+
+			expect(store.getRecordById('record-1')).toEqual(updated)
+		})
+
+		it('serializes same-record updates in submission order', async () => {
+			const firstResponse = createDeferred<{
+				data: DatabaseRecord
+				error: null
+			}>()
+			mockQueryBuilder.single
+				.mockReturnValueOnce(firstResponse.promise)
+				.mockResolvedValueOnce({
+					data: createMockRecord({
+						id: 'record-1',
+						title: 'Second server update'
+					}),
+					error: null
+				})
+			const store = useRecordsStore()
+			store.records = [createMockRecord({ id: 'record-1', title: 'Original' })]
+
+			const first = store.updateRecord('record-1', { title: 'First update' })
+			const second = store.updateRecord('record-1', { title: 'Second update' })
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+			)
+			firstResponse.resolve({
+				data: createMockRecord({
+					id: 'record-1',
+					title: 'First server update'
+				}),
+				error: null
+			})
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.single).toHaveBeenCalledTimes(2)
+			)
+			await Promise.all([first, second])
+
+			expect(store.getRecordById('record-1')?.title).toBe(
+				'Second server update'
+			)
+		})
+
+		it('runs a same-record delete only after its update settles', async () => {
+			const updateResponse = createDeferred<{
+				data: DatabaseRecord
+				error: null
+			}>()
+			mockQueryBuilder.single.mockReturnValueOnce(updateResponse.promise)
+			const store = useRecordsStore()
+			store.records = [createMockRecord({ id: 'record-1', title: 'Original' })]
+
+			const update = store.updateRecord('record-1', { title: 'Updated' })
+			const deletion = store.deleteRecord('record-1')
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+			)
+			expect(mockQueryBuilder.delete).not.toHaveBeenCalled()
+
+			updateResponse.resolve({
+				data: createMockRecord({ id: 'record-1', title: 'Updated' }),
+				error: null
+			})
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.delete).toHaveBeenCalledOnce()
+			)
+			await expect(Promise.all([update, deletion])).resolves.toEqual([
+				expect.objectContaining({ title: 'Updated' }),
+				true
+			])
+			expect(store.getRecordById('record-1')).toBeUndefined()
 		})
 
 		it.each([
@@ -2229,6 +2529,27 @@ describe('recordsStore', () => {
 
 			expect(result).toBe(true)
 			expect(store.records.length).toBe(0)
+		})
+
+		it('does not resurrect a committed delete from an older fetch', async () => {
+			const oldFetchResponse = createDeferred<{
+				data: DatabaseRecord[]
+				error: null
+			}>()
+			const deletedRecord = createMockRecord({ id: 'record-1' })
+			mockQueryBuilder.limit.mockReturnValueOnce(oldFetchResponse.promise)
+			const store = useRecordsStore()
+			store.records = [deletedRecord]
+			const oldFetch = store.fetchAllRecords()
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
+			)
+
+			await expect(store.deleteRecord('record-1')).resolves.toBe(true)
+			oldFetchResponse.resolve({ data: [deletedRecord], error: null })
+			await expect(oldFetch).resolves.toBe(true)
+
+			expect(store.getRecordById('record-1')).toBeUndefined()
 		})
 
 		it('sets isDeletingRecord during delete', async () => {
@@ -2534,6 +2855,21 @@ describe('recordsStore', () => {
 			expect(store.searchResults[0]!.id).toBe('match')
 		})
 
+		it('normalizes the query and searches catalogue numbers', async () => {
+			const store = useRecordsStore()
+			store.records = [
+				createMockRecordWithLabels(
+					[{ discogs_id: 1, name: 'Defected Records', catno: 'DEF001' }],
+					{ id: 'match' }
+				)
+			]
+
+			await store.performSearch('  dEf001  ')
+
+			expect(store.searchQuery).toBe('def001')
+			expect(store.searchResults.map(({ id }) => id)).toEqual(['match'])
+		})
+
 		it('searches in year', async () => {
 			const store = useRecordsStore()
 			store.records = [
@@ -2569,6 +2905,49 @@ describe('recordsStore', () => {
 			await store.performSearch('test')
 
 			expect(store.isSearching).toBe(false)
+		})
+
+		it('derives an active result set after create, update, and delete', async () => {
+			const created = createMockRecord({
+				id: 'record-1',
+				title: 'Deep House'
+			})
+			const noLongerMatching = createMockRecord({
+				id: 'record-1',
+				title: 'Ambient'
+			})
+			const matchingAgain = createMockRecord({
+				id: 'record-1',
+				title: 'House Again'
+			})
+			mockQueryBuilder.single
+				.mockResolvedValueOnce({ data: created, error: null })
+				.mockResolvedValueOnce({ data: noLongerMatching, error: null })
+				.mockResolvedValueOnce({ data: matchingAgain, error: null })
+			const store = useRecordsStore()
+			await store.performSearch('house')
+
+			await store.createRecord({
+				user_id: 'test-user-id',
+				title: 'Deep House',
+				artists: [],
+				labels: [],
+				year: null,
+				cover: null,
+				cover_storage_path: null,
+				discogs_id: null,
+				discogs_release_url: null
+			})
+			expect(store.searchResults.map(({ id }) => id)).toEqual(['record-1'])
+
+			await store.updateRecord('record-1', { title: 'Ambient' })
+			expect(store.searchResults).toEqual([])
+
+			await store.updateRecord('record-1', { title: 'House Again' })
+			expect(store.searchResults.map(({ id }) => id)).toEqual(['record-1'])
+
+			await store.deleteRecord('record-1')
+			expect(store.searchResults).toEqual([])
 		})
 	})
 
