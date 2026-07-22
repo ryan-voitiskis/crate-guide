@@ -221,6 +221,10 @@ Until all gates are accepted:
 
 ## Unresolved questions and STOP gate
 
+The copy-ready provider request and response record are in
+[`discogs-provider-inquiry.md`](./discogs-provider-inquiry.md). Sending it still
+requires owner review and authorization.
+
 Before implementation, obtain and record:
 
 1. written provider acceptance that one registered application may hold OAuth

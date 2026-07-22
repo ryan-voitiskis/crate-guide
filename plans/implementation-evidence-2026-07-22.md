@@ -58,10 +58,12 @@ acceptance of its protocol and numeric budgets is a separate explicit STOP.
 
 ## External and approval evidence still required
 
-1. Obtain and record the Discogs portability decision before freezing Plan 070
-   or enabling Plans 071-073/075-076 downstream behavior.
-2. Obtain maintainer acceptance (or revised values) for Plan 063's checked-in
-   rendering protocol and structural budgets.
+1. Review and authorize the copy-ready
+   `docs/decisions/discogs-provider-inquiry.md`, then preserve the provider
+   response and obtain legal/maintainer decisions before freezing Plan 070 or
+   enabling Plans 071-073/075-076 downstream behavior.
+2. Record a choice in `docs/decisions/plan-063-rendering-acceptance.md` for Plan
+   063's checked-in protocol and structural budgets.
 3. Supply the authoritative staging project record before using the Plan 051
    remote-secret wrapper.
 4. Run the documented hosted Supabase/Discogs/Cloudflare smokes only after a

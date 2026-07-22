@@ -15,6 +15,8 @@ viewport or accessibility constraint is demonstrated.
 Owner acceptance of Plan 063's browser/hardware/throttle protocol and numeric
 budgets has not been recorded. Its acceptance STOP therefore remains open;
 passing these engineering regression defaults does not close that decision.
+Record the maintainer's choice in
+[`decisions/plan-063-rendering-acceptance.md`](./decisions/plan-063-rendering-acceptance.md).
 
 Structural limits are mandatory for every named surface and both supported
 viewports. Timing values are diagnostic reference points only: wall-clock and

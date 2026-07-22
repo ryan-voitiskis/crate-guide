@@ -158,6 +158,10 @@ the archive release rather than silently widening the interpretation.
 
 ## Unresolved questions and STOP gate
 
+The copy-ready provider request and response record are in
+[`discogs-provider-inquiry.md`](./discogs-provider-inquiry.md). Sending it still
+requires owner review and authorization.
+
 Obtain a written provider, legal, and maintainer decision answering all of the
 following before marking this document accepted:
 
