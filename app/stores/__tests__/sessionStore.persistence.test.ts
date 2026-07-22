@@ -75,7 +75,9 @@ describe('sessionStore saved-set persistence', () => {
 
 			const first = store.fetchSavedSets()
 			const concurrent = store.fetchSavedSets()
-			expect(mockSupabaseClient.from).toHaveBeenCalledOnce()
+			await vi.waitFor(() =>
+				expect(mockSupabaseClient.from).toHaveBeenCalledOnce()
+			)
 			response.resolve({
 				data: [createSavedSetRow({ id: 'set-from-first-chain' })],
 				error: null

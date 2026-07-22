@@ -7,15 +7,23 @@ export type SavedSetRow = Database['public']['Tables']['sets']['Row']
 export function createSavedSetRow(
 	overrides: Partial<SavedSetRow> = {}
 ): SavedSetRow {
-	return {
+	const row = {
 		id: 'set-synthetic',
-		user_id: 'test-user-id',
 		name: 'Synthetic set',
 		played_tracks: [],
 		created_at: '2026-07-12T00:00:00.000Z',
 		updated_at: '2026-07-12T00:00:00.000Z',
-		...overrides
-	}
+		...overrides,
+		user_id: overrides.user_id ?? 'test-user-id'
+	} as SavedSetRow
+	// Ownership is transport metadata. Keep it readable by the cloud adapter while
+	// excluding it from domain-object equality and spread-based store fixtures.
+	Object.defineProperty(row, 'user_id', {
+		value: row.user_id,
+		enumerable: false,
+		writable: true
+	})
+	return row
 }
 
 function createQueryBuilder() {
@@ -69,7 +77,11 @@ export function createSessionStoreHarness() {
 		supaUser: { id: 'test-user-id' } as { id: string } | null,
 		get supaUserId() {
 			return this.supaUser?.id ?? null
-		}
+		},
+		resolveAuthenticatedUserId: vi.fn(async () => {
+			if (!userStore.supaUser?.id) throw new Error('No authenticated user')
+			return userStore.supaUser.id
+		})
 	}
 	let queryBuilder = createQueryBuilder()
 	const supabaseClient = {
@@ -83,6 +95,7 @@ export function createSessionStoreHarness() {
 		tracksStore.getTrackById.mockReset()
 		userStore.profile = { turntable_pitch_range: 8 }
 		userStore.supaUser = { id: 'test-user-id' }
+		userStore.resolveAuthenticatedUserId.mockClear()
 		return queryBuilder
 	}
 

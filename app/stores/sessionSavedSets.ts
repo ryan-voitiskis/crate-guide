@@ -1,25 +1,30 @@
 import { type Ref, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type {
+	RepositoryConflictReason,
+	RepositoryUnavailableReason,
+	WorkspaceOperationContext
+} from '~/repositories/library/contracts'
 import { sortCreatedAtDescIdDesc } from '~/utils/supabaseOrdering'
-import { fetchAllSupabasePages } from '~/utils/supabasePagination'
-import { decodeSavedSetRow, reportDecodeIssues } from '~/utils/supabaseRows'
-import type { Database } from '~~/shared/types/database'
-import type { PlayedTrackEntry, SavedSet } from '~~/shared/types/supabase'
+import { reportDecodeIssues } from '~/utils/supabaseRows'
+import type { WorkbenchRuntime } from '~/utils/workbenchPinia'
+import type {
+	LibraryPlayedTrackEntry,
+	LibrarySavedSet
+} from '~~/shared/types/library'
 
-interface AccountOperationContext {
+type WorkspacePersistenceContext = WorkspaceOperationContext & {
 	generation: number
-	userId: string
 }
 
-interface SavedSetMutationProvenance extends AccountOperationContext {
+interface SavedSetMutationProvenance extends WorkspacePersistenceContext {
 	revision: number
 }
 
-type PlayedTrackSnapshot = readonly Readonly<PlayedTrackEntry>[]
+type PlayedTrackSnapshot = readonly Readonly<LibraryPlayedTrackEntry>[]
 
 interface SessionWriteRequestBase {
-	readonly context: AccountOperationContext
+	readonly context: WorkspacePersistenceContext
 	readonly generation: number
 	readonly playedTracks: PlayedTrackSnapshot
 }
@@ -31,25 +36,21 @@ interface AutoSaveRequest extends SessionWriteRequestBase {
 interface ManualSaveRequest extends SessionWriteRequestBase {
 	readonly kind: 'manual'
 	readonly name: string | null
-	readonly resolve: (savedSet: SavedSet | null) => void
+	readonly resolve: (savedSet: LibrarySavedSet | null) => void
 }
 
 type SessionWriteRequest = AutoSaveRequest | ManualSaveRequest
 
 interface SessionSavedSetsDependencies {
-	supabase: SupabaseClient<Database>
-	isDemoStore: boolean
-	currentSession: Readonly<Ref<PlayedTrackEntry[]>>
-	getUserId(): string | null
+	runtime: WorkbenchRuntime
+	currentSession: Readonly<Ref<LibraryPlayedTrackEntry[]>>
 }
 
 export function createSessionSavedSets({
-	supabase,
-	isDemoStore,
-	currentSession,
-	getUserId
+	runtime,
+	currentSession
 }: SessionSavedSetsDependencies) {
-	const savedSets = ref<SavedSet[]>([])
+	const savedSets = ref<LibrarySavedSet[]>([])
 	const activeSetId = ref<string | null>(null)
 	const isLoadingSets = ref(false)
 	const isSavingSession = ref(false)
@@ -60,26 +61,36 @@ export function createSessionSavedSets({
 	const showSaveDialog = ref(false)
 	const selectedSetId = ref<string | null>(null)
 
-	let accountGeneration = 0
+	let persistenceGeneration = 0
 	let sessionWriteGeneration = 0
 	let activeSessionWrite: SessionWriteRequest | null = null
 	const pendingSessionWrites: SessionWriteRequest[] = []
 	let savedSetsFetchPromise: Promise<void> | null = null
-	let savedSetsFetchContext: AccountOperationContext | null = null
+	let savedSetsFetchContext: WorkspacePersistenceContext | null = null
 	let savedSetMutationRevision = 0
 	const savedSetSaveProvenance = new Map<string, SavedSetMutationProvenance>()
 	const savedSetDeleteTombstones = new Map<string, SavedSetMutationProvenance>()
 
-	function captureAccountContext(): AccountOperationContext | null {
-		if (isDemoStore) return null
-		const userId = getUserId()
-		return userId ? { generation: accountGeneration, userId } : null
+	function captureWorkspaceContext(): WorkspacePersistenceContext | null {
+		const captured = runtime.capture()
+		return captured.descriptor.capabilities.canPersistSessions &&
+			!captured.descriptor.readOnly
+			? { ...captured.context, generation: persistenceGeneration }
+			: null
 	}
 
-	function isCurrentAccountContext(context: AccountOperationContext): boolean {
+	function isCurrentWorkspaceContext(
+		context: WorkspacePersistenceContext
+	): boolean {
 		return (
-			context.generation === accountGeneration && getUserId() === context.userId
+			context.generation === persistenceGeneration && runtime.isCurrent(context)
 		)
+	}
+
+	function repositoriesFor(context: WorkspacePersistenceContext) {
+		if (!isCurrentWorkspaceContext(context)) return null
+		const captured = runtime.capture()
+		return runtime.isCurrent(context) ? captured.repositories : null
 	}
 
 	function nextSavedSetMutationRevision(): number {
@@ -87,33 +98,47 @@ export function createSessionSavedSets({
 		return savedSetMutationRevision
 	}
 
-	function isSameAccountContext(
-		left: AccountOperationContext,
-		right: AccountOperationContext
+	function isSameWorkspaceContext(
+		left: WorkspacePersistenceContext,
+		right: WorkspacePersistenceContext
 	): boolean {
-		return left.generation === right.generation && left.userId === right.userId
+		if (
+			left.generation !== right.generation ||
+			left.workspaceId !== right.workspaceId ||
+			left.repositoryId !== right.repositoryId ||
+			left.activationGeneration !== right.activationGeneration
+		)
+			return false
+		return true
 	}
 
-	function decodeOwnedSavedSetResponse(
-		data: unknown,
-		context: AccountOperationContext
-	) {
-		if (
-			!data ||
-			typeof data !== 'object' ||
-			Array.isArray(data) ||
-			(data as { user_id?: unknown }).user_id !== context.userId
-		) {
-			throw new Error('Saved set ownership validation failed')
-		}
-		return decodeSavedSetRow(
-			data as Database['public']['Tables']['sets']['Row']
+	function outcomeError(
+		outcome:
+			| { status: 'conflict'; reason: RepositoryConflictReason }
+			| {
+					status: 'unavailable'
+					reason: RepositoryUnavailableReason
+					error?: unknown
+			  }
+	): Error | unknown {
+		return outcome.status === 'unavailable'
+			? (outcome.error ?? new Error(outcome.reason))
+			: new Error(outcome.reason)
+	}
+
+	function acceptRepositoryRevision(
+		context: WorkspacePersistenceContext,
+		repositoryRevision: number
+	): boolean {
+		return (
+			isCurrentWorkspaceContext(context) &&
+			runtime.acceptRepositoryRevision(context, repositoryRevision)
 		)
 	}
 
 	function publishSavedSet(
-		savedSet: SavedSet,
-		context: AccountOperationContext
+		savedSet: LibrarySavedSet,
+		context: WorkspacePersistenceContext
 	) {
 		const otherSets = savedSets.value.filter(
 			(existingSet) => existingSet.id !== savedSet.id
@@ -133,7 +158,7 @@ export function createSessionSavedSets({
 	function isCurrentSessionWrite(request: SessionWriteRequest): boolean {
 		return (
 			request.generation === sessionWriteGeneration &&
-			isCurrentAccountContext(request.context)
+			isCurrentWorkspaceContext(request.context)
 		)
 	}
 
@@ -165,7 +190,7 @@ export function createSessionSavedSets({
 
 	function cloneSnapshotForWrite(
 		playedTracks: PlayedTrackSnapshot
-	): PlayedTrackEntry[] {
+	): LibraryPlayedTrackEntry[] {
 		return playedTracks.map((entry) => ({ ...entry }))
 	}
 
@@ -175,46 +200,27 @@ export function createSessionSavedSets({
 
 		const playedTracks = cloneSnapshotForWrite(request.playedTracks)
 		try {
-			let savedSet: SavedSet
 			const setId = activeSetId.value
-			if (setId) {
-				const { data, error } = await supabase
-					.from('sets')
-					.update({ played_tracks: playedTracks })
-					.eq('id', setId)
-					.eq('user_id', request.context.userId)
-					.select()
-					.single()
-
-				if (!isCurrentSessionWrite(request)) return
-				if (error) throw error
-				const decoded = decodeOwnedSavedSetResponse(data, request.context)
-				if (decoded.row.id !== setId) {
-					throw new Error('Saved set auto-save ownership validation failed')
-				}
-				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
-				savedSet = decoded.row
-			} else {
-				const { data, error } = await supabase
-					.from('sets')
-					.insert({
-						user_id: request.context.userId,
-						name: null,
-						played_tracks: playedTracks
-					})
-					.select()
-					.single()
-
-				if (!isCurrentSessionWrite(request)) return
-				if (error) throw error
-				const decoded = decodeOwnedSavedSetResponse(data, request.context)
-				if (typeof decoded.row.id !== 'string' || !decoded.row.id) {
-					throw new Error('Saved set auto-save ownership validation failed')
-				}
-				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
-				savedSet = decoded.row
-				activeSetId.value = savedSet.id
+			const repositories = repositoriesFor(request.context)
+			if (!repositories) return
+			const outcome = await repositories.savedSets.save(request.context, {
+				setId,
+				kind: 'auto',
+				name: null,
+				playedTracks
+			})
+			if (!isCurrentSessionWrite(request) || outcome.status === 'stale') return
+			if (outcome.status !== 'success') throw outcomeError(outcome)
+			if (
+				!acceptRepositoryRevision(request.context, outcome.repositoryRevision)
+			)
+				return
+			const savedSet = outcome.value
+			if (!savedSet.id || (setId !== null && savedSet.id !== setId)) {
+				throw new Error('Saved set auto-save integrity validation failed')
 			}
+			reportDecodeIssues(outcome.issues, (message) => toast.warning(message))
+			if (setId === null) activeSetId.value = savedSet.id
 			publishSavedSet(savedSet, request.context)
 			autoSaveError.value = null
 		} catch (error) {
@@ -228,47 +234,35 @@ export function createSessionSavedSets({
 
 	async function executeManualSave(
 		request: ManualSaveRequest
-	): Promise<SavedSet | null> {
+	): Promise<LibrarySavedSet | null> {
 		if (!isCurrentSessionWrite(request) || request.playedTracks.length === 0)
 			return null
 
 		const playedTracks = cloneSnapshotForWrite(request.playedTracks)
 		try {
-			let savedSet: SavedSet
 			const setId = activeSetId.value
-
-			if (setId) {
-				const { data, error } = await supabase
-					.from('sets')
-					.update({ name: request.name, played_tracks: playedTracks })
-					.eq('id', setId)
-					.eq('user_id', request.context.userId)
-					.select()
-					.single()
-
-				if (!isCurrentSessionWrite(request)) return null
-				if (error) throw error
-				const decoded = decodeOwnedSavedSetResponse(data, request.context)
-				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
-				savedSet = decoded.row
-			} else {
-				const { data, error } = await supabase
-					.from('sets')
-					.insert({
-						user_id: request.context.userId,
-						name: request.name,
-						played_tracks: playedTracks
-					})
-					.select()
-					.single()
-
-				if (!isCurrentSessionWrite(request)) return null
-				if (error) throw error
-				const decoded = decodeOwnedSavedSetResponse(data, request.context)
-				reportDecodeIssues(decoded.issues, (message) => toast.warning(message))
-				savedSet = decoded.row
-				activeSetId.value = savedSet.id
+			const repositories = repositoriesFor(request.context)
+			if (!repositories) return null
+			const outcome = await repositories.savedSets.save(request.context, {
+				setId,
+				kind: 'manual',
+				name: request.name,
+				playedTracks
+			})
+			if (!isCurrentSessionWrite(request) || outcome.status === 'stale') {
+				return null
 			}
+			if (outcome.status !== 'success') throw outcomeError(outcome)
+			if (
+				!acceptRepositoryRevision(request.context, outcome.repositoryRevision)
+			)
+				return null
+			const savedSet = outcome.value
+			if (!savedSet.id || (setId !== null && savedSet.id !== setId)) {
+				throw new Error('Saved set save integrity validation failed')
+			}
+			reportDecodeIssues(outcome.issues, (message) => toast.warning(message))
+			if (setId === null) activeSetId.value = savedSet.id
 			publishSavedSet(savedSet, request.context)
 
 			toast.success('Session saved')
@@ -290,7 +284,7 @@ export function createSessionSavedSets({
 
 		activeSessionWrite = request
 		updateSessionWriteFlags()
-		let manualResult: SavedSet | null = null
+		let manualResult: LibrarySavedSet | null = null
 		try {
 			if (request.kind === 'auto') {
 				await executeAutoSave(request)
@@ -320,7 +314,7 @@ export function createSessionSavedSets({
 
 	function enqueueManualSave(
 		request: Omit<ManualSaveRequest, 'resolve'>
-	): Promise<SavedSet | null> {
+	): Promise<LibrarySavedSet | null> {
 		return new Promise((resolve) => {
 			pendingSessionWrites.push({ ...request, resolve })
 			updateSessionWriteFlags()
@@ -329,7 +323,7 @@ export function createSessionSavedSets({
 	}
 
 	function scheduleAutoSave() {
-		const context = captureAccountContext()
+		const context = captureWorkspaceContext()
 		if (!context || currentSession.value.length === 0) return
 		const generation = sessionWriteGeneration
 
@@ -338,7 +332,7 @@ export function createSessionSavedSets({
 			autoSaveTimeout.value = null
 			if (
 				generation !== sessionWriteGeneration ||
-				!isCurrentAccountContext(context) ||
+				!isCurrentWorkspaceContext(context) ||
 				currentSession.value.length === 0
 			)
 				return
@@ -354,42 +348,34 @@ export function createSessionSavedSets({
 
 	watch(currentSession, scheduleAutoSave, { deep: true })
 
-	async function performFetchSavedSets(context: AccountOperationContext) {
+	async function performFetchSavedSets(context: WorkspacePersistenceContext) {
 		isLoadingSets.value = true
 		const startingRevision = savedSetMutationRevision
 		try {
-			const rows = await fetchAllSupabasePages(async (cursor, pageSize) => {
-				let query = supabase
-					.from('sets')
-					.select('*')
-					.eq('user_id', context.userId)
-					.order('id', { ascending: false })
-				if (cursor !== null) query = query.lt('id', cursor)
-				return await query.limit(pageSize)
-			})
-
-			if (!isCurrentAccountContext(context)) return
-			if (rows.some((row) => row.user_id !== context.userId)) {
-				throw new Error('Saved set ownership validation failed')
+			const repositories = repositoriesFor(context)
+			if (!repositories) return
+			const outcome = await repositories.savedSets.list(context)
+			if (!isCurrentWorkspaceContext(context) || outcome.status === 'stale') {
+				return
 			}
-			const decodedRows = rows.map(decodeSavedSetRow)
-			const issues = decodedRows.flatMap((decoded) => decoded.issues)
-			reportDecodeIssues(issues, (message) => toast.warning(message))
-			const fetchedSets = decodedRows.map((decoded) => decoded.row)
+			if (outcome.status !== 'success') throw outcomeError(outcome)
+			if (!acceptRepositoryRevision(context, outcome.repositoryRevision)) return
+			reportDecodeIssues(outcome.issues, (message) => toast.warning(message))
+			const fetchedSets = outcome.value
 			const rawFetchedIds = new Set(fetchedSets.map((set) => set.id))
 			const localSetsById = new Map(
 				savedSets.value.map((savedSet) => [savedSet.id, savedSet])
 			)
-			const reconciledById = new Map<string, SavedSet>()
+			const reconciledById = new Map<string, LibrarySavedSet>()
 			for (const fetchedSet of fetchedSets) {
 				const tombstone = savedSetDeleteTombstones.get(fetchedSet.id)
-				if (tombstone && isSameAccountContext(tombstone, context)) continue
+				if (tombstone && isSameWorkspaceContext(tombstone, context)) continue
 				const provenance = savedSetSaveProvenance.get(fetchedSet.id)
 				const localSet = localSetsById.get(fetchedSet.id)
 				if (
 					localSet &&
 					provenance &&
-					isSameAccountContext(provenance, context) &&
+					isSameWorkspaceContext(provenance, context) &&
 					provenance.revision > startingRevision
 				) {
 					reconciledById.set(fetchedSet.id, localSet)
@@ -398,13 +384,13 @@ export function createSessionSavedSets({
 				}
 			}
 			for (const [id, provenance] of savedSetSaveProvenance) {
-				if (!isSameAccountContext(provenance, context)) continue
+				if (!isSameWorkspaceContext(provenance, context)) continue
 				const localSet = localSetsById.get(id)
 				const tombstone = savedSetDeleteTombstones.get(id)
 				if (
 					localSet &&
 					provenance.revision > startingRevision &&
-					(!tombstone || !isSameAccountContext(tombstone, context))
+					(!tombstone || !isSameWorkspaceContext(tombstone, context))
 				) {
 					reconciledById.set(id, localSet)
 				} else {
@@ -413,7 +399,7 @@ export function createSessionSavedSets({
 			}
 			for (const [id, tombstone] of savedSetDeleteTombstones) {
 				if (
-					isSameAccountContext(tombstone, context) &&
+					isSameWorkspaceContext(tombstone, context) &&
 					tombstone.revision <= startingRevision &&
 					!rawFetchedIds.has(id)
 				) {
@@ -422,21 +408,21 @@ export function createSessionSavedSets({
 			}
 			savedSets.value = sortCreatedAtDescIdDesc([...reconciledById.values()])
 		} catch (error) {
-			if (!isCurrentAccountContext(context)) return
+			if (!isCurrentWorkspaceContext(context)) return
 			console.error(error)
 			toast.error('Failed to load saved sets')
 		} finally {
-			if (isCurrentAccountContext(context)) isLoadingSets.value = false
+			if (isCurrentWorkspaceContext(context)) isLoadingSets.value = false
 		}
 	}
 
 	function fetchSavedSets(): Promise<void> {
-		const context = captureAccountContext()
+		const context = captureWorkspaceContext()
 		if (!context) return Promise.resolve()
 		if (
 			savedSetsFetchPromise &&
 			savedSetsFetchContext &&
-			isSameAccountContext(savedSetsFetchContext, context)
+			isSameWorkspaceContext(savedSetsFetchContext, context)
 		) {
 			return savedSetsFetchPromise
 		}
@@ -452,8 +438,8 @@ export function createSessionSavedSets({
 		return createdPromise
 	}
 
-	function saveSession(name?: string): Promise<SavedSet | null> {
-		const context = captureAccountContext()
+	function saveSession(name?: string): Promise<LibrarySavedSet | null> {
+		const context = captureWorkspaceContext()
 		if (!context || currentSession.value.length === 0) {
 			return Promise.resolve(null)
 		}
@@ -468,21 +454,22 @@ export function createSessionSavedSets({
 	}
 
 	async function deleteSet(setId: string) {
-		const context = captureAccountContext()
-		if (!context || !isCurrentAccountContext(context)) return
+		const context = captureWorkspaceContext()
+		if (!context || !isCurrentWorkspaceContext(context)) return
 
 		try {
-			const { data, error } = await supabase
-				.from('sets')
-				.delete()
-				.eq('id', setId)
-				.eq('user_id', context.userId)
-				.select('id, user_id')
-				.single()
-			if (!isCurrentAccountContext(context)) return
-			if (error) throw error
-			if (!data || data.id !== setId || data.user_id !== context.userId) {
-				throw new Error('Saved set deletion ownership validation failed')
+			const repositories = repositoriesFor(context)
+			if (!repositories) return
+			const outcome = await repositories.savedSets.delete(context, {
+				id: setId
+			})
+			if (!isCurrentWorkspaceContext(context) || outcome.status === 'stale') {
+				return
+			}
+			if (outcome.status !== 'success') throw outcomeError(outcome)
+			if (!acceptRepositoryRevision(context, outcome.repositoryRevision)) return
+			if (outcome.value.id !== setId) {
+				throw new Error('Saved set deletion integrity validation failed')
 			}
 			savedSets.value = savedSets.value.filter(
 				(savedSet) => savedSet.id !== setId
@@ -496,7 +483,7 @@ export function createSessionSavedSets({
 			if (selectedSetId.value === setId) selectedSetId.value = null
 			toast.success('Set deleted')
 		} catch (error) {
-			if (!isCurrentAccountContext(context)) return
+			if (!isCurrentWorkspaceContext(context)) return
 			console.error(error)
 			toast.error('Failed to delete set')
 		}
@@ -517,7 +504,7 @@ export function createSessionSavedSets({
 	}
 
 	function resetAccountPersistence(resetPlayback: () => void) {
-		accountGeneration += 1
+		persistenceGeneration += 1
 		invalidateSessionWrites()
 		savedSetsFetchPromise = null
 		savedSetsFetchContext = null

@@ -309,19 +309,23 @@ describe('sessionStore lifecycle', () => {
 			const store = useSessionStore()
 
 			const oldPromise = store.fetchSavedSets()
-			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
-				1,
-				'user_id',
-				'test-user-id'
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+					1,
+					'user_id',
+					'test-user-id'
+				)
 			)
 
 			store.resetAccountState()
 			mockUserStore.supaUser = { id: 'user-b' }
 			const newPromise = store.fetchSavedSets()
-			expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
-				2,
-				'user_id',
-				'user-b'
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.eq).toHaveBeenNthCalledWith(
+					2,
+					'user_id',
+					'user-b'
+				)
 			)
 
 			newFetch.resolve({
@@ -404,7 +408,9 @@ describe('sessionStore lifecycle', () => {
 			store.showSaveDialog = true
 
 			const savePromise = store.saveSession('Old account set')
-			expect(mockQueryBuilder.eq).toHaveBeenCalledWith('id', 'set-a')
+			await vi.waitFor(() =>
+				expect(mockQueryBuilder.eq).toHaveBeenCalledWith('id', 'set-a')
+			)
 			store.resetAccountState()
 			mockUserStore.supaUser = { id: 'user-b' }
 			store.savedSets = [createSavedSet({ id: 'set-b', user_id: 'user-b' })]

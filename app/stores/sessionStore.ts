@@ -1,6 +1,13 @@
 import { computed, ref } from 'vue'
 import { getActivePinia } from 'pinia'
-import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
+import {
+	ensureCloudWorkbenchRuntime,
+	ensureDemoWorkbenchRuntime
+} from '~/composables/useWorkbench'
+import {
+	getWorkbenchRuntime,
+	isDemoWorkbenchPinia
+} from '~/utils/workbenchPinia'
 import { createSessionPlayback } from './sessionPlayback'
 import { createSessionSavedSets } from './sessionSavedSets'
 import type { SessionDeck } from './sessionTypes'
@@ -8,8 +15,12 @@ import type { SessionDeck } from './sessionTypes'
 export type Deck = SessionDeck
 
 export const useSessionStore = defineStore('session', () => {
-	const supabase = useSupabaseClient<Database>()
 	const pinia = getActivePinia()
+	const runtime =
+		getWorkbenchRuntime(pinia) ??
+		(isDemoWorkbenchPinia(pinia)
+			? ensureDemoWorkbenchRuntime(pinia!)
+			: ensureCloudWorkbenchRuntime(pinia!))
 	const user = useUserStore(pinia)
 	const tracks = useTracksStore(pinia)
 	const pitchRange = computed(() => user.profile?.turntable_pitch_range ?? 8)
@@ -20,10 +31,8 @@ export const useSessionStore = defineStore('session', () => {
 		getPlayableTracks: () => tracks.playableTracks
 	})
 	const savedSets = createSessionSavedSets({
-		supabase,
-		isDemoStore: isDemoWorkbenchPinia(pinia),
-		currentSession: playback.currentSession,
-		getUserId: () => user.supaUserId
+		runtime,
+		currentSession: playback.currentSession
 	})
 
 	const showTurntableSim = ref(true)

@@ -261,7 +261,9 @@ describe('sessionStore write queue', () => {
 				store.currentSession = [firstEntry, secondEntry]
 				const secondSave = store.saveSession('Second manual')
 
-				expect(mockQueryBuilder.update).toHaveBeenCalledOnce()
+				await vi.waitFor(() =>
+					expect(mockQueryBuilder.update).toHaveBeenCalledOnce()
+				)
 				expect(mockQueryBuilder.update).toHaveBeenCalledWith({
 					name: 'First manual',
 					played_tracks: [firstEntry]
