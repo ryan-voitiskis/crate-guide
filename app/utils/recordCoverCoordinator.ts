@@ -15,8 +15,8 @@ export type RecordCoverChange =
 	| { type: 'remove' }
 	| { type: 'upload'; file: File; crop: RecordCoverCrop }
 
-export type RecordCoverMutationOutcome =
-	| { status: 'updated'; record: DatabaseRecord }
+export type RecordCoverMutationOutcome<TRecord = DatabaseRecord> =
+	| { status: 'updated'; record: TRecord }
 	| { status: 'not-updated' }
 	| { status: 'stale' }
 	| { status: 'failed'; error: unknown }
@@ -37,10 +37,10 @@ type CoverCleanupPageResult =
 	| { status: 'failed' }
 	| { status: 'cancelled' }
 
-type PersistCoverPath = (
+type PersistCoverPath<TRecord> = (
 	path: string | null,
 	onResponseFailure?: () => Promise<void>
-) => Promise<DatabaseRecord | null>
+) => Promise<TRecord | null>
 
 type RecordCoverCoordinatorDependencies = {
 	supabase: Pick<SupabaseClient<Database>, 'auth'>
@@ -56,11 +56,11 @@ type RecordCoverCoordinatorDependencies = {
 	processCoverFile?: typeof processRecordCoverFile
 }
 
-type RecordCoverMutation = {
+type RecordCoverMutation<TRecord> = {
 	context: RecordCoverAccountContext
 	recordId: string
 	change: Exclude<RecordCoverChange, { type: 'keep' }>
-	persistCoverPath: PersistCoverPath
+	persistCoverPath: PersistCoverPath<TRecord>
 }
 
 type DrainOptions = {
@@ -109,7 +109,7 @@ function waitForRetry(delayMs: number, signal: AbortSignal): Promise<boolean> {
 	})
 }
 
-export function createRecordCoverCoordinator(
+export function createRecordCoverCoordinator<TRecord = DatabaseRecord>(
 	dependencies: RecordCoverCoordinatorDependencies
 ) {
 	let cleanupPromise: Promise<boolean> | null = null
@@ -336,8 +336,8 @@ export function createRecordCoverCoordinator(
 	}
 
 	async function mutate(
-		mutation: RecordCoverMutation
-	): Promise<RecordCoverMutationOutcome> {
+		mutation: RecordCoverMutation<TRecord>
+	): Promise<RecordCoverMutationOutcome<TRecord>> {
 		const { change, context, persistCoverPath, recordId } = mutation
 		let accountClient: AccountBoundSupabaseClient | null = null
 		let newPath: string | null = null

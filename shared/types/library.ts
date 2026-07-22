@@ -110,7 +110,7 @@ export type ManualRecordWithTracksInput = {
 	labelName?: string | null
 	catno?: string | null
 	year?: number | null
-	coverUrl?: string | null
+	cover?: string | null
 	defaultGenres?: string[]
 	defaultRpm?: number | null
 	tracks: ManualRecordTrackInput[]

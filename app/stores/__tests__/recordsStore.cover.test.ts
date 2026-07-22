@@ -336,7 +336,7 @@ describe('recordsStore cover workflows', () => {
 			mockUserStore.supaUser = { id: 'replacement-user-id' }
 			beginTokenLookup.resolve(undefined)
 
-			await expect(drain).resolves.toBe(true)
+			await expect(drain).resolves.toBe(false)
 			expect(observedToken).toBe('token:test-user-id')
 			expect(mockGlobalFunctionsInvoke).not.toHaveBeenCalled()
 			expect(mockToast.warning).not.toHaveBeenCalled()
@@ -457,7 +457,11 @@ describe('recordsStore cover workflows', () => {
 				title: 'Updated',
 				cover_storage_path: path
 			})
-			expect(result?.cover_storage_path).toBe(path)
+			expect(result?.cover).toEqual({
+				kind: 'cloud',
+				assetId: path,
+				fallbackUrl: null
+			})
 			expectCleanupInvocationsWithoutBodies(1)
 			expect(store.isUpdatingCover).toBe(false)
 		})
@@ -717,7 +721,10 @@ describe('recordsStore cover workflows', () => {
 			})
 			expectCleanupInvocationsWithoutBodies(1)
 			expect(mockStorageBucket.remove).not.toHaveBeenCalled()
-			expect(result?.cover).toBe('https://discogs.example/fallback.jpg')
+			expect(result?.cover).toEqual({
+				kind: 'external',
+				url: 'https://discogs.example/fallback.jpg'
+			})
 		})
 
 		it.each([

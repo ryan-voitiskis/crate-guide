@@ -84,6 +84,7 @@ export type RepositoryOutcome<T> =
 export type RepositoryCommand<T> = Promise<RepositoryOutcome<T>>
 
 export interface RecordsRepository {
+	list(context: WorkspaceOperationContext): RepositoryCommand<LibraryRecord[]>
 	createWithTracks(
 		context: WorkspaceOperationContext,
 		input: ManualRecordWithTracksInput
@@ -111,6 +112,7 @@ export interface RecordsRepository {
 }
 
 export interface TracksRepository {
+	list(context: WorkspaceOperationContext): RepositoryCommand<LibraryTrack[]>
 	create(
 		context: WorkspaceOperationContext,
 		input: TrackCreateInput
@@ -121,7 +123,14 @@ export interface TracksRepository {
 	): RepositoryCommand<LibraryTrack>
 	updateBatch(
 		context: WorkspaceOperationContext,
-		updates: readonly TrackBatchUpdate[]
+		updates: readonly TrackBatchUpdate[],
+		options?: {
+			onProgress?: (
+				completed: number,
+				total: number,
+				result: TrackBatchUpdateOutcome['results'][number]
+			) => void
+		}
 	): RepositoryCommand<TrackBatchUpdateOutcome>
 	delete(
 		context: WorkspaceOperationContext,
@@ -130,6 +139,7 @@ export interface TracksRepository {
 }
 
 export interface CratesRepository {
+	list(context: WorkspaceOperationContext): RepositoryCommand<LibraryCrate[]>
 	create(
 		context: WorkspaceOperationContext,
 		input: CrateCreateInput
@@ -153,6 +163,7 @@ export interface CratesRepository {
 }
 
 export interface SavedSetsRepository {
+	list(context: WorkspaceOperationContext): RepositoryCommand<LibrarySavedSet[]>
 	save(
 		context: WorkspaceOperationContext,
 		input: {
@@ -169,6 +180,9 @@ export interface SavedSetsRepository {
 }
 
 export interface PreferencesRepository {
+	read(
+		context: WorkspaceOperationContext
+	): RepositoryCommand<LibraryPreferences>
 	update(
 		context: WorkspaceOperationContext,
 		patch: Partial<LibraryPreferences>

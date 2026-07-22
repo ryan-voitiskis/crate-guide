@@ -1,5 +1,6 @@
 import { createMockRecord } from 'test/mocks/fixtures/records'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { decodeLibraryRecordRow } from '~/repositories/library/codecs/supabaseLibraryCodecs'
 import {
 	cleanupResponse,
 	createDeferred,
@@ -154,10 +155,11 @@ describe('recordsStore CRUD', () => {
 			await vi.waitFor(() =>
 				expect(mockQueryBuilder.limit).toHaveBeenCalledTimes(2)
 			)
-			await expect(creation).resolves.toEqual(createdRecord)
+			const expectedRecord = decodeLibraryRecordRow(createdRecord).row
+			await expect(creation).resolves.toEqual(expectedRecord)
 
 			expect(store.records.filter(({ id }) => id === createdRecord.id)).toEqual(
-				[createdRecord]
+				[expectedRecord]
 			)
 			expect(mockTracksStore.fetchAllTracks).toHaveBeenCalledWith({
 				fresh: true
@@ -191,8 +193,7 @@ describe('recordsStore CRUD', () => {
 
 				expect(result).toMatchObject({
 					id: 'manual-record-id',
-					title: 'Manual record',
-					user_id: 'test-user-id'
+					title: 'Manual record'
 				})
 				expect(store.getRecordById('manual-record-id')).toEqual(result)
 				expect(mockToast.success).toHaveBeenCalledWith(
@@ -461,13 +462,14 @@ describe('recordsStore CRUD', () => {
 				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
 			)
 
+			const expectedUpdate = decodeLibraryRecordRow(updated).row
 			await expect(
 				store.updateRecord('record-1', { title: 'Updated on server' })
-			).resolves.toEqual(updated)
+			).resolves.toEqual(expectedUpdate)
 			oldFetchResponse.resolve({ data: [original], error: null })
 			await expect(oldFetch).resolves.toBe(true)
 
-			expect(store.getRecordById('record-1')).toEqual(updated)
+			expect(store.getRecordById('record-1')).toEqual(expectedUpdate)
 		})
 
 		it('serializes same-record updates in submission order', async () => {

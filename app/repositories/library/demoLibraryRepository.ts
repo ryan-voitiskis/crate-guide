@@ -67,6 +67,15 @@ export function createDemoLibraryRepository({
 			}
 		},
 		records: {
+			async list(context) {
+				if (!isCurrentContext(context)) return { status: 'stale' }
+				return {
+					status: 'success',
+					value: cloneSnapshot(snapshot).records,
+					repositoryRevision: snapshot.repositoryRevision,
+					issues: []
+				}
+			},
 			createWithTracks: () => readOnly(),
 			update: () => readOnly(),
 			updateWithCover: () => readOnly(),
@@ -74,12 +83,30 @@ export function createDemoLibraryRepository({
 			drainCoverCleanup: () => readOnly()
 		},
 		tracks: {
+			async list(context) {
+				if (!isCurrentContext(context)) return { status: 'stale' }
+				return {
+					status: 'success',
+					value: cloneSnapshot(snapshot).tracks,
+					repositoryRevision: snapshot.repositoryRevision,
+					issues: []
+				}
+			},
 			create: () => readOnly(),
 			update: () => readOnly(),
 			updateBatch: () => readOnly(),
 			delete: () => readOnly()
 		},
 		crates: {
+			async list(context) {
+				if (!isCurrentContext(context)) return { status: 'stale' }
+				return {
+					status: 'success',
+					value: cloneSnapshot(snapshot).crates,
+					repositoryRevision: snapshot.repositoryRevision,
+					issues: []
+				}
+			},
 			create: () => readOnly(),
 			updateMetadata: () => readOnly(),
 			delete: () => readOnly(),
@@ -87,10 +114,28 @@ export function createDemoLibraryRepository({
 			removeRecord: () => readOnly()
 		},
 		savedSets: {
+			async list(context) {
+				if (!isCurrentContext(context)) return { status: 'stale' }
+				return {
+					status: 'success',
+					value: cloneSnapshot(snapshot).savedSets,
+					repositoryRevision: snapshot.repositoryRevision,
+					issues: []
+				}
+			},
 			save: () => readOnly(),
 			delete: () => readOnly()
 		},
 		preferences: {
+			async read(context) {
+				if (!isCurrentContext(context)) return { status: 'stale' }
+				return {
+					status: 'success',
+					value: { ...snapshot.preferences },
+					repositoryRevision: snapshot.repositoryRevision,
+					issues: []
+				}
+			},
 			update: () => readOnly()
 		},
 		covers: {

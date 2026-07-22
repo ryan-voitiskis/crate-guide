@@ -540,13 +540,13 @@ describe('recordsStore fetch and reconciliation', () => {
 			await expect(Promise.all([firstFetch, concurrentFetch])).resolves.toEqual(
 				[true, true]
 			)
-			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledOnce()
+			expect(mockUserStore.resolveAuthenticatedUserId).not.toHaveBeenCalled()
 			expect(mockSupabaseClient.from).toHaveBeenCalledOnce()
 			expect(store.isLoadingRecords).toBe(false)
 
 			mockQueryBuilder.limit.mockResolvedValue({ data: [], error: null })
 			await expect(store.fetchAllRecords()).resolves.toBe(true)
-			expect(mockUserStore.resolveAuthenticatedUserId).toHaveBeenCalledTimes(2)
+			expect(mockUserStore.resolveAuthenticatedUserId).not.toHaveBeenCalled()
 			expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
 		})
 

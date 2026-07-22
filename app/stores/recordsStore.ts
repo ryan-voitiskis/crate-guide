@@ -1,43 +1,27 @@
 import { toRaw } from 'vue'
 import { toast } from 'vue-sonner'
 import { getActivePinia } from 'pinia'
-import { validateImportResult } from '~/utils/discogs-validation'
 import {
-	type RecordCoverAccountContext,
-	type RecordCoverChange,
-	createRecordCoverCoordinator
-} from '~/utils/recordCoverCoordinator'
+	ensureCloudWorkbenchRuntime,
+	ensureDemoWorkbenchRuntime
+} from '~/composables/useWorkbench'
+import type { WorkspaceOperationContext } from '~/repositories/library/contracts'
+import type { RecordCoverChange } from '~/utils/recordCoverCoordinator'
 import { sortCreatedAtDescIdDesc } from '~/utils/supabaseOrdering'
-import { fetchAllSupabasePages } from '~/utils/supabasePagination'
-import { decodeRecordRow, reportDecodeIssues } from '~/utils/supabaseRows'
-import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
+import { reportDecodeIssues } from '~/utils/supabaseRows'
+import {
+	getWorkbenchRuntime,
+	isDemoWorkbenchPinia
+} from '~/utils/workbenchPinia'
+import type {
+	LibraryRecord,
+	ManualRecordWithTracksInput,
+	RecordUpdateInput
+} from '~~/shared/types/library'
 
-type ManualRecordTrackInput = {
-	title: string
-	artistName?: string | null
-	position?: string | null
-	duration?: number | null
-	bpm?: number | null
-	rpm?: number | null
-	key?: number | null
-	mode?: number | null
-	genres?: string[]
-	playable?: boolean
+export type RecordAccountContext = WorkspaceOperationContext & {
+	generation: number
 }
-
-type ManualRecordWithTracksInput = {
-	title: string
-	artistName?: string | null
-	labelName?: string | null
-	catno?: string | null
-	year?: number | null
-	cover?: string | null
-	defaultGenres?: string[]
-	defaultRpm?: number | null
-	tracks: ManualRecordTrackInput[]
-}
-
-export type RecordAccountContext = RecordCoverAccountContext
 
 type CoverCleanupDrainOptions = {
 	fresh?: boolean
@@ -49,7 +33,7 @@ type LibraryFetchOptions = {
 }
 
 type RecordMutationProvenance = RecordAccountContext & { revision: number } & (
-		| { kind: 'create' | 'update'; row: DatabaseRecord }
+		| { kind: 'create' | 'update'; row: LibraryRecord }
 		| { kind: 'delete' }
 	)
 
@@ -60,44 +44,16 @@ type MutationActivityToken = {
 	activity: MutationActivity
 }
 
-function isExpectedRecordRemoval(
-	value: unknown,
-	expectedRecordId: string
-): boolean {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return false
-	const result = value as Record<string, unknown>
-	return result.success === true && result.record_id === expectedRecordId
-}
-
-function buildArtistPayload(name?: string | null): DiscogsArtistDb[] {
-	const trimmedName = name?.trim()
-	return trimmedName ? [{ name: trimmedName, role: null }] : []
-}
-
-function buildLabelPayload(
-	name?: string | null,
-	catno?: string | null
-): DiscogsLabelDb[] {
-	const trimmedName = name?.trim()
-	if (!trimmedName) return []
-
-	const trimmedCatno = catno?.trim()
-	return [
-		{
-			name: trimmedName,
-			catno: trimmedCatno || undefined
-		}
-	]
-}
-
 export const useRecordsStore = defineStore('records', () => {
-	const supabase = useSupabaseClient<Database>()
 	const pinia = getActivePinia()
-	const isDemoStore = isDemoWorkbenchPinia(pinia)
-	const user = useUserStore(pinia)
+	const runtime =
+		getWorkbenchRuntime(pinia) ??
+		(isDemoWorkbenchPinia(pinia)
+			? ensureDemoWorkbenchRuntime(pinia!)
+			: ensureCloudWorkbenchRuntime(pinia!))
 	const tracksStore = useTracksStore(pinia)
 
-	const records = ref<DatabaseRecord[]>([])
+	const records = ref<LibraryRecord[]>([])
 	const isLoadingRecords = ref(false)
 	const isCreatingRecord = ref(false)
 	const isUpdatingRecord = ref(false)
@@ -106,8 +62,7 @@ export const useRecordsStore = defineStore('records', () => {
 	let fetchPromise: Promise<boolean> | null = null
 	let freshFetchPromise: Promise<boolean> | null = null
 	let accountGeneration = 0
-	let accountUserId: string | null = null
-	let activeFetchUserId: string | null = null
+	let activeFetchContext: RecordAccountContext | null = null
 	let mutationRevision = 0
 	let operationRevision = 0
 	const recordMutationProvenance = new Map<string, RecordMutationProvenance>()
@@ -159,67 +114,43 @@ export const useRecordsStore = defineStore('records', () => {
 
 	function isCurrentAccountContext(context: RecordAccountContext): boolean {
 		return (
-			context.generation === accountGeneration &&
-			accountUserId === context.userId
+			context.generation === accountGeneration && runtime.isCurrent(context)
 		)
 	}
 
-	function getCoverSupabaseConfig(): { key: string; url: string } {
-		const config = useRuntimeConfig().public.supabase as {
-			key?: unknown
-			url?: unknown
-		}
-		if (
-			typeof config.url !== 'string' ||
-			!config.url ||
-			typeof config.key !== 'string' ||
-			!config.key
-		) {
-			throw new Error('Authenticated account request could not start.')
-		}
-		return { key: config.key, url: config.url }
+	function isSameAccountContext(
+		left: RecordAccountContext,
+		right: RecordAccountContext
+	): boolean {
+		return (
+			left.generation === right.generation &&
+			left.workspaceId === right.workspaceId &&
+			left.repositoryId === right.repositoryId &&
+			left.activationGeneration === right.activationGeneration
+		)
 	}
 
-	const coverCoordinator = createRecordCoverCoordinator({
-		supabase,
-		resolveAuthenticatedUserId: () => user.resolveAuthenticatedUserId(),
-		isCurrentAccountContext,
-		getSupabaseConfig: getCoverSupabaseConfig,
-		onCleanupFailure: () => {
-			console.error('Failed to drain record cover cleanup.')
-			toast.warning('Some old cover files still need cleanup.')
-		}
-	})
-
-	function adoptAccountContext(
-		generation: number,
-		userId: string
-	): RecordAccountContext | null {
+	function captureContext(generation: number): RecordAccountContext | null {
 		if (generation !== accountGeneration) return null
-		if (accountUserId !== null && accountUserId !== userId) return null
-		accountUserId = userId
-		return { generation, userId }
-	}
-
-	function getReactiveUserId(): string | null {
-		const reactiveUserId = user.supaUserId
-		if (typeof reactiveUserId === 'string' && reactiveUserId) {
-			return reactiveUserId
-		}
-		const reactiveUser = user.supaUser as { id?: unknown; sub?: unknown } | null
-		const candidate = reactiveUser?.sub ?? reactiveUser?.id
-		return typeof candidate === 'string' && candidate ? candidate : null
+		const captured = runtime.capture()
+		return { ...captured.context, generation }
 	}
 
 	function captureImmediateAccountContext(): RecordAccountContext | null {
-		const userId = getReactiveUserId()
-		return userId ? adoptAccountContext(accountGeneration, userId) : null
+		const captured = runtime.capture()
+		return captured.descriptor.readOnly
+			? null
+			: { ...captured.context, generation: accountGeneration }
 	}
 
 	function isCurrentFetchContext(context: RecordAccountContext): boolean {
-		return (
-			isCurrentAccountContext(context) && activeFetchUserId === context.userId
-		)
+		return isCurrentAccountContext(context) && activeFetchContext === context
+	}
+
+	function repositoriesFor(context: RecordAccountContext) {
+		if (!isCurrentAccountContext(context)) return null
+		const captured = runtime.capture()
+		return runtime.isCurrent(context) ? captured.repositories : null
 	}
 
 	function setMutationActivity(
@@ -253,44 +184,15 @@ export const useRecordsStore = defineStore('records', () => {
 	}
 
 	async function captureAccountContext(): Promise<RecordAccountContext | null> {
-		if (isDemoStore) return null
-		const generation = accountGeneration
-		try {
-			const userId = await user.resolveAuthenticatedUserId()
-			return adoptAccountContext(generation, userId)
-		} catch {
-			return null
-		}
+		return captureImmediateAccountContext()
 	}
 
 	async function resolveMutationContext(
 		generation: number
 	): Promise<RecordAccountContext | null> {
-		if (isDemoStore || generation !== accountGeneration) return null
-		try {
-			const userId = await user.resolveAuthenticatedUserId()
-			return adoptAccountContext(generation, userId)
-		} catch (error) {
-			if (generation !== accountGeneration) return null
-			console.error('Auth failed in recordsStore mutation:', error)
-			toast.error('You must be signed in to update your collection.')
-			return null
-		}
-	}
-
-	async function confirmMutationContext(
-		context: RecordAccountContext
-	): Promise<boolean> {
-		if (!isCurrentAccountContext(context)) return false
-		try {
-			const userId = await user.resolveAuthenticatedUserId()
-			return isCurrentAccountContext(context) && userId === context.userId
-		} catch (error) {
-			if (!isCurrentAccountContext(context)) return false
-			console.error('Auth failed in recordsStore mutation:', error)
-			toast.error('You must be signed in to update your collection.')
-			return false
-		}
+		const context = captureContext(generation)
+		if (!context || runtime.capture().descriptor.readOnly) return null
+		return context
 	}
 
 	function nextOperationRevision(): number {
@@ -302,7 +204,7 @@ export const useRecordsStore = defineStore('records', () => {
 		id: string,
 		context: RecordAccountContext,
 		mutation:
-			| { kind: 'create' | 'update'; row: DatabaseRecord }
+			| { kind: 'create' | 'update'; row: LibraryRecord }
 			| { kind: 'delete' }
 	): void {
 		mutationRevision += 1
@@ -313,7 +215,7 @@ export const useRecordsStore = defineStore('records', () => {
 		})
 	}
 
-	function upsertRecord(record: DatabaseRecord): void {
+	function upsertRecord(record: LibraryRecord): void {
 		const currentIndex = records.value.findIndex(({ id }) => id === record.id)
 		if (currentIndex !== -1) {
 			records.value[currentIndex] = record
@@ -355,17 +257,14 @@ export const useRecordsStore = defineStore('records', () => {
 	function reconcileFetchedRecords(
 		context: RecordAccountContext,
 		startingRevision: number,
-		fetchedRecords: DatabaseRecord[]
-	): DatabaseRecord[] {
+		fetchedRecords: LibraryRecord[]
+	): LibraryRecord[] {
 		const reconciled = new Map(
 			fetchedRecords.map((record) => [record.id, record])
 		)
 
 		for (const [id, provenance] of recordMutationProvenance) {
-			if (
-				provenance.generation !== context.generation ||
-				provenance.userId !== context.userId
-			) {
+			if (!isSameAccountContext(provenance, context)) {
 				continue
 			}
 
@@ -399,41 +298,31 @@ export const useRecordsStore = defineStore('records', () => {
 
 	async function performFetchAllRecords(generation: number): Promise<boolean> {
 		isLoadingRecords.value = true
-		let context: RecordAccountContext | null = null
+		const context = captureContext(generation)
 		try {
-			let userId: string
-			try {
-				userId = await user.resolveAuthenticatedUserId()
-			} catch (error) {
-				if (generation !== accountGeneration) return false
-				console.error('Auth failed in recordsStore:', error)
-				toast.error('Failed to load data')
+			if (!context) return false
+			activeFetchContext = context
+			const startingRevision = mutationRevision
+			const repositories = repositoriesFor(context)
+			if (!repositories) return false
+			const outcome = await repositories.records.list(context)
+			if (!isCurrentFetchContext(context)) return false
+			if (outcome.status === 'stale') return false
+			if (outcome.status !== 'success') {
+				throw outcome.status === 'unavailable'
+					? (outcome.error ?? new Error(outcome.reason))
+					: new Error(outcome.reason)
+			}
+			if (
+				!runtime.acceptRepositoryRevision(context, outcome.repositoryRevision)
+			) {
 				return false
 			}
-			context = adoptAccountContext(generation, userId)
-			if (!context) return false
-			activeFetchUserId = userId
-			const startingRevision = mutationRevision
-
-			const rows = await fetchAllSupabasePages(async (cursor, pageSize) => {
-				let query = supabase
-					.from('records')
-					.select('*')
-					.eq('user_id', userId)
-					.order('id', { ascending: false })
-				if (cursor !== null) query = query.lt('id', cursor)
-				return await query.limit(pageSize)
-			})
-			if (!isCurrentFetchContext(context)) return false
-
-			const decodedRows = rows.map(decodeRecordRow)
-			const issues = decodedRows.flatMap((decoded) => decoded.issues)
-			reportDecodeIssues(issues, (message) => toast.warning(message))
-			const fetchedRecords = decodedRows.map((decoded) => decoded.row)
+			reportDecodeIssues(outcome.issues, (message) => toast.warning(message))
 			records.value = reconcileFetchedRecords(
 				context,
 				startingRevision,
-				fetchedRecords
+				outcome.value
 			)
 			return true
 		} catch (error) {
@@ -446,13 +335,16 @@ export const useRecordsStore = defineStore('records', () => {
 				? isCurrentFetchContext(context)
 				: generation === accountGeneration
 			if (isCurrentOperation) isLoadingRecords.value = false
+			if (activeFetchContext === context) activeFetchContext = null
 		}
 	}
 
 	function fetchAllRecords(
 		options: LibraryFetchOptions = {}
 	): Promise<boolean> {
-		if (isDemoStore) return Promise.resolve(true)
+		if (runtime.capture().descriptor.location === 'demo') {
+			return Promise.resolve(true)
+		}
 		if (options.fresh) {
 			if (freshFetchPromise) return freshFetchPromise
 
@@ -484,7 +376,7 @@ export const useRecordsStore = defineStore('records', () => {
 
 	async function createRecordWithTracks(
 		recordInput: ManualRecordWithTracksInput
-	): Promise<DatabaseRecord | null> {
+	): Promise<LibraryRecord | null> {
 		const activity = beginMutationActivity('create')
 		let context: RecordAccountContext | null = null
 
@@ -492,70 +384,34 @@ export const useRecordsStore = defineStore('records', () => {
 			context = await resolveMutationContext(activity.generation)
 			if (!context) return null
 
-			const recordArtists = buildArtistPayload(recordInput.artistName)
-			const defaultGenres = recordInput.defaultGenres ?? []
-
-			const recordPayload = {
-				user_id: context.userId,
-				discogs_id: null,
-				discogs_release_url: null,
-				title: recordInput.title.trim(),
-				artists: recordArtists,
-				labels: buildLabelPayload(recordInput.labelName, recordInput.catno),
-				year: recordInput.year ?? null,
-				cover: recordInput.cover?.trim() || null
+			const repositories = repositoriesFor(context)
+			if (!repositories) return null
+			const outcome = await repositories.records.createWithTracks(
+				context,
+				recordInput
+			)
+			if (!isCurrentAccountContext(context) || outcome.status === 'stale') {
+				return null
 			}
-
-			const trackPayloads = recordInput.tracks.map((track) => {
-				const trackArtists = buildArtistPayload(track.artistName)
-
-				return {
-					title: track.title.trim(),
-					artists: trackArtists.length ? trackArtists : recordArtists,
-					extraartists: [],
-					position: track.position?.trim() || null,
-					duration: track.duration ?? null,
-					bpm: track.bpm ?? null,
-					rpm: track.rpm ?? recordInput.defaultRpm ?? null,
-					key: track.key ?? null,
-					mode: track.mode ?? null,
-					genres: track.genres?.length ? track.genres : defaultGenres,
-					time_signature_upper: null,
-					time_signature_lower: null,
-					playable: track.playable ?? true
-				}
-			})
-
-			const { data, error } = await supabase.rpc('import_record_with_tracks', {
-				record: recordPayload,
-				tracks: trackPayloads
-			})
-
-			if (!isCurrentAccountContext(context)) return null
-			if (error) throw error
-
-			const result = validateImportResult(data)
-			if (!result.record_id) {
-				throw new Error('Manual record import did not return a record ID')
+			if (outcome.status !== 'success') {
+				throw outcome.status === 'unavailable'
+					? (outcome.error ?? new Error(outcome.reason))
+					: new Error(outcome.reason)
 			}
-
-			// The RPC is committed at this point. Keep an ownership-validated local
-			// representation so a refresh problem cannot look like a failed create or
-			// invite the user to submit the same record again.
-			const committedRecord: DatabaseRecord = {
-				...recordPayload,
-				id: result.record_id,
-				cover_storage_path: null,
-				created_at: null,
-				updated_at: null
+			if (
+				!runtime.acceptRepositoryRevision(context, outcome.repositoryRevision)
+			) {
+				return null
 			}
+			reportDecodeIssues(outcome.issues, (message) => toast.warning(message))
+			const committedRecord = outcome.value
 			recordCommittedMutation(committedRecord.id, context, {
 				kind: 'create',
 				row: committedRecord
 			})
 			upsertRecord(committedRecord)
 
-			const tracksInserted = result.tracks_inserted ?? trackPayloads.length
+			const tracksInserted = recordInput.tracks.length
 			toast.success(
 				tracksInserted > 0
 					? `Record and ${tracksInserted} ${tracksInserted === 1 ? 'track' : 'tracks'} created successfully.`
@@ -597,13 +453,9 @@ export const useRecordsStore = defineStore('records', () => {
 	async function updateRecordForContext(
 		context: RecordAccountContext,
 		id: string,
-		updates: Partial<
-			Omit<DatabaseRecord, 'id' | 'user_id' | 'created_at' | 'updated_at'>
-		>,
-		activity: MutationActivityToken = beginMutationActivity('update'),
-		confirmBeforeServer = false,
-		onResponseFailure?: () => Promise<void>
-	): Promise<DatabaseRecord | null> {
+		updates: RecordUpdateInput,
+		activity: MutationActivityToken = beginMutationActivity('update')
+	): Promise<LibraryRecord | null> {
 		try {
 			if (!isCurrentAccountContext(context)) return null
 			return await runSerializedRecordOperation(context, id, null, async () => {
@@ -619,7 +471,7 @@ export const useRecordsStore = defineStore('records', () => {
 				const optimisticRecord = {
 					...originalRecord,
 					...updates
-				} as DatabaseRecord
+				} as LibraryRecord
 				const currentOperationRevision = nextOperationRevision()
 				recordOperationRevisions.set(id, currentOperationRevision)
 				records.value[recordIndex] = optimisticRecord
@@ -638,37 +490,41 @@ export const useRecordsStore = defineStore('records', () => {
 				}
 
 				try {
-					if (confirmBeforeServer && !(await confirmMutationContext(context))) {
-						if (isCurrentAccountContext(context)) rollbackIfOwned()
+					const repositories = repositoriesFor(context)
+					if (!repositories) return null
+					const outcome = await repositories.records.update(context, {
+						id,
+						updates
+					})
+					if (!isCurrentAccountContext(context) || outcome.status === 'stale') {
 						return null
 					}
-					const { data, error } = await supabase
-						.from('records')
-						.update(updates)
-						.eq('id', id)
-						.select()
-						.single()
-
-					if (!isCurrentAccountContext(context)) return null
-					if (error) {
-						await onResponseFailure?.()
-						throw error
+					if (outcome.status !== 'success') {
+						throw outcome.status === 'unavailable'
+							? (outcome.error ?? new Error(outcome.reason))
+							: new Error(outcome.reason)
 					}
 					if (recordOperationRevisions.get(id) !== currentOperationRevision) {
 						return null
 					}
-
-					const decoded = decodeRecordRow(data)
-					reportDecodeIssues(decoded.issues, (message) =>
+					if (
+						!runtime.acceptRepositoryRevision(
+							context,
+							outcome.repositoryRevision
+						)
+					) {
+						return null
+					}
+					reportDecodeIssues(outcome.issues, (message) =>
 						toast.warning(message)
 					)
 					recordCommittedMutation(id, context, {
 						kind: 'update',
-						row: decoded.row
+						row: outcome.value
 					})
-					upsertRecord(decoded.row)
+					upsertRecord(outcome.value)
 					toast.success('Record updated successfully.')
-					return decoded.row
+					return outcome.value
 				} catch (error) {
 					if (!isCurrentAccountContext(context)) return null
 					if (recordOperationRevisions.get(id) !== currentOperationRevision) {
@@ -691,20 +547,12 @@ export const useRecordsStore = defineStore('records', () => {
 
 	async function updateRecord(
 		id: string,
-		updates: Partial<
-			Omit<DatabaseRecord, 'id' | 'user_id' | 'created_at' | 'updated_at'>
-		>
-	): Promise<DatabaseRecord | null> {
+		updates: RecordUpdateInput
+	): Promise<LibraryRecord | null> {
 		const activity = beginMutationActivity('update')
 		const immediateContext = captureImmediateAccountContext()
 		if (immediateContext) {
-			return updateRecordForContext(
-				immediateContext,
-				id,
-				updates,
-				activity,
-				true
-			)
+			return updateRecordForContext(immediateContext, id, updates, activity)
 		}
 		const context = await resolveMutationContext(activity.generation)
 		if (!context) {
@@ -717,19 +565,30 @@ export const useRecordsStore = defineStore('records', () => {
 	async function drainCoverCleanup(
 		options: CoverCleanupDrainOptions = {}
 	): Promise<boolean> {
-		if (isDemoStore) return true
+		if (runtime.capture().descriptor.location === 'demo') return true
 		const context = options.context ?? (await captureAccountContext())
 		if (!context || !isCurrentAccountContext(context)) return false
-		return coverCoordinator.drain(context, { fresh: options.fresh })
+		const repositories = repositoriesFor(context)
+		if (!repositories) return false
+		const outcome = await repositories.records.drainCoverCleanup(context, {
+			fresh: options.fresh
+		})
+		if (!isCurrentAccountContext(context) || outcome.status === 'stale') {
+			return false
+		}
+		if (outcome.status !== 'success') {
+			console.error('Failed to drain record cover cleanup.')
+			toast.warning('Some old cover files still need cleanup.')
+			return false
+		}
+		return runtime.acceptRepositoryRevision(context, outcome.repositoryRevision)
 	}
 
 	async function updateRecordWithCover(
 		id: string,
-		updates: Partial<
-			Omit<DatabaseRecord, 'id' | 'user_id' | 'created_at' | 'updated_at'>
-		>,
+		updates: RecordUpdateInput,
 		coverChange: RecordCoverChange
-	): Promise<DatabaseRecord | null> {
+	): Promise<LibraryRecord | null> {
 		if (coverChange.type === 'keep') return updateRecord(id, updates)
 
 		const activity = beginMutationActivity('cover')
@@ -742,26 +601,85 @@ export const useRecordsStore = defineStore('records', () => {
 				toast.error('Record not found.')
 				return null
 			}
-			const ownedContext = context
-			const outcome = await coverCoordinator.mutate({
-				context: ownedContext,
-				recordId: id,
-				change: coverChange,
-				persistCoverPath: (coverStoragePath, onResponseFailure) =>
-					updateRecordForContext(
-						ownedContext,
-						id,
-						{
-							...updates,
-							cover_storage_path: coverStoragePath
-						},
-						beginMutationActivity('update'),
-						false,
-						onResponseFailure
+			const operationContext = context
+			const repositories = repositoriesFor(operationContext)
+			if (!repositories) return null
+			return await runSerializedRecordOperation(
+				operationContext,
+				id,
+				null,
+				async () => {
+					const currentIndex = records.value.findIndex(
+						(record) => record.id === id
 					)
-			})
-			if (outcome.status === 'failed') throw outcome.error
-			return outcome.status === 'updated' ? outcome.record : null
+					if (currentIndex === -1) return null
+					const originalRecord = records.value[currentIndex]!
+					const optimisticRecord = { ...originalRecord, ...updates }
+					const currentOperationRevision = nextOperationRevision()
+					recordOperationRevisions.set(id, currentOperationRevision)
+					records.value[currentIndex] = optimisticRecord
+					try {
+						const outcome = await repositories.records.updateWithCover(
+							operationContext,
+							{
+								id,
+								updates,
+								change: coverChange
+							}
+						)
+						if (
+							!isCurrentAccountContext(operationContext) ||
+							outcome.status === 'stale' ||
+							recordOperationRevisions.get(id) !== currentOperationRevision
+						) {
+							return null
+						}
+						if (outcome.status !== 'success') {
+							throw outcome.status === 'unavailable'
+								? (outcome.error ?? new Error(outcome.reason))
+								: new Error(outcome.reason)
+						}
+						if (
+							!runtime.acceptRepositoryRevision(
+								operationContext,
+								outcome.repositoryRevision
+							)
+						) {
+							return null
+						}
+						reportDecodeIssues(outcome.issues, (message) =>
+							toast.warning(message)
+						)
+						recordCommittedMutation(id, operationContext, {
+							kind: 'update',
+							row: outcome.value
+						})
+						upsertRecord(outcome.value)
+						toast.success('Record updated successfully.')
+						return outcome.value
+					} catch (error) {
+						if (
+							isCurrentAccountContext(operationContext) &&
+							recordOperationRevisions.get(id) === currentOperationRevision
+						) {
+							const rollbackIndex = records.value.findIndex(
+								(record) => record.id === id
+							)
+							if (
+								rollbackIndex !== -1 &&
+								toRaw(records.value[rollbackIndex]) === optimisticRecord
+							) {
+								records.value[rollbackIndex] = originalRecord
+							}
+						}
+						throw error
+					} finally {
+						if (recordOperationRevisions.get(id) === currentOperationRevision) {
+							recordOperationRevisions.delete(id)
+						}
+					}
+				}
+			)
 		} catch (error) {
 			if (!context || !isCurrentAccountContext(context)) return null
 			console.error('Failed to update record cover:', error)
@@ -794,27 +712,38 @@ export const useRecordsStore = defineStore('records', () => {
 				async () => {
 					if (
 						originatingContext &&
-						!(await confirmMutationContext(operationContext))
+						!isCurrentAccountContext(operationContext)
 					) {
 						return false
 					}
 					const currentOperationRevision = nextOperationRevision()
 					recordOperationRevisions.set(id, currentOperationRevision)
 					try {
-						const { data, error } = await supabase.rpc(
-							'remove_record_from_collection',
-							{ target_record_id: id }
+						const repositories = repositoriesFor(operationContext)
+						if (!repositories) return false
+						const outcome = await repositories.records.removeFromCollection(
+							operationContext,
+							{ id }
 						)
-
 						if (
 							!isCurrentAccountContext(operationContext) ||
+							outcome.status === 'stale' ||
 							recordOperationRevisions.get(id) !== currentOperationRevision
 						) {
 							return false
 						}
-						if (error) throw error
-						if (!isExpectedRecordRemoval(data, id)) {
-							throw new Error('Invalid record removal response.')
+						if (outcome.status !== 'success') {
+							throw outcome.status === 'unavailable'
+								? (outcome.error ?? new Error(outcome.reason))
+								: new Error(outcome.reason)
+						}
+						if (
+							!runtime.acceptRepositoryRevision(
+								operationContext,
+								outcome.repositoryRevision
+							)
+						) {
+							return false
 						}
 
 						recordCommittedMutation(id, operationContext, { kind: 'delete' })
@@ -841,11 +770,11 @@ export const useRecordsStore = defineStore('records', () => {
 		}
 	}
 
-	function getRecordById(id: string): DatabaseRecord | undefined {
+	function getRecordById(id: string): LibraryRecord | undefined {
 		return recordsById.value.get(id)
 	}
 
-	function getRecordsByIds(ids: string[]): DatabaseRecord[] {
+	function getRecordsByIds(ids: string[]): LibraryRecord[] {
 		return ids.flatMap((id) => {
 			const record = recordsById.value.get(id)
 			return record ? [record] : []
@@ -867,11 +796,10 @@ export const useRecordsStore = defineStore('records', () => {
 
 	function clearRecords() {
 		accountGeneration += 1
-		coverCoordinator.reset()
+		runtime.capture().repositories.covers.reset()
 		fetchPromise = null
 		freshFetchPromise = null
-		accountUserId = null
-		activeFetchUserId = null
+		activeFetchContext = null
 		mutationRevision = 0
 		operationRevision = 0
 		recordMutationProvenance.clear()
