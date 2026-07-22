@@ -414,6 +414,10 @@ export type Database = {
 				}[]
 			}
 			delete_all_user_data: { Args: never; Returns: Json }
+			delete_discogs_user_rate_limit: {
+				Args: { target_user_id: string }
+				Returns: boolean
+			}
 			disconnect_discogs: { Args: never; Returns: undefined }
 			enqueue_record_cover_account_cleanup: {
 				Args: { target_user_id: string }
@@ -431,6 +435,21 @@ export type Database = {
 				Returns: {
 					object_name: string
 				}[]
+			}
+			mark_record_cover_cleanup_attempts: {
+				Args: {
+					attempted_at: string
+					observed_attempt_counts: number[]
+					target_job_ids: number[]
+					target_user_id: string
+				}
+				Returns: {
+					changed_job_id: number
+				}[]
+			}
+			prune_expired_discogs_user_rate_limits: {
+				Args: { maximum_rows: number }
+				Returns: number
 			}
 			release_record_cover_account_cleanup: {
 				Args: { expected_claim_token: string; target_user_id: string }
@@ -458,6 +477,10 @@ export type Database = {
 					isOneToOne: true
 					isSetofReturn: false
 				}
+			}
+			schedule_record_cover_account_cleanup: {
+				Args: { target_user_id: string }
+				Returns: boolean
 			}
 		}
 		Enums: {

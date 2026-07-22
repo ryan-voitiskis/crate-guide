@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(37);
+SELECT plan(44);
 
 SELECT has_table(
 	'public',
@@ -122,6 +122,39 @@ SELECT ok(
 	'application roles cannot invoke the trigger function directly'
 );
 SELECT ok(
+	to_regprocedure(
+		'public.mark_record_cover_cleanup_attempts(uuid,bigint[],integer[],timestamp with time zone)'
+	) IS NOT NULL,
+	'the set-based cleanup-attempt RPC exists'
+);
+SELECT ok(
+	(
+		SELECT prosecdef
+			AND proconfig @> ARRAY['search_path=pg_catalog, public']
+		FROM pg_proc
+		WHERE oid = 'public.mark_record_cover_cleanup_attempts(uuid,bigint[],integer[],timestamp with time zone)'::REGPROCEDURE
+	),
+	'the cleanup-attempt RPC is a hardened security definer'
+);
+SELECT ok(
+	NOT has_function_privilege(
+		'anon',
+		'public.mark_record_cover_cleanup_attempts(uuid,bigint[],integer[],timestamp with time zone)',
+		'EXECUTE'
+	)
+	AND NOT has_function_privilege(
+		'authenticated',
+		'public.mark_record_cover_cleanup_attempts(uuid,bigint[],integer[],timestamp with time zone)',
+		'EXECUTE'
+	)
+	AND has_function_privilege(
+		'service_role',
+		'public.mark_record_cover_cleanup_attempts(uuid,bigint[],integer[],timestamp with time zone)',
+		'EXECUTE'
+	),
+	'only the service role can invoke set-based attempt marking'
+);
+SELECT ok(
 	EXISTS (
 		SELECT 1
 		FROM pg_trigger
@@ -193,6 +226,99 @@ SELECT throws_like(
 );
 RESET ROLE;
 
+CREATE TEMPORARY TABLE cleanup_attempt_probe (
+	label TEXT PRIMARY KEY,
+	job_id BIGINT NOT NULL
+);
+GRANT SELECT ON cleanup_attempt_probe TO service_role;
+WITH inserted AS (
+	INSERT INTO public.record_cover_cleanup_jobs (
+		user_id,
+		record_id,
+		object_path,
+		attempt_count
+	)
+	VALUES (
+		'00000000-0000-0000-0000-000000000201',
+		'00000000-0000-0000-0000-000000000291',
+		'00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000291/attempt-fresh.webp',
+		0
+	)
+	RETURNING id
+)
+INSERT INTO cleanup_attempt_probe
+SELECT 'fresh', id FROM inserted;
+WITH inserted AS (
+	INSERT INTO public.record_cover_cleanup_jobs (
+		user_id,
+		record_id,
+		object_path,
+		attempt_count
+	)
+	VALUES (
+		'00000000-0000-0000-0000-000000000201',
+		'00000000-0000-0000-0000-000000000292',
+		'00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000292/attempt-stale.webp',
+		1
+	)
+	RETURNING id
+)
+INSERT INTO cleanup_attempt_probe
+SELECT 'stale', id FROM inserted;
+
+SET LOCAL ROLE service_role;
+SELECT is(
+	(
+		SELECT array_agg(changed_job_id ORDER BY changed_job_id)
+		FROM public.mark_record_cover_cleanup_attempts(
+			'00000000-0000-0000-0000-000000000201',
+			ARRAY[
+				(SELECT job_id FROM cleanup_attempt_probe WHERE label = 'fresh'),
+				(SELECT job_id FROM cleanup_attempt_probe WHERE label = 'stale')
+			]::BIGINT[],
+			ARRAY[0, 0]::INTEGER[],
+			'2026-07-22T05:00:00Z'::TIMESTAMPTZ
+		)
+	),
+	ARRAY[(SELECT job_id FROM cleanup_attempt_probe WHERE label = 'fresh')]::BIGINT[],
+	'the set-based RPC returns only the row whose observed count still matches'
+);
+SELECT ok(
+	(
+		SELECT attempt_count = 1
+			AND last_attempted_at = '2026-07-22T05:00:00Z'::TIMESTAMPTZ
+		FROM public.record_cover_cleanup_jobs
+		WHERE id = (
+			SELECT job_id FROM cleanup_attempt_probe WHERE label = 'fresh'
+		)
+	),
+	'a matching row increments once and receives the shared attempt timestamp'
+);
+SELECT ok(
+	(
+		SELECT attempt_count = 1 AND last_attempted_at IS NULL
+		FROM public.record_cover_cleanup_jobs
+		WHERE id = (
+			SELECT job_id FROM cleanup_attempt_probe WHERE label = 'stale'
+		)
+	),
+	'a concurrently advanced row is not incremented or restamped'
+);
+SELECT throws_like(
+	$$
+		SELECT *
+		FROM public.mark_record_cover_cleanup_attempts(
+			'00000000-0000-0000-0000-000000000201',
+			ARRAY(SELECT value::BIGINT FROM generate_series(1, 101) AS value),
+			ARRAY(SELECT 0 FROM generate_series(1, 101)),
+			statement_timestamp()
+		)
+	$$,
+	'%cleanup attempt batch exceeds 100 jobs%',
+	'the set-based RPC rejects a batch above the handler limit'
+);
+RESET ROLE;
+
 INSERT INTO auth.users (id)
 VALUES
 	('00000000-0000-0000-0000-000000000201'),
@@ -214,7 +340,7 @@ VALUES
 		'Replace cover',
 		'[]'::JSONB,
 		'[]'::JSONB,
-		'00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/old.webp'
+		'00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/20000000-0000-4000-8000-000000000001.webp'
 	),
 	(
 		'00000000-0000-0000-0000-000000000212',
@@ -230,7 +356,7 @@ VALUES
 		'Delete cover',
 		'[]'::JSONB,
 		'[]'::JSONB,
-		'00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000213/delete.webp'
+		'00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000213/20000000-0000-4000-8000-000000000002.webp'
 	),
 	(
 		'00000000-0000-0000-0000-000000000214',
@@ -238,31 +364,31 @@ VALUES
 		'Rollback cover',
 		'[]'::JSONB,
 		'[]'::JSONB,
-		'00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000214/rollback.webp'
+		'00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000214/20000000-0000-4000-8000-000000000003.webp'
 	),
 	(
 		'00000000-0000-0000-0000-000000000215',
 		'00000000-0000-0000-0000-000000000201',
-		'Cross-user legacy path',
+		'Cross-user path rejected',
 		'[]'::JSONB,
 		'[]'::JSONB,
-		'00000000-0000-0000-0000-000000000202/00000000-0000-0000-0000-000000000215/unsafe.webp'
+		NULL
 	),
 	(
 		'00000000-0000-0000-0000-000000000216',
 		'00000000-0000-0000-0000-000000000201',
-		'Nested legacy path',
+		'Nested path rejected',
 		'[]'::JSONB,
 		'[]'::JSONB,
-		'00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000216/nested/unsafe.webp'
+		NULL
 	),
 	(
 		'00000000-0000-0000-0000-000000000217',
 		'00000000-0000-0000-0000-000000000201',
-		'External legacy path',
+		'External path rejected',
 		'[]'::JSONB,
 		'[]'::JSONB,
-		'https://covers.example/unsafe.webp'
+		NULL
 	),
 	(
 		'00000000-0000-0000-0000-000000000218',
@@ -270,7 +396,7 @@ VALUES
 		'Auth cascade cover',
 		'[]'::JSONB,
 		'[]'::JSONB,
-		'00000000-0000-0000-0000-000000000203/00000000-0000-0000-0000-000000000218/cascade.webp'
+		'00000000-0000-0000-0000-000000000203/00000000-0000-0000-0000-000000000218/20000000-0000-4000-8000-000000000006.webp'
 	);
 
 SET LOCAL ROLE authenticated;
@@ -303,7 +429,7 @@ SELECT throws_like(
 SELECT lives_ok(
 	$$
 		UPDATE public.records
-		SET cover_storage_path = '00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/new.webp'
+		SET cover_storage_path = '00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/20000000-0000-4000-8000-000000000004.webp'
 		WHERE id = '00000000-0000-0000-0000-000000000211'
 	$$,
 	'an authenticated cover replacement atomically enqueues through the definer trigger'
@@ -318,7 +444,7 @@ SELECT is(
 		ORDER BY id
 		LIMIT 1
 	),
-	'00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/old.webp',
+	'00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/20000000-0000-4000-8000-000000000001.webp',
 	'replacement queues the old managed path'
 );
 SELECT is(
@@ -367,7 +493,7 @@ SELECT set_config(
 SELECT lives_ok(
 	$$
 		UPDATE public.records
-		SET cover_storage_path = '00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000212/first.webp'
+		SET cover_storage_path = '00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000212/20000000-0000-4000-8000-000000000005.webp'
 		WHERE id = '00000000-0000-0000-0000-000000000212'
 	$$,
 	'setting the first managed path succeeds without obsolete work'
@@ -400,12 +526,12 @@ INSERT INTO record_cover_cleanup_dedup_probe (
 VALUES (
 	'00000000-0000-0000-0000-000000000211',
 	'00000000-0000-0000-0000-000000000201',
-	'00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/new.webp'
+	'00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/20000000-0000-4000-8000-000000000004.webp'
 );
 UPDATE record_cover_cleanup_dedup_probe
-SET cover_storage_path = '00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/old.webp';
+SET cover_storage_path = '00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/20000000-0000-4000-8000-000000000001.webp';
 UPDATE record_cover_cleanup_dedup_probe
-SET cover_storage_path = '00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/new.webp';
+SET cover_storage_path = '00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000211/20000000-0000-4000-8000-000000000004.webp';
 SELECT is(
 	(
 		SELECT count(*)
@@ -468,27 +594,32 @@ SELECT set_config(
 	'00000000-0000-0000-0000-000000000201',
 	true
 );
-SELECT lives_ok(
-	$$
-		DELETE FROM public.records
-		WHERE id = '00000000-0000-0000-0000-000000000215'
-	$$,
-	'a cross-user legacy path does not brick record deletion'
-);
-SELECT lives_ok(
+SELECT throws_like(
 	$$
 		UPDATE public.records
-		SET cover_storage_path = NULL
+		SET cover_storage_path = '00000000-0000-0000-0000-000000000202/00000000-0000-0000-0000-000000000215/20000000-0000-4000-8000-000000000007.webp'
+		WHERE id = '00000000-0000-0000-0000-000000000215'
+	$$,
+	'%records_cover_storage_path_ownership_check%',
+	'a cross-user path cannot enter the managed column'
+);
+SELECT throws_like(
+	$$
+		UPDATE public.records
+		SET cover_storage_path = '00000000-0000-0000-0000-000000000201/00000000-0000-0000-0000-000000000216/nested/unsafe.webp'
 		WHERE id = '00000000-0000-0000-0000-000000000216'
 	$$,
-	'a nested legacy path does not brick cover removal'
+	'%records_cover_storage_path_ownership_check%',
+	'a nested path cannot enter the managed column'
 );
-SELECT lives_ok(
+SELECT throws_like(
 	$$
-		DELETE FROM public.records
+		UPDATE public.records
+		SET cover_storage_path = 'https://covers.example/unsafe.webp'
 		WHERE id = '00000000-0000-0000-0000-000000000217'
 	$$,
-	'an external URL in the legacy path column does not brick record deletion'
+	'%records_cover_storage_path_ownership_check%',
+	'an external URL cannot enter the managed column'
 );
 RESET ROLE;
 SELECT is(
@@ -502,7 +633,7 @@ SELECT is(
 		)
 	),
 	0::BIGINT,
-	'invalid legacy paths never become service-role cleanup jobs'
+	'rejected invalid paths never become service-role cleanup jobs'
 );
 
 SELECT lives_ok(
@@ -522,7 +653,7 @@ SELECT ok(
 		SELECT 1
 		FROM public.record_cover_cleanup_jobs
 		WHERE record_id = '00000000-0000-0000-0000-000000000218'
-			AND object_path = '00000000-0000-0000-0000-000000000203/00000000-0000-0000-0000-000000000218/cascade.webp'
+			AND object_path = '00000000-0000-0000-0000-000000000203/00000000-0000-0000-0000-000000000218/20000000-0000-4000-8000-000000000006.webp'
 	),
 	'cascading auth deletion enqueues a job that survives both deleted parents'
 );

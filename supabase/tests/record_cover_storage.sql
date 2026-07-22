@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(12);
+SELECT plan(17);
 
 SELECT has_column(
 	'public',
@@ -70,6 +70,17 @@ SELECT ok(
 SELECT ok(
 	EXISTS (
 		SELECT 1
+		FROM pg_constraint
+		WHERE conrelid = 'public.records'::REGCLASS
+			AND conname = 'records_cover_storage_path_ownership_check'
+			AND contype = 'c'
+	),
+	'record rows enforce managed cover ownership and filename shape'
+);
+
+SELECT ok(
+	EXISTS (
+		SELECT 1
 		FROM pg_policies
 		WHERE schemaname = 'storage'
 			AND tablename = 'objects'
@@ -129,6 +140,42 @@ SELECT throws_like(
 	$$,
 	'%row-level security policy%',
 	'new shallow upload paths are rejected'
+);
+
+SELECT lives_ok(
+	$$
+		UPDATE public.records
+		SET cover_storage_path = '00000000-0000-0000-0000-000000000701/00000000-0000-0000-0000-000000000711/00000000-0000-4000-8000-000000000721.webp'
+		WHERE id = '00000000-0000-0000-0000-000000000711'
+	$$,
+	'the exact user, record, and managed UUID WebP path is accepted'
+);
+SELECT throws_like(
+	$$
+		UPDATE public.records
+		SET cover_storage_path = '00000000-0000-0000-0000-000000000799/00000000-0000-0000-0000-000000000711/00000000-0000-4000-8000-000000000722.webp'
+		WHERE id = '00000000-0000-0000-0000-000000000711'
+	$$,
+	'%records_cover_storage_path_ownership_check%',
+	'a cross-user managed path is rejected'
+);
+SELECT throws_like(
+	$$
+		UPDATE public.records
+		SET cover_storage_path = '00000000-0000-0000-0000-000000000701/00000000-0000-0000-0000-000000000799/00000000-0000-4000-8000-000000000723.webp'
+		WHERE id = '00000000-0000-0000-0000-000000000711'
+	$$,
+	'%records_cover_storage_path_ownership_check%',
+	'a cross-record managed path is rejected'
+);
+SELECT throws_like(
+	$$
+		UPDATE public.records
+		SET cover_storage_path = '00000000-0000-0000-0000-000000000701/00000000-0000-0000-0000-000000000711/custom.webp'
+		WHERE id = '00000000-0000-0000-0000-000000000711'
+	$$,
+	'%records_cover_storage_path_ownership_check%',
+	'a non-managed filename is rejected'
 );
 
 SELECT * FROM finish();

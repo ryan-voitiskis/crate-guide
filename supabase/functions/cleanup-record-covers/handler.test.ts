@@ -1,9 +1,10 @@
-import type { User } from '@supabase/supabase-js'
+import type { SupabaseClient, User } from '@supabase/supabase-js'
 import assert from 'node:assert/strict'
 import {
 	CLEANUP_JOB_LIMIT,
 	type CleanupJob,
-	createCleanupRecordCoversHandler
+	createCleanupRecordCoversHandler,
+	createCleanupRepository
 } from './handler.ts'
 
 const USER_ID = '00000000-0000-4000-8000-000000000301'
@@ -45,7 +46,7 @@ function dependencies(
 			userId: string,
 			jobs: CleanupJob[],
 			attemptedAt: string
-		) => Promise<void>
+		) => Promise<number[]>
 		processOrphanedAccountCleanup?: () => Promise<void>
 		scheduleBackground?: (task: Promise<void>) => void
 	} = {}
@@ -55,13 +56,13 @@ function dependencies(
 			overrides.authenticate ??
 			(() => Promise.resolve({ id: USER_ID } as User)),
 		now: () => new Date(ATTEMPTED_AT),
-		createAdmin: () => ({
+		createRepository: () => ({
 			loadJobs: overrides.loadJobs ?? (() => Promise.resolve([])),
 			findReferencedPaths:
 				overrides.findReferencedPaths ?? (() => Promise.resolve(new Set())),
 			removeObjects: overrides.removeObjects ?? (() => Promise.resolve()),
 			deleteJobs: overrides.deleteJobs ?? (() => Promise.resolve()),
-			markAttempts: overrides.markAttempts ?? (() => Promise.resolve())
+			markAttempts: overrides.markAttempts ?? (() => Promise.resolve([]))
 		}),
 		processOrphanedAccountCleanup:
 			overrides.processOrphanedAccountCleanup ?? (() => Promise.resolve()),
@@ -91,16 +92,16 @@ Deno.test('cleanup-record-covers rejects non-POST methods', async () => {
 Deno.test(
 	'cleanup-record-covers requires verified authentication',
 	async () => {
-		let didCreateAdmin = false
+		let didCreateRepository = false
 		const handler = createCleanupRecordCoversHandler(
 			{ 'Content-Type': 'application/json' },
 			{
 				...dependencies({
 					authenticate: () => Promise.reject(new Error('private auth detail'))
 				}),
-				createAdmin: () => {
-					didCreateAdmin = true
-					throw new Error('must not create admin')
+				createRepository: () => {
+					didCreateRepository = true
+					throw new Error('must not create repository')
 				}
 			}
 		)
@@ -109,19 +110,19 @@ Deno.test(
 
 		assert.equal(response.status, 401)
 		assert.equal((await response.json()).code, 'authentication_required')
-		assert.equal(didCreateAdmin, false)
+		assert.equal(didCreateRepository, false)
 	}
 )
 
 Deno.test('cleanup-record-covers rejects all request bodies', async () => {
-	let didCreateAdmin = false
+	let didCreateRepository = false
 	const handler = createCleanupRecordCoversHandler(
 		{ 'Content-Type': 'application/json' },
 		{
 			...dependencies(),
-			createAdmin: () => {
-				didCreateAdmin = true
-				throw new Error('must not create admin')
+			createRepository: () => {
+				didCreateRepository = true
+				throw new Error('must not create repository')
 			}
 		}
 	)
@@ -130,7 +131,7 @@ Deno.test('cleanup-record-covers rejects all request bodies', async () => {
 
 	assert.equal(response.status, 400)
 	assert.equal((await response.json()).code, 'invalid_request')
-	assert.equal(didCreateAdmin, false)
+	assert.equal(didCreateRepository, false)
 })
 
 Deno.test(
@@ -368,7 +369,7 @@ Deno.test(
 							attempt_count: item.attempt_count + 1
 						}))
 						markedAt = attemptedAt
-						return Promise.resolve()
+						return Promise.resolve(jobs.map(({ id }) => id))
 					}
 				})
 			)
@@ -409,7 +410,7 @@ Deno.test(
 				deleteJobs: () => Promise.reject(new Error('database unavailable')),
 				markAttempts: (_userId, jobs) => {
 					markedJobs = jobs
-					return Promise.resolve()
+					return Promise.resolve(jobs.map(({ id }) => id))
 				}
 			})
 		)
@@ -426,6 +427,84 @@ Deno.test(
 		})
 		assert.equal(didRemove, true)
 		assert.deepEqual(markedJobs, [pending])
+	}
+)
+
+Deno.test(
+	'cleanup repository marks 100 failed jobs with one set-based RPC',
+	async () => {
+		const failedJobs = Array.from({ length: CLEANUP_JOB_LIMIT }, (_, index) =>
+			job({ id: index + 1, attempt_count: index })
+		)
+		const rpcCalls: Array<{ name: string; args: Record<string, unknown> }> = []
+		const supabase = {
+			storage: {
+				from: () => ({ remove: () => Promise.resolve({ error: null }) })
+			},
+			from: () => {
+				throw new Error('table query was not expected')
+			},
+			rpc: (name: string, args: Record<string, unknown>) => {
+				rpcCalls.push({ name, args })
+				return Promise.resolve({
+					data: failedJobs.map(({ id }) => ({ changed_job_id: id })),
+					error: null
+				})
+			}
+		} as unknown as SupabaseClient
+		const repository = createCleanupRepository(supabase)
+
+		const changedIds = await repository.markAttempts(
+			USER_ID,
+			failedJobs,
+			ATTEMPTED_AT
+		)
+
+		assert.deepEqual(
+			changedIds,
+			failedJobs.map(({ id }) => id)
+		)
+		assert.equal(rpcCalls.length, 1)
+		assert.equal(rpcCalls[0]?.name, 'mark_record_cover_cleanup_attempts')
+		assert.deepEqual(rpcCalls[0]?.args, {
+			target_user_id: USER_ID,
+			target_job_ids: failedJobs.map(({ id }) => id),
+			observed_attempt_counts: failedJobs.map(
+				({ attempt_count }) => attempt_count
+			),
+			attempted_at: ATTEMPTED_AT
+		})
+	}
+)
+
+Deno.test(
+	'cleanup-record-covers submits one attempt batch for 100 storage failures',
+	async () => {
+		const failedJobs = Array.from({ length: CLEANUP_JOB_LIMIT }, (_, index) =>
+			job({ id: index + 1 })
+		)
+		let markCalls = 0
+		let markedCount = 0
+		const handler = createCleanupRecordCoversHandler(
+			{ 'Content-Type': 'application/json' },
+			dependencies({
+				loadJobs: () => Promise.resolve(failedJobs),
+				removeObjects: () => Promise.reject(new Error('storage unavailable')),
+				markAttempts: (_userId, jobs) => {
+					markCalls += 1
+					markedCount = jobs.length
+					return Promise.resolve([])
+				}
+			})
+		)
+
+		const response = await handler(request())
+		const payload = await response.json()
+
+		assert.equal(response.status, 503)
+		assert.equal(payload.deferred, CLEANUP_JOB_LIMIT)
+		assert.equal(markCalls, 1)
+		assert.equal(markedCount, CLEANUP_JOB_LIMIT)
 	}
 )
 
@@ -447,7 +526,7 @@ Deno.test(
 				},
 				markAttempts: (_userId, jobs) => {
 					markedJobs = jobs
-					return Promise.resolve()
+					return Promise.resolve(jobs.map(({ id }) => id))
 				}
 			})
 		)

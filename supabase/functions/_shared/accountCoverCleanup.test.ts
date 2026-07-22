@@ -1,13 +1,10 @@
 import assert from 'node:assert/strict'
 import {
 	ACCOUNT_COVER_ENUMERATION_LIMIT,
-	ACCOUNT_COVER_STORAGE_BATCH_LIMIT,
-	type AccountCoverCleanupAdapter,
 	type AccountCoverCleanupClaim,
-	AccountCoverCleanupError,
-	type AccountCoverStorageEntry,
-	processOneAccountCoverCleanup,
-	removeAllAccountCoverObjects
+	type AccountCoverCleanupRepository,
+	DISCOGS_RATE_LIMIT_PRUNE_LIMIT,
+	processNextAccountCoverCleanup
 } from './accountCoverCleanup.ts'
 
 const USER_ID = '00000000-0000-4000-8000-000000000501'
@@ -22,24 +19,21 @@ function objectRows(paths: string[]): Array<{ object_name: string }> {
 }
 
 function adapter(
-	overrides: Partial<AccountCoverCleanupAdapter> = {}
-): AccountCoverCleanupAdapter {
+	overrides: Partial<AccountCoverCleanupRepository> = {}
+): AccountCoverCleanupRepository {
 	return {
-		listFolder: () => Promise.resolve([]),
 		listClaimedObjects: () => Promise.resolve([]),
 		removeObjects: () => Promise.resolve(),
 		deleteOrdinaryJobs: () => Promise.resolve(),
-		enqueue: () => Promise.resolve(CLAIM),
+		schedule: () => Promise.resolve(),
 		claim: () => Promise.resolve(CLAIM),
 		complete: () => Promise.resolve(true),
 		release: () => Promise.resolve(true),
 		authUserExists: () => Promise.resolve(false),
+		deleteUserRateLimit: () => Promise.resolve(),
+		pruneExpiredUserRateLimits: () => Promise.resolve(),
 		...overrides
 	}
-}
-
-function file(name: string): AccountCoverStorageEntry {
-	return { id: `id:${name}`, name }
 }
 
 function storedObjects(count: number): Set<string> {
@@ -54,8 +48,8 @@ function storedObjects(count: number): Set<string> {
 
 function enumeratingAdapter(
 	objects: Set<string>,
-	overrides: Partial<AccountCoverCleanupAdapter> = {}
-): AccountCoverCleanupAdapter {
+	overrides: Partial<AccountCoverCleanupRepository> = {}
+): AccountCoverCleanupRepository {
 	return adapter({
 		listClaimedObjects: () =>
 			Promise.resolve(
@@ -71,111 +65,16 @@ function enumeratingAdapter(
 	})
 }
 
-Deno.test(
-	'full account deletion keeps its separate recursive Storage traversal',
-	async () => {
-		const deepPath = Array.from({ length: 10 }, (_, index) => `level-${index}`)
-		const removed: string[][] = []
-		let didRemove = false
-		const cleanupAdapter = adapter({
-			listFolder(path) {
-				if (didRemove) return Promise.resolve([])
-				const relativeSegments = path.split('/').slice(1)
-				if (relativeSegments.length < deepPath.length) {
-					return Promise.resolve([
-						{ id: null, name: deepPath[relativeSegments.length]! }
-					])
-				}
-				return Promise.resolve([file('cover.webp')])
-			},
-			removeObjects(paths) {
-				removed.push(paths)
-				didRemove = true
-				return Promise.resolve()
-			}
-		})
-
-		await removeAllAccountCoverObjects(cleanupAdapter, USER_ID)
-
-		assert.deepEqual(removed, [[`${USER_ID}/${deepPath.join('/')}/cover.webp`]])
-	}
-)
-
-Deno.test(
-	'full account deletion reaches 206 root and nested objects in bounded batches',
-	async () => {
-		const rootFiles = Array.from({ length: 205 }, (_, index) =>
-			file(`cover-${index.toString().padStart(3, '0')}.webp`)
-		)
-		const nestedFile = file('alternate.webp')
-		const removed: string[][] = []
-		let didRemoveAll = false
-		const cleanupAdapter = adapter({
-			listFolder(path, offset, limit) {
-				if (didRemoveAll) return Promise.resolve([])
-				if (path === USER_ID) {
-					const entries: AccountCoverStorageEntry[] = [
-						{ id: null, name: 'nested' },
-						...rootFiles
-					]
-					return Promise.resolve(entries.slice(offset, offset + limit))
-				}
-				if (path === `${USER_ID}/nested`) {
-					return Promise.resolve(offset === 0 ? [nestedFile] : [])
-				}
-				throw new Error(`unexpected path: ${path}`)
-			},
-			removeObjects(paths) {
-				removed.push(paths)
-				didRemoveAll = removed.flat().length === 206
-				return Promise.resolve()
-			}
-		})
-
-		await removeAllAccountCoverObjects(cleanupAdapter, USER_ID)
-
-		assert.deepEqual(
-			new Set(removed.flat()),
-			new Set([
-				...rootFiles.map(({ name }) => `${USER_ID}/${name}`),
-				`${USER_ID}/nested/${nestedFile.name}`
-			])
-		)
-		assert.equal(removed.flat().length, 206)
-		assert.ok(
-			removed.every(
-				({ length }) =>
-					length > 0 && length <= ACCOUNT_COVER_STORAGE_BATCH_LIMIT
-			)
-		)
-	}
-)
-
-Deno.test(
-	'full account deletion rejects unsafe recursive paths before removal',
-	async () => {
-		let didRemove = false
-		const cleanupAdapter = adapter({
-			listFolder: () => Promise.resolve([{ id: 'object', name: '../unsafe' }]),
-			removeObjects: () => {
-				didRemove = true
-				return Promise.resolve()
-			}
-		})
-
-		await assert.rejects(
-			() => removeAllAccountCoverObjects(cleanupAdapter, USER_ID),
-			AccountCoverCleanupError
-		)
-		assert.equal(didRemove, false)
-	}
-)
-
 Deno.test('account cover retry is a no-op without a claim', async () => {
 	let didEnumerate = false
-	const result = await processOneAccountCoverCleanup(
+	const pruneLimits: number[] = []
+	const result = await processNextAccountCoverCleanup(
 		adapter({
 			claim: () => Promise.resolve(null),
+			pruneExpiredUserRateLimits: (limit) => {
+				pruneLimits.push(limit)
+				return Promise.resolve()
+			},
 			listClaimedObjects: () => {
 				didEnumerate = true
 				return Promise.resolve([])
@@ -189,13 +88,33 @@ Deno.test('account cover retry is a no-op without a claim', async () => {
 		failed: false
 	})
 	assert.equal(didEnumerate, false)
+	assert.deepEqual(pruneLimits, [DISCOGS_RATE_LIMIT_PRUNE_LIMIT])
 })
+
+Deno.test(
+	'expired quota pruning failure does not block durable cleanup',
+	async () => {
+		const result = await processNextAccountCoverCleanup(
+			adapter({
+				claim: () => Promise.resolve(null),
+				pruneExpiredUserRateLimits: () =>
+					Promise.reject(new Error('private quota cleanup detail'))
+			})
+		)
+
+		assert.deepEqual(result, {
+			processed: false,
+			complete: false,
+			failed: false
+		})
+	}
+)
 
 Deno.test(
 	'account cover retry releases a live account without enumerating objects',
 	async () => {
 		const steps: string[] = []
-		const result = await processOneAccountCoverCleanup(
+		const result = await processNextAccountCoverCleanup(
 			adapter({
 				authUserExists: () => {
 					steps.push('auth-user-exists')
@@ -224,7 +143,7 @@ Deno.test(
 	'account cover retry cannot release a concurrently rotated claim',
 	async () => {
 		let releases = 0
-		const result = await processOneAccountCoverCleanup(
+		const result = await processNextAccountCoverCleanup(
 			adapter({
 				authUserExists: () => Promise.resolve(true),
 				release: () => {
@@ -252,7 +171,7 @@ Deno.test(
 		).join('/')}/cover.webp`
 		const objects = new Set([deepObject])
 		const removed: string[][] = []
-		const result = await processOneAccountCoverCleanup(
+		const result = await processNextAccountCoverCleanup(
 			enumeratingAdapter(objects, {
 				removeObjects: (paths) => {
 					removed.push(paths)
@@ -276,7 +195,7 @@ Deno.test('exactly 100 objects remove and confirm in one retry', async () => {
 	const objects = storedObjects(100)
 	const removed: string[][] = []
 	let enumerations = 0
-	const result = await processOneAccountCoverCleanup(
+	const result = await processNextAccountCoverCleanup(
 		enumeratingAdapter(objects, {
 			listClaimedObjects: () => {
 				enumerations += 1
@@ -328,7 +247,7 @@ Deno.test(
 			}
 		})
 
-		const first = await processOneAccountCoverCleanup(cleanupAdapter)
+		const first = await processNextAccountCoverCleanup(cleanupAdapter)
 		assert.deepEqual(first, {
 			processed: true,
 			complete: false,
@@ -338,7 +257,7 @@ Deno.test(
 		assert.equal(enumerations, 1)
 		assert.equal(releases, 1)
 
-		const second = await processOneAccountCoverCleanup(cleanupAdapter)
+		const second = await processNextAccountCoverCleanup(cleanupAdapter)
 		assert.equal(second.complete, true)
 		assert.equal(objects.size, 0)
 		assert.equal(enumerations, 3)
@@ -356,13 +275,13 @@ Deno.test('201 objects make monotonic 100, 100, 1 progress', async () => {
 		}
 	})
 
-	const first = await processOneAccountCoverCleanup(cleanupAdapter)
+	const first = await processNextAccountCoverCleanup(cleanupAdapter)
 	assert.equal(first.complete, false)
 	assert.equal(objects.size, 101)
-	const second = await processOneAccountCoverCleanup(cleanupAdapter)
+	const second = await processNextAccountCoverCleanup(cleanupAdapter)
 	assert.equal(second.complete, false)
 	assert.equal(objects.size, 1)
-	const third = await processOneAccountCoverCleanup(cleanupAdapter)
+	const third = await processNextAccountCoverCleanup(cleanupAdapter)
 	assert.equal(third.complete, true)
 	assert.equal(objects.size, 0)
 	assert.deepEqual(removalSizes, [100, 100, 1])
@@ -388,7 +307,7 @@ Deno.test('malformed or ambiguous object rows fail closed', async () => {
 		let didRemove = false
 		let didComplete = false
 		let releases = 0
-		const result = await processOneAccountCoverCleanup(
+		const result = await processNextAccountCoverCleanup(
 			adapter({
 				listClaimedObjects: () => Promise.resolve(malformed),
 				removeObjects: () => {
@@ -424,7 +343,7 @@ Deno.test('a confirmation race retains the outbox job', async () => {
 	let didDeleteOrdinary = false
 	let didComplete = false
 	let releases = 0
-	const result = await processOneAccountCoverCleanup(
+	const result = await processNextAccountCoverCleanup(
 		adapter({
 			listClaimedObjects: () => {
 				enumeration += 1
@@ -462,7 +381,7 @@ Deno.test(
 	'completion follows confirmed emptiness and ordinary-job deletion',
 	async () => {
 		const steps: string[] = []
-		const result = await processOneAccountCoverCleanup(
+		const result = await processNextAccountCoverCleanup(
 			adapter({
 				listClaimedObjects: () => {
 					steps.push('enumerate')
@@ -470,6 +389,10 @@ Deno.test(
 				},
 				deleteOrdinaryJobs: () => {
 					steps.push('delete-ordinary')
+					return Promise.resolve()
+				},
+				deleteUserRateLimit: (userId) => {
+					steps.push(`delete-rate-limit:${userId}`)
 					return Promise.resolve()
 				},
 				complete: () => {
@@ -484,8 +407,43 @@ Deno.test(
 			'enumerate',
 			'enumerate',
 			'delete-ordinary',
+			`delete-rate-limit:${USER_ID}`,
 			'complete'
 		])
+	}
+)
+
+Deno.test(
+	'account retry retains durable work when user quota deletion is ambiguous',
+	async () => {
+		const steps: string[] = []
+		const result = await processNextAccountCoverCleanup(
+			adapter({
+				deleteOrdinaryJobs: () => {
+					steps.push('delete-ordinary')
+					return Promise.resolve()
+				},
+				deleteUserRateLimit: () => {
+					steps.push('delete-rate-limit')
+					return Promise.reject(new Error('private quota cleanup detail'))
+				},
+				complete: () => {
+					steps.push('complete')
+					return Promise.resolve(true)
+				},
+				release: () => {
+					steps.push('release')
+					return Promise.resolve(true)
+				}
+			})
+		)
+
+		assert.deepEqual(result, {
+			processed: true,
+			complete: false,
+			failed: true
+		})
+		assert.deepEqual(steps, ['delete-ordinary', 'delete-rate-limit', 'release'])
 	}
 )
 
@@ -515,8 +473,8 @@ Deno.test(
 			}
 		})
 
-		const firstMinute = await processOneAccountCoverCleanup(cleanupAdapter)
-		const secondMinute = await processOneAccountCoverCleanup(cleanupAdapter)
+		const firstMinute = await processNextAccountCoverCleanup(cleanupAdapter)
+		const secondMinute = await processNextAccountCoverCleanup(cleanupAdapter)
 
 		assert.equal(firstMinute.complete, false)
 		assert.equal(secondMinute.complete, true)
@@ -533,7 +491,7 @@ Deno.test(
 	'account retry retains and releases durable work on ambiguous deletion',
 	async () => {
 		const steps: string[] = []
-		const result = await processOneAccountCoverCleanup(
+		const result = await processNextAccountCoverCleanup(
 			adapter({
 				deleteOrdinaryJobs: () => {
 					steps.push('delete-ordinary')
@@ -560,7 +518,7 @@ Deno.test(
 )
 
 Deno.test('account retry redacts claim failures', async () => {
-	const result = await processOneAccountCoverCleanup(
+	const result = await processNextAccountCoverCleanup(
 		adapter({ claim: () => Promise.reject(new Error('private claim detail')) })
 	)
 

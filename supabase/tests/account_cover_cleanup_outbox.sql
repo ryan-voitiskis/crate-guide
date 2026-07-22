@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(43);
+SELECT plan(47);
 
 SELECT has_table(
 	'public',
@@ -64,6 +64,9 @@ SELECT ok(
 );
 SELECT ok(
 	to_regprocedure('public.enqueue_record_cover_account_cleanup(uuid)') IS NOT NULL
+	AND to_regprocedure(
+		'public.schedule_record_cover_account_cleanup(uuid)'
+	) IS NOT NULL
 	AND to_regprocedure('public.claim_record_cover_account_cleanup()') IS NOT NULL
 	AND to_regprocedure(
 		'public.complete_record_cover_account_cleanup(uuid,uuid)'
@@ -82,6 +85,7 @@ SELECT ok(
 		FROM pg_proc
 		WHERE oid IN (
 			'public.enqueue_record_cover_account_cleanup(uuid)'::regprocedure,
+			'public.schedule_record_cover_account_cleanup(uuid)'::regprocedure,
 			'public.claim_record_cover_account_cleanup()'::regprocedure,
 			'public.complete_record_cover_account_cleanup(uuid,uuid)'::regprocedure,
 			'public.release_record_cover_account_cleanup(uuid,uuid)'::regprocedure,
@@ -98,6 +102,7 @@ SELECT ok(
 		FROM pg_proc
 		WHERE oid IN (
 			'public.enqueue_record_cover_account_cleanup(uuid)'::regprocedure,
+			'public.schedule_record_cover_account_cleanup(uuid)'::regprocedure,
 			'public.claim_record_cover_account_cleanup()'::regprocedure,
 			'public.complete_record_cover_account_cleanup(uuid,uuid)'::regprocedure,
 			'public.release_record_cover_account_cleanup(uuid,uuid)'::regprocedure,
@@ -115,6 +120,16 @@ SELECT ok(
 	AND NOT has_function_privilege(
 		'authenticated',
 		'public.enqueue_record_cover_account_cleanup(uuid)',
+		'EXECUTE'
+	)
+	AND NOT has_function_privilege(
+		'anon',
+		'public.schedule_record_cover_account_cleanup(uuid)',
+		'EXECUTE'
+	)
+	AND NOT has_function_privilege(
+		'authenticated',
+		'public.schedule_record_cover_account_cleanup(uuid)',
 		'EXECUTE'
 	)
 	AND NOT has_function_privilege(
@@ -163,6 +178,11 @@ SELECT ok(
 	has_function_privilege(
 		'service_role',
 		'public.enqueue_record_cover_account_cleanup(uuid)',
+		'EXECUTE'
+	)
+	AND has_function_privilege(
+		'service_role',
+		'public.schedule_record_cover_account_cleanup(uuid)',
 		'EXECUTE'
 	)
 	AND has_function_privilege(
@@ -435,15 +455,17 @@ CREATE TEMPORARY TABLE account_cleanup_claims (
 	claim_token UUID NOT NULL
 );
 
-INSERT INTO account_cleanup_claims
-SELECT 'first-enqueue', claimed_user_id, claim_token
-FROM public.enqueue_record_cover_account_cleanup(
-	'00000000-0000-0000-0000-000000000401'
+SELECT ok(
+	public.schedule_record_cover_account_cleanup(
+		'00000000-0000-0000-0000-000000000401'
+	),
+	'the deletion path durably schedules an account without taking a claim'
 );
-INSERT INTO account_cleanup_claims
-SELECT 'second-enqueue', claimed_user_id, claim_token
-FROM public.enqueue_record_cover_account_cleanup(
-	'00000000-0000-0000-0000-000000000401'
+SELECT ok(
+	public.schedule_record_cover_account_cleanup(
+		'00000000-0000-0000-0000-000000000401'
+	),
+	'repeated deletion scheduling remains positively acknowledged'
 );
 SELECT is(
 	(
@@ -452,20 +474,41 @@ SELECT is(
 		WHERE user_id = '00000000-0000-0000-0000-000000000401'
 	),
 	1::BIGINT,
-	'enqueue is idempotent per account'
+	'scheduling is idempotent per account'
 );
-SELECT isnt(
+SELECT ok(
+	(
+		SELECT locked_until IS NULL AND claim_token IS NULL
+		FROM public.record_cover_account_cleanup_jobs
+		WHERE user_id = '00000000-0000-0000-0000-000000000401'
+	),
+	'scheduling leaves work immediately claimable by the durable worker'
+);
+INSERT INTO account_cleanup_claims
+SELECT 'scheduled-worker-claim', claimed_user_id, claim_token
+FROM public.claim_record_cover_account_cleanup();
+SELECT is(
+	(
+		SELECT count(*)
+		FROM public.enqueue_record_cover_account_cleanup(
+			'00000000-0000-0000-0000-000000000401'
+		)
+	),
+	0::BIGINT,
+	'a repeated legacy enqueue cannot steal an existing claim'
+);
+SELECT is(
 	(
 		SELECT claim_token
-		FROM account_cleanup_claims
-		WHERE label = 'first-enqueue'
+		FROM public.record_cover_account_cleanup_jobs
+		WHERE user_id = '00000000-0000-0000-0000-000000000401'
 	),
 	(
 		SELECT claim_token
 		FROM account_cleanup_claims
-		WHERE label = 'second-enqueue'
+		WHERE label = 'scheduled-worker-claim'
 	),
-	'a repeated enqueue rotates the exact claim token'
+	'the repeated legacy enqueue preserves exact worker ownership'
 );
 SELECT ok(
 	public.release_record_cover_account_cleanup(
@@ -473,10 +516,10 @@ SELECT ok(
 		(
 			SELECT claim_token
 			FROM account_cleanup_claims
-			WHERE label = 'second-enqueue'
+			WHERE label = 'scheduled-worker-claim'
 		)
 	),
-	'an exact enqueue claim can release its lease'
+	'an exact scheduled worker claim can release its lease'
 );
 SELECT is(
 	(
@@ -494,7 +537,7 @@ SELECT ok(
 			AND claim_token <> (
 				SELECT claim_token
 				FROM account_cleanup_claims
-				WHERE label = 'second-enqueue'
+				WHERE label = 'scheduled-worker-claim'
 			)
 		FROM public.record_cover_account_cleanup_jobs
 		WHERE user_id = '00000000-0000-0000-0000-000000000401'

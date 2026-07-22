@@ -5,34 +5,26 @@ const RECORD_COVER_BUCKET = 'record-covers'
 export const ACCOUNT_COVER_STORAGE_BATCH_LIMIT = 100
 export const ACCOUNT_COVER_ENUMERATION_LIMIT =
 	ACCOUNT_COVER_STORAGE_BATCH_LIMIT + 1
-const MAX_FULL_CLEANUP_PASSES = 3
+export const DISCOGS_RATE_LIMIT_PRUNE_LIMIT = 100
 const UUID_PATTERN =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-
-export interface AccountCoverStorageEntry {
-	id: string | null
-	name: string
-}
 
 export interface AccountCoverCleanupClaim {
 	userId: string
 	claimToken: string
 }
 
-export interface AccountCoverCleanupAdapter {
-	listFolder(
-		path: string,
-		offset: number,
-		limit: number
-	): Promise<AccountCoverStorageEntry[]>
+export interface AccountCoverCleanupRepository {
 	listClaimedObjects(userId: string): Promise<unknown>
 	removeObjects(paths: string[]): Promise<void>
 	deleteOrdinaryJobs(userId: string): Promise<void>
-	enqueue(userId: string): Promise<AccountCoverCleanupClaim>
+	schedule(userId: string): Promise<void>
 	claim(): Promise<AccountCoverCleanupClaim | null>
 	complete(claim: AccountCoverCleanupClaim): Promise<boolean>
 	release(claim: AccountCoverCleanupClaim): Promise<boolean>
 	authUserExists(userId: string): Promise<boolean>
+	deleteUserRateLimit(userId: string): Promise<void>
+	pruneExpiredUserRateLimits(limit: number): Promise<void>
 }
 
 export interface AccountCoverCleanupResult {
@@ -50,11 +42,6 @@ interface RpcClaimRow {
 
 interface RpcObjectRow {
 	object_name: unknown
-}
-
-interface StorageBatch {
-	paths: string[]
-	hasMore: boolean
 }
 
 function isUuid(value: unknown): value is string {
@@ -145,26 +132,12 @@ function assertSafeUserId(userId: string): void {
 	}
 }
 
-export function createAccountCoverCleanupAdapter(
+export function createAccountCoverCleanupRepository(
 	supabase: SupabaseClient = createServiceRoleSupabaseClient()
-): AccountCoverCleanupAdapter {
+): AccountCoverCleanupRepository {
 	const bucket = supabase.storage.from(RECORD_COVER_BUCKET)
 
 	return {
-		async listFolder(path, offset, limit) {
-			const { data, error } = await bucket.list(path, {
-				limit,
-				offset,
-				sortBy: { column: 'name', order: 'asc' }
-			})
-			if (error) {
-				throw new AccountCoverCleanupError('Cover listing failed')
-			}
-			return (data ?? []).map((entry) => ({
-				id: entry.id ?? null,
-				name: entry.name
-			}))
-		},
 		async listClaimedObjects(userId) {
 			const { data, error } = await supabase.rpc(
 				'list_record_cover_account_cleanup_objects',
@@ -202,19 +175,14 @@ export function createAccountCoverCleanupAdapter(
 				)
 			}
 		},
-		async enqueue(userId) {
+		async schedule(userId) {
 			const { data, error } = await supabase.rpc(
-				'enqueue_record_cover_account_cleanup',
+				'schedule_record_cover_account_cleanup',
 				{ target_user_id: userId }
 			)
-			if (error) {
+			if (error || data !== true) {
 				throw new AccountCoverCleanupError('Cleanup enqueue failed')
 			}
-			const claim = parseClaimRows(data, userId)
-			if (!claim) {
-				throw new AccountCoverCleanupError('Cleanup enqueue was not confirmed')
-			}
-			return claim
 		},
 		async claim() {
 			const { data, error } = await supabase.rpc(
@@ -260,174 +228,110 @@ export function createAccountCoverCleanupAdapter(
 				return false
 			}
 			throw new AccountCoverCleanupError('Auth user check failed')
-		}
-	}
-}
-
-async function listStorageBatch(
-	adapter: Pick<AccountCoverCleanupAdapter, 'listFolder'>,
-	userId: string,
-	maximumPaths: number,
-	maximumListCalls: number
-): Promise<StorageBatch> {
-	assertSafeUserId(userId)
-	const pending = [{ path: userId, offset: 0 }]
-	const seenFolders = new Set([userId])
-	const seenObjects = new Set<string>()
-	const paths: string[] = []
-	let listCalls = 0
-
-	while (pending.length && paths.length < maximumPaths) {
-		if (listCalls >= maximumListCalls) {
-			return { paths, hasMore: true }
-		}
-		const current = pending.shift()!
-		const entries = await adapter.listFolder(
-			current.path,
-			current.offset,
-			ACCOUNT_COVER_STORAGE_BATCH_LIMIT
-		)
-		listCalls += 1
-		if (
-			!Array.isArray(entries) ||
-			entries.length > ACCOUNT_COVER_STORAGE_BATCH_LIMIT
-		) {
-			throw new AccountCoverCleanupError('Storage listing exceeded its bound')
-		}
-
-		for (const entry of entries) {
-			if (!entry || typeof entry !== 'object') {
-				throw new AccountCoverCleanupError('Invalid Storage entry returned')
-			}
-			assertSafeStorageSegment(entry.name)
-			const path = `${current.path}/${entry.name}`
-			if (entry.id === null) {
-				if (!seenFolders.has(path)) {
-					seenFolders.add(path)
-					pending.push({ path, offset: 0 })
-				}
-			} else if (typeof entry.id === 'string' && entry.id.length) {
-				if (!seenObjects.has(path)) {
-					seenObjects.add(path)
-					paths.push(path)
-				}
-			} else {
-				throw new AccountCoverCleanupError('Invalid Storage entry returned')
-			}
-			if (paths.length >= maximumPaths) break
-		}
-
-		if (entries.length === ACCOUNT_COVER_STORAGE_BATCH_LIMIT) {
-			pending.push({
-				path: current.path,
-				offset: current.offset + ACCOUNT_COVER_STORAGE_BATCH_LIMIT
-			})
-		}
-	}
-
-	return {
-		paths,
-		hasMore: pending.length > 0
-	}
-}
-
-export async function removeAllAccountCoverObjects(
-	adapter: Pick<AccountCoverCleanupAdapter, 'listFolder' | 'removeObjects'>,
-	userId: string
-): Promise<void> {
-	for (let pass = 0; pass < MAX_FULL_CLEANUP_PASSES; pass += 1) {
-		const { paths } = await listStorageBatch(
-			adapter,
-			userId,
-			Number.MAX_SAFE_INTEGER,
-			Number.MAX_SAFE_INTEGER
-		)
-		if (!paths.length) return
-
-		for (
-			let index = 0;
-			index < paths.length;
-			index += ACCOUNT_COVER_STORAGE_BATCH_LIMIT
-		) {
-			await adapter.removeObjects(
-				paths.slice(index, index + ACCOUNT_COVER_STORAGE_BATCH_LIMIT)
+		},
+		async deleteUserRateLimit(userId) {
+			const { data, error } = await supabase.rpc(
+				'delete_discogs_user_rate_limit',
+				{ target_user_id: userId }
 			)
+			if (error || typeof data !== 'boolean') {
+				throw new AccountCoverCleanupError('Rate-limit deletion failed')
+			}
+		},
+		async pruneExpiredUserRateLimits(limit) {
+			const { data, error } = await supabase.rpc(
+				'prune_expired_discogs_user_rate_limits',
+				{ maximum_rows: limit }
+			)
+			if (
+				error ||
+				typeof data !== 'number' ||
+				!Number.isInteger(data) ||
+				data < 0 ||
+				data > limit
+			) {
+				throw new AccountCoverCleanupError('Rate-limit pruning failed')
+			}
 		}
-	}
-
-	const remaining = await listStorageBatch(
-		adapter,
-		userId,
-		1,
-		Number.MAX_SAFE_INTEGER
-	)
-	if (remaining.paths.length || remaining.hasMore) {
-		throw new AccountCoverCleanupError('Cover cleanup did not settle')
 	}
 }
 
 async function releaseClaimBestEffort(
-	adapter: Pick<AccountCoverCleanupAdapter, 'release'>,
+	repository: Pick<AccountCoverCleanupRepository, 'release'>,
 	claim: AccountCoverCleanupClaim
 ): Promise<boolean> {
 	try {
-		return await adapter.release(claim)
+		return await repository.release(claim)
 	} catch {
 		return false
 	}
 }
 
-export async function processOneAccountCoverCleanup(
-	adapter: AccountCoverCleanupAdapter = createAccountCoverCleanupAdapter()
+async function pruneExpiredRateLimitsBestEffort(
+	repository: Pick<AccountCoverCleanupRepository, 'pruneExpiredUserRateLimits'>
+): Promise<void> {
+	try {
+		await repository.pruneExpiredUserRateLimits(DISCOGS_RATE_LIMIT_PRUNE_LIMIT)
+	} catch {
+		// Expired quota state is independent maintenance. A later bounded worker
+		// invocation can retry it without delaying durable cover cleanup.
+	}
+}
+
+export async function processNextAccountCoverCleanup(
+	repository: AccountCoverCleanupRepository = createAccountCoverCleanupRepository()
 ): Promise<AccountCoverCleanupResult> {
+	await pruneExpiredRateLimitsBestEffort(repository)
+
 	let claim: AccountCoverCleanupClaim | null
 	try {
-		claim = await adapter.claim()
+		claim = await repository.claim()
 	} catch {
 		return { processed: false, complete: false, failed: true }
 	}
 	if (!claim) return { processed: false, complete: false, failed: false }
 
 	try {
-		if (await adapter.authUserExists(claim.userId)) {
-			if (!(await adapter.release(claim))) {
+		if (await repository.authUserExists(claim.userId)) {
+			if (!(await repository.release(claim))) {
 				throw new AccountCoverCleanupError('Cleanup release was not confirmed')
 			}
 			return { processed: true, complete: false, failed: false }
 		}
 
 		const listedPaths = parseClaimedObjectRows(
-			await adapter.listClaimedObjects(claim.userId),
+			await repository.listClaimedObjects(claim.userId),
 			claim.userId
 		)
 		const removalPaths = listedPaths.slice(0, ACCOUNT_COVER_STORAGE_BATCH_LIMIT)
-		if (removalPaths.length) await adapter.removeObjects(removalPaths)
+		if (removalPaths.length) await repository.removeObjects(removalPaths)
 
 		if (listedPaths.length === ACCOUNT_COVER_ENUMERATION_LIMIT) {
-			if (!(await adapter.release(claim))) {
+			if (!(await repository.release(claim))) {
 				throw new AccountCoverCleanupError('Cleanup release was not confirmed')
 			}
 			return { processed: true, complete: false, failed: false }
 		}
 
 		const remainingPaths = parseClaimedObjectRows(
-			await adapter.listClaimedObjects(claim.userId),
+			await repository.listClaimedObjects(claim.userId),
 			claim.userId
 		)
 		if (remainingPaths.length) {
-			if (!(await adapter.release(claim))) {
+			if (!(await repository.release(claim))) {
 				throw new AccountCoverCleanupError('Cleanup release was not confirmed')
 			}
 			return { processed: true, complete: false, failed: false }
 		}
 
-		await adapter.deleteOrdinaryJobs(claim.userId)
-		if (!(await adapter.complete(claim))) {
+		await repository.deleteOrdinaryJobs(claim.userId)
+		await repository.deleteUserRateLimit(claim.userId)
+		if (!(await repository.complete(claim))) {
 			throw new AccountCoverCleanupError('Cleanup completion was not confirmed')
 		}
 		return { processed: true, complete: true, failed: false }
 	} catch {
-		await releaseClaimBestEffort(adapter, claim)
+		await releaseClaimBestEffort(repository, claim)
 		return { processed: true, complete: false, failed: true }
 	}
 }
