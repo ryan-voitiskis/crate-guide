@@ -25,6 +25,7 @@ function credentials(
 		getCredentials: () => Promise.resolve(null),
 		setRequestCredentials,
 		setAccessCredentials: () => Promise.resolve(),
+		clearRequestCredentials: () => Promise.resolve(),
 		consumeRequestQuota
 	}
 }

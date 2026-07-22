@@ -43,7 +43,7 @@ Deno.test('rejects invalid Discogs quota configuration', () => {
 
 Deno.test('rejects provider-unsafe Discogs quota bounds', () => {
 	for (const values of [
-		{ DISCOGS_RATE_LIMIT_GLOBAL: '61' },
+		{ DISCOGS_RATE_LIMIT_GLOBAL: '58' },
 		{ DISCOGS_RATE_LIMIT_WINDOW_SECONDS: '59' },
 		{ DISCOGS_RATE_LIMIT_WINDOW_SECONDS: '121' }
 	]) {

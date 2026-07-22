@@ -88,6 +88,11 @@ describe('discogsAuthStore', () => {
 			const store = useDiscogsAuthStore()
 			expect(store.oAuthCompletionError).toBe(null)
 		})
+
+		it('starts with no pending identity finalization', () => {
+			const store = useDiscogsAuthStore()
+			expect(store.oAuthFinalizationPending).toBe(false)
+		})
 	})
 
 	describe('isOAuthed computed', () => {
@@ -260,6 +265,35 @@ describe('discogsAuthStore', () => {
 
 			expect(store.oAuthCompletionError).toBe(
 				'Discogs rejected the OAuth callback. Please restart the Discogs connection and try again.'
+			)
+		})
+
+		it('offers a credential-free retry when identity finalization is pending', async () => {
+			const store = useDiscogsAuthStore()
+			mockSupabaseClient.functions.invoke
+				.mockResolvedValueOnce({
+					data: null,
+					error: {
+						context: new Response(
+							JSON.stringify({
+								error:
+									'Discogs access is saved, but profile setup is incomplete. Retry profile setup to finish connecting.',
+								code: 'discogs_identity_pending',
+								retryable: true
+							}),
+							{ headers: { 'Content-Type': 'application/json' } }
+						)
+					}
+				})
+				.mockResolvedValueOnce({ data: { success: true }, error: null })
+
+			expect(await store.completeDiscogsOAuth()).toBe(false)
+			expect(store.oAuthFinalizationPending).toBe(true)
+
+			expect(await store.resumeDiscogsOAuth()).toBe(true)
+			expect(mockSupabaseClient.functions.invoke).toHaveBeenLastCalledWith(
+				'get-discogs-access-token',
+				{ body: { resume: true } }
 			)
 		})
 

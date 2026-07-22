@@ -3,6 +3,7 @@ import { generateToken } from '../generateToken.ts'
 import { type DiscogsConfig, getDiscogsConfig } from './config.ts'
 import type { DiscogsCredentialRepository } from './credentials.ts'
 import { buildOAuthAuthorizationHeader } from './oauthAuthorization.ts'
+import { quotaBoundFetch } from './quotaBoundFetch.ts'
 import {
 	DiscogsConnectionRequiredError,
 	DiscogsUpstreamTimeoutError,
@@ -71,7 +72,7 @@ export async function makeAuthenticatedRequest(
 	const abortController = new AbortController()
 	const timeout = setTimeout(() => abortController.abort(), timeoutMs)
 	try {
-		return await fetcher(parsedUrl.toString(), {
+		return await quotaBoundFetch(credentials, fetcher, parsedUrl.toString(), {
 			method: 'GET',
 			headers: {
 				Authorization: authorization,

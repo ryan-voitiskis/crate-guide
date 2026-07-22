@@ -1,7 +1,8 @@
-import { getDiscogsConfig } from './config.ts'
+import { type DiscogsConfig, getDiscogsConfig } from './config.ts'
 import type { DiscogsCredentialRepository } from './credentials.ts'
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest.ts'
 import { PublicOAuthError, buildDiscogsOAuthHttpError } from './oauthErrors.ts'
+import { quotaBoundFetch } from './quotaBoundFetch.ts'
 
 function isTrustedDiscogsResourceUrl(
 	resourceUrl: unknown
@@ -25,13 +26,15 @@ function isTrustedDiscogsResourceUrl(
 
 export async function fetchAndSetIdentity(
 	credentials: DiscogsCredentialRepository,
-	fetcher: typeof fetch = fetch
+	fetcher: typeof fetch = fetch,
+	config: DiscogsConfig = getDiscogsConfig()
 ) {
-	const config = getDiscogsConfig()
 	const identityResponse = await makeAuthenticatedRequest(
 		'https://api.discogs.com/oauth/identity',
 		credentials,
-		fetcher
+		fetcher,
+		12_000,
+		config
 	)
 	if (!identityResponse.ok) {
 		console.error('Discogs identity error response:', {
@@ -49,9 +52,14 @@ export async function fetchAndSetIdentity(
 	let discogs_avatar_url = null
 	if (isTrustedDiscogsResourceUrl(identity.resource_url)) {
 		try {
-			const discogsUserResponse = await fetcher(identity.resource_url, {
-				headers: { 'User-Agent': config.userAgent }
-			})
+			const discogsUserResponse = await quotaBoundFetch(
+				credentials,
+				fetcher,
+				identity.resource_url,
+				{
+					headers: { 'User-Agent': config.userAgent }
+				}
+			)
 			if (discogsUserResponse.ok) {
 				const discogsUser = await discogsUserResponse.json()
 				discogs_avatar_url = discogsUser.avatar_url
@@ -71,4 +79,5 @@ export async function fetchAndSetIdentity(
 		})
 		.eq('id', credentials.user.id)
 	if (error) throw error
+	await credentials.clearRequestCredentials()
 }

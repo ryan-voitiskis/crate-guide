@@ -35,8 +35,9 @@ before a release.
 ### Request token
 
 1. The browser invokes `get-discogs-request-token` with its Supabase session.
-2. The handler verifies the caller through the credential repository and
-   acquires the server-side Discogs quota for that verified user.
+2. The handler verifies the caller through the credential repository. The
+   shared provider transport acquires server-side Discogs quota for that
+   verified user immediately before dispatch.
 3. The handler calls Discogs's request-token endpoint. OAuth consumer data,
    signature, nonce, timestamp, and callback travel in the `Authorization`
    header; the endpoint URL has no OAuth query parameters.
@@ -52,16 +53,22 @@ before a release.
    the browser sends them in the JSON body of `get-discogs-access-token`.
 2. The handler verifies the Supabase caller, reads only that user's pending
    credential row with the service role, and rejects a callback-token mismatch.
-3. After acquiring quota, the handler posts to Discogs's access-token endpoint.
+3. The quota-bound transport posts to Discogs's access-token endpoint.
    The OAuth token, verifier, PLAINTEXT signature, nonce, and timestamp are in
    the `Authorization` header, not the URL.
 4. The handler stores the private access token and secret for the verified user,
-   then performs a signed identity request. Subsequent signed API requests use
-   HMAC-SHA1 and place OAuth data in the `Authorization` header; URL query
-   parameters are limited to business pagination values such as `page` and
-   `per_page` and are included in the signature base string.
-5. The caller-scoped client updates only public `discogs_username` and avatar
-   profile fields. Client stores derive connected state from those fields.
+   then performs a separately charged signed identity request. If identity JSON,
+   its upstream request, or the profile write fails, the handler returns
+   `discogs_identity_pending`. A retry sends only `{ "resume": true }`; the
+   server reloads access credentials for the current authenticated user and
+   never repeats the verifier exchange or accepts a user/token selector.
+5. An avatar lookup is separately charged, trusted-host-only, and optional. Its
+   failure cannot invalidate a valid identity. Subsequent signed API requests
+   use HMAC-SHA1 and place OAuth data in the `Authorization` header; URL query
+   parameters are limited to signed business pagination values.
+6. The caller-scoped client publishes only public `discogs_username` and avatar
+   profile fields, then the repository clears obsolete request credentials.
+   Client stores derive connected state from those valid public identity fields.
 
 `disconnect_discogs` remains an authenticated, identity-bound database RPC. It
 derives `auth.uid()`, deletes that user's credential row, and clears the public
@@ -73,8 +80,8 @@ Discogs identity fields atomically; it does not return credentials.
 It invokes `authenticated-discogs-request` with one of three structured request
 variants: `folders`, `folder_releases`, or `release`. The handler validates IDs
 and pagination, obtains the collection username through the caller-scoped
-profile client, acquires quota, constructs an `api.discogs.com` URL, and performs
-one signed GET.
+profile client and constructs an `api.discogs.com` URL. The shared signed
+transport acquires quota immediately before performing one GET.
 
 The import pipeline then:
 
@@ -90,8 +97,11 @@ in session storage. Private OAuth values are not part of that snapshot.
 
 ## Server-side quota
 
-All three Discogs handlers call the repository's `consumeRequestQuota()` before
-their primary Discogs operation. The service role invokes
+Every provider dispatch passes through the quota-bound transport, including
+request-token exchange, access-token exchange, identity, optional avatar, and
+authenticated collection reads. The transport calls the repository's
+`consumeRequestQuota()` immediately before `fetch`; denial cannot dispatch a
+provider request. The service role invokes
 `consume_discogs_request_quota` with the verified user UUID and validated
 configuration; clients cannot supply bucket keys or execute the RPC.
 
@@ -104,11 +114,11 @@ bounded `retry_after_ms`, and a matching `Retry-After` header.
 Defaults and bounds are enforced in both the Edge configuration reader and the
 database function:
 
-| Variable                            | Default | Contract                                                   |
-| ----------------------------------- | ------- | ---------------------------------------------------------- |
-| `DISCOGS_RATE_LIMIT_PER_USER`       | `45`    | Positive integer, no greater than the global limit         |
-| `DISCOGS_RATE_LIMIT_GLOBAL`         | `55`    | Positive integer, no greater than Discogs's `60` allowance |
-| `DISCOGS_RATE_LIMIT_WINDOW_SECONDS` | `60`    | Integer from `60` through `120` seconds                    |
+| Variable                            | Default | Contract                                                      |
+| ----------------------------------- | ------- | ------------------------------------------------------------- |
+| `DISCOGS_RATE_LIMIT_PER_USER`       | `45`    | Positive integer, no greater than the global limit            |
+| `DISCOGS_RATE_LIMIT_GLOBAL`         | `55`    | Positive integer at most `57`, reserving three callback calls |
+| `DISCOGS_RATE_LIMIT_WINDOW_SECONDS` | `60`    | Integer from `60` through `120` seconds                       |
 
 ## Environment readers
 
@@ -140,8 +150,10 @@ include bounded retry metadata. Client code decodes those fields into
 messages.
 
 OAuth handlers return curated public messages. Their stable rate-limit response
-uses the same `discogs_rate_limited` code; other OAuth failures are classified
-through `PublicOAuthError` and generic fallbacks. Logs contain operational
+uses the same `discogs_rate_limited` code. A stored access credential awaiting
+identity uses `discogs_identity_pending` and a credential-free retry; other
+OAuth failures are classified through `PublicOAuthError` and generic fallbacks.
+Logs contain operational
 classification (request ID, endpoint, attempt, status, and stable code where
 applicable), not OAuth response bodies, credentials, authorization headers, or
 raw private errors. The browser additionally rejects unusually long or

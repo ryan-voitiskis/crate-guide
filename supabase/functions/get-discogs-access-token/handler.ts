@@ -13,6 +13,8 @@ import {
 	buildDiscogsOAuthHttpError,
 	getPublicOAuthErrorMessage
 } from '../_shared/discogs/oauthErrors.ts'
+import { quotaBoundFetch } from '../_shared/discogs/quotaBoundFetch.ts'
+import { DiscogsQuotaExceededError } from '../_shared/discogs/requestErrors.ts'
 import { generateToken } from '../_shared/generateToken.ts'
 import { validateDiscogsCallbackCredentials } from './validateCredentials.ts'
 
@@ -70,6 +72,24 @@ function rateLimitResponse(
 	)
 }
 
+function identityPendingResponse(
+	headers: HeadersInit,
+	retryAfterMs?: number
+): Response {
+	return jsonResponse(
+		{
+			error:
+				'Discogs access is saved, but profile setup is incomplete. Retry profile setup to finish connecting.',
+			code: 'discogs_identity_pending',
+			retryable: true,
+			...(retryAfterMs === undefined ? {} : { retry_after_ms: retryAfterMs })
+		},
+		headers,
+		retryAfterMs === undefined ? 503 : 429,
+		retryAfterMs
+	)
+}
+
 export function createDiscogsAccessTokenHandler(
 	headers: HeadersInit,
 	dependencies: HandlerDependencies = defaultDependencies
@@ -93,16 +113,22 @@ export function createDiscogsAccessTokenHandler(
 					'Missing OAuth callback parameters from Discogs.'
 				)
 			}
-			const { oauth_token: oauthToken, oauth_verifier: oauthVerifier } =
-				body as {
-					oauth_token?: unknown
-					oauth_verifier?: unknown
-				}
+			const {
+				oauth_token: oauthToken,
+				oauth_verifier: oauthVerifier,
+				resume
+			} = body as {
+				oauth_token?: unknown
+				oauth_verifier?: unknown
+				resume?: unknown
+			}
+			const isResume = resume === true
 			if (
-				typeof oauthToken !== 'string' ||
-				oauthToken.length === 0 ||
-				typeof oauthVerifier !== 'string' ||
-				oauthVerifier.length === 0
+				!isResume &&
+				(typeof oauthToken !== 'string' ||
+					oauthToken.length === 0 ||
+					typeof oauthVerifier !== 'string' ||
+					oauthVerifier.length === 0)
 			) {
 				throw new PublicOAuthError(
 					'Missing OAuth callback parameters from Discogs.'
@@ -111,53 +137,95 @@ export function createDiscogsAccessTokenHandler(
 
 			const config = dependencies.getConfig()
 			const credentials = await dependencies.createCredentials(authHeader)
-			const requestSecret = validateDiscogsCallbackCredentials(
-				await credentials.getCredentials(),
-				oauthToken
-			)
-			const oauthParameters = {
-				oauth_consumer_key: config.consumerKey,
-				oauth_nonce: await dependencies.generateNonce(),
-				oauth_token: oauthToken,
-				oauth_signature: `${config.consumerSecret}&${requestSecret}`,
-				oauth_signature_method: 'PLAINTEXT',
-				oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
-				oauth_verifier: oauthVerifier
-			}
-			const quota = await credentials.consumeRequestQuota()
-			if (!quota.allowed) {
-				return rateLimitResponse(headers, quota.retryAfterMs)
-			}
-			const response = await dependencies.fetcher(accessTokenUrl, {
-				method: 'POST',
-				headers: {
-					Authorization: buildOAuthAuthorizationHeader(oauthParameters),
-					'User-Agent': config.userAgent
-				}
-			})
-			const responseText = await response.text()
-			if (!response.ok) {
-				console.error('Discogs access token request failed', {
-					status: response.status
-				})
-				throw buildDiscogsOAuthHttpError('access_token', response.status)
-			}
-			const discogsResponse = Object.fromEntries(
-				new URLSearchParams(responseText)
-			)
-			if (!discogsResponse.oauth_token || !discogsResponse.oauth_token_secret) {
+			const storedCredentials = await credentials.getCredentials()
+			const hasAccessToken = Boolean(storedCredentials?.access_token)
+			const hasAccessSecret = Boolean(storedCredentials?.access_secret)
+			if (hasAccessToken !== hasAccessSecret) {
 				throw new PublicOAuthError(
-					'Discogs did not return a complete OAuth access token. Please restart the Discogs connection and try again.'
+					'Discogs connection state is incomplete. Please restart the Discogs connection.'
 				)
 			}
-			await credentials.setAccessCredentials(
-				discogsResponse.oauth_token,
-				discogsResponse.oauth_token_secret
-			)
-			await dependencies.fetchIdentity(credentials, dependencies.fetcher)
+
+			if (hasAccessToken && hasAccessSecret) {
+				if (
+					!isResume &&
+					(typeof oauthToken !== 'string' ||
+						oauthToken !== storedCredentials?.request_token)
+				) {
+					throw new PublicOAuthError(
+						'Discogs callback does not match the pending request. Please restart the Discogs connection.'
+					)
+				}
+			} else {
+				if (isResume) {
+					throw new PublicOAuthError(
+						'No resumable Discogs connection was found. Please restart the Discogs connection.'
+					)
+				}
+				const requestSecret = validateDiscogsCallbackCredentials(
+					storedCredentials,
+					oauthToken as string
+				)
+				const oauthParameters = {
+					oauth_consumer_key: config.consumerKey,
+					oauth_nonce: await dependencies.generateNonce(),
+					oauth_token: oauthToken as string,
+					oauth_signature: `${config.consumerSecret}&${requestSecret}`,
+					oauth_signature_method: 'PLAINTEXT',
+					oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
+					oauth_verifier: oauthVerifier as string
+				}
+				const response = await quotaBoundFetch(
+					credentials,
+					dependencies.fetcher,
+					accessTokenUrl,
+					{
+						method: 'POST',
+						headers: {
+							Authorization: buildOAuthAuthorizationHeader(oauthParameters),
+							'User-Agent': config.userAgent
+						}
+					}
+				)
+				const responseText = await response.text()
+				if (!response.ok) {
+					console.error('Discogs access token request failed', {
+						status: response.status
+					})
+					throw buildDiscogsOAuthHttpError('access_token', response.status)
+				}
+				const discogsResponse = Object.fromEntries(
+					new URLSearchParams(responseText)
+				)
+				if (
+					!discogsResponse.oauth_token ||
+					!discogsResponse.oauth_token_secret
+				) {
+					throw new PublicOAuthError(
+						'Discogs did not return a complete OAuth access token. Please restart the Discogs connection and try again.'
+					)
+				}
+				await credentials.setAccessCredentials(
+					discogsResponse.oauth_token,
+					discogsResponse.oauth_token_secret
+				)
+			}
+
+			try {
+				await dependencies.fetchIdentity(credentials, dependencies.fetcher)
+			} catch (error) {
+				if (error instanceof DiscogsQuotaExceededError) {
+					return identityPendingResponse(headers, error.retryAfterMs)
+				}
+				console.error('Discogs identity finalization is pending')
+				return identityPendingResponse(headers)
+			}
 
 			return jsonResponse({ success: true }, headers, 200)
 		} catch (error) {
+			if (error instanceof DiscogsQuotaExceededError) {
+				return rateLimitResponse(headers, error.retryAfterMs)
+			}
 			console.error('Discogs access token handler failed')
 			return jsonResponse(
 				{ error: getPublicOAuthErrorMessage(error) },

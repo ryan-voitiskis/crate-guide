@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import type { DiscogsCredentialRepository } from '../_shared/discogs/credentials.ts'
 import {
 	DiscogsConnectionRequiredError,
+	DiscogsQuotaExceededError,
 	DiscogsUpstreamTimeoutError,
 	DiscogsUpstreamTransportError
 } from '../_shared/discogs/requestErrors.ts'
@@ -32,6 +33,7 @@ function createCredentials(
 		getCredentials: () => Promise.resolve(null),
 		setRequestCredentials: () => Promise.resolve(),
 		setAccessCredentials: () => Promise.resolve(),
+		clearRequestCredentials: () => Promise.resolve(),
 		consumeRequestQuota
 	}
 }
@@ -145,50 +147,15 @@ Deno.test('rejects invalid page and per-page values', async () => {
 })
 
 Deno.test(
-	'checks local quota immediately before the upstream request',
+	'maps transport-owned quota denial without logging Discogs',
 	async () => {
-		const steps: string[] = []
-		const handler = createAuthenticatedDiscogsRequestHandler(headers, {
-			createCredentials: () =>
-				Promise.resolve(
-					createCredentials(() => {
-						steps.push('quota')
-						return Promise.resolve({ allowed: true, retryAfterMs: 0 })
-					})
-				),
-			makeRequest: () => {
-				steps.push('upstream')
-				return Promise.resolve(Response.json({ id: 42 }))
-			}
-		})
-
-		assert.equal(
-			(await handler(request({ endpoint: 'release', release_id: 42 }))).status,
-			200
-		)
-		assert.deepEqual(steps, ['quota', 'upstream'])
-	}
-)
-
-Deno.test(
-	'denies local quota without contacting or logging Discogs',
-	async () => {
-		let upstreamCalled = false
 		const logs: unknown[][] = []
 		const originalConsoleError = console.error
 		console.error = (...values: unknown[]) => logs.push(values)
 		try {
 			const handler = createAuthenticatedDiscogsRequestHandler(headers, {
-				createCredentials: () =>
-					Promise.resolve(
-						createCredentials(() =>
-							Promise.resolve({ allowed: false, retryAfterMs: 7000 })
-						)
-					),
-				makeRequest: () => {
-					upstreamCalled = true
-					return Promise.resolve(Response.json({}))
-				}
+				createCredentials: () => Promise.resolve(createCredentials()),
+				makeRequest: () => Promise.reject(new DiscogsQuotaExceededError(7000))
 			})
 			const response = await handler(
 				request({ endpoint: 'release', release_id: 42 })
@@ -203,7 +170,6 @@ Deno.test(
 			assert.equal(response.status, 429)
 			assert.equal(response.headers.get('Retry-After'), '7')
 			assert.equal(body.retry_after_ms, 7000)
-			assert.equal(upstreamCalled, false)
 			assert.deepEqual(logs, [])
 		} finally {
 			console.error = originalConsoleError
@@ -211,39 +177,28 @@ Deno.test(
 	}
 )
 
-Deno.test(
-	'sanitizes local quota failures without contacting Discogs',
-	async () => {
-		const privateMessage = 'private quota database failure'
-		let upstreamCalled = false
-		const logs: unknown[][] = []
-		const originalConsoleError = console.error
-		console.error = (...values: unknown[]) => logs.push(values)
-		try {
-			const handler = createAuthenticatedDiscogsRequestHandler(headers, {
-				createCredentials: () =>
-					Promise.resolve(
-						createCredentials(() => Promise.reject(new Error(privateMessage)))
-					),
-				makeRequest: () => {
-					upstreamCalled = true
-					return Promise.resolve(Response.json({}))
-				}
-			})
-			const response = await handler(
-				request({ endpoint: 'release', release_id: 42 })
-			)
-			const responseText = await response.text()
+Deno.test('sanitizes transport quota failures', async () => {
+	const privateMessage = 'private quota database failure'
+	const logs: unknown[][] = []
+	const originalConsoleError = console.error
+	console.error = (...values: unknown[]) => logs.push(values)
+	try {
+		const handler = createAuthenticatedDiscogsRequestHandler(headers, {
+			createCredentials: () => Promise.resolve(createCredentials()),
+			makeRequest: () => Promise.reject(new Error(privateMessage))
+		})
+		const response = await handler(
+			request({ endpoint: 'release', release_id: 42 })
+		)
+		const responseText = await response.text()
 
-			assert.equal(response.status, 500)
-			assert.equal(upstreamCalled, false)
-			assert.equal(responseText.includes(privateMessage), false)
-			assert.equal(JSON.stringify(logs).includes(privateMessage), false)
-		} finally {
-			console.error = originalConsoleError
-		}
+		assert.equal(response.status, 500)
+		assert.equal(responseText.includes(privateMessage), false)
+		assert.equal(JSON.stringify(logs).includes(privateMessage), false)
+	} finally {
+		console.error = originalConsoleError
 	}
-)
+})
 
 Deno.test(
 	'classifies rate limits and bounds Retry-After metadata',

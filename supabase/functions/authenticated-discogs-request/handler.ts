@@ -5,6 +5,7 @@ import {
 import { makeAuthenticatedRequest } from '../_shared/discogs/makeAuthenticatedRequest.ts'
 import {
 	DiscogsConnectionRequiredError,
+	DiscogsQuotaExceededError,
 	DiscogsUpstreamTimeoutError,
 	DiscogsUpstreamTransportError
 } from '../_shared/discogs/requestErrors.ts'
@@ -295,16 +296,6 @@ export function createAuthenticatedDiscogsRequestHandler(
 
 			const credentials = await dependencies.createCredentials(authHeader)
 			const url = await resolveDiscogsRequestUrl(body, credentials)
-			const quota = await credentials.consumeRequestQuota()
-			if (!quota.allowed) {
-				return errorResponse(
-					definitionForStatus(429),
-					headers,
-					429,
-					context,
-					quota.retryAfterMs
-				)
-			}
 			const response = await dependencies.makeRequest(url, credentials)
 
 			if (!response.ok) {
@@ -372,6 +363,15 @@ export function createAuthenticatedDiscogsRequestHandler(
 					headers,
 					401,
 					context
+				)
+			}
+			if (error instanceof DiscogsQuotaExceededError) {
+				return errorResponse(
+					definitionForStatus(429),
+					headers,
+					429,
+					context,
+					error.retryAfterMs
 				)
 			}
 			if (error instanceof DiscogsUpstreamTimeoutError) {

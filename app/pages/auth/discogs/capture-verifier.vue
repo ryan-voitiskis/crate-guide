@@ -30,6 +30,13 @@ onMounted(async () => await discogsAuth.completeDiscogsOAuth())
 				}}
 			</NoticeWarning>
 
+			<Button
+				v-if="discogsAuth.oAuthFinalizationPending"
+				@click="discogsAuth.resumeDiscogsOAuth()"
+			>
+				Retry profile setup
+			</Button>
+
 			<Button as-child variant="ghost">
 				<NuxtLink to="/">Go back</NuxtLink>
 			</Button>

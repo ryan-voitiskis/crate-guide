@@ -7,6 +7,11 @@ const OBSOLETE_CREDENTIAL_RPCS = [
 	'set_discogs_request_credentials',
 	'set_discogs_access_credentials'
 ]
+const REQUIRED_INTEGRATION_CONTRACTS = [
+	'discogs_identity_pending',
+	'quota-bound transport',
+	'{ "resume": true }'
+]
 
 function findDiagnostics(root = process.cwd()) {
 	const diagnostics = []
@@ -36,6 +41,23 @@ function findDiagnostics(root = process.cwd()) {
 		) {
 			diagnostics.push(
 				`${documentPath}: direct Edge handler tests are implemented`
+			)
+		}
+	}
+
+	let integrationDocument = ''
+	try {
+		integrationDocument = readFileSync(
+			resolve(root, 'docs/discogs-integration.md'),
+			'utf8'
+		)
+	} catch {
+		return diagnostics
+	}
+	for (const contract of REQUIRED_INTEGRATION_CONTRACTS) {
+		if (!integrationDocument.includes(contract)) {
+			diagnostics.push(
+				`docs/discogs-integration.md: missing current contract ${contract}`
 			)
 		}
 	}

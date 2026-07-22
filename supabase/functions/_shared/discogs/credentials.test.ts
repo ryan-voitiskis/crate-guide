@@ -33,7 +33,7 @@ Deno.test(
 
 Deno.test('scopes reads and writes to the verified user id', async () => {
 	let selectedUserId: unknown
-	let upsertedRow: Record<string, unknown> | undefined
+	const upsertedRows: Record<string, unknown>[] = []
 	const serviceClient = {
 		from: () => ({
 			select: () => ({
@@ -54,7 +54,7 @@ Deno.test('scopes reads and writes to the verified user id', async () => {
 				}
 			}),
 			upsert: (row: Record<string, unknown>) => {
-				upsertedRow = row
+				upsertedRows.push(row)
 				return Promise.resolve({ error: null })
 			}
 		}),
@@ -77,10 +77,16 @@ Deno.test('scopes reads and writes to the verified user id', async () => {
 
 	await repository.getCredentials()
 	await repository.setRequestCredentials('fixture-token', 'fixture-secret')
+	await repository.setAccessCredentials('access-token', 'access-secret')
+	await repository.clearRequestCredentials()
 
 	assert.equal(selectedUserId, user.id)
-	assert.equal(upsertedRow?.user_id, user.id)
-	assert.equal(upsertedRow?.request_token, 'fixture-token')
+	assert.equal(upsertedRows.length, 3)
+	assert.equal(upsertedRows.every((row) => row.user_id === user.id), true)
+	assert.equal(upsertedRows[0]?.request_token, 'fixture-token')
+	assert.equal(upsertedRows[1]?.access_token, 'access-token')
+	assert.equal(upsertedRows[2]?.request_token, null)
+	assert.equal(upsertedRows[2]?.request_secret, null)
 })
 
 Deno.test(

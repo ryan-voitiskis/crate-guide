@@ -12,6 +12,8 @@ import {
 	buildDiscogsOAuthHttpError,
 	getPublicOAuthErrorMessage
 } from '../_shared/discogs/oauthErrors.ts'
+import { quotaBoundFetch } from '../_shared/discogs/quotaBoundFetch.ts'
+import { DiscogsQuotaExceededError } from '../_shared/discogs/requestErrors.ts'
 import { generateToken } from '../_shared/generateToken.ts'
 import { getSiteUrlConfig, parseSiteUrl } from '../_shared/siteUrl.ts'
 
@@ -98,17 +100,18 @@ export function createDiscogsRequestTokenHandler(
 				oauth_signature: `${config.consumerSecret}&`,
 				oauth_callback: dependencies.getCallback()
 			}
-			const quota = await credentials.consumeRequestQuota()
-			if (!quota.allowed) {
-				return rateLimitResponse(headers, quota.retryAfterMs)
-			}
-			const response = await dependencies.fetcher(requestTokenUrl, {
-				method: 'GET',
-				headers: {
-					Authorization: buildOAuthAuthorizationHeader(oauthParameters),
-					'User-Agent': config.userAgent
+			const response = await quotaBoundFetch(
+				credentials,
+				dependencies.fetcher,
+				requestTokenUrl,
+				{
+					method: 'GET',
+					headers: {
+						Authorization: buildOAuthAuthorizationHeader(oauthParameters),
+						'User-Agent': config.userAgent
+					}
 				}
-			})
+			)
 			const responseText = await response.text()
 			if (!response.ok) {
 				console.error('Discogs request token request failed', {
@@ -135,6 +138,9 @@ export function createDiscogsRequestTokenHandler(
 			)
 			return jsonResponse(discogsResponse.oauth_token, headers, 200)
 		} catch (error) {
+			if (error instanceof DiscogsQuotaExceededError) {
+				return rateLimitResponse(headers, error.retryAfterMs)
+			}
 			console.error('Discogs request token handler failed')
 			const message = getPublicOAuthErrorMessage(
 				error,
