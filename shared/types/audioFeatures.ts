@@ -1,23 +1,56 @@
-export type AudioFeatureSourceKey = keyof TrackAudioFeatures['sources']
+export const TRACK_EVIDENCE_MODEL_VERSION = 'latest-per-source-v1' as const
 
-export type TrackAudioFeatures = {
+export const TRACK_EVIDENCE_SOURCE_KEYS = [
+	'rekordboxXml',
+	'embeddedTags',
+	'essentiaBrowser'
+] as const
+
+export type TrackEvidenceJson =
+	| boolean
+	| number
+	| string
+	| null
+	| TrackEvidenceJson[]
+	| { [key: string]: TrackEvidenceJson }
+
+export type TrackEvidenceUnknownFields = Record<string, TrackEvidenceJson>
+
+export type TrackEvidenceSourceKey = (typeof TRACK_EVIDENCE_SOURCE_KEYS)[number]
+
+// Retained for the active v1 writer while the Evidence v2 writer is gated.
+export type AudioFeatureSourceKey = TrackEvidenceSourceKey
+
+export type TrackAudioFeaturesV1 = {
 	version: 1
 	updatedAt: string
 	applied: {
 		bpm: { source: AudioFeatureSourceKey; appliedAt: string } | null
 		keyMode: { source: AudioFeatureSourceKey; appliedAt: string } | null
 	}
-	match: {
-		confidence: 'high' | 'medium' | 'manual'
-		score: number
-		reasons: string[]
-		warnings: string[]
-	}
+	match: TrackEvidenceLegacyMatchValue
 	sources: {
 		rekordboxXml?: RekordboxXmlSource
 		embeddedTags?: EmbeddedTagsSource
 		essentiaBrowser?: EssentiaBrowserSource
 	}
+}
+
+// The active writer remains v1 until the atomic repository, archive, and draft
+// integration gates in Plans 070, 074, and 075 are complete.
+export type TrackAudioFeatures = TrackAudioFeaturesV1
+
+export type TrackEvidenceMatchConfidence = 'high' | 'medium' | 'manual'
+
+export type TrackEvidenceLegacyMatchValue = {
+	confidence: TrackEvidenceMatchConfidence
+	score: number
+	reasons: string[]
+	warnings: string[]
+}
+
+export type TrackEvidenceSourceMatch = TrackEvidenceLegacyMatchValue & {
+	matcherPolicyVersion: string
 }
 
 export type RekordboxXmlSource = {
@@ -76,3 +109,124 @@ export type EssentiaBrowserSource = {
 	analysisOffsetSeconds: number
 	warnings: string[]
 }
+
+export type RekordboxXmlEvidenceData = Omit<
+	RekordboxXmlSource,
+	'importedAt'
+> & {
+	rekordboxTrackId: string | null
+}
+
+export type EmbeddedTagsEvidenceData = Omit<EmbeddedTagsSource, 'importedAt'>
+
+export type EssentiaBrowserEvidenceData = Omit<
+	EssentiaBrowserSource,
+	'importedAt'
+>
+
+export type TrackEvidenceObservation<TData> = {
+	kind: 'observation'
+	observationId: string
+	observedAt: string
+	match: TrackEvidenceSourceMatch
+	data: TData
+}
+
+export type TrackEvidenceLegacyLimitation =
+	| 'missing-observation-id'
+	| 'missing-source-match'
+	| 'missing-rekordbox-track-id'
+
+export type TrackEvidenceLegacyObservation<TData> = {
+	kind: 'legacy-v1'
+	observationId: null
+	observedAt: string
+	match: null
+	data: TData
+	limitations: TrackEvidenceLegacyLimitation[]
+	unknownFields: TrackEvidenceUnknownFields
+}
+
+export type TrackEvidenceCurrentSources = {
+	rekordboxXml?: TrackEvidenceObservation<RekordboxXmlEvidenceData>
+	embeddedTags?: TrackEvidenceObservation<EmbeddedTagsEvidenceData>
+	essentiaBrowser?: TrackEvidenceObservation<EssentiaBrowserEvidenceData>
+}
+
+export type TrackEvidenceLegacySources = {
+	rekordboxXml?: TrackEvidenceLegacyObservation<RekordboxXmlEvidenceData>
+	embeddedTags?: TrackEvidenceLegacyObservation<EmbeddedTagsEvidenceData>
+	essentiaBrowser?: TrackEvidenceLegacyObservation<EssentiaBrowserEvidenceData>
+}
+
+export type TrackEvidenceBpmApplication = {
+	source: TrackEvidenceSourceKey
+	observationId: string
+	value: number
+	appliedAt: string
+}
+
+export type TrackEvidenceKeyModeApplication = {
+	source: TrackEvidenceSourceKey
+	observationId: string
+	value: {
+		key: number
+		mode: 0 | 1
+	}
+	appliedAt: string
+}
+
+export type TrackEvidenceApplications = {
+	bpm: TrackEvidenceBpmApplication | null
+	keyMode: TrackEvidenceKeyModeApplication | null
+}
+
+export type TrackEvidenceLegacyAppliedMarker = {
+	source: TrackEvidenceSourceKey
+	appliedAt: string
+	unknownFields: TrackEvidenceUnknownFields
+}
+
+export type TrackEvidenceLegacyMatch = TrackEvidenceLegacyMatchValue & {
+	unknownFields: TrackEvidenceUnknownFields
+}
+
+export type TrackEvidenceLegacyV1 = {
+	sourceVersion: 1
+	limitations: [
+		'unattributed-global-match',
+		'missing-application-values-and-observation-ids'
+	]
+	applied: {
+		bpm: TrackEvidenceLegacyAppliedMarker | null
+		keyMode: TrackEvidenceLegacyAppliedMarker | null
+	}
+	globalMatch: TrackEvidenceLegacyMatch
+	unknownFields: {
+		root: TrackEvidenceUnknownFields
+		applied: TrackEvidenceUnknownFields
+		sources: TrackEvidenceUnknownFields
+	}
+}
+
+type TrackEvidenceV2Base = {
+	version: 2
+	modelVersion: typeof TRACK_EVIDENCE_MODEL_VERSION
+	updatedAt: string
+}
+
+export type TrackEvidenceV2Current = TrackEvidenceV2Base & {
+	origin: 'v2'
+	applied: TrackEvidenceApplications
+	sources: TrackEvidenceCurrentSources
+	legacy: null
+}
+
+export type TrackEvidenceV2MigratedV1 = TrackEvidenceV2Base & {
+	origin: 'v1-migrated'
+	applied: { bpm: null; keyMode: null }
+	sources: TrackEvidenceLegacySources
+	legacy: TrackEvidenceLegacyV1
+}
+
+export type TrackEvidenceV2 = TrackEvidenceV2Current | TrackEvidenceV2MigratedV1
