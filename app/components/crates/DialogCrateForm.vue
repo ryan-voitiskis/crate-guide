@@ -56,10 +56,7 @@ const submitCrate = handleSubmit(async (values) => {
 			color: colorValue.value
 		}
 
-		const result = await cratesStore.createCrate({
-			...crateData,
-			records: []
-		})
+		const result = await cratesStore.createCrate(crateData)
 
 		if (result) {
 			emit('saved', result)

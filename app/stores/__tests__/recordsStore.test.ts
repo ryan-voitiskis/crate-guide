@@ -95,9 +95,28 @@ const mockBoundSupabaseClient = {
 	storage: { from: vi.fn(() => mockStorageBucket) }
 }
 
+function successfulRemovalResponse(recordId: string) {
+	return {
+		data: { success: true, record_id: recordId },
+		error: null
+	}
+}
+
+function defaultRpcImplementation(
+	rpcName: string,
+	args?: Record<string, unknown>
+) {
+	return Promise.resolve(
+		rpcName === 'remove_record_from_collection' &&
+			typeof args?.target_record_id === 'string'
+			? successfulRemovalResponse(args.target_record_id)
+			: { data: null, error: null }
+	)
+}
+
 const mockSupabaseClient = {
 	from: vi.fn(() => mockQueryBuilder),
-	rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+	rpc: vi.fn().mockImplementation(defaultRpcImplementation),
 	functions: {
 		invoke: mockGlobalFunctionsInvoke
 	},
@@ -186,7 +205,9 @@ describe('recordsStore', () => {
 		// Reset mock query builder
 		mockQueryBuilder = createMockQueryBuilder()
 		mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
-		mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: null })
+		mockSupabaseClient.rpc
+			.mockReset()
+			.mockImplementation(defaultRpcImplementation)
 		mockBoundFunctionsInvoke.mockReset().mockResolvedValue(cleanupResponse())
 		mockGlobalFunctionsInvoke.mockReset().mockResolvedValue(cleanupResponse())
 		mockSupabaseClient.auth.getSession.mockImplementation(async () => ({
@@ -2322,7 +2343,7 @@ describe('recordsStore', () => {
 			)
 		})
 
-		it('runs a same-record delete only after its update settles', async () => {
+		it('runs a same-record collection removal only after its update settles', async () => {
 			const updateResponse = createDeferred<{
 				data: DatabaseRecord
 				error: null
@@ -2332,18 +2353,21 @@ describe('recordsStore', () => {
 			store.records = [createMockRecord({ id: 'record-1', title: 'Original' })]
 
 			const update = store.updateRecord('record-1', { title: 'Updated' })
-			const deletion = store.deleteRecord('record-1')
+			const deletion = store.removeRecordFromCollection('record-1')
 			await vi.waitFor(() =>
 				expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
 			)
-			expect(mockQueryBuilder.delete).not.toHaveBeenCalled()
+			expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
 
 			updateResponse.resolve({
 				data: createMockRecord({ id: 'record-1', title: 'Updated' }),
 				error: null
 			})
 			await vi.waitFor(() =>
-				expect(mockQueryBuilder.delete).toHaveBeenCalledOnce()
+				expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+					'remove_record_from_collection',
+					{ target_record_id: 'record-1' }
+				)
 			)
 			await expect(Promise.all([update, deletion])).resolves.toEqual([
 				expect.objectContaining({ title: 'Updated' }),
@@ -2400,11 +2424,10 @@ describe('recordsStore', () => {
 		)
 	})
 
-	describe('deleteRecord', () => {
-		it('waits for cleanup begun after the committed deletion epoch', async () => {
+	describe('record removal lifecycle', () => {
+		it('waits for cleanup begun after the committed removal epoch', async () => {
 			const store = useRecordsStore()
 			store.records = [createMockRecord({ id: 'record-1' })]
-			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
 			const oldEmptyPage = createDeferred<ReturnType<typeof cleanupResponse>>()
 			const postDeletePage =
 				createDeferred<ReturnType<typeof cleanupResponse>>()
@@ -2414,13 +2437,16 @@ describe('recordsStore', () => {
 
 			const backgroundDrain = store.drainCoverCleanup()
 			await vi.waitFor(() => expectCleanupInvocationsWithoutBodies(1))
-			const deletion = store.deleteRecord('record-1')
+			const deletion = store.removeRecordFromCollection('record-1')
 			let didDeletionSettle = false
 			void deletion.then(() => {
 				didDeletionSettle = true
 			})
 			await vi.waitFor(() =>
-				expect(mockQueryBuilder.delete).toHaveBeenCalledOnce()
+				expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+					'remove_record_from_collection',
+					{ target_record_id: 'record-1' }
+				)
 			)
 
 			oldEmptyPage.resolve(cleanupResponse())
@@ -2432,7 +2458,7 @@ describe('recordsStore', () => {
 			await expect(backgroundDrain).resolves.toBe(true)
 		})
 
-		it('drains managed cover cleanup after the record is deleted', async () => {
+		it('drains managed cover cleanup after the record is removed', async () => {
 			const store = useRecordsStore()
 			store.records = [
 				createMockRecord({
@@ -2440,33 +2466,32 @@ describe('recordsStore', () => {
 					cover_storage_path: 'test-user-id/record-1/custom.webp'
 				})
 			]
-			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
-
-			const result = await store.deleteRecord('record-1')
+			const result = await store.removeRecordFromCollection('record-1')
 
 			expect(result).toBe(true)
 			expectCleanupInvocationsWithoutBodies(1)
 			expect(mockStorageBucket.remove).not.toHaveBeenCalled()
 		})
 
-		it('keeps a successful delete successful when queue draining fails', async () => {
+		it('keeps a successful removal successful when queue draining fails', async () => {
 			const consoleError = vi
 				.spyOn(console, 'error')
 				.mockImplementation(() => undefined)
 			try {
 				const store = useRecordsStore()
 				store.records = [createMockRecord({ id: 'record-1' })]
-				mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
 				mockBoundFunctionsInvoke.mockResolvedValue({
 					data: null,
 					error: new Error('private cleanup failure')
 				})
 
-				await expect(store.deleteRecord('record-1')).resolves.toBe(true)
+				await expect(
+					store.removeRecordFromCollection('record-1')
+				).resolves.toBe(true)
 
 				expect(store.records).toEqual([])
 				expect(mockToast.success).toHaveBeenCalledWith(
-					'Record deleted successfully.'
+					'Record removed from collection'
 				)
 				expect(mockToast.warning).toHaveBeenCalledWith(
 					'Some old cover files still need cleanup.'
@@ -2479,59 +2504,72 @@ describe('recordsStore', () => {
 			}
 		})
 
-		it('returns false when record not found', async () => {
+		it('returns false when the server cannot find the record', async () => {
 			const store = useRecordsStore()
 			store.records = [createMockRecord({ id: 'existing-record' })]
+			mockSupabaseClient.rpc.mockResolvedValueOnce({
+				data: null,
+				error: new Error('Record not found')
+			})
 
-			const result = await store.deleteRecord('non-existent')
+			const result = await store.removeRecordFromCollection('non-existent')
 
 			expect(result).toBe(false)
 		})
 
-		it('performs optimistic delete', async () => {
+		it('waits for the committed RPC before removing local state', async () => {
 			const store = useRecordsStore()
 			store.records = [
 				createMockRecord({ id: 'record-1' }),
 				createMockRecord({ id: 'record-2' })
 			]
+			const removalResponse =
+				createDeferred<ReturnType<typeof successfulRemovalResponse>>()
+			mockSupabaseClient.rpc.mockReturnValueOnce(removalResponse.promise)
 
-			const deletePromise = store.deleteRecord('record-1')
+			const removal = store.removeRecordFromCollection('record-1')
+			await vi.waitFor(() =>
+				expect(mockSupabaseClient.rpc).toHaveBeenCalledOnce()
+			)
 
-			expect(store.records.length).toBe(1)
-			expect(store.records[0]!.id).toBe('record-2')
+			expect(store.records.map((record) => record.id)).toEqual([
+				'record-1',
+				'record-2'
+			])
 
-			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
-			await deletePromise
+			removalResponse.resolve(successfulRemovalResponse('record-1'))
+			await expect(removal).resolves.toBe(true)
+			expect(store.records.map((record) => record.id)).toEqual(['record-2'])
 		})
 
-		it('reverts on delete error', async () => {
+		it('keeps local state unchanged on removal error', async () => {
 			const store = useRecordsStore()
 			const record1 = createMockRecord({ id: 'record-1' })
 			const record2 = createMockRecord({ id: 'record-2' })
 			store.records = [record1, record2]
-			mockQueryBuilder.eq.mockResolvedValue({
+			mockSupabaseClient.rpc.mockResolvedValueOnce({
 				data: null,
-				error: new Error('Delete failed')
+				error: new Error('Removal failed')
 			})
 
-			await store.deleteRecord('record-1')
+			await expect(store.removeRecordFromCollection('record-1')).resolves.toBe(
+				false
+			)
 
 			expect(store.records.length).toBe(2)
 			expect(store.records[0]!.id).toBe('record-1')
 		})
 
-		it('returns true on successful delete', async () => {
+		it('returns true on successful removal', async () => {
 			const store = useRecordsStore()
 			store.records = [createMockRecord({ id: 'record-1' })]
-			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
-
-			const result = await store.deleteRecord('record-1')
+			const result = await store.removeRecordFromCollection('record-1')
 
 			expect(result).toBe(true)
 			expect(store.records.length).toBe(0)
 		})
 
-		it('does not resurrect a committed delete from an older fetch', async () => {
+		it('does not resurrect a committed removal from an older fetch', async () => {
 			const oldFetchResponse = createDeferred<{
 				data: DatabaseRecord[]
 				error: null
@@ -2545,65 +2583,25 @@ describe('recordsStore', () => {
 				expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
 			)
 
-			await expect(store.deleteRecord('record-1')).resolves.toBe(true)
+			await expect(store.removeRecordFromCollection('record-1')).resolves.toBe(
+				true
+			)
 			oldFetchResponse.resolve({ data: [deletedRecord], error: null })
 			await expect(oldFetch).resolves.toBe(true)
 
 			expect(store.getRecordById('record-1')).toBeUndefined()
 		})
 
-		it('sets isDeletingRecord during delete', async () => {
+		it('sets isDeletingRecord during removal', async () => {
 			const store = useRecordsStore()
 			store.records = [createMockRecord({ id: 'record-1' })]
-			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
 
-			const deletePromise = store.deleteRecord('record-1')
+			const removalPromise = store.removeRecordFromCollection('record-1')
 			expect(store.isDeletingRecord).toBe(true)
 
-			await deletePromise
+			await removalPromise
 			expect(store.isDeletingRecord).toBe(false)
 		})
-
-		it.each([
-			{ label: 'success', response: { data: null, error: null } },
-			{
-				label: 'failure',
-				response: { data: null, error: new Error('A delete failed') }
-			}
-		])(
-			'does not let stale A delete $label roll back into or clean B',
-			async ({ response }) => {
-				const accountADelete = createDeferred<typeof response>()
-				mockQueryBuilder.eq.mockReturnValueOnce(accountADelete.promise)
-				const store = useRecordsStore()
-				store.records = [createMockRecord({ id: 'record-1' })]
-				const deletion = store.deleteRecord('record-1')
-				expect(store.records).toEqual([])
-				await vi.waitFor(() =>
-					expect(mockQueryBuilder.delete).toHaveBeenCalledOnce()
-				)
-
-				store.clearRecords()
-				mockUserStore.supaUser = { id: 'replacement-user-id' }
-				store.records = [
-					createMockRecord({
-						id: 'record-1',
-						title: 'Account B',
-						user_id: 'replacement-user-id'
-					})
-				]
-				mockToast.success.mockClear()
-				mockToast.error.mockClear()
-				accountADelete.resolve(response)
-
-				await expect(deletion).resolves.toBe(false)
-				expect(store.records).toHaveLength(1)
-				expect(store.records[0]!.title).toBe('Account B')
-				expect(mockBoundFunctionsInvoke).not.toHaveBeenCalled()
-				expect(mockToast.success).not.toHaveBeenCalled()
-				expect(mockToast.error).not.toHaveBeenCalled()
-			}
-		)
 	})
 
 	describe('removeRecordFromCollection', () => {
@@ -2651,7 +2649,34 @@ describe('recordsStore', () => {
 		})
 
 		it.each([
-			{ label: 'success', response: { data: null, error: null } },
+			{ label: 'null', data: null },
+			{
+				label: 'unsuccessful',
+				data: { success: false, record_id: 'record-1' }
+			},
+			{
+				label: 'wrong record',
+				data: { success: true, record_id: 'record-2' }
+			}
+		])(
+			'keeps local state unchanged for a $label success payload',
+			async ({ data }) => {
+				const store = useRecordsStore()
+				const record = createMockRecord({ id: 'record-1' })
+				store.records = [record]
+				mockSupabaseClient.rpc.mockResolvedValueOnce({ data, error: null })
+
+				await expect(
+					store.removeRecordFromCollection('record-1')
+				).resolves.toBe(false)
+
+				expect(store.records).toEqual([record])
+				expect(mockBoundFunctionsInvoke).not.toHaveBeenCalled()
+			}
+		)
+
+		it.each([
+			{ label: 'success', response: successfulRemovalResponse('record-1') },
 			{
 				label: 'failure',
 				response: { data: null, error: new Error('A removal failed') }
@@ -2946,7 +2971,7 @@ describe('recordsStore', () => {
 			await store.updateRecord('record-1', { title: 'House Again' })
 			expect(store.searchResults.map(({ id }) => id)).toEqual(['record-1'])
 
-			await store.deleteRecord('record-1')
+			await store.removeRecordFromCollection('record-1')
 			expect(store.searchResults).toEqual([])
 		})
 	})
@@ -3011,7 +3036,7 @@ describe('recordsStore', () => {
 				}),
 				store.updateRecord('record-1', { title: 'Updated' }),
 				store.updateRecordWithCover('record-1', {}, { type: 'remove' }),
-				store.deleteRecord('record-1')
+				store.removeRecordFromCollection('record-1')
 			]
 			expect(store.isCreatingRecord).toBe(true)
 			expect(store.isUpdatingRecord).toBe(true)

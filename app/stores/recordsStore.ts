@@ -110,6 +110,15 @@ function decodeCoverCleanupPage(value: unknown): CoverCleanupPage | null {
 	return { processed, removed, deferred }
 }
 
+function isExpectedRecordRemoval(
+	value: unknown,
+	expectedRecordId: string
+): boolean {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+	const result = value as Record<string, unknown>
+	return result.success === true && result.record_id === expectedRecordId
+}
+
 function waitForCoverCleanupRetry(
 	delayMs: number,
 	signal: AbortSignal
@@ -1145,106 +1154,6 @@ export const useRecordsStore = defineStore('records', () => {
 		}
 	}
 
-	async function deleteRecord(id: string): Promise<boolean> {
-		const activity = beginMutationActivity('delete')
-		let context: RecordAccountContext | null = null
-		let confirmBeforeServer = false
-
-		try {
-			context = captureImmediateAccountContext()
-			if (context) confirmBeforeServer = true
-			else context = await resolveMutationContext(activity.generation)
-			if (!context) return false
-			const operationContext = context
-			return await runSerializedRecordOperation(
-				operationContext,
-				id,
-				false,
-				async () => {
-					const recordIndex = records.value.findIndex(
-						(record) => record.id === id
-					)
-					if (recordIndex === -1) {
-						toast.error('Record not found.')
-						return false
-					}
-
-					const removedRecord = records.value[recordIndex]!
-					const previousRecordId = records.value[recordIndex - 1]?.id
-					const nextRecordId = records.value[recordIndex + 1]?.id
-					const currentOperationRevision = nextOperationRevision()
-					recordOperationRevisions.set(id, currentOperationRevision)
-					records.value.splice(recordIndex, 1)
-
-					const rollbackIfOwned = () => {
-						if (
-							recordOperationRevisions.get(id) === currentOperationRevision &&
-							!records.value.some((record) => record.id === id)
-						) {
-							const nextIndex = nextRecordId
-								? records.value.findIndex(
-										(record) => record.id === nextRecordId
-									)
-								: -1
-							if (nextIndex !== -1) {
-								records.value.splice(nextIndex, 0, removedRecord)
-								return
-							}
-							const previousIndex = previousRecordId
-								? records.value.findIndex(
-										(record) => record.id === previousRecordId
-									)
-								: -1
-							records.value.splice(previousIndex + 1, 0, removedRecord)
-						}
-					}
-
-					try {
-						if (
-							confirmBeforeServer &&
-							!(await confirmMutationContext(operationContext))
-						) {
-							if (isCurrentAccountContext(operationContext)) rollbackIfOwned()
-							return false
-						}
-
-						const { error } = await supabase
-							.from('records')
-							.delete()
-							.eq('id', id)
-						if (!isCurrentAccountContext(operationContext)) return false
-						if (recordOperationRevisions.get(id) !== currentOperationRevision) {
-							return false
-						}
-						if (error) throw error
-
-						recordCommittedMutation(id, operationContext, { kind: 'delete' })
-						records.value = records.value.filter((record) => record.id !== id)
-						await drainCoverCleanup({ fresh: true, context: operationContext })
-						if (!isCurrentAccountContext(operationContext)) return false
-						toast.success('Record deleted successfully.')
-						return true
-					} catch (error) {
-						if (!isCurrentAccountContext(operationContext)) return false
-						if (recordOperationRevisions.get(id) !== currentOperationRevision) {
-							return false
-						}
-						console.error('Failed to delete record:', error)
-						rollbackIfOwned()
-						toast.error('Error deleting record.')
-						return false
-					} finally {
-						if (recordOperationRevisions.get(id) === currentOperationRevision) {
-							recordOperationRevisions.delete(id)
-						}
-					}
-				}
-			)
-		} finally {
-			finishMutationActivity(activity)
-		}
-	}
-
 	async function removeRecordFromCollection(
 		id: string,
 		originatingContext?: RecordAccountContext
@@ -1272,7 +1181,7 @@ export const useRecordsStore = defineStore('records', () => {
 					const currentOperationRevision = nextOperationRevision()
 					recordOperationRevisions.set(id, currentOperationRevision)
 					try {
-						const { error } = await supabase.rpc(
+						const { data, error } = await supabase.rpc(
 							'remove_record_from_collection',
 							{ target_record_id: id }
 						)
@@ -1284,6 +1193,9 @@ export const useRecordsStore = defineStore('records', () => {
 							return false
 						}
 						if (error) throw error
+						if (!isExpectedRecordRemoval(data, id)) {
+							throw new Error('Invalid record removal response.')
+						}
 
 						recordCommittedMutation(id, operationContext, { kind: 'delete' })
 						records.value = records.value.filter((record) => record.id !== id)
@@ -1386,7 +1298,6 @@ export const useRecordsStore = defineStore('records', () => {
 		updateRecord,
 		updateRecordWithCover,
 		drainCoverCleanup,
-		deleteRecord,
 		removeRecordFromCollection,
 		getRecordById,
 		getRecordsByIds,

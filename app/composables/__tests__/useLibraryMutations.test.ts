@@ -13,7 +13,8 @@ const tracks = {
 	clearTracks: vi.fn()
 }
 const crates = {
-	removeRecordFromAllCrates: vi.fn(),
+	getCrateIdsAffectedByRecordRemoval: vi.fn(),
+	removeRecordFromCrates: vi.fn(),
 	clearAllCrateRecords: vi.fn()
 }
 const session = {
@@ -46,6 +47,10 @@ describe('useLibraryMutations', () => {
 		records.captureAccountContext.mockResolvedValue(accountContext)
 		records.isCurrentAccountContext.mockReturnValue(true)
 		records.drainCoverCleanup.mockResolvedValue(true)
+		crates.getCrateIdsAffectedByRecordRemoval.mockReturnValue([
+			'crate-1',
+			'crate-2'
+		])
 	})
 
 	it('cleans track and crate state in order after record removal succeeds', async () => {
@@ -63,16 +68,25 @@ describe('useLibraryMutations', () => {
 		)
 		expect(tracks.removeTracksByRecordId).toHaveBeenCalledOnce()
 		expect(tracks.removeTracksByRecordId).toHaveBeenCalledWith('record-1')
-		expect(crates.removeRecordFromAllCrates).toHaveBeenCalledOnce()
-		expect(crates.removeRecordFromAllCrates).toHaveBeenCalledWith('record-1')
+		expect(crates.getCrateIdsAffectedByRecordRemoval).toHaveBeenCalledWith(
+			'record-1'
+		)
+		expect(crates.removeRecordFromCrates).toHaveBeenCalledOnce()
+		expect(crates.removeRecordFromCrates).toHaveBeenCalledWith('record-1', [
+			'crate-1',
+			'crate-2'
+		])
+		expect(
+			crates.getCrateIdsAffectedByRecordRemoval.mock.invocationCallOrder[0]
+		).toBeLessThan(
+			records.removeRecordFromCollection.mock.invocationCallOrder[0]!
+		)
 		expect(
 			records.removeRecordFromCollection.mock.invocationCallOrder[0]
 		).toBeLessThan(tracks.removeTracksByRecordId.mock.invocationCallOrder[0]!)
 		expect(
 			tracks.removeTracksByRecordId.mock.invocationCallOrder[0]
-		).toBeLessThan(
-			crates.removeRecordFromAllCrates.mock.invocationCallOrder[0]!
-		)
+		).toBeLessThan(crates.removeRecordFromCrates.mock.invocationCallOrder[0]!)
 	})
 
 	it('does not clean dependent state when record removal fails', async () => {
@@ -83,7 +97,7 @@ describe('useLibraryMutations', () => {
 
 		expect(result).toBe(false)
 		expect(tracks.removeTracksByRecordId).not.toHaveBeenCalled()
-		expect(crates.removeRecordFromAllCrates).not.toHaveBeenCalled()
+		expect(crates.removeRecordFromCrates).not.toHaveBeenCalled()
 	})
 
 	it('does not clean replacement-account state after stale record removal', async () => {
@@ -105,7 +119,7 @@ describe('useLibraryMutations', () => {
 
 		await expect(removal).resolves.toBe(false)
 		expect(tracks.removeTracksByRecordId).not.toHaveBeenCalled()
-		expect(crates.removeRecordFromAllCrates).not.toHaveBeenCalled()
+		expect(crates.removeRecordFromCrates).not.toHaveBeenCalled()
 	})
 
 	it('cleans each owning store in order after delete-all succeeds', async () => {

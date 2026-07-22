@@ -26,6 +26,8 @@ type CrateMetadataUpdate = Partial<
 	Omit<Crate, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'records'>
 >
 
+type CrateCreateInput = Pick<Crate, 'name' | 'description' | 'color'>
+
 type CrateMembershipRpc = 'add_record_to_crate' | 'remove_record_from_crate'
 
 type CrateMetadataField = keyof CrateMetadataUpdate
@@ -43,6 +45,10 @@ type MembershipContext = {
 type MembershipResult = {
 	context: MembershipContext
 	crate: Crate
+}
+
+type PendingMembershipOperation = {
+	crateId: string
 }
 
 export const useCratesStore = defineStore('crates', () => {
@@ -71,6 +77,13 @@ export const useCratesStore = defineStore('crates', () => {
 		string,
 		Map<CrateMetadataField, OptimisticMetadataField>
 	>()
+	const pendingMembershipOperations = new Map<
+		string,
+		Set<PendingMembershipOperation>
+	>()
+	// A delayed fetch or membership response may predate committed deletion.
+	// Filter only that record while allowing unrelated crate changes to publish.
+	const removedRecordMembershipTombstones = new Set<string>()
 
 	// Dialog state (store-based pattern)
 	const crateToDelete = ref<Crate | null>(null)
@@ -165,6 +178,27 @@ export const useCratesStore = defineStore('crates', () => {
 		)
 	}
 
+	function beginMembershipOperation(
+		recordId: string,
+		crateId: string
+	): () => void {
+		const operation = { crateId }
+		let operations = pendingMembershipOperations.get(recordId)
+		if (!operations) {
+			operations = new Set()
+			pendingMembershipOperations.set(recordId, operations)
+		}
+		operations.add(operation)
+
+		return () => {
+			const currentOperations = pendingMembershipOperations.get(recordId)
+			if (!currentOperations?.delete(operation)) return
+			if (currentOperations.size === 0) {
+				pendingMembershipOperations.delete(recordId)
+			}
+		}
+	}
+
 	function decodeCrate(
 		data: unknown,
 		expected: { id?: string; userId: string }
@@ -207,7 +241,9 @@ export const useCratesStore = defineStore('crates', () => {
 				name: candidate.name,
 				description: candidate.description as string | null,
 				color: candidate.color as string | null,
-				records: candidate.records,
+				records: candidate.records.filter(
+					(recordId) => !removedRecordMembershipTombstones.has(recordId)
+				),
 				user_id: candidate.user_id,
 				created_at: candidate.created_at as string | null,
 				updated_at: updatedAt
@@ -410,7 +446,7 @@ export const useCratesStore = defineStore('crates', () => {
 	}
 
 	async function createCrate(
-		crateData: Omit<Crate, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+		crateData: CrateCreateInput
 	): Promise<Crate | null> {
 		if (isDemoStore) return null
 		const context = captureAccountContext()
@@ -424,7 +460,9 @@ export const useCratesStore = defineStore('crates', () => {
 			const { data, error } = await supabase
 				.from('crates')
 				.insert({
-					...crateData,
+					name: crateData.name,
+					description: crateData.description,
+					color: crateData.color,
 					user_id: context.userId
 				})
 				.select()
@@ -614,6 +652,7 @@ export const useCratesStore = defineStore('crates', () => {
 			account,
 			crateRevision: getCrateRevision(crateId)
 		}
+		const finishMembership = beginMembershipOperation(recordId, crateId)
 		const finishUpdate = beginUpdateOperation(account)
 
 		try {
@@ -636,6 +675,7 @@ export const useCratesStore = defineStore('crates', () => {
 			toast.error('Error updating crate.')
 			return null
 		} finally {
+			finishMembership()
 			finishUpdate()
 		}
 	}
@@ -771,21 +811,42 @@ export const useCratesStore = defineStore('crates', () => {
 		)
 	}
 
-	function removeRecordFromAllCrates(recordId: string) {
-		for (const crate of crates.value) {
-			invalidateCrate(crate.id)
-			const authoritativeCrate = authoritativeCrates.get(crate.id)
+	function getCrateIdsAffectedByRecordRemoval(recordId: string): string[] {
+		const affectedIds = new Set(
+			getCratesContainingRecord(recordId).map(({ id }) => id)
+		)
+		for (const operation of pendingMembershipOperations.get(recordId) ?? []) {
+			affectedIds.add(operation.crateId)
+		}
+		return [...affectedIds]
+	}
+
+	function removeRecordFromCrates(
+		recordId: string,
+		affectedCrateIds: readonly string[]
+	) {
+		removedRecordMembershipTombstones.add(recordId)
+		const affectedIds = new Set([
+			...affectedCrateIds,
+			...getCrateIdsAffectedByRecordRemoval(recordId)
+		])
+		for (const crateId of affectedIds) {
+			const authoritativeCrate = authoritativeCrates.get(crateId)
 			if (authoritativeCrate) {
-				authoritativeCrates.set(crate.id, {
+				authoritativeCrates.set(crateId, {
 					...authoritativeCrate,
 					records: authoritativeCrate.records.filter((id) => id !== recordId)
 				})
 			}
 		}
-		crates.value = crates.value.map((crate) => ({
-			...crate,
-			records: crate.records.filter((id) => id !== recordId)
-		}))
+		crates.value = crates.value.map((crate) =>
+			affectedIds.has(crate.id)
+				? {
+						...crate,
+						records: crate.records.filter((id) => id !== recordId)
+					}
+				: crate
+		)
 	}
 
 	function clearAllCrateRecords() {
@@ -819,6 +880,8 @@ export const useCratesStore = defineStore('crates', () => {
 		crateLifecycleBoundaries.clear()
 		explicitDeletionTombstones.clear()
 		optimisticMetadataFields.clear()
+		pendingMembershipOperations.clear()
+		removedRecordMembershipTombstones.clear()
 		isLoadingCrates.value = false
 		isCreatingCrate.value = false
 		isUpdatingCrate.value = false
@@ -844,7 +907,8 @@ export const useCratesStore = defineStore('crates', () => {
 		removeRecordFromCrate,
 		getCrateById,
 		getCratesContainingRecord,
-		removeRecordFromAllCrates,
+		getCrateIdsAffectedByRecordRemoval,
+		removeRecordFromCrates,
 		clearAllCrateRecords,
 		clearCrates
 	}

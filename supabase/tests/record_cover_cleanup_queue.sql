@@ -550,10 +550,11 @@ SELECT set_config(
 );
 SELECT lives_ok(
 	$$
-		DELETE FROM public.records
-		WHERE id = '00000000-0000-0000-0000-000000000213'
+		SELECT public.remove_record_from_collection(
+			'00000000-0000-0000-0000-000000000213'
+		)
 	$$,
-	'an authenticated record deletion atomically enqueues its managed path'
+	'transactional authenticated record removal atomically enqueues its managed path'
 );
 RESET ROLE;
 SELECT ok(

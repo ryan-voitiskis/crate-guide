@@ -8,11 +8,12 @@ export function useLibraryMutations() {
 	async function removeRecordFromCollection(recordId: string) {
 		const context = await records.captureAccountContext()
 		if (!context) return false
+		const affectedCrateIds = crates.getCrateIdsAffectedByRecordRemoval(recordId)
 		const success = await records.removeRecordFromCollection(recordId, context)
 		if (!success || !records.isCurrentAccountContext(context)) return false
 
 		tracks.removeTracksByRecordId(recordId)
-		crates.removeRecordFromAllCrates(recordId)
+		crates.removeRecordFromCrates(recordId, affectedCrateIds)
 		return true
 	}
 

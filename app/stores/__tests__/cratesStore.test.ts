@@ -829,8 +829,7 @@ describe('cratesStore', () => {
 					store.createCrate({
 						name: createdRow.name,
 						description: createdRow.description,
-						color: createdRow.color,
-						records: []
+						color: createdRow.color
 					})
 				).resolves.toEqual(createdRow)
 			}
@@ -908,8 +907,7 @@ describe('cratesStore', () => {
 			const result = await store.createCrate({
 				name: 'New Crate',
 				description: null,
-				color: null,
-				records: []
+				color: null
 			})
 
 			expect(result).toBeNull()
@@ -926,8 +924,7 @@ describe('cratesStore', () => {
 			const result = await store.createCrate({
 				name: 'New Crate',
 				description: null,
-				color: null,
-				records: []
+				color: null
 			})
 
 			expect(result?.id).toBe('new-crate')
@@ -944,8 +941,7 @@ describe('cratesStore', () => {
 			const createPromise = store.createCrate({
 				name: 'New Crate',
 				description: null,
-				color: null,
-				records: []
+				color: null
 			})
 
 			expect(store.isCreatingCrate).toBe(true)
@@ -969,8 +965,7 @@ describe('cratesStore', () => {
 			const crateData = {
 				name: 'Concurrent crate',
 				description: null,
-				color: null,
-				records: []
+				color: null
 			}
 
 			try {
@@ -1031,8 +1026,7 @@ describe('cratesStore', () => {
 				store.createCrate({
 					name: row.name,
 					description: row.description,
-					color: row.color,
-					records: []
+					color: row.color
 				})
 			)
 
@@ -1064,8 +1058,7 @@ describe('cratesStore', () => {
 			const result = await store.createCrate({
 				name: 'New Crate',
 				description: null,
-				color: null,
-				records: []
+				color: null
 			})
 
 			expect(result).toBeNull()
@@ -1452,8 +1445,7 @@ describe('cratesStore', () => {
 						store.createCrate({
 							name: createdWhilePending.name,
 							description: createdWhilePending.description,
-							color: createdWhilePending.color,
-							records: []
+							color: createdWhilePending.color
 						})
 					).resolves.toEqual(createdWhilePending)
 
@@ -2416,7 +2408,7 @@ describe('cratesStore', () => {
 			]
 			const originalCrates = store.crates
 
-			store.removeRecordFromAllCrates('record-1')
+			store.removeRecordFromCrates('record-1', ['crate-1'])
 
 			expect(store.crates).not.toBe(originalCrates)
 			expect(store.crates.map((crate) => crate.records)).toEqual([
@@ -2454,7 +2446,7 @@ describe('cratesStore', () => {
 		})
 
 		it.each([
-			['removeRecordFromAllCrates', ['record-2']],
+			['removeRecordFromCrates', ['record-2']],
 			['clearAllCrateRecords', []]
 		] as const)(
 			'%s is not undone by a delayed membership response',
@@ -2469,9 +2461,11 @@ describe('cratesStore', () => {
 					createMockCrate({ id: 'crate-1', records: ['record-2'] })
 				]
 
+				const affectedBeforeMembership =
+					store.getCrateIdsAffectedByRecordRemoval('record-1')
 				const addPromise = store.addRecordToCrate('crate-1', 'record-1')
-				if (cleanupAction === 'removeRecordFromAllCrates') {
-					store.removeRecordFromAllCrates('record-1')
+				if (cleanupAction === 'removeRecordFromCrates') {
+					store.removeRecordFromCrates('record-1', affectedBeforeMembership)
 				} else {
 					store.clearAllCrateRecords()
 				}
@@ -2492,8 +2486,103 @@ describe('cratesStore', () => {
 			}
 		)
 
+		it('cleans same-record membership completed after the removal snapshot', async () => {
+			const store = useCratesStore()
+			const crate = createMockCrate({ id: 'crate-1', records: [] })
+			store.crates = [crate]
+			const affectedBeforeMembership =
+				store.getCrateIdsAffectedByRecordRemoval('record-1')
+			mockSupabaseClient.rpc.mockResolvedValue({
+				data: createMockCrate({
+					...crate,
+					records: ['record-1'],
+					updated_at: '2026-07-19T04:00:00.000002Z'
+				}),
+				error: null
+			})
+
+			await expect(store.addRecordToCrate('crate-1', 'record-1')).resolves.toBe(
+				true
+			)
+			store.removeRecordFromCrates('record-1', affectedBeforeMembership)
+
+			expect(affectedBeforeMembership).toEqual([])
+			expect(store.getCrateById('crate-1')?.records).toEqual([])
+		})
+
+		it('publishes an unrelated membership response across record cleanup', async () => {
+			const membershipResponse = createDeferred<{
+				data: ReturnType<typeof createMockCrate>
+				error: null
+			}>()
+			mockSupabaseClient.rpc.mockReturnValue(membershipResponse.promise)
+			const store = useCratesStore()
+			const affectedCrate = createMockCrate({
+				id: 'crate-affected',
+				records: ['record-deleted']
+			})
+			const unrelatedCrate = createMockCrate({
+				id: 'crate-unrelated',
+				records: []
+			})
+			store.crates = [affectedCrate, unrelatedCrate]
+
+			const addPromise = store.addRecordToCrate(
+				unrelatedCrate.id,
+				'record-unrelated'
+			)
+			store.removeRecordFromCrates('record-deleted', [affectedCrate.id])
+			membershipResponse.resolve({
+				data: createMockCrate({
+					...unrelatedCrate,
+					records: ['record-unrelated'],
+					updated_at: '2026-07-19T04:00:00.000002Z'
+				}),
+				error: null
+			})
+
+			await expect(addPromise).resolves.toBe(true)
+			expect(store.getCrateById(affectedCrate.id)?.records).toEqual([])
+			expect(store.getCrateById(unrelatedCrate.id)?.records).toEqual([
+				'record-unrelated'
+			])
+			expect(store.getCrateById(unrelatedCrate.id)).not.toBe(unrelatedCrate)
+			expect(mockToast.success).toHaveBeenCalledWith('Record added to crate.')
+		})
+
+		it('publishes a different-record response on the cleaned crate', async () => {
+			const membershipResponse = createDeferred<{
+				data: ReturnType<typeof createMockCrate>
+				error: null
+			}>()
+			mockSupabaseClient.rpc.mockReturnValue(membershipResponse.promise)
+			const store = useCratesStore()
+			const crate = createMockCrate({
+				id: 'crate-1',
+				records: ['record-deleted']
+			})
+			store.crates = [crate]
+
+			const addPromise = store.addRecordToCrate(crate.id, 'record-unrelated')
+			store.removeRecordFromCrates('record-deleted', [crate.id])
+			membershipResponse.resolve({
+				data: createMockCrate({
+					...crate,
+					records: ['record-deleted', 'record-unrelated'],
+					updated_at: '2026-07-19T04:00:00.000002Z'
+				}),
+				error: null
+			})
+
+			await expect(addPromise).resolves.toBe(true)
+			expect(store.getCrateById(crate.id)?.records).toEqual([
+				'record-unrelated'
+			])
+			expect(mockToast.success).toHaveBeenCalledWith('Record added to crate.')
+		})
+
 		it.each([
-			['removeRecordFromAllCrates', ['record-2']],
+			['removeRecordFromCrates', ['record-2']],
 			['clearAllCrateRecords', []]
 		] as const)(
 			'%s preserves successful metadata without accepting stale records',
@@ -2515,8 +2604,8 @@ describe('cratesStore', () => {
 				const metadataPromise = store.updateCrate('crate-1', {
 					name: 'Updated'
 				})
-				if (cleanupAction === 'removeRecordFromAllCrates') {
-					store.removeRecordFromAllCrates('record-1')
+				if (cleanupAction === 'removeRecordFromCrates') {
+					store.removeRecordFromCrates('record-1', ['crate-1'])
 				} else {
 					store.clearAllCrateRecords()
 				}
@@ -2564,7 +2653,7 @@ describe('cratesStore', () => {
 			const metadataPromise = store.updateCrate('crate-1', {
 				name: 'Updated'
 			})
-			store.removeRecordFromAllCrates('record-1')
+			store.removeRecordFromCrates('record-1', ['crate-1'])
 
 			const staleFetchCrate = createMockCrate({
 				id: 'crate-1',
@@ -2622,7 +2711,7 @@ describe('cratesStore', () => {
 			const metadataPromise = store.updateCrate('crate-1', {
 				name: 'Delayed local'
 			})
-			store.removeRecordFromAllCrates('record-1')
+			store.removeRecordFromCrates('record-1', ['crate-1'])
 
 			const remoteV3 = createMockCrate({
 				id: 'crate-1',
@@ -2767,8 +2856,7 @@ describe('cratesStore', () => {
 			const crateData = {
 				name: 'Created crate',
 				description: null,
-				color: null,
-				records: []
+				color: null
 			}
 
 			const oldCreate = store.createCrate(crateData)
