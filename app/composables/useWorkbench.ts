@@ -5,6 +5,7 @@ import {
 	demoRecords,
 	demoTracks
 } from '~/demo/domainFixtures'
+import type { WorkbenchCapabilities } from '~/repositories/library/contracts'
 
 const demoPiniaByApp = new WeakMap<object, Pinia>()
 const seededDemoPinia = new WeakSet<Pinia>()

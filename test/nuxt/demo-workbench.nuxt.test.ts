@@ -64,7 +64,7 @@ describe('demo workbench', () => {
 		if (!captured) throw new Error('Demo workbench probe did not mount')
 
 		expect(captured.capabilities).toMatchObject({
-			mode: 'demo',
+			location: 'demo',
 			canPersistSessions: false,
 			canMutateLibrary: false,
 			canManageCrates: false,

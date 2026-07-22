@@ -13,7 +13,7 @@ import {
 const user = useWorkbenchUserStore()
 const capabilities = useWorkbenchCapabilities()
 const route = useRoute()
-const isDemo = capabilities.mode === 'demo'
+const isDemo = capabilities.location === 'demo'
 const openDeleteAccountOnReturn = computed(
 	() => route.query.action === 'delete-account'
 )
