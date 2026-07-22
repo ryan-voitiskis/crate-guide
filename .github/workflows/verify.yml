@@ -46,11 +46,13 @@ jobs:
       - name: Audit frozen Edge dependencies
         run: npm run audit:edge
 
-      - name: Install Chromium
-        run: npx --no-install playwright install --with-deps chromium
+      - name: Install browser matrix
+        run: npx --no-install playwright install --with-deps chromium firefox webkit
 
       - name: Verify application
         run: npm run verify
+        env:
+          BROWSER_LIBRARY_REQUIRE_FULL_MATRIX: '1'
 
       - name: Build application
         run: npm run build
