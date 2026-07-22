@@ -13,12 +13,16 @@ import {
 } from 'lucide-vue-next'
 import type { LibraryRecord, LibraryTrack } from '~~/shared/types/library'
 
-const props = defineProps<{
-	track: LibraryTrack
-	record: LibraryRecord | null
-	showClose?: boolean
-	readOnly?: boolean
-}>()
+const props = withDefaults(
+	defineProps<{
+		track: LibraryTrack
+		record: LibraryRecord | null
+		showClose?: boolean
+		readOnly?: boolean
+		showEditAction?: boolean
+	}>(),
+	{ showEditAction: true }
+)
 
 const emit = defineEmits<{
 	close: []
@@ -208,7 +212,10 @@ const keyColour = computed(() => {
 			/>
 		</div>
 
-		<div class="border-border shrink-0 border-t p-3">
+		<div
+			v-if="props.showEditAction"
+			class="border-border shrink-0 border-t p-3"
+		>
 			<Button
 				size="sm"
 				class="w-full"

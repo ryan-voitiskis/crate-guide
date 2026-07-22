@@ -8,6 +8,7 @@ import {
 	WandSparkles
 } from 'lucide-vue-next'
 import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
+import { deriveTrackEvidenceLensRows } from '~/utils/trackEvidenceLens'
 import type { LibraryRecord, LibraryTrack } from '~~/shared/types/library'
 
 type TrackSortKey =
@@ -21,6 +22,7 @@ type TrackSortKey =
 	| 'genre'
 type SortDirection = 'asc' | 'desc'
 type Density = 'compact' | 'comfortable'
+type TrackCollectionView = 'tracks' | 'evidence'
 type TrackWorkbenchRow = {
 	record: LibraryRecord | null
 	track: LibraryTrack
@@ -43,6 +45,7 @@ const mobileInspectorOpen = ref(false)
 const density = useState<Density>('workbench-density', () => 'compact')
 const sortKey = ref<TrackSortKey>('artist')
 const sortDirection = ref<SortDirection>('asc')
+const viewMode = ref<TrackCollectionView>('tracks')
 
 watchEffect(() => trackFilters.setTrackSource(tracks.tracks))
 
@@ -148,6 +151,20 @@ const sortedTrackRows = computed<TrackWorkbenchRow[]>(() => {
 	})
 })
 
+const evidenceRowsByTrackId = computed(
+	() =>
+		new Map(
+			deriveTrackEvidenceLensRows(tracks.tracks).map((row) => [row.id, row])
+		)
+)
+
+const evidenceTrackRows = computed(() =>
+	sortedTrackRows.value.flatMap((row) => {
+		const evidenceRow = evidenceRowsByTrackId.value.get(row.track.id)
+		return evidenceRow ? [evidenceRow] : []
+	})
+)
+
 const trackItemSize = computed(() => {
 	if (isCompactTable.value) return 80
 	return density.value === 'compact' ? 36 : 56
@@ -233,7 +250,7 @@ watch(
 		<div v-else-if="tracks.hasTracks" class="flex min-h-0 flex-1">
 			<section class="flex min-w-0 flex-1 flex-col">
 				<div
-					v-if="missingAnalysisCount > 0"
+					v-if="viewMode === 'tracks' && missingAnalysisCount > 0"
 					class="border-border bg-muted/25 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2"
 				>
 					<div class="flex min-w-0 items-center gap-2.5">
@@ -295,7 +312,43 @@ watch(
 				<div
 					class="border-border flex min-h-11 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-1.5"
 				>
-					<div class="flex items-center gap-3 text-sm">
+					<div class="flex flex-wrap items-center gap-3 text-sm">
+						<div
+							class="border-border flex rounded-sm border p-0.5"
+							role="group"
+							aria-label="Track collection view"
+						>
+							<button
+								type="button"
+								class="rounded-xs px-2 py-1 text-[11px] font-medium transition-colors"
+								:class="
+									viewMode === 'tracks'
+										? 'bg-muted text-foreground'
+										: 'text-muted-foreground hover:text-foreground'
+								"
+								:aria-pressed="viewMode === 'tracks'"
+								aria-label="Show Tracks view"
+								data-testid="track-view-tracks"
+								@click="viewMode = 'tracks'"
+							>
+								Tracks
+							</button>
+							<button
+								type="button"
+								class="rounded-xs px-2 py-1 text-[11px] font-medium transition-colors"
+								:class="
+									viewMode === 'evidence'
+										? 'bg-muted text-foreground'
+										: 'text-muted-foreground hover:text-foreground'
+								"
+								:aria-pressed="viewMode === 'evidence'"
+								aria-label="Show Evidence lens"
+								data-testid="track-view-evidence"
+								@click="viewMode = 'evidence'"
+							>
+								Evidence
+							</button>
+						</div>
 						<span class="text-muted-foreground">
 							{{ trackFilters.filteredTracks.length }} of
 							{{ tracks.tracksCount }} tracks
@@ -313,7 +366,7 @@ watch(
 
 				<!-- @vue-generic {TrackWorkbenchRow} -->
 				<ListWorkbenchVirtual
-					v-if="sortedTrackRows.length"
+					v-if="viewMode === 'tracks' && sortedTrackRows.length"
 					:items="sortedTrackRows"
 					:get-item-key="getTrackRowKey"
 					:item-size="trackItemSize"
@@ -519,7 +572,7 @@ watch(
 				</ListWorkbenchVirtual>
 
 				<div
-					v-else
+					v-else-if="viewMode === 'tracks'"
 					class="flex min-h-0 flex-1 flex-col items-center justify-center p-8 text-center"
 				>
 					<Search class="text-muted-foreground/40 mb-3 size-9 stroke-1" />
@@ -538,6 +591,17 @@ watch(
 						Clear filters
 					</Button>
 				</div>
+
+				<ListTrackEvidenceLens
+					v-else
+					:rows="evidenceTrackRows"
+					:records="records.records"
+					:density="density"
+					:compact="isCompactTable"
+					:selected-track-id="selectedTrackId"
+					:key-format="preferences.currentKeyFormat"
+					@select="selectTrack"
+				/>
 			</section>
 
 			<aside
@@ -548,7 +612,8 @@ watch(
 					:track="selectedTrack"
 					:record="selectedRecord"
 					show-close
-					:read-only="!capabilities.canMutateLibrary"
+					:show-edit-action="viewMode === 'tracks'"
+					:read-only="viewMode === 'evidence' || !capabilities.canMutateLibrary"
 					@close="selectedTrackId = null"
 					@edit="editTrack(selectedTrack.id)"
 				/>
@@ -563,7 +628,11 @@ watch(
 						No track selected
 					</p>
 					<p class="text-muted-foreground mt-2 text-xs">
-						Select a track to inspect tempo, key, condition and release context.
+						{{
+							viewMode === 'evidence'
+								? 'Select a track to inspect current values and retained Evidence.'
+								: 'Select a track to inspect tempo, key, condition and release context.'
+						}}
 					</p>
 				</div>
 			</aside>
@@ -585,14 +654,15 @@ watch(
 				<SheetHeader class="sr-only">
 					<SheetTitle>Track inspector</SheetTitle>
 					<SheetDescription>
-						Selected track details and edit action.
+						Selected track details and retained Evidence.
 					</SheetDescription>
 				</SheetHeader>
 				<InspectorTrack
 					v-if="selectedTrack"
 					:track="selectedTrack"
 					:record="selectedRecord"
-					:read-only="!capabilities.canMutateLibrary"
+					:show-edit-action="viewMode === 'tracks'"
+					:read-only="viewMode === 'evidence' || !capabilities.canMutateLibrary"
 					@edit="editTrack(selectedTrack.id)"
 				/>
 			</SheetContent>

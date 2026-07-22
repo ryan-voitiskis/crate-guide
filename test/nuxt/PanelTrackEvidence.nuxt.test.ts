@@ -258,5 +258,9 @@ describe('PanelTrackEvidence', () => {
 		)
 		expect(wrapper.findAll('button')).toHaveLength(1)
 		expect(wrapper.get('button').text()).toContain('Edit track')
+
+		await wrapper.setProps({ showEditAction: false })
+		expect(wrapper.find('button').exists()).toBe(false)
+		expect(wrapper.text()).not.toContain('Edit track')
 	})
 })

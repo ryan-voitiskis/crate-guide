@@ -1,6 +1,6 @@
 import { computed, defineComponent, h, nextTick } from 'vue'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
-import type { VueWrapper } from '@vue/test-utils'
+import { type VueWrapper, flushPromises } from '@vue/test-utils'
 import { createMockRecord } from 'test/mocks/fixtures/records'
 import { createMockTrack } from 'test/mocks/fixtures/tracks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -38,6 +38,7 @@ mockNuxtImport(
 	() => () => pageMocks.trackFilters
 )
 mockNuxtImport('useWorkbenchUserStore', () => () => pageMocks.user)
+mockNuxtImport('useWorkbenchPreferencesStore', () => () => pageMocks.user)
 mockNuxtImport('useWorkbenchCapabilities', () => () => ({
 	mode: 'app',
 	canPersistSessions: true,
@@ -218,5 +219,40 @@ describe('tracks page render work', () => {
 			'track-zebra'
 		])
 		expect(pageMocks.records.getRecordById).toHaveBeenCalledTimes(9)
+	})
+
+	it('switches to a read-only virtualized Evidence lens without losing the complete filtered set', async () => {
+		await mountTracksPage()
+
+		expect(
+			wrapper
+				?.get('[data-testid="track-view-tracks"]')
+				.attributes('aria-pressed')
+		).toBe('true')
+		await wrapper?.get('[data-testid="track-view-evidence"]').trigger('click')
+		await flushPromises()
+
+		const evidenceRows = wrapper?.get('[data-testid="evidence-track-rows"]')
+		expect(evidenceRows?.attributes('data-virtual-total-count')).toBe('3')
+		expect(wrapper?.find('[data-testid="desktop-track-rows"]').exists()).toBe(
+			false
+		)
+		expect(
+			wrapper
+				?.get('[data-testid="track-view-evidence"]')
+				.attributes('aria-pressed')
+		).toBe('true')
+
+		await wrapper
+			?.get('[data-evidence-track-id="track-middle"]')
+			.trigger('click')
+		await flushPromises()
+		const inspectors =
+			wrapper?.findAllComponents({ name: 'InspectorTrack' }) ?? []
+		expect(inspectors).toHaveLength(1)
+		for (const inspector of inspectors) {
+			expect(inspector.props('showEditAction')).toBe(false)
+			expect(inspector.props('readOnly')).toBe(true)
+		}
 	})
 })
