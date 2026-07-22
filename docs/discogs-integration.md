@@ -277,6 +277,31 @@ Account deletion has an additional service-owned recovery path:
   `cleanup_queue_complete`; either false means the account deletion succeeded
   with incomplete cleanup and triggers the same generic client warning.
 
+### Disposable local account-cleanup smoke
+
+The repository-owned smoke harness exercises the real account-cover cleanup
+repository and worker against the running local Supabase stack:
+
+```bash
+npm run smoke:account-cleanup
+```
+
+The harness reads credentials from captured `supabase status` output and never
+prints them. It refuses every API endpoint except loopback port `42821` and
+every database endpoint except the reserved loopback port `42822`, so it cannot
+target a hosted project. It also refuses to begin while unrelated account
+outbox work or expired user-quota work is pending.
+
+One run creates a uniquely named disposable user and 201 canonical managed
+covers, proves durable intent exists before deleting Auth, then waits through
+the production retry leases while the real worker removes `100`, `100`, and
+`1` objects. A hard invocation and time cap prevents an unbounded run. Final
+proof checks the target's Storage prefix, both cleanup queues, records, and
+per-user quota row are absent while an unrelated object and the exact global
+quota row survive. A scoped `finally` cleanup removes every fixture artifact,
+including after a failed assertion; it does not reset or truncate the local
+database. Allow a little over one minute for the two real lease delays.
+
 ## Verification commands
 
 These focused commands exercise different layers; they are not substitutes for
