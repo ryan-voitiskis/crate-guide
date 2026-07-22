@@ -69,6 +69,17 @@ test('applies the HTML policy to error documents without broadening it', async (
 	assertHtmlSecurityResponse(response, HTML)
 })
 
+test('supports a deliberate local-only build without a Supabase origin', async () => {
+	const headers = await createBrowserSecurityHeaders({
+		contentType: 'text/html',
+		htmlBody: HTML,
+		isHttps: true
+	})
+	assertHtmlSecurityResponse(responseWith(headers), HTML, {
+		supabaseOrigin: null
+	})
+})
+
 test('rejects invalid runtime origins and missing inline hashes', async () => {
 	await assert.rejects(
 		createBrowserSecurityHeaders({

@@ -49,7 +49,9 @@ function sha256Source(value) {
 export function assertHtmlSecurityResponse(response, html, options = {}) {
 	const expectedHsts = options.expectHsts ?? true
 	const expectedSupabaseOrigin =
-		options.supabaseOrigin ?? 'https://config.test.invalid'
+		'supabaseOrigin' in options
+			? options.supabaseOrigin
+			: 'https://config.test.invalid'
 	assert.equal(
 		response.headers.get('content-security-policy'),
 		ENFORCED_CONTENT_SECURITY_POLICY
