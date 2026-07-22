@@ -10,6 +10,7 @@ import {
 	normalizeArtist,
 	transformRelease,
 	transformReleaseArtists,
+	transformReleaseDomain,
 	transformReleaseLabels,
 	transformReleaseTracks
 } from './discogs-data'
@@ -612,5 +613,27 @@ describe('transformRelease', () => {
 		const result = transformRelease(release, userId)
 
 		expect(result.year).toBeNull()
+	})
+})
+
+describe('transformReleaseDomain', () => {
+	it('produces the same library payload without an account owner', () => {
+		const release = mockDiscogsReleases.standardEp()
+		const cloudPayload = transformRelease(release, 'cloud-user')
+		const { user_id: _owner, ...expectedDomain } = cloudPayload
+
+		const result = transformReleaseDomain(release)
+
+		expect(result).toEqual(expectedDomain)
+		expect(result).not.toHaveProperty('user_id')
+	})
+
+	it('does not add destination entity or storage identifiers', () => {
+		const result = transformReleaseDomain(mockDiscogsReleases.standardEp())
+
+		expect(result).not.toHaveProperty('id')
+		expect(result).not.toHaveProperty('cover_storage_path')
+		expect(result.tracks.every((track) => !('id' in track))).toBe(true)
+		expect(result.tracks.every((track) => !('user_id' in track))).toBe(true)
 	})
 })

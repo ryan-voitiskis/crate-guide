@@ -115,9 +115,12 @@ export function transformReleaseTracks(release: DiscogsReleaseFull) {
 	)
 }
 
-export function transformRelease(release: DiscogsReleaseFull, userId: string) {
+/**
+ * Transforms provider metadata into an account-neutral library payload. The
+ * active repository owns identity, entity IDs, transactions, and persistence.
+ */
+export function transformReleaseDomain(release: DiscogsReleaseFull) {
 	return {
-		user_id: userId,
 		discogs_id: release.id,
 		discogs_release_url: release.uri,
 		title: release.title.trim(),
@@ -131,4 +134,12 @@ export function transformRelease(release: DiscogsReleaseFull, userId: string) {
 			null,
 		tracks: transformReleaseTracks(release)
 	}
+}
+
+/**
+ * Legacy Cloud transport wrapper retained until Discogs import writes through
+ * the active repository. Ownership is added only at this adapter boundary.
+ */
+export function transformRelease(release: DiscogsReleaseFull, userId: string) {
+	return { user_id: userId, ...transformReleaseDomain(release) }
 }
