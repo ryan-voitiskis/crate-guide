@@ -135,7 +135,7 @@ export function buildEnrichmentUpdate(
 	fileName: string,
 	importedAt: string
 ): TrackBatchUpdate | null {
-	if (!row.track || row.stagingBlockedReason) return null
+	if (!row.track?.updated_at || row.stagingBlockedReason) return null
 
 	const updates: TrackBatchUpdate['updates'] = {}
 	const shouldApplyBpm =
@@ -182,6 +182,7 @@ export function buildEnrichmentUpdate(
 
 	return {
 		id: row.track.id,
+		expectedUpdatedAt: row.track.updated_at,
 		updates,
 		preconditions: {
 			bpmMustBeNull: shouldApplyBpm,

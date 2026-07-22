@@ -5,7 +5,11 @@ import type { LocalAudioReviewSelection } from '~/types/localAudio'
 import type { RekordboxXmlTrack } from '~/utils/rekordboxXml'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
 import type { DatabaseRecord, Track } from '~~/shared/types/supabase'
-import type { TrackBatchUpdate } from '~~/shared/types/trackUpdates'
+import type {
+	TrackBatchUpdate,
+	TrackBatchUpdateOutcome,
+	TrackBatchUpdateResult
+} from '~~/shared/types/trackUpdates'
 
 const workflowMocks = vi.hoisted(() => ({
 	buildRows: vi.fn(),
@@ -102,7 +106,7 @@ function createTrack(overrides: Partial<Track> = {}): Track {
 		beatport_data: null,
 		audio_features: null,
 		created_at: null,
-		updated_at: null,
+		updated_at: '2026-07-22T00:00:00.000Z',
 		...overrides
 	}
 }
@@ -228,10 +232,11 @@ function createLocalSelection(): LocalAudioReviewSelection {
 }
 
 function toBatchUpdate(row: TrackEnrichmentRow): TrackBatchUpdate | null {
-	if (!row.track || row.stagingBlockedReason) return null
+	if (!row.track?.updated_at || row.stagingBlockedReason) return null
 
 	return {
 		id: row.track.id,
+		expectedUpdatedAt: row.track.updated_at,
 		updates: {
 			...(row.canFillBpm ? { bpm: row.proposedBpm } : {}),
 			...(row.canFillKeyMode
@@ -243,6 +248,39 @@ function toBatchUpdate(row: TrackEnrichmentRow): TrackBatchUpdate | null {
 			keyModeMustBeNull: row.canFillKeyMode
 		}
 	}
+}
+
+function updatedBatchResult(track: Track): TrackBatchUpdateResult {
+	return {
+		id: track.id,
+		status: 'updated',
+		success: true,
+		track,
+		issue: null,
+		error: null,
+		operation: null
+	}
+}
+
+function failedBatchResult(
+	id: string,
+	error = 'Database rejected update'
+): TrackBatchUpdateResult {
+	return {
+		id,
+		status: 'invalid',
+		success: false,
+		track: null,
+		issue: { code: 'update_rejected', message: error },
+		error,
+		operation: null
+	}
+}
+
+const CANCELLED_BATCH_OUTCOME: TrackBatchUpdateOutcome = {
+	results: [],
+	cancelled: true,
+	requiresReview: false
 }
 
 describe('useTrackEnrichmentWorkflow', () => {
@@ -267,7 +305,8 @@ describe('useTrackEnrichmentWorkflow', () => {
 		workflowMocks.buildUpdate.mockImplementation(toBatchUpdate)
 		mockTracksStore.updateTracksBatch.mockResolvedValue({
 			results: [],
-			cancelled: false
+			cancelled: false,
+			requiresReview: false
 		})
 	})
 
@@ -634,19 +673,10 @@ describe('useTrackEnrichmentWorkflow', () => {
 				options?.onProgress?.(2)
 				return {
 					cancelled: false,
+					requiresReview: true,
 					results: [
-						{
-							id: 'track-key',
-							success: true,
-							track: updatedKeyTrack,
-							error: null
-						},
-						{
-							id: 'track-bpm',
-							success: false,
-							track: null,
-							error: 'Database rejected update'
-						}
+						updatedBatchResult(updatedKeyTrack),
+						failedBatchResult('track-bpm')
 					]
 				}
 			}
@@ -673,7 +703,12 @@ describe('useTrackEnrichmentWorkflow', () => {
 		).toMatchObject({ applied: true, error: null, track: updatedKeyTrack })
 		expect(
 			workflow.rows.value.find((row) => row.id === 'row-bpm')
-		).toMatchObject({ applied: false, error: 'Database rejected update' })
+		).toMatchObject({
+			applied: false,
+			error: 'Database rejected update',
+			stagingBlockedReason: 'Database rejected update'
+		})
+		expect([...workflow.stagedRowIds.value]).toEqual([])
 		expect(
 			workflow.rows.value.find((row) => row.id === 'row-unstaged')
 		).toEqual(unstaged)
@@ -692,7 +727,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 	})
 
 	it('cleans its own apply state when the current batch is cancelled', async () => {
-		let resolveBatch!: (value: { results: []; cancelled: true }) => void
+		let resolveBatch!: (value: TrackBatchUpdateOutcome) => void
 		mockTracksStore.updateTracksBatch.mockReturnValueOnce(
 			new Promise((resolve) => {
 				resolveBatch = resolve
@@ -710,7 +745,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 		expect(workflow.isApplying.value).toBe(true)
 		expect(workflow.showApplyDialog.value).toBe(true)
 
-		resolveBatch({ results: [], cancelled: true })
+		resolveBatch(CANCELLED_BATCH_OUTCOME)
 		await applying
 
 		expect(workflow.lastApplySummary.value).toBeNull()
@@ -721,15 +756,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 	})
 
 	it('ignores stale progress and results after the workflow is reset', async () => {
-		let resolveBatch!: (value: {
-			results: Array<{
-				id: string
-				success: boolean
-				track: Track
-				error: null
-			}>
-			cancelled: false
-		}) => void
+		let resolveBatch!: (value: TrackBatchUpdateOutcome) => void
 		let reportOldProgress!: (completed: number) => void
 		mockTracksStore.updateTracksBatch.mockImplementationOnce(
 			(_updates, options) => {
@@ -757,13 +784,9 @@ describe('useTrackEnrichmentWorkflow', () => {
 		reportOldProgress(1)
 		resolveBatch({
 			cancelled: false,
+			requiresReview: false,
 			results: [
-				{
-					id: 'track-1',
-					success: true,
-					track: createTrack({ id: 'track-1', title: 'Old result' }),
-					error: null
-				}
+				updatedBatchResult(createTrack({ id: 'track-1', title: 'Old result' }))
 			]
 		})
 		await applying
@@ -780,7 +803,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 
 	it('does not let an older rejected apply clear a newer apply', async () => {
 		let rejectOldBatch!: (reason: Error) => void
-		let resolveNewBatch!: (value: { results: []; cancelled: true }) => void
+		let resolveNewBatch!: (value: TrackBatchUpdateOutcome) => void
 		let reportOldProgress!: (completed: number) => void
 		mockTracksStore.updateTracksBatch
 			.mockImplementationOnce((_updates, options) => {
@@ -817,7 +840,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 		expect(workflow.showApplyDialog.value).toBe(true)
 		expect(workflow.lastApplySummary.value).toBeNull()
 
-		resolveNewBatch({ results: [], cancelled: true })
+		resolveNewBatch(CANCELLED_BATCH_OUTCOME)
 		await newApply
 		expect(workflow.isApplying.value).toBe(false)
 		expect(workflow.showApplyDialog.value).toBe(false)

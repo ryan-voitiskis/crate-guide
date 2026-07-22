@@ -8,11 +8,20 @@ import {
 	decodeTrackRow,
 	reportDecodeIssues
 } from '~/utils/supabaseRows'
+import {
+	TRACK_ENRICHMENT_BATCH_SIZE,
+	type TrackEnrichmentBatchRequest,
+	type TrackEnrichmentBatchServerResult,
+	createTrackEnrichmentBatchRequest,
+	decodeTrackEnrichmentBatchResponse
+} from '~/utils/trackEnrichmentBatch'
 import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
 import type { TrackAudioFeatures } from '~~/shared/types/audioFeatures'
 import type { BeatportTrackData } from '~~/shared/types/beatport'
 import type { Json } from '~~/shared/types/database'
 import type {
+	TrackBatchIssue,
+	TrackBatchIssueCode,
 	TrackBatchUpdate,
 	TrackBatchUpdateOutcome,
 	TrackBatchUpdateResult,
@@ -52,6 +61,40 @@ type ApplyTrackUpdateResult = {
 	error: string | null
 	issues: DecodeIssue[]
 	stale: boolean
+}
+
+type OptimisticBatchMutation = {
+	id: string
+	originalTrack: Track
+	optimisticTrack: Track
+	operationRevision: number
+}
+
+type TrackEnrichmentChunkResponse =
+	| {
+			kind: 'settled'
+			results: TrackEnrichmentBatchServerResult[]
+	  }
+	| { kind: 'capacity' }
+	| { kind: 'cancelled' }
+	| { kind: 'unknown'; error: unknown }
+
+const TRACK_BATCH_ISSUE_MESSAGES: Record<TrackBatchIssueCode, string> = {
+	account_replaced: 'Not attempted because the signed-in account changed.',
+	duplicate_track_id: 'The same track appeared more than once in this batch.',
+	invalid_audio_features: 'The enrichment evidence was rejected as invalid.',
+	invalid_item: 'The enrichment update was rejected as invalid.',
+	invalid_response: 'The saved track response could not be verified.',
+	not_found: 'The track is no longer in your collection.',
+	prior_chunk_unknown:
+		'Not attempted because an earlier batch could not be confirmed.',
+	receipt_capacity:
+		'Batch retry capacity is temporarily full. Review again after the 24-hour receipt window.',
+	request_unknown:
+		'The update could not be confirmed. Review the refreshed track before trying again.',
+	stale_revision:
+		'The track changed after review. Review it again before applying.',
+	update_rejected: 'The enrichment update was rejected.'
 }
 
 export const useTracksStore = defineStore('tracks', () => {
@@ -287,6 +330,39 @@ export const useTracksStore = defineStore('tracks', () => {
 		} finally {
 			if (trackOperationQueues.get(id) === completion) {
 				trackOperationQueues.delete(id)
+			}
+		}
+	}
+
+	async function runSerializedTrackBatchOperation<T>(
+		context: FetchContext,
+		ids: string[],
+		staleResult: T,
+		operation: () => Promise<T>
+	): Promise<T> {
+		const uniqueIds = [...new Set(ids)]
+		const previousOperations = uniqueIds.map(
+			(id) => trackOperationQueues.get(id) ?? Promise.resolve()
+		)
+		const run = Promise.all(
+			previousOperations.map((previous) => previous.catch(() => undefined))
+		).then(async () => {
+			if (!isCurrentAccountContext(context)) return staleResult
+			return await operation()
+		})
+		const completion = run.then(
+			() => undefined,
+			() => undefined
+		)
+		for (const id of uniqueIds) trackOperationQueues.set(id, completion)
+
+		try {
+			return await run
+		} finally {
+			for (const id of uniqueIds) {
+				if (trackOperationQueues.get(id) === completion) {
+					trackOperationQueues.delete(id)
+				}
 			}
 		}
 	}
@@ -656,6 +732,139 @@ export const useTracksStore = defineStore('tracks', () => {
 		}
 	}
 
+	function createTrackBatchIssue(code: TrackBatchIssueCode): TrackBatchIssue {
+		return { code, message: TRACK_BATCH_ISSUE_MESSAGES[code] }
+	}
+
+	function createFailedTrackBatchResult(
+		id: string,
+		status: 'stale' | 'not_found' | 'invalid' | 'unknown' | 'unattempted',
+		code: TrackBatchIssueCode,
+		operation: TrackBatchUpdateResult['operation']
+	): TrackBatchUpdateResult {
+		const issue = createTrackBatchIssue(code)
+		return {
+			id,
+			status,
+			success: false,
+			track: null,
+			issue,
+			error: issue.message,
+			operation
+		}
+	}
+
+	function beginOptimisticBatchMutation(
+		batchUpdate: TrackBatchUpdate
+	): OptimisticBatchMutation | null {
+		const trackIndex = tracks.value.findIndex(
+			(track) => track.id === batchUpdate.id
+		)
+		if (trackIndex === -1) return null
+
+		const originalTrack = tracks.value[trackIndex]!
+		const optimisticTrack = {
+			...originalTrack,
+			...batchUpdate.updates
+		} as Track
+		const operationRevision = nextMutationRevision()
+		trackOperationRevisions.set(batchUpdate.id, operationRevision)
+		tracks.value[trackIndex] = optimisticTrack
+		return {
+			id: batchUpdate.id,
+			originalTrack,
+			optimisticTrack,
+			operationRevision
+		}
+	}
+
+	function rollbackOptimisticBatchMutation(
+		mutation: OptimisticBatchMutation | null
+	): void {
+		if (
+			!mutation ||
+			trackOperationRevisions.get(mutation.id) !== mutation.operationRevision
+		) {
+			return
+		}
+		const currentIndex = tracks.value.findIndex(
+			(track) => track.id === mutation.id
+		)
+		if (
+			currentIndex !== -1 &&
+			toRaw(tracks.value[currentIndex]) === mutation.optimisticTrack
+		) {
+			tracks.value[currentIndex] = mutation.originalTrack
+		}
+	}
+
+	function finishOptimisticBatchMutation(
+		mutation: OptimisticBatchMutation | null
+	): void {
+		if (
+			mutation &&
+			trackOperationRevisions.get(mutation.id) === mutation.operationRevision
+		) {
+			trackOperationRevisions.delete(mutation.id)
+		}
+	}
+
+	async function requestTrackEnrichmentChunk(
+		context: FetchContext,
+		request: TrackEnrichmentBatchRequest
+	): Promise<TrackEnrichmentChunkResponse> {
+		let lastError: unknown = new Error(
+			'Track enrichment batch returned no response.'
+		)
+
+		for (let attempt = 0; attempt < 2; attempt += 1) {
+			try {
+				const { data, error } = await supabase.rpc(
+					'persist_track_enrichment_batch',
+					{
+						p_operation_id: request.operationId,
+						p_operation_hash: request.operationHash,
+						p_items: request.items as unknown as Json
+					}
+				)
+				if (!isCurrentAccountContext(context)) return { kind: 'cancelled' }
+				if (error) {
+					if (
+						typeof error === 'object' &&
+						error !== null &&
+						'code' in error &&
+						error.code === '54000'
+					) {
+						return { kind: 'capacity' }
+					}
+					lastError = error
+					continue
+				}
+				try {
+					return {
+						kind: 'settled',
+						results: decodeTrackEnrichmentBatchResponse(data, request)
+					}
+				} catch (error) {
+					lastError = error
+				}
+			} catch (error) {
+				if (!isCurrentAccountContext(context)) return { kind: 'cancelled' }
+				if (
+					typeof error === 'object' &&
+					error !== null &&
+					'code' in error &&
+					error.code === '54000'
+				) {
+					return { kind: 'capacity' }
+				}
+				lastError = error
+			}
+		}
+
+		return { kind: 'unknown', error: lastError }
+	}
+
 	async function updateTracksBatch(
 		batchUpdates: TrackBatchUpdate[],
 		options?: {
@@ -667,48 +876,261 @@ export const useTracksStore = defineStore('tracks', () => {
 		}
 	): Promise<TrackBatchUpdateOutcome> {
 		const context = await resolveMutationContext(accountGeneration)
-		if (!context) return { results: [], cancelled: true }
+		if (!context) {
+			return {
+				results: batchUpdates.map((batchUpdate) =>
+					createFailedTrackBatchResult(
+						batchUpdate.id,
+						'unattempted',
+						'account_replaced',
+						null
+					)
+				),
+				cancelled: true,
+				requiresReview: false
+			}
+		}
 		const activity = beginMutationActivity(context, 'update')
-		const results: TrackBatchUpdateResult[] = []
+		const orderedResults = new Array<TrackBatchUpdateResult | undefined>(
+			batchUpdates.length
+		)
 		const decodeIssues: DecodeIssue[] = []
 		let cancelled = false
+		let stoppedByCapacity = false
+		let requiresFreshReview = false
+		let progressCount = 0
+		let nextProgressOrdinal = 0
+
+		const publishOrderedProgress = () => {
+			while (nextProgressOrdinal < orderedResults.length) {
+				const result = orderedResults[nextProgressOrdinal]
+				if (!result) return
+				nextProgressOrdinal += 1
+				if (result.status === 'unattempted') continue
+				progressCount += 1
+				options?.onProgress?.(progressCount, batchUpdates.length, result)
+			}
+		}
+
+		const idCounts = new Map<string, number>()
+		for (const batchUpdate of batchUpdates) {
+			idCounts.set(batchUpdate.id, (idCounts.get(batchUpdate.id) ?? 0) + 1)
+		}
+		const actionableEntries = batchUpdates
+			.map((update, ordinal) => ({ ordinal, update }))
+			.filter((entry) => {
+				if ((idCounts.get(entry.update.id) ?? 0) === 1) return true
+				orderedResults[entry.ordinal] = createFailedTrackBatchResult(
+					entry.update.id,
+					'invalid',
+					'duplicate_track_id',
+					null
+				)
+				return false
+			})
+		publishOrderedProgress()
 
 		try {
-			for (const batchUpdate of batchUpdates) {
+			for (
+				let chunkStart = 0;
+				chunkStart < actionableEntries.length;
+				chunkStart += TRACK_ENRICHMENT_BATCH_SIZE
+			) {
 				if (!isCurrentAccountContext(context)) {
 					cancelled = true
 					break
 				}
-				const result = await applyTrackUpdate(
-					context,
-					batchUpdate.id,
-					batchUpdate.updates,
-					{
-						suppressSuccessToast: true,
-						suppressErrorToast: true,
-						preconditions: batchUpdate.preconditions
-					}
+				const entries = actionableEntries.slice(
+					chunkStart,
+					chunkStart + TRACK_ENRICHMENT_BATCH_SIZE
 				)
-				if (result.stale || !isCurrentAccountContext(context)) {
+				const request = await createTrackEnrichmentBatchRequest(entries)
+				if (!isCurrentAccountContext(context)) {
 					cancelled = true
 					break
 				}
-				decodeIssues.push(...result.issues)
-				const batchResult = {
-					id: batchUpdate.id,
-					success: !!result.track,
-					track: result.track,
-					error: result.error
+
+				const chunkOutcome = await runSerializedTrackBatchOperation(
+					context,
+					entries.map((entry) => entry.update.id),
+					{ kind: 'cancelled' } as const,
+					async () => {
+						if (!(await confirmMutationContext(context, true))) {
+							return { kind: 'cancelled' } as const
+						}
+						const optimisticMutations = new Map(
+							entries.map((entry) => [
+								entry.update.id,
+								beginOptimisticBatchMutation(entry.update)
+							])
+						)
+						const response = await requestTrackEnrichmentChunk(context, request)
+
+						if (response.kind !== 'settled') {
+							if (isCurrentAccountContext(context)) {
+								for (const mutation of optimisticMutations.values()) {
+									rollbackOptimisticBatchMutation(mutation)
+								}
+							}
+							for (const mutation of optimisticMutations.values()) {
+								finishOptimisticBatchMutation(mutation)
+							}
+							return response
+						}
+
+						const reconciledResults: TrackBatchUpdateResult[] = []
+						const chunkDecodeIssues: DecodeIssue[] = []
+						let refreshRequired = false
+						for (const [index, serverResult] of response.results.entries()) {
+							const entry = entries[index]!
+							const mutation = optimisticMutations.get(entry.update.id) ?? null
+							if (serverResult.status === 'updated') {
+								try {
+									const decoded = decodeOwnedTrackResponse(
+										serverResult.track,
+										context
+									)
+									if (decoded.row.id !== entry.update.id) {
+										throw new Error('Track batch response ID mismatch')
+									}
+									if (
+										!isCurrentAccountContext(context) ||
+										(mutation &&
+											trackOperationRevisions.get(entry.update.id) !==
+												mutation.operationRevision)
+									) {
+										return { kind: 'cancelled' } as const
+									}
+									chunkDecodeIssues.push(...decoded.issues)
+									recordCommittedTrackMutation(entry.update.id, context, {
+										kind: 'update',
+										row: decoded.row
+									})
+									upsertTrack(decoded.row)
+									reconciledResults.push({
+										id: entry.update.id,
+										status: 'updated',
+										success: true,
+										track: decoded.row,
+										issue: null,
+										error: null,
+										operation: serverResult.identity
+									})
+								} catch {
+									rollbackOptimisticBatchMutation(mutation)
+									refreshRequired = true
+									reconciledResults.push(
+										createFailedTrackBatchResult(
+											entry.update.id,
+											'invalid',
+											'invalid_response',
+											serverResult.identity
+										)
+									)
+								}
+							} else {
+								rollbackOptimisticBatchMutation(mutation)
+								reconciledResults.push(
+									createFailedTrackBatchResult(
+										entry.update.id,
+										serverResult.status,
+										serverResult.issueCode!,
+										serverResult.identity
+									)
+								)
+							}
+							finishOptimisticBatchMutation(mutation)
+						}
+						return {
+							kind: 'settled',
+							results: reconciledResults,
+							decodeIssues: chunkDecodeIssues,
+							refreshRequired
+						} as const
+					}
+				)
+
+				if (chunkOutcome.kind === 'cancelled') {
+					cancelled = true
+					break
 				}
-				results.push(batchResult)
-				options?.onProgress?.(results.length, batchUpdates.length, batchResult)
+				if (chunkOutcome.kind === 'unknown') {
+					console.error('Track enrichment batch result could not be confirmed.')
+					for (const [index, entry] of entries.entries()) {
+						const requestItem = request.items[index]!
+						orderedResults[entry.ordinal] = createFailedTrackBatchResult(
+							entry.update.id,
+							'unknown',
+							'request_unknown',
+							{
+								operationId: request.operationId,
+								ordinal: requestItem.ordinal,
+								requestHash: requestItem.request_hash
+							}
+						)
+					}
+					requiresFreshReview = true
+					publishOrderedProgress()
+					break
+				}
+				if (chunkOutcome.kind === 'capacity') {
+					for (const [index, entry] of entries.entries()) {
+						const requestItem = request.items[index]!
+						orderedResults[entry.ordinal] = createFailedTrackBatchResult(
+							entry.update.id,
+							'invalid',
+							'receipt_capacity',
+							{
+								operationId: request.operationId,
+								ordinal: requestItem.ordinal,
+								requestHash: requestItem.request_hash
+							}
+						)
+					}
+					stoppedByCapacity = true
+					publishOrderedProgress()
+					break
+				}
+
+				decodeIssues.push(...chunkOutcome.decodeIssues)
+				requiresFreshReview ||= chunkOutcome.refreshRequired
+				for (const [index, entry] of entries.entries()) {
+					orderedResults[entry.ordinal] = chunkOutcome.results[index]!
+				}
+				publishOrderedProgress()
 			}
+
+			const unattemptedCode = cancelled
+				? 'account_replaced'
+				: stoppedByCapacity
+					? 'receipt_capacity'
+					: 'prior_chunk_unknown'
+			for (const [ordinal, result] of orderedResults.entries()) {
+				if (result) continue
+				orderedResults[ordinal] = createFailedTrackBatchResult(
+					batchUpdates[ordinal]!.id,
+					'unattempted',
+					unattemptedCode,
+					null
+				)
+			}
+			publishOrderedProgress()
+
 			if (isCurrentAccountContext(context)) {
 				reportDecodeIssues(decodeIssues, (message) => toast.warning(message))
+				if (requiresFreshReview) await fetchAllTracks({ fresh: true })
 			}
+			const results = orderedResults as TrackBatchUpdateResult[]
 			return {
 				results,
-				cancelled
+				cancelled,
+				requiresReview: results.some(
+					(result) =>
+						result.status === 'stale' ||
+						result.status === 'not_found' ||
+						result.status === 'invalid' ||
+						result.status === 'unknown'
+				)
 			}
 		} finally {
 			finishMutationActivity(activity)

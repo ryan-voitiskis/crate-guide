@@ -6,6 +6,8 @@ import {
 	resetTrackIdCounter
 } from 'test/mocks/fixtures/tracks'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { TrackAudioFeatures } from '~~/shared/types/audioFeatures'
+import type { TrackBatchUpdate } from '~~/shared/types/trackUpdates'
 // Import after mocking
 import { useTracksStore } from '../tracksStore'
 
@@ -53,7 +55,8 @@ function createMockQueryBuilder() {
 let mockQueryBuilder = createMockQueryBuilder()
 
 const mockSupabaseClient = {
-	from: vi.fn(() => mockQueryBuilder)
+	from: vi.fn(() => mockQueryBuilder),
+	rpc: vi.fn()
 }
 
 function createDeferred<T>() {
@@ -94,6 +97,82 @@ function createTrackInput(title = 'Synthetic create') {
 	}
 }
 
+function createAudioFeatures(): TrackAudioFeatures {
+	return {
+		version: 1,
+		updatedAt: '2026-07-22T00:00:00.000Z',
+		applied: { bpm: null, keyMode: null },
+		match: {
+			confidence: 'high',
+			score: 100,
+			reasons: ['Fixture match'],
+			warnings: []
+		},
+		sources: {}
+	}
+}
+
+function createBatchUpdate(
+	id: string,
+	updates: TrackBatchUpdate['updates'] = {
+		audio_features: createAudioFeatures()
+	},
+	expectedUpdatedAt = '2026-07-22T00:00:00.000Z'
+): TrackBatchUpdate {
+	return {
+		id,
+		expectedUpdatedAt,
+		updates,
+		preconditions: {
+			bpmMustBeNull: updates.bpm !== undefined,
+			keyModeMustBeNull: updates.key !== undefined
+		}
+	}
+}
+
+type BatchRpcArgs = {
+	p_operation_id: string
+	p_operation_hash: string
+	p_items: Array<{
+		ordinal: number
+		track_id: string
+		request_hash: string
+		updates: Record<string, unknown>
+	}>
+}
+
+function createBatchRpcData(
+	args: BatchRpcArgs,
+	resolve: (
+		item: BatchRpcArgs['p_items'][number],
+		index: number
+	) => {
+		status: 'updated' | 'stale' | 'not_found' | 'invalid'
+		issueCode?: string | null
+		track?: unknown
+	}
+) {
+	return {
+		version: 1,
+		operation_id: args.p_operation_id,
+		operation_hash: args.p_operation_hash,
+		results: args.p_items.map((item, index) => {
+			const result = resolve(item, index)
+			return {
+				ordinal: item.ordinal,
+				track_id: item.track_id,
+				request_hash: item.request_hash,
+				status: result.status,
+				issue_code:
+					result.status === 'updated'
+						? null
+						: (result.issueCode ?? 'update_rejected'),
+				track: result.status === 'updated' ? result.track : null
+			}
+		})
+	}
+}
+
 // Stub globals before importing the store
 vi.stubGlobal('useUserStore', () => mockUserStore)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
@@ -109,6 +188,7 @@ describe('tracksStore', () => {
 		// Reset mock query builder
 		mockQueryBuilder = createMockQueryBuilder()
 		mockSupabaseClient.from.mockReturnValue(mockQueryBuilder)
+		mockSupabaseClient.rpc.mockReset()
 
 		// Reset user store
 		mockUserStore.supaUser = { id: 'test-user-id' }
@@ -1205,34 +1285,42 @@ describe('tracksStore', () => {
 	})
 
 	describe('updateTracksBatch', () => {
-		it('returns per-row results and suppresses per-row toasts', async () => {
+		it('returns ordered mixed statuses, rolls back failures, and suppresses per-row toasts', async () => {
 			const store = useTracksStore()
 			store.tracks = [
-				createMockTrack({ id: 'track-1', title: 'Original 1' }),
-				createMockTrack({ id: 'track-2', title: 'Original 2' })
+				createMockTrack({ id: 'track-1', bpm: null }),
+				createMockTrack({ id: 'track-2', key: null, mode: null })
 			]
-			mockQueryBuilder.single
-				.mockResolvedValueOnce({
-					data: createMockOwnedTrack({ id: 'track-1', title: 'Updated 1' }),
+			mockSupabaseClient.rpc.mockImplementationOnce(
+				async (_name, args: BatchRpcArgs) => ({
+					data: createBatchRpcData(args, (item, index) =>
+						index === 0
+							? {
+									status: 'updated',
+									track: createMockOwnedTrack({
+										id: item.track_id,
+										bpm: 128,
+										audio_features: createAudioFeatures()
+									})
+								}
+							: { status: 'stale', issueCode: 'stale_revision' }
+					),
 					error: null
 				})
-				.mockResolvedValueOnce({
-					data: null,
-					error: new Error('Update failed')
-				})
+			)
 
 			const progress: number[] = []
 			const outcome = await store.updateTracksBatch(
 				[
-					{
-						id: 'track-1',
-						updates: { title: 'Updated 1' },
-						preconditions: {
-							bpmMustBeNull: true,
-							keyModeMustBeNull: true
-						}
-					},
-					{ id: 'track-2', updates: { title: 'Updated 2' } }
+					createBatchUpdate('track-1', {
+						bpm: 128,
+						audio_features: createAudioFeatures()
+					}),
+					createBatchUpdate('track-2', {
+						key: 9,
+						mode: 0,
+						audio_features: createAudioFeatures()
+					})
 				],
 				{
 					onProgress: (completed) => progress.push(completed)
@@ -1241,17 +1329,358 @@ describe('tracksStore', () => {
 
 			expect(outcome.cancelled).toBe(false)
 			expect(outcome.results).toMatchObject([
-				{ id: 'track-1', success: true, error: null },
-				{ id: 'track-2', success: false, error: 'Update failed' }
+				{ id: 'track-1', status: 'updated', success: true, error: null },
+				{
+					id: 'track-2',
+					status: 'stale',
+					success: false,
+					issue: { code: 'stale_revision' }
+				}
 			])
+			expect(outcome.requiresReview).toBe(true)
 			expect(progress).toEqual([1, 2])
-			expect(store.tracks[0]!.title).toBe('Updated 1')
-			expect(store.tracks[1]!.title).toBe('Original 2')
-			expect(mockQueryBuilder.is).toHaveBeenCalledWith('bpm', null)
-			expect(mockQueryBuilder.is).toHaveBeenCalledWith('key', null)
-			expect(mockQueryBuilder.is).toHaveBeenCalledWith('mode', null)
+			expect(store.getTrackById('track-1')?.bpm).toBe(128)
+			expect(store.getTrackById('track-2')?.key).toBeNull()
+			expect(mockSupabaseClient.rpc).toHaveBeenCalledOnce()
+			expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+				'persist_track_enrichment_batch',
+				expect.objectContaining({
+					p_operation_id: expect.any(String),
+					p_operation_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+					p_items: expect.arrayContaining([
+						expect.objectContaining({
+							ordinal: 0,
+							track_id: 'track-1',
+							expected_updated_at: '2026-07-22T00:00:00.000Z'
+						})
+					])
+				})
+			)
+			expect(mockQueryBuilder.update).not.toHaveBeenCalled()
 			expect(mockToast.success).not.toHaveBeenCalled()
 			expect(mockToast.error).not.toHaveBeenCalled()
+		})
+
+		it.each([
+			[1, 1],
+			[99, 1],
+			[100, 1],
+			[101, 2],
+			[500, 5]
+		])(
+			'persists %i ordered rows in %i bounded request(s)',
+			async (rowCount, requestCount) => {
+				const store = useTracksStore()
+				store.tracks = Array.from({ length: rowCount }, (_, index) =>
+					createMockTrack({ id: `track-${index}`, bpm: null })
+				)
+				mockSupabaseClient.rpc.mockImplementation(
+					async (_name, args: BatchRpcArgs) => ({
+						data: createBatchRpcData(args, (item) => ({
+							status: 'updated',
+							track: createMockOwnedTrack({
+								id: item.track_id,
+								bpm: 128,
+								audio_features: createAudioFeatures()
+							})
+						})),
+						error: null
+					})
+				)
+				const progress = vi.fn()
+
+				const outcome = await store.updateTracksBatch(
+					Array.from({ length: rowCount }, (_, index) =>
+						createBatchUpdate(`track-${index}`, {
+							bpm: 128,
+							audio_features: createAudioFeatures()
+						})
+					),
+					{ onProgress: progress }
+				)
+
+				expect(mockSupabaseClient.rpc).toHaveBeenCalledTimes(requestCount)
+				expect(
+					mockSupabaseClient.rpc.mock.calls.map(
+						([, args]) => (args as BatchRpcArgs).p_items.length
+					)
+				).toEqual(
+					Array.from({ length: requestCount }, (_, requestIndex) =>
+						Math.min(100, rowCount - requestIndex * 100)
+					)
+				)
+				expect(outcome.results).toHaveLength(rowCount)
+				expect(outcome.results.map((result) => result.id)).toEqual(
+					Array.from({ length: rowCount }, (_, index) => `track-${index}`)
+				)
+				expect(
+					outcome.results.every((result) => result.status === 'updated')
+				).toBe(true)
+				expect(progress).toHaveBeenCalledTimes(rowCount)
+				expect(outcome).toMatchObject({
+					cancelled: false,
+					requiresReview: false
+				})
+			}
+		)
+
+		it('retries an ambiguous request with the same operation identity', async () => {
+			const store = useTracksStore()
+			store.tracks = [createMockTrack({ id: 'track-1', bpm: null })]
+			let firstArgs: BatchRpcArgs | null = null
+			mockSupabaseClient.rpc
+				.mockImplementationOnce(async (_name, args: BatchRpcArgs) => {
+					firstArgs = args
+					return { data: null, error: new Error('Response lost') }
+				})
+				.mockImplementationOnce(async (_name, args: BatchRpcArgs) => ({
+					data: createBatchRpcData(args, (item) => ({
+						status: 'updated',
+						track: createMockOwnedTrack({ id: item.track_id, bpm: 128 })
+					})),
+					error: null
+				}))
+
+			const outcome = await store.updateTracksBatch([
+				createBatchUpdate('track-1', {
+					bpm: 128,
+					audio_features: createAudioFeatures()
+				})
+			])
+
+			expect(outcome.results[0]).toMatchObject({ status: 'updated' })
+			expect(mockSupabaseClient.rpc).toHaveBeenCalledTimes(2)
+			expect(mockSupabaseClient.rpc.mock.calls[1]![1]).toEqual(firstArgs)
+		})
+
+		it('returns unknown, stops future chunks, and refreshes after two ambiguous responses', async () => {
+			const store = useTracksStore()
+			const sourceTracks = Array.from({ length: 101 }, (_, index) =>
+				createMockTrack({ id: `track-${index}`, bpm: null })
+			)
+			store.tracks = sourceTracks
+			mockQueryBuilder.limit.mockResolvedValueOnce({
+				data: sourceTracks.map((track) => ({
+					...track,
+					user_id: 'test-user-id'
+				})),
+				error: null
+			})
+			mockSupabaseClient.rpc.mockResolvedValue({
+				data: null,
+				error: new Error('Network timeout')
+			})
+			const progress = vi.fn()
+
+			const outcome = await store.updateTracksBatch(
+				sourceTracks.map((track) => createBatchUpdate(track.id)),
+				{ onProgress: progress }
+			)
+
+			expect(mockSupabaseClient.rpc).toHaveBeenCalledTimes(2)
+			expect(mockSupabaseClient.rpc.mock.calls[1]![1]).toEqual(
+				mockSupabaseClient.rpc.mock.calls[0]![1]
+			)
+			expect(
+				outcome.results
+					.slice(0, 100)
+					.every((result) => result.status === 'unknown')
+			).toBe(true)
+			expect(outcome.results[100]).toMatchObject({
+				status: 'unattempted',
+				issue: { code: 'prior_chunk_unknown' }
+			})
+			expect(outcome.requiresReview).toBe(true)
+			expect(progress).toHaveBeenCalledTimes(100)
+			expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
+		})
+
+		it('treats a receipt-capacity rejection as definitive and stops future chunks', async () => {
+			const store = useTracksStore()
+			const sourceTracks = Array.from({ length: 101 }, (_, index) =>
+				createMockTrack({ id: `track-${index}`, bpm: null })
+			)
+			store.tracks = sourceTracks
+			mockSupabaseClient.rpc.mockResolvedValue({
+				data: null,
+				error: { code: '54000', message: 'Receipt capacity reached' }
+			})
+			const progress = vi.fn()
+
+			const outcome = await store.updateTracksBatch(
+				sourceTracks.map((track) => createBatchUpdate(track.id)),
+				{ onProgress: progress }
+			)
+
+			expect(mockSupabaseClient.rpc).toHaveBeenCalledOnce()
+			expect(
+				outcome.results
+					.slice(0, 100)
+					.every((result) => result.status === 'invalid')
+			).toBe(true)
+			expect(
+				outcome.results.every(
+					(result) => result.issue?.code === 'receipt_capacity'
+				)
+			).toBe(true)
+			expect(outcome.results[100]?.status).toBe('unattempted')
+			expect(progress).toHaveBeenCalledTimes(100)
+			expect(sourceTracks.every((track) => track.bpm === null)).toBe(true)
+		})
+
+		it('rejects duplicate IDs locally without an RPC', async () => {
+			const store = useTracksStore()
+			store.tracks = [createMockTrack({ id: 'track-1', bpm: null })]
+			const progress = vi.fn()
+
+			const outcome = await store.updateTracksBatch(
+				[createBatchUpdate('track-1'), createBatchUpdate('track-1')],
+				{ onProgress: progress }
+			)
+
+			expect(outcome.results).toMatchObject([
+				{ status: 'invalid', issue: { code: 'duplicate_track_id' } },
+				{ status: 'invalid', issue: { code: 'duplicate_track_id' } }
+			])
+			expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+			expect(progress).toHaveBeenCalledTimes(2)
+		})
+
+		it('returns an empty ordered outcome without dispatching an RPC', async () => {
+			const store = useTracksStore()
+
+			await expect(store.updateTracksBatch([])).resolves.toEqual({
+				results: [],
+				cancelled: false,
+				requiresReview: false
+			})
+			expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+		})
+
+		it('stops before a future chunk when the account changes after settled progress', async () => {
+			const store = useTracksStore()
+			const sourceTracks = Array.from({ length: 101 }, (_, index) =>
+				createMockTrack({ id: `track-${index}`, bpm: null })
+			)
+			store.tracks = sourceTracks
+			mockSupabaseClient.rpc.mockImplementationOnce(
+				async (_name, args: BatchRpcArgs) => ({
+					data: createBatchRpcData(args, (item) => ({
+						status: 'updated',
+						track: createMockOwnedTrack({ id: item.track_id, bpm: 128 })
+					})),
+					error: null
+				})
+			)
+
+			const outcome = await store.updateTracksBatch(
+				sourceTracks.map((track) => createBatchUpdate(track.id)),
+				{
+					onProgress: (completed) => {
+						if (completed !== 100) return
+						store.clearTracks()
+						mockUserStore.supaUser = { id: 'user-b' }
+						store.tracks = [createMockTrack({ id: 'track-b' })]
+					}
+				}
+			)
+
+			expect(mockSupabaseClient.rpc).toHaveBeenCalledOnce()
+			expect(outcome.cancelled).toBe(true)
+			expect(
+				outcome.results
+					.slice(0, 100)
+					.every((result) => result.status === 'updated')
+			).toBe(true)
+			expect(outcome.results[100]).toMatchObject({
+				status: 'unattempted',
+				issue: { code: 'account_replaced' }
+			})
+			expect(store.tracks.map((track) => track.id)).toEqual(['track-b'])
+		})
+
+		it('serializes a same-track manual edit after the batch reconciliation', async () => {
+			const response = createDeferred<{ data: unknown; error: null }>()
+			let batchArgs!: BatchRpcArgs
+			mockSupabaseClient.rpc.mockImplementationOnce(
+				(_name, args: BatchRpcArgs) => {
+					batchArgs = args
+					return response.promise
+				}
+			)
+			mockQueryBuilder.single.mockResolvedValueOnce({
+				data: createMockOwnedTrack({
+					id: 'track-1',
+					bpm: 128,
+					title: 'Manual edit wins'
+				}),
+				error: null
+			})
+			const store = useTracksStore()
+			store.tracks = [createMockTrack({ id: 'track-1', bpm: null })]
+
+			const batch = store.updateTracksBatch([
+				createBatchUpdate('track-1', {
+					bpm: 128,
+					audio_features: createAudioFeatures()
+				})
+			])
+			await vi.waitFor(() =>
+				expect(mockSupabaseClient.rpc).toHaveBeenCalledOnce()
+			)
+			const manual = store.updateTrack('track-1', { title: 'Manual edit wins' })
+			await Promise.resolve()
+			expect(mockQueryBuilder.single).not.toHaveBeenCalled()
+
+			response.resolve({
+				data: createBatchRpcData(batchArgs, (item) => ({
+					status: 'updated',
+					track: createMockOwnedTrack({ id: item.track_id, bpm: 128 })
+				})),
+				error: null
+			})
+			await batch
+			await manual
+
+			expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+			expect(store.getTrackById('track-1')).toMatchObject({
+				bpm: 128,
+				title: 'Manual edit wins'
+			})
+		})
+
+		it('does not publish an updated row that fails ownership decoding', async () => {
+			const original = createMockTrack({ id: 'track-1', bpm: null })
+			const store = useTracksStore()
+			store.tracks = [original]
+			mockQueryBuilder.limit.mockResolvedValueOnce({
+				data: [{ ...original, user_id: 'test-user-id' }],
+				error: null
+			})
+			mockSupabaseClient.rpc.mockImplementationOnce(
+				async (_name, args: BatchRpcArgs) => ({
+					data: createBatchRpcData(args, (item) => ({
+						status: 'updated',
+						track: createMockOwnedTrack(
+							{ id: item.track_id, bpm: 128 },
+							'other-user'
+						)
+					})),
+					error: null
+				})
+			)
+
+			const outcome = await store.updateTracksBatch([
+				createBatchUpdate('track-1')
+			])
+
+			expect(outcome.results[0]).toMatchObject({
+				status: 'invalid',
+				issue: { code: 'invalid_response' }
+			})
+			expect(outcome.requiresReview).toBe(true)
+			expect(store.getTrackById('track-1')?.bpm).toBeNull()
+			expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
 		})
 	})
 
@@ -1428,29 +1857,41 @@ describe('tracksStore', () => {
 				error: null
 			}>()
 			const second = createDeferred<{
-				data: ReturnType<typeof createMockOwnedTrack>
+				data: unknown
 				error: null
 			}>()
-			mockQueryBuilder.single
-				.mockReturnValueOnce(first.promise)
-				.mockReturnValueOnce(second.promise)
+			mockQueryBuilder.single.mockReturnValueOnce(first.promise)
+			let batchArgs!: BatchRpcArgs
+			mockSupabaseClient.rpc.mockImplementationOnce(
+				(_name, args: BatchRpcArgs) => {
+					batchArgs = args
+					return second.promise
+				}
+			)
 			const store = useTracksStore()
 			store.tracks = [
 				createMockTrack({ id: 'track-1' }),
-				createMockTrack({ id: 'track-2' })
+				createMockTrack({ id: 'track-2', bpm: null })
 			]
 
 			const update = store.updateTrack('track-1', { title: 'Update' })
 			const batch = store.updateTracksBatch([
-				{ id: 'track-2', updates: { title: 'Batch' } }
+				createBatchUpdate('track-2', {
+					bpm: 128,
+					audio_features: createAudioFeatures()
+				})
 			])
 			await vi.waitFor(() =>
-				expect(mockQueryBuilder.single).toHaveBeenCalledTimes(2)
+				expect(mockSupabaseClient.rpc).toHaveBeenCalledOnce()
 			)
+			expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
 			expect(store.isUpdatingTrack).toBe(true)
 
 			second.resolve({
-				data: createMockOwnedTrack({ id: 'track-2', title: 'Batch' }),
+				data: createBatchRpcData(batchArgs, (item) => ({
+					status: 'updated',
+					track: createMockOwnedTrack({ id: item.track_id, bpm: 128 })
+				})),
 				error: null
 			})
 			await batch
@@ -1683,38 +2124,51 @@ describe('tracksStore', () => {
 
 		it('cancels a stale batch before progress or its next dispatch', async () => {
 			const first = createDeferred<{
-				data: ReturnType<typeof createMockOwnedTrack>
+				data: unknown
 				error: null
 			}>()
-			mockQueryBuilder.single.mockReturnValueOnce(first.promise)
+			let batchArgs!: BatchRpcArgs
+			mockSupabaseClient.rpc.mockImplementationOnce(
+				(_name, args: BatchRpcArgs) => {
+					batchArgs = args
+					return first.promise
+				}
+			)
 			const store = useTracksStore()
 			store.tracks = [
-				createMockTrack({ id: 'track-1' }),
-				createMockTrack({ id: 'track-2' })
+				createMockTrack({ id: 'track-1', bpm: null }),
+				createMockTrack({ id: 'track-2', bpm: null })
 			]
 			const progress = vi.fn()
 
 			const batch = store.updateTracksBatch(
-				[
-					{ id: 'track-1', updates: { title: 'First' } },
-					{ id: 'track-2', updates: { title: 'Second' } }
-				],
+				[createBatchUpdate('track-1'), createBatchUpdate('track-2')],
 				{ onProgress: progress }
 			)
 			await vi.waitFor(() =>
-				expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+				expect(mockSupabaseClient.rpc).toHaveBeenCalledOnce()
 			)
 			store.clearTracks()
 			mockUserStore.supaUser = { id: 'user-b' }
 			store.tracks = [createMockTrack({ id: 'track-b' })]
 			first.resolve({
-				data: createMockOwnedTrack({ id: 'track-1' }),
+				data: createBatchRpcData(batchArgs, (item) => ({
+					status: 'updated',
+					track: createMockOwnedTrack({ id: item.track_id })
+				})),
 				error: null
 			})
 
-			await expect(batch).resolves.toEqual({ results: [], cancelled: true })
+			await expect(batch).resolves.toMatchObject({
+				cancelled: true,
+				requiresReview: false,
+				results: [
+					{ status: 'unattempted', issue: { code: 'account_replaced' } },
+					{ status: 'unattempted', issue: { code: 'account_replaced' } }
+				]
+			})
 			expect(progress).not.toHaveBeenCalled()
-			expect(mockQueryBuilder.single).toHaveBeenCalledOnce()
+			expect(mockSupabaseClient.rpc).toHaveBeenCalledOnce()
 			expect(store.tracks.map((track) => track.id)).toEqual(['track-b'])
 			expect(store.isUpdatingTrack).toBe(false)
 		})

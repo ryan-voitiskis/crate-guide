@@ -289,6 +289,36 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			track_enrichment_batch_receipts: {
+				Row: {
+					created_at: string
+					expires_at: string
+					operation_hash: string
+					operation_id: string
+					owner_id: string
+					request_payload: Json
+					response_payload: Json
+				}
+				Insert: {
+					created_at?: string
+					expires_at: string
+					operation_hash: string
+					operation_id: string
+					owner_id: string
+					request_payload: Json
+					response_payload: Json
+				}
+				Update: {
+					created_at?: string
+					expires_at?: string
+					operation_hash?: string
+					operation_id?: string
+					owner_id?: string
+					request_payload?: Json
+					response_payload?: Json
+				}
+				Relationships: []
+			}
 			tracks: {
 				Row: {
 					artists: Json
@@ -430,6 +460,10 @@ export type Database = {
 				Args: { record: Json; tracks?: Json }
 				Returns: Json
 			}
+			is_valid_track_enrichment_audio_features: {
+				Args: { candidate: Json }
+				Returns: boolean
+			}
 			list_record_cover_account_cleanup_objects: {
 				Args: { target_user_id: string }
 				Returns: {
@@ -446,6 +480,14 @@ export type Database = {
 				Returns: {
 					changed_job_id: number
 				}[]
+			}
+			persist_track_enrichment_batch: {
+				Args: {
+					p_items: Json
+					p_operation_hash: string
+					p_operation_id: string
+				}
+				Returns: Json
 			}
 			prune_expired_discogs_user_rate_limits: {
 				Args: { maximum_rows: number }

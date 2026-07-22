@@ -46,7 +46,7 @@ function createTrack(overrides: Partial<Track> = {}): Track {
 		beatport_data: null,
 		audio_features: null,
 		created_at: null,
-		updated_at: null,
+		updated_at: '2026-07-22T00:00:00.000Z',
 		...overrides
 	}
 }
@@ -657,6 +657,23 @@ describe('buildTrackEnrichmentUpdate', () => {
 			bpmMustBeNull: true,
 			keyModeMustBeNull: true
 		})
+		expect(update?.expectedUpdatedAt).toBe('2026-07-22T00:00:00.000Z')
+	})
+
+	it('does not build an update without a compare-and-set revision', () => {
+		const [row] = buildTrackEnrichmentRows({
+			sources: [createSource()],
+			tracks: [createTrack({ updated_at: null })],
+			records: [createRecord()]
+		})
+
+		expect(
+			buildTrackEnrichmentUpdate(
+				row!,
+				'collection.xml',
+				'2026-07-09T00:00:00.000Z'
+			)
+		).toBeNull()
 	})
 
 	it('does not treat key 0 as blank', () => {

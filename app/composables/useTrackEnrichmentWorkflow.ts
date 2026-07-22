@@ -503,18 +503,37 @@ export function useTrackEnrichmentWorkflow(
 			const resultByRowId = new Map(
 				preparedUpdates.map((entry, index) => [entry.row.id, results[index]])
 			)
+			const currentTracksById = new Map(
+				tracks.tracks.map((track) => [track.id, track])
+			)
 
 			rows.value = rows.value.map((row) => {
 				const result = resultByRowId.get(row.id)
 				if (!result) return row
+				if (!result.success) {
+					return {
+						...row,
+						track:
+							currentTracksById.get(result.id) ?? result.track ?? row.track,
+						applied: false,
+						error: result.error,
+						stagingBlockedReason: result.error
+					}
+				}
 
 				return {
 					...row,
-					track: result.track ?? row.track,
-					applied: result.success,
-					error: result.error
+					track: result.track,
+					applied: true,
+					error: null
 				}
 			})
+			const preparedRowIds = new Set(
+				preparedUpdates.map((entry) => entry.row.id)
+			)
+			stagedRowIds.value = new Set(
+				[...stagedRowIds.value].filter((id) => !preparedRowIds.has(id))
+			)
 
 			const succeeded = results.filter((result) => result.success).length
 			const failed = results.length - succeeded
