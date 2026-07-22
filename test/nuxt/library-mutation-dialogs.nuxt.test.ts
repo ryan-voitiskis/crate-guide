@@ -21,6 +21,7 @@ const mutationMocks = vi.hoisted(() => ({
 
 const userMock = vi.hoisted(() => ({
 	supaUser: { email: 'listener@example.com' },
+	supaUserId: 'listener-user-id',
 	deleteAccount: vi.fn(),
 	signOutForReauthentication: vi.fn().mockResolvedValue(true)
 }))
@@ -45,6 +46,14 @@ mockNuxtImport('useRoute', () => {
 mockNuxtImport('navigateTo', () => accountReauthenticationMocks.navigate)
 
 const wrappers = new Set<VueWrapper>()
+
+function createDeferred<T>() {
+	let resolve!: (value: T | PromiseLike<T>) => void
+	const promise = new Promise<T>((resolvePromise) => {
+		resolve = resolvePromise
+	})
+	return { promise, resolve }
+}
 
 function getBody() {
 	return new DOMWrapper(document.body)
@@ -134,6 +143,10 @@ describe('library mutation dialogs', () => {
 		for (const wrapper of wrappers) wrapper.unmount()
 		wrappers.clear()
 		vi.clearAllMocks()
+		userMock.deleteAccount.mockReset()
+		userMock.supaUser = { email: 'listener@example.com' }
+		userMock.supaUserId = 'listener-user-id'
+		userMock.signOutForReauthentication.mockReset().mockResolvedValue(true)
 		accountReauthenticationMocks.route.query = {}
 		document.body.innerHTML = ''
 	})
@@ -224,6 +237,67 @@ describe('library mutation dialogs', () => {
 		expect(userMock.deleteAccount).toHaveBeenCalledWith('listener@example.com')
 		expect(getBody().text()).not.toContain('This action cannot be undone.')
 	})
+
+	it.each([
+		{ status: 'deleted', coverCleanupComplete: true } as const,
+		{ status: 'recent-auth-required' } as const,
+		{ status: 'failed' } as const
+	])(
+		'ignores stale $status completion after reopening for another account',
+		async (staleResult) => {
+			const firstDeletion = createDeferred<typeof staleResult>()
+			const secondDeletion = createDeferred<{ status: 'failed' }>()
+			userMock.deleteAccount
+				.mockReturnValueOnce(firstDeletion.promise)
+				.mockReturnValueOnce(secondDeletion.promise)
+			const { wrapper } = await mountDeleteAccountDialog()
+			await getBody()
+				.get('#account-deletion-confirmation')
+				.setValue('listener@example.com')
+			await findLastButton('Delete Account').trigger('click')
+			await nextTick()
+
+			await findButton('Cancel').trigger('click')
+			await settleDialog()
+			userMock.supaUser = { email: 'replacement@example.com' }
+			userMock.supaUserId = 'replacement-user-id'
+			await wrapper.get('button').trigger('click')
+			await settleDialog()
+			await getBody()
+				.get('#account-deletion-confirmation')
+				.setValue('replacement@example.com')
+			await findLastButton('Delete Account').trigger('click')
+			await nextTick()
+
+			expect(userMock.deleteAccount).toHaveBeenNthCalledWith(
+				1,
+				'listener@example.com'
+			)
+			expect(userMock.deleteAccount).toHaveBeenNthCalledWith(
+				2,
+				'replacement@example.com'
+			)
+
+			firstDeletion.resolve(staleResult)
+			await settleDialog()
+
+			expect(getBody().text()).toContain('This action cannot be undone.')
+			expect(getBody().text()).not.toContain('Sign in again to continue')
+			expect(
+				(
+					getBody().get('#account-deletion-confirmation')
+						.element as HTMLInputElement
+				).value
+			).toBe('replacement@example.com')
+			expect(
+				findLastButton('Delete Account').attributes('disabled')
+			).toBeDefined()
+
+			secondDeletion.resolve({ status: 'failed' })
+			await settleDialog()
+			expect(getBody().text()).toContain('This action cannot be undone.')
+		}
+	)
 
 	it('shows a fresh-login action without preserving typed confirmation', async () => {
 		userMock.deleteAccount.mockResolvedValue({

@@ -128,6 +128,12 @@ const mockSupabaseClient = {
 }
 
 const mockAccountBoundSupabaseClient = {
+	functions: {
+		invoke: vi.fn().mockResolvedValue({
+			data: { success: true },
+			error: null
+		})
+	},
 	rpc: vi.fn().mockResolvedValue({ data: null, error: null })
 }
 
@@ -225,6 +231,12 @@ describe('userStore', () => {
 			data: null,
 			error: null
 		})
+		mockAccountBoundSupabaseClient.functions.invoke
+			.mockReset()
+			.mockResolvedValue({
+				data: { success: true },
+				error: null
+			})
 		mockCreateSupabaseClient.mockReturnValue(mockAccountBoundSupabaseClient)
 		mockSupabaseClient.functions.invoke.mockResolvedValue({
 			data: { success: true },
@@ -692,7 +704,9 @@ describe('userStore', () => {
 
 			expect(result).toEqual({ status: 'failed' })
 			expect(mockSupabaseClient.auth.getUser).toHaveBeenCalledOnce()
-			expect(mockSupabaseClient.functions.invoke).not.toHaveBeenCalled()
+			expect(
+				mockAccountBoundSupabaseClient.functions.invoke
+			).not.toHaveBeenCalled()
 			expect(mockToast.error).toHaveBeenCalledWith(
 				'Enter the email address for this account to confirm deletion.'
 			)
@@ -708,9 +722,15 @@ describe('userStore', () => {
 				status: 'deleted',
 				coverCleanupComplete: true
 			})
-			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith(
-				'delete-account',
-				{ body: { confirmation: ' TEST@example.com ' } }
+			expect(
+				mockAccountBoundSupabaseClient.functions.invoke
+			).toHaveBeenCalledWith('delete-account', {
+				body: { confirmation: ' TEST@example.com ' }
+			})
+			expect(mockCreateSupabaseClient).toHaveBeenCalledOnce()
+			const clientOptions = mockCreateSupabaseClient.mock.calls[0]?.[2]
+			await expect(clientOptions?.accessToken?.()).resolves.toBe(
+				'token:test-user-id'
 			)
 			expect(mockSupabaseClient.auth.signOut).toHaveBeenCalledWith({
 				scope: 'local'
@@ -732,7 +752,7 @@ describe('userStore', () => {
 				}),
 				{ status: 503 }
 			)
-			mockSupabaseClient.functions.invoke.mockResolvedValue({
+			mockAccountBoundSupabaseClient.functions.invoke.mockResolvedValue({
 				data: null,
 				error: { context: response }
 			})
@@ -769,7 +789,7 @@ describe('userStore', () => {
 
 		it('warns when the deleted account has a cover cleanup race', async () => {
 			const store = useUserStore()
-			mockSupabaseClient.functions.invoke.mockResolvedValue({
+			mockAccountBoundSupabaseClient.functions.invoke.mockResolvedValue({
 				data: { success: true, cover_cleanup_complete: false },
 				error: null
 			})
@@ -788,7 +808,7 @@ describe('userStore', () => {
 
 		it('warns when deleted-account cleanup jobs could not be removed', async () => {
 			const store = useUserStore()
-			mockSupabaseClient.functions.invoke.mockResolvedValue({
+			mockAccountBoundSupabaseClient.functions.invoke.mockResolvedValue({
 				data: {
 					success: true,
 					cover_cleanup_complete: true,
@@ -818,7 +838,7 @@ describe('userStore', () => {
 				}),
 				{ status: 403 }
 			)
-			mockSupabaseClient.functions.invoke.mockResolvedValue({
+			mockAccountBoundSupabaseClient.functions.invoke.mockResolvedValue({
 				data: null,
 				error: { context: response }
 			})
@@ -843,7 +863,7 @@ describe('userStore', () => {
 				}),
 				{ status: 500 }
 			)
-			mockSupabaseClient.functions.invoke.mockResolvedValue({
+			mockAccountBoundSupabaseClient.functions.invoke.mockResolvedValue({
 				data: null,
 				error: { context: response }
 			})
@@ -867,7 +887,7 @@ describe('userStore', () => {
 				}),
 				{ status: 403 }
 			)
-			mockSupabaseClient.functions.invoke.mockResolvedValue({
+			mockAccountBoundSupabaseClient.functions.invoke.mockResolvedValue({
 				data: null,
 				error: { context: response }
 			})
@@ -887,7 +907,9 @@ describe('userStore', () => {
 				data: { success: true }
 				error: null
 			}>()
-			mockSupabaseClient.functions.invoke.mockReturnValueOnce(deletion.promise)
+			mockAccountBoundSupabaseClient.functions.invoke.mockReturnValueOnce(
+				deletion.promise
+			)
 
 			const firstResult = store.deleteAccount('test@example.com')
 			await Promise.resolve()
@@ -895,13 +917,210 @@ describe('userStore', () => {
 			const secondResult = await store.deleteAccount('test@example.com')
 
 			expect(secondResult).toEqual({ status: 'failed' })
-			expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledOnce()
+			expect(
+				mockAccountBoundSupabaseClient.functions.invoke
+			).toHaveBeenCalledOnce()
 
 			deletion.resolve({ data: { success: true }, error: null })
 			await expect(firstResult).resolves.toEqual({
 				status: 'deleted',
 				coverCleanupComplete: true
 			})
+		})
+
+		it('does not dispatch after the initiating identity is replaced', async () => {
+			const getUserRequest = createDeferred<{
+				data: { user: { id: string; email: string } }
+				error: null
+			}>()
+			const store = useUserStore()
+			mockSupabaseClient.auth.getUser.mockReturnValueOnce(
+				getUserRequest.promise
+			)
+
+			const deletion = store.deleteAccount('test@example.com')
+			mockSupaUser.value = {
+				id: 'replacement-user-id',
+				email: 'replacement@example.com'
+			}
+			await drainLifecycleTasks()
+			getUserRequest.resolve({
+				data: {
+					user: { id: 'test-user-id', email: 'test@example.com' }
+				},
+				error: null
+			})
+
+			await expect(deletion).resolves.toEqual({ status: 'failed' })
+			expect(
+				mockAccountBoundSupabaseClient.functions.invoke
+			).not.toHaveBeenCalled()
+			expect(mockSupabaseClient.auth.signOut).not.toHaveBeenCalled()
+			expect(mockRouter.replace).not.toHaveBeenCalled()
+			expect(mockToast.error).not.toHaveBeenCalled()
+		})
+
+		it('keeps replacement-account deletion active when stale success settles', async () => {
+			const firstDeletion = createDeferred<{
+				data: { success: true }
+				error: null
+			}>()
+			const secondDeletion = createDeferred<{
+				data: { success: true }
+				error: null
+			}>()
+			const replacementProfile = createMockProfile({
+				id: 'replacement-user-id',
+				ui_theme: 'dark'
+			})
+			mockAccountBoundSupabaseClient.functions.invoke
+				.mockReturnValueOnce(firstDeletion.promise)
+				.mockReturnValueOnce(secondDeletion.promise)
+			const store = useUserStore()
+
+			const accountAResult = store.deleteAccount('test@example.com')
+			await drainLifecycleTasks()
+			expect(store.isDeletingAccount).toBe(true)
+
+			mockQueryBuilder.single.mockResolvedValueOnce({
+				data: replacementProfile,
+				error: null
+			})
+			mockSupaUser.value = {
+				id: 'replacement-user-id',
+				email: 'replacement@example.com'
+			}
+			await drainLifecycleTasks()
+			expect(store.profile).toEqual(replacementProfile)
+			expect(store.isDeletingAccount).toBe(false)
+
+			const accountBResult = store.deleteAccount('replacement@example.com')
+			await drainLifecycleTasks()
+			expect(store.isDeletingAccount).toBe(true)
+
+			firstDeletion.resolve({ data: { success: true }, error: null })
+			await expect(accountAResult).resolves.toEqual({
+				status: 'deleted',
+				coverCleanupComplete: true
+			})
+			expect(store.isDeletingAccount).toBe(true)
+			expect(store.profile).toEqual(replacementProfile)
+			expect(mockSupabaseClient.auth.signOut).not.toHaveBeenCalled()
+			expect(mockRouter.replace).not.toHaveBeenCalled()
+			expect(mockToast.success).not.toHaveBeenCalled()
+
+			secondDeletion.resolve({ data: { success: true }, error: null })
+			await expect(accountBResult).resolves.toEqual({
+				status: 'deleted',
+				coverCleanupComplete: true
+			})
+			expect(store.isDeletingAccount).toBe(false)
+			expect(mockSupabaseClient.auth.signOut).toHaveBeenCalledOnce()
+			expect(mockRouter.replace).toHaveBeenCalledWith('/login')
+		})
+
+		it('does not clean up again when the initiating account signs out', async () => {
+			const deletion = createDeferred<{
+				data: { success: true }
+				error: null
+			}>()
+			mockAccountBoundSupabaseClient.functions.invoke.mockReturnValueOnce(
+				deletion.promise
+			)
+			const store = useUserStore()
+			store.profile = createMockProfile({ id: 'test-user-id' })
+
+			const accountAResult = store.deleteAccount('test@example.com')
+			await drainLifecycleTasks()
+			expect(store.isDeletingAccount).toBe(true)
+
+			mockSupaUser.value = null
+			await drainLifecycleTasks()
+			expect(store.profile).toBeNull()
+			expect(store.isDeletingAccount).toBe(false)
+
+			deletion.resolve({ data: { success: true }, error: null })
+			await expect(accountAResult).resolves.toEqual({
+				status: 'deleted',
+				coverCleanupComplete: true
+			})
+			expect(mockSupabaseClient.auth.signOut).not.toHaveBeenCalled()
+			expect(mockRouter.replace).not.toHaveBeenCalled()
+			expect(mockToast.success).not.toHaveBeenCalled()
+			expect(mockToast.warning).not.toHaveBeenCalled()
+		})
+
+		it('does not publish an old Edge failure into the replacement account', async () => {
+			const deletion = createDeferred<{
+				data: null
+				error: { context: Response }
+			}>()
+			mockAccountBoundSupabaseClient.functions.invoke.mockReturnValueOnce(
+				deletion.promise
+			)
+			const replacementProfile = createMockProfile({
+				id: 'replacement-user-id',
+				ui_theme: 'dark'
+			})
+			const store = useUserStore()
+			const accountAResult = store.deleteAccount('test@example.com')
+			await drainLifecycleTasks()
+
+			mockQueryBuilder.single.mockResolvedValueOnce({
+				data: replacementProfile,
+				error: null
+			})
+			mockSupaUser.value = {
+				id: 'replacement-user-id',
+				email: 'replacement@example.com'
+			}
+			await drainLifecycleTasks()
+			deletion.resolve({
+				data: null,
+				error: {
+					context: new Response(JSON.stringify({ error: 'Private failure' }), {
+						status: 503
+					})
+				}
+			})
+
+			await expect(accountAResult).resolves.toEqual({ status: 'failed' })
+			expect(store.profile).toEqual(replacementProfile)
+			expect(mockToast.error).not.toHaveBeenCalled()
+			expect(mockRouter.replace).not.toHaveBeenCalled()
+		})
+
+		it('does not clear a replacement account while local sign-out settles', async () => {
+			const signOut = createDeferred<{ error: null }>()
+			mockSupabaseClient.auth.signOut.mockReturnValueOnce(signOut.promise)
+			const replacementProfile = createMockProfile({
+				id: 'replacement-user-id',
+				ui_theme: 'dark'
+			})
+			const store = useUserStore()
+			const accountAResult = store.deleteAccount('test@example.com')
+			await drainLifecycleTasks()
+			expect(mockSupabaseClient.auth.signOut).toHaveBeenCalledOnce()
+
+			mockQueryBuilder.single.mockResolvedValueOnce({
+				data: replacementProfile,
+				error: null
+			})
+			mockSupaUser.value = {
+				id: 'replacement-user-id',
+				email: 'replacement@example.com'
+			}
+			await drainLifecycleTasks()
+			signOut.resolve({ error: null })
+
+			await expect(accountAResult).resolves.toEqual({
+				status: 'deleted',
+				coverCleanupComplete: true
+			})
+			expect(store.profile).toEqual(replacementProfile)
+			expect(mockRouter.replace).not.toHaveBeenCalled()
+			expect(mockToast.success).not.toHaveBeenCalled()
+			expect(mockToast.warning).not.toHaveBeenCalled()
 		})
 	})
 
@@ -1320,6 +1539,212 @@ describe('userStore', () => {
 	})
 
 	describe('updateSettings', () => {
+		it('does not let an older profile fetch overwrite a completed write', async () => {
+			const staleFetch = createDeferred<{
+				data: Profile
+				error: null
+			}>()
+			const originalProfile = createMockProfile({
+				id: 'test-user-id',
+				key_format: 'key',
+				turntable_pitch_range: 8,
+				ui_theme: 'light'
+			})
+			const updatedProfile = createMockProfile({
+				id: 'test-user-id',
+				key_format: 'camelot',
+				turntable_pitch_range: 16,
+				ui_theme: 'dark'
+			})
+			const store = useUserStore()
+			store.profile = originalProfile
+			mockQueryBuilder.single
+				.mockReturnValueOnce(staleFetch.promise)
+				.mockResolvedValueOnce({ data: updatedProfile, error: null })
+
+			const fetchResult = store.fetchProfile()
+			await drainLifecycleTasks()
+			await expect(
+				store.updateSettings({
+					key_format: 'camelot',
+					turntable_pitch_range: 16,
+					ui_theme: 'dark'
+				})
+			).resolves.toBe(true)
+			staleFetch.resolve({ data: originalProfile, error: null })
+			await expect(fetchResult).resolves.toBe(true)
+
+			expect(store.profile).toEqual(updatedProfile)
+			expect(store.currentKeyFormat).toBe('camelot')
+			expect(mockSetTheme).toHaveBeenLastCalledWith('dark')
+		})
+
+		it('preserves an optimistic write when an older fetch resolves first', async () => {
+			const staleFetch = createDeferred<{
+				data: Profile
+				error: null
+			}>()
+			const updateRequest = createDeferred<{
+				data: Profile
+				error: null
+			}>()
+			const originalProfile = createMockProfile({
+				id: 'test-user-id',
+				turntable_pitch_range: 8
+			})
+			const updatedProfile = createMockProfile({
+				id: 'test-user-id',
+				turntable_pitch_range: 16
+			})
+			const store = useUserStore()
+			store.profile = originalProfile
+			mockQueryBuilder.single
+				.mockReturnValueOnce(staleFetch.promise)
+				.mockReturnValueOnce(updateRequest.promise)
+
+			const fetchResult = store.fetchProfile()
+			await drainLifecycleTasks()
+			const updateResult = store.updateSettings({ turntable_pitch_range: 16 })
+			await drainLifecycleTasks()
+			expect(store.profile?.turntable_pitch_range).toBe(16)
+
+			staleFetch.resolve({ data: originalProfile, error: null })
+			await expect(fetchResult).resolves.toBe(true)
+			expect(store.profile?.turntable_pitch_range).toBe(16)
+
+			updateRequest.resolve({ data: updatedProfile, error: null })
+			await expect(updateResult).resolves.toBe(true)
+			expect(store.profile).toEqual(updatedProfile)
+		})
+
+		it('does not let failed-write recovery clobber a later queued write', async () => {
+			const firstUpdateRequest = createDeferred<{
+				data: null
+				error: Error
+			}>()
+			const secondUpdateRequest = createDeferred<{
+				data: Profile
+				error: null
+			}>()
+			const originalProfile = createMockProfile({
+				id: 'test-user-id',
+				key_format: 'key',
+				turntable_pitch_range: 8
+			})
+			const finalProfile = createMockProfile({
+				id: 'test-user-id',
+				key_format: 'camelot',
+				turntable_pitch_range: 8
+			})
+			const store = useUserStore()
+			store.profile = originalProfile
+			mockQueryBuilder.single
+				.mockReturnValueOnce(firstUpdateRequest.promise)
+				.mockResolvedValueOnce({ data: originalProfile, error: null })
+				.mockReturnValueOnce(secondUpdateRequest.promise)
+
+			const firstUpdate = store.updateSettings({ turntable_pitch_range: 16 })
+			await drainLifecycleTasks()
+			const secondUpdate = store.updateSettings({ key_format: 'camelot' })
+			expect(store.profile).toMatchObject({
+				key_format: 'camelot',
+				turntable_pitch_range: 16
+			})
+
+			firstUpdateRequest.resolve({
+				data: null,
+				error: new Error('Update failed')
+			})
+			await drainLifecycleTasks()
+			expect(store.profile).toMatchObject({
+				key_format: 'camelot',
+				turntable_pitch_range: 16
+			})
+
+			secondUpdateRequest.resolve({ data: finalProfile, error: null })
+			await expect(Promise.all([firstUpdate, secondUpdate])).resolves.toEqual([
+				false,
+				true
+			])
+			expect(store.profile).toEqual(finalProfile)
+		})
+
+		it('does not let an earlier write response clobber a later queued write', async () => {
+			const firstUpdateRequest = createDeferred<{
+				data: Profile
+				error: null
+			}>()
+			const secondUpdateRequest = createDeferred<{
+				data: Profile
+				error: null
+			}>()
+			const originalProfile = createMockProfile({
+				id: 'test-user-id',
+				key_format: 'key',
+				turntable_pitch_range: 8
+			})
+			const firstServerProfile = createMockProfile({
+				id: 'test-user-id',
+				key_format: 'key',
+				turntable_pitch_range: 16
+			})
+			const finalProfile = createMockProfile({
+				id: 'test-user-id',
+				key_format: 'camelot',
+				turntable_pitch_range: 16
+			})
+			const store = useUserStore()
+			store.profile = originalProfile
+			mockQueryBuilder.single
+				.mockReturnValueOnce(firstUpdateRequest.promise)
+				.mockReturnValueOnce(secondUpdateRequest.promise)
+
+			const firstUpdate = store.updateSettings({ turntable_pitch_range: 16 })
+			await drainLifecycleTasks()
+			const secondUpdate = store.updateSettings({ key_format: 'camelot' })
+			expect(store.profile).toMatchObject({
+				key_format: 'camelot',
+				turntable_pitch_range: 16
+			})
+
+			firstUpdateRequest.resolve({ data: firstServerProfile, error: null })
+			await drainLifecycleTasks()
+			expect(store.profile).toMatchObject({
+				key_format: 'camelot',
+				turntable_pitch_range: 16
+			})
+
+			secondUpdateRequest.resolve({ data: finalProfile, error: null })
+			await expect(Promise.all([firstUpdate, secondUpdate])).resolves.toEqual([
+				true,
+				true
+			])
+			expect(store.profile).toEqual(finalProfile)
+		})
+
+		it('uses a fresh failed-write recovery profile for derived theme state', async () => {
+			const recoveredProfile = createMockProfile({
+				id: 'test-user-id',
+				ui_theme: 'auto'
+			})
+			const store = useUserStore()
+			store.profile = createMockProfile({
+				id: 'test-user-id',
+				ui_theme: 'light'
+			})
+			mockQueryBuilder.single
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Update failed')
+				})
+				.mockResolvedValueOnce({ data: recoveredProfile, error: null })
+
+			await store.updateTheme('dark')
+
+			expect(store.profile).toEqual(recoveredProfile)
+			expect(mockSetTheme).toHaveBeenLastCalledWith('auto')
+		})
+
 		it('performs optimistic update', async () => {
 			const store = useUserStore()
 			store.profile = createMockProfile({ turntable_pitch_range: 8 })
@@ -1631,7 +2056,7 @@ describe('userStore', () => {
 			expect(mockQueryBuilder.update).toHaveBeenCalledWith({ ui_theme: 'dark' })
 		})
 
-		it('rolls back after an adopted session setting fails', async () => {
+		it('uses recovered profile state after an adopted session setting fails', async () => {
 			mockGetSavedAnonymousThemePreference.mockReturnValue('light')
 			const store = useUserStore()
 			mockSupaUser.value = null
@@ -1665,7 +2090,7 @@ describe('userStore', () => {
 				'id',
 				'session-user-id'
 			)
-			expect(mockSetTheme).toHaveBeenLastCalledWith('light')
+			expect(mockSetTheme).toHaveBeenLastCalledWith('auto')
 		})
 
 		it('does not roll an adopted session theme into a replacement identity', async () => {
@@ -1716,6 +2141,29 @@ describe('userStore', () => {
 	})
 
 	describe('updateKeyFormat', () => {
+		it('uses a fresh failed-write recovery profile for derived key state', async () => {
+			const recoveredProfile = createMockProfile({
+				id: 'test-user-id',
+				key_format: 'camelot'
+			})
+			const store = useUserStore()
+			store.profile = createMockProfile({
+				id: 'test-user-id',
+				key_format: 'key'
+			})
+			mockQueryBuilder.single
+				.mockResolvedValueOnce({
+					data: null,
+					error: new Error('Update failed')
+				})
+				.mockResolvedValueOnce({ data: recoveredProfile, error: null })
+
+			await store.updateKeyFormat('camelot')
+
+			expect(store.profile).toEqual(recoveredProfile)
+			expect(store.currentKeyFormat).toBe('camelot')
+		})
+
 		it('updates key format when changed', async () => {
 			const store = useUserStore()
 			store.profile = createMockProfile({ key_format: 'key' })
