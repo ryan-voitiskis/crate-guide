@@ -1,0 +1,85 @@
+{
+	"version": 1,
+	"immutableBuild": {
+		"hashTokenLength": 8,
+		"pathPrefix": "/_nuxt/",
+		"extensions": [
+			".css",
+			".ico",
+			".jpeg",
+			".jpg",
+			".js",
+			".otf",
+			".png",
+			".svg",
+			".ttf",
+			".wasm",
+			".woff",
+			".woff2"
+		]
+	},
+	"publicStaticPaths": [
+		"/favicon.svg",
+		"/fonts/BerkeleyMonoVariable-Italic.woff2",
+		"/fonts/BerkeleyMonoVariable-Regular.woff2",
+		"/fonts/InterVariable-Italic.woff2",
+		"/fonts/InterVariable.woff2",
+		"/fonts/egyptian-505-bold.otf",
+		"/noise.png",
+		"/textures/brushed-metal-009.jpg"
+	],
+	"allowedDestinations": ["", "font", "image", "script", "style", "worker"],
+	"providerHostSuffixes": ["discogs.com", "discogsusercontent.com"],
+	"supabaseHostSuffixes": ["supabase.co", "supabase.in"],
+	"authPathPrefixes": [
+		"/auth/",
+		"/callback/",
+		"/oauth/",
+		"/login",
+		"/reset-password",
+		"/signup",
+		"/update-password"
+	],
+	"dynamicPathPrefixes": [
+		"/api/",
+		"/crates",
+		"/enrichment",
+		"/library/",
+		"/records",
+		"/settings",
+		"/tracks"
+	],
+	"archiveExtensions": [
+		".crate-guide",
+		".csv",
+		".jsonl",
+		".ndjson",
+		".tar",
+		".tar.gz",
+		".xml",
+		".zip"
+	],
+	"downloadPathPrefixes": [
+		"/download/",
+		"/downloads/",
+		"/export/",
+		"/exports/"
+	],
+	"sensitiveQueryKeys": [
+		"access_token",
+		"apikey",
+		"authorization",
+		"code",
+		"download",
+		"expires",
+		"filename",
+		"key",
+		"refresh_token",
+		"response-content-disposition",
+		"signature",
+		"state",
+		"token",
+		"x-amz-credential",
+		"x-amz-signature"
+	]
+}
