@@ -40,7 +40,7 @@ export default defineNuxtConfig({
 			rollupOptions: {
 				output: {
 					manualChunks(id) {
-						const moduleId = id.split('?', 1)[0]
+						const [moduleId = ''] = id.split('?', 1)
 						if (
 							[
 								'/app/types/trackEnrichmentDraft.ts',
