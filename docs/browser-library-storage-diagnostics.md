@@ -7,6 +7,11 @@ not copied to Crate Guide's database. Site-data clearing, browser-profile or
 device loss, private-session closure, and browser eviction can still remove it.
 Portable exports are the user-controlled recovery boundary.
 
+The dated physical macOS Safari repository smoke is recorded in
+[`browser-library-physical-safari.md`](./browser-library-physical-safari.md).
+That evidence is narrower than a complete application or iOS Safari support
+claim.
+
 This document is the engineering and support contract for storage health. It
 must not be simplified into an “online” signal, a quota percentage, or an
 in-memory fallback.

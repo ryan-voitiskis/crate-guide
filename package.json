@@ -57,6 +57,7 @@
 		"dev:all": "node scripts/dev-start.mjs --with-nuxt",
 		"generate": "nuxt generate",
 		"preview": "nuxt preview",
+		"probe:safari": "node scripts/serve-browser-library-safari-probe.mjs",
 		"postinstall": "nuxt prepare",
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",

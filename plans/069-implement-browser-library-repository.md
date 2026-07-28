@@ -178,4 +178,7 @@ memory, or if managed covers cannot be bounded/tested as Blobs.
 
 Browser persistence reduces normal reload loss; it does not protect against
 site-data clearing, private-session closure, profile/device loss, or every
-browser eviction policy. Plan 070 is the user-owned recovery boundary.
+browser eviction policy. Plan 070 is the user-owned recovery boundary. The
+2026-07-28 physical macOS Safari repository smoke is recorded in
+`docs/browser-library-physical-safari.md`; iOS and full application support
+remain separate evidence.
