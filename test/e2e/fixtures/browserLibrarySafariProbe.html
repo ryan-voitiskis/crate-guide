@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="icon" href="data:," />
+		<title>Crate Guide physical Safari library probe</title>
+	</head>
+	<body>
+		<main>
+			<h1>Crate Guide physical Safari library probe</h1>
+			<p>
+				This local-only probe uses disposable IndexedDB data and a secondary
+				same-origin window. It does not contact Crate Guide, Supabase, or
+				Discogs.
+			</p>
+			<button id="run-probe" type="button">Run physical Safari probe</button>
+			<p id="probe-status" role="status" aria-live="polite">Ready.</p>
+			<p id="probe-environment"></p>
+			<pre id="probe-result" aria-label="Probe result"></pre>
+		</main>
+		<script type="module" src="./browserLibraryAdapterHarness.ts"></script>
+		<script type="module" src="./browserLibrarySafariProbe.ts"></script>
+	</body>
+</html>
