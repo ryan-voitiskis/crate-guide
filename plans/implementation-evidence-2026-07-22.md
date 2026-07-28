@@ -74,14 +74,14 @@ remains core, so a degraded signed-out mode without it is not the target.
 
 ## Integrated verification
 
-At code head `2814207` (the subsequent closeout changes plan Markdown only), the
-integrated gate produced this final evidence:
+At code head `f2453c1`, the 2026-07-28 integrated gate produced this final
+evidence:
 
 - `npm run verify:full` passed formatting, ESLint, Vue/TypeScript, convention,
   Tailwind, documentation, dependency, Edge-import, generated-type, security,
   build, bundle, and migrated-schema checks.
 - The unit/store/server/Nuxt run passed 156 files and 2,423 tests.
-- The production E2E run passed 7 files and 20 tests, with 1 explicitly opt-in
+- The production E2E run passed 8 files and 21 tests, with 1 explicitly opt-in
   test skipped; the Vitest Browser run passed 10 files and 81 tests.
 - Deno passed all 141 Edge tests. Local Supabase pgTAP passed 12 files and 425
   tests.
@@ -92,8 +92,9 @@ integrated gate produced this final evidence:
 - The forced actual-adapter matrix passed 3/3 multi-page scenarios in Chromium,
   Firefox, and persistent-profile WebKit.
 
-No hosted deployment, provider mutation, live OAuth, production database, or
-physical Safari claim is represented by those earlier integrated local results.
+No hosted deployment, provider mutation, live OAuth, or production database is
+represented by these local results. The physical Safari evidence below is
+narrower than a complete application support claim.
 
 ## Post-closeout physical Safari evidence
 
