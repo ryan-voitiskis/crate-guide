@@ -28,45 +28,47 @@ program.
 - Plans sharing source files remain sequential even if their dependencies allow
   independent preparation.
 
-Status values: `READY`, `TODO`, `IN PROGRESS`, `BLOCKED`, `DONE`, or `REJECTED`.
+Status values: `READY`, `TODO`, `IN PROGRESS`, `BLOCKED`, `DEFERRED`, `DONE`, or
+`REJECTED`. `DEFERRED` records an intentional product-scope decision; it is not
+evidence that a STOP or dependency was resolved.
 
 ## Active queue
 
-|   # | Plan                                                                                                        | Priority | Effort | Risk | Active dependencies                         | Status  |
-| --: | ----------------------------------------------------------------------------------------------------------- | :------: | :----: | :--: | ------------------------------------------- | ------- |
-| 044 | [Reconcile same-account library writes and derived search](044-reconcile-same-account-library-writes.md)    |    P1    |   L    | HIGH | -                                           | DONE    |
-| 045 | [Correct track input and matching semantics](045-correct-track-input-and-matching-semantics.md)             |    P2    |   M    | MED  | -                                           | DONE    |
-| 046 | [Guard settings and dialog lifecycles](046-guard-settings-and-dialog-lifecycles.md)                         |    P2    |   M    | MED  | 044                                         | DONE    |
-| 047 | [Enforce crate membership and record-delete integrity](047-enforce-crate-membership-delete-integrity.md)    |    P1    |   L    | HIGH | 044                                         | DONE    |
-| 048 | [Preserve saved-set coherence, BPM, and history](048-preserve-saved-set-coherence-and-history.md)           |    P2    |   L    | HIGH | -                                           | DONE    |
-| 049 | [Make Discogs OAuth finalization resumable](049-make-discogs-oauth-finalization-resumable.md)               |    P1    |   M    | HIGH | 059                                         | DONE    |
-| 050 | [Bound the account and cover-cleanup lifecycle](050-bound-account-cleanup-lifecycle.md)                     |    P2    |   L    | HIGH | -                                           | DONE    |
-| 051 | [Harden local, runtime-config, and Edge tooling](051-harden-local-and-edge-tooling.md)                      |    P2    |   M    | MED  | 059                                         | DONE    |
-| 052 | [Make verification and supply-chain contracts truthful](052-make-verification-contracts-source-truthful.md) |    P2    |   L    | MED  | 051                                         | DONE    |
-| 053 | [Enforce a client bundle budget](053-enforce-client-bundle-budget.md)                                       |    P3    |   M    | MED  | 052, 054, 055                               | DONE    |
-| 054 | [Extract record and cover workflows](054-extract-record-cover-workflows.md)                                 |    P3    |   L    | MED  | 044, 046                                    | DONE    |
-| 055 | [Decompose session/quality hotspots and profile suggestions](055-decompose-session-and-quality-hotspots.md) |    P3    |   XL   | MED  | 045, 048                                    | DONE    |
-| 056 | [Make the audio benchmark testable](056-make-audio-benchmark-testable.md)                                   |    P3    |   M    | LOW  | -                                           | DONE    |
-| 057 | [Bind account deletion completion](057-bind-account-deletion-completion.md)                                 |    P1    |   M    | HIGH | -                                           | DONE    |
-| 058 | [Bound local-audio decode memory](058-bound-local-audio-decode-memory.md)                                   |    P1    |   L    | HIGH | 056                                         | DONE    |
-| 059 | [Normalize the Edge site origin](059-normalize-edge-site-origin.md)                                         |    P1    |   S    | LOW  | -                                           | DONE    |
-| 060 | [Reconcile profile read/write order](060-reconcile-profile-read-write-order.md)                             |    P2    |   M    | MED  | 057                                         | DONE    |
-| 061 | [Own Discogs folder review and snapshots](061-own-discogs-folder-and-snapshots.md)                          |    P2    |   M    | LOW  | -                                           | DONE    |
-| 062 | [Add browser security headers](062-add-browser-security-headers.md)                                         |    P2    |   M    | MED  | 052, 059                                    | DONE    |
-| 063 | [Virtualize large workbench surfaces](063-virtualize-large-workbench-surfaces.md)                           |    P2    |   L    | MED  | 044, 052, 053, 054                          | BLOCKED |
-| 064 | [Batch enrichment persistence](064-batch-enrichment-persistence.md)                                         |    P2    |   L    | HIGH | 044, 052                                    | DONE    |
-| 065 | [Move Rekordbox parsing off the main thread](065-move-rekordbox-parse-off-main-thread.md)                   |    P2    |   L    | MED  | 045, 052, 053                               | DONE    |
-| 066 | [Bound local-audio cache and Worker lifecycle](066-bound-local-audio-cache-and-worker.md)                   |    P3    |   M    | MED  | 056, 058                                    | DONE    |
-| 067 | [Extract the Discogs transfer state machine](067-extract-discogs-transfer-state-machine.md)                 |    P3    |   L    | MED  | 044, 049, 061                               | DONE    |
-| 068 | [Separate workbench storage from identity](068-separate-workbench-storage-and-identity.md)                  |    P1    |   XL   | HIGH | 044, 047, 048, 051, 054, 055, 057, 060, 064 | DONE    |
-| 069 | [Implement the browser-library repository](069-implement-browser-library-repository.md)                     |    P1    |   XL   | HIGH | 053, 066, 068                               | DONE    |
-| 070 | [Add portable library archives](070-add-portable-library-archives.md)                                       |    P1    |   XL   | HIGH | 047, 048, 054, 068, 069                     | BLOCKED |
-| 071 | [Launch signed-out Local libraries](071-launch-signed-out-local-library.md)                                 |    P1    |   XL   | HIGH | 058, 062, 063, 068, 069, 070                | BLOCKED |
-| 072 | [Copy a Local library to cloud](072-copy-local-library-to-cloud.md)                                         |    P2    |   XL   | HIGH | 064, 070, 071                               | BLOCKED |
-| 073 | [Enable accountless Discogs connection](073-enable-accountless-discogs-connection.md)                       |    P2    |   XL   | HIGH | 049, 059, 062, 067, 071                     | BLOCKED |
-| 074 | [Persist resumable enrichment reviews](074-persist-resumable-enrichment-reviews.md)                         |    P2    |   L    | HIGH | 045, 064, 065, 066, 069, 071                | DONE    |
-| 075 | [Build the track Evidence workbench](075-build-track-evidence-workbench.md)                                 |    P2    |   L    | HIGH | 045, 063, 064, 068, 070, 074                | BLOCKED |
-| 076 | [Enable the offline Local app shell](076-enable-offline-local-app-shell.md)                                 |    P3    |   L    | MED  | 053, 058, 062, 065, 066, 071                | BLOCKED |
+|   # | Plan                                                                                                        | Priority | Effort | Risk | Active dependencies                         | Status   |
+| --: | ----------------------------------------------------------------------------------------------------------- | :------: | :----: | :--: | ------------------------------------------- | -------- |
+| 044 | [Reconcile same-account library writes and derived search](044-reconcile-same-account-library-writes.md)    |    P1    |   L    | HIGH | -                                           | DONE     |
+| 045 | [Correct track input and matching semantics](045-correct-track-input-and-matching-semantics.md)             |    P2    |   M    | MED  | -                                           | DONE     |
+| 046 | [Guard settings and dialog lifecycles](046-guard-settings-and-dialog-lifecycles.md)                         |    P2    |   M    | MED  | 044                                         | DONE     |
+| 047 | [Enforce crate membership and record-delete integrity](047-enforce-crate-membership-delete-integrity.md)    |    P1    |   L    | HIGH | 044                                         | DONE     |
+| 048 | [Preserve saved-set coherence, BPM, and history](048-preserve-saved-set-coherence-and-history.md)           |    P2    |   L    | HIGH | -                                           | DONE     |
+| 049 | [Make Discogs OAuth finalization resumable](049-make-discogs-oauth-finalization-resumable.md)               |    P1    |   M    | HIGH | 059                                         | DONE     |
+| 050 | [Bound the account and cover-cleanup lifecycle](050-bound-account-cleanup-lifecycle.md)                     |    P2    |   L    | HIGH | -                                           | DONE     |
+| 051 | [Harden local, runtime-config, and Edge tooling](051-harden-local-and-edge-tooling.md)                      |    P2    |   M    | MED  | 059                                         | DONE     |
+| 052 | [Make verification and supply-chain contracts truthful](052-make-verification-contracts-source-truthful.md) |    P2    |   L    | MED  | 051                                         | DONE     |
+| 053 | [Enforce a client bundle budget](053-enforce-client-bundle-budget.md)                                       |    P3    |   M    | MED  | 052, 054, 055                               | DONE     |
+| 054 | [Extract record and cover workflows](054-extract-record-cover-workflows.md)                                 |    P3    |   L    | MED  | 044, 046                                    | DONE     |
+| 055 | [Decompose session/quality hotspots and profile suggestions](055-decompose-session-and-quality-hotspots.md) |    P3    |   XL   | MED  | 045, 048                                    | DONE     |
+| 056 | [Make the audio benchmark testable](056-make-audio-benchmark-testable.md)                                   |    P3    |   M    | LOW  | -                                           | DONE     |
+| 057 | [Bind account deletion completion](057-bind-account-deletion-completion.md)                                 |    P1    |   M    | HIGH | -                                           | DONE     |
+| 058 | [Bound local-audio decode memory](058-bound-local-audio-decode-memory.md)                                   |    P1    |   L    | HIGH | 056                                         | DONE     |
+| 059 | [Normalize the Edge site origin](059-normalize-edge-site-origin.md)                                         |    P1    |   S    | LOW  | -                                           | DONE     |
+| 060 | [Reconcile profile read/write order](060-reconcile-profile-read-write-order.md)                             |    P2    |   M    | MED  | 057                                         | DONE     |
+| 061 | [Own Discogs folder review and snapshots](061-own-discogs-folder-and-snapshots.md)                          |    P2    |   M    | LOW  | -                                           | DONE     |
+| 062 | [Add browser security headers](062-add-browser-security-headers.md)                                         |    P2    |   M    | MED  | 052, 059                                    | DONE     |
+| 063 | [Virtualize large workbench surfaces](063-virtualize-large-workbench-surfaces.md)                           |    P2    |   L    | MED  | 044, 052, 053, 054                          | DONE     |
+| 064 | [Batch enrichment persistence](064-batch-enrichment-persistence.md)                                         |    P2    |   L    | HIGH | 044, 052                                    | DONE     |
+| 065 | [Move Rekordbox parsing off the main thread](065-move-rekordbox-parse-off-main-thread.md)                   |    P2    |   L    | MED  | 045, 052, 053                               | DONE     |
+| 066 | [Bound local-audio cache and Worker lifecycle](066-bound-local-audio-cache-and-worker.md)                   |    P3    |   M    | MED  | 056, 058                                    | DONE     |
+| 067 | [Extract the Discogs transfer state machine](067-extract-discogs-transfer-state-machine.md)                 |    P3    |   L    | MED  | 044, 049, 061                               | DONE     |
+| 068 | [Separate workbench storage from identity](068-separate-workbench-storage-and-identity.md)                  |    P1    |   XL   | HIGH | 044, 047, 048, 051, 054, 055, 057, 060, 064 | DONE     |
+| 069 | [Implement the browser-library repository](069-implement-browser-library-repository.md)                     |    P1    |   XL   | HIGH | 053, 066, 068                               | DONE     |
+| 070 | [Add portable library archives](070-add-portable-library-archives.md)                                       |    P1    |   XL   | HIGH | 047, 048, 054, 068, 069                     | BLOCKED  |
+| 071 | [Launch signed-out Local libraries](071-launch-signed-out-local-library.md)                                 |    P1    |   XL   | HIGH | 058, 062, 063, 068, 069, 070                | DEFERRED |
+| 072 | [Copy a Local library to cloud](072-copy-local-library-to-cloud.md)                                         |    P2    |   XL   | HIGH | 064, 070, 071                               | DEFERRED |
+| 073 | [Enable accountless Discogs connection](073-enable-accountless-discogs-connection.md)                       |    P2    |   XL   | HIGH | 049, 059, 062, 067, 071                     | DEFERRED |
+| 074 | [Persist resumable enrichment reviews](074-persist-resumable-enrichment-reviews.md)                         |    P2    |   L    | HIGH | 045, 064, 065, 066, 069, 071                | DONE     |
+| 075 | [Build the track Evidence workbench](075-build-track-evidence-workbench.md)                                 |    P2    |   L    | HIGH | 045, 063, 064, 068, 070, 074                | BLOCKED  |
+| 076 | [Enable the offline Local app shell](076-enable-offline-local-app-shell.md)                                 |    P3    |   L    | MED  | 053, 058, 062, 065, 066, 071                | DEFERRED |
 
 Historical prerequisites named inside older plans have landed. The table lists
 only active dependencies.
@@ -104,6 +106,9 @@ as an authentication bypass.
 
 The product program deliberately uses `Local library` / `This browser`, not
 `guest`. Browser persistence and Crate Guide backup remain distinct promises.
+The maintainer deferred the accountless program on 2026-07-28 without changing
+the requirement that Discogs acquisition is core. Its verified foundation is
+preserved at `codex/accountless-mode-foundation` (`3253e15`).
 
 | Direction                      | Plans              | Launch boundary                                                                                                  |
 | ------------------------------ | ------------------ | ---------------------------------------------------------------------------------------------------------------- |
@@ -128,11 +133,11 @@ The product program deliberately uses `Local library` / `This browser`, not
    seams are stable.
 5. **Local foundation**: 068 after correctness/domain seams, then 069. Build 070
    on both; do not open signed-out routes earlier.
-6. **Local launch**: 071 only after security, scale, bounded audio, durable Local
-   writes, and portable restore pass together.
-7. **Product expansion**: 072 and 073 after launch; 074 after parsing/cache/batch
-   work; 075 after drafts/virtualization/evidence storage; 076 after the Local
-   app/data contracts are stable.
+6. **Deferred Local launch**: 071 remains out of the current scope; if resumed,
+   launch only after security, scale, bounded audio, durable Local writes,
+   portable restore, and core Discogs acquisition pass together.
+7. **Remaining expansion**: 074 is complete. Plan 075 waits for Plan 070 archive
+   compatibility. Plans 072, 073, and 076 remain deferred with the Local launch.
 
 Do not overlap plans that share hotspots. In particular sequence:
 

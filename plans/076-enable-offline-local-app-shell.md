@@ -17,7 +17,11 @@
 - **Depends on**: Plans 053, 058, 062, 065, 066, and 071
 - **Category**: direction / offline / PWA
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: BLOCKED
+- **Status**: DEFERRED
+- **Deferred at**: 2026-07-28
+- **Resume ref**: `codex/accountless-mode-foundation` at `3253e15`
+- **Product decision**: Defer with the signed-out Local launch. The checked-in
+  cache threat model and policy remain reusable foundations.
 
 ## Why this matters
 

@@ -15,7 +15,11 @@
 - **Depends on**: Plans 064, 070, and 071
 - **Category**: direction / migration
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: BLOCKED
+- **Status**: DEFERRED
+- **Deferred at**: 2026-07-28
+- **Resume ref**: `codex/accountless-mode-foundation` at `3253e15`
+- **Product decision**: Defer with Plan 071 because there is no launched Local
+  source product to copy from.
 
 ## Why this matters
 

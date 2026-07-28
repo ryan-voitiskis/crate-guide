@@ -17,7 +17,12 @@
 - **Depends on**: Plans 049, 059, 062, 067, and 071
 - **Category**: direction / integration / security
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: BLOCKED
+- **Status**: DEFERRED
+- **Deferred at**: 2026-07-28
+- **Resume ref**: `codex/accountless-mode-foundation` at `3253e15`
+- **Product decision**: Discogs acquisition remains core, but accountless mode is
+  outside the current delivery scope. The provider/legal/security STOPs remain
+  intact for any later resumption.
 
 ## Why this matters
 

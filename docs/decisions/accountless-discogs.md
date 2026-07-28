@@ -1,7 +1,10 @@
 # Accountless Discogs connection decision
 
 - **Status:** STOP - unresolved
+- **Delivery state:** deferred by maintainer
 - **Evidence checked:** 2026-07-22
+- **Deferred by maintainer:** 2026-07-28
+- **Resume ref:** `codex/accountless-mode-foundation` at `3253e15`
 - **Target:** a device-scoped server credential for a Local library with no
   Crate Guide account
 - **Provider position:** no written response recorded
@@ -16,6 +19,11 @@ implemented Discogs connection.
 The related [data portability decision](./discogs-data-portability.md) controls
 which provider fields may be stored, displayed, archived, or restored. This ADR
 cannot be accepted while that decision remains STOP.
+
+The maintainer deferred accountless mode on 2026-07-28 while retaining Discogs
+acquisition as core product functionality. Do not substitute a Local mode
+without Discogs as the launch target. The current account-held integration
+remains the operational product until this direction is explicitly resumed.
 
 ## Primary official evidence
 

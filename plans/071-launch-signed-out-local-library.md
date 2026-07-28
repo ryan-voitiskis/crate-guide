@@ -16,7 +16,13 @@
 - **Depends on**: Plans 058, 062, 063, 068, 069, and 070
 - **Category**: direction / product UX / routing
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: BLOCKED
+- **Status**: DEFERRED
+- **Deferred at**: 2026-07-28
+- **Resume ref**: `codex/accountless-mode-foundation` at `3253e15`
+- **Product decision**: Discogs acquisition is core functionality; do not ship a
+  degraded signed-out mode without it. Resume only when the maintainer
+  reactivates the accountless direction and its upstream portability/provider
+  gates can be addressed.
 
 ## Why this matters
 

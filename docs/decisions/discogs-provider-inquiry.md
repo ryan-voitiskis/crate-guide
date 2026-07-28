@@ -1,7 +1,8 @@
 # Discogs provider inquiry
 
-- **Status:** draft - not sent
+- **Status:** deferred - not sent
 - **Prepared:** 2026-07-23
+- **Deferred:** 2026-07-28
 - **Owner action required:** review and authorize external submission
 - **Related gates:** Plans 070 and 073
 

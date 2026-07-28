@@ -6,17 +6,12 @@ numeric limits were written before the pre-virtualization baseline was run.
 
 ## Authorization and interpretation
 
-The repository owner authorized implementation of the full improvement
-portfolio. The structural limits below are source-controlled engineering
-defaults chosen during implementation; they are not presented as numbers the
-owner selected. They can be revised in review when a different supported
-viewport or accessibility constraint is demonstrated.
-
-Owner acceptance of Plan 063's browser/hardware/throttle protocol and numeric
-budgets has not been recorded. Its acceptance STOP therefore remains open;
-passing these engineering regression defaults does not close that decision.
-Record the maintainer's choice in
+The repository maintainer accepted the protocol and numeric limits below on
+2026-07-28 as source-controlled engineering regression defaults, not universal
+end-user latency guarantees. The accepted decision is recorded in
 [`decisions/plan-063-rendering-acceptance.md`](./decisions/plan-063-rendering-acceptance.md).
+They can be revised in review when a different supported viewport or
+accessibility constraint is demonstrated.
 
 Structural limits are mandatory for every named surface and both supported
 viewports. Timing values are diagnostic reference points only: wall-clock and

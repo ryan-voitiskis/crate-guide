@@ -16,7 +16,7 @@
 - **Depends on**: Plans 044, 052, 053, and 054
 - **Category**: performance / UX
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: BLOCKED
+- **Status**: DONE
 
 ## Why this matters
 
