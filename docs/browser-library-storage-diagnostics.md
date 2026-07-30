@@ -135,11 +135,15 @@ committed write, a fresh read transaction, and byte readback.
 | WebKit         | Persistent headless profile | 26.4            | Pass                                                                                     |
 | WebKit         | Persistent headed profile   | 26.4            | Pass                                                                                     |
 
-All tested contexts exposed `indexedDB`, `indexedDB.databases()`, and
-`navigator.storage.estimate()`. The two-page probe also verified a
-`BroadcastChannel` delivery and that one named Web Lock held in page A blocked
-the same lock in page B until release. Presence of those APIs does not replace
-the committed Blob probe or repository-revision CAS.
+All tested contexts exposed `indexedDB` and `indexedDB.databases()`. Chromium
+and Firefox exposed numeric `navigator.storage.estimate()` diagnostics. WebKit
+exposed them in the original 22 July 2026 run, but the same pinned WebKit 26.4
+engine omitted the API on GitHub's Linux runner on 30 July 2026. The estimate
+therefore remains optional supporting evidence, matching the repository
+contract; its absence is not a durable-write failure. The two-page probe also
+verified a `BroadcastChannel` delivery and that one named Web Lock held in page
+A blocked the same lock in page B until release. Presence of those APIs does
+not replace the committed Blob probe or repository-revision CAS.
 
 The ephemeral WebKit discrepancy is tracked as an engine/context capability,
 not papered over with scalar encoding or an uncommitted request. It resembles

@@ -554,10 +554,27 @@ function expectSuccessfulBlob(result: EngineProbe) {
 	})
 }
 
+function hasExpectedStorageEstimateCapability(
+	result: Pick<EngineProbe, 'engine' | 'estimate'>
+) {
+	if (result.estimate === null) {
+		return result.engine === 'webkit'
+	}
+
+	return (
+		typeof result.estimate.quota === 'number' &&
+		Number.isFinite(result.estimate.quota) &&
+		result.estimate.quota >= 0 &&
+		typeof result.estimate.usage === 'number' &&
+		Number.isFinite(result.estimate.usage) &&
+		result.estimate.usage >= 0
+	)
+}
+
 function expectCommonCapabilities(result: EngineProbe) {
 	expect(result.indexedDbSupported).toBe(true)
 	expect(result.databaseNamesSupported).toBe(true)
-	expect(result.estimate).not.toBeNull()
+	expect(hasExpectedStorageEstimateCapability(result)).toBe(true)
 	expect(result.broadcastMessage).toBe('committed:revision-2')
 	expect(result.webLocksSupported).toBe(true)
 	expect(result.webLockSerialized).toBe(true)
@@ -570,6 +587,27 @@ function expectCommonCapabilities(result: EngineProbe) {
 }
 
 describe('browser library engine matrix', () => {
+	it('treats storage estimates as an optional WebKit diagnostic', () => {
+		expect(
+			hasExpectedStorageEstimateCapability({
+				engine: 'webkit',
+				estimate: null
+			})
+		).toBe(true)
+		expect(
+			hasExpectedStorageEstimateCapability({
+				engine: 'chromium',
+				estimate: { quota: 1_000, usage: 100 }
+			})
+		).toBe(true)
+		expect(
+			hasExpectedStorageEstimateCapability({
+				engine: 'firefox',
+				estimate: null
+			})
+		).toBe(false)
+	})
+
 	for (const engine of engines) {
 		it.skipIf(!requireFullMatrix && !isEngineInstalled(engine.type))(
 			`probes two-page storage primitives in ephemeral ${engine.name}`,
