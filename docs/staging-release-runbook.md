@@ -7,17 +7,25 @@ change, or provider communication.
 
 ## Current evidence
 
-Read-only checks on 2026-07-30 found no authoritative staging environment:
+Provider checks and authorized staging provisioning on 2026-07-30 established:
 
-- `deployment/staging-project.json` does not exist, so
-  `npm run secrets:staging` fails closed.
+- `deployment/staging-project.json` records the dedicated Supabase staging ref
+  `xrekloexiottvfueijgb`. The live project is named `crate-guide-staging`,
+  belongs to organization `grxffkeajwssrcfwtxny`, is `ACTIVE_HEALTHY` in
+  `eu-central-1`, and is distinct from production.
+- The Supabase organization is on the Free plan with this project occupying its
+  second active-project slot. Free staging can pause after inactivity and has
+  no automatic backups; the staging rollback procedure therefore uses a
+  reviewed logical baseline and deterministic synthetic-fixture recreation.
+- The dedicated Direct Upload Pages project is also named
+  `crate-guide-staging`. Its stable origin is
+  `https://crate-guide-staging.pages.dev`, its production branch is `staging`,
+  and it is distinct from the Direct Upload production project `crate-guide`.
 - The primary checkout at `/Users/vz/projects/crate-guide` has an ignored
   `supabase/.temp/project-ref` containing `czlfiwivlgqhqezmywfx`. Its cached
   metadata labels it `crate-guide-prod`, and the live `https://crate.guide`
   application embeds the same Supabase ref. The candidate worktree is unlinked;
   that absence is not evidence of a staging target.
-- `supabase projects list` returned only that active project, and
-  `supabase branches list` returned no preview branches.
 - The production project has the six candidate migrations below pending:
   - `20260722140000_document_saved_set_history_snapshots.sql`
   - `20260722200000_bound_account_cleanup_lifecycle.sql`
@@ -26,8 +34,9 @@ Read-only checks on 2026-07-30 found no authoritative staging environment:
   - `20260723100000_add_coherent_library_snapshot.sql`
   - `20260730140000_enable_track_evidence_v2_writes.sql`
 - `https://crate-guide.pages.dev` and `https://crate.guide` serve the same
-  production response. No `staging.crate.guide` DNS record or working candidate
-  branch alias was found.
+  production response. `staging.crate.guide` remains unconfigured; this
+  rehearsal uses the stable `crate-guide-staging.pages.dev` origin instead of
+  relying on an unprovisioned custom domain.
 - The production response still includes `x-powered-by: Nuxt` and does not
   include the candidate browser-security policy. That is evidence the candidate
   application is not deployed, not permission to deploy it.
@@ -87,13 +96,18 @@ hosted staging evidence is a separate hard gate.
 
 Before any hosted mutation, record all of the following:
 
-1. A dedicated Supabase staging project ref that is not
-   `czlfiwivlgqhqezmywfx`, plus its organization, region, and intended owner.
-2. A stable HTTPS Pages origin, preferably `https://staging.crate.guide`. OAuth
-   callbacks and Edge CORS use one exact `SITE_URL`; an ephemeral deployment URL
-   is not an acceptable substitute.
-3. A Pages staging branch and environment whose `SUPABASE_URL` and
-   `SUPABASE_ANON_KEY` point only to that staging project.
+1. The dedicated Supabase staging project ref `xrekloexiottvfueijgb`, owned by
+   the organization owner in `grxffkeajwssrcfwtxny` and hosted in
+   `eu-central-1`. It must never equal production ref
+   `czlfiwivlgqhqezmywfx`.
+2. The stable HTTPS Pages origin
+   `https://crate-guide-staging.pages.dev`. OAuth callbacks and Edge CORS use
+   this one exact `SITE_URL`; an ephemeral deployment URL is not an acceptable
+   substitute.
+3. The Direct Upload Pages project `crate-guide-staging` and production branch
+   `staging`. The staging-only `SUPABASE_URL` and `SUPABASE_ANON_KEY` are
+   supplied to the isolated build and compiled into that artifact; they are not
+   runtime Pages bindings.
 4. A source-controlled `deployment/staging-project.json` containing only the
    authoritative project ref.
 5. An untracked staging-specific Edge env file. Do not upload
@@ -118,7 +132,7 @@ production-linked checkout must not be repurposed:
 export CRATE_GUIDE_RELEASE_SHA="<exact candidate sha>"
 export CRATE_GUIDE_DEPLOY_WORKTREE="<absolute isolated worktree path>"
 export CRATE_GUIDE_STAGING_REF="<authoritative staging ref>"
-export CRATE_GUIDE_STAGING_URL="https://staging.crate.guide"
+export CRATE_GUIDE_STAGING_URL="https://crate-guide-staging.pages.dev"
 
 git worktree add --detach \
 	"$CRATE_GUIDE_DEPLOY_WORKTREE" \
@@ -164,11 +178,19 @@ Record the candidate SHA, CI run URLs, command exit codes, and the generated
 bundle/security summaries. Local success is not hosted evidence.
 
 If staging is new, first bring it to the `origin/main` migration baseline from a
-separate clean baseline worktree, then add synthetic fixtures. The candidate
-rehearsal should begin with remote migrations applied through
-`20260720132000_harden_function_privileges.sql` and the six candidate
-migrations pending. A fresh all-migrations install is useful, but it does not
-replace an upgrade rehearsal from the current production baseline.
+separate clean baseline worktree, deploy the exact `origin/main` application to
+the stable staging Pages origin, and record that baseline deployment before
+adding synthetic fixtures. The candidate rehearsal should begin with remote
+migrations applied through `20260720132000_harden_function_privileges.sql`, the
+six candidate migrations pending, and current main still deployed. A fresh
+all-migrations install is useful, but it does not replace an upgrade rehearsal
+from the current production baseline.
+
+Local Supabase currently exercises PostgreSQL 15 while production and this
+staging project use PostgreSQL 17. Local verification remains required, but the
+hosted baseline and candidate dry-run/application on PostgreSQL 17 are the
+release-version proof. Do not treat local PostgreSQL 15 alone as sufficient
+hosted migration evidence.
 
 ## Rollout order
 
@@ -315,7 +337,7 @@ DISCOGS_USER_AGENT=CrateGuide/2.0
 DISCOGS_RATE_LIMIT_PER_USER=45
 DISCOGS_RATE_LIMIT_GLOBAL=55
 DISCOGS_RATE_LIMIT_WINDOW_SECONDS=60
-SITE_URL=https://staging.crate.guide
+SITE_URL=https://crate-guide-staging.pages.dev
 ```
 
 The hosted runtime supplies `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEYS`, and
@@ -393,27 +415,35 @@ approved by this runbook.
 
 ### 6. Deploy the candidate application
 
-Configure the stable Pages staging environment with:
-
-- Node `24.18.1` and npm `>=11.16.0`;
-- build command `npm ci && npm run build`;
-- output directory `dist`;
-- staging-only `SUPABASE_URL` and `SUPABASE_ANON_KEY`;
-- the exact release branch and candidate SHA.
-
-Before deployment, build locally with the same public staging configuration and
-run:
+The staging Pages project uses Direct Upload, matching production. Cloudflare
+does not build or inject runtime variables into this client artifact. In a
+clean, detached worktree at the exact approved SHA, use Node `24.18.1` and npm
+`11.16.0`, supply only the staging `SUPABASE_URL` and `SUPABASE_ANON_KEY` to the
+build process, and run:
 
 ```bash
+npm ci
 npm run build
 npm run check:security-headers
 npm run check:client-bundle-budget
 ```
 
-After deployment, verify the Pages deployment metadata names the exact
-candidate SHA and that the stable staging origin resolves to that deployment.
-Do not test OAuth against a one-off deployment URL when `SITE_URL` names the
-stable staging origin.
+The built CSP must name only the staging Supabase HTTP and WebSocket origins.
+Deploy with every target selector explicit:
+
+```bash
+npx --no-install wrangler pages deploy dist \
+	--project-name crate-guide-staging \
+	--branch staging \
+	--commit-hash "$CRATE_GUIDE_RELEASE_SHA" \
+	--commit-dirty=false
+```
+
+After deployment, verify the Pages deployment metadata names the exact SHA,
+project `crate-guide-staging`, branch `staging`, and production environment,
+and that `https://crate-guide-staging.pages.dev` resolves to it. Never accept an
+implicit Wrangler project selection, and do not test OAuth against a one-off
+deployment URL when `SITE_URL` names the stable staging origin.
 
 ## Hosted smoke matrix
 
@@ -552,14 +582,25 @@ screenshots, credentials, emails, private URLs, and provider bodies outside git.
 
 ## Rollback
 
-Before mutation, prove that a staging database backup or restore point exists
-and record the prior Pages deployment and Function versions. Before the first v2
-Evidence write, also prove one of these rollback paths in staging:
+This Free staging project has no provider-managed automatic backup. Before
+mutation, capture a logical dump of the synthetic current-main baseline, record
+the deterministic fixture recipe, and prove the project can be rebuilt from the
+reviewed `origin/main` migrations without production data. Also record the
+prior Pages deployment and Function versions. This staging-only rebuild path is
+acceptable because every row and object is disposable synthetic data; it is
+not a production rollback precedent.
+
+Before the first v2 Evidence write, also prove one of these rollback paths in
+staging:
 
 - a reviewed application artifact that retains strict v2 reads and does not
   perform unsafe Evidence writes; or
-- a rehearsed database restore to the pre-v2 restore point, followed by the
-  recorded prior application and Function deployments.
+- a rehearsed full staging-project rebuild from the logical baseline and
+  fixture recipe, followed by the recorded prior application and Function
+  deployments.
+
+Production requires a provider-backed backup or separately approved restore
+plan; do not treat the disposable staging rebuild as production evidence.
 
 The recorded current-main Pages deployment is not a valid application-only
 rollback after a v2 value exists: it treats v2 Evidence as absent, emits v1, and
@@ -579,9 +620,10 @@ If the candidate application fails before any v2 write:
 
 If any v2 Evidence was written, do not roll Pages back by itself. Put staging in
 maintenance and either deploy the proven v2-compatible rollback artifact or
-restore the pre-v2 database backup before restoring the prior application and
-compatible Edge bundles. Re-run the Evidence read/write guard checks as well as
-the compatibility and cleanup-integrity checks.
+rebuild the disposable staging project from the pre-v2 logical baseline before
+restoring the prior application and compatible Edge bundles. Re-run the
+Evidence read/write guard checks as well as the compatibility and
+cleanup-integrity checks.
 
 If the tightened database privileges break the prior application, put staging
 in maintenance, preserve evidence, and create a forward compatibility change.
