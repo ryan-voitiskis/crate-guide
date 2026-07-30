@@ -8,8 +8,7 @@ import type { TrackAudioFeatures } from '~~/shared/types/audioFeatures'
 import type { TrackBatchUpdate } from '~~/shared/types/trackUpdates'
 
 let tracksStoreFactory:
-	| (typeof import('../tracksStore'))['useTracksStore']
-	| null = null
+	(typeof import('../tracksStore'))['useTracksStore'] | null = null
 
 const mockToast = vi.hoisted(() => ({
 	success: vi.fn(),

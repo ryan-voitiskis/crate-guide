@@ -41,7 +41,7 @@ function createCheckOptions(overrides = {}) {
 }
 
 test('checks the complete reviewed peer contract without scanning npm optional WASM artifacts', () => {
-	// npm 11.6.2 currently leaves orphaned optional WASM nodes after npm ci, so
+	// npm 11 can leave orphaned optional WASM nodes after npm ci, so
 	// raw `npm ls --all` remains red for those artifacts. The durable gate keeps
 	// npm's validation intact for every required Vue/crossws/H3 node under review.
 	assert.deepEqual(REVIEWED_DEPENDENCIES, [

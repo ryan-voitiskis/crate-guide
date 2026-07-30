@@ -51,18 +51,26 @@ function parseWithBrowserDom(xml: string): Document {
 	return new DOMParser().parseFromString(xml, 'application/xml')
 }
 
+function createScaleInput(trackCount: number): {
+	file: File
+	oracleXml: string | null
+} {
+	const xml = generateRekordboxXmlScaleFixture(trackCount)
+	return {
+		file: new File([xml], `generated-${trackCount}.xml`, {
+			type: 'application/xml'
+		}),
+		oracleXml: trackCount === 1_000 ? xml : null
+	}
+}
+
 describe('Rekordbox XML Worker', () => {
 	it('equally normalizes the 1k corpus and meets checked-in scale budgets through 100k tracks', async () => {
 		expect(PerformanceObserver.supportedEntryTypes).toContain('longtask')
 		expect(navigator.userAgent).toContain('HeadlessChrome')
 
 		for (const trackCount of SCALE_COUNTS) {
-			let xml = generateRekordboxXmlScaleFixture(trackCount)
-			const oracleXml = trackCount === 1_000 ? xml : null
-			const file = new File([xml], `generated-${trackCount}.xml`, {
-				type: 'application/xml'
-			})
-			xml = ''
+			const { file, oracleXml } = createScaleInput(trackCount)
 			await nextAnimationFrame()
 			await nextAnimationFrame()
 
@@ -77,7 +85,7 @@ describe('Rekordbox XML Worker', () => {
 			const heapBefore = (performance as PerformanceWithMemory).memory
 				?.usedJSHeapSize
 			const startedAt = performance.now()
-			let snapshot: RekordboxXmlSanitizedSnapshot | null = null
+			let snapshot: RekordboxXmlSanitizedSnapshot
 			try {
 				const handle = startRekordboxXmlWorkerParse(file, {
 					onProgress: () => progressTimes.push(performance.now())
@@ -92,7 +100,6 @@ describe('Rekordbox XML Worker', () => {
 				observer.disconnect()
 			}
 			const completedAt = performance.now()
-			if (!snapshot) throw new Error('Worker did not return a snapshot.')
 			const heapAfter = (performance as PerformanceWithMemory).memory
 				?.usedJSHeapSize
 			const progressSilences = progressTimes.map((time, index) =>
@@ -154,7 +161,6 @@ describe('Rekordbox XML Worker', () => {
 				)
 				expect(snapshot.warnings).toEqual(oracle.warnings)
 			}
-			snapshot = null
 		}
 	}, 120_000)
 

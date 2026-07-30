@@ -87,5 +87,4 @@ export type LocalAudioWorkerRequest = {
 }
 
 export type LocalAudioWorkerResponse =
-	| { id: string; result: LocalAudioAnalysis }
-	| { id: string; error: string }
+	{ id: string; result: LocalAudioAnalysis } | { id: string; error: string }

@@ -50,10 +50,7 @@ export interface DiscogsTransferPreparedTargets {
 }
 
 export type DiscogsTransferSaveOutcome =
-	| 'not-attempted'
-	| 'complete'
-	| 'partial'
-	| 'failed'
+	'not-attempted' | 'complete' | 'partial' | 'failed'
 
 export interface DiscogsTransferTerminalState extends DiscogsTransferSnapshotPayload {
 	libraryRefreshFailed: boolean
@@ -65,8 +62,7 @@ interface DiscogsTransferPolicyResolution {
 }
 
 export type DiscogsTransferResultsUpdate =
-	| { kind: 'preserve' }
-	| { kind: 'replace'; results: DiscogsImportResults }
+	{ kind: 'preserve' } | { kind: 'replace'; results: DiscogsImportResults }
 
 export interface DiscogsTransferModePolicy {
 	readonly mode: DiscogsTransferMode

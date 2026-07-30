@@ -88,8 +88,7 @@ type RetainedLocalPolicy = Readonly<{
 type VerifiedLocalDeletionPolicy = Readonly<{
 	automatic: false
 	permission:
-		| 'requires-separate-confirmation'
-		| 'permitted-after-separate-confirmation'
+		'requires-separate-confirmation' | 'permitted-after-separate-confirmation'
 }>
 
 export type LocalToCloudCopyDecision =

@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { Pencil, PencilOff } from '@lucide/vue'
 import { toTypedSchema } from '@vee-validate/zod'
-import { Pencil, PencilOff } from 'lucide-vue-next'
 import { useForm } from 'vee-validate'
 import {
 	buildTrackEditorPayload,

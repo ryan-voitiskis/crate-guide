@@ -1,9 +1,5 @@
 export type LocalStoragePersistenceOutcome =
-	| 'granted'
-	| 'not-granted'
-	| 'unsupported'
-	| 'error'
-	| 'not-requested'
+	'granted' | 'not-granted' | 'unsupported' | 'error' | 'not-requested'
 
 export type LocalStorageEstimateOutcome =
 	| Readonly<{

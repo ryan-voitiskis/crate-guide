@@ -39,10 +39,7 @@ type EvidenceView =
 
 type AttributionView = {
 	state:
-		| 'applied'
-		| 'changed-since-application'
-		| 'source-missing'
-		| 'unattributed'
+		'applied' | 'changed-since-application' | 'source-missing' | 'unattributed'
 	label: string
 	detail: string
 	appliedAt: string | null

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Menu } from 'lucide-vue-next'
+import { Menu } from '@lucide/vue'
 
 const user = useSupabaseUser()
 const route = useRoute()

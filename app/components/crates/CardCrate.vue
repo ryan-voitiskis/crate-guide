@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronRight, Disc3 } from 'lucide-vue-next'
+import { ChevronRight, Disc3 } from '@lucide/vue'
 import type { LibraryCrate } from '~~/shared/types/library'
 
 const props = withDefaults(

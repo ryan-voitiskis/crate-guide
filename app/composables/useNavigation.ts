@@ -6,7 +6,7 @@ import {
 	Radio,
 	Settings,
 	WandSparkles
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 
 type NavigationItem = {
 	path: string

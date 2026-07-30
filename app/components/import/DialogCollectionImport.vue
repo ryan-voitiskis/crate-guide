@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle, FolderOpen, RefreshCw } from 'lucide-vue-next'
+import { AlertTriangle, FolderOpen, RefreshCw } from '@lucide/vue'
 
 const discogs = useWorkbenchDiscogsStore()
 </script>

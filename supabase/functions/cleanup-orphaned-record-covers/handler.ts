@@ -55,7 +55,7 @@ export function createCleanupOrphanedRecordCoversHandler(
 			)
 		}
 
-		let isSecretKey = false
+		let isSecretKey: boolean
 		try {
 			isSecretKey = await dependencies.compareSecrets(
 				request.headers.get('apikey') ?? '',

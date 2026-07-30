@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { test } from 'node:test'
 import {
 	analyzeClientBundle,
 	applyDeferredClientAssetPrefetchPolicy,
 	assertClientBundleBudget,
-	formatClientBundleReport
+	formatClientBundleReport,
+	loadClientBundleReport
 } from './check-client-bundle-budget.mjs'
 
 const config = {
@@ -71,6 +75,64 @@ test('classifies the semantic entry closure separately from optional assets', ()
 		false
 	)
 	assert.doesNotThrow(() => assertClientBundleBudget(report, config))
+})
+
+test('follows Nuxt dependency preload imports in the initial closure', () => {
+	const dependencyManifest = {
+		...manifest,
+		dependencies: {
+			entry: {
+				preload: {
+					entry: {
+						file: 'entry-hash.js',
+						imports: ['shared'],
+						name: 'entry'
+					}
+				}
+			}
+		},
+		modules: {
+			...manifest.modules,
+			entry: { file: 'entry-hash.js', imports: [], name: 'entry' }
+		}
+	}
+
+	const report = fixture({ manifest: dependencyManifest })
+
+	assert.deepEqual(report.initialJavaScript.files, [
+		'entry-hash.js',
+		'shared-hash.js'
+	])
+	assert.equal(report.initialJavaScript.rawBytes, 900)
+})
+
+test('loads the sole manifest from Nuxt current and legacy directory candidates', async (t) => {
+	const root = await mkdtemp(join(tmpdir(), 'crate-guide-bundle-'))
+	t.after(() => rm(root, { force: true, recursive: true }))
+	const assetDirectory = join(root, 'assets')
+	const legacyManifestDirectory = join(root, 'chunks', 'build')
+	const virtualManifestDirectory = join(root, 'chunks', 'virtual')
+	await mkdir(assetDirectory, { recursive: true })
+	await mkdir(virtualManifestDirectory, { recursive: true })
+	await writeFile(join(assetDirectory, 'entry-hash.js'), Buffer.alloc(600, 1))
+	await writeFile(join(assetDirectory, 'shared-hash.js'), Buffer.alloc(300, 2))
+	await writeFile(join(assetDirectory, 'lazy-hash.js'), Buffer.alloc(700, 3))
+	await writeFile(
+		join(virtualManifestDirectory, 'precomputed.mjs'),
+		`export default ${JSON.stringify(manifest)}\n`
+	)
+
+	const report = await loadClientBundleReport({
+		assetDirectory,
+		config,
+		manifestDirectories: [legacyManifestDirectory, virtualManifestDirectory]
+	})
+
+	assert.deepEqual(report.initialJavaScript.files, [
+		'entry-hash.js',
+		'shared-hash.js'
+	])
+	expectLazyBoundary(report)
 })
 
 function expectLazyBoundary(report) {

@@ -62,7 +62,7 @@ export function evaluatePlaywrightManifest(packageJson) {
 }
 
 function runReviewedDependencyTree(root) {
-	// npm 11.6.2 leaves orphaned, optional WASM artifacts in node_modules after
+	// npm 11 can leave orphaned, optional WASM artifacts in node_modules after
 	// npm ci, so raw `npm ls --all` remains red for those non-required nodes.
 	// This focused command asks npm itself to validate the reviewed Vue/crossws/H3
 	// contract. Its output and exit status are inherited without filtering.

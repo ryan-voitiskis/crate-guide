@@ -17,7 +17,11 @@ export function isHealthyFunctionResponse(response) {
 	}
 	const origin = response.headers.get('Access-Control-Allow-Origin')
 	try {
-		if (!origin || new URL(origin).origin !== origin) return false
+		// The local Supabase gateway may normalize function preflights to `*`.
+		// Edge tests separately enforce the function's configured production origin.
+		if (origin !== '*' && (!origin || new URL(origin).origin !== origin)) {
+			return false
+		}
 	} catch {
 		return false
 	}
@@ -63,7 +67,7 @@ export async function monitorFunctionRuntime({
 	url = LOCAL_FUNCTION_HEALTH_URL
 } = {}) {
 	let consecutiveFailures = 0
-	let lastStatus = null
+	let lastStatus
 
 	while (!shouldStop()) {
 		try {

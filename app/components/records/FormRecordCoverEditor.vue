@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ComponentPublicInstance } from 'vue'
-import { ImagePlus, Link, RotateCcw, Trash2, Upload } from 'lucide-vue-next'
+import { ImagePlus, Link, RotateCcw, Trash2, Upload } from '@lucide/vue'
 import type {
 	CoverReference,
 	LibraryCoverChange,

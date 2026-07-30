@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-vue-next'
+import { ArrowDown, ArrowUp, ChevronsUpDown } from '@lucide/vue'
 
 defineProps<{
 	label: string

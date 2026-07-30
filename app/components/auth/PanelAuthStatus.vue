@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import {
-	AlertTriangle,
-	CheckCircle2,
-	Info,
-	LoaderCircle
-} from 'lucide-vue-next'
+import { AlertTriangle, CheckCircle2, Info, LoaderCircle } from '@lucide/vue'
 
 interface Props {
 	tone?: 'neutral' | 'pending' | 'positive' | 'error'

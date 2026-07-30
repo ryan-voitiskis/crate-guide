@@ -27,10 +27,7 @@ export type TrackEvidenceLensApplicationState =
 	| 'none'
 
 export type TrackEvidenceLensAnalyzerStatus =
-	| 'current'
-	| 'outdated'
-	| 'unavailable'
-	| 'none'
+	'current' | 'outdated' | 'unavailable' | 'none'
 
 export type TrackEvidenceLensSourceObservation = {
 	retained: boolean

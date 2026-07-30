@@ -5,7 +5,7 @@ import {
 	ExternalLink,
 	FileMusic,
 	Upload
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 import type { LocalAudioReviewSelection } from '~/types/localAudio'
 
 const props = defineProps<{

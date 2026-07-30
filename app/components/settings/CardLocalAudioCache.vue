@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Database, RefreshCw, Trash2 } from 'lucide-vue-next'
+import { Database, RefreshCw, Trash2 } from '@lucide/vue'
 import {
 	type LocalAudioCacheStatus,
 	clearLocalAudioAnalysisCache,

@@ -365,12 +365,7 @@ async function mountPage(
 		fileName: string
 		rows: TrackEnrichmentRow[]
 		selectedFilter?:
-			| 'ready'
-			| 'review'
-			| 'staged'
-			| 'matched'
-			| 'unmatched'
-			| 'done'
+			'ready' | 'review' | 'staged' | 'matched' | 'unmatched' | 'done'
 	} | null = null,
 	options: { initialize?: Promise<void> } = {}
 ) {

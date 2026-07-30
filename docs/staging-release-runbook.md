@@ -395,7 +395,7 @@ approved by this runbook.
 
 Configure the stable Pages staging environment with:
 
-- Node `24.12.0` and npm `>=11.6.2`;
+- Node `24.18.1` and npm `>=11.16.0`;
 - build command `npm ci && npm run build`;
 - output directory `dist`;
 - staging-only `SUPABASE_URL` and `SUPABASE_ANON_KEY`;

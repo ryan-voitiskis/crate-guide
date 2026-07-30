@@ -83,7 +83,8 @@ export async function createErrorAwarePage(
 		if (guardedPage.diagnostics.length === 0) throw error
 		throw new AggregateError(
 			[error, new Error(guardedPage.diagnostics.join('\n'))],
-			'Page creation failed with browser diagnostics'
+			'Page creation failed with browser diagnostics',
+			{ cause: error }
 		)
 	}
 }

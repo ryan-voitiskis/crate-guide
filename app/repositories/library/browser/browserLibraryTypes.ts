@@ -184,18 +184,10 @@ export type BrowserDeviceDraftReplaceCas = Readonly<{
 }>
 
 export type BrowserCopyReceiptPhase =
-	| 'preparing'
-	| 'metadata'
-	| 'covers'
-	| 'verification'
-	| 'complete'
+	'preparing' | 'metadata' | 'covers' | 'verification' | 'complete'
 
 export type BrowserCopyReceiptStatus =
-	| 'pending'
-	| 'in-progress'
-	| 'paused'
-	| 'failed'
-	| 'complete'
+	'pending' | 'in-progress' | 'paused' | 'failed' | 'complete'
 
 export type BrowserCopyReceipt = Readonly<{
 	migrationId: string

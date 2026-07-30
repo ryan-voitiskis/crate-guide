@@ -9,7 +9,7 @@ import {
 	LoaderCircle,
 	MoreHorizontal,
 	Plus
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
 import { WORKBENCH_MAX_MOUNTED_ITEMS } from '~/utils/workbenchVirtualList'
 import type { LibraryRecord } from '~~/shared/types/library'

@@ -10,7 +10,7 @@ import {
 	Music2,
 	Plus,
 	Radio
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 
 const props = withDefaults(
 	defineProps<{

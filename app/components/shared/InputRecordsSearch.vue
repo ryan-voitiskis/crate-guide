@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { Search } from '@lucide/vue'
 import { onKeyStroke } from '@vueuse/core'
-import { Search } from 'lucide-vue-next'
 
 const recordsStore = useWorkbenchRecordsStore()
 

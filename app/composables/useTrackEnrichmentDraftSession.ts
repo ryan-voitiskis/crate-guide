@@ -37,19 +37,10 @@ type DraftSessionInterval = ReturnType<typeof globalThis.setInterval>
 type DraftMutationQueue = { tail: Promise<void> }
 
 export type TrackEnrichmentDraftSaveState =
-	| 'idle'
-	| 'saving'
-	| 'saved'
-	| 'failed'
+	'idle' | 'saving' | 'saved' | 'failed'
 
 export type TrackEnrichmentDraftDiscoveryState =
-	| 'idle'
-	| 'loading'
-	| 'none'
-	| 'ready'
-	| 'invalid'
-	| 'incompatible'
-	| 'failed'
+	'idle' | 'loading' | 'none' | 'ready' | 'invalid' | 'incompatible' | 'failed'
 
 export type TrackEnrichmentDraftSessionDependencies = {
 	runtime: WorkbenchRuntime

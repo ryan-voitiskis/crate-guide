@@ -420,8 +420,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 			  }) => void)
 			| undefined
 		let reportMatchingProgress:
-			| ((completed: number, total: number) => void)
-			| undefined
+			((completed: number, total: number) => void) | undefined
 		workflowMocks.startWorkerParse.mockImplementationOnce(
 			(_file: File, options: { onProgress?: typeof reportWorkerProgress }) => {
 				reportWorkerProgress = options.onProgress
@@ -651,8 +650,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 		const currentRows = createDeferred<TrackEnrichmentRow[]>()
 		let staleProgress: ((completed: number, total: number) => void) | undefined
 		let currentProgress:
-			| ((completed: number, total: number) => void)
-			| undefined
+			((completed: number, total: number) => void) | undefined
 		workflowMocks.buildRows
 			.mockImplementationOnce(
 				(options: {

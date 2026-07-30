@@ -56,16 +56,10 @@ export type WorkspaceOperationContext = Readonly<{
 }>
 
 export type RepositoryUnavailableReason =
-	| 'read-only'
-	| 'offline'
-	| 'unauthenticated'
-	| 'transport'
+	'read-only' | 'offline' | 'unauthenticated' | 'transport'
 
 export type RepositoryConflictReason =
-	| 'not-found'
-	| 'revision-mismatch'
-	| 'precondition-failed'
-	| 'integrity'
+	'not-found' | 'revision-mismatch' | 'precondition-failed' | 'integrity'
 
 export type RepositoryOutcome<T> =
 	| {

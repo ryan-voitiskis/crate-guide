@@ -67,7 +67,7 @@ async function runScenario(
 	const heapBefore = readHeapBytes()
 	const startedAt = performance.now()
 	const session = await openLocalAudioCacheSession()
-	let hits = 0
+	let hits: number
 	try {
 		const startPrune = await session.prune()
 		expect(startPrune.error).toBeNull()

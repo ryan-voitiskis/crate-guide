@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Filter } from 'lucide-vue-next'
+import { Filter } from '@lucide/vue'
 
 const trackFilters = useWorkbenchTrackFiltersStore()
 

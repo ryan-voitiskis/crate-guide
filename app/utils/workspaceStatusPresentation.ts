@@ -48,9 +48,7 @@ export type WorkspaceStatusPresentation = Readonly<{
 }>
 
 export type WorkspaceStatusPresentationIssue =
-	| 'invalid-input'
-	| 'invalid-location'
-	| 'invalid-connectivity'
+	'invalid-input' | 'invalid-location' | 'invalid-connectivity'
 
 export type WorkspaceStatusPresentationResult =
 	| WorkspaceStatusPresentation

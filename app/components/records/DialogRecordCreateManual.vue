@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, ClipboardList, Plus, Save, Trash2 } from 'lucide-vue-next'
+import { ArrowLeft, ClipboardList, Plus, Save, Trash2 } from '@lucide/vue'
 
 type Step = 'record' | 'tracks'
 type RecordField = 'title' | 'year' | 'cover' | 'labelName'

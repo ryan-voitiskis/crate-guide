@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CheckCircle2, LoaderCircle, TriangleAlert, X } from 'lucide-vue-next'
+import { CheckCircle2, LoaderCircle, TriangleAlert, X } from '@lucide/vue'
 
 interface Props {
 	variant?: 'status' | 'mobile'

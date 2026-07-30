@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle, ArrowRight, Check, Loader2 } from 'lucide-vue-next'
+import { AlertTriangle, ArrowRight, Check, Loader2 } from '@lucide/vue'
 import type { TrackEnrichmentReviewSortKey } from '~/composables/useTrackEnrichmentReviewTable'
 import {
 	canStageTrackEnrichmentWorkflowRow,

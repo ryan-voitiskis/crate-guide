@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CircleX } from 'lucide-vue-next'
+import { CircleX } from '@lucide/vue'
 
 const props = defineProps<{
 	deckIndex: number

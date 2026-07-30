@@ -6,7 +6,7 @@ import {
 	MoreHorizontal,
 	Pencil,
 	Trash2
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 import type { LibraryRecord } from '~~/shared/types/library'
 
 const recordDetails = useWorkbenchRecordDetailsStore()

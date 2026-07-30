@@ -30,7 +30,10 @@ export function applyDeferredClientAssetPrefetchPolicy(manifest, config) {
 function describeOwners(manifest, file) {
 	return Object.entries(manifest.modules)
 		.filter(([, module]) => module.file === file)
-		.map(([id, module]) => module.name ?? module.src ?? id)
+		.map(([id, module]) => {
+			const resource = manifest.dependencies?.[id]?.preload?.[id] ?? module
+			return resource.name ?? module.name ?? resource.src ?? module.src ?? id
+		})
 		.sort()
 }
 
@@ -48,7 +51,9 @@ function collectInitialModuleIds(manifest) {
 		const module = manifest.modules[moduleId]
 		assert.ok(module, 'Missing client manifest module: ' + moduleId)
 		initialIds.add(moduleId)
-		for (const importedId of module.imports ?? []) pending.push(importedId)
+		const resource =
+			manifest.dependencies?.[moduleId]?.preload?.[moduleId] ?? module
+		for (const importedId of resource.imports ?? []) pending.push(importedId)
 	}
 
 	return initialIds
@@ -193,21 +198,32 @@ export function assertClientBundleBudget(report, config) {
 export async function loadClientBundleReport({
 	assetDirectory,
 	config,
-	manifestDirectory
+	manifestDirectory,
+	manifestDirectories = [manifestDirectory]
 }) {
-	const chunkDirectory = resolve(manifestDirectory)
-	const precomputedFiles = (await readdir(chunkDirectory)).filter((file) =>
-		/^client\.precomputed.*\.mjs$/.test(file)
-	)
+	const precomputedFiles = []
+	for (const directory of manifestDirectories) {
+		const resolvedDirectory = resolve(directory)
+		try {
+			for (const file of await readdir(resolvedDirectory)) {
+				if (!/^(?:client\.)?precomputed(?:\..*)?\.mjs$/.test(file)) continue
+				precomputedFiles.push(resolve(resolvedDirectory, file))
+			}
+		} catch (error) {
+			if (error?.code === 'ENOENT') continue
+			throw new Error(
+				`Could not inspect client manifest directory: ${resolvedDirectory}`,
+				{ cause: error }
+			)
+		}
+	}
 	assert.equal(
 		precomputedFiles.length,
 		1,
-		'Expected one Cloudflare client precomputed manifest'
+		'Expected one client precomputed manifest'
 	)
 	const manifestUrl =
-		pathToFileURL(resolve(chunkDirectory, precomputedFiles[0])).href +
-		'?bundle-budget=' +
-		Date.now()
+		pathToFileURL(precomputedFiles[0]).href + '?bundle-budget=' + Date.now()
 	const manifest = (await import(manifestUrl)).default
 	const resolvedAssetDirectory = resolve(assetDirectory)
 	const assetFiles = (
@@ -229,7 +245,10 @@ async function loadBuild(buildDirectory, config) {
 	return loadClientBundleReport({
 		assetDirectory: resolve(buildRoot, '_nuxt'),
 		config,
-		manifestDirectory: resolve(buildRoot, '_worker.js/chunks/build')
+		manifestDirectories: [
+			resolve(buildRoot, '_worker.js/chunks/build'),
+			resolve(buildRoot, '_worker.js/chunks/virtual')
+		]
 	})
 }
 

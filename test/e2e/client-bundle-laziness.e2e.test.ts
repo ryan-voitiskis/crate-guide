@@ -80,7 +80,10 @@ async function loadSemanticAssets(): Promise<SemanticAssets> {
 	const report = await loadClientBundleReport({
 		assetDirectory: resolve(outputDirectory, 'public/_nuxt'),
 		config,
-		manifestDirectory: resolve(outputDirectory, 'server/chunks/build')
+		manifestDirectories: [
+			resolve(outputDirectory, 'server/chunks/build'),
+			resolve(outputDirectory, '../dist/server')
+		]
 	})
 	const cloudRuntime = report.semanticLazyBoundaries[CLOUD_RUNTIME_MODULE]
 	const deviceDraftRepository =

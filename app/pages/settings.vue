@@ -8,7 +8,7 @@ import {
 	ShieldAlert,
 	SlidersHorizontal,
 	UserRound
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 
 const user = useWorkbenchUserStore()
 const capabilities = useWorkbenchCapabilities()

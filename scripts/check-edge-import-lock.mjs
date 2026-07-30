@@ -5,7 +5,7 @@ import { readFile, readdir } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export const SUPABASE_JS_SPECIFIER = 'npm:@supabase/supabase-js@2.110.7'
+export const SUPABASE_JS_SPECIFIER = 'npm:@supabase/supabase-js@2.111.0'
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 export async function listFunctionConfigs(root = repositoryRoot) {

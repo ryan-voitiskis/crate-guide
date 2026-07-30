@@ -3,12 +3,7 @@ import { canStageTrackEnrichmentWorkflowRow } from '~/composables/useTrackEnrich
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
 
 export type TrackEnrichmentReviewSortKey =
-	| 'library'
-	| 'source'
-	| 'duration'
-	| 'bpm'
-	| 'key'
-	| 'confidence'
+	'library' | 'source' | 'duration' | 'bpm' | 'key' | 'confidence'
 
 type UseTrackEnrichmentReviewTableOptions = {
 	filteredRows: Readonly<Ref<TrackEnrichmentRow[]>>

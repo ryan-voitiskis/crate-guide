@@ -24,6 +24,12 @@ function functionResponse(status = 200, overrides = {}) {
 
 test('accepts only the function-specific OPTIONS response', () => {
 	assert.equal(isHealthyFunctionResponse(functionResponse()), true)
+	assert.equal(
+		isHealthyFunctionResponse(
+			functionResponse(200, { 'Access-Control-Allow-Origin': '*' })
+		),
+		true
+	)
 	assert.equal(isHealthyFunctionResponse(functionResponse(404)), false)
 	assert.equal(isHealthyFunctionResponse(functionResponse(405)), false)
 	assert.equal(isHealthyFunctionResponse(functionResponse(499)), false)

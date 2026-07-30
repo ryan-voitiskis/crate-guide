@@ -27,9 +27,7 @@ export const DEVICE_DRAFT_REVISION_AUTHORITY: BrowserDraftRevisionAuthority =
 	'device-draft'
 
 type BrowserDraftRevisionStoredValue =
-	| BrowserWorkspaceManifest
-	| BrowserStoredDeviceDraftRepository
-	| null
+	BrowserWorkspaceManifest | BrowserStoredDeviceDraftRepository | null
 
 export type BrowserDraftRevisionState = Readonly<{
 	repositoryRevision: number

@@ -6,8 +6,8 @@
 		"url": "https://ryanvoitiskis.com"
 	},
 	"engines": {
-		"node": ">=24.12.0",
-		"npm": ">=11.6.2"
+		"node": ">=24.18.1",
+		"npm": ">=11.16.0"
 	},
 	"private": true,
 	"license": "AGPL-3.0-only",
@@ -80,6 +80,7 @@
 		"genTypes": "node scripts/generate-database-types.mjs"
 	},
 	"dependencies": {
+		"@lucide/vue": "^1.28.0",
 		"@nuxtjs/supabase": "^2.0.4",
 		"@pinia/nuxt": "^0.11.3",
 		"@tanstack/vue-table": "^8.21.3",
@@ -90,8 +91,7 @@
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"essentia.js": "0.1.3",
-		"lucide-vue-next": "^0.575.0",
-		"music-metadata": "11.13.0",
+		"music-metadata": "11.14.0",
 		"nuxt": "^4.4.8",
 		"pinia": "^3.0.4",
 		"reka-ui": "^2.9.3",
@@ -111,25 +111,26 @@
 		"@tailwindcss/oxide": "^4.2.2",
 		"@tailwindcss/vite": "^4.2.2",
 		"@trivago/prettier-plugin-sort-imports": "^6.0.2",
-		"@types/jsdom": "^27.0.0",
+		"@types/jsdom": "^28.0.3",
 		"@types/sortablejs": "^1.15.9",
 		"@vitest/browser-playwright": "4.1.10",
 		"@vue/test-utils": "^2.4.11",
-		"crossws": "0.4.1",
+		"crossws": "0.4.10",
 		"esbuild": "0.28.1",
-		"eslint": "^9.39.4",
+		"eslint": "^10.8.0",
 		"happy-dom": "^20.10.6",
-		"jsdom": "^28.1.0",
+		"jsdom": "^30.0.1",
 		"playwright": "1.59.1",
 		"prettier": "^3.8.1",
 		"prettier-plugin-tailwindcss": "^0.7.2",
 		"shadcn-nuxt": "^2.4.3",
-		"supabase": "2.109.1",
+		"supabase": "2.110.0",
 		"tailwindcss": "^4.2.2",
 		"tw-animate-css": "^1.4.0",
 		"typescript": "^5.9.3",
 		"vitest": "4.1.10",
-		"vue-tsc": "^3.2.6"
+		"vue-tsc": "^3.2.6",
+		"wrangler": "4.115.0"
 	},
 	"overrides": {
 		"archiver-utils": {
@@ -161,5 +162,11 @@
 			"cva",
 			"cn"
 		]
+	},
+	"allowScripts": {
+		"esbuild@0.28.1": true,
+		"unrs-resolver@1.12.2": true,
+		"vue-demi@0.14.10": true,
+		"workerd@1.20260722.1": true
 	}
 }

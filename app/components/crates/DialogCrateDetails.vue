@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
+import { Disc3, Pencil, PencilOff, Plus, Trash2 } from '@lucide/vue'
 import { toTypedSchema } from '@vee-validate/zod'
-import { Disc3, Pencil, PencilOff, Plus, Trash2 } from 'lucide-vue-next'
 import { useForm } from 'vee-validate'
 import { crateSchema } from '~/utils/schemas/crate'
 import type { LibraryCrate } from '~~/shared/types/library'

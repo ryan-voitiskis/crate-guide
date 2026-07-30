@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlignJustify, Rows3 } from 'lucide-vue-next'
+import { AlignJustify, Rows3 } from '@lucide/vue'
 
 const props = defineProps<{
 	modelValue: 'compact' | 'comfortable'

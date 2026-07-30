@@ -10,7 +10,7 @@ import {
 	RotateCcw,
 	Tag,
 	X
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 import type { LibraryRecord, LibraryTrack } from '~~/shared/types/library'
 
 const props = withDefaults(

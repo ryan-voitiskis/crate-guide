@@ -16,10 +16,7 @@ export type TrackEnrichmentDraftBatchBinding = {
 }
 
 export type TrackEnrichmentDraftOutcomeDisposition =
-	| 'done'
-	| 'retry'
-	| 'rematch'
-	| 'review'
+	'done' | 'retry' | 'rematch' | 'review'
 
 export class TrackEnrichmentDraftOutcomeMappingError extends Error {
 	constructor(

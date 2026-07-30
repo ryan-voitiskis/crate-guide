@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
-import { Check, Plus } from 'lucide-vue-next'
+import { Check, Plus } from '@lucide/vue'
 import type { LibraryCrate } from '~~/shared/types/library'
 
 const recordDetails = useWorkbenchRecordDetailsStore()

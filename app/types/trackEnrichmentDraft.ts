@@ -250,21 +250,10 @@ export type TrackEnrichmentDraftPartialOutcome = {
 }
 
 export type TrackEnrichmentDraftReviewFilter =
-	| 'ready'
-	| 'review'
-	| 'evidence'
-	| 'staged'
-	| 'matched'
-	| 'unmatched'
-	| 'done'
+	'ready' | 'review' | 'evidence' | 'staged' | 'matched' | 'unmatched' | 'done'
 
 export type TrackEnrichmentDraftReviewSortKey =
-	| 'library'
-	| 'source'
-	| 'duration'
-	| 'bpm'
-	| 'key'
-	| 'confidence'
+	'library' | 'source' | 'duration' | 'bpm' | 'key' | 'confidence'
 
 export type TrackEnrichmentDraftUiState = {
 	filter: TrackEnrichmentDraftReviewFilter

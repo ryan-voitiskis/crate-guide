@@ -24,8 +24,7 @@ interface ProcessExistingResult {
 }
 
 export type DiscogsReleaseTarget =
-	| DiscogsReleaseToFilter
-	| { id: number; label: string }
+	DiscogsReleaseToFilter | { id: number; label: string }
 
 interface FetchDetailsResult {
 	releases: DiscogsReleaseFull[]

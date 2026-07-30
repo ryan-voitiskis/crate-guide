@@ -15,7 +15,7 @@ test('every function config matches the checked-in root Deno lock', async () => 
 		'get-discogs-access-token',
 		'get-discogs-request-token'
 	])
-	assert.equal(SUPABASE_JS_SPECIFIER, 'npm:@supabase/supabase-js@2.110.7')
+	assert.equal(SUPABASE_JS_SPECIFIER, 'npm:@supabase/supabase-js@2.111.0')
 })
 
 test('uses frozen resolution for every function-local config', async () => {

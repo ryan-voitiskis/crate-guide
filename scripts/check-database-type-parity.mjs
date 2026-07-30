@@ -23,12 +23,14 @@ async function readDatabaseTypeFile(filepath, configuredPaths) {
 	} catch (error) {
 		if (error?.code === 'ENOENT') {
 			throw new Error(
-				`Generated database type file is missing (${displayPath(filepath)}); configured copies: ${configuredPaths}`
+				`Generated database type file is missing (${displayPath(filepath)}); configured copies: ${configuredPaths}`,
+				{ cause: error }
 			)
 		}
 
 		throw new Error(
-			`Could not read generated database type file (${displayPath(filepath)}); configured copies: ${configuredPaths}`
+			`Could not read generated database type file (${displayPath(filepath)}); configured copies: ${configuredPaths}`,
+			{ cause: error }
 		)
 	}
 }

@@ -35,8 +35,7 @@ type LibraryFetchOptions = {
 }
 
 type TrackMutationProvenance = FetchContext & { revision: number } & (
-		| { kind: 'create' | 'update'; row: LibraryTrack }
-		| { kind: 'delete' }
+		{ kind: 'create' | 'update'; row: LibraryTrack } | { kind: 'delete' }
 	)
 
 type ApplyTrackUpdateResult = {
@@ -195,8 +194,7 @@ export const useTracksStore = defineStore('tracks', () => {
 		id: string,
 		context: FetchContext,
 		mutation:
-			| { kind: 'create' | 'update'; row: LibraryTrack }
-			| { kind: 'delete' }
+			{ kind: 'create' | 'update'; row: LibraryTrack } | { kind: 'delete' }
 	): void {
 		trackMutationProvenance.set(id, {
 			...context,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { KeyRound, User } from 'lucide-vue-next'
+import { KeyRound, User } from '@lucide/vue'
 
 const user = useWorkbenchUserStore()
 const discogsAuth = useWorkbenchDiscogsAuthStore()

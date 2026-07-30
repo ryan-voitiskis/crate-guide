@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, Circle } from 'lucide-vue-next'
+import { Check, Circle } from '@lucide/vue'
 
 interface Props {
 	id?: string

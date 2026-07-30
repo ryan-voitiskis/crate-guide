@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Rows3 } from 'lucide-vue-next'
+import { Rows3 } from '@lucide/vue'
 
 const density = useState<'compact' | 'comfortable'>(
 	'workbench-density',

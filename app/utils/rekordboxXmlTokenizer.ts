@@ -26,9 +26,7 @@ export type IncrementalXmlTokenizerHandlers = {
 }
 
 export type IncrementalXmlTokenizerErrorCode =
-	| 'doctype_forbidden'
-	| 'malformed_xml'
-	| 'resource_limit_exceeded'
+	'doctype_forbidden' | 'malformed_xml' | 'resource_limit_exceeded'
 
 export class IncrementalXmlTokenizerError extends Error {
 	readonly code: IncrementalXmlTokenizerErrorCode
@@ -108,7 +106,7 @@ export function decodeXmlAttributeValue(
 ): string {
 	const normalizedValue = value.replace(/\r\n?/g, '\n')
 	let decoded = ''
-	for (let index = 0; index < normalizedValue.length; ) {
+	for (let index = 0; index < normalizedValue.length;) {
 		const character = normalizedValue[index]!
 		if (character === '<') failMalformed()
 		if (character !== '&') {

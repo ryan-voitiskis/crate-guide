@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Upload } from 'lucide-vue-next'
+import { Upload } from '@lucide/vue'
 import type { LibraryTrack } from '~~/shared/types/library'
 
 const props = defineProps<{

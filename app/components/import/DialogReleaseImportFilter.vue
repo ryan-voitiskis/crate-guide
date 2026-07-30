@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Download, Layers3 } from 'lucide-vue-next'
+import { Download, Layers3 } from '@lucide/vue'
 import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
 
 const discogs = useWorkbenchDiscogsStore()

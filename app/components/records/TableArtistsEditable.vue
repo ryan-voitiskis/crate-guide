@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { Check, GripVertical, Pencil, Plus, Trash, X } from '@lucide/vue'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useSortable } from '@vueuse/integrations/useSortable'
-import { Check, GripVertical, Pencil, Plus, Trash, X } from 'lucide-vue-next'
 import { useForm } from 'vee-validate'
 import { z } from 'zod'
 

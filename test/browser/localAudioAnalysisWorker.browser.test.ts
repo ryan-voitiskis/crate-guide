@@ -99,7 +99,7 @@ describe('local audio analysis worker', () => {
 			analyzedDurationSeconds: DURATION_SECONDS,
 			analysisOffsetSeconds: 0
 		}
-		let heapAfterBatch: number | null = null
+		let heapAfterBatch: number | null
 
 		try {
 			const response = await analyzeInWorker(worker, request)

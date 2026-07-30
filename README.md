@@ -81,8 +81,8 @@ A DJ-focused vinyl record collection manager with real-time session mixing, harm
 
 ### Prerequisites
 
-- Node.js 24.12.0
-- npm 11.6.2
+- Node.js 24.18.1
+- npm 11.16.0
 - Deno 2.x (for Edge Function checks and tests)
 - Docker (for Supabase local development)
 - [Supabase CLI](https://supabase.com/docs/guides/cli)
@@ -319,11 +319,12 @@ Recheck both `npm audit --omit=dev` and `npm explain esbuild` when changing it.
 
 GitHub Actions runs source-controlled CI for every pull request and push to
 `main`. The application job checks the focused dependency topology, audits both
-the production and complete dependency graphs, installs Chromium, runs
-`npm run verify`, and builds the production application. The database job
-starts the tracked local Supabase stack and runs `npm run test:db`, without
-using a linked hosted project. Locally, `npm run verify:full` is the nearest
-equivalent to both jobs; it requires Docker and a running local Supabase stack.
+the production and complete dependency graphs, installs Chromium, Firefox, and
+WebKit, runs `npm run verify`, and builds the production application. The
+database job starts the tracked local Supabase stack and runs `npm run test:db`,
+without using a linked hosted project. Locally, `npm run verify:full` is the
+nearest equivalent to both jobs; it requires Docker and a running local
+Supabase stack.
 
 ### Database
 

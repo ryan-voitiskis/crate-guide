@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
+import { Circle } from '@lucide/vue'
 import { reactiveOmit } from '@vueuse/core'
-import { Circle } from 'lucide-vue-next'
 import type {
 	DropdownMenuRadioItemEmits,
 	DropdownMenuRadioItemProps

@@ -41,8 +41,7 @@ function decodeWithPreEvidenceV2DecisionSemantics(serialized: string) {
 			return decision
 		}
 		const binding = decision.sourceBinding as
-			| Record<string, unknown>
-			| undefined
+			Record<string, unknown> | undefined
 		return {
 			kind: 'unknown',
 			intentVersion: decision.intentVersion,

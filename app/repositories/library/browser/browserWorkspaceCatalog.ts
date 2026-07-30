@@ -788,17 +788,15 @@ class BrowserWorkspaceCatalogImpl implements BrowserWorkspaceCatalog {
 							...[
 								...WORKSPACE_INDEXED_STORES,
 								...DRAFT_IDENTITY_INDEXED_STORES
-							].map(
-								(entity): BrowserRepositoryInvalidation => ({
-									entity:
-										entity === BROWSER_LIBRARY_STORES.savedSets
-											? 'saved-sets'
-											: entity === BROWSER_LIBRARY_STORES.draftLeases
-												? 'drafts'
-												: entity,
-									ids: []
-								})
-							),
+							].map((entity): BrowserRepositoryInvalidation => ({
+								entity:
+									entity === BROWSER_LIBRARY_STORES.savedSets
+										? 'saved-sets'
+										: entity === BROWSER_LIBRARY_STORES.draftLeases
+											? 'drafts'
+											: entity,
+								ids: []
+							})),
 							{ entity: 'operations', ids: [expected.workspaceId] },
 							{ entity: 'preferences', ids: [expected.workspaceId] }
 						]

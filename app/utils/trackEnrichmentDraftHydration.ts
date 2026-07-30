@@ -84,8 +84,7 @@ export type TrackEnrichmentDraftHydrationRecovery = {
 }
 
 export type TrackEnrichmentDraftHydrationResult =
-	| TrackEnrichmentDraftHydrationReady
-	| TrackEnrichmentDraftHydrationRecovery
+	TrackEnrichmentDraftHydrationReady | TrackEnrichmentDraftHydrationRecovery
 
 export class TrackEnrichmentDraftHydrationError extends Error {
 	constructor(

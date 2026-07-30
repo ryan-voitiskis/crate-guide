@@ -6,16 +6,10 @@ export const WORKSPACE_ACTIVATION_SEQUENCE = Object.freeze([
 ] as const)
 
 export type WorkspaceTransitionWorkflowKind =
-	| 'enrichment'
-	| 'import'
-	| 'audio-analysis'
+	'enrichment' | 'import' | 'audio-analysis'
 
 export type WorkspaceTransitionAtomicOperationKind =
-	| 'export'
-	| 'restore'
-	| 'copy'
-	| 'delete'
-	| 'schema-upgrade'
+	'export' | 'restore' | 'copy' | 'delete' | 'schema-upgrade'
 
 export type WorkspaceTransitionWorkflow =
 	| Readonly<{

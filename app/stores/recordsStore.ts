@@ -29,8 +29,7 @@ type LibraryFetchOptions = {
 }
 
 type RecordMutationProvenance = RecordAccountContext & { revision: number } & (
-		| { kind: 'create' | 'update'; row: LibraryRecord }
-		| { kind: 'delete' }
+		{ kind: 'create' | 'update'; row: LibraryRecord } | { kind: 'delete' }
 	)
 
 type MutationActivity = 'create' | 'update' | 'cover' | 'delete'
@@ -196,8 +195,7 @@ export const useRecordsStore = defineStore('records', () => {
 		id: string,
 		context: RecordAccountContext,
 		mutation:
-			| { kind: 'create' | 'update'; row: LibraryRecord }
-			| { kind: 'delete' }
+			{ kind: 'create' | 'update'; row: LibraryRecord } | { kind: 'delete' }
 	): void {
 		mutationRevision += 1
 		recordMutationProvenance.set(id, {

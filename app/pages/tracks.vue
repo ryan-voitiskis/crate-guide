@@ -6,7 +6,7 @@ import {
 	Search,
 	ShieldAlert,
 	WandSparkles
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
 import type { TrackEvidenceLensRow } from '~/utils/trackEvidenceLens'
 import type { LibraryRecord, LibraryTrack } from '~~/shared/types/library'

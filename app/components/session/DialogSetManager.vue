@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronRight, Star, Trash2 } from 'lucide-vue-next'
+import { ChevronRight, Star, Trash2 } from '@lucide/vue'
 import type {
 	LibraryPlayedTrackEntry,
 	LibraryTrack

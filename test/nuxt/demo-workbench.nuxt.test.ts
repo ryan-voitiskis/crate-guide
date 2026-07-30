@@ -334,8 +334,7 @@ describe('demo workbench', () => {
 			isCurrentContext: () => true
 		})
 		let demoPreferences:
-			| ReturnType<typeof useWorkbenchPreferencesStore>
-			| undefined
+			ReturnType<typeof useWorkbenchPreferencesStore> | undefined
 		const Probe = defineComponent({
 			setup() {
 				demoPreferences = useWorkbenchPreferencesStore()

@@ -1,25 +1,25 @@
 {
 	"version": 1,
 	"baseline": {
-		"measuredOn": "2026-07-22",
+		"measuredOn": "2026-07-30",
 		"allowancePercent": 3,
 		"initialJavaScript": {
-			"rawBytes": 943332,
-			"gzipBytes": 293763
+			"rawBytes": 1097413,
+			"gzipBytes": 350959
 		},
 		"largestOrdinaryChunk": {
-			"rawBytes": 146966,
-			"gzipBytes": 42964
+			"rawBytes": 127476,
+			"gzipBytes": 36629
 		}
 	},
 	"budgets": {
 		"initialJavaScript": {
-			"rawBytes": 971632,
-			"gzipBytes": 302576
+			"rawBytes": 1130336,
+			"gzipBytes": 361488
 		},
 		"largestOrdinaryChunk": {
-			"rawBytes": 151375,
-			"gzipBytes": 44253
+			"rawBytes": 131301,
+			"gzipBytes": 37728
 		}
 	},
 	"expectedLazyModules": [

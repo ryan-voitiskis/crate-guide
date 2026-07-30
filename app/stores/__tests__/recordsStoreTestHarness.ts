@@ -3,8 +3,7 @@ import { resetRecordIdCounter } from 'test/mocks/fixtures/records'
 import { expect, vi } from 'vitest'
 
 let recordsStoreFactory:
-	| (typeof import('../recordsStore'))['useRecordsStore']
-	| null = null
+	(typeof import('../recordsStore'))['useRecordsStore'] | null = null
 let coverCleanupInvokeTimeoutMs: number | null = null
 let coverCleanupMaxPages: number | null = null
 

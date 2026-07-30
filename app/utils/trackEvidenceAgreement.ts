@@ -47,9 +47,7 @@ export const TRACK_EVIDENCE_AGREEMENT_POLICY = Object.freeze({
 })
 
 export type TrackEvidenceAgreementStatus =
-	| 'agreement'
-	| 'conflict'
-	| 'insufficient-evidence'
+	'agreement' | 'conflict' | 'insufficient-evidence'
 
 export type TrackEvidenceAgreementSourceIdentity = {
 	source: TrackEvidenceSourceKey

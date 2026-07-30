@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle } from 'lucide-vue-next'
+import { AlertTriangle } from '@lucide/vue'
 
 const records = useWorkbenchRecordsStore()
 const tracks = useWorkbenchTracksStore()

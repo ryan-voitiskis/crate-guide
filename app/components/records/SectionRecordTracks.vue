@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Pencil, Plus, Trash } from 'lucide-vue-next'
+import { Pencil, Plus, Trash } from '@lucide/vue'
 
 const recordDetails = useWorkbenchRecordDetailsStore()
 const trackEdit = useTrackEditStore()

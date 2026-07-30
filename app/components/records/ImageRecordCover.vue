@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ImageOff } from 'lucide-vue-next'
+import { ImageOff } from '@lucide/vue'
 import type { LibraryRecord } from '~~/shared/types/library'
 
 const props = withDefaults(
