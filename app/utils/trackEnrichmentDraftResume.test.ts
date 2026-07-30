@@ -263,16 +263,19 @@ describe('track enrichment staged decision resume', () => {
 		})
 	})
 
-	it.each([true, false])(
-		'keeps an exact evidence-only decision unsupported and unstaged when persisted staged is %s',
-		(staged) => {
+	it.each([
+		[true, 'retained', true],
+		[false, 'not-staged', false]
+	] as const)(
+		'resumes an exact evidence-only decision with persisted staged %s as %s',
+		(staged, classification, expectedStaged) => {
 			const input = baseEvidenceResumeInput()
 			if (input.decision.kind !== 'evidence-only') throw new Error('fixture')
 			input.decision.staged = staged
 
 			expect(decideTrackEnrichmentDraftDecisionResume(input)).toEqual({
-				classification: 'unsupported-intent',
-				staged: false
+				classification,
+				staged: expectedStaged
 			})
 		}
 	)
@@ -353,7 +356,7 @@ describe('track enrichment staged decision resume', () => {
 			}
 		]
 	] as const)(
-		'classifies evidence-only drift as %s while keeping the writer gate closed',
+		'classifies evidence-only drift as %s and fails staging closed',
 		(classification, mutate) => {
 			const input = baseEvidenceResumeInput()
 			mutate(input)

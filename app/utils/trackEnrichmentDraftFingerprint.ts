@@ -41,6 +41,7 @@ export class TrackEnrichmentDraftFingerprintError extends Error {
 			| 'crypto-unavailable'
 			| 'duplicate-local-identity'
 			| 'invalid-local-identity'
+			| 'invalid-source-evidence'
 	) {
 		super(`Unable to fingerprint enrichment draft sources: ${code}`)
 		this.name = 'TrackEnrichmentDraftFingerprintError'
@@ -89,6 +90,35 @@ function validKeyMode(key: number | null, mode: number | null) {
 		key <= 11 &&
 		(mode === 0 || mode === 1)
 	)
+}
+
+function requiredText(value: string, maxLength = MAX_TEXT_LENGTH): string {
+	const cleaned = cleanText(value, maxLength)
+	if (!cleaned) {
+		throw new TrackEnrichmentDraftFingerprintError('invalid-source-evidence')
+	}
+	return cleaned
+}
+
+function requiredFiniteNumber(
+	value: number,
+	minimum: number,
+	maximum: number
+): number {
+	const cleaned = finiteNumber(value, minimum, maximum)
+	if (cleaned === null) {
+		throw new TrackEnrichmentDraftFingerprintError('invalid-source-evidence')
+	}
+	return cleaned
+}
+
+function sanitizedFileName(value: string): string {
+	const relative = sanitizeTrackEnrichmentDraftRelativePath(value)
+	const fileName = relative?.split('/').at(-1) ?? null
+	if (!fileName) {
+		throw new TrackEnrichmentDraftFingerprintError('invalid-source-evidence')
+	}
+	return requiredText(fileName, 255)
 }
 
 function buildProposal(input: {
@@ -195,7 +225,31 @@ function toXmlObservation(
 		warnings: cleanWarnings(track.warnings),
 		evidence: {
 			kind: 'rekordboxXml',
-			trackId: cleanText(track.trackId)
+			trackId: cleanText(track.trackId),
+			source: {
+				name: cleanText(track.name),
+				artist: cleanText(track.artist),
+				album: cleanText(track.album),
+				genre: cleanText(track.genre),
+				kind: cleanText(track.kind),
+				totalTimeSeconds: finiteNumber(track.totalTimeSeconds, 0, 604_800),
+				year: finiteNumber(track.year, 0, 9_999),
+				averageBpm: finiteNumber(track.averageBpm, 1, 999),
+				dateAdded: cleanText(track.dateAdded),
+				bitRate: finiteNumber(track.bitRate, 0, 10_000_000),
+				sampleRate: finiteNumber(track.sampleRate, 0, 10_000_000),
+				comments: cleanText(track.comments),
+				playCount: finiteNumber(track.playCount, 0, Number.MAX_SAFE_INTEGER),
+				rating: finiteNumber(track.rating, 0, Number.MAX_SAFE_INTEGER),
+				locationHint: track.locationHint
+					? sanitizeTrackEnrichmentDraftRelativePath(track.locationHint)
+					: null,
+				remixer: cleanText(track.remixer),
+				tonality: cleanText(track.tonality),
+				parsedKey: finiteNumber(track.parsedKey, 0, 11),
+				parsedMode: finiteNumber(track.parsedMode, 0, 1),
+				label: cleanText(track.label)
+			}
 		}
 	}
 }
@@ -231,6 +285,7 @@ function toLocalEvidence(
 	source: LocalAudioTrackSource,
 	relativePath: string
 ): TrackEnrichmentDraftLocalEvidence {
+	const analysis = source.analysis
 	return {
 		kind: 'localAudio',
 		fileIdentity: {
@@ -246,7 +301,76 @@ function toLocalEvidence(
 		),
 		bpmConfidence: finiteNumber(source.analysis?.bpmConfidence ?? null, 0, 1),
 		keyStrength: finiteNumber(source.analysis?.keyStrength ?? null, 0, 1),
-		requiresManualReview: source.requiresManualReview
+		requiresManualReview: source.requiresManualReview,
+		source: {
+			name: cleanText(source.name),
+			artist: cleanText(source.artist),
+			album: cleanText(source.album),
+			genre: cleanText(source.genre),
+			locationHint: relativePath,
+			totalTimeSeconds: finiteNumber(source.totalTimeSeconds, 0, 604_800),
+			averageBpm: finiteNumber(source.averageBpm, 1, 999),
+			tonality: cleanText(source.tonality),
+			parsedKey: finiteNumber(source.parsedKey, 0, 11),
+			parsedMode: finiteNumber(source.parsedMode, 0, 1),
+			fileName: sanitizedFileName(source.fileName),
+			fileSize: source.fileSize,
+			lastModified: source.lastModified,
+			tags: {
+				title: cleanText(source.tags.title),
+				artist: cleanText(source.tags.artist),
+				album: cleanText(source.tags.album),
+				genres: source.tags.genres
+					.map((genre) => cleanText(genre))
+					.filter((genre): genre is string => genre !== null)
+					.slice(0, 128),
+				durationSeconds: finiteNumber(source.tags.durationSeconds, 0, 604_800),
+				bpm: finiteNumber(source.tags.bpm, 1, 999),
+				key: cleanText(source.tags.key)
+			},
+			analysis: analysis
+				? {
+						analyzerVersion: requiredText(analysis.analyzerVersion, 128),
+						configurationVersion: requiredText(
+							analysis.configurationVersion,
+							128
+						),
+						bpm: finiteNumber(analysis.bpm, 1, 999),
+						bpmConfidence: finiteNumber(analysis.bpmConfidence, 0, 1),
+						bpmEstimates: analysis.bpmEstimates
+							.map((estimate) => finiteNumber(estimate, 1, 999))
+							.filter((estimate): estimate is number => estimate !== null)
+							.slice(0, 64),
+						key: cleanText(analysis.key),
+						scale: cleanText(analysis.scale),
+						keyStrength: finiteNumber(analysis.keyStrength, 0, 1),
+						sampleRate: requiredFiniteNumber(
+							analysis.sampleRate,
+							0,
+							10_000_000
+						),
+						durationSeconds: requiredFiniteNumber(
+							analysis.durationSeconds,
+							0,
+							604_800
+						),
+						analyzedDurationSeconds: requiredFiniteNumber(
+							analysis.analyzedDurationSeconds,
+							0,
+							604_800
+						),
+						analysisOffsetSeconds: requiredFiniteNumber(
+							analysis.analysisOffsetSeconds,
+							0,
+							604_800
+						),
+						warnings: cleanWarnings(analysis.warnings)
+					}
+				: null,
+			bpmSource: source.bpmSource,
+			keyModeSource: source.keyModeSource,
+			requiresManualReview: source.requiresManualReview
+		}
 	}
 }
 

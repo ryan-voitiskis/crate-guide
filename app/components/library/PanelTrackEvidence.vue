@@ -134,6 +134,12 @@ const keyModeAttribution = computed(() => {
 	)
 })
 
+const hasChangedSinceApplication = computed(
+	() =>
+		bpmAttribution.value?.state === 'changed-since-application' ||
+		keyModeAttribution.value?.state === 'changed-since-application'
+)
+
 const evidenceVersionLabel = computed(() => {
 	if (!evidenceView.value.available) return null
 	return evidenceView.value.interpretation.sourceVersion === 1
@@ -192,6 +198,31 @@ function formatTimestamp(value: string): string {
 function formatMetric(value: number | null): string {
 	if (value === null || !Number.isFinite(value)) return 'Not available'
 	return value.toLocaleString(undefined, { maximumFractionDigits: 3 })
+}
+
+function formatSeconds(value: number | null): string {
+	if (value === null || !Number.isFinite(value)) return 'Not available'
+	return `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })} s`
+}
+
+function formatSampleRate(value: number | null): string {
+	if (value === null || !Number.isFinite(value)) return 'Not available'
+	return `${value.toLocaleString()} Hz`
+}
+
+function formatBitRate(value: number | null): string {
+	if (value === null || !Number.isFinite(value)) return 'Not available'
+	return `${value.toLocaleString()} kbps`
+}
+
+function formatFileSize(value: number): string {
+	if (!Number.isFinite(value) || value < 0) return 'Not available'
+	return new Intl.NumberFormat(undefined, {
+		style: 'unit',
+		unit: 'megabyte',
+		unitDisplay: 'short',
+		maximumFractionDigits: 1
+	}).format(value / 1_000_000)
 }
 
 function unavailableValueLabel(
@@ -280,8 +311,8 @@ function comparisonDescription(input: {
 					Enrichment Evidence
 				</h3>
 				<p class="text-muted-foreground mt-1 text-[11px] leading-relaxed">
-					Stored observations and application attribution. This view is
-					read-only.
+					Stored observations and application attribution. Evidence describes
+					what was retained; this view is read-only.
 				</p>
 			</div>
 			<span
@@ -290,6 +321,21 @@ function comparisonDescription(input: {
 			>
 				{{ evidenceVersionLabel }}
 			</span>
+		</div>
+
+		<div
+			v-if="hasChangedSinceApplication"
+			class="mt-2 rounded-sm border border-amber-500/40 bg-amber-500/10 p-2.5 text-amber-900 dark:text-amber-300"
+			role="status"
+			aria-label="Changed after import"
+		>
+			<p class="text-[10px] font-semibold tracking-wide uppercase">
+				Changed after import
+			</p>
+			<p class="mt-0.5 text-[10px] leading-relaxed">
+				At least one current value differs from its retained application
+				snapshot. This panel will not replace the current value.
+			</p>
 		</div>
 
 		<div
@@ -396,7 +442,8 @@ function comparisonDescription(input: {
 			<p class="text-xs font-semibold">Evidence unavailable</p>
 			<p class="text-muted-foreground mt-1 text-[11px] leading-relaxed">
 				<template v-if="evidenceView.reason === 'missing'">
-					No enrichment Evidence is stored for this track.
+					No enrichment Evidence is stored for this track. This does not show
+					whether analysis ran.
 				</template>
 				<template v-else>
 					Stored enrichment Evidence could not be read. Attribution, source
@@ -569,6 +616,190 @@ function comparisonDescription(input: {
 									retained.
 								</template>
 							</p>
+							<template
+								v-if="card.coverage.identityMatch?.status === 'available'"
+							>
+								<p class="text-muted-foreground mt-1 text-[10px]">
+									Score {{ card.coverage.identityMatch.score }} / 100 · policy
+									<span class="font-mono">
+										{{ card.coverage.identityMatch.matcherPolicyVersion }}
+									</span>
+								</p>
+								<div
+									v-if="card.coverage.identityMatch.reasons.length"
+									class="mt-1.5"
+								>
+									<p
+										class="text-muted-foreground text-[9px] tracking-wide uppercase"
+									>
+										Match reasons
+									</p>
+									<ul class="mt-0.5 list-disc space-y-0.5 pl-4 text-[10px]">
+										<li
+											v-for="reason in card.coverage.identityMatch.reasons"
+											:key="reason"
+										>
+											{{ reason }}
+										</li>
+									</ul>
+								</div>
+								<div
+									v-if="card.coverage.identityMatch.warnings.length"
+									class="mt-1.5"
+								>
+									<p
+										class="text-muted-foreground text-[9px] tracking-wide uppercase"
+									>
+										Match warnings
+									</p>
+									<ul class="mt-0.5 list-disc space-y-0.5 pl-4 text-[10px]">
+										<li
+											v-for="warning in card.coverage.identityMatch.warnings"
+											:key="warning"
+										>
+											{{ warning }}
+										</li>
+									</ul>
+								</div>
+							</template>
+						</div>
+
+						<div
+							v-if="card.coverage.details"
+							class="border-border mt-2 border-t pt-2"
+							:aria-label="`${card.coverage.sourceLabel} retained source details`"
+						>
+							<p
+								class="text-muted-foreground text-[9px] tracking-wide uppercase"
+							>
+								Retained source details
+							</p>
+
+							<dl
+								v-if="card.coverage.details.kind === 'rekordboxXml'"
+								class="mt-1 grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-x-3 gap-y-1 text-[10px]"
+							>
+								<dt class="text-muted-foreground">Filename</dt>
+								<dd class="truncate" :title="card.coverage.details.fileName">
+									{{ card.coverage.details.fileName }}
+								</dd>
+								<dt class="text-muted-foreground">Relative hint</dt>
+								<dd
+									class="truncate"
+									:title="card.coverage.details.locationHint ?? undefined"
+								>
+									{{ card.coverage.details.locationHint ?? 'Not retained' }}
+								</dd>
+								<dt class="text-muted-foreground">Rekordbox ID</dt>
+								<dd class="font-mono">
+									{{ card.coverage.details.rekordboxTrackId ?? 'Not retained' }}
+								</dd>
+								<dt class="text-muted-foreground">Media</dt>
+								<dd>
+									{{ card.coverage.details.mediaKind ?? 'Not available' }} ·
+									{{ formatSampleRate(card.coverage.details.sampleRate) }} ·
+									{{ formatBitRate(card.coverage.details.bitRate) }}
+								</dd>
+							</dl>
+
+							<dl
+								v-else-if="card.coverage.details.kind === 'embeddedTags'"
+								class="mt-1 grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-x-3 gap-y-1 text-[10px]"
+							>
+								<dt class="text-muted-foreground">Filename</dt>
+								<dd class="truncate" :title="card.coverage.details.fileName">
+									{{ card.coverage.details.fileName }}
+								</dd>
+								<dt class="text-muted-foreground">Relative hint</dt>
+								<dd
+									class="truncate"
+									:title="card.coverage.details.locationHint ?? undefined"
+								>
+									{{ card.coverage.details.locationHint ?? 'Not retained' }}
+								</dd>
+								<dt class="text-muted-foreground">Tagged identity</dt>
+								<dd class="truncate">
+									{{
+										[
+											card.coverage.details.title,
+											card.coverage.details.artist,
+											card.coverage.details.album
+										]
+											.filter(Boolean)
+											.join(' · ') || 'Not available'
+									}}
+								</dd>
+								<dt class="text-muted-foreground">File</dt>
+								<dd>
+									{{ formatFileSize(card.coverage.details.fileSize) }} ·
+									{{ formatSeconds(card.coverage.details.durationSeconds) }}
+								</dd>
+								<dt class="text-muted-foreground">Genres</dt>
+								<dd>
+									{{
+										card.coverage.details.genres.join(', ') || 'Not available'
+									}}
+								</dd>
+							</dl>
+
+							<dl
+								v-else
+								class="mt-1 grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-x-3 gap-y-1 text-[10px]"
+							>
+								<dt class="text-muted-foreground">Analyzer</dt>
+								<dd class="font-mono">
+									{{ card.coverage.details.analyzerVersion }}
+								</dd>
+								<dt class="text-muted-foreground">Configuration</dt>
+								<dd class="font-mono">
+									{{ card.coverage.details.configurationVersion }}
+								</dd>
+								<dt class="text-muted-foreground">Analysis segment</dt>
+								<dd>
+									{{
+										formatSeconds(card.coverage.details.analyzedDurationSeconds)
+									}}
+									from
+									{{
+										formatSeconds(card.coverage.details.analysisOffsetSeconds)
+									}}
+								</dd>
+								<dt class="text-muted-foreground">Input</dt>
+								<dd>
+									{{ formatSeconds(card.coverage.details.durationSeconds) }} ·
+									{{ formatSampleRate(card.coverage.details.sampleRate) }}
+								</dd>
+								<dt class="text-muted-foreground">BPM estimates</dt>
+								<dd class="font-mono tabular-nums">
+									{{
+										card.coverage.details.bpmEstimates.length
+											? card.coverage.details.bpmEstimates.join(', ')
+											: 'Not retained'
+									}}
+								</dd>
+							</dl>
+
+							<div
+								v-if="
+									card.coverage.details.kind === 'essentiaBrowser' &&
+									card.coverage.details.warnings.length
+								"
+								class="mt-1.5"
+							>
+								<p
+									class="text-muted-foreground text-[9px] tracking-wide uppercase"
+								>
+									Analyzer warnings
+								</p>
+								<ul class="mt-0.5 list-disc space-y-0.5 pl-4 text-[10px]">
+									<li
+										v-for="warning in card.coverage.details.warnings"
+										:key="warning"
+									>
+										{{ warning }}
+									</li>
+								</ul>
+							</div>
 						</div>
 
 						<div

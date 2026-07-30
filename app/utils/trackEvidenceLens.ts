@@ -1,5 +1,7 @@
+import localAudioAnalysisConfiguration from '../../shared/config/localAudioAnalysis.json'
 import {
 	TRACK_EVIDENCE_SOURCE_KEYS,
+	type TrackEvidenceMatchConfidence,
 	type TrackEvidenceSourceKey
 } from '../../shared/types/audioFeatures'
 import type { LibraryTrack } from '../../shared/types/library'
@@ -24,6 +26,20 @@ export type TrackEvidenceLensApplicationState =
 	| 'unattributed'
 	| 'none'
 
+export type TrackEvidenceLensAnalyzerStatus =
+	| 'current'
+	| 'outdated'
+	| 'unavailable'
+	| 'none'
+
+export type TrackEvidenceLensSourceObservation = {
+	retained: boolean
+	observedAt: string | null
+	identityMatch: TrackEvidenceMatchConfidence | 'legacy-unavailable' | 'none'
+	bpm: number | null
+	keyMode: { key: number; mode: 0 | 1 } | null
+}
+
 export type TrackEvidenceLensRow = {
 	id: string
 	recordId: string
@@ -39,6 +55,12 @@ export type TrackEvidenceLensRow = {
 		version: TrackEvidenceLensVersion | null
 		retainedSourceCount: number
 		sources: Record<TrackEvidenceSourceKey, boolean>
+		observations: Record<
+			TrackEvidenceSourceKey,
+			TrackEvidenceLensSourceObservation
+		>
+		latestObservedAt: string | null
+		analyzerStatus: TrackEvidenceLensAnalyzerStatus
 		comparison: {
 			bpm: TrackEvidenceAgreementStatus | null
 			keyMode: TrackEvidenceAgreementStatus | null
@@ -47,6 +69,8 @@ export type TrackEvidenceLensRow = {
 		application: {
 			bpm: TrackEvidenceLensApplicationState
 			keyMode: TrackEvidenceLensApplicationState
+			bpmSource: TrackEvidenceSourceKey | null
+			keyModeSource: TrackEvidenceSourceKey | null
 			changedSinceApplication: boolean
 		}
 	}
@@ -57,6 +81,7 @@ export type TrackEvidenceLensFilters = {
 	source: 'all' | TrackEvidenceSourceKey
 	comparison: 'all' | TrackEvidenceAgreementStatus
 	application: 'all' | 'changed-since-application'
+	analyzer: 'all' | 'outdated'
 	version: 'all' | TrackEvidenceLensVersion
 }
 
@@ -68,6 +93,7 @@ export type TrackEvidenceLensCounts = {
 	sources: Record<TrackEvidenceSourceKey, number>
 	comparison: Record<TrackEvidenceAgreementStatus, number>
 	changedSinceApplication: number
+	outdatedAnalyzerConfiguration: number
 	versions: Record<TrackEvidenceLensVersion, number>
 }
 
@@ -76,6 +102,7 @@ export const DEFAULT_TRACK_EVIDENCE_LENS_FILTERS = Object.freeze({
 	source: 'all',
 	comparison: 'all',
 	application: 'all',
+	analyzer: 'all',
 	version: 'all'
 } satisfies TrackEvidenceLensFilters)
 
@@ -87,6 +114,27 @@ function sourceFlags(value = false): Record<TrackEvidenceSourceKey, boolean> {
 	}
 }
 
+function emptyObservation(): TrackEvidenceLensSourceObservation {
+	return {
+		retained: false,
+		observedAt: null,
+		identityMatch: 'none',
+		bpm: null,
+		keyMode: null
+	}
+}
+
+function emptyObservations(): Record<
+	TrackEvidenceSourceKey,
+	TrackEvidenceLensSourceObservation
+> {
+	return {
+		rekordboxXml: emptyObservation(),
+		embeddedTags: emptyObservation(),
+		essentiaBrowser: emptyObservation()
+	}
+}
+
 function unavailableEvidence(
 	presence: Exclude<TrackEvidenceLensPresence, 'retained'>
 ): TrackEvidenceLensRow['evidence'] {
@@ -95,10 +143,15 @@ function unavailableEvidence(
 		version: null,
 		retainedSourceCount: 0,
 		sources: sourceFlags(),
+		observations: emptyObservations(),
+		latestObservedAt: null,
+		analyzerStatus: 'none',
 		comparison: { bpm: null, keyMode: null, overall: null },
 		application: {
 			bpm: 'none',
 			keyMode: 'none',
+			bpmSource: null,
+			keyModeSource: null,
 			changedSinceApplication: false
 		}
 	}
@@ -108,6 +161,51 @@ function applicationState<TValue>(
 	attribution: TrackEvidenceFieldAttribution<TValue> | null
 ): TrackEvidenceLensApplicationState {
 	return attribution?.state ?? 'none'
+}
+
+function applicationSource<TValue>(
+	attribution: TrackEvidenceFieldAttribution<TValue> | null
+): TrackEvidenceSourceKey | null {
+	if (!attribution) return null
+	return attribution.state === 'unattributed'
+		? (attribution.legacyApplication?.source ?? null)
+		: attribution.application.source
+}
+
+function analyzerStatus(
+	decoded: Extract<ReturnType<typeof decodeTrackEvidence>, { ok: true }>
+): TrackEvidenceLensAnalyzerStatus {
+	const essentia = decoded.evidence.sources.essentiaBrowser
+	if (!essentia) return 'none'
+	const analyzerVersion = essentia.data.analyzerVersion
+	const configurationVersion = essentia.data.configurationVersion
+	if (!analyzerVersion || !configurationVersion) return 'unavailable'
+	const expectedAnalyzer = localAudioAnalysisConfiguration.analyzerVersion
+	const analyzerIsCurrent =
+		analyzerVersion === expectedAnalyzer ||
+		analyzerVersion.startsWith(`${expectedAnalyzer} (`)
+	return analyzerIsCurrent &&
+		configurationVersion ===
+			localAudioAnalysisConfiguration.configurationVersion
+		? 'current'
+		: 'outdated'
+}
+
+function latestObservedAt(
+	observations: Record<
+		TrackEvidenceSourceKey,
+		TrackEvidenceLensSourceObservation
+	>
+): string | null {
+	let latest: { value: string; timestamp: number } | null = null
+	for (const source of TRACK_EVIDENCE_SOURCE_KEYS) {
+		const value = observations[source].observedAt
+		if (!value) continue
+		const timestamp = Date.parse(value)
+		if (!Number.isFinite(timestamp)) continue
+		if (!latest || timestamp > latest.timestamp) latest = { value, timestamp }
+	}
+	return latest?.value ?? null
 }
 
 function overallComparison(
@@ -163,8 +261,24 @@ export function deriveTrackEvidenceLensRow(
 		interpretation.fields.keyMode.attribution
 	)
 	const sources = sourceFlags()
+	const observations = emptyObservations()
 	for (const source of TRACK_EVIDENCE_SOURCE_KEYS) {
-		sources[source] = interpretation.sourceCoverage.bySource[source].retained
+		const coverage = interpretation.sourceCoverage.bySource[source]
+		const bpm = agreement.bpm.sourceStates[source]
+		const keyMode = agreement.keyMode.sourceStates[source]
+		sources[source] = coverage.retained
+		observations[source] = {
+			retained: coverage.retained,
+			observedAt: coverage.observedAt,
+			identityMatch:
+				coverage.identityMatch?.status === 'available'
+					? coverage.identityMatch.confidence
+					: coverage.identityMatch
+						? 'legacy-unavailable'
+						: 'none',
+			bpm: bpm.availability === 'populated' ? bpm.value : null,
+			keyMode: keyMode.availability === 'populated' ? keyMode.value : null
+		}
 	}
 
 	return {
@@ -174,6 +288,9 @@ export function deriveTrackEvidenceLensRow(
 			version: interpretation.sourceVersion === 1 ? 'legacy-v1' : 'current-v2',
 			retainedSourceCount: interpretation.sourceCoverage.retainedCount,
 			sources,
+			observations,
+			latestObservedAt: latestObservedAt(observations),
+			analyzerStatus: analyzerStatus(decoded),
 			comparison: {
 				bpm: agreement.bpm.status,
 				keyMode: agreement.keyMode.status,
@@ -185,6 +302,10 @@ export function deriveTrackEvidenceLensRow(
 			application: {
 				bpm: bpmApplication,
 				keyMode: keyModeApplication,
+				bpmSource: applicationSource(interpretation.fields.bpm.attribution),
+				keyModeSource: applicationSource(
+					interpretation.fields.keyMode.attribution
+				),
 				changedSinceApplication:
 					bpmApplication === 'changed-since-application' ||
 					keyModeApplication === 'changed-since-application'
@@ -214,6 +335,7 @@ export function countTrackEvidenceLensRows(
 			'insufficient-evidence': 0
 		},
 		changedSinceApplication: 0,
+		outdatedAnalyzerConfiguration: 0,
 		versions: { 'current-v2': 0, 'legacy-v1': 0 }
 	}
 
@@ -227,6 +349,9 @@ export function countTrackEvidenceLensRows(
 		}
 		if (row.evidence.application.changedSinceApplication) {
 			counts.changedSinceApplication += 1
+		}
+		if (row.evidence.analyzerStatus === 'outdated') {
+			counts.outdatedAnalyzerConfiguration += 1
 		}
 		if (row.evidence.version) counts.versions[row.evidence.version] += 1
 	}
@@ -257,6 +382,12 @@ export function filterTrackEvidenceLensRows(
 		if (
 			filters.application === 'changed-since-application' &&
 			!row.evidence.application.changedSinceApplication
+		) {
+			return false
+		}
+		if (
+			filters.analyzer === 'outdated' &&
+			row.evidence.analyzerStatus !== 'outdated'
 		) {
 			return false
 		}

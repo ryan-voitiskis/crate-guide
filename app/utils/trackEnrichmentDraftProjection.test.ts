@@ -193,10 +193,46 @@ describe('projectTrackEnrichmentDraft', () => {
 		expect(serialized).not.toContain('misleading-live-row-id')
 		expect(serialized).not.toContain('live-row-only-secret')
 		expect(serialized).not.toContain('database-only-secret')
-		expect(serialized).not.toContain('parser-only-comment-secret')
+		expect(serialized).toContain('parser-only-comment-secret')
 		expect(serialized).not.toContain('/Users/alice')
 		expect(draft.observations[0]).not.toHaveProperty('location')
 		expect(draft.observations[0]).not.toHaveProperty('sourceType')
+	})
+
+	it('projects a populated matched row as explicit Evidence-only intent without default value writes', async () => {
+		const [row] = buildTrackEnrichmentRows({
+			sources: [xmlSource()],
+			tracks: [track({ bpm: 126, key: 8, mode: 1 })],
+			records: []
+		})
+		if (!row) throw new Error('Expected a review row')
+		expect(row.defaultStaged).toBe(false)
+
+		const draft = await projectTrackEnrichmentDraft(
+			projectionInput([{ row, staged: true, reviewedAt: REVIEWED_AT }])
+		)
+
+		expect(draft.decisions).toEqual([
+			expect.objectContaining({
+				kind: 'evidence-only',
+				targetBinding: { trackId: 'track-1' },
+				preconditionBinding: expect.objectContaining({
+					expectedTargetUpdatedAt: '2026-07-23T00:00:00.000Z',
+					currentEvidenceFingerprint: expect.objectContaining({
+						digest: expect.stringMatching(/^[a-f0-9]{64}$/)
+					})
+				}),
+				staged: true
+			})
+		])
+		expect(draft.observations[0]?.evidence).toMatchObject({
+			kind: 'rekordboxXml',
+			source: {
+				comments: 'parser-only-comment-secret',
+				tonality: '8A',
+				year: 2026
+			}
+		})
 	})
 
 	it('canonicalizes local rows by source index and fails staged state closed', async () => {

@@ -21,6 +21,7 @@ export type ReviewFilter =
 	| 'ready'
 	| 'review'
 	| 'changed'
+	| 'evidence'
 	| 'staged'
 	| 'matched'
 	| 'unmatched'
@@ -33,6 +34,8 @@ export type ApplySummary = {
 	remaining: number
 	bpm: number
 	keyMode: number
+	evidence: number
+	evidenceOnly: number
 }
 
 export type TrackEnrichmentSourceKind = 'rekordboxXml' | 'localAudio'
@@ -42,6 +45,7 @@ export type TrackEnrichmentParsePhase = 'idle' | 'parsing' | 'matching'
 export type TrackEnrichmentApplyAttempt = {
 	rows: readonly {
 		row: TrackEnrichmentRow
+		intentKind: 'fill-empty-fields' | 'evidence-only'
 		requested: { bpm: boolean; keyMode: boolean }
 	}[]
 	outcome: TrackBatchUpdateOutcome
@@ -94,6 +98,7 @@ export type TrackEnrichmentWorkflow = {
 	matchedRows: ComputedRef<TrackEnrichmentRow[]>
 	readyRows: ComputedRef<TrackEnrichmentRow[]>
 	reviewRows: ComputedRef<TrackEnrichmentRow[]>
+	evidenceOnlyRows: ComputedRef<TrackEnrichmentRow[]>
 	unmatchedRows: ComputedRef<TrackEnrichmentRow[]>
 	doneRows: ComputedRef<TrackEnrichmentRow[]>
 	stagedRows: ComputedRef<TrackEnrichmentRow[]>
@@ -109,6 +114,8 @@ export type TrackEnrichmentWorkflow = {
 	filteredRows: ComputedRef<TrackEnrichmentRow[]>
 	stagedBpmCount: ComputedRef<number>
 	stagedKeyModeCount: ComputedRef<number>
+	stagedEvidenceCount: ComputedRef<number>
+	stagedEvidenceOnlyCount: ComputedRef<number>
 	isStepComplete: (step: number) => boolean
 	canNavigateToStep: (step: number) => boolean
 	navigateToStep: (step: number) => void
@@ -137,6 +144,36 @@ export type TrackEnrichmentWorkflowDependencies = {
 	onApplyAttempt?: (
 		attempt: TrackEnrichmentApplyAttempt
 	) => Promise<void> | void
+}
+
+export function isTrackEnrichmentEvidenceOnlyRow(
+	row: TrackEnrichmentRow
+): boolean {
+	return Boolean(
+		row.track &&
+		!row.canFillBpm &&
+		!row.canFillKeyMode &&
+		!row.stagingBlockedReason
+	)
+}
+
+export function canStageTrackEnrichmentWorkflowRow(
+	row: TrackEnrichmentRow
+): boolean {
+	if (canStageTrackEnrichmentRow(row)) return true
+	return Boolean(
+		isTrackEnrichmentEvidenceOnlyRow(row) &&
+		!row.applied &&
+		row.track?.updated_at
+	)
+}
+
+export function getTrackEnrichmentIntentKind(
+	row: TrackEnrichmentRow
+): 'fill-empty-fields' | 'evidence-only' {
+	return row.canFillBpm || row.canFillKeyMode
+		? 'fill-empty-fields'
+		: 'evidence-only'
 }
 
 export function useTrackEnrichmentWorkflow(
@@ -193,6 +230,11 @@ export function useTrackEnrichmentWorkflow(
 				(row.canFillBpm || row.canFillKeyMode || !!row.stagingBlockedReason)
 		)
 	)
+	const evidenceOnlyRows = computed(() =>
+		rows.value.filter(
+			(row) => !row.applied && isTrackEnrichmentEvidenceOnlyRow(row)
+		)
+	)
 	const unmatchedRows = computed(() => rows.value.filter((row) => !row.track))
 	const doneRows = computed(() =>
 		rows.value.filter((row) => row.applied || row.alreadyComplete)
@@ -202,7 +244,9 @@ export function useTrackEnrichmentWorkflow(
 	)
 	const stagedRows = computed(() =>
 		rows.value.filter(
-			(row) => stagedRowIds.value.has(row.id) && canStageTrackEnrichmentRow(row)
+			(row) =>
+				stagedRowIds.value.has(row.id) &&
+				canStageTrackEnrichmentWorkflowRow(row)
 		)
 	)
 	const blockedCount = computed(
@@ -256,6 +300,11 @@ export function useTrackEnrichmentWorkflow(
 					}
 				]
 			: []),
+		{
+			value: 'evidence',
+			label: 'Evidence only',
+			count: evidenceOnlyRows.value.length
+		},
 		{ value: 'staged', label: 'Staged', count: stagedRows.value.length },
 		{ value: 'matched', label: 'All matches', count: matchedRows.value.length },
 		{
@@ -274,6 +323,8 @@ export function useTrackEnrichmentWorkflow(
 				return reviewRows.value
 			case 'changed':
 				return changedRows.value
+			case 'evidence':
+				return evidenceOnlyRows.value
 			case 'staged':
 				return stagedRows.value
 			case 'matched':
@@ -287,13 +338,17 @@ export function useTrackEnrichmentWorkflow(
 		}
 	})
 	const stageableFilteredRows = computed(() =>
-		filteredRows.value.filter(canStageTrackEnrichmentRow)
+		filteredRows.value.filter(canStageTrackEnrichmentWorkflowRow)
 	)
 	const stagedBpmCount = computed(
 		() => stagedRows.value.filter((row) => row.canFillBpm).length
 	)
 	const stagedKeyModeCount = computed(
 		() => stagedRows.value.filter((row) => row.canFillKeyMode).length
+	)
+	const stagedEvidenceCount = computed(() => stagedRows.value.length)
+	const stagedEvidenceOnlyCount = computed(
+		() => stagedRows.value.filter(isTrackEnrichmentEvidenceOnlyRow).length
 	)
 
 	watch(selectedFilter, () => {
@@ -597,7 +652,7 @@ export function useTrackEnrichmentWorkflow(
 
 	function setRowStaged(row: TrackEnrichmentRow, checked: boolean) {
 		if (isReviewReadOnly.value) return
-		if (!canStageTrackEnrichmentRow(row)) return
+		if (!canStageTrackEnrichmentWorkflowRow(row)) return
 		const nextStagedIds = new Set(stagedRowIds.value)
 		if (checked) nextStagedIds.add(row.id)
 		else nextStagedIds.delete(row.id)
@@ -647,16 +702,27 @@ export function useTrackEnrichmentWorkflow(
 		const importedAt = new Date().toISOString()
 		const preparedUpdates: {
 			row: TrackEnrichmentRow
-			update: NonNullable<ReturnType<typeof buildTrackEnrichmentUpdate>>
+			intentKind: 'fill-empty-fields' | 'evidence-only'
+			update: NonNullable<
+				Awaited<ReturnType<typeof buildTrackEnrichmentUpdate>>
+			>
 		}[] = []
 
 		for (const row of rowsToApply) {
-			const update = buildTrackEnrichmentUpdate(
+			const intentKind = getTrackEnrichmentIntentKind(row)
+			const update = await buildTrackEnrichmentUpdate(
 				row,
 				selectedFileName.value ?? sourceLabel.value,
-				importedAt
+				importedAt,
+				intentKind
 			)
-			if (update) preparedUpdates.push({ row, update })
+			if (update) {
+				preparedUpdates.push({
+					row,
+					intentKind,
+					update
+				})
+			}
 		}
 
 		if (preparedUpdates.length === 0) {
@@ -692,8 +758,9 @@ export function useTrackEnrichmentWorkflow(
 					}
 				: outcome
 			await dependencies?.onApplyAttempt?.({
-				rows: preparedUpdates.map(({ row, update }) => ({
+				rows: preparedUpdates.map(({ row, intentKind, update }) => ({
 					row,
+					intentKind,
 					requested: {
 						bpm: update.updates.bpm !== undefined,
 						keyMode:
@@ -769,6 +836,10 @@ export function useTrackEnrichmentWorkflow(
 							).length,
 							keyMode: successfulUpdates.filter(
 								(entry) => entry.update.updates.key !== undefined
+							).length,
+							evidence: successfulUpdates.length,
+							evidenceOnly: successfulUpdates.filter(
+								(entry) => entry.intentKind === 'evidence-only'
 							).length
 						}
 					: null
@@ -826,6 +897,7 @@ export function useTrackEnrichmentWorkflow(
 		matchedRows,
 		readyRows,
 		reviewRows,
+		evidenceOnlyRows,
 		unmatchedRows,
 		doneRows,
 		stagedRows,
@@ -841,6 +913,8 @@ export function useTrackEnrichmentWorkflow(
 		filteredRows,
 		stagedBpmCount,
 		stagedKeyModeCount,
+		stagedEvidenceCount,
+		stagedEvidenceOnlyCount,
 		isStepComplete,
 		canNavigateToStep,
 		navigateToStep,

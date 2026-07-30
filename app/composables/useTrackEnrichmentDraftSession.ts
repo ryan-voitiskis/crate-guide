@@ -236,7 +236,7 @@ export function useTrackEnrichmentDraftSession(
 			observationCount: payload.observations.length,
 			reviewedCount: payload.decisions.length,
 			stagedCount: payload.decisions.filter(
-				(decision) => decision.kind === 'fill-empty-fields' && decision.staged
+				(decision) => decision.kind !== 'unknown' && decision.staged
 			).length,
 			doneCount: payload.partialOutcomes.filter(
 				(outcome) => outcome.status === 'succeeded'
@@ -1509,18 +1509,21 @@ export function useTrackEnrichmentDraftSession(
 					observation
 				])
 			)
-			const bindings = attempt.rows.flatMap(({ row, requested }) => {
-				const observation = observationByOrdinal.get(row.source.index)
-				return observation && row.track
-					? [
-							{
-								sourceFingerprint: observation.sourceFingerprint,
-								targetTrackId: row.track.id,
-								requested
-							}
-						]
-					: []
-			})
+			const bindings = attempt.rows.flatMap(
+				({ row, intentKind, requested }) => {
+					const observation = observationByOrdinal.get(row.source.index)
+					return observation && row.track
+						? [
+								{
+									intentKind,
+									sourceFingerprint: observation.sourceFingerprint,
+									targetTrackId: row.track.id,
+									requested
+								}
+							]
+						: []
+				}
+			)
 			if (bindings.length !== attempt.rows.length) {
 				throw new Error('Draft outcome bindings no longer match the review.')
 			}

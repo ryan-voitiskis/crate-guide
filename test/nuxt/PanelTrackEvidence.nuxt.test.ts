@@ -85,14 +85,32 @@ describe('PanelTrackEvidence', () => {
 		expect(rekordbox.text()).toContain('128.0 BPM')
 		expect(rekordbox.text()).toContain('F Min')
 		expect(rekordbox.text()).toContain('high identity match')
+		expect(rekordbox.text()).toContain('Score 96 / 100')
+		expect(rekordbox.text()).toContain('Rekordbox ID and metadata agree')
+		expect(rekordbox.text()).toContain('collection.xml')
+		expect(rekordbox.text()).toContain(
+			'Synthetic Artist/Synthetic Release/Asterism.wav'
+		)
+		expect(rekordbox.text()).toContain('RBX-1024')
 		expect(
 			rekordbox.get('time[datetime="2026-07-21T11:58:00.000Z"]')
 		).toBeTruthy()
+
+		const embeddedTags = wrapper.get(
+			'[data-testid="track-evidence-source-embeddedTags"]'
+		)
+		expect(embeddedTags.text()).toContain('Artist tag punctuation differs')
+		expect(embeddedTags.text()).toContain('Asterism.wav')
+		expect(embeddedTags.text()).toContain('66.5 MB')
 
 		const essentia = wrapper.get(
 			'[data-testid="track-evidence-source-essentiaBrowser"]'
 		)
 		expect(essentia.text()).toContain('medium identity match')
+		expect(essentia.text()).toContain('essentia-0.1.3-rhythm-v1')
+		expect(essentia.text()).toContain('continuous-center-180s-v1')
+		expect(essentia.text()).toContain('180 s from 98.5 s')
+		expect(essentia.text()).toContain('127.99, 64, 128.01')
 		const analyzerMetrics = essentia.get(
 			'[aria-label="Essentia analyzer metrics, separate from identity matching"]'
 		)
@@ -110,8 +128,7 @@ describe('PanelTrackEvidence', () => {
 		).toBeTruthy()
 		expect(wrapper.text()).toContain('track-evidence-agreement-v1')
 		expect(wrapper.find('button').exists()).toBe(false)
-		expect(wrapper.text()).not.toContain('collection.xml')
-		expect(wrapper.text()).not.toContain('Asterism.wav')
+		expect(wrapper.text()).not.toContain('/Users/')
 	})
 
 	it('keeps migrated v1 attribution and global matching explicitly unattributed', async () => {
@@ -194,6 +211,9 @@ describe('PanelTrackEvidence', () => {
 		})
 
 		expect(wrapper.text().match(/Changed since application/g)).toHaveLength(2)
+		expect(
+			wrapper.get('[role="status"][aria-label="Changed after import"]').text()
+		).toContain('This panel will not replace the current value')
 		expect(wrapper.text()).toContain('Rekordbox XML · applied value 128.0 BPM')
 		expect(wrapper.text()).toContain('Embedded tags · applied value F Min')
 		expect(wrapper.get('[aria-label="Current track values"]').text()).toContain(
@@ -235,6 +255,15 @@ describe('PanelTrackEvidence', () => {
 			wrapper.get('[aria-label="Key source comparison: Insufficient evidence"]')
 		).toBeTruthy()
 		expect(wrapper.text().toLowerCase()).not.toContain('never analyzed')
+	})
+
+	it('does not treat missing Evidence as proof that analysis did not run', async () => {
+		const wrapper = await mountEvidence(null)
+
+		expect(wrapper.text()).toContain(
+			'No enrichment Evidence is stored for this track'
+		)
+		expect(wrapper.text()).toContain('This does not show whether analysis ran')
 	})
 
 	it('integrates the read-only panel into the selected-track inspector', async () => {

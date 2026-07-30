@@ -54,6 +54,28 @@ export type TrackEnrichmentDraftLocalFileIdentity = {
 export type TrackEnrichmentDraftXmlEvidence = {
 	kind: 'rekordboxXml'
 	trackId: string | null
+	source: {
+		name: string | null
+		artist: string | null
+		album: string | null
+		genre: string | null
+		kind: string | null
+		totalTimeSeconds: number | null
+		year: number | null
+		averageBpm: number | null
+		dateAdded: string | null
+		bitRate: number | null
+		sampleRate: number | null
+		comments: string | null
+		playCount: number | null
+		rating: number | null
+		locationHint: string | null
+		remixer: string | null
+		tonality: string | null
+		parsedKey: number | null
+		parsedMode: number | null
+		label: string | null
+	}
 }
 
 export type TrackEnrichmentDraftLocalEvidence = {
@@ -65,6 +87,48 @@ export type TrackEnrichmentDraftLocalEvidence = {
 	bpmConfidence: number | null
 	keyStrength: number | null
 	requiresManualReview: boolean
+	source: {
+		name: string | null
+		artist: string | null
+		album: string | null
+		genre: string | null
+		locationHint: string
+		totalTimeSeconds: number | null
+		averageBpm: number | null
+		tonality: string | null
+		parsedKey: number | null
+		parsedMode: number | null
+		fileName: string
+		fileSize: number
+		lastModified: number
+		tags: {
+			title: string | null
+			artist: string | null
+			album: string | null
+			genres: string[]
+			durationSeconds: number | null
+			bpm: number | null
+			key: string | null
+		}
+		analysis: {
+			analyzerVersion: string
+			configurationVersion: string
+			bpm: number | null
+			bpmConfidence: number | null
+			bpmEstimates: number[]
+			key: string | null
+			scale: string | null
+			keyStrength: number | null
+			sampleRate: number
+			durationSeconds: number
+			analyzedDurationSeconds: number
+			analysisOffsetSeconds: number
+			warnings: string[]
+		} | null
+		bpmSource: 'embeddedTags' | 'essentiaBrowser' | null
+		keyModeSource: 'embeddedTags' | 'essentiaBrowser' | null
+		requiresManualReview: boolean
+	}
 }
 
 export type TrackEnrichmentDraftObservation = {
@@ -112,12 +176,11 @@ export type TrackEnrichmentFillEmptyFieldsDecision = {
 
 /**
  * Records a reviewed request to retain Evidence without approving a BPM/key
- * write. The writer remains deliberately gated: persisted staging is provenance
- * only and current hydration must always make this intent inert.
+ * write. Current hydration may restore staging only when every source, target,
+ * revision, and current-Evidence binding still matches.
  *
- * This additive intent stays in draft schema v2 because v2 has not shipped yet.
- * The already-defined v2 forward-compatibility rule makes older readers demote
- * the unfamiliar kind to an unstaged unknown decision instead of a fill approval.
+ * The additive intent stays in draft schema v2. Older readers demote the
+ * unfamiliar kind to an unstaged unknown decision instead of a fill approval.
  */
 export type TrackEnrichmentEvidenceOnlyDecision = {
 	kind: 'evidence-only'
@@ -163,7 +226,7 @@ export type TrackEnrichmentDraftDecision =
 	| TrackEnrichmentUnknownDecision
 
 export type TrackEnrichmentDraftPartialOutcome = {
-	intentKind: 'fill-empty-fields'
+	intentKind: 'fill-empty-fields' | 'evidence-only'
 	sourceFingerprint: string
 	targetTrackId: string
 	status: 'succeeded' | 'failed' | 'unknown'
@@ -189,6 +252,7 @@ export type TrackEnrichmentDraftPartialOutcome = {
 export type TrackEnrichmentDraftReviewFilter =
 	| 'ready'
 	| 'review'
+	| 'evidence'
 	| 'staged'
 	| 'matched'
 	| 'unmatched'

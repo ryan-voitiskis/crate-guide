@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
 	currentTrackEvidenceV2Golden,
-	legacyTrackAudioFeaturesV1Golden
+	legacyTrackAudioFeaturesV1Golden,
+	mixedTrackEvidenceV2Golden
 } from '../../test/fixtures/trackEvidence'
 import {
 	TRACK_EVIDENCE_AGREEMENT_POLICY,
@@ -80,6 +81,25 @@ function evidenceWithTwoKeys(input: {
 }
 
 describe('track Evidence agreement policy', () => {
+	it('compares current and retained legacy source slots after an incremental upgrade', () => {
+		const result = comparedSuccess(
+			compareTrackEvidenceAgreement(decoded(mixedTrackEvidenceV2Golden))
+		)
+
+		expect(result.bpm.status).toBe('agreement')
+		expect(result.bpm.sourceStates.rekordboxXml).toMatchObject({
+			availability: 'populated',
+			identity: {
+				observationKind: 'v2',
+				observationId: 'obs-rbx-20260721-001'
+			}
+		})
+		expect(result.bpm.sourceStates.embeddedTags).toMatchObject({
+			availability: 'populated',
+			identity: { observationKind: 'legacy-v1', observationId: null }
+		})
+	})
+
 	it('publishes the version, inclusive BPM threshold, and explicit harmonic rules', () => {
 		expect(TRACK_EVIDENCE_AGREEMENT_POLICY).toEqual({
 			version: 'track-evidence-agreement-v1',

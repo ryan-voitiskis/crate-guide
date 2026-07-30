@@ -502,7 +502,7 @@ describe('useTrackEnrichmentDraftSession', () => {
 		const persisted = fake.createDraftAndClaim.mock.calls[0]![0]
 		const serialized = JSON.stringify(persisted)
 		expect(serialized).not.toContain('/Users/alice')
-		expect(serialized).not.toContain('must not persist')
+		expect(serialized).toContain('must not persist')
 		expect(serialized).not.toContain('owner-token-private')
 		expect(serialized).not.toContain('user_id')
 		expect(session.saveStatusLabel.value).toMatch(/^Saved locally /)
@@ -814,7 +814,13 @@ describe('useTrackEnrichmentDraftSession', () => {
 		const attemptedAt = '2026-07-23T04:05:00.000Z'
 		fake.writeDraft.mockRejectedValueOnce({ code: 'quota' })
 		const attempt: TrackEnrichmentApplyAttempt = {
-			rows: [{ row, requested: { bpm: true, keyMode: true } }],
+			rows: [
+				{
+					row,
+					intentKind: 'fill-empty-fields',
+					requested: { bpm: true, keyMode: true }
+				}
+			],
 			outcome: {
 				cancelled: true,
 				requiresReview: false,
@@ -876,7 +882,13 @@ describe('useTrackEnrichmentDraftSession', () => {
 
 		const row = workflow.workflow.rows.value[0]!
 		const recording = session.recordApplyAttempt({
-			rows: [{ row, requested: { bpm: true, keyMode: true } }],
+			rows: [
+				{
+					row,
+					intentKind: 'fill-empty-fields',
+					requested: { bpm: true, keyMode: true }
+				}
+			],
 			outcome: {
 				cancelled: false,
 				requiresReview: false,
@@ -1174,7 +1186,9 @@ describe('useTrackEnrichmentDraftSession', () => {
 			failed: 0,
 			remaining: 0,
 			bpm: 1,
-			keyMode: 1
+			keyMode: 1,
+			evidence: 1,
+			evidenceOnly: 0
 		}
 		workflow.workflow.stagedRowIds.value = new Set()
 
@@ -1199,7 +1213,9 @@ describe('useTrackEnrichmentDraftSession', () => {
 			failed: 0,
 			remaining: 1,
 			bpm: 1,
-			keyMode: 0
+			keyMode: 0,
+			evidence: 1,
+			evidenceOnly: 0
 		}
 
 		expect(await session.acknowledgeCompleteAndDelete()).toBe(false)

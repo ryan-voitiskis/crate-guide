@@ -19,8 +19,10 @@ staged changes.
 6. `useTrackEnrichmentWorkflow` owns source selection, parse/match progress,
    stale-operation protection, filtering, staging, apply review, and the ordered
    `updateTracksBatch` write.
-7. The thin `app/pages/enrichment.vue` route loads the collection and binds the
-   composable to the source, review, and result components.
+7. The thin `app/pages/enrichment.vue` route renders
+   `app/components/enrichment/PageTrackEnrichment.vue`, which loads the
+   collection and binds the composable to the source, review, and result
+   components.
 8. Staged updates are confirmed before the composable persists them.
 
 The product names this destination **BPM & Key** rather than “Enrichment” in
@@ -240,6 +242,54 @@ metadata live in `tracks.audio_features`; its application type is defined in
 The database column is introduced by
 `supabase/migrations/20260709120000_add_track_audio_features.sql`. Generated
 Supabase types must be refreshed whenever that schema changes.
+
+### Track Evidence v2
+
+Signed-in cloud enrichment stores a strict, bounded Evidence v2 object. It keeps
+the latest retained observation for Rekordbox XML, embedded tags, and browser
+Essentia separately. Each current observation binds its source-specific match
+details, observation identity/time, sanitized metadata, and applicable analyzer
+identity. Applied BPM or key/mode snapshots retain the exact source observation,
+value, and application time. This is Evidence, not ground truth or an audit
+history.
+
+The cloud writer sends the complete v2 object through the owner-scoped
+`persist_track_enrichment_batch` RPC with the expected track revision. The RPC
+validates privacy and schema bounds and applies row/account compare-and-swap. If
+another tab or source updates the track first, the write returns `stale`; the
+workflow must reload, rematch, and require review again where a binding changed.
+Stale client JSON is never merged or allowed to silently replace current source
+slots.
+
+An eligible matched row with no fillable value can be explicitly staged as
+**Save Evidence only**. It is never staged by default. Successful Evidence-only
+writes leave nonblank top-level BPM/key/mode unchanged, and completion requires
+strict v2 database read-back with the expected sanitized observations and
+deterministic observation IDs. Apply summaries report Evidence saved,
+Evidence-only saves, BPM filled, and keys filled separately.
+
+Evidence v1 remains readable and is upgraded losslessly one source at a time;
+unknown legacy fields move into explicit legacy envelopes rather than being
+discarded or attributed to a current source. The database rejects direct v2
+mutation and v2-to-v1 downgrade, so a v1-only frontend is not a valid
+application-only rollback after a v2 value exists.
+
+Enrichment review drafts remain device-local and are not cloud backups. Their
+versioned `evidence-only` decisions restore staging only while the exact source
+snapshot, observation, matcher target, target revision, and current-Evidence
+digest remain unchanged. Older readers treat the unfamiliar intent as safely
+unstaged.
+
+The Tracks Evidence lens and selected-track inspector are read-only comparison
+surfaces. They distinguish identity-match confidence, analyzer confidence,
+cross-source agreement, and changed-after-application state. They do not
+automatically replace populated values. Missing Evidence does not prove that
+analysis never occurred.
+
+Portable archives, browser-library writing, accountless mode, and offline mode
+are outside this signed-in cloud release. Evidence is not currently represented
+as portable; a future archive format must add and test v2 compatibility before
+making that claim.
 
 ## Validation
 

@@ -1,0 +1,1189 @@
+<script setup lang="ts">
+import {
+	AlertTriangle,
+	ArrowLeft,
+	ArrowRight,
+	Check,
+	CheckCircle2,
+	Database,
+	FileUp,
+	ListChecks,
+	RefreshCw,
+	Search,
+	ShieldCheck,
+	Trash2,
+	Upload,
+	WandSparkles,
+	X
+} from 'lucide-vue-next'
+import type {
+	ReviewFilter,
+	TrackEnrichmentApplyAttempt
+} from '~/composables/useTrackEnrichmentWorkflow'
+import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
+
+defineOptions({ name: 'PageTrackEnrichment' })
+
+type Density = 'compact' | 'comfortable'
+
+const props = defineProps<{
+	initialReview?: {
+		fileName: string
+		rows: TrackEnrichmentRow[]
+		selectedFilter?: ReviewFilter
+	} | null
+}>()
+
+const records = useWorkbenchRecordsStore()
+const tracks = useWorkbenchTracksStore()
+const preferences = useWorkbenchPreferencesStore()
+const capabilities = useWorkbenchCapabilities()
+const runtime = useWorkbenchRuntime()
+const isActive = usePageActive()
+
+const fileInput = ref<HTMLInputElement | null>(null)
+const collectionLoadState = ref<'loading' | 'ready' | 'failed'>('loading')
+const density = useState<Density>('workbench-density', () => 'compact')
+let recordDraftApplyAttempt = async (
+	_attempt: TrackEnrichmentApplyAttempt
+) => {}
+const workflow = useTrackEnrichmentWorkflow({
+	records,
+	tracks,
+	onApplyAttempt: (attempt) => recordDraftApplyAttempt(attempt)
+})
+const {
+	activeSource,
+	selectedFileName,
+	rows,
+	stagedRowIds,
+	selectedFilter,
+	currentPage,
+	parseWarnings,
+	parseErrors,
+	parsePhase,
+	isParsing,
+	parseCompleted,
+	parseTotal,
+	isApplying,
+	showApplyDialog,
+	applyCompleted,
+	applyTotal,
+	lastApplySummary,
+	resumeSummary,
+	requiresSourceReconnect,
+	isReviewReadOnly,
+	currentStep,
+	matchedRows,
+	readyRows,
+	reviewRows,
+	unmatchedRows,
+	stagedRows,
+	blockedCount,
+	errorCount,
+	matchRate,
+	applyProgress,
+	parseProgress,
+	visibleParseWarnings,
+	sourceLabel,
+	filterOptions,
+	filteredRows,
+	stagedBpmCount,
+	stagedKeyModeCount,
+	stagedEvidenceCount,
+	stagedEvidenceOnlyCount,
+	isStepComplete,
+	canNavigateToStep,
+	navigateToStep,
+	parseFile,
+	cancelParsing,
+	retryParsing,
+	canRetryParsing,
+	reviewLocalSources,
+	selectSource,
+	loadPreparedReview,
+	startAnotherSource,
+	setRowStaged,
+	setFilteredRowsStaged,
+	clearStagedRows,
+	openApplyReview,
+	applyStagedRows,
+	returnToReview
+} = workflow
+
+const isApplySummaryComplete = computed(() => {
+	const summary = lastApplySummary.value
+	return Boolean(
+		summary &&
+		summary.total > 0 &&
+		summary.failed === 0 &&
+		summary.remaining === 0 &&
+		summary.succeeded === summary.total &&
+		stagedRowIds.value.size === 0
+	)
+})
+
+if (props.initialReview) {
+	loadPreparedReview(props.initialReview.fileName, props.initialReview.rows)
+	selectedFilter.value = props.initialReview.selectedFilter ?? 'ready'
+}
+
+const {
+	query: reviewQuery,
+	sortKey: reviewSortKey,
+	sortDirection: reviewSortDirection,
+	searchedRows: searchedReviewRows,
+	sortedRows: sortedReviewRows,
+	stageableRows: visibleStageableRows,
+	selectionState: visibleSelectionState,
+	pageCount: reviewPageCount,
+	pagedRows: pagedReviewRows,
+	shownStart: reviewShownStart,
+	shownEnd: reviewShownEnd,
+	setVisibleRowsStaged,
+	setSort: setReviewSort
+} = useTrackEnrichmentReviewTable({
+	filteredRows,
+	stagedRowIds,
+	currentPage,
+	selectedFileName,
+	setRowStaged,
+	setFilteredRowsStaged
+})
+
+const draftSession = useTrackEnrichmentDraftSession({
+	runtime,
+	workflow,
+	records,
+	tracks,
+	density,
+	sortKey: reviewSortKey,
+	sortDirection: reviewSortDirection
+})
+recordDraftApplyAttempt = draftSession.recordApplyAttempt
+const {
+	activeEntry: activeDraftEntry,
+	discoveryState: draftDiscoveryState,
+	hasDraft,
+	draftDetails,
+	isHydrating: isDraftHydrating,
+	isTakingOver: isDraftTakingOver,
+	isTransitioning: isDraftTransitioning,
+	isDraftMissingConflict,
+	isOwned: isDraftOwned,
+	isSourceBlockedByDraft,
+	saveStatusLabel: draftSaveStatusLabel,
+	savedAtAccessibleLabel: draftSavedAtAccessibleLabel,
+	recoveryMessage: draftRecoveryMessage
+} = draftSession
+
+const workflowSteps = [
+	{ number: 1, label: 'Choose source', shortLabel: 'Source' },
+	{ number: 2, label: 'Review matches', shortLabel: 'Review' },
+	{ number: 3, label: 'Apply updates', shortLabel: 'Apply' }
+] as const
+
+function handleBeforeUnload(event: BeforeUnloadEvent) {
+	if (!isActive.value || !draftSession.shouldWarnBeforeUnload.value) return
+
+	event.preventDefault()
+	event.returnValue = true
+}
+
+if (import.meta.client) {
+	useEventListener(window, 'beforeunload', handleBeforeUnload)
+}
+
+watch(isActive, (active) => {
+	if (!active) cancelParsing()
+})
+onDeactivated(cancelParsing)
+onBeforeUnmount(cancelParsing)
+
+onMounted(async () => {
+	const results = await Promise.all([
+		records.fetchAllRecords(),
+		tracks.fetchAllTracks()
+	])
+	if (!results.every((result) => result)) {
+		collectionLoadState.value = 'failed'
+		return
+	}
+	if (capabilities.canEnrichTracks) await draftSession.initialize()
+	collectionLoadState.value = 'ready'
+})
+
+async function handleResumeDraft() {
+	await draftSession.resume()
+}
+
+async function handleTakeOverDraft() {
+	if (
+		!window.confirm(
+			'Take over this review? The other tab will become read-only and any unsaved changes there may be lost.'
+		)
+	) {
+		return
+	}
+	if (await draftSession.takeOver()) {
+		if (rows.value.length === 0) await draftSession.resume()
+	}
+}
+
+async function handleStartFresh() {
+	const message = isDraftMissingConflict.value
+		? 'Discard this in-memory review and start fresh? The saved review was already deleted in another tab.'
+		: 'Start a fresh review? The saved review stays recoverable until the replacement is safely stored.'
+	if (!window.confirm(message)) {
+		return
+	}
+	await draftSession.startFresh()
+}
+
+async function handleDeleteDraft() {
+	if (
+		!window.confirm(
+			'Delete this device-local review? This cannot be recovered from Crate Guide because drafts are not backed up.'
+		)
+	) {
+		return
+	}
+	if (await draftSession.deleteDraft()) startAnotherSource()
+}
+
+async function handleCompletedAnotherSource() {
+	await draftSession.acknowledgeCompleteAndDelete()
+}
+
+async function handleKeepDraft() {
+	await draftSession.keepForLater()
+}
+
+function openFilePicker() {
+	if (!capabilities.canEnrichTracks || isSourceBlockedByDraft.value) return
+	fileInput.value?.click()
+}
+
+async function handleFileInput(event: Event) {
+	if (!capabilities.canEnrichTracks || isSourceBlockedByDraft.value) return
+	const input = event.target as HTMLInputElement
+	const file = input.files?.[0]
+	if (!file) return
+
+	await parseFile(file)
+	input.value = ''
+}
+
+function handleFileDrop(file: File) {
+	if (!capabilities.canEnrichTracks || isSourceBlockedByDraft.value) return
+	void parseFile(file)
+}
+
+function handleSelectSource(source: Parameters<typeof selectSource>[0]) {
+	if (isSourceBlockedByDraft.value) return
+	selectSource(source)
+}
+
+function handleReviewLocal(
+	selection: Parameters<typeof reviewLocalSources>[0]
+) {
+	if (isSourceBlockedByDraft.value) return
+	void reviewLocalSources(selection)
+}
+</script>
+
+<template>
+	<div class="flex h-full min-h-0 flex-1 flex-col">
+		<Teleport to="#header-left" defer>
+			<template v-if="isActive">
+				<div class="flex items-center gap-2">
+					<WandSparkles class="text-primary size-4" />
+					<span class="hidden text-xs font-semibold sm:inline">
+						BPM &amp; Key
+					</span>
+				</div>
+
+				<nav
+					class="border-border bg-background/60 flex items-center gap-0.5 rounded-sm border p-0.5"
+					aria-label="Enrichment workflow"
+				>
+					<button
+						v-for="step in workflowSteps"
+						:key="step.number"
+						type="button"
+						data-testid="enrichment-workflow-step"
+						:disabled="
+							collectionLoadState !== 'ready' || !canNavigateToStep(step.number)
+						"
+						:aria-label="step.label"
+						:aria-current="currentStep === step.number ? 'step' : undefined"
+						class="flex h-7 items-center gap-1.5 rounded-[2px] px-1.5 text-xs transition-colors disabled:cursor-default"
+						:class="
+							currentStep === step.number
+								? 'bg-muted text-foreground'
+								: canNavigateToStep(step.number)
+									? 'text-muted-foreground hover:text-foreground'
+									: 'text-muted-foreground/45'
+						"
+						@click="navigateToStep(step.number)"
+					>
+						<span
+							class="flex size-4 items-center justify-center rounded-[2px] border font-mono text-[9px] font-semibold"
+							:class="
+								isStepComplete(step.number)
+									? 'border-primary bg-primary text-primary-foreground'
+									: currentStep === step.number
+										? 'border-foreground text-foreground'
+										: 'border-current'
+							"
+						>
+							<Check v-if="isStepComplete(step.number)" class="size-3" />
+							<span v-else>{{ step.number }}</span>
+						</span>
+						<span class="hidden lg:inline">{{ step.shortLabel }}</span>
+					</button>
+				</nav>
+			</template>
+		</Teleport>
+
+		<div
+			data-testid="enrichment-scroll-region"
+			class="scrollbar-hidden min-h-0 flex-1"
+			:class="
+				currentStep === 2
+					? 'overflow-y-auto md:overflow-hidden'
+					: 'overflow-y-auto'
+			"
+		>
+			<div
+				class="flex w-full flex-col"
+				:class="
+					currentStep === 1
+						? 'mx-auto max-w-3xl gap-3 p-3 pt-5 pb-0 sm:p-4 sm:pt-8 sm:pb-0'
+						: currentStep !== 2
+							? 'mx-auto max-w-400 gap-3 p-3 pb-0 sm:p-4 sm:pb-0'
+							: 'min-h-full md:h-full md:min-h-0'
+				"
+			>
+				<input
+					ref="fileInput"
+					type="file"
+					accept=".xml,text/xml,application/xml"
+					class="hidden"
+					:disabled="!capabilities.canEnrichTracks"
+					@change="handleFileInput"
+				/>
+
+				<StateLoading
+					v-if="collectionLoadState === 'loading'"
+					message="Loading collection..."
+				/>
+
+				<NoticeError v-else-if="collectionLoadState === 'failed'">
+					Collection data could not be loaded. Refresh to try again.
+				</NoticeError>
+
+				<template v-else>
+					<NoticeWarning v-if="!capabilities.canEnrichTracks">
+						BPM and key import is shown for context, but file analysis and
+						collection updates are disabled in the demo.
+					</NoticeWarning>
+
+					<NoticeError v-if="parseErrors.length" class="items-start">
+						<div class="space-y-1">
+							<div v-for="error in parseErrors" :key="error">{{ error }}</div>
+						</div>
+					</NoticeError>
+
+					<NoticeWarning v-if="parseWarnings.length" class="items-start">
+						<div class="space-y-1">
+							<div v-for="warning in visibleParseWarnings" :key="warning">
+								{{ warning }}
+							</div>
+							<div v-if="parseWarnings.length > visibleParseWarnings.length">
+								+ {{ parseWarnings.length - visibleParseWarnings.length }} more
+								warnings
+							</div>
+						</div>
+					</NoticeWarning>
+
+					<section
+						v-if="currentStep === 1 && hasDraft"
+						data-testid="enrichment-draft-strip"
+						class="border-border bg-card/50 rounded-md border p-3"
+					>
+						<div class="flex flex-col gap-3 sm:flex-row sm:items-start">
+							<div
+								class="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-md"
+							>
+								<Database class="size-4" />
+							</div>
+							<div class="min-w-0 flex-1">
+								<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+									<h2 class="text-sm font-semibold">
+										Saved review on this device
+									</h2>
+									<span
+										v-if="draftSaveStatusLabel"
+										class="text-muted-foreground font-mono text-[10px]"
+										role="status"
+										aria-live="polite"
+										:title="draftSavedAtAccessibleLabel ?? undefined"
+									>
+										{{ draftSaveStatusLabel }}
+									</span>
+								</div>
+								<p class="text-muted-foreground mt-1 text-xs leading-relaxed">
+									This recovery draft stays in this browser. It is not backed up
+									to Crate Guide or included in library exports.
+								</p>
+								<div
+									v-if="draftDetails"
+									class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs"
+								>
+									<span class="font-medium">
+										{{ draftDetails.sourceLabel }}
+									</span>
+									<span class="text-muted-foreground">
+										{{ draftDetails.observationCount }} tracks
+									</span>
+									<span class="text-muted-foreground">
+										{{ draftDetails.reviewedCount }} reviewed
+									</span>
+									<span class="text-muted-foreground">
+										{{ draftDetails.stagedCount }} staged
+									</span>
+									<span
+										v-if="draftDetails.doneCount"
+										class="text-muted-foreground"
+									>
+										{{ draftDetails.doneCount }} successful writes
+									</span>
+									<span
+										v-if="draftDetails.retryCount"
+										class="text-muted-foreground"
+									>
+										{{ draftDetails.retryCount }} to retry
+									</span>
+								</div>
+								<p
+									v-if="
+										activeDraftEntry?.lease.status === 'live' && !isDraftOwned
+									"
+									class="mt-2 text-xs text-amber-700 dark:text-amber-400"
+								>
+									Another tab is editing this review. Resume opens it read-only
+									until you explicitly take over.
+								</p>
+								<p
+									v-if="draftRecoveryMessage"
+									class="text-destructive mt-2 text-xs"
+								>
+									{{ draftRecoveryMessage }}
+								</p>
+								<p
+									v-else-if="
+										draftDiscoveryState === 'invalid' ||
+										draftDiscoveryState === 'incompatible'
+									"
+									class="text-destructive mt-2 text-xs"
+								>
+									This saved review cannot be resumed safely. Start fresh or
+									delete it; the current library has not been changed.
+								</p>
+							</div>
+						</div>
+						<div class="mt-3 flex flex-wrap gap-2 sm:justify-end">
+							<Button
+								v-if="draftDiscoveryState === 'ready'"
+								size="sm"
+								:disabled="
+									isDraftHydrating || isDraftTakingOver || isDraftTransitioning
+								"
+								@click="handleResumeDraft"
+							>
+								<RefreshCw class="mr-1.5 size-3.5" />
+								{{ isDraftHydrating ? 'Rematching…' : 'Resume' }}
+							</Button>
+							<Button
+								v-if="
+									activeDraftEntry?.lease.status === 'live' && !isDraftOwned
+								"
+								variant="outline"
+								size="sm"
+								:disabled="
+									isDraftTakingOver || isDraftHydrating || isDraftTransitioning
+								"
+								@click="handleTakeOverDraft"
+							>
+								{{ isDraftTakingOver ? 'Taking over…' : 'Take over' }}
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								:disabled="
+									isDraftHydrating ||
+									isDraftTakingOver ||
+									isDraftTransitioning ||
+									(activeDraftEntry?.lease.status === 'live' && !isDraftOwned)
+								"
+								@click="handleStartFresh"
+							>
+								Start fresh
+							</Button>
+							<Button
+								variant="ghost"
+								size="sm"
+								:disabled="
+									isDraftHydrating ||
+									isDraftTakingOver ||
+									isDraftTransitioning ||
+									(activeDraftEntry?.lease.status === 'live' && !isDraftOwned)
+								"
+								@click="handleDeleteDraft"
+							>
+								<Trash2 class="mr-1.5 size-3.5" />
+								Delete
+							</Button>
+						</div>
+					</section>
+
+					<section
+						v-if="currentStep === 1 && isDraftMissingConflict"
+						data-testid="enrichment-draft-missing-conflict"
+						class="border-border rounded-md border bg-amber-500/10 p-3"
+					>
+						<div class="flex flex-wrap items-center justify-between gap-3">
+							<div>
+								<h2 class="text-sm font-semibold">Saved review deleted</h2>
+								<p class="text-muted-foreground mt-1 text-xs leading-relaxed">
+									This saved review was deleted in another tab. The in-memory
+									review is read-only and was not recreated. Start fresh to
+									continue.
+								</p>
+							</div>
+							<Button
+								variant="outline"
+								size="sm"
+								:disabled="isDraftTransitioning"
+								@click="handleStartFresh"
+							>
+								Start fresh
+							</Button>
+						</div>
+					</section>
+
+					<div v-show="currentStep === 1" class="contents">
+						<Suspense>
+							<LazyPanelTrackEnrichmentSource
+								:active-source="activeSource"
+								:parse-phase="parsePhase"
+								:is-parsing="isParsing"
+								:parse-completed="parseCompleted"
+								:parse-total="parseTotal"
+								:parse-progress="parseProgress"
+								:selected-file-name="selectedFileName"
+								:can-retry-parsing="canRetryParsing"
+								:disabled="
+									!capabilities.canEnrichTracks || isSourceBlockedByDraft
+								"
+								@select-file="openFilePicker"
+								@drop-file="handleFileDrop"
+								@select-source="handleSelectSource"
+								@review-local="handleReviewLocal"
+								@cancel-parsing="cancelParsing"
+								@retry-parsing="retryParsing"
+							/>
+							<template #fallback>
+								<div
+									data-testid="enrichment-source-loading"
+									class="border-border bg-muted/20 flex min-h-40 items-center justify-center rounded-md border"
+									role="status"
+									aria-live="polite"
+								>
+									<SpinnerLoading class="mr-2 size-4" />
+									<span class="text-muted-foreground text-sm">
+										Loading source controls…
+									</span>
+								</div>
+							</template>
+						</Suspense>
+					</div>
+
+					<div v-if="lastApplySummary" class="py-8 sm:py-12">
+						<div
+							class="mx-auto flex max-w-2xl flex-col items-center text-center"
+						>
+							<CheckCircle2
+								v-if="isApplySummaryComplete"
+								class="text-primary size-10"
+							/>
+							<AlertTriangle v-else class="size-10 text-amber-500" />
+							<h2 class="mt-4 text-lg font-semibold">
+								{{
+									isApplySummaryComplete
+										? 'Enrichment complete'
+										: 'Enrichment needs attention'
+								}}
+							</h2>
+							<p class="text-muted-foreground mt-1 text-sm">
+								{{ lastApplySummary.succeeded }} of {{ lastApplySummary.total }}
+								staged tracks saved.
+							</p>
+
+							<div
+								class="border-border mt-6 grid w-full grid-cols-2 divide-x divide-y rounded-md border sm:grid-cols-4 sm:divide-y-0"
+							>
+								<div class="px-3 py-3">
+									<div class="text-muted-foreground text-xs">
+										Tracks updated
+									</div>
+									<div class="mt-1 text-xl font-semibold tabular-nums">
+										{{ lastApplySummary.succeeded }}
+									</div>
+								</div>
+								<div class="px-3 py-3">
+									<div class="text-muted-foreground text-xs">
+										Evidence saved
+									</div>
+									<div class="mt-1 text-xl font-semibold tabular-nums">
+										{{ lastApplySummary.evidence }}
+									</div>
+									<div
+										v-if="lastApplySummary.evidenceOnly"
+										class="text-muted-foreground mt-0.5 text-[10px]"
+									>
+										{{ lastApplySummary.evidenceOnly }} Evidence only
+									</div>
+								</div>
+								<div class="px-3 py-3">
+									<div class="text-muted-foreground text-xs">BPM filled</div>
+									<div class="mt-1 text-xl font-semibold tabular-nums">
+										{{ lastApplySummary.bpm }}
+									</div>
+								</div>
+								<div class="px-3 py-3">
+									<div class="text-muted-foreground text-xs">Keys filled</div>
+									<div class="mt-1 text-xl font-semibold tabular-nums">
+										{{ lastApplySummary.keyMode }}
+									</div>
+								</div>
+							</div>
+
+							<NoticeError v-if="lastApplySummary.failed" class="mt-4 w-full">
+								{{ lastApplySummary.failed }} updates failed. Review the result
+								rows for details.
+							</NoticeError>
+							<NoticeWarning
+								v-if="lastApplySummary.remaining"
+								class="mt-4 w-full"
+							>
+								{{ lastApplySummary.remaining }} staged
+								{{
+									lastApplySummary.remaining === 1
+										? 'update was'
+										: 'updates were'
+								}}
+								not attempted and
+								{{ lastApplySummary.remaining === 1 ? 'remains' : 'remain' }}
+								ready to retry.
+							</NoticeWarning>
+
+							<div class="mt-6 flex flex-wrap justify-center gap-2">
+								<Button
+									variant="outline"
+									:disabled="isDraftTransitioning"
+									@click="returnToReview"
+								>
+									<ArrowLeft class="mr-2 size-4" />
+									Review results
+								</Button>
+								<Button
+									v-if="isApplySummaryComplete"
+									:disabled="isDraftTransitioning"
+									@click="handleCompletedAnotherSource"
+								>
+									<FileUp class="mr-2 size-4" />
+									Use another source
+								</Button>
+								<Button
+									variant="outline"
+									:disabled="isDraftTransitioning"
+									@click="handleKeepDraft"
+								>
+									<Database class="mr-2 size-4" />
+									Keep for later
+								</Button>
+							</div>
+							<p
+								v-if="draftSaveStatusLabel"
+								class="text-muted-foreground mt-3 text-xs"
+								role="status"
+								aria-live="polite"
+								:title="draftSavedAtAccessibleLabel ?? undefined"
+							>
+								{{ draftSaveStatusLabel }}
+							</p>
+						</div>
+					</div>
+
+					<template v-else-if="currentStep === 2">
+						<div
+							data-testid="enrichment-review-workspace"
+							class="flex flex-col md:min-h-0 md:flex-1"
+						>
+							<div
+								v-if="isReviewReadOnly"
+								data-testid="enrichment-draft-read-only"
+								class="border-border flex shrink-0 flex-wrap items-center justify-between gap-2 border-b bg-amber-500/10 px-3 py-2 text-xs"
+							>
+								<span>
+									{{
+										isDraftMissingConflict
+											? 'This saved review was deleted in another tab. Start fresh to continue.'
+											: 'Read-only: another tab owns this device-local review.'
+									}}
+								</span>
+								<Button
+									v-if="isDraftMissingConflict"
+									variant="outline"
+									size="sm"
+									:disabled="isDraftTransitioning"
+									@click="handleStartFresh"
+								>
+									Start fresh
+								</Button>
+								<Button
+									v-else
+									variant="outline"
+									size="sm"
+									:disabled="isDraftTakingOver || isDraftTransitioning"
+									@click="handleTakeOverDraft"
+								>
+									{{ isDraftTakingOver ? 'Taking over…' : 'Take over' }}
+								</Button>
+							</div>
+
+							<div
+								v-if="resumeSummary"
+								data-testid="enrichment-resume-summary"
+								class="border-border bg-muted/30 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b px-3 py-2 text-xs"
+							>
+								<span class="font-medium">
+									Rematched with the current library
+								</span>
+								<span class="text-muted-foreground">
+									{{ resumeSummary.retained }} retained
+								</span>
+								<span class="text-muted-foreground">
+									{{ resumeSummary.changed }} changed
+								</span>
+								<span class="text-muted-foreground">
+									{{ resumeSummary.dropped }} dropped
+								</span>
+							</div>
+
+							<div
+								v-if="requiresSourceReconnect"
+								data-testid="enrichment-reconnect-required"
+								class="border-border shrink-0 border-b bg-sky-500/10 px-3 py-2 text-xs"
+							>
+								Saved audio evidence is available for review. Reconnect the
+								folder to continue scanning or reanalysis; file access is not
+								retained.
+							</div>
+
+							<div
+								class="border-border bg-card/40 grid shrink-0 grid-cols-2 divide-x divide-y overflow-hidden border-b sm:grid-cols-6 sm:divide-y-0"
+							>
+								<div class="px-3 py-2">
+									<div
+										class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
+									>
+										{{ sourceLabel }} tracks
+									</div>
+									<div class="mt-0.5 text-base font-semibold tabular-nums">
+										{{ rows.length }}
+									</div>
+								</div>
+								<div class="px-3 py-2">
+									<div
+										class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
+									>
+										Matched
+									</div>
+									<div class="mt-0.5 flex items-baseline gap-1.5">
+										<span class="text-base font-semibold tabular-nums">
+											{{ matchedRows.length }}
+										</span>
+										<span class="text-muted-foreground font-mono text-[10px]">
+											{{ matchRate }}
+										</span>
+									</div>
+								</div>
+								<div class="px-3 py-2">
+									<div
+										class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
+									>
+										Ready
+									</div>
+									<div
+										class="text-primary mt-0.5 text-base font-semibold tabular-nums"
+									>
+										{{ readyRows.length }}
+									</div>
+								</div>
+								<div class="px-3 py-2">
+									<div
+										class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
+									>
+										Needs review
+									</div>
+									<div class="mt-0.5 text-base font-semibold tabular-nums">
+										{{ reviewRows.length }}
+									</div>
+								</div>
+								<div class="px-3 py-2">
+									<div
+										class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
+									>
+										Staged
+									</div>
+									<div
+										class="mt-0.5 text-base font-semibold text-emerald-700 tabular-nums dark:text-emerald-400"
+									>
+										{{ stagedRows.length }}
+									</div>
+								</div>
+								<div class="px-3 py-2">
+									<div
+										class="text-muted-foreground font-mono text-[9px] tracking-[0.08em] uppercase"
+									>
+										Not in collection
+									</div>
+									<div class="mt-0.5 text-base font-semibold tabular-nums">
+										{{ unmatchedRows.length }}
+									</div>
+								</div>
+							</div>
+
+							<div
+								v-if="blockedCount || errorCount"
+								class="border-border text-muted-foreground flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b px-3 py-1.5 text-xs"
+							>
+								<span v-if="blockedCount" class="flex items-center gap-1.5">
+									<AlertTriangle class="size-3.5 text-amber-600" />
+									{{ blockedCount }} competing matches blocked
+								</span>
+								<span v-if="errorCount" class="text-destructive">
+									{{ errorCount }} errors
+								</span>
+							</div>
+
+							<div
+								class="border-border bg-muted/20 flex shrink-0 flex-col gap-1.5 border-b p-1.5 xl:flex-row xl:items-center xl:justify-between"
+							>
+								<div class="workbench-scrollbar overflow-x-auto">
+									<ToggleGroup
+										v-model="selectedFilter"
+										type="single"
+										variant="outline"
+										class="w-max justify-start"
+									>
+										<ToggleGroupItem
+											v-for="option in filterOptions"
+											:key="option.value"
+											:value="option.value"
+											size="sm"
+											class="h-7 gap-1.5 rounded-sm px-2 text-xs"
+										>
+											{{ option.label }}
+											<span
+												class="text-muted-foreground font-mono tabular-nums"
+											>
+												{{ option.count }}
+											</span>
+										</ToggleGroupItem>
+									</ToggleGroup>
+								</div>
+
+								<div
+									class="flex min-w-0 flex-wrap items-center justify-end gap-1.5"
+								>
+									<label
+										class="border-border bg-background flex h-8 min-w-52 flex-1 items-center gap-2 rounded-sm border px-2 xl:w-72 xl:flex-none"
+									>
+										<Search class="text-muted-foreground size-3.5 shrink-0" />
+										<input
+											v-model="reviewQuery"
+											type="search"
+											class="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-xs outline-none"
+											placeholder="Filter title, artist, release, ID..."
+											aria-label="Filter enrichment matches"
+										/>
+										<span
+											class="text-muted-foreground font-mono text-[10px] tabular-nums"
+										>
+											{{ searchedReviewRows.length }}
+										</span>
+										<button
+											v-if="reviewQuery"
+											type="button"
+											class="text-muted-foreground hover:text-foreground -mr-1 flex size-6 items-center justify-center rounded-sm"
+											aria-label="Clear match filter"
+											@click="reviewQuery = ''"
+										>
+											<X class="size-3.5" />
+										</button>
+									</label>
+
+									<ControlLibraryDensity
+										v-model="density"
+										class="hidden md:flex"
+									/>
+
+									<Button
+										v-if="selectedFilter !== 'unmatched'"
+										variant="ghost"
+										size="sm"
+										class="h-8 px-2 text-xs"
+										:disabled="
+											visibleStageableRows.length === 0 ||
+											visibleSelectionState === true
+										"
+										@click="setVisibleRowsStaged(true)"
+									>
+										<ListChecks class="mr-1.5 size-3.5" />
+										Stage eligible ({{ visibleStageableRows.length }})
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										class="h-8 px-2 text-xs"
+										:disabled="stagedRows.length === 0"
+										@click="clearStagedRows"
+									>
+										<X class="mr-1.5 size-3.5" />
+										Clear staged
+									</Button>
+								</div>
+							</div>
+
+							<div
+								v-if="searchedReviewRows.length === 0"
+								class="border-border flex min-h-40 flex-1 items-center justify-center border-b border-dashed"
+							>
+								<div class="flex flex-col items-center gap-2 text-center">
+									<RefreshCw class="size-4" />
+									<div class="text-muted-foreground text-sm">
+										{{
+											reviewQuery
+												? 'No matches for this filter'
+												: 'No rows in this view'
+										}}
+									</div>
+									<Button
+										v-if="reviewQuery"
+										variant="outline"
+										size="sm"
+										@click="reviewQuery = ''"
+									>
+										Clear filter
+									</Button>
+								</div>
+							</div>
+
+							<template v-else>
+								<TableTrackEnrichmentUnmatched
+									v-if="selectedFilter === 'unmatched'"
+									class="shrink-0 md:min-h-0 md:flex-1 md:shrink md:rounded-none md:border-x-0"
+									:rows="pagedReviewRows"
+									:key-format="preferences.currentKeyFormat"
+									:source-label="sourceLabel"
+									:density="density"
+									:sort-key="reviewSortKey"
+									:sort-direction="reviewSortDirection"
+									@sort="setReviewSort"
+								/>
+
+								<TableTrackEnrichmentReview
+									v-else
+									class="shrink-0 md:min-h-0 md:flex-1 md:shrink md:rounded-none md:border-x-0"
+									:rows="pagedReviewRows"
+									:staged-row-ids="stagedRowIds"
+									:filtered-selection-state="visibleSelectionState"
+									:stageable-row-count="visibleStageableRows.length"
+									:is-applying="isApplying"
+									:key-format="preferences.currentKeyFormat"
+									:source-label="sourceLabel"
+									:density="density"
+									:sort-key="reviewSortKey"
+									:sort-direction="reviewSortDirection"
+									@sort="setReviewSort"
+									@stage-all="setVisibleRowsStaged"
+									@stage-row="setRowStaged"
+								/>
+
+								<div
+									class="border-border flex shrink-0 items-center justify-between gap-3 border-t px-3 py-1.5 text-xs"
+								>
+									<div class="text-muted-foreground font-mono tabular-nums">
+										{{ reviewShownStart }}-{{ reviewShownEnd }} of
+										{{ sortedReviewRows.length }}
+									</div>
+									<div class="flex items-center gap-2">
+										<Button
+											variant="outline"
+											size="sm"
+											:disabled="currentPage === 1"
+											@click="currentPage--"
+										>
+											<ArrowLeft class="size-4" />
+											<span class="sr-only">Previous page</span>
+										</Button>
+										<span class="text-muted-foreground font-mono tabular-nums">
+											{{ currentPage }} / {{ reviewPageCount }}
+										</span>
+										<Button
+											variant="outline"
+											size="sm"
+											:disabled="currentPage === reviewPageCount"
+											@click="currentPage++"
+										>
+											<ArrowRight class="size-4" />
+											<span class="sr-only">Next page</span>
+										</Button>
+									</div>
+								</div>
+							</template>
+
+							<div
+								class="border-border bg-background/95 sticky bottom-0 z-10 flex shrink-0 flex-col gap-2 border-t-2 border-t-emerald-500 px-3 py-2.5 backdrop-blur sm:flex-row sm:items-center sm:justify-between md:static"
+							>
+								<div class="flex min-w-0 items-center gap-3">
+									<div
+										class="flex size-9 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+									>
+										<ListChecks class="size-4" />
+									</div>
+									<div class="min-w-0">
+										<div class="text-sm font-semibold">
+											{{ stagedRows.length }} tracks staged
+										</div>
+										<div class="text-muted-foreground text-xs">
+											Evidence saved for {{ stagedEvidenceCount }} ·
+											{{ stagedBpmCount }} BPM and {{ stagedKeyModeCount }} key
+											values filled
+											<template v-if="stagedEvidenceOnlyCount">
+												· {{ stagedEvidenceOnlyCount }} Evidence only
+											</template>
+										</div>
+										<div
+											v-if="draftSaveStatusLabel"
+											class="text-muted-foreground mt-0.5 font-mono text-[10px]"
+											role="status"
+											aria-live="polite"
+											:title="draftSavedAtAccessibleLabel ?? undefined"
+										>
+											{{ draftSaveStatusLabel }}
+										</div>
+									</div>
+								</div>
+								<Button
+									:disabled="
+										stagedRows.length === 0 || isApplying || isReviewReadOnly
+									"
+									@click="openApplyReview"
+								>
+									<ShieldCheck class="mr-2 size-4" />
+									Review staged changes ({{ stagedRows.length }})
+								</Button>
+							</div>
+						</div>
+					</template>
+				</template>
+			</div>
+		</div>
+
+		<Dialog
+			v-if="collectionLoadState === 'ready'"
+			v-model:open="showApplyDialog"
+		>
+			<DialogContent class="sm:max-w-lg">
+				<DialogHeader>
+					<DialogTitle>
+						Save {{ stagedRows.length }} staged track changes?
+					</DialogTitle>
+					<DialogDescription>
+						Evidence will be saved for every staged match. Only blank BPM and
+						key values will be filled; populated values remain unchanged.
+					</DialogDescription>
+				</DialogHeader>
+
+				<div
+					class="border-border grid grid-cols-2 divide-x divide-y rounded-md border sm:grid-cols-4 sm:divide-y-0"
+				>
+					<div class="px-3 py-3 text-center">
+						<div class="text-muted-foreground text-xs">Tracks</div>
+						<div class="mt-1 text-xl font-semibold tabular-nums">
+							{{ stagedRows.length }}
+						</div>
+					</div>
+					<div class="px-3 py-3 text-center">
+						<div class="text-muted-foreground text-xs">Evidence</div>
+						<div class="mt-1 text-xl font-semibold tabular-nums">
+							{{ stagedEvidenceCount }}
+						</div>
+						<div
+							v-if="stagedEvidenceOnlyCount"
+							class="text-muted-foreground mt-0.5 text-[10px]"
+						>
+							{{ stagedEvidenceOnlyCount }} only
+						</div>
+					</div>
+					<div class="px-3 py-3 text-center">
+						<div class="text-muted-foreground text-xs">BPM</div>
+						<div class="mt-1 text-xl font-semibold tabular-nums">
+							{{ stagedBpmCount }}
+						</div>
+					</div>
+					<div class="px-3 py-3 text-center">
+						<div class="text-muted-foreground text-xs">Keys</div>
+						<div class="mt-1 text-xl font-semibold tabular-nums">
+							{{ stagedKeyModeCount }}
+						</div>
+					</div>
+				</div>
+
+				<div class="text-muted-foreground flex items-start gap-2 text-sm">
+					<ShieldCheck class="text-primary mt-0.5 size-4 shrink-0" />
+					<span>Match details and source provenance will be retained.</span>
+				</div>
+
+				<div v-if="isApplying" class="flex flex-col gap-2">
+					<div class="flex items-center justify-between text-sm">
+						<span class="text-muted-foreground">Saving changes</span>
+						<span class="font-mono">
+							{{ applyCompleted }} / {{ applyTotal }}
+						</span>
+					</div>
+					<Progress :model-value="applyProgress" />
+				</div>
+
+				<DialogFooter class="gap-2">
+					<Button
+						variant="outline"
+						:disabled="isApplying"
+						@click="showApplyDialog = false"
+					>
+						Back to review
+					</Button>
+					<ButtonLoading :loading="isApplying" @click="applyStagedRows">
+						<Upload class="mr-2 size-4" />
+						Save changes
+					</ButtonLoading>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	</div>
+</template>

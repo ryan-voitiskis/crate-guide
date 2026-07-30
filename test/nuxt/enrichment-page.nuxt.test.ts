@@ -2,11 +2,11 @@ import { computed, defineComponent, h, nextTick, ref } from 'vue'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { type VueWrapper, flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import EnrichmentPage from '~/components/enrichment/PageTrackEnrichment.vue'
 import type {
 	ApplySummary,
 	TrackEnrichmentWorkflow
 } from '~/composables/useTrackEnrichmentWorkflow'
-import EnrichmentPage from '~/pages/enrichment.vue'
 import type { BrowserWorkflowDraftEntry } from '~/repositories/library/browser/browserLibraryTypes'
 import type { LocalAudioReviewSelection } from '~/types/localAudio'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
@@ -268,6 +268,7 @@ function createWorkflow(): WorkflowHarness {
 		matchedRows: computed(() => rows.value),
 		readyRows: computed(() => rows.value),
 		reviewRows: computed(() => []),
+		evidenceOnlyRows: computed(() => []),
 		unmatchedRows: computed(() => []),
 		doneRows: computed(() => []),
 		stagedRows: computed(() => rows.value),
@@ -285,6 +286,8 @@ function createWorkflow(): WorkflowHarness {
 		filteredRows: computed(() => rows.value),
 		stagedBpmCount: computed(() => 1),
 		stagedKeyModeCount: computed(() => 1),
+		stagedEvidenceCount: computed(() => rows.value.length),
+		stagedEvidenceOnlyCount: computed(() => 0),
 		isStepComplete: vi.fn(() => false),
 		canNavigateToStep: vi.fn((step: number) => step === 1),
 		navigateToStep: vi.fn(),
@@ -401,6 +404,9 @@ async function mountPage(
 				DialogFooter: SlotStub,
 				DialogHeader: SlotStub,
 				DialogTitle: SlotStub,
+				LazyPanelTrackEnrichmentSource: SourceStub,
+				LazyTableTrackEnrichmentReview: ReviewStub,
+				LazyTableTrackEnrichmentUnmatched: UnmatchedStub,
 				PanelTrackEnrichmentSource: SourceStub,
 				TableTrackEnrichmentReview: ReviewStub,
 				TableTrackEnrichmentUnmatched: UnmatchedStub,
@@ -437,7 +443,10 @@ describe('enrichment page wiring', () => {
 	it('adapts source, file, review, dialog, and summary UI events to the workflow contract', async () => {
 		const { draftSession, workflow, wrapper } = await mountPage([true, true])
 
-		expect(wrapper.find('[data-testid="source-panel"]').exists()).toBe(true)
+		await vi.waitFor(() =>
+			expect(wrapper.find('[data-testid="source-panel"]').exists()).toBe(true)
+		)
+		const sourcePanel = wrapper.get('[data-testid="source-panel"]').element
 		expect(document.querySelector('#header-left')?.textContent).toContain(
 			'BPM & Key'
 		)
@@ -473,7 +482,12 @@ describe('enrichment page wiring', () => {
 
 		workflow.currentStep.value = 2
 		await nextTick()
-		expect(wrapper.find('[data-testid="review-table"]').exists()).toBe(true)
+		await vi.waitFor(() =>
+			expect(wrapper.find('[data-testid="review-table"]').exists()).toBe(true)
+		)
+		expect(wrapper.get('[data-testid="source-panel"]').element).toBe(
+			sourcePanel
+		)
 		expect(
 			wrapper.get('[data-testid="enrichment-scroll-region"]').classes()
 		).toContain('md:overflow-hidden')
@@ -496,15 +510,25 @@ describe('enrichment page wiring', () => {
 		workflow.selectedFilter.value = 'unmatched'
 		await nextTick()
 		expect(wrapper.find('[data-testid="review-table"]').exists()).toBe(false)
-		expect(wrapper.find('[data-testid="unmatched-table"]').exists()).toBe(true)
+		await vi.waitFor(() =>
+			expect(wrapper.find('[data-testid="unmatched-table"]').exists()).toBe(
+				true
+			)
+		)
 		expect(wrapper.text()).not.toContain('Stage eligible (')
-		await getButton(wrapper, 'Review staged updates').trigger('click')
+		await getButton(wrapper, 'Review staged changes').trigger('click')
 		expect(workflow.openApplyReview).toHaveBeenCalledOnce()
-		await getButton(wrapper, 'Apply updates').trigger('click')
+		await getButton(wrapper, 'Save changes').trigger('click')
 		expect(workflow.applyStagedRows).toHaveBeenCalledOnce()
 		workflow.showApplyDialog.value = true
 		await getButton(wrapper, 'Back to review').trigger('click')
 		expect(workflow.showApplyDialog.value).toBe(false)
+
+		workflow.currentStep.value = 1
+		await nextTick()
+		expect(wrapper.get('[data-testid="source-panel"]').element).toBe(
+			sourcePanel
+		)
 
 		workflow.currentStep.value = 3
 		workflow.stagedRowIds.value = new Set()
@@ -514,7 +538,9 @@ describe('enrichment page wiring', () => {
 			failed: 0,
 			remaining: 0,
 			bpm: 1,
-			keyMode: 1
+			keyMode: 1,
+			evidence: 1,
+			evidenceOnly: 0
 		}
 		await nextTick()
 		await getButton(wrapper, 'Review results').trigger('click')
@@ -536,7 +562,9 @@ describe('enrichment page wiring', () => {
 		initializing.resolve(undefined)
 		await flushPromises()
 		await nextTick()
-		expect(wrapper.find('[data-testid="source-panel"]').exists()).toBe(true)
+		await vi.waitFor(() =>
+			expect(wrapper.find('[data-testid="source-panel"]').exists()).toBe(true)
+		)
 	})
 
 	it('shows cancelled work as retryable and never discards an unsaved review', async () => {
@@ -549,7 +577,9 @@ describe('enrichment page wiring', () => {
 			failed: 0,
 			remaining: 1,
 			bpm: 1,
-			keyMode: 1
+			keyMode: 1,
+			evidence: 1,
+			evidenceOnly: 0
 		}
 		await nextTick()
 
@@ -592,6 +622,9 @@ describe('enrichment page wiring', () => {
 		const { workflow, wrapper } = await mountPage([true, true])
 		workflow.currentStep.value = 2
 		await nextTick()
+		await vi.waitFor(() =>
+			expect(wrapper.find('[data-testid="review-table"]').exists()).toBe(true)
+		)
 
 		const search = wrapper.get('input[aria-label="Filter enrichment matches"]')
 		await search.setValue('synthetic')
@@ -616,7 +649,11 @@ describe('enrichment page wiring', () => {
 			[row]
 		)
 		expect(workflow.selectedFilter.value).toBe('unmatched')
-		expect(wrapper.find('[data-testid="unmatched-table"]').exists()).toBe(true)
+		await vi.waitFor(() =>
+			expect(wrapper.find('[data-testid="unmatched-table"]').exists()).toBe(
+				true
+			)
+		)
 	})
 
 	it('presents device-local recovery actions without implying remote backup', async () => {

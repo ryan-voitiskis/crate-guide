@@ -126,14 +126,15 @@ Any mismatch leaves the item unstaged. Unknown future intents retain only inert
 provenance and are always unstaged; the current app must not reinterpret them as
 fill-empty-fields approval.
 
-`evidence-only` is a recognized but inert provenance intent while its atomic
-writer and archive compatibility gates remain closed. Resume checks its exact
-source snapshot/fingerprint/observation identity, current matcher target, target
-update timestamp, and bounded current-Evidence fingerprint, then always returns
-it unstaged and unsupported—even if persisted `staged` was true. It has no fill
-proposal or partial write outcome and cannot change top-level BPM/key values.
-Older readers demote it to unknown, safely unstaged provenance; unknown future
-kinds and future versions of known intents remain inert under the same rule.
+`evidence-only` is a recognized approval to retain bounded Evidence without
+filling a value. Resume checks its exact source
+snapshot/fingerprint/observation identity, current matcher target, target update
+timestamp, and bounded current-Evidence fingerprint. It can be staged again only
+when every binding is unchanged and the current signed-in cloud workflow
+supports the intent. It has no fill proposal and cannot change top-level BPM/key
+values. Older readers demote it to unknown, safely unstaged provenance; unknown
+future kinds and future versions of known intents remain inert under the same
+rule.
 
 Changed items should be grouped under `Changed since last review`, with a
 specific explanation:

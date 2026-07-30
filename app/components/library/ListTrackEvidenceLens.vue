@@ -57,7 +57,7 @@ const recordTitles = computed(
 )
 const itemSize = computed(() => {
 	if (props.compact) return 132
-	return props.density === 'compact' ? 64 : 80
+	return props.density === 'compact' ? 78 : 94
 })
 const headerSize = computed(() => (props.compact ? 0 : 36))
 
@@ -86,6 +86,10 @@ function toggleChanged() {
 		filters.application === 'changed-since-application'
 			? 'all'
 			: 'changed-since-application'
+}
+
+function toggleOutdatedAnalyzer() {
+	filters.analyzer = filters.analyzer === 'outdated' ? 'all' : 'outdated'
 }
 
 function toggleVersion(value: TrackEvidenceLensVersion) {
@@ -181,6 +185,49 @@ function formatKey(row: TrackEvidenceLensRow): string {
 	return getFormattedKeyString(key, mode, props.keyFormat, 'short')
 }
 
+function formatObservedDate(value: string | null): string {
+	if (!value) return 'time unavailable'
+	const timestamp = new Date(value)
+	if (Number.isNaN(timestamp.getTime())) return 'time unavailable'
+	return new Intl.DateTimeFormat(undefined, {
+		year: 'numeric',
+		month: 'short',
+		day: 'numeric'
+	}).format(timestamp)
+}
+
+function sourceObservationLabel(
+	row: TrackEvidenceLensRow,
+	source: TrackEvidenceSourceKey
+): string {
+	const observation = row.evidence.observations[source]
+	if (!observation.retained) return 'not retained'
+	const bpm =
+		observation.bpm === null ? 'no BPM' : `${observation.bpm.toFixed(1)} BPM`
+	const keyMode = observation.keyMode
+		? getFormattedKeyString(
+				observation.keyMode.key,
+				observation.keyMode.mode,
+				props.keyFormat,
+				'short'
+			)
+		: 'no key'
+	const match =
+		observation.identityMatch === 'legacy-unavailable'
+			? 'identity unavailable'
+			: observation.identityMatch === 'none'
+				? 'identity unavailable'
+				: `${observation.identityMatch} identity`
+	return `${bpm} · ${keyMode} · ${match} · ${formatObservedDate(observation.observedAt)}`
+}
+
+function sourceLabel(source: TrackEvidenceSourceKey | null): string {
+	if (source === 'rekordboxXml') return 'Rekordbox'
+	if (source === 'embeddedTags') return 'Tags'
+	if (source === 'essentiaBrowser') return 'Essentia'
+	return 'source unavailable'
+}
+
 function rowAriaLabel(row: TrackEvidenceLensRow): string {
 	const parts = [row.title, presenceLabel(row.evidence.presence)]
 	if (row.evidence.presence === 'retained') {
@@ -191,6 +238,13 @@ function rowAriaLabel(row: TrackEvidenceLensRow): string {
 			`key ${comparisonLabel(row.evidence.comparison.keyMode!)}`,
 			`BPM application ${applicationLabel(row.evidence.application.bpm)}`,
 			`key application ${applicationLabel(row.evidence.application.keyMode)}`,
+			...SOURCE_OPTIONS.map(
+				(source) =>
+					`${source.label} ${sourceObservationLabel(row, source.value)}`
+			),
+			row.evidence.analyzerStatus === 'outdated'
+				? 'Analyzer or configuration differs from the current local analysis configuration'
+				: `Analyzer status ${row.evidence.analyzerStatus}`,
 			versionLabel(row.evidence.version)
 		)
 	}
@@ -357,6 +411,16 @@ function rowAriaLabel(row: TrackEvidenceLensRow): string {
 					>
 						Changed {{ counts.changedSinceApplication }}
 					</button>
+					<button
+						type="button"
+						class="rounded-sm border px-1.5 py-1 transition-colors"
+						:class="filterClasses(filters.analyzer === 'outdated')"
+						:aria-pressed="filters.analyzer === 'outdated'"
+						:aria-label="`Outdated analyzer or configuration: ${counts.outdatedAnalyzerConfiguration} tracks`"
+						@click="toggleOutdatedAnalyzer"
+					>
+						Old analyzer/config {{ counts.outdatedAnalyzerConfiguration }}
+					</button>
 				</div>
 
 				<div
@@ -407,12 +471,12 @@ function rowAriaLabel(row: TrackEvidenceLensRow): string {
 			<template #header>
 				<div
 					v-if="!compact"
-					class="border-border bg-muted/70 sticky top-0 z-10 grid h-9 min-w-300 grid-cols-[minmax(190px,1.2fr)_minmax(140px,0.8fr)_110px_210px_230px_220px_100px] items-center gap-2 border-b px-3 font-mono text-[9px] tracking-wide uppercase backdrop-blur-md"
+					class="border-border bg-muted/70 sticky top-0 z-10 grid h-9 min-w-340 grid-cols-[minmax(190px,1.2fr)_minmax(140px,0.8fr)_110px_320px_230px_220px_120px] items-center gap-2 border-b px-3 font-mono text-[9px] tracking-wide uppercase backdrop-blur-md"
 				>
 					<span>Track</span>
 					<span>Release</span>
 					<span>Current</span>
-					<span>Source coverage</span>
+					<span>Source values · identity · observed</span>
 					<span>Comparison</span>
 					<span>Application</span>
 					<span>Evidence</span>
@@ -426,7 +490,7 @@ function rowAriaLabel(row: TrackEvidenceLensRow): string {
 					:data-evidence-track-id="row.id"
 					:data-evidence-presence="row.evidence.presence"
 					:aria-label="rowAriaLabel(row)"
-					class="border-border hover:bg-accent/50 focus-visible:ring-ring grid h-full min-w-300 grid-cols-[minmax(190px,1.2fr)_minmax(140px,0.8fr)_110px_210px_230px_220px_100px] items-center gap-2 border-b px-3 text-left text-[10px] transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
+					class="border-border hover:bg-accent/50 focus-visible:ring-ring grid h-full min-w-340 grid-cols-[minmax(190px,1.2fr)_minmax(140px,0.8fr)_110px_320px_230px_220px_120px] items-center gap-2 border-b px-3 text-left text-[10px] transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
 					:class="selectedTrackId === row.id && 'bg-accent'"
 					data-virtual-focus-target
 					@click="emit('select', row.id)"
@@ -444,21 +508,22 @@ function rowAriaLabel(row: TrackEvidenceLensRow): string {
 						<p>{{ formatBpm(row.current.bpm) }}</p>
 						<p class="text-muted-foreground">{{ formatKey(row) }}</p>
 					</div>
-					<div class="flex flex-wrap items-center gap-1">
-						<span
+					<div class="min-w-0 space-y-0.5">
+						<p
 							v-for="source in SOURCE_OPTIONS"
 							:key="source.value"
-							class="rounded-sm border px-1 py-0.5 font-medium"
+							class="truncate"
+							:title="`${source.label}: ${sourceObservationLabel(row, source.value)}`"
 							:class="
 								row.evidence.sources[source.value]
-									? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
-									: 'border-border bg-muted/30 text-muted-foreground'
+									? 'text-foreground'
+									: 'text-muted-foreground'
 							"
 							:aria-label="`${source.label}: ${row.evidence.sources[source.value] ? 'retained' : 'not retained'}`"
 						>
-							{{ source.shortLabel }}
-							{{ row.evidence.sources[source.value] ? 'yes' : 'no' }}
-						</span>
+							<span class="font-semibold">{{ source.shortLabel }}</span>
+							{{ sourceObservationLabel(row, source.value) }}
+						</p>
 					</div>
 					<div v-if="row.evidence.comparison.overall" class="min-w-0">
 						<span
@@ -478,10 +543,12 @@ function rowAriaLabel(row: TrackEvidenceLensRow): string {
 						class="min-w-0 space-y-0.5"
 					>
 						<p :class="applicationClasses(row.evidence.application.bpm)">
-							BPM {{ applicationLabel(row.evidence.application.bpm) }}
+							BPM {{ applicationLabel(row.evidence.application.bpm) }} ·
+							{{ sourceLabel(row.evidence.application.bpmSource) }}
 						</p>
 						<p :class="applicationClasses(row.evidence.application.keyMode)">
-							Key {{ applicationLabel(row.evidence.application.keyMode) }}
+							Key {{ applicationLabel(row.evidence.application.keyMode) }} ·
+							{{ sourceLabel(row.evidence.application.keyModeSource) }}
 						</p>
 					</div>
 					<p v-else class="text-muted-foreground">
@@ -496,6 +563,12 @@ function rowAriaLabel(row: TrackEvidenceLensRow): string {
 						</span>
 						<p class="text-muted-foreground mt-1 font-mono">
 							{{ versionLabel(row.evidence.version) }}
+						</p>
+						<p
+							v-if="row.evidence.analyzerStatus === 'outdated'"
+							class="mt-0.5 text-amber-800 dark:text-amber-300"
+						>
+							Old analyzer/config
 						</p>
 					</div>
 				</button>
@@ -532,6 +605,12 @@ function rowAriaLabel(row: TrackEvidenceLensRow): string {
 						<span>{{ formatKey(row) }}</span>
 						<span class="text-muted-foreground">
 							Sources {{ row.evidence.retainedSourceCount }}/3
+						</span>
+						<span
+							v-if="row.evidence.analyzerStatus === 'outdated'"
+							class="text-amber-800 dark:text-amber-300"
+						>
+							Old analyzer/config
 						</span>
 						<span
 							v-if="row.evidence.comparison.overall"

@@ -7,7 +7,7 @@ useHead({ title: 'Privacy Notice · Crate Guide' })
 	<LayoutLegalDocument
 		title="Privacy Notice"
 		summary="A plain-language explanation of how the official crate.guide service handles account, library and technical data."
-		effective-date="22 July 2026"
+		effective-date="30 July 2026"
 	>
 		<section>
 			<h2>Scope and operator</h2>
@@ -42,6 +42,19 @@ useHead({ title: 'Privacy Notice · Crate Guide' })
 					<strong>Library data:</strong>
 					records, artists, labels, tracks, crates, saved sets, transition
 					ratings and preferences that you save.
+				</li>
+				<li>
+					<strong>Track Evidence:</strong>
+					when you apply an enrichment result or explicitly save Evidence
+					without filling a value, your signed-in cloud library keeps bounded
+					metadata from the latest retained observation for each source. This
+					can include source BPM/key values and observation time, sanitized
+					filenames and relative hints, Rekordbox track identifiers,
+					identity-match scores/reasons/warnings, analyzer and configuration
+					identifiers, segment and sample-rate details, analyzer confidence, key
+					strength, warnings, and a snapshot of any value applied. Evidence is
+					explanatory metadata, not proof that a value is correct or a complete
+					history.
 				</li>
 				<li>
 					<strong>Discogs data:</strong>
@@ -90,7 +103,15 @@ useHead({ title: 'Privacy Notice · Crate Guide' })
 				its local draft separate; this is not encryption or anonymization.
 				Drafts are not uploaded or backed up to Crate Guide and can be removed
 				by deleting the review or clearing this site’s browser data. Only
-				metadata changes you review and apply are written to your library.
+				metadata changes you review and apply, including an explicit
+				Evidence-only save, are written to your cloud library.
+			</p>
+			<p>
+				Applied Track Evidence never includes raw XML, audio bytes or absolute
+				local paths. Crate Guide stores at most the latest bounded observation
+				for each supported source, so missing Evidence does not prove that a
+				file was never scanned or analyzed. Evidence is not currently included
+				in a portable Crate Guide archive.
 			</p>
 			<p>
 				Crate Guide also uses essential browser storage for authentication,

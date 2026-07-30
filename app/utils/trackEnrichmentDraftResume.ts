@@ -204,10 +204,13 @@ export function decideTrackEnrichmentDraftDecisionResume(input: {
 		if (!input.retentionAllowedByPolicy) {
 			return { classification: 'policy-changed', staged: false }
 		}
-
-		// The evidence-only writer gate is intentionally closed. A persisted true
-		// value records a prior review request but is never executable approval.
-		return { classification: 'unsupported-intent', staged: false }
+		if (!input.stageable) {
+			return { classification: 'no-longer-stageable', staged: false }
+		}
+		if (!decision.staged) {
+			return { classification: 'not-staged', staged: false }
+		}
+		return { classification: 'retained', staged: true }
 	}
 	if (!proposalsEqual(decision.proposalBinding, input.currentProposal)) {
 		return { classification: 'proposal-changed', staged: false }

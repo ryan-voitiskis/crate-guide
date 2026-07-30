@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
 	currentTrackEvidenceV2Golden,
-	legacyTrackAudioFeaturesV1Golden
+	legacyTrackAudioFeaturesV1Golden,
+	mixedTrackEvidenceV2Golden
 } from '../../test/fixtures/trackEvidence'
 import type { TrackEvidenceDecodeResult } from './trackEvidenceCodec'
 import {
@@ -73,7 +74,9 @@ describe('interpretTrackEvidence', () => {
 			label: 'Rekordbox XML: high identity match',
 			confidence: 'high',
 			score: 96,
-			matcherPolicyVersion: 'identity-match-v2'
+			matcherPolicyVersion: 'identity-match-v2',
+			reasons: ['Rekordbox ID and metadata agree'],
+			warnings: []
 		})
 		expect(
 			result.sourceCoverage.bySource.essentiaBrowser.identityMatch
@@ -95,6 +98,32 @@ describe('interpretTrackEvidence', () => {
 		expect(
 			result.sourceCoverage.bySource.rekordboxXml.analyzerMetrics
 		).toBeNull()
+		expect(result.sourceCoverage.bySource.rekordboxXml.details).toEqual({
+			kind: 'rekordboxXml',
+			fileName: 'collection.xml',
+			locationHint: 'Synthetic Artist/Synthetic Release/Asterism.wav',
+			rekordboxTrackId: 'RBX-1024',
+			mediaKind: 'WAV File',
+			sampleRate: 44100,
+			bitRate: 1411
+		})
+		expect(result.sourceCoverage.bySource.embeddedTags.details).toMatchObject({
+			kind: 'embeddedTags',
+			fileName: 'Asterism.wav',
+			genres: ['Techno'],
+			fileSize: 66_502_400
+		})
+		expect(result.sourceCoverage.bySource.essentiaBrowser.details).toEqual({
+			kind: 'essentiaBrowser',
+			analyzerVersion: 'essentia-0.1.3-rhythm-v1',
+			configurationVersion: 'continuous-center-180s-v1',
+			sampleRate: 44100,
+			durationSeconds: 377,
+			analyzedDurationSeconds: 180,
+			analysisOffsetSeconds: 98.5,
+			bpmEstimates: [127.99, 64, 128.01],
+			warnings: []
+		})
 		expect(result.legacyGlobalMatch).toBeNull()
 		expect(result).not.toHaveProperty('agreement')
 		expect(result).not.toHaveProperty('conflict')
@@ -184,7 +213,7 @@ describe('interpretTrackEvidence', () => {
 		expect(empty.fields.keyMode.attribution).toBeNull()
 	})
 
-	it('defensively reports a missing applied observation without weakening the strict reader', () => {
+	it('reports persisted application snapshots whose source observation is no longer retained', () => {
 		const decoded = decodedSuccess(currentTrackEvidenceV2Golden)
 		if (decoded.evidence.origin !== 'v2') {
 			throw new Error('Expected current v2 Evidence')
@@ -193,7 +222,7 @@ describe('interpretTrackEvidence', () => {
 		decoded.evidence.sources.embeddedTags!.observationId =
 			'replacement-observation'
 
-		expect(decodeTrackEvidenceV2(decoded.evidence).ok).toBe(false)
+		expect(decodeTrackEvidenceV2(decoded.evidence).ok).toBe(true)
 		const result = interpretedSuccess(
 			interpretTrackEvidence(decoded, { bpm: 128, key: 5, mode: 0 })
 		)
@@ -206,6 +235,54 @@ describe('interpretTrackEvidence', () => {
 			state: 'source-missing',
 			missingReason: 'applied-observation-not-retained',
 			application: { source: 'embeddedTags', value: { key: 5, mode: 0 } }
+		})
+	})
+
+	it('keeps untouched legacy sources and markers honest after an incremental v2 upgrade', () => {
+		const result = interpretedSuccess(
+			interpretTrackEvidence(decodedSuccess(mixedTrackEvidenceV2Golden), {
+				bpm: 128,
+				key: 5,
+				mode: 0
+			})
+		)
+
+		expect(result).toMatchObject({ sourceVersion: 2, origin: 'v2' })
+		expect(result.fields.bpm.attribution).toMatchObject({
+			state: 'applied',
+			application: {
+				source: 'rekordboxXml',
+				observationId: 'obs-rbx-20260721-001',
+				value: 128
+			}
+		})
+		expect(result.fields.keyMode.attribution).toEqual({
+			state: 'unattributed',
+			label: 'No safe application attribution is available',
+			reason: 'legacy-v1-application-marker',
+			legacyApplication: {
+				source: 'embeddedTags',
+				sourceLabel: 'Embedded tags',
+				appliedAt: '2026-07-19T09:00:00.000Z'
+			}
+		})
+		expect(result.sourceCoverage.bySource.rekordboxXml).toMatchObject({
+			observationKind: 'v2',
+			identityMatch: { status: 'available' }
+		})
+		expect(result.sourceCoverage.bySource.embeddedTags).toMatchObject({
+			observationKind: 'legacy-v1',
+			identityMatch: {
+				status: 'unavailable',
+				reason: 'legacy-source-match-unavailable'
+			}
+		})
+		expect(result.legacyGlobalMatch).toEqual({
+			kind: 'legacy-global-identity-match',
+			state: 'unattributed',
+			label: 'Legacy global high identity match (not attributable to a source)',
+			confidence: 'high',
+			score: 94
 		})
 	})
 
@@ -281,7 +358,8 @@ describe('interpretTrackEvidence', () => {
 			observationKind: null,
 			observedAt: null,
 			identityMatch: null,
-			analyzerMetrics: null
+			analyzerMetrics: null,
+			details: null
 		})
 		expect(JSON.stringify(result).toLowerCase()).not.toContain('never analyzed')
 	})

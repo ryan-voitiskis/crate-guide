@@ -7,7 +7,11 @@ import type {
 } from '~/types/trackEnrichmentDraft'
 import { TRACK_ENRICHMENT_DRAFT_EVIDENCE_PRECONDITION_VERSION } from '~/types/trackEnrichmentDraft'
 import type { Track } from '~~/shared/types/supabase'
-import type { RekordboxXmlTrack } from './rekordboxXml'
+import {
+	TRACK_EVIDENCE_MODEL_VERSION,
+	type TrackEvidenceV2
+} from '../../shared/types/audioFeatures'
+import { type RekordboxXmlTrack, toRekordboxXmlSource } from './rekordboxXml'
 import { buildTrackEnrichmentRows } from './trackEnrichment'
 import { getCurrentTrackEnrichmentDraftVersions } from './trackEnrichmentDraftCodec'
 import { createTrackEnrichmentCurrentEvidenceFingerprint } from './trackEnrichmentDraftEvidencePrecondition'
@@ -18,6 +22,7 @@ import {
 } from './trackEnrichmentDraftHydration'
 import { projectTrackEnrichmentDraft } from './trackEnrichmentDraftProjection'
 import type { EnrichmentSource } from './trackEnrichmentTypes'
+import { createTrackEvidenceObservationId } from './trackEvidenceObservationId'
 
 const REVIEWED_AT = '2026-07-23T01:00:00.000Z'
 const OUTCOME_ATTEMPTED_AT = '2026-07-23T01:30:00.000Z'
@@ -279,7 +284,7 @@ describe('hydrateTrackEnrichmentDraft', () => {
 		expect(result.ui).not.toBe(draft.ui)
 	})
 
-	it('hydrates an exact evidence-only review as unsupported and never mutates top-level values or Evidence', async () => {
+	it('hydrates an exact evidence-only review as staged without mutating top-level values or Evidence', async () => {
 		const target = track({
 			bpm: 126,
 			key: 8,
@@ -297,7 +302,7 @@ describe('hydrateTrackEnrichmentDraft', () => {
 
 		expect(result.status).toBe('ready')
 		if (result.status !== 'ready') throw new Error('Expected a ready draft')
-		expect(result.stagedRowIds).toEqual([])
+		expect(result.stagedRowIds).toEqual(['rekordboxXml-0-track-1'])
 		expect(result.doneRowIds).toEqual([])
 		expect(result.outcomes).toEqual([])
 		expect(result.decisions).toEqual([
@@ -305,23 +310,271 @@ describe('hydrateTrackEnrichmentDraft', () => {
 				sourceFingerprint: draft.observations[0]!.sourceFingerprint,
 				targetTrackId: target.id,
 				rowId: 'rekordboxXml-0-track-1',
-				classification: 'unsupported-intent',
-				staged: false,
+				classification: 'retained',
+				staged: true,
 				outcomeDisposition: null
 			}
 		])
-		expect(result.changedRowIds).toEqual(['rekordboxXml-0-track-1'])
+		expect(result.changedRowIds).toEqual([])
 		expect(result.summary).toEqual({
 			total: 1,
-			retained: 0,
+			retained: 1,
 			unchangedUnstaged: 0,
-			changed: 1,
+			changed: 0,
 			dropped: 0
 		})
 		expect(target).toEqual(before)
 		expect(target.bpm).toBe(126)
 		expect(target.key).toBe(8)
 		expect(target.mode).toBe(1)
+	})
+
+	it('keeps a confirmed Evidence-only result in review when current Evidence cannot prove the authored observation', async () => {
+		const target = track({ bpm: 126, key: 8, mode: 1 })
+		const draft = await createEvidenceOnlyDraft(xmlSource(), target)
+		const decision = draft.decisions[0]
+		if (decision?.kind !== 'evidence-only') throw new Error('Expected intent')
+		draft.partialOutcomes = [
+			{
+				intentKind: 'evidence-only',
+				sourceFingerprint: decision.sourceBinding.sourceFingerprint,
+				targetTrackId: decision.targetBinding.trackId,
+				status: 'succeeded',
+				applied: { bpm: false, keyMode: false },
+				attemptedAt: OUTCOME_ATTEMPTED_AT,
+				failureCode: null
+			}
+		]
+
+		const result = await hydrateTrackEnrichmentDraft({
+			draft,
+			tracks: [target],
+			records: []
+		})
+
+		expect(result.status).toBe('ready')
+		if (result.status !== 'ready') throw new Error('Expected a ready draft')
+		expect(result.stagedRowIds).toEqual([])
+		expect(result.doneRowIds).toEqual([])
+		expect(result.outcomes).toEqual([
+			expect.objectContaining({
+				storedStatus: 'succeeded',
+				applied: { bpm: false, keyMode: false },
+				disposition: 'review'
+			})
+		])
+		expect(result.rows[0]).toMatchObject({
+			applied: false,
+			track: { bpm: 126, key: 8, mode: 1 }
+		})
+	})
+
+	it('marks Evidence-only Done only when strict v2 Evidence retains the exact authored observation', async () => {
+		const targetBefore = track({ bpm: 126, key: 8, mode: 1 })
+		const source = xmlSource()
+		const draft = await createEvidenceOnlyDraft(source, targetBefore)
+		const decision = draft.decisions[0]
+		if (decision?.kind !== 'evidence-only') throw new Error('Expected intent')
+		draft.partialOutcomes = [
+			{
+				intentKind: 'evidence-only',
+				sourceFingerprint: decision.sourceBinding.sourceFingerprint,
+				targetTrackId: decision.targetBinding.trackId,
+				status: 'succeeded',
+				applied: { bpm: false, keyMode: false },
+				attemptedAt: OUTCOME_ATTEMPTED_AT,
+				failureCode: null
+			}
+		]
+		const [authoredRow] = buildTrackEnrichmentRows({
+			sources: [source],
+			tracks: [targetBefore],
+			records: []
+		})
+		if (!authoredRow) throw new Error('Expected authored row')
+		const { importedAt: _importedAt, ...rekordboxData } = toRekordboxXmlSource(
+			source,
+			draft.source.label,
+			OUTCOME_ATTEMPTED_AT
+		)
+		void _importedAt
+		const match = {
+			confidence: authoredRow.confidence,
+			score: authoredRow.score,
+			reasons: authoredRow.reasons,
+			warnings: authoredRow.warnings,
+			matcherPolicyVersion: draft.versions.matcherPolicyVersion
+		}
+		const data = {
+			...rekordboxData,
+			rekordboxTrackId: source.trackId
+		}
+		const retainedEvidence: TrackEvidenceV2 = {
+			version: 2,
+			modelVersion: TRACK_EVIDENCE_MODEL_VERSION,
+			updatedAt: OUTCOME_ATTEMPTED_AT,
+			origin: 'v2',
+			applied: { bpm: null, keyMode: null },
+			sources: {
+				rekordboxXml: {
+					kind: 'observation',
+					observationId: await createTrackEvidenceObservationId(
+						'rekordboxXml',
+						{
+							observedAt: OUTCOME_ATTEMPTED_AT,
+							match,
+							data
+						}
+					),
+					observedAt: OUTCOME_ATTEMPTED_AT,
+					match,
+					data
+				}
+			},
+			legacy: null
+		}
+		const targetAfter = {
+			...targetBefore,
+			audio_features: retainedEvidence
+		}
+
+		const result = await hydrateTrackEnrichmentDraft({
+			draft,
+			tracks: [targetAfter],
+			records: []
+		})
+
+		expect(result.status).toBe('ready')
+		if (result.status !== 'ready') throw new Error('Expected a ready draft')
+		expect(result.doneRowIds).toEqual(['rekordboxXml-0-track-1'])
+		expect(result.outcomes[0]).toMatchObject({
+			applied: { bpm: false, keyMode: false },
+			disposition: 'done'
+		})
+		expect(result.rows[0]).toMatchObject({
+			applied: true,
+			track: { bpm: 126, key: 8, mode: 1 }
+		})
+	})
+
+	it('requires both authored local Evidence slots when tag and analyzer observations apply', async () => {
+		const targetBefore = track({ bpm: 126, key: 8, mode: 1 })
+		const source = localSource({
+			analysis: {
+				analyzerVersion: 'essentia-browser-v1',
+				configurationVersion: 'center-180s-v1',
+				bpm: 128.1,
+				bpmConfidence: 0.91,
+				bpmEstimates: [128, 128.1],
+				key: 'A',
+				scale: 'minor',
+				keyStrength: 0.82,
+				sampleRate: 44_100,
+				durationSeconds: 240,
+				analyzedDurationSeconds: 180,
+				analysisOffsetSeconds: 30,
+				warnings: []
+			},
+			bpmSource: 'essentiaBrowser',
+			keyModeSource: 'essentiaBrowser'
+		})
+		const draft = await createEvidenceOnlyDraft(source, targetBefore)
+		const decision = draft.decisions[0]
+		if (decision?.kind !== 'evidence-only') throw new Error('Expected intent')
+		draft.partialOutcomes = [
+			{
+				intentKind: 'evidence-only',
+				sourceFingerprint: decision.sourceBinding.sourceFingerprint,
+				targetTrackId: decision.targetBinding.trackId,
+				status: 'succeeded',
+				applied: { bpm: false, keyMode: false },
+				attemptedAt: OUTCOME_ATTEMPTED_AT,
+				failureCode: null
+			}
+		]
+		const [authoredRow] = buildTrackEnrichmentRows({
+			sources: [source],
+			tracks: [targetBefore],
+			records: []
+		})
+		if (!authoredRow || !source.analysis) throw new Error('Expected local row')
+		const match = {
+			confidence: authoredRow.confidence,
+			score: authoredRow.score,
+			reasons: authoredRow.reasons,
+			warnings: authoredRow.warnings,
+			matcherPolicyVersion: draft.versions.matcherPolicyVersion
+		}
+		const embeddedTagsData = {
+			fileName: source.fileName,
+			locationHint: source.locationHint,
+			fileSize: source.fileSize,
+			lastModified: source.lastModified,
+			title: source.tags.title,
+			artist: source.tags.artist,
+			album: source.tags.album,
+			genres: source.tags.genres,
+			durationSeconds: source.tags.durationSeconds,
+			bpm: source.tags.bpm,
+			key: source.tags.key
+		}
+		const embeddedTags = {
+			kind: 'observation' as const,
+			observationId: await createTrackEvidenceObservationId('embeddedTags', {
+				observedAt: OUTCOME_ATTEMPTED_AT,
+				match,
+				data: embeddedTagsData
+			}),
+			observedAt: OUTCOME_ATTEMPTED_AT,
+			match,
+			data: embeddedTagsData
+		}
+		const completeEvidence: TrackEvidenceV2 = {
+			version: 2,
+			modelVersion: TRACK_EVIDENCE_MODEL_VERSION,
+			updatedAt: OUTCOME_ATTEMPTED_AT,
+			origin: 'v2',
+			applied: { bpm: null, keyMode: null },
+			sources: {
+				embeddedTags,
+				essentiaBrowser: {
+					kind: 'observation',
+					observationId: await createTrackEvidenceObservationId(
+						'essentiaBrowser',
+						{
+							observedAt: OUTCOME_ATTEMPTED_AT,
+							match,
+							data: source.analysis
+						}
+					),
+					observedAt: OUTCOME_ATTEMPTED_AT,
+					match,
+					data: source.analysis
+				}
+			},
+			legacy: null
+		}
+
+		const complete = await hydrateTrackEnrichmentDraft({
+			draft,
+			tracks: [{ ...targetBefore, audio_features: completeEvidence }],
+			records: []
+		})
+		expect(complete.status).toBe('ready')
+		if (complete.status !== 'ready') throw new Error('Expected ready')
+		expect(complete.doneRowIds).toEqual(['localAudio-0-track-1'])
+
+		const missingAnalyzer = structuredClone(completeEvidence)
+		delete missingAnalyzer.sources.essentiaBrowser
+		const incomplete = await hydrateTrackEnrichmentDraft({
+			draft,
+			tracks: [{ ...targetBefore, audio_features: missingAnalyzer }],
+			records: []
+		})
+		expect(incomplete.status).toBe('ready')
+		if (incomplete.status !== 'ready') throw new Error('Expected ready')
+		expect(incomplete.doneRowIds).toEqual([])
+		expect(incomplete.outcomes[0]?.disposition).toBe('review')
 	})
 
 	it.each([
@@ -421,6 +674,9 @@ describe('hydrateTrackEnrichmentDraft', () => {
 		const draft = await createEvidenceOnlyDraft(xmlSource(), target)
 		const changedTarget = structuredClone(target)
 		if (!changedTarget.audio_features) throw new Error('Expected Evidence')
+		if (changedTarget.audio_features.version !== 1) {
+			throw new Error('Expected v1 Evidence fixture')
+		}
 		changedTarget.audio_features.match.score = 99
 
 		const result = await hydrateTrackEnrichmentDraft({
@@ -916,7 +1172,26 @@ describe('hydrateTrackEnrichmentDraft', () => {
 	)
 
 	it('hydrates local evidence without retaining live files or absolute paths', async () => {
-		const draft = await createDraft(localSource())
+		const source = localSource({
+			analysis: {
+				analyzerVersion: 'essentia-browser-v1',
+				configurationVersion: 'center-180s-v1',
+				bpm: 128.1,
+				bpmConfidence: 0.91,
+				bpmEstimates: [128, 128.1],
+				key: 'A',
+				scale: 'minor',
+				keyStrength: 0.82,
+				sampleRate: 44_100,
+				durationSeconds: 240,
+				analyzedDurationSeconds: 180,
+				analysisOffsetSeconds: 30,
+				warnings: ['Low-frequency energy retained']
+			},
+			bpmSource: 'essentiaBrowser',
+			keyModeSource: 'essentiaBrowser'
+		})
+		const draft = await createDraft(source)
 
 		const result = await hydrateTrackEnrichmentDraft({
 			draft,
@@ -928,6 +1203,17 @@ describe('hydrateTrackEnrichmentDraft', () => {
 		if (result.status !== 'ready') throw new Error('Expected a ready draft')
 		expect(result.stagedRowIds).toEqual(['localAudio-0-track-1'])
 		expect(result.rows[0]?.defaultStaged).toBe(false)
+		expect(result.rows[0]?.source).toEqual({
+			...source,
+			index: 0,
+			locationHint: 'Artist/Release/Track One.flac',
+			tags: { ...source.tags, genres: [...source.tags.genres] },
+			analysis: {
+				...source.analysis,
+				bpmEstimates: [...source.analysis!.bpmEstimates],
+				warnings: [...source.analysis!.warnings]
+			}
+		})
 		const serialized = JSON.stringify(result)
 		expect(serialized).not.toContain('/Users/alice')
 		expect(serialized).not.toContain('private parser comment')

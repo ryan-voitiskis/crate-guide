@@ -65,6 +65,10 @@ function decodeWithPreEvidenceV2DecisionSemantics(serialized: string) {
 function largeDraft(observationCount: number): TrackEnrichmentDraft {
 	const draft = cloneDraft()
 	const template = draft.observations[0]!
+	if (template.evidence.kind !== 'rekordboxXml') {
+		throw new Error('Expected an XML observation template')
+	}
+	const templateEvidence = template.evidence
 	draft.observations = Array.from(
 		{ length: observationCount },
 		(_, ordinal) => {
@@ -75,7 +79,11 @@ function largeDraft(observationCount: number): TrackEnrichmentDraft {
 				sourceFingerprint: `source-${ordinal}`,
 				observationFingerprint: identity,
 				ordinal,
-				evidence: { kind: 'rekordboxXml' as const, trackId: null }
+				evidence: {
+					...structuredClone(templateEvidence),
+					kind: 'rekordboxXml' as const,
+					trackId: null
+				}
 			}
 		}
 	)
@@ -514,21 +522,9 @@ describe('track enrichment draft strict codec', () => {
 
 	it('rejects cross-source evidence, proposal provenance, and reconnect claims', () => {
 		const evidenceMismatch = cloneDraft()
-		evidenceMismatch.observations[0]!.evidence = {
-			kind: 'localAudio',
-			fileIdentity: {
-				version: 'local-audio-file-v1',
-				relativePath: 'Track.mp3',
-				size: 1,
-				lastModified: 1
-			},
-			metadataVersion: 'native-tags-v3',
-			analyzerVersion: null,
-			configurationVersion: null,
-			bpmConfidence: null,
-			keyStrength: null,
-			requiresManualReview: false
-		}
+		evidenceMismatch.observations[0]!.evidence = structuredClone(
+			createTrackEnrichmentDraftFixture('localAudio').observations[0]!.evidence
+		)
 		const reconnectMismatch = cloneDraft()
 		reconnectMismatch.source.requiresReconnect = true
 		const proposalMismatch = cloneDraft('localAudio')

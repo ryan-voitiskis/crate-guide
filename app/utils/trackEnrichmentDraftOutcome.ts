@@ -6,6 +6,7 @@ import type {
 } from '~~/shared/types/trackUpdates'
 
 export type TrackEnrichmentDraftBatchBinding = {
+	intentKind: TrackEnrichmentDraftPartialOutcome['intentKind']
 	sourceFingerprint: string
 	targetTrackId: string
 	requested: {
@@ -99,7 +100,7 @@ function mapResult(
 
 	if (result.success) {
 		return {
-			intentKind: 'fill-empty-fields',
+			intentKind: binding.intentKind,
 			sourceFingerprint: binding.sourceFingerprint,
 			targetTrackId: binding.targetTrackId,
 			status: 'succeeded',
@@ -114,7 +115,7 @@ function mapResult(
 
 	const classification = classifyFailedResult(result)
 	return {
-		intentKind: 'fill-empty-fields',
+		intentKind: binding.intentKind,
 		sourceFingerprint: binding.sourceFingerprint,
 		targetTrackId: binding.targetTrackId,
 		status: classification.status,
@@ -143,7 +144,11 @@ export function mapTrackEnrichmentDraftBatchOutcome(input: {
 		) {
 			throw new TrackEnrichmentDraftOutcomeMappingError('duplicate-binding')
 		}
-		if (!binding.requested.bpm && !binding.requested.keyMode) {
+		const requestsValues = binding.requested.bpm || binding.requested.keyMode
+		if (
+			(binding.intentKind === 'fill-empty-fields' && !requestsValues) ||
+			(binding.intentKind === 'evidence-only' && requestsValues)
+		) {
 			throw new TrackEnrichmentDraftOutcomeMappingError('invalid-binding')
 		}
 		bindingByTarget.set(binding.targetTrackId, binding)

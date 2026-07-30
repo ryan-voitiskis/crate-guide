@@ -115,6 +115,9 @@ describe('ListTrackEvidenceLens', () => {
 			wrapper.get('[aria-label="Changed since application: 1 tracks"]')
 		).toBeTruthy()
 		expect(
+			wrapper.get('[aria-label="Outdated analyzer or configuration: 3 tracks"]')
+		).toBeTruthy()
+		expect(
 			wrapper.get('[aria-label="Legacy v1 Evidence: 1 tracks"]')
 		).toBeTruthy()
 		expect(
@@ -128,6 +131,11 @@ describe('ListTrackEvidenceLens', () => {
 			)
 		).toBeTruthy()
 		expect(wrapper.get('[aria-label="Rekordbox: retained"]')).toBeTruthy()
+		const currentRow = wrapper.get('[data-evidence-track-id="current"]')
+		expect(currentRow.text()).toContain('XML 128.0 BPM · F Min · high identity')
+		expect(currentRow.text()).toContain('BPM Applied · Rekordbox')
+		expect(currentRow.text()).toContain('Key Applied · Tags')
+		expect(currentRow.text()).toContain('Old analyzer/config')
 		expect(wrapper.get('[data-evidence-track-id="none"]').text()).toContain(
 			'Not set'
 		)
@@ -224,6 +232,7 @@ describe('ListTrackEvidenceLens', () => {
 		)
 		expect(wrapper.text()).toContain('Sources 3/3')
 		expect(wrapper.text()).toContain('Agreement')
+		expect(wrapper.text()).toContain('Old analyzer/config')
 		expect(wrapper.text()).toContain('BPM Applied · Key Applied · Current v2')
 		expect(wrapper.text()).not.toContain('Source coverage')
 	})

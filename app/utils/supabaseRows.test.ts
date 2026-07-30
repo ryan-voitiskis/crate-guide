@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Database } from '../../shared/types/database'
+import { mixedTrackEvidenceV2Golden } from '../../test/fixtures/trackEvidence'
 import {
 	decodeRecordRow,
 	decodeSavedSetRow,
@@ -158,7 +159,7 @@ function invalidAudioFeaturesFor(
 }
 
 const audioMutations: AudioMutation[] = [
-	{ description: 'version', path: ['version'], invalidValue: 2 },
+	{ description: 'version', path: ['version'], invalidValue: 3 },
 	...mutationsFor([], ['updatedAt'], 7),
 	{ description: 'applied object', path: ['applied'], invalidValue: null },
 	...mutationsFor(['applied'], ['bpm', 'keyMode'], 'invalid'),
@@ -366,6 +367,17 @@ describe('decodeTrackRow', () => {
 		const decoded = decodeTrackRow(createTrackRow({ beatport_data: marker }))
 
 		expect(decoded.row.beatport_data).toBe(marker)
+		expect(decoded.issues).toEqual([])
+	})
+
+	it('round-trips a valid mixed-source Evidence v2 row', () => {
+		const decoded = decodeTrackRow(
+			createTrackRow({
+				audio_features: mixedTrackEvidenceV2Golden
+			})
+		)
+
+		expect(decoded.row.audio_features).toBe(mixedTrackEvidenceV2Golden)
 		expect(decoded.issues).toEqual([])
 	})
 

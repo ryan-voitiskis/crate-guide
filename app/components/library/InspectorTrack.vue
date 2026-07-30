@@ -202,7 +202,7 @@ const keyColour = computed(() => {
 				</Badge>
 			</div>
 
-			<PanelTrackEvidence
+			<LazyPanelTrackEvidence
 				class="border-border mt-5 border-t pt-4"
 				:evidence="track.audio_features"
 				:current-bpm="track.bpm"

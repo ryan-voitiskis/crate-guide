@@ -68,11 +68,97 @@ const relativePath = boundedText(4096).refine(
 	(value) => sanitizeTrackEnrichmentDraftRelativePath(value) === value,
 	{ message: 'Expected a canonical relative path' }
 )
+const fileName = boundedText(255).refine(
+	(value) => !value.includes('/') && !value.includes('\\'),
+	{ message: 'Expected a file name without a path' }
+)
+const nullableFinite = (minimum: number, maximum: number) =>
+	z.number().finite().min(minimum).max(maximum).nullable()
+const localValueSource = z.enum(['embeddedTags', 'essentiaBrowser']).nullable()
+
+const xmlSourceEvidenceSchema = z
+	.object({
+		name: nullableText(512),
+		artist: nullableText(512),
+		album: nullableText(512),
+		genre: nullableText(512),
+		kind: nullableText(512),
+		totalTimeSeconds: nullableFinite(0, 604_800),
+		year: nullableFinite(0, 9_999),
+		averageBpm: nullableFinite(1, 999),
+		dateAdded: nullableText(512),
+		bitRate: nullableFinite(0, 10_000_000),
+		sampleRate: nullableFinite(0, 10_000_000),
+		comments: nullableText(512),
+		playCount: nullableFinite(0, Number.MAX_SAFE_INTEGER),
+		rating: nullableFinite(0, Number.MAX_SAFE_INTEGER),
+		locationHint: relativePath.nullable(),
+		remixer: nullableText(512),
+		tonality: nullableText(512),
+		parsedKey: nullableFinite(0, 11),
+		parsedMode: nullableFinite(0, 1),
+		label: nullableText(512)
+	})
+	.strict()
+
+const localAnalysisEvidenceSchema = z
+	.object({
+		analyzerVersion: versionIdentifier,
+		configurationVersion: versionIdentifier,
+		bpm: nullableFinite(1, 999),
+		bpmConfidence: nullableFinite(0, 1),
+		bpmEstimates: z.array(z.number().finite().min(1).max(999)).max(64),
+		key: nullableText(512),
+		scale: nullableText(512),
+		keyStrength: nullableFinite(0, 1),
+		sampleRate: z.number().finite().min(0).max(10_000_000),
+		durationSeconds: z.number().finite().min(0).max(604_800),
+		analyzedDurationSeconds: z.number().finite().min(0).max(604_800),
+		analysisOffsetSeconds: z.number().finite().min(0).max(604_800),
+		warnings: z
+			.array(boundedText(512))
+			.max(TRACK_ENRICHMENT_DRAFT_MAX_WARNINGS_PER_OBSERVATION)
+	})
+	.strict()
+
+const localSourceEvidenceSchema = z
+	.object({
+		name: nullableText(512),
+		artist: nullableText(512),
+		album: nullableText(512),
+		genre: nullableText(512),
+		locationHint: relativePath,
+		totalTimeSeconds: nullableFinite(0, 604_800),
+		averageBpm: nullableFinite(1, 999),
+		tonality: nullableText(512),
+		parsedKey: nullableFinite(0, 11),
+		parsedMode: nullableFinite(0, 1),
+		fileName,
+		fileSize: safeInteger,
+		lastModified: safeInteger,
+		tags: z
+			.object({
+				title: nullableText(512),
+				artist: nullableText(512),
+				album: nullableText(512),
+				genres: z.array(boundedText(512)).max(128),
+				durationSeconds: nullableFinite(0, 604_800),
+				bpm: nullableFinite(1, 999),
+				key: nullableText(512)
+			})
+			.strict(),
+		analysis: localAnalysisEvidenceSchema.nullable(),
+		bpmSource: localValueSource,
+		keyModeSource: localValueSource,
+		requiresManualReview: z.boolean()
+	})
+	.strict()
 
 const xmlEvidenceSchema = z
 	.object({
 		kind: z.literal('rekordboxXml'),
-		trackId: nullableText(512)
+		trackId: nullableText(512),
+		source: xmlSourceEvidenceSchema
 	})
 	.strict()
 
@@ -92,7 +178,8 @@ const localEvidenceSchema = z
 		configurationVersion: versionIdentifier.nullable(),
 		bpmConfidence: z.number().finite().min(0).max(1).nullable(),
 		keyStrength: z.number().finite().min(0).max(1).nullable(),
-		requiresManualReview: z.boolean()
+		requiresManualReview: z.boolean(),
+		source: localSourceEvidenceSchema
 	})
 	.strict()
 
@@ -216,7 +303,7 @@ const legacyPartialOutcomeSchema = z
 
 const partialOutcomeSchema = z
 	.object({
-		intentKind: z.literal('fill-empty-fields'),
+		intentKind: z.enum(['fill-empty-fields', 'evidence-only']),
 		sourceFingerprint: fingerprint,
 		targetTrackId: identifier,
 		status: z.enum(['succeeded', 'failed', 'unknown']),
@@ -297,6 +384,7 @@ const draftSchema = z
 				filter: z.enum([
 					'ready',
 					'review',
+					'evidence',
 					'staged',
 					'matched',
 					'unmatched',
@@ -416,6 +504,7 @@ const draftSchema = z
 		}
 
 		const knownDecisionSources = new Set<string>()
+		const decisionIntentByOutcomeBinding = new Map<string, string>()
 		for (const [index, decision] of draft.decisions.entries()) {
 			if (decision.kind === 'unknown') continue
 			const binding = `${decision.sourceBinding.sourceFingerprint}\n${decision.sourceBinding.observationFingerprint}`
@@ -434,6 +523,10 @@ const draftSchema = z
 				})
 			}
 			knownDecisionSources.add(decision.sourceBinding.sourceFingerprint)
+			decisionIntentByOutcomeBinding.set(
+				`${decision.sourceBinding.sourceFingerprint}\n${decision.targetBinding.trackId}`,
+				decision.kind
+			)
 			if (
 				decision.kind === 'evidence-only' &&
 				decision.sourceBinding.sourceSnapshotId !==
@@ -489,6 +582,21 @@ const draftSchema = z
 				})
 			}
 			outcomeBindings.add(binding)
+			const reviewedIntent = decisionIntentByOutcomeBinding.get(
+				`${outcome.sourceFingerprint}\n${outcome.targetTrackId}`
+			)
+			if (
+				(reviewedIntent !== undefined &&
+					reviewedIntent !== outcome.intentKind) ||
+				(outcome.intentKind === 'evidence-only' &&
+					reviewedIntent !== 'evidence-only')
+			) {
+				context.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ['partialOutcomes', index, 'intentKind'],
+					message: 'Outcome intent does not match its reviewed decision'
+				})
+			}
 			const validFailureCode =
 				outcome.status === 'succeeded'
 					? outcome.failureCode === null
@@ -507,7 +615,11 @@ const draftSchema = z
 			}
 			const hasConfirmedApplication =
 				outcome.applied.bpm || outcome.applied.keyMode
-			if ((outcome.status === 'succeeded') !== hasConfirmedApplication) {
+			const validAppliedFields =
+				outcome.intentKind === 'evidence-only'
+					? !hasConfirmedApplication
+					: (outcome.status === 'succeeded') === hasConfirmedApplication
+			if (!validAppliedFields) {
 				context.addIssue({
 					code: z.ZodIssueCode.custom,
 					path: ['partialOutcomes', index, 'applied'],

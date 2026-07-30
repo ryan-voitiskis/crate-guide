@@ -8,7 +8,7 @@ import {
 	WandSparkles
 } from 'lucide-vue-next'
 import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
-import { deriveTrackEvidenceLensRows } from '~/utils/trackEvidenceLens'
+import type { TrackEvidenceLensRow } from '~/utils/trackEvidenceLens'
 import type { LibraryRecord, LibraryTrack } from '~~/shared/types/library'
 
 type TrackSortKey =
@@ -151,11 +151,27 @@ const sortedTrackRows = computed<TrackWorkbenchRow[]>(() => {
 	})
 })
 
-const evidenceRowsByTrackId = computed(
-	() =>
-		new Map(
-			deriveTrackEvidenceLensRows(tracks.tracks).map((row) => [row.id, row])
+const evidenceRowsByTrackId = shallowRef<
+	ReadonlyMap<string, TrackEvidenceLensRow>
+>(new Map())
+let evidenceRowsGeneration = 0
+
+watch(
+	[viewMode, () => tracks.tracks],
+	async ([currentView, currentTracks]) => {
+		const generation = ++evidenceRowsGeneration
+		if (currentView !== 'evidence') {
+			evidenceRowsByTrackId.value = new Map()
+			return
+		}
+		const { deriveTrackEvidenceLensRows } =
+			await import('~/utils/trackEvidenceLens')
+		if (generation !== evidenceRowsGeneration) return
+		evidenceRowsByTrackId.value = new Map(
+			deriveTrackEvidenceLensRows(currentTracks).map((row) => [row.id, row])
 		)
+	},
+	{ immediate: true }
 )
 
 const evidenceTrackRows = computed(() =>
@@ -592,7 +608,7 @@ watch(
 					</Button>
 				</div>
 
-				<ListTrackEvidenceLens
+				<LazyListTrackEvidenceLens
 					v-else
 					:rows="evidenceTrackRows"
 					:records="records.records"

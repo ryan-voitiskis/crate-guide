@@ -1,7 +1,4 @@
-import type {
-	LocalAudioTrackSource,
-	LocalAudioValueSource
-} from '~/types/localAudio'
+import type { LocalAudioTrackSource } from '~/types/localAudio'
 import type {
 	TrackEnrichmentDraft,
 	TrackEnrichmentDraftDecision,
@@ -10,8 +7,9 @@ import type {
 	TrackEnrichmentDraftProposal,
 	TrackEnrichmentDraftUiState
 } from '~/types/trackEnrichmentDraft'
+import type { TrackEvidenceSourceKey } from '~~/shared/types/audioFeatures'
 import type { Track } from '~~/shared/types/supabase'
-import type { RekordboxXmlTrack } from './rekordboxXml'
+import { type RekordboxXmlTrack, toRekordboxXmlSource } from './rekordboxXml'
 import {
 	buildTrackEnrichmentRowsAsync,
 	canStageTrackEnrichmentRow
@@ -43,6 +41,8 @@ import type {
 	EnrichmentRow,
 	EnrichmentSource
 } from './trackEnrichmentTypes'
+import { decodeTrackEvidence } from './trackEvidenceCodec'
+import { createTrackEvidenceObservationId } from './trackEvidenceObservationId'
 
 export type TrackEnrichmentDraftHydratedDecision = {
 	sourceFingerprint: string | null
@@ -178,18 +178,147 @@ function hasExactAppliedMarker(input: {
 	)
 }
 
-function classifyHydratedOutcome(input: {
+function canonicalizeEvidenceValue(value: unknown): string {
+	if (value === null || typeof value !== 'object') return JSON.stringify(value)
+	if (Array.isArray(value)) {
+		return `[${value.map(canonicalizeEvidenceValue).join(',')}]`
+	}
+	return `{${Object.entries(value as Record<string, unknown>)
+		.sort(([left], [right]) => left.localeCompare(right))
+		.map(
+			([key, nested]) =>
+				`${JSON.stringify(key)}:${canonicalizeEvidenceValue(nested)}`
+		)
+		.join(',')}}`
+}
+
+function exactEvidenceValue(left: unknown, right: unknown): boolean {
+	return canonicalizeEvidenceValue(left) === canonicalizeEvidenceValue(right)
+}
+
+async function getExactV2AuthoredObservationIds(input: {
+	track: Track
+	row: EnrichmentRow
+	sourceLabel: string
+	matcherPolicyVersion: string
+	attemptedAt: string
+}): Promise<Map<TrackEvidenceSourceKey, string> | null> {
+	const decoded = decodeTrackEvidence(input.track.audio_features)
+	if (
+		!decoded.ok ||
+		decoded.sourceVersion !== 2 ||
+		decoded.evidence.origin !== 'v2'
+	) {
+		return null
+	}
+	const expectedMatch = {
+		confidence: input.row.confidence,
+		score: input.row.score,
+		reasons: input.row.reasons,
+		warnings: input.row.warnings,
+		matcherPolicyVersion: input.matcherPolicyVersion
+	}
+	const expectedSources = new Map<TrackEvidenceSourceKey, unknown>()
+	if (input.row.source.sourceType === 'rekordboxXml') {
+		const { importedAt: _importedAt, ...rekordboxData } = toRekordboxXmlSource(
+			input.row.source,
+			input.sourceLabel,
+			input.attemptedAt
+		)
+		void _importedAt
+		expectedSources.set('rekordboxXml', {
+			...rekordboxData,
+			rekordboxTrackId: input.row.source.trackId
+		})
+	} else {
+		const source = input.row.source
+		expectedSources.set('embeddedTags', {
+			fileName: source.fileName,
+			locationHint: source.locationHint,
+			fileSize: source.fileSize,
+			lastModified: source.lastModified,
+			title: source.tags.title,
+			artist: source.tags.artist,
+			album: source.tags.album,
+			genres: source.tags.genres,
+			durationSeconds: source.tags.durationSeconds,
+			bpm: source.tags.bpm,
+			key: source.tags.key
+		})
+		if (source.analysis) {
+			expectedSources.set('essentiaBrowser', source.analysis)
+		}
+	}
+
+	const observationIds = new Map<TrackEvidenceSourceKey, string>()
+	for (const [sourceKey, expectedData] of expectedSources) {
+		const observation = decoded.evidence.sources[sourceKey]
+		if (
+			!observation ||
+			observation.kind !== 'observation' ||
+			observation.observedAt !== input.attemptedAt ||
+			!exactEvidenceValue(observation.match, expectedMatch) ||
+			!exactEvidenceValue(observation.data, expectedData)
+		) {
+			return null
+		}
+		const expectedObservationId = await createTrackEvidenceObservationId(
+			sourceKey,
+			{
+				observedAt: input.attemptedAt,
+				match: expectedMatch,
+				data: expectedData
+			}
+		)
+		if (observation.observationId !== expectedObservationId) return null
+		observationIds.set(sourceKey, observation.observationId)
+	}
+	return observationIds
+}
+
+async function classifyHydratedOutcome(input: {
 	outcome: TrackEnrichmentDraftPartialOutcome
 	decision: TrackEnrichmentDraftDecision | null
 	storedObservation: TrackEnrichmentDraftObservation | null
 	currentObservation: TrackEnrichmentDraftObservation | null
 	row: EnrichmentRow | null
-}): TrackEnrichmentDraftOutcomeDisposition {
+	sourceLabel: string
+	matcherPolicyVersion: string
+}): Promise<TrackEnrichmentDraftOutcomeDisposition> {
 	if (input.outcome.status !== 'succeeded') {
 		return getTrackEnrichmentDraftOutcomeDisposition(input.outcome)
 	}
 
 	const { decision, storedObservation, currentObservation, row } = input
+	if (input.outcome.intentKind === 'evidence-only') {
+		if (
+			decision?.kind !== 'evidence-only' ||
+			!storedObservation ||
+			!currentObservation ||
+			!row?.track ||
+			row.track.id !== input.outcome.targetTrackId ||
+			decision.sourceBinding.sourceFingerprint !==
+				input.outcome.sourceFingerprint ||
+			decision.targetBinding.trackId !== input.outcome.targetTrackId ||
+			currentObservation.sourceSnapshotId !==
+				decision.sourceBinding.sourceSnapshotId ||
+			currentObservation.sourceFingerprint !==
+				decision.sourceBinding.sourceFingerprint ||
+			currentObservation.observationFingerprint !==
+				decision.sourceBinding.observationFingerprint
+		) {
+			return 'rematch'
+		}
+		return (await getExactV2AuthoredObservationIds({
+			track: row.track,
+			row,
+			sourceLabel: input.sourceLabel,
+			matcherPolicyVersion: input.matcherPolicyVersion,
+			attemptedAt: input.outcome.attemptedAt
+		}))
+			? 'done'
+			: 'review'
+	}
 	if (
 		decision?.kind !== 'fill-empty-fields' ||
 		!storedObservation ||
@@ -220,24 +349,74 @@ function classifyHydratedOutcome(input: {
 	if (
 		(!expectedApplied.bpm && !expectedApplied.keyMode) ||
 		input.outcome.applied.bpm !== expectedApplied.bpm ||
-		input.outcome.applied.keyMode !== expectedApplied.keyMode ||
+		input.outcome.applied.keyMode !== expectedApplied.keyMode
+	) {
+		return 'review'
+	}
+	if (
 		(expectedApplied.bpm &&
-			(row.track.bpm !== decision.proposalBinding.bpm?.value ||
-				!hasExactAppliedMarker({
-					track: row.track,
-					field: 'bpm',
-					source: decision.proposalBinding.bpm!.source,
-					attemptedAt: input.outcome.attemptedAt
-				}))) ||
+			row.track.bpm !== decision.proposalBinding.bpm?.value) ||
 		(expectedApplied.keyMode &&
 			(row.track.key !== decision.proposalBinding.keyMode?.key ||
-				row.track.mode !== decision.proposalBinding.keyMode?.mode ||
-				!hasExactAppliedMarker({
-					track: row.track,
-					field: 'keyMode',
-					source: decision.proposalBinding.keyMode!.source,
-					attemptedAt: input.outcome.attemptedAt
-				})))
+				row.track.mode !== decision.proposalBinding.keyMode?.mode))
+	) {
+		return 'review'
+	}
+
+	if (row.track.audio_features?.version === 2) {
+		const observationIds = await getExactV2AuthoredObservationIds({
+			track: row.track,
+			row,
+			sourceLabel: input.sourceLabel,
+			matcherPolicyVersion: input.matcherPolicyVersion,
+			attemptedAt: input.outcome.attemptedAt
+		})
+		const decoded = decodeTrackEvidence(row.track.audio_features)
+		if (!observationIds || !decoded.ok || decoded.evidence.origin !== 'v2') {
+			return 'review'
+		}
+		const bpmApplication = decoded.evidence.applied.bpm
+		const keyModeApplication = decoded.evidence.applied.keyMode
+		if (
+			(expectedApplied.bpm &&
+				(!bpmApplication ||
+					bpmApplication.source !== decision.proposalBinding.bpm!.source ||
+					bpmApplication.observationId !==
+						observationIds.get(decision.proposalBinding.bpm!.source) ||
+					bpmApplication.value !== decision.proposalBinding.bpm!.value ||
+					bpmApplication.appliedAt !== input.outcome.attemptedAt)) ||
+			(expectedApplied.keyMode &&
+				(!keyModeApplication ||
+					keyModeApplication.source !==
+						decision.proposalBinding.keyMode!.source ||
+					keyModeApplication.observationId !==
+						observationIds.get(decision.proposalBinding.keyMode!.source) ||
+					keyModeApplication.value.key !==
+						decision.proposalBinding.keyMode!.key ||
+					keyModeApplication.value.mode !==
+						decision.proposalBinding.keyMode!.mode ||
+					keyModeApplication.appliedAt !== input.outcome.attemptedAt))
+		) {
+			return 'review'
+		}
+		return 'done'
+	}
+
+	if (
+		(expectedApplied.bpm &&
+			!hasExactAppliedMarker({
+				track: row.track,
+				field: 'bpm',
+				source: decision.proposalBinding.bpm!.source,
+				attemptedAt: input.outcome.attemptedAt
+			})) ||
+		(expectedApplied.keyMode &&
+			!hasExactAppliedMarker({
+				track: row.track,
+				field: 'keyMode',
+				source: decision.proposalBinding.keyMode!.source,
+				attemptedAt: input.outcome.attemptedAt
+			}))
 	) {
 		return 'review'
 	}
@@ -251,31 +430,32 @@ function xmlSourceFromObservation(
 	if (observation.evidence.kind !== 'rekordboxXml') {
 		throw new TrackEnrichmentDraftHydrationError('source-identity-mismatch')
 	}
+	const source = observation.evidence.source
 	return {
 		sourceType: 'rekordboxXml',
 		index: observation.ordinal,
 		trackId: observation.evidence.trackId,
-		name: observation.name,
-		artist: observation.artist,
-		album: observation.album,
-		genre: observation.genre,
-		kind: null,
-		totalTimeSeconds: observation.totalTimeSeconds,
-		year: null,
-		averageBpm: observation.proposal.bpm?.value ?? null,
-		dateAdded: null,
-		bitRate: null,
-		sampleRate: null,
-		comments: null,
-		playCount: null,
-		rating: null,
+		name: source.name,
+		artist: source.artist,
+		album: source.album,
+		genre: source.genre,
+		kind: source.kind,
+		totalTimeSeconds: source.totalTimeSeconds,
+		year: source.year,
+		averageBpm: source.averageBpm,
+		dateAdded: source.dateAdded,
+		bitRate: source.bitRate,
+		sampleRate: source.sampleRate,
+		comments: source.comments,
+		playCount: source.playCount,
+		rating: source.rating,
 		location: null,
-		locationHint: observation.locationHint,
-		remixer: null,
-		tonality: null,
-		parsedKey: observation.proposal.keyMode?.key ?? null,
-		parsedMode: observation.proposal.keyMode?.mode ?? null,
-		label: null,
+		locationHint: source.locationHint,
+		remixer: source.remixer,
+		tonality: source.tonality,
+		parsedKey: source.parsedKey,
+		parsedMode: source.parsedMode,
+		label: source.label,
 		warnings: [...observation.warnings]
 	}
 }
@@ -287,80 +467,39 @@ function localSourceFromObservation(
 		throw new TrackEnrichmentDraftHydrationError('source-identity-mismatch')
 	}
 	const evidence = observation.evidence
-	const localValueSource = (
-		source: NonNullable<TrackEnrichmentDraftProposal['bpm']>['source'] | null
-	): LocalAudioValueSource => {
-		if (source === 'rekordboxXml') {
-			throw new TrackEnrichmentDraftHydrationError('source-identity-mismatch')
-		}
-		return source
-	}
-	const bpmSource = localValueSource(observation.proposal.bpm?.source ?? null)
-	const keyModeSource = localValueSource(
-		observation.proposal.keyMode?.source ?? null
-	)
-	const relativePath = evidence.fileIdentity.relativePath
-	const fileName = relativePath.split('/').at(-1) ?? relativePath
-	const hasAnalysisEvidence =
-		evidence.analyzerVersion !== null ||
-		evidence.configurationVersion !== null ||
-		evidence.bpmConfidence !== null ||
-		evidence.keyStrength !== null ||
-		bpmSource === 'essentiaBrowser' ||
-		keyModeSource === 'essentiaBrowser'
+	const source = evidence.source
 
 	return {
 		sourceType: 'localAudio',
 		index: observation.ordinal,
-		name: observation.name,
-		artist: observation.artist,
-		album: observation.album,
-		genre: observation.genre,
-		locationHint: relativePath,
-		totalTimeSeconds: observation.totalTimeSeconds,
-		averageBpm: observation.proposal.bpm?.value ?? null,
-		tonality: null,
-		parsedKey: observation.proposal.keyMode?.key ?? null,
-		parsedMode: observation.proposal.keyMode?.mode ?? null,
+		name: source.name,
+		artist: source.artist,
+		album: source.album,
+		genre: source.genre,
+		locationHint: source.locationHint,
+		totalTimeSeconds: source.totalTimeSeconds,
+		averageBpm: source.averageBpm,
+		tonality: source.tonality,
+		parsedKey: source.parsedKey,
+		parsedMode: source.parsedMode,
 		warnings: [...observation.warnings],
-		fileName,
-		fileSize: evidence.fileIdentity.size,
-		lastModified: evidence.fileIdentity.lastModified,
+		fileName: source.fileName,
+		fileSize: source.fileSize,
+		lastModified: source.lastModified,
 		tags: {
-			title: observation.name,
-			artist: observation.artist,
-			album: observation.album,
-			genres: observation.genre ? [observation.genre] : [],
-			durationSeconds: observation.totalTimeSeconds,
-			bpm:
-				bpmSource === 'embeddedTags'
-					? (observation.proposal.bpm?.value ?? null)
-					: null,
-			key: null
+			...source.tags,
+			genres: [...source.tags.genres]
 		},
-		analysis: hasAnalysisEvidence
+		analysis: source.analysis
 			? {
-					analyzerVersion: evidence.analyzerVersion ?? '',
-					configurationVersion: evidence.configurationVersion ?? '',
-					bpm:
-						bpmSource === 'essentiaBrowser'
-							? (observation.proposal.bpm?.value ?? null)
-							: null,
-					bpmConfidence: evidence.bpmConfidence,
-					bpmEstimates: [],
-					key: null,
-					scale: null,
-					keyStrength: evidence.keyStrength,
-					sampleRate: 0,
-					durationSeconds: observation.totalTimeSeconds ?? 0,
-					analyzedDurationSeconds: 0,
-					analysisOffsetSeconds: 0,
-					warnings: []
+					...source.analysis,
+					bpmEstimates: [...source.analysis.bpmEstimates],
+					warnings: [...source.analysis.warnings]
 				}
 			: null,
-		bpmSource,
-		keyModeSource,
-		requiresManualReview: evidence.requiresManualReview
+		bpmSource: source.bpmSource,
+		keyModeSource: source.keyModeSource,
+		requiresManualReview: source.requiresManualReview
 	}
 }
 
@@ -543,7 +682,7 @@ export async function hydrateTrackEnrichmentDraft(input: {
 	}
 	const decisionByOutcomeBinding = new Map(
 		draft.decisions.flatMap((decision) =>
-			decision.kind === 'fill-empty-fields'
+			decision.kind !== 'unknown'
 				? [
 						[
 							outcomeBindingKey(
@@ -569,12 +708,11 @@ export async function hydrateTrackEnrichmentDraft(input: {
 			throw new TrackEnrichmentDraftHydrationError('duplicate-outcome')
 		}
 		const decision = decisionByOutcomeBinding.get(binding) ?? null
-		const storedObservation =
-			decision?.kind === 'fill-empty-fields'
-				? (storedObservationByBinding.get(
-						`${decision.sourceBinding.sourceFingerprint}\n${decision.sourceBinding.observationFingerprint}`
-					) ?? null)
-				: null
+		const storedObservation = decision
+			? (storedObservationByBinding.get(
+					`${decision.sourceBinding.sourceFingerprint}\n${decision.sourceBinding.observationFingerprint}`
+				) ?? null)
+			: null
 		const observation = storedObservation
 			? (currentObservationBySnapshotId.get(
 					storedObservation.sourceSnapshotId
@@ -583,12 +721,14 @@ export async function hydrateTrackEnrichmentDraft(input: {
 		const row = observation
 			? (rowByOrdinal.get(observation.ordinal) ?? null)
 			: null
-		const disposition = classifyHydratedOutcome({
+		const disposition = await classifyHydratedOutcome({
 			outcome,
 			decision,
 			storedObservation,
 			currentObservation: observation,
-			row
+			row,
+			sourceLabel: draft.source.label,
+			matcherPolicyVersion: draft.versions.matcherPolicyVersion
 		})
 		if (disposition === 'done' && row) row.applied = true
 		hydratedOutcomeByBinding.set(binding, {
@@ -654,11 +794,22 @@ export async function hydrateTrackEnrichmentDraft(input: {
 					bpmMustBeNull: row?.canFillBpm ?? false,
 					keyModeMustBeNull: row?.canFillKeyMode ?? false
 				},
-				stageable: row ? canStageTrackEnrichmentRow(row) : false,
+				stageable: row
+					? decision.kind === 'evidence-only'
+						? Boolean(
+								row.track &&
+								!row.applied &&
+								!row.stagingBlockedReason &&
+								!row.canFillBpm &&
+								!row.canFillKeyMode &&
+								row.track.updated_at
+							)
+						: canStageTrackEnrichmentRow(row)
+					: false,
 				retentionAllowedByPolicy: compatibility.canRetainStaging
 			})
 			const outcomeDisposition =
-				decision.kind === 'fill-empty-fields'
+				decision.kind !== 'unknown'
 					? (hydratedOutcomeByBinding.get(
 							outcomeBindingKey(
 								decision.sourceBinding.sourceFingerprint,

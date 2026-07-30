@@ -18,7 +18,7 @@ export type TrackEvidenceUnknownFields = Record<string, TrackEvidenceJson>
 
 export type TrackEvidenceSourceKey = (typeof TRACK_EVIDENCE_SOURCE_KEYS)[number]
 
-// Retained for the active v1 writer while the Evidence v2 writer is gated.
+// Shared by the legacy v1 read shape and current v2 Evidence writer.
 export type AudioFeatureSourceKey = TrackEvidenceSourceKey
 
 export type TrackAudioFeaturesV1 = {
@@ -36,9 +36,9 @@ export type TrackAudioFeaturesV1 = {
 	}
 }
 
-// The active writer remains v1 until the atomic repository, archive, and draft
-// integration gates in Plans 070, 074, and 075 are complete.
-export type TrackAudioFeatures = TrackAudioFeaturesV1
+// The persisted read surface accepts both generations. Current enrichment
+// writers emit v2 while older rows remain readable through the v1 migrator.
+export type TrackAudioFeatures = TrackAudioFeaturesV1 | TrackEvidenceV2
 
 export type TrackEvidenceMatchConfidence = 'high' | 'medium' | 'manual'
 
@@ -159,6 +159,22 @@ export type TrackEvidenceLegacySources = {
 	essentiaBrowser?: TrackEvidenceLegacyObservation<EssentiaBrowserEvidenceData>
 }
 
+/**
+ * A v1 row upgrades incrementally: a newly observed source replaces only its
+ * own bounded slot while untouched v1 slots remain honest legacy observations.
+ */
+export type TrackEvidenceV2Sources = {
+	rekordboxXml?:
+		| TrackEvidenceObservation<RekordboxXmlEvidenceData>
+		| TrackEvidenceLegacyObservation<RekordboxXmlEvidenceData>
+	embeddedTags?:
+		| TrackEvidenceObservation<EmbeddedTagsEvidenceData>
+		| TrackEvidenceLegacyObservation<EmbeddedTagsEvidenceData>
+	essentiaBrowser?:
+		| TrackEvidenceObservation<EssentiaBrowserEvidenceData>
+		| TrackEvidenceLegacyObservation<EssentiaBrowserEvidenceData>
+}
+
 export type TrackEvidenceBpmApplication = {
 	source: TrackEvidenceSourceKey
 	observationId: string
@@ -215,11 +231,24 @@ type TrackEvidenceV2Base = {
 	updatedAt: string
 }
 
-export type TrackEvidenceV2Current = TrackEvidenceV2Base & {
+/** A v2 value authored without any migrated v1 source slots or envelope. */
+export type TrackEvidenceV2FullyCurrent = TrackEvidenceV2Base & {
 	origin: 'v2'
 	applied: TrackEvidenceApplications
 	sources: TrackEvidenceCurrentSources
 	legacy: null
+}
+
+export type TrackEvidenceV2Current = TrackEvidenceV2Base & {
+	origin: 'v2'
+	applied: TrackEvidenceApplications
+	sources: TrackEvidenceV2Sources
+	/**
+	 * Retained when this value was upgraded from v1. It keeps the unattributed
+	 * global match, applied markers, and unknown fields that current source
+	 * observations cannot truthfully absorb.
+	 */
+	legacy: TrackEvidenceLegacyV1 | null
 }
 
 export type TrackEvidenceV2MigratedV1 = TrackEvidenceV2Base & {

@@ -138,30 +138,32 @@ function seedDemoPinia(pinia: Pinia): Promise<void> {
 
 		session.initializeDecks(2)
 		session.setTrackSource(tracks.tracks)
-		session.$patch({
-			decks: session.decks.map((deck, index) => ({
-				...deck,
-				loadedTrack:
-					index === 0
-						? (tracks.tracks[8] ?? null)
-						: index === 1
-							? (tracks.tracks[16] ?? null)
-							: null
-			})),
-			currentSession: [
-				{
-					track_id: tracks.tracks[4]?.id ?? '',
-					time_added: Date.parse('2026-07-18T00:00:00.000Z'),
-					adjusted_bpm: null,
-					transition_rating: 4
-				},
-				{
-					track_id: tracks.tracks[8]?.id ?? '',
-					time_added: Date.parse('2026-07-18T00:05:00.000Z'),
-					adjusted_bpm: null,
-					transition_rating: null
-				}
-			].filter((entry) => entry.track_id)
+		const demoDecks = session.decks.map((deck, index) => ({
+			...deck,
+			loadedTrack:
+				index === 0
+					? (tracks.tracks[8] ?? null)
+					: index === 1
+						? (tracks.tracks[16] ?? null)
+						: null
+		}))
+		const demoCurrentSession = [
+			{
+				track_id: tracks.tracks[4]?.id ?? '',
+				time_added: Date.parse('2026-07-18T00:00:00.000Z'),
+				adjusted_bpm: null,
+				transition_rating: 4
+			},
+			{
+				track_id: tracks.tracks[8]?.id ?? '',
+				time_added: Date.parse('2026-07-18T00:05:00.000Z'),
+				adjusted_bpm: null,
+				transition_rating: null
+			}
+		].filter((entry) => entry.track_id)
+		session.$patch((state) => {
+			state.decks = demoDecks
+			state.currentSession = demoCurrentSession
 		})
 	})()
 	seededDemoPinia.set(pinia, created)

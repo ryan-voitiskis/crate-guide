@@ -74,6 +74,7 @@ function binding(
 	}
 ): TrackEnrichmentDraftBatchBinding {
 	return {
+		intentKind: 'fill-empty-fields',
 		sourceFingerprint: `source-${targetTrackId}`,
 		targetTrackId,
 		requested
@@ -180,6 +181,29 @@ describe('track enrichment draft batch outcomes', () => {
 			applied: { bpm: false, keyMode: false }
 		})
 		expect(getTrackEnrichmentDraftOutcomeDisposition(outcome!)).toBe('retry')
+	})
+
+	it('records a confirmed Evidence-only save without claiming value application', () => {
+		const [outcome] = map(
+			[
+				{
+					...binding('track-a', { bpm: false, keyMode: false }),
+					intentKind: 'evidence-only'
+				}
+			],
+			[success('track-a')]
+		)
+
+		expect(outcome).toEqual({
+			intentKind: 'evidence-only',
+			sourceFingerprint: 'source-track-a',
+			targetTrackId: 'track-a',
+			status: 'succeeded',
+			applied: { bpm: false, keyMode: false },
+			attemptedAt: ATTEMPTED_AT,
+			failureCode: null
+		})
+		expect(getTrackEnrichmentDraftOutcomeDisposition(outcome!)).toBe('done')
 	})
 
 	it('does not invent outcomes for cancelled bindings that returned no result', () => {

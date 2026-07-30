@@ -5,11 +5,15 @@ import type {
 	TrackEnrichmentDraftUiState,
 	TrackEnrichmentDraftWorkspaceBinding
 } from '~/types/trackEnrichmentDraft'
-import { TRACK_ENRICHMENT_DRAFT_SCHEMA_VERSION } from '~/types/trackEnrichmentDraft'
+import {
+	TRACK_ENRICHMENT_DRAFT_EVIDENCE_PRECONDITION_VERSION,
+	TRACK_ENRICHMENT_DRAFT_SCHEMA_VERSION
+} from '~/types/trackEnrichmentDraft'
 import {
 	encodeTrackEnrichmentDraft,
 	getCurrentTrackEnrichmentDraftVersions
 } from './trackEnrichmentDraftCodec'
+import { createTrackEnrichmentCurrentEvidenceFingerprint } from './trackEnrichmentDraftEvidencePrecondition'
 import {
 	createLocalAudioDraftObservationSet,
 	createRekordboxDraftObservationSet
@@ -54,6 +58,7 @@ export class TrackEnrichmentDraftProjectionError extends Error {
 			| 'review-state-mismatch'
 			| 'invalid-source-label'
 			| 'invalid-anchor'
+			| 'invalid-current-evidence'
 			| 'observation-projection-mismatch'
 	) {
 		super(`Unable to project track enrichment draft: ${code}`)
@@ -168,7 +173,8 @@ export async function projectTrackEnrichmentDraft(
 		)
 	}
 
-	const decisions = rows.flatMap(({ row, reviewedAt, staged }, ordinal) => {
+	const decisions: TrackEnrichmentDraft['decisions'] = []
+	for (const [ordinal, { row, reviewedAt, staged }] of rows.entries()) {
 		const observation = observationSet.observations[ordinal]
 		if (!observation || observation.ordinal !== ordinal) {
 			throw new TrackEnrichmentDraftProjectionError(
@@ -195,9 +201,9 @@ export async function projectTrackEnrichmentDraft(
 			throw new TrackEnrichmentDraftProjectionError('review-state-mismatch')
 		}
 
-		if (!row.track) return []
-		return [
-			{
+		if (!row.track) continue
+		if (canFillBpm || canFillKeyMode) {
+			decisions.push({
 				kind: 'fill-empty-fields' as const,
 				intentVersion: 1 as const,
 				sourceBinding: {
@@ -213,9 +219,44 @@ export async function projectTrackEnrichmentDraft(
 				},
 				staged: staged && canStageEnrichmentRow(row),
 				reviewedAt
+			})
+			continue
+		}
+
+		const currentEvidenceFingerprint =
+			await createTrackEnrichmentCurrentEvidenceFingerprint(
+				row.track.audio_features
+			)
+		if (!currentEvidenceFingerprint) {
+			if (staged) {
+				throw new TrackEnrichmentDraftProjectionError(
+					'invalid-current-evidence'
+				)
 			}
-		]
-	})
+			continue
+		}
+		const canStageEvidenceOnly =
+			!row.applied && !row.stagingBlockedReason && row.track.updated_at !== null
+		decisions.push({
+			kind: 'evidence-only',
+			intentVersion: 1,
+			sourceBinding: {
+				sourceSnapshotId: observation.sourceSnapshotId,
+				sourceFingerprint: observation.sourceFingerprint,
+				observationFingerprint: observation.observationFingerprint
+			},
+			targetBinding: { trackId: row.track.id },
+			preconditionBinding: {
+				expectedTargetUpdatedAt: row.track.updated_at,
+				currentEvidenceFingerprint: {
+					version: TRACK_ENRICHMENT_DRAFT_EVIDENCE_PRECONDITION_VERSION,
+					digest: currentEvidenceFingerprint
+				}
+			},
+			staged: staged && canStageEvidenceOnly,
+			reviewedAt
+		})
+	}
 
 	let anchorSourceFingerprint: string | null = null
 	if (input.ui.anchorSourceIndex !== null) {

@@ -77,6 +77,8 @@ export type TrackEvidenceIdentityMatchInterpretation =
 			confidence: TrackEvidenceMatchConfidence
 			score: number
 			matcherPolicyVersion: string
+			reasons: string[]
+			warnings: string[]
 	  }
 	| {
 			kind: 'identity-match-confidence'
@@ -97,6 +99,39 @@ export type TrackEvidenceAnalyzerMetrics = {
 	}
 }
 
+export type TrackEvidenceSourceDetails =
+	| {
+			kind: 'rekordboxXml'
+			fileName: string
+			locationHint: string | null
+			rekordboxTrackId: string | null
+			mediaKind: string | null
+			sampleRate: number | null
+			bitRate: number | null
+	  }
+	| {
+			kind: 'embeddedTags'
+			fileName: string
+			locationHint: string | null
+			title: string | null
+			artist: string | null
+			album: string | null
+			genres: string[]
+			fileSize: number
+			durationSeconds: number | null
+	  }
+	| {
+			kind: 'essentiaBrowser'
+			analyzerVersion: string
+			configurationVersion: string
+			sampleRate: number
+			durationSeconds: number
+			analyzedDurationSeconds: number
+			analysisOffsetSeconds: number
+			bpmEstimates: number[]
+			warnings: string[]
+	  }
+
 export type TrackEvidenceSourceCoverageEntry = {
 	source: TrackEvidenceSourceKey
 	sourceLabel: string
@@ -106,6 +141,7 @@ export type TrackEvidenceSourceCoverageEntry = {
 	observedAt: string | null
 	identityMatch: TrackEvidenceIdentityMatchInterpretation | null
 	analyzerMetrics: TrackEvidenceAnalyzerMetrics | null
+	details: TrackEvidenceSourceDetails | null
 }
 
 export type TrackEvidenceSourceCoverage = {
@@ -278,8 +314,7 @@ function interpretBpm(
 		}
 	}
 
-	const legacyMarker =
-		evidence.origin === 'v1-migrated' ? evidence.legacy.applied.bpm : null
+	const legacyMarker = evidence.legacy?.applied.bpm ?? null
 	return {
 		current,
 		attribution:
@@ -318,8 +353,7 @@ function interpretKeyMode(
 		}
 	}
 
-	const legacyMarker =
-		evidence.origin === 'v1-migrated' ? evidence.legacy.applied.keyMode : null
+	const legacyMarker = evidence.legacy?.applied.keyMode ?? null
 	return {
 		current,
 		attribution:
@@ -346,14 +380,19 @@ function identityMatch(
 		label: `${sourceLabel}: ${IDENTITY_CONFIDENCE_LABELS[observation.match.confidence]}`,
 		confidence: observation.match.confidence,
 		score: observation.match.score,
-		matcherPolicyVersion: observation.match.matcherPolicyVersion
+		matcherPolicyVersion: observation.match.matcherPolicyVersion,
+		reasons: [...observation.match.reasons],
+		warnings: [...observation.match.warnings]
 	}
 }
 
 function coverageEntry(
 	source: TrackEvidenceSourceKey,
 	observation: CoverageObservation | undefined,
-	analyzerMetrics: TrackEvidenceAnalyzerMetrics | null = null
+	options: {
+		analyzerMetrics?: TrackEvidenceAnalyzerMetrics | null
+		details?: TrackEvidenceSourceDetails | null
+	} = {}
 ): TrackEvidenceSourceCoverageEntry {
 	const sourceLabel = SOURCE_LABELS[source]
 	return {
@@ -371,7 +410,8 @@ function coverageEntry(
 					: null,
 		observedAt: observation?.observedAt ?? null,
 		identityMatch: observation ? identityMatch(source, observation) : null,
-		analyzerMetrics: observation ? analyzerMetrics : null
+		analyzerMetrics: observation ? (options.analyzerMetrics ?? null) : null,
+		details: observation ? (options.details ?? null) : null
 	}
 }
 
@@ -379,13 +419,39 @@ function sourceCoverage(
 	evidence: TrackEvidenceV2
 ): TrackEvidenceSourceCoverage {
 	const essentia = evidence.sources.essentiaBrowser
+	const rekordbox = evidence.sources.rekordboxXml
+	const embeddedTags = evidence.sources.embeddedTags
 	const bySource: TrackEvidenceSourceCoverage['bySource'] = {
-		rekordboxXml: coverageEntry('rekordboxXml', evidence.sources.rekordboxXml),
-		embeddedTags: coverageEntry('embeddedTags', evidence.sources.embeddedTags),
-		essentiaBrowser: coverageEntry(
-			'essentiaBrowser',
-			essentia,
-			essentia
+		rekordboxXml: coverageEntry('rekordboxXml', rekordbox, {
+			details: rekordbox
+				? {
+						kind: 'rekordboxXml',
+						fileName: rekordbox.data.fileName,
+						locationHint: rekordbox.data.locationHint,
+						rekordboxTrackId: rekordbox.data.rekordboxTrackId,
+						mediaKind: rekordbox.data.kind,
+						sampleRate: rekordbox.data.sampleRate,
+						bitRate: rekordbox.data.bitRate
+					}
+				: null
+		}),
+		embeddedTags: coverageEntry('embeddedTags', embeddedTags, {
+			details: embeddedTags
+				? {
+						kind: 'embeddedTags',
+						fileName: embeddedTags.data.fileName,
+						locationHint: embeddedTags.data.locationHint,
+						title: embeddedTags.data.title,
+						artist: embeddedTags.data.artist,
+						album: embeddedTags.data.album,
+						genres: [...embeddedTags.data.genres],
+						fileSize: embeddedTags.data.fileSize,
+						durationSeconds: embeddedTags.data.durationSeconds
+					}
+				: null
+		}),
+		essentiaBrowser: coverageEntry('essentiaBrowser', essentia, {
+			analyzerMetrics: essentia
 				? {
 						kind: 'essentia-analyzer-metrics',
 						bpmConfidence: {
@@ -397,8 +463,21 @@ function sourceCoverage(
 							value: essentia.data.keyStrength
 						}
 					}
+				: null,
+			details: essentia
+				? {
+						kind: 'essentiaBrowser',
+						analyzerVersion: essentia.data.analyzerVersion,
+						configurationVersion: essentia.data.configurationVersion,
+						sampleRate: essentia.data.sampleRate,
+						durationSeconds: essentia.data.durationSeconds,
+						analyzedDurationSeconds: essentia.data.analyzedDurationSeconds,
+						analysisOffsetSeconds: essentia.data.analysisOffsetSeconds,
+						bpmEstimates: [...essentia.data.bpmEstimates],
+						warnings: [...essentia.data.warnings]
+					}
 				: null
-		)
+		})
 	}
 	const retainedSources = TRACK_EVIDENCE_SOURCE_KEYS.filter(
 		(source) => bySource[source].retained
@@ -418,7 +497,7 @@ function sourceCoverage(
 function legacyGlobalMatch(
 	evidence: TrackEvidenceV2
 ): TrackEvidenceLegacyGlobalMatchInterpretation | null {
-	if (evidence.origin !== 'v1-migrated') return null
+	if (!evidence.legacy) return null
 	return {
 		kind: 'legacy-global-identity-match',
 		state: 'unattributed',

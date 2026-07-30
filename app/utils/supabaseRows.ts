@@ -11,6 +11,7 @@ import type {
 	SavedSet,
 	Track
 } from '../../shared/types/supabase'
+import { decodeTrackEvidence } from './trackEvidenceCodec'
 
 export type DecodeIssue = {
 	entity: 'record' | 'track' | 'saved-set'
@@ -45,10 +46,6 @@ function isFiniteNumber(value: unknown): value is number {
 
 function isNullableFiniteNumber(value: unknown): value is number | null {
 	return value === null || isFiniteNumber(value)
-}
-
-function isNullableString(value: unknown): value is string | null {
-	return value === null || typeof value === 'string'
 }
 
 function isStringArray(value: unknown): value is string[] {
@@ -95,141 +92,8 @@ function isBeatportData(
 	return isBeatportNotFoundMarker(value) || isBeatportTrackData(value)
 }
 
-const AUDIO_SOURCE_KEYS = [
-	'rekordboxXml',
-	'embeddedTags',
-	'essentiaBrowser'
-] as const
-
-function isAudioSourceKey(
-	value: unknown
-): value is (typeof AUDIO_SOURCE_KEYS)[number] {
-	return (
-		typeof value === 'string' &&
-		AUDIO_SOURCE_KEYS.some((source) => source === value)
-	)
-}
-
-function isAppliedSource(value: unknown): boolean {
-	return (
-		value === null ||
-		(isObject(value) &&
-			isAudioSourceKey(value.source) &&
-			typeof value.appliedAt === 'string')
-	)
-}
-
-function hasNullableStrings(
-	value: UnknownRecord,
-	fields: readonly string[]
-): boolean {
-	return fields.every((field) => isNullableString(value[field]))
-}
-
-function hasNullableFiniteNumbers(
-	value: UnknownRecord,
-	fields: readonly string[]
-): boolean {
-	return fields.every((field) => isNullableFiniteNumber(value[field]))
-}
-
-function isRekordboxXmlSource(value: unknown): boolean {
-	if (!isObject(value)) return false
-
-	return (
-		typeof value.importedAt === 'string' &&
-		typeof value.fileName === 'string' &&
-		hasNullableStrings(value, [
-			'name',
-			'artist',
-			'album',
-			'genre',
-			'locationHint',
-			'tonality',
-			'kind',
-			'comments',
-			'remixer',
-			'label',
-			'dateAdded'
-		]) &&
-		hasNullableFiniteNumbers(value, [
-			'averageBpm',
-			'parsedKey',
-			'parsedMode',
-			'totalTimeSeconds',
-			'year',
-			'sampleRate',
-			'bitRate',
-			'rating',
-			'playCount'
-		])
-	)
-}
-
-function isEmbeddedTagsSource(value: unknown): boolean {
-	if (!isObject(value)) return false
-
-	return (
-		typeof value.importedAt === 'string' &&
-		typeof value.fileName === 'string' &&
-		isNullableString(value.locationHint) &&
-		isFiniteNumber(value.fileSize) &&
-		isFiniteNumber(value.lastModified) &&
-		hasNullableStrings(value, ['title', 'artist', 'album', 'key']) &&
-		isStringArray(value.genres) &&
-		isNullableFiniteNumber(value.durationSeconds) &&
-		isNullableFiniteNumber(value.bpm)
-	)
-}
-
-function isEssentiaBrowserSource(value: unknown): boolean {
-	if (!isObject(value)) return false
-
-	return (
-		typeof value.importedAt === 'string' &&
-		typeof value.analyzerVersion === 'string' &&
-		typeof value.configurationVersion === 'string' &&
-		isNullableFiniteNumber(value.bpm) &&
-		isNullableFiniteNumber(value.bpmConfidence) &&
-		Array.isArray(value.bpmEstimates) &&
-		value.bpmEstimates.every(isFiniteNumber) &&
-		isNullableString(value.key) &&
-		isNullableString(value.scale) &&
-		isNullableFiniteNumber(value.keyStrength) &&
-		isFiniteNumber(value.sampleRate) &&
-		isFiniteNumber(value.durationSeconds) &&
-		isFiniteNumber(value.analyzedDurationSeconds) &&
-		isFiniteNumber(value.analysisOffsetSeconds) &&
-		isStringArray(value.warnings)
-	)
-}
-
 function isTrackAudioFeatures(value: unknown): value is TrackAudioFeatures {
-	if (!isObject(value)) return false
-	if (value.version !== 1 || typeof value.updatedAt !== 'string') return false
-	if (!isObject(value.applied) || !isObject(value.match)) return false
-	if (!isObject(value.sources)) return false
-
-	const confidence = value.match.confidence
-	const validMatch =
-		(confidence === 'high' ||
-			confidence === 'medium' ||
-			confidence === 'manual') &&
-		isFiniteNumber(value.match.score) &&
-		isStringArray(value.match.reasons) &&
-		isStringArray(value.match.warnings)
-
-	return (
-		isAppliedSource(value.applied.bpm) &&
-		isAppliedSource(value.applied.keyMode) &&
-		validMatch &&
-		(value.sources.rekordboxXml === undefined ||
-			isRekordboxXmlSource(value.sources.rekordboxXml)) &&
-		(value.sources.embeddedTags === undefined ||
-			isEmbeddedTagsSource(value.sources.embeddedTags)) &&
-		(value.sources.essentiaBrowser === undefined ||
-			isEssentiaBrowserSource(value.sources.essentiaBrowser))
-	)
+	return decodeTrackEvidence(value).ok
 }
 
 type DecodedPlayedTrackEntry = {

@@ -112,9 +112,76 @@ export function createTrackEnrichmentDraftFixture(
 							configurationVersion: 'local-audio-analysis-v1',
 							bpmConfidence: 0.94,
 							keyStrength: 0.8,
-							requiresManualReview: false
+							requiresManualReview: false,
+							source: {
+								name: 'Track',
+								artist: 'Artist',
+								album: 'Release',
+								genre: 'House',
+								locationHint: 'Artist/Release/Track.mp3',
+								totalTimeSeconds: 360,
+								averageBpm: 124,
+								tonality: '7A',
+								parsedKey: 7,
+								parsedMode: 0,
+								fileName: 'Track.mp3',
+								fileSize: 123_456,
+								lastModified: 1_753_146_000_000,
+								tags: {
+									title: 'Track',
+									artist: 'Artist',
+									album: 'Release',
+									genres: ['House'],
+									durationSeconds: 360,
+									bpm: 124,
+									key: '7A'
+								},
+								analysis: {
+									analyzerVersion: 'essentia-browser-v1',
+									configurationVersion: 'local-audio-analysis-v1',
+									bpm: null,
+									bpmConfidence: 0.94,
+									bpmEstimates: [],
+									key: 'G',
+									scale: 'minor',
+									keyStrength: 0.8,
+									sampleRate: 44_100,
+									durationSeconds: 360,
+									analyzedDurationSeconds: 180,
+									analysisOffsetSeconds: 90,
+									warnings: []
+								},
+								bpmSource: 'embeddedTags',
+								keyModeSource: 'essentiaBrowser',
+								requiresManualReview: false
+							}
 						}
-					: { kind: 'rekordboxXml', trackId: '42' }
+					: {
+							kind: 'rekordboxXml',
+							trackId: '42',
+							source: {
+								name: 'Track',
+								artist: 'Artist',
+								album: 'Release',
+								genre: 'House',
+								kind: 'File',
+								totalTimeSeconds: 360,
+								year: 2026,
+								averageBpm: 124,
+								dateAdded: '2026-07-22',
+								bitRate: 1_411,
+								sampleRate: 44_100,
+								comments: null,
+								playCount: 1,
+								rating: 0,
+								locationHint: 'Artist/Release/Track.mp3',
+								remixer: null,
+								tonality: '7A',
+								parsedKey: 7,
+								parsedMode: 0,
+								label: null
+							}
+						}
 			}
 		],
 		decisions: [

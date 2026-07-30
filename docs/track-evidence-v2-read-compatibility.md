@@ -4,10 +4,11 @@ Track Evidence explains which bounded observations Crate Guide retained. It is
 not an audit history, proof that a value is correct, or proof that analysis did
 or did not occur.
 
-This document describes a **compatibility reader only**. The live track-row
-decoder and every production writer remain on Evidence v1. Nothing in this
-foundation writes v2 to the database, browser library, archive, or enrichment
-workflow.
+This document describes the **read compatibility contract** and the signed-in
+cloud writer that activates v2. The live track-row decoder accepts persisted
+Evidence v1 and v2. Reviewed cloud enrichment writes v2 through the
+owner-scoped, row compare-and-swap RPC. The browser-library repository and
+portable archives do not write or claim to carry v2.
 
 ## Bounded v2 contract
 
@@ -33,11 +34,12 @@ An applied BPM or key/mode snapshot records:
 - the value applied; and
 - when the value was applied.
 
-The compatibility reader rejects a current snapshot if its source slot is
-absent or its observation ID does not exactly match that slot. This prevents a
-dangling attribution from being displayed as valid provenance. Migrated v1
-data cannot satisfy this relationship and therefore keeps current v2 applied
-snapshots null.
+An application snapshot remains useful even after the bounded source slot is
+replaced or removed: it still records the value, source, observation identity,
+and application time. The reader accepts that snapshot but reports its source
+observation as no longer retained; it never displays the newer slot as the
+source of the older application. Migrated v1 data has no applied values or
+observation identities and therefore keeps current v2 applied snapshots null.
 
 The model version is `latest-per-source-v1`. There is no observation array and
 no append-only history hidden in JSON. A future immutable timeline would need a
@@ -67,6 +69,24 @@ Legacy timestamps and finite numeric values remain in the domain accepted by
 the existing v1 row decoder. Migration does not silently normalize or clamp
 them. Non-finite numbers are not JSON-compatible and are rejected.
 
+### Incremental v1 upgrade
+
+The bounded model permits a lossless, source-at-a-time upgrade. When the cloud
+writer adds a current observation to a migrated v1 value:
+
+- the touched source slot becomes a current `observation`;
+- every untouched known v1 slot remains a `legacy-v1` observation;
+- unknown fields from the touched known v1 slot move to
+  `legacy.unknownFields.sources.<source>` rather than being discarded;
+- `origin` becomes `v2`; and
+- the `legacy` envelope remains attached so the unattributed global match,
+  applied markers, and unknown v1 fields are not discarded or reassigned.
+
+A current v2 object that retains any `legacy-v1` source slot is invalid without
+that legacy envelope. Replacing a source slot intentionally supersedes that
+source's previous latest observation; it does not create history or rewrite an
+older application snapshot to point at the replacement.
+
 ## Strict and privacy-preserving reads
 
 The reader has a 49,152-byte serialized ceiling, matching the existing
@@ -92,12 +112,14 @@ Failures contain stable issue codes and JSON-pointer locations only. They do
 not echo rejected values in logs or UI-facing errors. The codec fails closed;
 it does not silently strip a private value and call the remainder lossless.
 
-## Future Evidence statuses
+## Derived Evidence statuses
 
-Later consumers can derive useful labels without changing the stored model:
+Consumers can derive useful labels without changing the stored model:
 
 - compare a track's current BPM or key/mode with the applied value snapshot to
   distinguish current from changed after application;
+- label an application whose exact source observation was superseded or removed
+  as source observation not retained;
 - treat a populated value without an attributable current snapshot as
   unattributed;
 - expose missing legacy sources honestly when a v1 marker names a source that
@@ -105,26 +127,59 @@ Later consumers can derive useful labels without changing the stored model:
 - apply a visible, versioned policy to latest source values for agreement and
   conflict.
 
-These are display interpretations, not truth claims. This compatibility step
-does not add those UI labels or an agreement policy.
+These are display interpretations, not truth claims. Identity-match
+confidence, analyzer confidence, agreement, and application state remain
+separate axes.
 
-## Integration gates still closed
+## Read-only collection and selected-track views
 
-Before any production writer can emit v2, Plans 070, 074, and 075 still need to
-provide and verify:
+The collection Evidence lens keeps its projection bounded for large libraries.
+It shows current values, retained per-source BPM/key values, source-specific
+identity-match state, latest observation dates, applied source/state, agreement
+or conflict, and whether retained Essentia analyzer/configuration identifiers
+differ from the current local-analysis configuration. The lens never retains
+filenames, relative hints, or raw Evidence in its row projection.
 
-1. atomic per-source repository merges and compare-and-swap behavior for both
-   cloud and accountless browser repositories;
-2. a database/RPC validator and migration that old readers cannot silently
-   downgrade;
-3. archive import/export round-trips with old and new golden fixtures;
-4. a versioned enrichment-draft intent for explicitly approved evidence-only
-   saves, including rematch invalidation;
-5. fill-only value behavior, with populated conflicts sent to review rather
-   than overwritten; and
-6. Evidence lens and inspector UX that separates identity match, analyzer
-   confidence, agreement, and divergence.
+The selected-track inspector may disclose the strictly decoded, privacy-safe
+details needed to understand one retained observation:
 
-Until those gates pass, `TrackAudioFeatures` intentionally remains the v1 type,
-`decodeTrackRow` remains v1-only, and active enrichment merge functions keep
-writing v1.
+- basename-style filenames and sanitized relative hints;
+- Rekordbox track identity;
+- source-specific match score, policy, reasons, and warnings;
+- analyzer and configuration identifiers;
+- analyzed segment duration and offset, sample rate, BPM estimates, BPM
+  analyzer confidence, key strength, and analyzer warnings; and
+- the applied value, source, application time, and a prominent changed-after-
+  import state.
+
+Identity-match confidence and analyzer metrics have separate headings and
+labels. Filenames and relative hints are context for the retained observation,
+not downloadable paths. Missing Evidence does not establish whether analysis
+ran. These views provide comparison and inspection only; they do not overwrite
+populated BPM/key values.
+
+## Cloud write and concurrency contract
+
+The cloud writer constructs one strict, complete v2 value and submits it with
+the target row revision. The RPC validates ownership, schema, privacy,
+idempotency, and the compare-and-swap precondition before replacing
+`audio_features`. A concurrent update—including an observation from another
+source—returns `stale`; it cannot silently replace either source slot. The
+client must rehydrate the current row, require review again where bindings
+changed, and retry with a newly constructed value. This is safe CAS-and-retry,
+not a server-side merge of stale JSON.
+
+An explicit `evidence-only` draft intent may retain reviewed Evidence without
+changing populated top-level BPM/key/mode. It is never default-staged and resume
+restores it only while source, observation, matcher target, target revision, and
+current-Evidence bindings remain exact. The read-only collection lens and
+inspector keep identity match, analyzer confidence, agreement, and divergence
+separate.
+
+The database rejects malformed v2, direct v2 mutation, and v2-to-v1 downgrade.
+That makes a prior v1-only application unsuitable as an application-only
+rollback once any v2 value exists.
+
+Portable archives remain deferred and make no Evidence portability promise.
+Any future archive writer must define and test v2 export/import compatibility
+before presenting Evidence as portable.

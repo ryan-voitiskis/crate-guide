@@ -1,5 +1,6 @@
 import type {
 	TrackEvidenceV2Current,
+	TrackEvidenceV2FullyCurrent,
 	TrackEvidenceV2MigratedV1
 } from '../../shared/types/audioFeatures'
 
@@ -222,7 +223,7 @@ export const migratedTrackEvidenceV2Golden: TrackEvidenceV2MigratedV1 = {
 	}
 }
 
-export const currentTrackEvidenceV2Golden: TrackEvidenceV2Current = {
+export const currentTrackEvidenceV2Golden: TrackEvidenceV2FullyCurrent = {
 	version: 2,
 	modelVersion: 'latest-per-source-v1',
 	origin: 'v2',
@@ -333,3 +334,22 @@ export const currentTrackEvidenceV2Golden: TrackEvidenceV2Current = {
 	},
 	legacy: null
 }
+
+/**
+ * The first current observation on a v1 row replaces only its own source slot.
+ * Untouched source observations and the unattributed v1 envelope remain intact.
+ */
+export const mixedTrackEvidenceV2Golden = {
+	...migratedTrackEvidenceV2Golden,
+	origin: 'v2',
+	updatedAt: '2026-07-21T12:00:00.000Z',
+	applied: {
+		bpm: currentTrackEvidenceV2Golden.applied.bpm,
+		keyMode: null
+	},
+	sources: {
+		...migratedTrackEvidenceV2Golden.sources,
+		rekordboxXml: currentTrackEvidenceV2Golden.sources.rekordboxXml
+	},
+	legacy: migratedTrackEvidenceV2Golden.legacy
+} satisfies TrackEvidenceV2Current

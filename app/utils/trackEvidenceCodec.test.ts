@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
 	currentTrackEvidenceV2Golden,
 	legacyTrackAudioFeaturesV1Golden,
-	migratedTrackEvidenceV2Golden
+	migratedTrackEvidenceV2Golden,
+	mixedTrackEvidenceV2Golden
 } from '../../test/fixtures/trackEvidence'
 import {
 	TRACK_EVIDENCE_MAX_SERIALIZED_BYTES,
@@ -78,6 +79,32 @@ describe('track Evidence compatibility codec', () => {
 			evidence: currentTrackEvidenceV2Golden
 		})
 		expect(decodeTrackEvidenceV2(decoded.evidence)).toEqual(decoded)
+	})
+
+	it('round-trips a lossless incremental v1 upgrade with mixed source slots', () => {
+		const decoded = expectSuccess(
+			decodeTrackEvidenceV2(
+				JSON.parse(JSON.stringify(mixedTrackEvidenceV2Golden)) as unknown
+			)
+		)
+
+		expect(decoded).toEqual({
+			ok: true,
+			sourceVersion: 2,
+			evidence: mixedTrackEvidenceV2Golden
+		})
+		expect(decoded.evidence.sources.rekordboxXml).toMatchObject({
+			kind: 'observation',
+			observationId: 'obs-rbx-20260721-001'
+		})
+		expect(decoded.evidence.sources.embeddedTags).toMatchObject({
+			kind: 'legacy-v1',
+			observationId: null,
+			unknownFields: { futureSourceField: ['tag-reader-vNext'] }
+		})
+		expect(decoded.evidence.legacy).toEqual(
+			migratedTrackEvidenceV2Golden.legacy
+		)
 	})
 
 	it('migrates v1 deterministically into the exact honest legacy golden', () => {
@@ -299,7 +326,7 @@ describe('track Evidence compatibility codec', () => {
 			'obs-rbx-dangling'
 		]
 	] as const)(
-		'rejects an applied snapshot with a %s',
+		'accepts an applied snapshot with a %s',
 		(_description, path, replacement) => {
 			const candidate = mutableFixture(currentTrackEvidenceV2Golden)
 			if (replacement === undefined) {
@@ -308,16 +335,33 @@ describe('track Evidence compatibility codec', () => {
 				setFixtureValue(candidate, [...path], replacement)
 			}
 
-			const failed = expectFailure(decodeTrackEvidence(candidate))
-			expect(failed.issues).toContainEqual({
-				code: 'invalid-shape',
-				path:
+			const decoded = expectSuccess(decodeTrackEvidenceV2(candidate))
+			expect(decoded.evidence.applied.bpm).toEqual({
+				source: 'rekordboxXml',
+				observationId:
 					replacement === undefined
-						? '/applied/bpm/source'
-						: '/applied/bpm/observationId'
+						? 'obs-rbx-20260721-001'
+						: 'obs-rbx-dangling',
+				value: 128,
+				appliedAt: '2026-07-21T12:01:00.000Z'
 			})
 		}
 	)
+
+	it('requires the retained v1 envelope when current v2 keeps legacy source slots', () => {
+		const candidate = setFixtureValue(
+			mutableFixture(mixedTrackEvidenceV2Golden),
+			['legacy'],
+			null
+		)
+
+		expect(
+			expectFailure(decodeTrackEvidenceV2(candidate)).issues
+		).toContainEqual({
+			code: 'invalid-shape',
+			path: '/legacy'
+		})
+	})
 
 	it.each([
 		['a/..'],

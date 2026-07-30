@@ -319,6 +319,21 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			track_evidence_rpc_write_guards: {
+				Row: {
+					backend_pid: number
+					transaction_id: number
+				}
+				Insert: {
+					backend_pid: number
+					transaction_id: number
+				}
+				Update: {
+					backend_pid?: number
+					transaction_id?: number
+				}
+				Relationships: []
+			}
 			tracks: {
 				Row: {
 					artists: Json
@@ -464,6 +479,14 @@ export type Database = {
 				Args: { candidate: Json }
 				Returns: boolean
 			}
+			is_valid_track_enrichment_audio_features_v1: {
+				Args: { candidate: Json }
+				Returns: boolean
+			}
+			is_valid_track_enrichment_audio_features_v2: {
+				Args: { candidate: Json }
+				Returns: boolean
+			}
 			list_record_cover_account_cleanup_objects: {
 				Args: { target_user_id: string }
 				Returns: {
@@ -482,6 +505,14 @@ export type Database = {
 				}[]
 			}
 			persist_track_enrichment_batch: {
+				Args: {
+					p_items: Json
+					p_operation_hash: string
+					p_operation_id: string
+				}
+				Returns: Json
+			}
+			persist_track_enrichment_batch_guarded_internal: {
 				Args: {
 					p_items: Json
 					p_operation_hash: string
@@ -523,6 +554,71 @@ export type Database = {
 			}
 			schedule_record_cover_account_cleanup: {
 				Args: { target_user_id: string }
+				Returns: boolean
+			}
+			track_evidence_contains_private_data: {
+				Args: { candidate: Json; current_depth?: number }
+				Returns: boolean
+			}
+			track_evidence_has_exact_keys: {
+				Args: {
+					allowed_keys: string[]
+					candidate: Json
+					required_keys: string[]
+				}
+				Returns: boolean
+			}
+			track_evidence_is_application: {
+				Args: { application_name: string; candidate: Json }
+				Returns: boolean
+			}
+			track_evidence_is_bounded_text: {
+				Args: {
+					candidate: Json
+					maximum_length: number
+					minimum_length: number
+				}
+				Returns: boolean
+			}
+			track_evidence_is_current_observation: {
+				Args: { candidate: Json; source_name: string }
+				Returns: boolean
+			}
+			track_evidence_is_embedded_tags_data: {
+				Args: { candidate: Json; is_legacy: boolean }
+				Returns: boolean
+			}
+			track_evidence_is_essentia_data: {
+				Args: { candidate: Json; is_legacy: boolean }
+				Returns: boolean
+			}
+			track_evidence_is_legacy_envelope: {
+				Args: { candidate: Json }
+				Returns: boolean
+			}
+			track_evidence_is_legacy_observation: {
+				Args: { candidate: Json; source_name: string }
+				Returns: boolean
+			}
+			track_evidence_is_match: { Args: { candidate: Json }; Returns: boolean }
+			track_evidence_is_rekordbox_data: {
+				Args: { candidate: Json; is_legacy: boolean }
+				Returns: boolean
+			}
+			track_evidence_is_safe_relative_hint: {
+				Args: { candidate: Json }
+				Returns: boolean
+			}
+			track_evidence_is_text_array: {
+				Args: {
+					candidate: Json
+					maximum_items: number
+					maximum_text_length: number
+				}
+				Returns: boolean
+			}
+			track_evidence_is_timestamp: {
+				Args: { candidate: Json }
 				Returns: boolean
 			}
 		}

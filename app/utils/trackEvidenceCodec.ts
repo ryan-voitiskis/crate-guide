@@ -302,33 +302,55 @@ const rekordboxLegacyLimitations = z.tuple([
 	z.literal('missing-rekordbox-track-id')
 ])
 
-const currentSourcesSchema = z
+const currentRekordboxObservationSchema = observationSchema(
+	currentRekordboxEvidenceDataSchema
+)
+const currentEmbeddedTagsObservationSchema = observationSchema(
+	currentEmbeddedTagsEvidenceDataSchema
+)
+const currentEssentiaObservationSchema = observationSchema(
+	currentEssentiaEvidenceDataSchema
+)
+const legacyRekordboxObservationSchema = legacyObservationSchema(
+	legacyRekordboxEvidenceDataSchema,
+	rekordboxLegacyLimitations
+)
+const legacyEmbeddedTagsObservationSchema = legacyObservationSchema(
+	legacyEmbeddedTagsEvidenceDataSchema,
+	commonLegacyLimitations
+)
+const legacyEssentiaObservationSchema = legacyObservationSchema(
+	legacyEssentiaEvidenceDataSchema,
+	commonLegacyLimitations
+)
+
+const v2SourcesSchema = z
 	.object({
-		rekordboxXml: observationSchema(
-			currentRekordboxEvidenceDataSchema
-		).optional(),
-		embeddedTags: observationSchema(
-			currentEmbeddedTagsEvidenceDataSchema
-		).optional(),
-		essentiaBrowser: observationSchema(
-			currentEssentiaEvidenceDataSchema
-		).optional()
+		rekordboxXml: z
+			.discriminatedUnion('kind', [
+				currentRekordboxObservationSchema,
+				legacyRekordboxObservationSchema
+			])
+			.optional(),
+		embeddedTags: z
+			.discriminatedUnion('kind', [
+				currentEmbeddedTagsObservationSchema,
+				legacyEmbeddedTagsObservationSchema
+			])
+			.optional(),
+		essentiaBrowser: z
+			.discriminatedUnion('kind', [
+				currentEssentiaObservationSchema,
+				legacyEssentiaObservationSchema
+			])
+			.optional()
 	})
 	.strict()
 const legacySourcesSchema = z
 	.object({
-		rekordboxXml: legacyObservationSchema(
-			legacyRekordboxEvidenceDataSchema,
-			rekordboxLegacyLimitations
-		).optional(),
-		embeddedTags: legacyObservationSchema(
-			legacyEmbeddedTagsEvidenceDataSchema,
-			commonLegacyLimitations
-		).optional(),
-		essentiaBrowser: legacyObservationSchema(
-			legacyEssentiaEvidenceDataSchema,
-			commonLegacyLimitations
-		).optional()
+		rekordboxXml: legacyRekordboxObservationSchema.optional(),
+		embeddedTags: legacyEmbeddedTagsObservationSchema.optional(),
+		essentiaBrowser: legacyEssentiaObservationSchema.optional()
 	})
 	.strict()
 
@@ -405,8 +427,8 @@ const v2Schema = z
 				updatedAt: timestamp,
 				origin: z.literal('v2'),
 				applied: applicationsSchema,
-				sources: currentSourcesSchema,
-				legacy: z.null()
+				sources: v2SourcesSchema,
+				legacy: legacySchema.nullable()
 			})
 			.strict(),
 		z
@@ -423,25 +445,19 @@ const v2Schema = z
 	.superRefine((evidence, context) => {
 		if (evidence.origin !== 'v2') return
 
-		for (const field of ['bpm', 'keyMode'] as const) {
-			const application = evidence.applied[field]
-			if (!application) continue
-			const source = evidence.sources[application.source]
-			if (!source) {
-				context.addIssue({
-					code: z.ZodIssueCode.custom,
-					path: ['applied', field, 'source'],
-					message: 'Applied source is missing'
-				})
-				continue
-			}
-			if (source.observationId !== application.observationId) {
-				context.addIssue({
-					code: z.ZodIssueCode.custom,
-					path: ['applied', field, 'observationId'],
-					message: 'Applied observation does not match the source slot'
-				})
-			}
+		// Application snapshots may outlive their bounded source slot. Their
+		// observation IDs are interpreted as not retained rather than rebound to
+		// a newer observation or rejected as malformed.
+		const retainsLegacySource = Object.values(evidence.sources).some(
+			(source) => source?.kind === 'legacy-v1'
+		)
+		if (retainsLegacySource && evidence.legacy === null) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ['legacy'],
+				message:
+					'Current v2 Evidence with legacy source slots must retain its v1 envelope'
+			})
 		}
 	})
 

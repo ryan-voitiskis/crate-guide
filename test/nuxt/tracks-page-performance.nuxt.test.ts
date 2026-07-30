@@ -231,6 +231,11 @@ describe('tracks page render work', () => {
 		).toBe('true')
 		await wrapper?.get('[data-testid="track-view-evidence"]').trigger('click')
 		await flushPromises()
+		await vi.waitFor(() => {
+			expect(
+				wrapper?.find('[data-testid="evidence-track-rows"]').exists()
+			).toBe(true)
+		})
 
 		const evidenceRows = wrapper?.get('[data-testid="evidence-track-rows"]')
 		expect(evidenceRows?.attributes('data-virtual-total-count')).toBe('3')

@@ -593,7 +593,9 @@ describe('useTrackEnrichmentWorkflow', () => {
 			failed: 0,
 			remaining: 0,
 			bpm: 1,
-			keyMode: 1
+			keyMode: 1,
+			evidence: 1,
+			evidenceOnly: 0
 		}
 		await workflow.reviewLocalSources(createLocalSelection())
 
@@ -729,7 +731,9 @@ describe('useTrackEnrichmentWorkflow', () => {
 			failed: 1,
 			remaining: 0,
 			bpm: 0,
-			keyMode: 0
+			keyMode: 0,
+			evidence: 0,
+			evidenceOnly: 0
 		}
 		workflow.parseWarnings.value = ['old warning']
 		workflow.parseErrors.value = ['old error']
@@ -773,7 +777,9 @@ describe('useTrackEnrichmentWorkflow', () => {
 			failed: 1,
 			remaining: 0,
 			bpm: 0,
-			keyMode: 0
+			keyMode: 0,
+			evidence: 0,
+			evidenceOnly: 0
 		}
 
 		workflow.returnToSource()
@@ -810,7 +816,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 		expect(workflow.workflowView.value).toBe('review')
 	})
 
-	it('rejects blocked and ineligible row staging in both single and bulk controls', () => {
+	it('rejects blocked rows and permits explicit Evidence-only staging', () => {
 		const workflow = createWorkflow()
 		const eligible = createRow({ id: 'eligible' })
 		const blocked = createRow({
@@ -829,12 +835,60 @@ describe('useTrackEnrichmentWorkflow', () => {
 
 		workflow.setRowStaged(blocked, true)
 		workflow.setRowStaged(complete, true)
-		expect([...workflow.stagedRowIds.value]).toEqual([])
+		expect([...workflow.stagedRowIds.value]).toEqual(['complete'])
 
 		workflow.setFilteredRowsStaged(true)
-		expect([...workflow.stagedRowIds.value]).toEqual(['eligible'])
+		expect([...workflow.stagedRowIds.value]).toEqual(['complete', 'eligible'])
 		workflow.setFilteredRowsStaged(false)
-		expect([...workflow.stagedRowIds.value]).toEqual([])
+		expect([...workflow.stagedRowIds.value]).toEqual(['complete'])
+	})
+
+	it('never default-stages Evidence-only rows and applies them with no value-fill intent', async () => {
+		const onApplyAttempt = vi.fn()
+		const workflow = createWorkflow({ onApplyAttempt })
+		const populatedTrack = createTrack({ bpm: 126, key: 8, mode: 1 })
+		const evidenceOnly = createRow({
+			id: 'evidence-only',
+			track: populatedTrack,
+			canFillBpm: false,
+			canFillKeyMode: false,
+			alreadyComplete: true,
+			defaultStaged: false
+		})
+		workflow.loadPreparedReview('library.xml', [evidenceOnly])
+
+		expect(workflow.stagedRowIds.value).toEqual(new Set())
+		expect(
+			workflow.filterOptions.value.find((option) => option.value === 'evidence')
+		).toMatchObject({ label: 'Evidence only', count: 1 })
+
+		workflow.setRowStaged(evidenceOnly, true)
+		expect(workflow.stagedEvidenceOnlyCount.value).toBe(1)
+		mockTracksStore.updateTracksBatch.mockResolvedValueOnce({
+			results: [updatedBatchResult(populatedTrack)],
+			cancelled: false,
+			requiresReview: false
+		})
+
+		await workflow.applyStagedRows()
+
+		expect(onApplyAttempt).toHaveBeenCalledWith(
+			expect.objectContaining({
+				rows: [
+					expect.objectContaining({
+						intentKind: 'evidence-only',
+						requested: { bpm: false, keyMode: false }
+					})
+				]
+			})
+		)
+		expect(workflow.lastApplySummary.value).toMatchObject({
+			evidence: 1,
+			evidenceOnly: 1,
+			bpm: 0,
+			keyMode: 0
+		})
+		expect(populatedTrack).toMatchObject({ bpm: 126, key: 8, mode: 1 })
 	})
 
 	it('keeps a resumed review read-only until its device lease is taken over', async () => {
@@ -941,7 +995,8 @@ describe('useTrackEnrichmentWorkflow', () => {
 			1,
 			keyRow,
 			'library.xml',
-			'2026-07-12T00:00:00.000Z'
+			'2026-07-12T00:00:00.000Z',
+			'fill-empty-fields'
 		)
 		expect(workflow.applyCompleted.value).toBe(2)
 		expect(workflow.applyProgress.value).toBe(100)
@@ -966,7 +1021,9 @@ describe('useTrackEnrichmentWorkflow', () => {
 			failed: 1,
 			remaining: 0,
 			bpm: 0,
-			keyMode: 1
+			keyMode: 1,
+			evidence: 1,
+			evidenceOnly: 0
 		})
 		expect(toast.error).toHaveBeenCalledOnce()
 		expect(toast.error).toHaveBeenCalledWith('Applied 1 of 2. 1 failed.')
@@ -1003,7 +1060,9 @@ describe('useTrackEnrichmentWorkflow', () => {
 			failed: 0,
 			remaining: 1,
 			bpm: 0,
-			keyMode: 0
+			keyMode: 0,
+			evidence: 0,
+			evidenceOnly: 0
 		})
 		expect(workflow.stagedRowIds.value).toEqual(new Set(['row-1']))
 		expect(workflow.isApplying.value).toBe(false)
@@ -1183,16 +1242,17 @@ describe('useTrackEnrichmentWorkflow', () => {
 
 	it('cleans apply flags and dialog in finally when the batch throws', async () => {
 		const workflow = createWorkflow()
+		const batch = createDeferred<TrackBatchUpdateOutcome>()
 		workflow.rows.value = [createRow()]
 		workflow.stagedRowIds.value = new Set(['row-1'])
 		workflow.showApplyDialog.value = true
-		mockTracksStore.updateTracksBatch.mockRejectedValue(
-			new Error('Connection lost')
-		)
+		mockTracksStore.updateTracksBatch.mockReturnValue(batch.promise)
 
 		const applying = workflow.applyStagedRows()
-		expect(workflow.isApplying.value).toBe(true)
-		await expect(applying).rejects.toThrow('Connection lost')
+		await vi.waitFor(() => expect(workflow.isApplying.value).toBe(true))
+		const rejected = expect(applying).rejects.toThrow('Connection lost')
+		batch.reject(new Error('Connection lost'))
+		await rejected
 
 		expect(workflow.isApplying.value).toBe(false)
 		expect(workflow.showApplyDialog.value).toBe(false)

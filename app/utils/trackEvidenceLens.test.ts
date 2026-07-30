@@ -55,6 +55,28 @@ describe('track Evidence collection lens', () => {
 					embeddedTags: true,
 					essentiaBrowser: true
 				},
+				observations: {
+					rekordboxXml: {
+						retained: true,
+						identityMatch: 'high',
+						bpm: 128,
+						keyMode: { key: 5, mode: 0 }
+					},
+					embeddedTags: {
+						retained: true,
+						identityMatch: 'medium',
+						bpm: 128.01,
+						keyMode: { key: 5, mode: 0 }
+					},
+					essentiaBrowser: {
+						retained: true,
+						identityMatch: 'medium',
+						bpm: 127.99,
+						keyMode: { key: 5, mode: 0 }
+					}
+				},
+				latestObservedAt: '2026-07-21T12:00:00.000Z',
+				analyzerStatus: 'outdated',
 				comparison: {
 					bpm: 'agreement',
 					keyMode: 'agreement',
@@ -63,6 +85,8 @@ describe('track Evidence collection lens', () => {
 				application: {
 					bpm: 'applied',
 					keyMode: 'applied',
+					bpmSource: 'rekordboxXml',
+					keyModeSource: 'embeddedTags',
 					changedSinceApplication: false
 				}
 			}
@@ -179,6 +203,7 @@ describe('track Evidence collection lens', () => {
 				'insufficient-evidence': 1
 			},
 			changedSinceApplication: 1,
+			outdatedAnalyzerConfiguration: 3,
 			versions: { 'current-v2': 3, 'legacy-v1': 1 }
 		})
 		expect(
@@ -201,6 +226,11 @@ describe('track Evidence collection lens', () => {
 				})
 			).map((row) => row.id)
 		).toEqual(['changed-conflict'])
+		expect(
+			filterTrackEvidenceLensRows(rows, filters({ analyzer: 'outdated' })).map(
+				(row) => row.id
+			)
+		).toEqual(['current', 'changed-conflict', 'legacy'])
 		expect(hasTrackEvidenceLensFilters(filters())).toBe(false)
 		expect(hasTrackEvidenceLensFilters(filters({ presence: 'retained' }))).toBe(
 			true

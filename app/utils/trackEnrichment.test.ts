@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { legacyTrackAudioFeaturesV1Golden } from '../../test/fixtures/trackEvidence'
 import { createLocalAudioTrackSource } from './localAudio'
-import type { RekordboxXmlTrack } from './rekordboxXml'
+import { type RekordboxXmlTrack, toRekordboxXmlSource } from './rekordboxXml'
 import {
 	buildTrackEnrichmentRows,
 	buildTrackEnrichmentRowsAsync,
@@ -528,7 +529,7 @@ describe('buildTrackEnrichmentRows', () => {
 		expect(row?.confidence).toBe('manual')
 	})
 
-	it('blocks equally ranked XML rows from updating the same track', () => {
+	it('blocks equally ranked XML rows from updating the same track', async () => {
 		const rows = buildTrackEnrichmentRows({
 			sources: [
 				createSource({ index: 0, name: 'Untitled' }),
@@ -541,16 +542,16 @@ describe('buildTrackEnrichmentRows', () => {
 		expect(rows).toHaveLength(2)
 		expect(rows.every((row) => row.stagingBlockedReason !== null)).toBe(true)
 		expect(rows.every((row) => row.defaultStaged === false)).toBe(true)
-		expect(
-			rows.every(
-				(row) =>
-					buildTrackEnrichmentUpdate(
-						row,
-						'collection.xml',
-						'2026-07-09T00:00:00.000Z'
-					) === null
+		const updates = await Promise.all(
+			rows.map((row) =>
+				buildTrackEnrichmentUpdate(
+					row,
+					'collection.xml',
+					'2026-07-09T00:00:00.000Z'
+				)
 			)
-		).toBe(true)
+		)
+		expect(updates.every((update) => update === null)).toBe(true)
 	})
 })
 
@@ -583,31 +584,45 @@ describe('buildTrackEnrichmentRowsAsync', () => {
 })
 
 describe('buildTrackEnrichmentUpdate', () => {
-	it('stores sanitized local metadata and exact applied provenance', () => {
+	it('stores sanitized local metadata and exact applied provenance', async () => {
 		const [row] = buildTrackEnrichmentRows({
 			sources: [createLocalSource({ analysis: true })],
 			tracks: [createTrack()],
 			records: [createRecord()]
 		})
-		const update = buildTrackEnrichmentUpdate(
+		const update = await buildTrackEnrichmentUpdate(
 			row!,
 			'Local audio',
 			'2026-07-10T00:00:00.000Z'
 		)
 
 		expect(update?.updates.audio_features).toMatchObject({
+			version: 2,
+			origin: 'v2',
 			applied: {
-				bpm: { source: 'essentiaBrowser' },
+				bpm: {
+					source: 'essentiaBrowser',
+					value: 128,
+					observationId: expect.stringMatching(
+						/^te2:essentiaBrowser:[0-9a-f]{64}$/u
+					)
+				},
 				keyMode: null
 			},
 			sources: {
 				embeddedTags: {
-					fileName: 'Cafe Track.flac',
-					locationHint: 'Test Artist/Synthetic Album/Cafe Track.flac'
+					kind: 'observation',
+					data: {
+						fileName: 'Cafe Track.flac',
+						locationHint: 'Test Artist/Synthetic Album/Cafe Track.flac'
+					}
 				},
 				essentiaBrowser: {
-					configurationVersion: 'center-180s-44k1-v1',
-					bpm: 128
+					kind: 'observation',
+					data: {
+						configurationVersion: 'center-180s-44k1-v1',
+						bpm: 128
+					}
 				}
 			}
 		})
@@ -616,14 +631,14 @@ describe('buildTrackEnrichmentUpdate', () => {
 		)
 	})
 
-	it('fills only blank top-level values and writes audio feature provenance', () => {
+	it('fills only blank top-level values and writes audio feature provenance', async () => {
 		const [row] = buildTrackEnrichmentRows({
 			sources: [createSource()],
 			tracks: [createTrack()],
 			records: [createRecord()]
 		})
 
-		const update = buildTrackEnrichmentUpdate(
+		const update = await buildTrackEnrichmentUpdate(
 			row!,
 			'collection.xml',
 			'2026-07-09T00:00:00.000Z'
@@ -634,21 +649,34 @@ describe('buildTrackEnrichmentUpdate', () => {
 			key: 9,
 			mode: 0,
 			audio_features: {
-				version: 1,
+				version: 2,
+				origin: 'v2',
 				applied: {
 					bpm: {
 						source: 'rekordboxXml',
+						value: 128,
+						observationId: expect.stringMatching(
+							/^te2:rekordboxXml:[0-9a-f]{64}$/u
+						),
 						appliedAt: '2026-07-09T00:00:00.000Z'
 					},
 					keyMode: {
 						source: 'rekordboxXml',
+						value: { key: 9, mode: 0 },
+						observationId: expect.stringMatching(
+							/^te2:rekordboxXml:[0-9a-f]{64}$/u
+						),
 						appliedAt: '2026-07-09T00:00:00.000Z'
 					}
 				},
 				sources: {
 					rekordboxXml: {
-						fileName: 'collection.xml',
-						locationHint: 'Synthetic Album/Cafe Track.wav'
+						kind: 'observation',
+						data: {
+							fileName: 'collection.xml',
+							locationHint: 'Synthetic Album/Cafe Track.wav',
+							rekordboxTrackId: '1'
+						}
 					}
 				}
 			}
@@ -660,30 +688,30 @@ describe('buildTrackEnrichmentUpdate', () => {
 		expect(update?.expectedUpdatedAt).toBe('2026-07-22T00:00:00.000Z')
 	})
 
-	it('does not build an update without a compare-and-set revision', () => {
+	it('does not build an update without a compare-and-set revision', async () => {
 		const [row] = buildTrackEnrichmentRows({
 			sources: [createSource()],
 			tracks: [createTrack({ updated_at: null })],
 			records: [createRecord()]
 		})
 
-		expect(
+		await expect(
 			buildTrackEnrichmentUpdate(
 				row!,
 				'collection.xml',
 				'2026-07-09T00:00:00.000Z'
 			)
-		).toBeNull()
+		).resolves.toBeNull()
 	})
 
-	it('does not treat key 0 as blank', () => {
+	it('does not treat key 0 as blank', async () => {
 		const [row] = buildTrackEnrichmentRows({
 			sources: [createSource({ parsedKey: 9, parsedMode: 0 })],
 			tracks: [createTrack({ bpm: null, key: 0, mode: 1 })],
 			records: [createRecord()]
 		})
 
-		const update = buildTrackEnrichmentUpdate(
+		const update = await buildTrackEnrichmentUpdate(
 			row!,
 			'collection.xml',
 			'2026-07-09T00:00:00.000Z'
@@ -693,11 +721,72 @@ describe('buildTrackEnrichmentUpdate', () => {
 		expect(update?.updates.key).toBeUndefined()
 		expect(update?.updates.mode).toBeUndefined()
 	})
+
+	it('retains Evidence without filling available values for evidence-only intent', async () => {
+		const [row] = buildTrackEnrichmentRows({
+			sources: [createSource()],
+			tracks: [createTrack()],
+			records: [createRecord()]
+		})
+
+		const update = await buildTrackEnrichmentUpdate(
+			row!,
+			'collection.xml',
+			'2026-07-09T00:00:00.000Z',
+			'evidence-only'
+		)
+
+		expect(update?.updates.audio_features).toMatchObject({
+			version: 2,
+			origin: 'v2',
+			applied: { bpm: null, keyMode: null }
+		})
+		expect(update?.updates.bpm).toBeUndefined()
+		expect(update?.updates.key).toBeUndefined()
+		expect(update?.updates.mode).toBeUndefined()
+		expect(update?.preconditions).toEqual({
+			bpmMustBeNull: false,
+			keyModeMustBeNull: false
+		})
+	})
+
+	it('keeps observation identity idempotent and changes it with authored match evidence', async () => {
+		const [row] = buildTrackEnrichmentRows({
+			sources: [createSource()],
+			tracks: [createTrack()],
+			records: [createRecord()]
+		})
+		const importedAt = '2026-07-09T00:00:00.000Z'
+		const first = await buildTrackEnrichmentUpdate(
+			row!,
+			'collection.xml',
+			importedAt
+		)
+		const retry = await buildTrackEnrichmentUpdate(
+			row!,
+			'collection.xml',
+			importedAt
+		)
+		const changed = await buildTrackEnrichmentUpdate(
+			{ ...row!, reasons: [...row!.reasons, 'Reviewed match evidence'] },
+			'collection.xml',
+			importedAt
+		)
+		const observationId = (update: typeof first) =>
+			update?.updates.audio_features?.version === 2 &&
+			update.updates.audio_features.sources.rekordboxXml?.kind === 'observation'
+				? update.updates.audio_features.sources.rekordboxXml.observationId
+				: null
+
+		expect(observationId(first)).toMatch(/^te2:rekordboxXml:[0-9a-f]{64}$/u)
+		expect(observationId(retry)).toBe(observationId(first))
+		expect(observationId(changed)).not.toBe(observationId(first))
+	})
 })
 
 describe('mergeRekordboxAudioFeatures', () => {
-	it('preserves other source keys while replacing the Rekordbox XML source', () => {
-		const merged = mergeRekordboxAudioFeatures(
+	it('preserves other source keys while replacing the Rekordbox XML source', async () => {
+		const merged = await mergeRekordboxAudioFeatures(
 			{
 				version: 1,
 				updatedAt: '2026-07-08T00:00:00.000Z',
@@ -765,9 +854,35 @@ describe('mergeRekordboxAudioFeatures', () => {
 			'2026-07-09T00:00:00.000Z'
 		)
 
-		expect(merged.sources.embeddedTags?.bpm).toBe(127)
-		expect(merged.sources.rekordboxXml?.fileName).toBe('collection.xml')
+		expect(merged).not.toBeNull()
+		if (!merged) throw new Error('Expected valid v2 Evidence')
+		expect(merged.sources.embeddedTags?.kind).toBe('legacy-v1')
+		expect(merged.sources.embeddedTags?.data.bpm).toBe(127)
+		expect(merged.sources.rekordboxXml?.kind).toBe('observation')
+		expect(merged.sources.rekordboxXml?.data.fileName).toBe('collection.xml')
 		expect(merged.applied.bpm).toBeNull()
 		expect(merged.applied.keyMode?.source).toBe('rekordboxXml')
+		expect(merged.legacy?.sourceVersion).toBe(1)
+	})
+
+	it('retains unknown v1 fields from a touched known source in the legacy envelope', async () => {
+		const importedAt = '2026-07-30T10:00:00.000Z'
+		const merged = await mergeRekordboxAudioFeatures(
+			legacyTrackAudioFeaturesV1Golden as never,
+			toRekordboxXmlSource(createSource(), 'collection.xml', importedAt),
+			{
+				confidence: 'high',
+				score: 100,
+				reasons: ['Title match'],
+				warnings: []
+			},
+			{ bpm: false, keyMode: false },
+			importedAt,
+			'1'
+		)
+
+		expect(merged?.legacy?.unknownFields.sources.rekordboxXml).toEqual({
+			futureSourceField: { color: 'blue' }
+		})
 	})
 })
