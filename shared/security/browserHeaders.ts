@@ -26,6 +26,7 @@ const EXECUTABLE_SCRIPT_TYPES = new Set([
 	'',
 	'application/ecmascript',
 	'application/javascript',
+	'importmap',
 	'module',
 	'text/ecmascript',
 	'text/javascript'

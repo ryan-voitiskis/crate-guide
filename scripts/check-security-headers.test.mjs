@@ -9,6 +9,7 @@ import { assertHtmlSecurityResponse } from './check-security-headers.mjs'
 const HTML = [
 	'<!doctype html>',
 	'<script data-hid="anonymous-theme-bootstrap">theme()</script>',
+	'<script type="importmap">{"imports":{"#entry":"/entry.js"}}</script>',
 	'<script type="module" src="/entry.js"></script>',
 	'<script>window.__NUXT__={}</script>',
 	'<script type="application/json">{"serverRendered":false}</script>'
@@ -21,6 +22,7 @@ function responseWith(headers) {
 test('extracts only executable inline script bodies', () => {
 	assert.deepEqual(extractExecutableInlineScripts(HTML), [
 		'theme()',
+		'{"imports":{"#entry":"/entry.js"}}',
 		'window.__NUXT__={}'
 	])
 })
