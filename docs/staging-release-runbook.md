@@ -94,20 +94,22 @@ Before any hosted mutation, record all of the following:
    is not an acceptable substitute.
 3. A Pages staging branch and environment whose `SUPABASE_URL` and
    `SUPABASE_ANON_KEY` point only to that staging project.
-4. A source-controlled `deployment/staging-project.json` containing only:
-
-   ```json
-   {
-    "supabaseProjectRef": "abcdefghijklmnopqrst"
-   }
-   ```
-
+4. A source-controlled `deployment/staging-project.json` containing only the
+   authoritative project ref.
 5. An untracked staging-specific Edge env file. Do not upload
    `supabase/functions/.env` without checking it: the current developer file is
    local and its `SITE_URL` is not a staging origin.
 6. Dedicated synthetic staging accounts and Discogs test data. Do not copy
    production user data, OAuth credentials, private cover URLs, or logs into
    fixtures or evidence.
+
+The reviewed staging project record has this exact shape:
+
+```json
+{
+	"supabaseProjectRef": "abcdefghijklmnopqrst"
+}
+```
 
 Use an isolated, clean deployment worktree at the exact candidate SHA. The
 production-linked checkout must not be repurposed:

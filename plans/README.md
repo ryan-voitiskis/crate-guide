@@ -62,12 +62,12 @@ evidence that a STOP or dependency was resolved.
 | 067 | [Extract the Discogs transfer state machine](067-extract-discogs-transfer-state-machine.md)                 |    P3    |   L    | MED  | 044, 049, 061                               | DONE     |
 | 068 | [Separate workbench storage from identity](068-separate-workbench-storage-and-identity.md)                  |    P1    |   XL   | HIGH | 044, 047, 048, 051, 054, 055, 057, 060, 064 | DONE     |
 | 069 | [Implement the browser-library repository](069-implement-browser-library-repository.md)                     |    P1    |   XL   | HIGH | 053, 066, 068                               | DONE     |
-| 070 | [Add portable library archives](070-add-portable-library-archives.md)                                       |    P1    |   XL   | HIGH | 047, 048, 054, 068, 069                     | BLOCKED  |
+| 070 | [Add portable library archives](070-add-portable-library-archives.md)                                       |    P1    |   XL   | HIGH | 047, 048, 054, 068, 069                     | DEFERRED |
 | 071 | [Launch signed-out Local libraries](071-launch-signed-out-local-library.md)                                 |    P1    |   XL   | HIGH | 058, 062, 063, 068, 069, 070                | DEFERRED |
 | 072 | [Copy a Local library to cloud](072-copy-local-library-to-cloud.md)                                         |    P2    |   XL   | HIGH | 064, 070, 071                               | DEFERRED |
 | 073 | [Enable accountless Discogs connection](073-enable-accountless-discogs-connection.md)                       |    P2    |   XL   | HIGH | 049, 059, 062, 067, 071                     | DEFERRED |
 | 074 | [Persist resumable enrichment reviews](074-persist-resumable-enrichment-reviews.md)                         |    P2    |   L    | HIGH | 045, 064, 065, 066, 069, 071                | DONE     |
-| 075 | [Build the track Evidence workbench](075-build-track-evidence-workbench.md)                                 |    P2    |   L    | HIGH | 045, 063, 064, 068, 070, 074                | BLOCKED  |
+| 075 | [Build the track Evidence workbench](075-build-track-evidence-workbench.md)                                 |    P2    |   L    | HIGH | 045, 063, 064, 068, 074                     | DONE     |
 | 076 | [Enable the offline Local app shell](076-enable-offline-local-app-shell.md)                                 |    P3    |   L    | MED  | 053, 058, 062, 065, 066, 071                | DEFERRED |
 
 Historical prerequisites named inside older plans have landed. The table lists
@@ -113,11 +113,11 @@ preserved at `codex/accountless-mode-foundation` (`3253e15`).
 | Direction                      | Plans              | Launch boundary                                                                                                  |
 | ------------------------------ | ------------------ | ---------------------------------------------------------------------------------------------------------------- |
 | Signed-out accountless product | 068, 069, 070, 071 | repository contracts, transactional browser storage, portable recovery, and honest storage UX must ship together |
-| Portable backup/export         | 070                | cloud/browser export plus strict restore-as-new Local library; merge deferred                                    |
+| Portable backup/export         | 070                | deferred on 2026-07-30; no current export or offline promise                                                     |
 | Cloud adoption without lock-in | 072                | copy to a proven-empty account, verify, retain Local source; no sync/merge                                       |
 | Accountless Discogs            | 073                | device-scoped server integration only after official provider/threat-model gate                                  |
 | Resumable enrichment reviews   | 074                | one sanitized device-local draft per workspace; always rematch before restoring staging                          |
-| Provenance workbench           | 075                | bounded latest Evidence model, not history/ground truth; no automatic overwrite                                  |
+| Provenance workbench           | 075                | signed-in cloud-only bounded Evidence model, not history/ground truth; no automatic overwrite                    |
 | Fresh offline reopening        | 076                | versioned first-party app shell only; APIs/private URLs/library data excluded from Cache Storage                 |
 
 ## Recommended delivery waves
@@ -131,13 +131,13 @@ preserved at `codex/accountless-mode-foundation` (`3253e15`).
 4. **Budgets, parsing, and workbench scale**: 053 after 052/054/055; 065 after
    045/052/053; 063 after the bundle, cover, verification, and reconciliation
    seams are stable.
-5. **Local foundation**: 068 after correctness/domain seams, then 069. Build 070
-   on both; do not open signed-out routes earlier.
+5. **Retained Local foundation**: 068 and 069 are complete internal seams. Plan
+   070 is deferred; do not open signed-out routes.
 6. **Deferred Local launch**: 071 remains out of the current scope; if resumed,
    launch only after security, scale, bounded audio, durable Local writes,
    portable restore, and core Discogs acquisition pass together.
-7. **Remaining expansion**: 074 is complete. Plan 075 waits for Plan 070 archive
-   compatibility. Plans 072, 073, and 076 remain deferred with the Local launch.
+7. **Cloud Evidence complete**: 074 and 075 are complete. Plans 070-073 and 076
+   remain deferred.
 
 Do not overlap plans that share hotspots. In particular sequence:
 

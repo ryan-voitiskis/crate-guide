@@ -16,7 +16,13 @@
 - **Depends on**: Plans 047, 048, 054, 068, and 069
 - **Category**: direction / backup / portability
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: BLOCKED
+- **Status**: DEFERRED
+
+The maintainer deferred portable archives on 2026-07-30 and accepted an
+online-only product for the current roadmap. The Discogs portability decision
+and provider inquiry remain intentionally unresolved and unsent. Resume this
+plan only after an explicit product-scope change; do not infer that any provider
+or legal STOP was resolved.
 
 ## Why this matters
 

@@ -13,10 +13,16 @@
 - **Priority**: P2
 - **Effort**: L
 - **Risk**: HIGH
-- **Depends on**: Plans 045, 063, 064, 068, 070, and 074
+- **Depends on**: Plans 045, 063, 064, 068, and 074
 - **Category**: direction / provenance UX / data evolution
 - **Planned at**: commit `0a0cda6`, 2026-07-22
-- **Status**: BLOCKED
+- **Status**: DONE
+
+The maintainer resumed this plan on 2026-07-30 as a signed-in, cloud-only
+feature. Portable archives, browser-library writer parity, accountless mode, and
+offline support are not launch dependencies. A future archive must add Evidence
+v2 compatibility before claiming that Evidence is exportable; this release
+makes no portability promise.
 
 ## Why this matters
 
@@ -45,23 +51,24 @@ sources: { rekordboxXml?, embeddedTags?, essentiaBrowser? }
 
 ## Commands you will need
 
-| Purpose      | Command                                                                                          | Expected on success                       |
-| ------------ | ------------------------------------------------------------------------------------------------ | ----------------------------------------- |
-| Codecs/unit  | `npx vitest run --project unit app/utils/trackEnrichment.test.ts app/utils/supabaseRows.test.ts` | all pass                                  |
-| Database     | `npm run test:db`                                                                                | atomic evidence merge/security tests pass |
-| Nuxt/browser | `npm run test:nuxt && npm run test:browser`                                                      | lens/inspector/scale flows pass           |
-| Full gate    | `npm run verify:full`                                                                            | exit 0                                    |
+| Purpose      | Command                                                                                          | Expected on success              |
+| ------------ | ------------------------------------------------------------------------------------------------ | -------------------------------- |
+| Codecs/unit  | `npx vitest run --project unit app/utils/trackEnrichment.test.ts app/utils/supabaseRows.test.ts` | all pass                         |
+| Database     | `npm run test:db`                                                                                | Evidence CAS/security tests pass |
+| Nuxt/browser | `npm run test:nuxt && npm run test:browser`                                                      | lens/inspector/scale flows pass  |
+| Full gate    | `npm run verify:full`                                                                            | exit 0                           |
 
 ## Scope
 
-**In scope**: backward-compatible Evidence v2 codecs/migration, atomic per-source
-merge, explicit evidence-only save, collection Evidence lens, selected-track
-inspector, agreement/conflict/version filters, privacy/docs/archive compatibility,
-cloud/local adapter conformance and tests.
+**In scope**: backward-compatible Evidence v2 codecs/migration, atomic
+compare-and-swap cloud persistence, explicit evidence-only save, collection
+Evidence lens, selected-track inspector, agreement/conflict/version filters,
+privacy/docs, and signed-in cloud tests.
 
 **Out of scope**: unbounded append-only history, claiming correctness, automatic
-replacement of nonblank values, audio/file upload, or a single composite
-confidence score.
+replacement of nonblank values, audio/file upload, a single composite confidence
+score, portable archives, browser-library writer parity, accountless mode, or
+offline support.
 
 ## Git workflow
 
@@ -80,18 +87,21 @@ must retain source observation ID, applied value, and applied time. Derive:
 agreement, and conflict.
 
 Decode v1 without loss into honest `legacy/unknown` fields; do not invent missing
-history or associations. Writer emits v2 only after migrator/golden/archive
-fixtures pass. If full immutable history is later required, use a normalized
-append-only table—not an unbounded JSON array.
+history or associations. The cloud writer emits v2 only after migrator and
+golden cloud fixtures pass. Portable-archive fixtures are a future Plan 070
+gate. If full immutable history is later required, use a normalized append-only
+table—not an unbounded JSON array.
 
 **Verify**: v1/v2 malformed/mixed fixtures and round-trips pass.
 
-### Step 2: Make evidence updates atomic per repository
+### Step 2: Make evidence updates CAS-safe in the cloud repository
 
-Extend the Plan 064 server contract (or add a narrow RPC) to merge one source
-observation/application snapshot without stale client JSON overwriting another
-source. Enforce row/account CAS and return complete decoded v2. The browser
-adapter provides equivalent transaction/revision semantics.
+Extend the Plan 064 server contract (or add a narrow RPC) to persist one
+complete decoded v2 object under row/account CAS. A concurrent update from any
+source must return `stale`; the client rehydrates, revalidates the decision, and
+retries so stale JSON cannot silently overwrite another source. Server-side
+merging without the reviewed base is not required. Browser-repository writer
+parity remains outside this signed-in cloud release.
 
 Add explicit `Save evidence only` staging for reviewed rows with no fillable
 value. Never default-stage it. Confirmation and summary separate `Values filled`
@@ -105,8 +115,8 @@ evidence precondition. Current-library rematch must unstage it when any binding
 changes; old readers treat the new intent as safely unstaged/unsupported rather
 than as a fill approval.
 
-**Verify**: concurrent source merges, evidence-only, stale CAS, cloud/local
-contract, and privacy tests pass.
+**Verify**: concurrent-source stale rejection/review/retry, evidence-only,
+cloud CAS, and privacy tests pass.
 
 ### Step 3: Build the virtualized collection Evidence lens
 
@@ -134,37 +144,57 @@ requires previous-value history and separate approval.
 
 **Verify**: Nuxt/browser flows for legacy/current/conflict/divergence pass.
 
-### Step 5: Align archive, privacy, docs, and claims
+### Step 5: Align privacy, docs, and claims
 
-Teach Plan 070 current writer/reader about v2 while retaining old fixtures.
 State whether evidence was retained from applied/enabled evidence-only reviews;
 absent evidence does not prove analysis never occurred. Explain filenames,
-relative hints, confidence meanings, and local/cloud storage.
+relative hints, confidence meanings, and cloud storage. Explicitly state that
+Evidence is not currently included in a portable Crate Guide archive because
+portable archives are deferred.
 
-**Verify**: codecs/SQL/types, archive, Nuxt/browser, docs, convention, and full
-gates pass.
+**Verify**: codecs/SQL/types, Nuxt/browser, docs, convention, and full gates
+pass.
 
 ## Test plan
 
 V1 normalization; v2 source-slot preservation; old/new draft codec migration
-and rematch invalidation; concurrent merges; applied-value
+and rematch invalidation; concurrent-source stale rejection and retry; applied-value
 snapshots/manual divergence; evidence-only no value mutation; confidence labels;
-agreement edge cases; path sanitization; cloud/local parity; archive round-trip;
-10k lens; keyboard/master-detail; actual DB/IDB read-back.
+agreement edge cases; path sanitization; signed-in cloud persistence; 10k lens;
+keyboard/master-detail; actual database read-back.
 
 ## Done criteria
 
-- [ ] Evidence v2 accurately associates latest source, match, and applied value without claiming history.
-- [ ] Cloud/local writes merge atomically and evidence-only never changes top-level BPM/key.
-- [ ] The dense lens/inspector distinguishes identity match, analyzer confidence, agreement, and divergence.
-- [ ] Nonblank values are never automatically replaced.
-- [ ] Codec, SQL, archive, UI, accessibility, scale, docs, and full gates pass.
+- [x] Evidence v2 accurately associates latest source, match, and applied value without claiming history.
+- [x] Signed-in cloud writes use row/account compare-and-swap and evidence-only never changes top-level BPM/key.
+- [x] The dense lens/inspector distinguishes identity match, analyzer confidence, agreement, and divergence.
+- [x] Nonblank values are never automatically replaced.
+- [x] Codec, SQL, UI, accessibility, scale, docs, and full gates pass.
+
+## Implementation evidence
+
+Commit `7c5decb` activates strict cloud Evidence v2 persistence, explicit
+Evidence-only review, deterministic observation identities, lossless v1
+compatibility, draft binding/read-back checks, the virtualized lens and
+selected-track inspector, privacy/docs, database privileges, and 38 focused
+Evidence pgTAP assertions. Commit `7155ec0` preserves old-client empty-crate
+creation through the migration cutover, and `3a09847` records the staging-only
+rollout and asymmetric v2 rollback gates.
+
+The 2026-07-30 integrated candidate gate passed 2,444 unit/store/server/Nuxt
+tests, 21 E2E tests with one opt-in skip, 81 browser tests, 141 Edge tests, and
+463 database assertions. The production build, security-header check, generated
+schema types, conventions, Discogs contracts, and client bundle budgets also
+passed. Hosted deployment remains operational evidence and is not part of this
+repository completion.
 
 ## STOP conditions
 
 Stop if UI copy calls v1/v2 an audit history or ground truth, if confidences are
-collapsed, if atomic source merge is unavailable, if absolute paths appear, or
-if a v2 writer would strand old readers/archives.
+collapsed, if a stale source update can silently overwrite current Evidence, if
+absolute paths appear, or if a v2 writer would strand current readers. Portable
+archive compatibility remains a future Plan 070 gate rather than a blocker for
+this cloud-only release.
 
 ## Maintenance notes
 
