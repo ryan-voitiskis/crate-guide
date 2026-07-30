@@ -47,6 +47,9 @@ export default defineConfig({
 					browser: {
 						enabled: true,
 						headless: true,
+						// Keep calibrated wall-clock benchmarks isolated from other
+						// CPU- and IndexedDB-heavy browser files.
+						fileParallelism: false,
 						provider: playwright(),
 						instances: [{ browser: 'chromium' }]
 					}

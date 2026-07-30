@@ -44,6 +44,8 @@ within 250 ms, and no attributable main-thread long task above 50 ms. Total
 Worker budgets are 1,000 ms for 1k, 3,000 ms for 10k, and 15,000 ms for 100k.
 The main-thread post-run heap-growth ceiling is 256 MiB when Chromium exposes a
 heap metric; an unavailable metric is reported explicitly rather than inferred.
+Vitest runs browser files serially so unrelated Worker, IndexedDB, and CPU-heavy
+fixtures do not contend with these calibrated wall-clock samples.
 
 ## Baseline protocol
 

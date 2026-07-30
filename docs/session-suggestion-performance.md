@@ -23,6 +23,8 @@ in before observing baseline results.
 - **Warm-up:** 10 complete synthetic fader gestures. Warm-up samples are
   discarded.
 - **Measurement:** 40 complete synthetic fader gestures.
+- **Isolation:** Vitest runs browser files serially so unrelated Worker,
+  IndexedDB, and CPU-heavy fixtures cannot consume the calibrated sample.
 
 ## Budget
 

@@ -59,7 +59,8 @@ partial decoding (Plan 058), or persisting file handles/drafts (Plan 074).
 1. Add 1k/10k cache-hit/cold-scan instrumentation for DB opens, transactions,
    wall time, Worker starts, and post-batch heap where supported. Check in
    explicit budgets; retain a functional fallback when memory metrics are not
-   exposed.
+   exposed. Run browser files serially so unrelated Worker and CPU-heavy
+   fixtures cannot distort these calibrated wall-clock samples.
 2. Upgrade the cache schema forward. Add an `updatedAt` index and a session API
    that holds one connection for a scan, supports chunked multi-get/buffered
    writes, closes on completion/error/versionchange, and reports blocked
