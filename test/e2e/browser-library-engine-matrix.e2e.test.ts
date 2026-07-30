@@ -43,6 +43,7 @@ type EngineProbe = {
 type ProbeWindow = Window & {
 	__browserLibraryProbeBlockingDatabase?: IDBDatabase
 	__browserLibraryProbeChannel?: BroadcastChannel
+	__browserLibraryProbeSenderChannel?: BroadcastChannel
 	__browserLibraryProbeFirstLock?: Promise<void>
 	__browserLibraryProbeFirstLockAcquired?: boolean
 	__browserLibraryProbeMessage?: string
@@ -256,19 +257,31 @@ async function broadcastAcrossPages(
 		}
 	}, channelName)
 
-	await pages.pageA.evaluate((name) => {
-		const channel = new BroadcastChannel(name)
-		channel.postMessage('committed:revision-2')
-		channel.close()
-	}, channelName)
-	await pages.pageB.waitForFunction(
-		() =>
-			(window as ProbeWindow).__browserLibraryProbeMessage ===
-			'committed:revision-2'
-	)
-	return pages.pageB.evaluate(
-		() => (window as ProbeWindow).__browserLibraryProbeMessage ?? ''
-	)
+	try {
+		await pages.pageA.evaluate((name) => {
+			const probeWindow = window as ProbeWindow
+			probeWindow.__browserLibraryProbeSenderChannel?.close()
+			const channel = new BroadcastChannel(name)
+			probeWindow.__browserLibraryProbeSenderChannel = channel
+			channel.postMessage('committed:revision-2')
+		}, channelName)
+		await pages.pageB.waitForFunction(
+			() =>
+				(window as ProbeWindow).__browserLibraryProbeMessage ===
+				'committed:revision-2'
+		)
+		return pages.pageB.evaluate(
+			() => (window as ProbeWindow).__browserLibraryProbeMessage ?? ''
+		)
+	} finally {
+		await pages.pageA
+			.evaluate(() => {
+				const probeWindow = window as ProbeWindow
+				probeWindow.__browserLibraryProbeSenderChannel?.close()
+				probeWindow.__browserLibraryProbeSenderChannel = undefined
+			})
+			.catch(() => undefined)
+	}
 }
 
 async function serializeAcrossPages(

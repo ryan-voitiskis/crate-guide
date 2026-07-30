@@ -144,6 +144,9 @@ contract; its absence is not a durable-write failure. The two-page probe also
 verified a `BroadcastChannel` delivery and that one named Web Lock held in page
 A blocked the same lock in page B until release. Presence of those APIs does
 not replace the committed Blob probe or repository-revision CAS.
+The broadcast sender remains open until the receiving page confirms delivery,
+matching the production channel lifecycle; closing immediately after
+`postMessage()` is not treated as a delivery contract.
 
 The ephemeral WebKit discrepancy is tracked as an engine/context capability,
 not papered over with scalar encoding or an uncommitted request. It resembles
