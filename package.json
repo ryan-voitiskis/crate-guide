@@ -165,6 +165,7 @@
 	},
 	"allowScripts": {
 		"esbuild@0.28.1": true,
+		"fsevents": false,
 		"unrs-resolver@1.12.2": true,
 		"vue-demi@0.14.10": true,
 		"workerd@1.20260722.1": true
