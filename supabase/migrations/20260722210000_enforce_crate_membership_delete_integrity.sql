@@ -197,16 +197,47 @@ TO authenticated;
 GRANT EXECUTE ON FUNCTION public.delete_all_user_data()
 TO authenticated;
 
+-- Rolling compatibility: the pre-repository application explicitly inserts
+-- records = '{}'. Keep that empty insert working while rejecting any attempt to
+-- create membership outside the RPC boundary. This trigger can be removed in a
+-- later contract migration after old clients are no longer supported.
+CREATE OR REPLACE FUNCTION public.enforce_empty_crate_membership_on_insert()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = pg_catalog
+AS $$
+BEGIN
+	IF current_user IN ('anon', 'authenticated')
+		AND cardinality(NEW.records) <> 0
+	THEN
+		RAISE EXCEPTION 'Crate membership must be added through the membership RPC'
+			USING ERRCODE = '42501';
+	END IF;
+	RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS enforce_empty_crate_membership_on_insert_trigger
+ON public.crates;
+CREATE TRIGGER enforce_empty_crate_membership_on_insert_trigger
+BEFORE INSERT ON public.crates
+FOR EACH ROW
+EXECUTE FUNCTION public.enforce_empty_crate_membership_on_insert();
+
+REVOKE ALL ON FUNCTION public.enforce_empty_crate_membership_on_insert()
+FROM PUBLIC, anon, authenticated, service_role;
+
 -- Record deletion must pass through remove_record_from_collection so crate
 -- references and the record row commit atomically.
 REVOKE DELETE ON TABLE public.records FROM authenticated;
 
--- The browser may edit crate metadata, but membership is RPC-owned. Restrict
--- inserts to fields whose omission leaves records at its empty-array default.
+-- The browser may edit crate metadata, but membership updates are RPC-owned.
+-- Insert access to records remains temporarily available only because the
+-- trigger above proves the supplied array is empty.
 REVOKE UPDATE, INSERT ON TABLE public.crates FROM authenticated;
 GRANT UPDATE (name, description, color) ON TABLE public.crates
 TO authenticated;
-GRANT INSERT (user_id, name, description, color) ON TABLE public.crates
+GRANT INSERT (user_id, name, description, color, records) ON TABLE public.crates
 TO authenticated;
 
 DO $$
@@ -220,13 +251,27 @@ BEGIN
 		'public.crates',
 		'records',
 		'UPDATE'
-	) OR has_column_privilege(
+	) THEN
+		RAISE EXCEPTION 'authenticated must not update crate membership directly';
+	END IF;
+
+	IF NOT has_column_privilege(
 		'authenticated',
 		'public.crates',
 		'records',
 		'INSERT'
 	) THEN
-		RAISE EXCEPTION 'authenticated must not write crate membership directly';
+		RAISE EXCEPTION 'authenticated empty-membership insert compatibility is missing';
+	END IF;
+
+	IF NOT EXISTS (
+		SELECT 1
+		FROM pg_trigger
+		WHERE tgrelid = 'public.crates'::REGCLASS
+			AND tgname = 'enforce_empty_crate_membership_on_insert_trigger'
+			AND NOT tgisinternal
+	) THEN
+		RAISE EXCEPTION 'empty crate membership insert trigger is missing';
 	END IF;
 
 	IF NOT has_column_privilege(

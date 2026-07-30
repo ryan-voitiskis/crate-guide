@@ -282,13 +282,13 @@ SELECT ok(
 	'authenticated users cannot update crate membership arrays directly'
 );
 SELECT ok(
-	NOT has_column_privilege(
+	has_column_privilege(
 		'authenticated',
 		'public.crates',
 		'records',
 		'INSERT'
 	),
-	'authenticated users cannot insert a pre-populated crate membership array'
+	'authenticated users retain trigger-guarded empty membership insert compatibility'
 );
 SELECT ok(
 	has_column_privilege('authenticated', 'public.crates', 'name', 'UPDATE')
@@ -460,7 +460,7 @@ SELECT throws_like(
 			ARRAY['00000000-0000-0000-0000-000000000131'::UUID]
 		)
 	$$,
-	'%permission denied%',
+	'%Crate membership must be added through the membership RPC%',
 	'direct authenticated pre-populated crate inserts are denied'
 );
 
@@ -489,12 +489,13 @@ SELECT is(
 	'authenticated users can still edit crate metadata'
 );
 
-INSERT INTO public.crates (user_id, name, description, color)
+INSERT INTO public.crates (user_id, name, description, color, records)
 VALUES (
 	'00000000-0000-0000-0000-000000000121',
 	'Empty new crate',
 	'Metadata-only creation',
-	'#654321'
+	'#654321',
+	'{}'::UUID[]
 );
 
 SELECT is(
@@ -505,7 +506,7 @@ SELECT is(
 			AND name = 'Empty new crate'
 	),
 	'{}'::UUID[],
-	'authenticated metadata-only crate inserts start with empty membership'
+	'old clients may explicitly insert an empty membership during cutover'
 );
 
 SELECT is(
