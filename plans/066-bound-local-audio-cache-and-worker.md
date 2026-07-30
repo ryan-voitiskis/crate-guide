@@ -105,6 +105,10 @@ an active batch.
 ## Maintenance notes
 
 The entry/age limits are policy constants with tests. Writes use 250-record
-transactions, matching reads, to keep the 10k cold path within its original
-wall-clock budget without relaxing that budget. Revisit limits using real
-storage telemetry, not by silently increasing them when a fixture fails.
+transactions, matching reads. The original wall-clock budgets remain strict on
+the default calibrated run. Generic hosted CI explicitly records timing as a
+diagnostic while continuing to gate connection, transaction, correctness,
+Worker, and heap limits; see
+[`docs/local-audio-cache-performance.md`](../docs/local-audio-cache-performance.md).
+Revisit limits using real storage telemetry, not by silently increasing them
+when a fixture fails.

@@ -3,6 +3,19 @@ import { playwright } from '@vitest/browser-playwright'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
+const localAudioCacheTimingSetting =
+	process.env.LOCAL_AUDIO_CACHE_REQUIRE_TIMING_BUDGETS
+if (
+	localAudioCacheTimingSetting !== undefined &&
+	localAudioCacheTimingSetting !== '0' &&
+	localAudioCacheTimingSetting !== '1'
+) {
+	throw new Error(
+		'LOCAL_AUDIO_CACHE_REQUIRE_TIMING_BUDGETS must be exactly 0 or 1'
+	)
+}
+const requireLocalAudioCacheTimingBudgets = localAudioCacheTimingSetting !== '0'
+
 const nuxtProject = await defineVitestProject({
 	test: {
 		name: 'nuxt',
@@ -68,6 +81,10 @@ export default defineConfig({
 						'@': fileURLToPath(new URL('./app', import.meta.url)),
 						test: fileURLToPath(new URL('./test', import.meta.url))
 					}
+				},
+				define: {
+					'import.meta.env.LOCAL_AUDIO_CACHE_REQUIRE_TIMING_BUDGETS':
+						JSON.stringify(requireLocalAudioCacheTimingBudgets)
 				}
 			},
 			// Unit tests - pure functions, no Nuxt runtime needed

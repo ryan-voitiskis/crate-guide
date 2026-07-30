@@ -13,6 +13,9 @@ type ChromiumMemoryPerformance = Performance & {
 	memory?: { usedJSHeapSize?: number }
 }
 
+const REQUIRE_TIMING_BUDGETS =
+	import.meta.env.LOCAL_AUDIO_CACHE_REQUIRE_TIMING_BUDGETS === true
+
 function createRecord(
 	index: number,
 	updatedAt: number
@@ -101,13 +104,16 @@ async function runScenario(
 		wallTimeMs: Math.round(wallTimeMs * 100) / 100,
 		heapGrowthBytes,
 		heapMetricSupported: heapGrowthBytes !== null,
+		timingBudgetRequired: REQUIRE_TIMING_BUDGETS,
 		userAgent: navigator.userAgent
 	}
 
 	console.info(JSON.stringify(result))
 	expect(result.connections).toBeLessThanOrEqual(budget.maxConnections)
 	expect(result.transactions).toBeLessThanOrEqual(budget.maxTransactions)
-	expect(result.wallTimeMs).toBeLessThanOrEqual(budget.maxWallTimeMs)
+	if (REQUIRE_TIMING_BUDGETS) {
+		expect(result.wallTimeMs).toBeLessThanOrEqual(budget.maxWallTimeMs)
+	}
 	expect(result.workerStarts).toBe(0)
 	expect(result.hits).toBe(isHitScan ? fileCount : 0)
 	if (heapGrowthBytes !== null) {

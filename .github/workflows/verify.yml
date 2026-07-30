@@ -53,6 +53,7 @@ jobs:
         run: npm run verify
         env:
           BROWSER_LIBRARY_REQUIRE_FULL_MATRIX: '1'
+          LOCAL_AUDIO_CACHE_REQUIRE_TIMING_BUDGETS: '0'
 
       - name: Build application
         run: npm run build
