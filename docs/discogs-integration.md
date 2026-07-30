@@ -151,15 +151,16 @@ database function:
 
 ## Environment readers
 
-| Variable                            | Reader / purpose                                               |
-| ----------------------------------- | -------------------------------------------------------------- |
-| `DISCOGS_CONSUMER_KEY`              | `getDiscogsConfig()`; OAuth consumer identifier                |
-| `DISCOGS_CONSUMER_SECRET`           | `getDiscogsConfig()`; server-only OAuth signing secret         |
-| `DISCOGS_USER_AGENT`                | `getDiscogsConfig()`; Discogs API and identity/avatar requests |
-| `DISCOGS_RATE_LIMIT_PER_USER`       | `getDiscogsRateLimitConfig()`; optional per-user quota         |
-| `DISCOGS_RATE_LIMIT_GLOBAL`         | `getDiscogsRateLimitConfig()`; optional shared quota           |
-| `DISCOGS_RATE_LIMIT_WINDOW_SECONDS` | `getDiscogsRateLimitConfig()`; optional quota window           |
-| `SITE_URL`                          | One HTTP(S) origin for CORS and server-built OAuth callbacks   |
+| Variable                                 | Reader / purpose                                               |
+| ---------------------------------------- | -------------------------------------------------------------- |
+| `DISCOGS_CONSUMER_KEY`                   | `getDiscogsConfig()`; OAuth consumer identifier                |
+| `DISCOGS_CONSUMER_SECRET`                | `getDiscogsConfig()`; server-only OAuth signing secret         |
+| `DISCOGS_USER_AGENT`                     | `getDiscogsConfig()`; Discogs API and identity/avatar requests |
+| `DISCOGS_RATE_LIMIT_PER_USER`            | `getDiscogsRateLimitConfig()`; optional per-user quota         |
+| `DISCOGS_RATE_LIMIT_GLOBAL`              | `getDiscogsRateLimitConfig()`; optional shared quota           |
+| `DISCOGS_RATE_LIMIT_WINDOW_SECONDS`      | `getDiscogsRateLimitConfig()`; optional quota window           |
+| `ACCOUNT_COVER_CLEANUP_SCHEDULER_SECRET` | Required dedicated hosted scheduler credential                 |
+| `SITE_URL`                               | One HTTP(S) origin for CORS and server-built OAuth callbacks   |
 
 Shared Supabase helpers also require runtime-provided `SUPABASE_URL`, the
 `default` entry in hosted `SUPABASE_PUBLISHABLE_KEYS`, and the `default` entry
@@ -244,11 +245,16 @@ Account deletion has an additional service-owned recovery path:
   present the current claim token; release retains the row, records a bounded
   attempt count, and applies a short retry delay.
 - `cleanup-orphaned-record-covers` is a POST-only, no-body service endpoint. It
-  accepts only an exact `apikey: <default SUPABASE_SECRET_KEYS value>`
-  credential, compared timing-safely with the server environment value. It has
-  no browser CORS contract, rejects ordinary authenticated and anonymous
-  tokens, accepts no user/path selector, and returns only generic `processed`
-  and `complete` booleans.
+  accepts only an exact scheduler credential, compared timing-safely with the
+  server environment value. Hosted schedulers should use a public project key
+  in `apikey` for the gateway and send the dedicated
+  `ACCOUNT_COVER_CLEANUP_SCHEDULER_SECRET` value in
+  `x-crate-guide-cleanup-secret`. When the dedicated header is absent, the
+  project secret in `apikey` remains a rollout fallback for environments whose
+  gateway accepts it. A present dedicated header never falls through to the
+  `apikey` credential. The endpoint has no browser CORS contract, rejects
+  ordinary authenticated and anonymous tokens, accepts no user/path selector,
+  and returns only generic `processed` and `complete` booleans.
 - One service invocation claims at most one outbox job. A fixed service-only
   database enumeration returns at most 101 exact object names for the claimed
   UUID from `storage.objects`, regardless of folder depth. The worker validates
@@ -270,9 +276,8 @@ Account deletion has an additional service-owned recovery path:
   ordinary caller's already-computed counts or status or expose cross-account
   information.
 - The repository contains no source-controlled hosted schedule for the service
-  endpoint. Its presence supports an operator or future scheduler, but this
-  guide makes no claim that the function is deployed, configured, or scheduled
-  in any hosted project.
+  endpoint. Hosted state and release evidence remain the authority for whether
+  the function is deployed, configured, and scheduled in a specific project.
 - Account-deletion responses distinguish `cover_cleanup_complete` from
   `cleanup_queue_complete`; either false means the account deletion succeeded
   with incomplete cleanup and triggers the same generic client warning.

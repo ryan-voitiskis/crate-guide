@@ -337,6 +337,7 @@ DISCOGS_USER_AGENT=CrateGuide/2.0
 DISCOGS_RATE_LIMIT_PER_USER=45
 DISCOGS_RATE_LIMIT_GLOBAL=55
 DISCOGS_RATE_LIMIT_WINDOW_SECONDS=60
+ACCOUNT_COVER_CLEANUP_SCHEDULER_SECRET=
 SITE_URL=https://crate-guide-staging.pages.dev
 ```
 
@@ -402,11 +403,17 @@ Record an owner and an approved staging cadence. The scheduler must:
 
 - POST an empty body to
   `${SUPABASE_URL}/functions/v1/cleanup-orphaned-record-covers`;
-- source the exact staging secret key from provider-managed Vault or equivalent,
-  never plaintext in `cron.job`, logs, or evidence;
-- send that key only in the `apikey` header;
+- source the exact staging publishable key and a dedicated random scheduler
+  secret from provider-managed Vault or equivalent, never plaintext in
+  `cron.job`, logs, or evidence;
+- send the publishable key in `apikey` and the dedicated secret in
+  `x-crate-guide-cleanup-secret`;
 - accept no caller-selected user ID or Storage path;
 - retain failed/outstanding jobs for retry.
+
+A project secret in `apikey` remains a compatibility fallback only while the
+dedicated header is absent and the hosted gateway accepts that project secret.
+New schedules must use the dedicated-header design.
 
 A one-minute staging cadence is suitable for the multi-page smoke. Record only
 `jobid`, `jobname`, `schedule`, and `active`; do not select or export the command
