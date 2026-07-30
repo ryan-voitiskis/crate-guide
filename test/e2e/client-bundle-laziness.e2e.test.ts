@@ -171,7 +171,13 @@ function findSequence(observed: ObservedAsset[], pathname: string): number {
 }
 
 function expectNotRequested(observed: ObservedAsset[], pathname: string) {
-	expect(observed.some((entry) => entry.pathname === pathname)).toBe(false)
+	const request = observed.find((entry) => entry.pathname === pathname)
+	expect(
+		request,
+		`Expected ${pathname} to remain deferred. Successful requests: ${observed
+			.map((entry) => `${entry.sequence}:${entry.pathname}`)
+			.join(', ')}`
+	).toBeUndefined()
 }
 
 beforeAll(async () => {
