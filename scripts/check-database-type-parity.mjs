@@ -23,27 +23,40 @@ async function readDatabaseTypeFile(filepath, configuredPaths) {
 	} catch (error) {
 		if (error?.code === 'ENOENT') {
 			throw new Error(
-				`Generated database type file is missing (${displayPath(filepath)}); configured copies: ${configuredPaths}`
+				`Generated database type file is missing (${displayPath(filepath)}); configured copies: ${configuredPaths}`,
+				{ cause: error }
 			)
 		}
 
 		throw new Error(
-			`Could not read generated database type file (${displayPath(filepath)}); configured copies: ${configuredPaths}`
+			`Could not read generated database type file (${displayPath(filepath)}); configured copies: ${configuredPaths}`,
+			{ cause: error }
 		)
 	}
 }
 
 export async function checkDatabaseTypeParity({
 	canonicalPath = defaultCanonicalPath,
-	edgePath = defaultEdgePath
+	edgePath = defaultEdgePath,
+	generatedPath
 } = {}) {
-	const configuredPaths = `${displayPath(canonicalPath)} and ${displayPath(edgePath)}`
-	const [canonicalContent, edgeContent] = await Promise.all([
-		readDatabaseTypeFile(canonicalPath, configuredPaths),
-		readDatabaseTypeFile(edgePath, configuredPaths)
-	])
+	const configuredFiles = [
+		canonicalPath,
+		edgePath,
+		...(generatedPath ? [generatedPath] : [])
+	]
+	const configuredPaths = configuredFiles.map(displayPath).join(', ')
+	const [canonicalContent, edgeContent, generatedContent] = await Promise.all(
+		configuredFiles.map((filepath) =>
+			readDatabaseTypeFile(filepath, configuredPaths)
+		)
+	)
 
-	if (canonicalContent.length === 0 || edgeContent.length === 0) {
+	if (
+		canonicalContent.length === 0 ||
+		edgeContent.length === 0 ||
+		generatedContent?.length === 0
+	) {
 		throw new Error(
 			`Generated database type files must be nonempty: ${configuredPaths}`
 		)
@@ -51,6 +64,12 @@ export async function checkDatabaseTypeParity({
 
 	if (!canonicalContent.equals(edgeContent)) {
 		throw new Error(`Generated database type files differ: ${configuredPaths}`)
+	}
+
+	if (generatedContent && !canonicalContent.equals(generatedContent)) {
+		throw new Error(
+			`Tracked database types differ from the migrated schema: ${configuredPaths}`
+		)
 	}
 }
 

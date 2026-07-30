@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { Pencil, PencilOff } from '@lucide/vue'
 import { toTypedSchema } from '@vee-validate/zod'
-import { Pencil, PencilOff } from 'lucide-vue-next'
 import { useForm } from 'vee-validate'
 import {
 	buildTrackEditorPayload,
@@ -9,6 +9,7 @@ import {
 	trackEditorSchema,
 	trackToEditorValues
 } from '~/utils/trackEditor'
+import type { LibraryTrack } from '~~/shared/types/library'
 
 const props = defineProps<{
 	trackId: string | null
@@ -18,13 +19,34 @@ const emit = defineEmits<{
 	close: []
 }>()
 
-const tracks = useTracksStore()
-const records = useRecordsStore()
-const user = useUserStore()
+const tracks = useWorkbenchTracksStore()
+const records = useWorkbenchRecordsStore()
+const preferences = useWorkbenchPreferencesStore()
 
 const isEditMode = ref(false)
 const showUnsavedChangesAlert = ref(false)
 const isFormInitialized = ref(false)
+const isSubmitting = ref(false)
+let detailsGeneration = 0
+let nextSubmissionId = 0
+let activeSubmissionId: number | null = null
+
+function resetSubmissionState() {
+	activeSubmissionId = null
+	isSubmitting.value = false
+}
+
+function advanceDetailsGeneration() {
+	detailsGeneration += 1
+	resetSubmissionState()
+	isFormInitialized.value = false
+}
+
+function setEditMode(value: boolean) {
+	if (isEditMode.value === value) return
+	advanceDetailsGeneration()
+	isEditMode.value = value
+}
 
 const dialogOpen = computed({
 	get: () => !!props.trackId,
@@ -56,6 +78,19 @@ const artists = ref<DiscogsArtistDb[]>([])
 const extraartists = ref<DiscogsArtistDb[]>([])
 
 watch(
+	() => props.trackId,
+	(trackId, previousTrackId) => {
+		if (trackId === previousTrackId) return
+		advanceDetailsGeneration()
+		isEditMode.value = false
+		showUnsavedChangesAlert.value = false
+		artists.value = []
+		extraartists.value = []
+	},
+	{ flush: 'sync' }
+)
+
+watch(
 	[() => selectedTrack.value, () => isEditMode.value],
 	([track, editMode]) => {
 		if (track && editMode && !isFormInitialized.value) {
@@ -65,6 +100,8 @@ watch(
 			isFormInitialized.value = true
 		} else if (!editMode) {
 			isFormInitialized.value = false
+			artists.value = track ? [...track.artists] : []
+			extraartists.value = track ? [...track.extraartists] : []
 		}
 	},
 	{ immediate: true }
@@ -85,7 +122,7 @@ function hasFormChanges(): boolean {
 function handleCloseDialog() {
 	if (hasFormChanges()) showUnsavedChangesAlert.value = true
 	else {
-		isEditMode.value = false
+		setEditMode(false)
 		emit('close')
 	}
 }
@@ -94,12 +131,23 @@ function handleToggleEditMode() {
 	if (isEditMode.value && hasFormChanges()) {
 		showUnsavedChangesAlert.value = true
 	} else {
-		isEditMode.value = !isEditMode.value
+		setEditMode(!isEditMode.value)
 	}
 }
 
 const saveTrack = handleSubmit(async (values) => {
-	if (!selectedTrack.value) return
+	const trackId = props.trackId
+	if (!trackId || selectedTrack.value?.id !== trackId) return
+	const submissionGeneration = detailsGeneration
+	const submissionId = ++nextSubmissionId
+	activeSubmissionId = submissionId
+	isSubmitting.value = true
+
+	const ownsActiveEditor = () =>
+		activeSubmissionId === submissionId &&
+		detailsGeneration === submissionGeneration &&
+		props.trackId === trackId &&
+		isEditMode.value
 
 	const updates = buildTrackEditorPayload(
 		values,
@@ -107,30 +155,37 @@ const saveTrack = handleSubmit(async (values) => {
 		extraartists.value
 	)
 
-	const result = await tracks.updateTrack(selectedTrack.value.id, updates)
-	if (result) {
-		isEditMode.value = false
-		isFormInitialized.value = false
+	try {
+		const result = await tracks.updateTrack(trackId, updates)
+		if (result && ownsActiveEditor()) {
+			resetSubmissionState()
+			setEditMode(false)
+		}
+	} finally {
+		if (ownsActiveEditor()) resetSubmissionState()
 	}
 })
 
 function handleCancelEdit() {
 	if (hasFormChanges()) showUnsavedChangesAlert.value = true
 	else {
-		isEditMode.value = false
+		setEditMode(false)
 	}
 }
 
 function confirmDiscardAndProceed() {
 	showUnsavedChangesAlert.value = false
-	isFormInitialized.value = false
-	isEditMode.value = false
+	setEditMode(false)
 	emit('close')
 }
 
-function formatKey(track: Track): string {
+function formatKey(track: LibraryTrack): string {
 	if (track.key === null || track.mode === null) return 'Not specified'
-	return getFormattedKeyString(track.key, track.mode, user.currentKeyFormat)
+	return getFormattedKeyString(
+		track.key,
+		track.mode,
+		preferences.currentKeyFormat
+	)
 }
 </script>
 
@@ -188,7 +243,7 @@ function formatKey(track: Track): string {
 						v-if="isEditMode"
 						v-model:artists="artists"
 						v-model:extraartists="extraartists"
-						:key-format="user.currentKeyFormat"
+						:key-format="preferences.currentKeyFormat"
 						:show-validation-errors="true"
 					/>
 
@@ -321,7 +376,7 @@ function formatKey(track: Track): string {
 						</Button>
 						<ButtonLoading
 							:disabled="!meta.valid"
-							:loading="tracks.isUpdatingTrack"
+							:loading="isSubmitting"
 							@click="saveTrack"
 						>
 							Save Changes

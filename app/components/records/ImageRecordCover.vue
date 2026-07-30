@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ImageOff } from 'lucide-vue-next'
+import { ImageOff } from '@lucide/vue'
+import type { LibraryRecord } from '~~/shared/types/library'
 
 const props = withDefaults(
 	defineProps<{
-		record: Pick<DatabaseRecord, 'cover' | 'cover_storage_path' | 'title'>
+		record: Pick<LibraryRecord, 'cover' | 'title'>
 		alt?: string
 		showLabel?: boolean
 		objectPosition?: string
@@ -20,23 +21,38 @@ const coverUrl = ref<string | null>(null)
 const loaded = ref(false)
 const failed = ref(false)
 let coverRequest = 0
+let acceptingCoverResults = true
 
 watch(
-	() => [props.record.cover_storage_path, props.record.cover] as const,
+	() => getCoverReferenceKey(props.record.cover),
 	async () => {
 		const request = ++coverRequest
+		const fallbackUrl = getCoverFallbackUrl(props.record.cover)
+		coverUrl.value = null
 		loaded.value = false
 		failed.value = false
-		const nextUrl = await getCoverUrl(props.record)
-		if (request === coverRequest) coverUrl.value = nextUrl
+		let nextUrl: string | null
+		try {
+			nextUrl = await getCoverUrl(props.record)
+		} catch {
+			nextUrl = fallbackUrl
+		}
+		if (acceptingCoverResults && request === coverRequest)
+			coverUrl.value = nextUrl
 	},
 	{ immediate: true }
 )
+
+onBeforeUnmount(() => {
+	acceptingCoverResults = false
+	coverRequest += 1
+})
 </script>
 
 <template>
 	<div
 		class="bg-muted relative flex items-center justify-center overflow-hidden"
+		data-testid="record-cover"
 	>
 		<div
 			v-if="coverUrl && !loaded && !failed"

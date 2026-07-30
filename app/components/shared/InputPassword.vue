@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes, InputHTMLAttributes } from 'vue'
-import { LucideEye, LucideEyeOff } from 'lucide-vue-next'
+import { LucideEye, LucideEyeOff } from '@lucide/vue'
 
 defineOptions({ inheritAttrs: false })
 

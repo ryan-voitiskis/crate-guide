@@ -7,10 +7,7 @@ import {
 definePageMeta({ layout: 'auth', keepalive: false })
 
 type FinalisingState =
-	| 'loading'
-	| 'redirecting'
-	| 'callback-error'
-	| 'timeout-error'
+	'loading' | 'redirecting' | 'callback-error' | 'timeout-error'
 
 const route = useRoute()
 const user = useUserStore()

@@ -11,7 +11,7 @@ export const LOCAL_AUDIO_ANALYZER_VERSION =
 	localAudioAnalysisConfiguration.analyzerVersion
 export const LOCAL_AUDIO_CONFIGURATION_VERSION =
 	localAudioAnalysisConfiguration.configurationVersion
-export const LOCAL_AUDIO_METADATA_VERSION = 'native-tags-v2'
+export const LOCAL_AUDIO_METADATA_VERSION = 'native-tags-v3'
 export const LOCAL_AUDIO_SAMPLE_RATE =
 	localAudioAnalysisConfiguration.sampleRate
 export const LOCAL_AUDIO_MAX_ANALYSIS_SECONDS =
@@ -20,6 +20,12 @@ export const LOCAL_AUDIO_MIN_BPM_CONFIDENCE =
 	localAudioAnalysisConfiguration.minimumConfidence.bpm
 export const LOCAL_AUDIO_MIN_KEY_STRENGTH =
 	localAudioAnalysisConfiguration.minimumConfidence.keyStrength
+export const LOCAL_AUDIO_CACHE_GENERATION_PREFIX = [
+	LOCAL_AUDIO_ANALYZER_VERSION,
+	LOCAL_AUDIO_CONFIGURATION_VERSION,
+	LOCAL_AUDIO_METADATA_VERSION,
+	''
+].join('|')
 
 // Tuple order is the Essentia positional API boundary; keep it aligned with the named JSON fields.
 export const LOCAL_AUDIO_RHYTHM_EXTRACTOR_ARGS = [
@@ -72,14 +78,11 @@ export function getLocalAudioCacheKey(input: {
 	size: number
 	lastModified: number
 }): string {
-	return [
-		LOCAL_AUDIO_ANALYZER_VERSION,
-		LOCAL_AUDIO_CONFIGURATION_VERSION,
-		LOCAL_AUDIO_METADATA_VERSION,
+	return `${LOCAL_AUDIO_CACHE_GENERATION_PREFIX}${[
 		input.relativePath,
 		input.size,
 		input.lastModified
-	].join('|')
+	].join('|')}`
 }
 
 export function getLocalAudioAnalysisWindow(durationSeconds: number): {
@@ -129,7 +132,11 @@ export async function readLocalAudioTags(
 	file: File
 ): Promise<LocalAudioTagMetadata> {
 	const { parseBlob } = await import('music-metadata')
-	const metadata = await parseBlob(file, { duration: false, skipCovers: true })
+	const metadata = await parseBlob(file, {
+		duration: false,
+		skipCovers: true,
+		skipPostHeaders: true
+	})
 	const nativeBpm = findNativeAudioTag(metadata.native, [
 		'BPM',
 		'TBPM',

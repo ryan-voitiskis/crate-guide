@@ -8,6 +8,35 @@ local/deploy commands. It does not assert that a hosted function, secret, or
 database migration is deployed; verify the target Supabase project separately
 before a release.
 
+## Provider terms and unresolved decisions
+
+The current implementation must not be treated as evidence that every stored
+Discogs field, display surface, portable archive, or future accountless flow is
+provider-approved. Two dated decision records define the unresolved boundaries:
+
+- [Discogs data portability and display](./decisions/discogs-data-portability.md)
+  classifies current fields by source JSON path and records freshness,
+  retention, attribution, archive, reimport, and deletion constraints.
+- [Accountless Discogs connection](./decisions/accountless-discogs.md) evaluates
+  a device-scoped server credential, alternatives, abuse paths, eligibility,
+  credential lifecycle, and privacy UX.
+
+Both decisions remain **STOP - unresolved**. No provider, legal, or maintainer
+approval is recorded. They do not change the current account-bound OAuth flow or
+authorise schema, OAuth, archive, retention, or UI implementation.
+
+The current Discogs API Terms require `Data provided by Discogs.` directly next
+to API-derived data with a link to the exact Discogs page containing it. A
+generic legal-page notice is not the adjacent-attribution implementation. The
+decisions also conservatively retain the Terms' six-hour display and
+necessary-storage constraints until a written decision resolves their effect on
+persistent Local/cloud libraries and archive reimport.
+
+Run `npm run check:discogs-docs` to verify that the dated sources,
+classifications, exclusions, threat model, alternatives, and explicit STOP
+state remain present. Passing that check is source consistency, not external
+approval.
+
 ## Trust boundaries
 
 - The browser derives connection state from public profile fields and never
@@ -22,11 +51,11 @@ before a release.
 - `authenticated-discogs-request` accepts a small structured endpoint union and
   constructs the Discogs URL server-side. It is not an arbitrary URL proxy and
   supports reads only.
-- Source-controlled deployment tasks use `supabase functions deploy` without a
-  JWT bypass. The convention checker rejects a deploy task containing
-  `--no-verify-jwt`. Handlers still authenticate with `getUser()`, providing a
-  second application-layer check after the gateway. Hosted gateway settings
-  remain an environment verification responsibility.
+- Source-controlled `supabase/config.toml` sets `verify_jwt = false` for each
+  function so asymmetric project signing keys do not depend on legacy gateway
+  verification. Every handler still authenticates its caller internally before
+  privileged work. Hosted gateway settings remain an environment verification
+  responsibility.
 - Local function commands use `--no-verify-jwt` only for emulation. That bypasses
   the local gateway check, not handler authentication.
 
@@ -35,8 +64,9 @@ before a release.
 ### Request token
 
 1. The browser invokes `get-discogs-request-token` with its Supabase session.
-2. The handler verifies the caller through the credential repository and
-   acquires the server-side Discogs quota for that verified user.
+2. The handler verifies the caller through the credential repository. The
+   shared provider transport acquires server-side Discogs quota for that
+   verified user immediately before dispatch.
 3. The handler calls Discogs's request-token endpoint. OAuth consumer data,
    signature, nonce, timestamp, and callback travel in the `Authorization`
    header; the endpoint URL has no OAuth query parameters.
@@ -52,16 +82,22 @@ before a release.
    the browser sends them in the JSON body of `get-discogs-access-token`.
 2. The handler verifies the Supabase caller, reads only that user's pending
    credential row with the service role, and rejects a callback-token mismatch.
-3. After acquiring quota, the handler posts to Discogs's access-token endpoint.
+3. The quota-bound transport posts to Discogs's access-token endpoint.
    The OAuth token, verifier, PLAINTEXT signature, nonce, and timestamp are in
    the `Authorization` header, not the URL.
 4. The handler stores the private access token and secret for the verified user,
-   then performs a signed identity request. Subsequent signed API requests use
-   HMAC-SHA1 and place OAuth data in the `Authorization` header; URL query
-   parameters are limited to business pagination values such as `page` and
-   `per_page` and are included in the signature base string.
-5. The caller-scoped client updates only public `discogs_username` and avatar
-   profile fields. Client stores derive connected state from those fields.
+   then performs a separately charged signed identity request. If identity JSON,
+   its upstream request, or the profile write fails, the handler returns
+   `discogs_identity_pending`. A retry sends only `{ "resume": true }`; the
+   server reloads access credentials for the current authenticated user and
+   never repeats the verifier exchange or accepts a user/token selector.
+5. An avatar lookup is separately charged, trusted-host-only, and optional. Its
+   failure cannot invalidate a valid identity. Subsequent signed API requests
+   use HMAC-SHA1 and place OAuth data in the `Authorization` header; URL query
+   parameters are limited to signed business pagination values.
+6. The caller-scoped client publishes only public `discogs_username` and avatar
+   profile fields, then the repository clears obsolete request credentials.
+   Client stores derive connected state from those valid public identity fields.
 
 `disconnect_discogs` remains an authenticated, identity-bound database RPC. It
 derives `auth.uid()`, deletes that user's credential row, and clears the public
@@ -73,8 +109,8 @@ Discogs identity fields atomically; it does not return credentials.
 It invokes `authenticated-discogs-request` with one of three structured request
 variants: `folders`, `folder_releases`, or `release`. The handler validates IDs
 and pagination, obtains the collection username through the caller-scoped
-profile client, acquires quota, constructs an `api.discogs.com` URL, and performs
-one signed GET.
+profile client and constructs an `api.discogs.com` URL. The shared signed
+transport acquires quota immediately before performing one GET.
 
 The import pipeline then:
 
@@ -90,8 +126,11 @@ in session storage. Private OAuth values are not part of that snapshot.
 
 ## Server-side quota
 
-All three Discogs handlers call the repository's `consumeRequestQuota()` before
-their primary Discogs operation. The service role invokes
+Every provider dispatch passes through the quota-bound transport, including
+request-token exchange, access-token exchange, identity, optional avatar, and
+authenticated collection reads. Quota is acquired immediately before fetch.
+The transport calls the repository's `consumeRequestQuota()`; denial cannot
+dispatch a provider request. The service role invokes
 `consume_discogs_request_quota` with the verified user UUID and validated
 configuration; clients cannot supply bucket keys or execute the RPC.
 
@@ -104,11 +143,11 @@ bounded `retry_after_ms`, and a matching `Retry-After` header.
 Defaults and bounds are enforced in both the Edge configuration reader and the
 database function:
 
-| Variable                            | Default | Contract                                                   |
-| ----------------------------------- | ------- | ---------------------------------------------------------- |
-| `DISCOGS_RATE_LIMIT_PER_USER`       | `45`    | Positive integer, no greater than the global limit         |
-| `DISCOGS_RATE_LIMIT_GLOBAL`         | `55`    | Positive integer, no greater than Discogs's `60` allowance |
-| `DISCOGS_RATE_LIMIT_WINDOW_SECONDS` | `60`    | Integer from `60` through `120` seconds                    |
+| Variable                            | Default | Contract                                                      |
+| ----------------------------------- | ------- | ------------------------------------------------------------- |
+| `DISCOGS_RATE_LIMIT_PER_USER`       | `45`    | Positive integer, no greater than the global limit            |
+| `DISCOGS_RATE_LIMIT_GLOBAL`         | `55`    | Positive integer at most `57`, reserving three callback calls |
+| `DISCOGS_RATE_LIMIT_WINDOW_SECONDS` | `60`    | Integer from `60` through `120` seconds                       |
 
 ## Environment readers
 
@@ -120,7 +159,7 @@ database function:
 | `DISCOGS_RATE_LIMIT_PER_USER`       | `getDiscogsRateLimitConfig()`; optional per-user quota         |
 | `DISCOGS_RATE_LIMIT_GLOBAL`         | `getDiscogsRateLimitConfig()`; optional shared quota           |
 | `DISCOGS_RATE_LIMIT_WINDOW_SECONDS` | `getDiscogsRateLimitConfig()`; optional quota window           |
-| `SITE_URL`                          | CORS origin and server-built OAuth callback base URL           |
+| `SITE_URL`                          | One HTTP(S) origin for CORS and server-built OAuth callbacks   |
 
 Shared Supabase helpers also require runtime-provided `SUPABASE_URL`, the
 `default` entry in hosted `SUPABASE_PUBLISHABLE_KEYS`, and the `default` entry
@@ -140,8 +179,10 @@ include bounded retry metadata. Client code decodes those fields into
 messages.
 
 OAuth handlers return curated public messages. Their stable rate-limit response
-uses the same `discogs_rate_limited` code; other OAuth failures are classified
-through `PublicOAuthError` and generic fallbacks. Logs contain operational
+uses the same `discogs_rate_limited` code. A stored access credential awaiting
+identity uses `discogs_identity_pending` and a credential-free retry; other
+OAuth failures are classified through `PublicOAuthError` and generic fallbacks.
+Logs contain operational
 classification (request ID, endpoint, attempt, status, and stable code where
 applicable), not OAuth response bodies, credentials, authorization headers, or
 raw private errors. The browser additionally rejects unusually long or
@@ -151,7 +192,10 @@ credential-shaped OAuth messages.
 
 Discogs imports may initially retain an external cover URL. When a cover is
 uploaded into the private `record-covers` bucket, its managed path is shaped as
-`<user UUID>/<record UUID>/<file>.webp`. The authenticated Storage insert policy
+`<user UUID>/<record UUID>/<file UUID>.webp`. A row-level database invariant
+requires the exact owning user and record prefix plus the application UUID WebP
+filename. Its forward migration stops with a remediation hint if pre-existing
+rows contain a legacy mismatch. The authenticated Storage insert policy
 requires exactly those two folder components; it rejects both shallower and
 deeper new uploads, while service cleanup remains able to remove older objects
 at any legacy depth.
@@ -167,8 +211,10 @@ at any legacy depth.
   only unreferenced paths to Storage.
 - Storage removal is acknowledged at the request level: `error === null` is
   success even when an object was already missing. Any ambiguous Storage or
-  database failure retains the job, increments attempt metadata where possible,
-  and returns a controlled deferred result.
+  database failure retains the job and returns a controlled deferred result. A
+  service-only set-based RPC marks as many as 100 observed jobs in one database
+  call, using each job's observed attempt count as compare-and-set protection so
+  a stale failure cannot increment a concurrently advanced row twice.
 - The records store validates the response counts and drains successful full
   pages until a short page proves the queue was reached, with finite per-page
   retries and a separate total-page bound. Each successful cover replacement,
@@ -184,12 +230,12 @@ at any legacy depth.
 
 Account deletion has an additional service-owned recovery path:
 
-- `delete-account` performs its initial full-tree Storage pass, then persists
-  one `record_cover_account_cleanup_jobs` outbox row before calling
-  `deleteUser`. If enqueueing fails, deletion stops while the identity still
-  exists. After identity deletion, a final full-tree pass closes concurrent
-  upload races; only a confirmed empty tree permits ordinary-job deletion and
-  outbox completion.
+- `delete-account` idempotently persists one immediately claimable
+  `record_cover_account_cleanup_jobs` outbox row before calling `deleteUser`.
+  If scheduling fails, deletion stops while the identity still exists. The
+  request performs no Storage enumeration, so Auth deletion does not depend on
+  account-sized or never-settling traversal. A successful response explicitly
+  reports that cover and queue cleanup remain queued for the durable worker.
 - The outbox has no auth-user foreign key and no browser policies or grants.
   Service-role-only RPCs claim one available job under a two-minute lease and
   order fairly by the last claim/release attempt, then stable creation and user
@@ -211,6 +257,12 @@ Account deletion has an additional service-owned recovery path:
   database enumeration after removal must be empty before ordinary-job deletion
   and exact outbox completion. A live auth user or ambiguous Storage/database
   state releases the lease for retry.
+- Final outbox completion also removes the deleted account's exact Discogs
+  user-quota bucket. Each worker invocation performs an independent bounded
+  prune of at most 100 expired canonical user buckets. Active windows,
+  unrelated keys, and the `discogs:global` bucket are never pruning targets;
+  quota-maintenance failure does not delay cover traversal, while exact
+  deleted-user retirement remains retryable outbox work.
 - After its own work succeeds, ordinary `cleanup-record-covers` schedules at
   most one service-selected outbox batch through the Edge background lifetime.
   It does not await Auth, Storage, or outbox work from that opportunistic task.
@@ -224,6 +276,31 @@ Account deletion has an additional service-owned recovery path:
 - Account-deletion responses distinguish `cover_cleanup_complete` from
   `cleanup_queue_complete`; either false means the account deletion succeeded
   with incomplete cleanup and triggers the same generic client warning.
+
+### Disposable local account-cleanup smoke
+
+The repository-owned smoke harness exercises the real account-cover cleanup
+repository and worker against the running local Supabase stack:
+
+```bash
+npm run smoke:account-cleanup
+```
+
+The harness reads credentials from captured `supabase status` output and never
+prints them. It refuses every API endpoint except loopback port `42821` and
+every database endpoint except the reserved loopback port `42822`, so it cannot
+target a hosted project. It also refuses to begin while unrelated account
+outbox work or expired user-quota work is pending.
+
+One run creates a uniquely named disposable user and 201 canonical managed
+covers, proves durable intent exists before deleting Auth, then waits through
+the production retry leases while the real worker removes `100`, `100`, and
+`1` objects. A hard invocation and time cap prevents an unbounded run. Final
+proof checks the target's Storage prefix, both cleanup queues, records, and
+per-user quota row are absent while an unrelated object and the exact global
+quota row survive. A scoped `finally` cleanup removes every fixture artifact,
+including after a failed assertion; it does not reset or truncate the local
+database. Allow a little over one minute for the two real lease delays.
 
 ## Verification commands
 

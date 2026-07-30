@@ -90,9 +90,8 @@ async function readStructuredError(response: unknown) {
 	}
 }
 
-export function useDiscogsApi() {
+export function useDiscogsApi(user = useUserStore()) {
 	const supabase = getSupabase()
-	const user = useUserStore()
 
 	const invokeDispatcher = async (
 		body: DispatchBody,

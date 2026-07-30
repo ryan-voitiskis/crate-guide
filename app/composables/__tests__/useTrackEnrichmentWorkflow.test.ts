@@ -1,16 +1,29 @@
 import { type EffectScope, effectScope, nextTick } from 'vue'
 import { toast } from 'vue-sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { TrackEnrichmentApplyAttempt } from '~/composables/useTrackEnrichmentWorkflow'
 import type { LocalAudioReviewSelection } from '~/types/localAudio'
+import type {
+	RekordboxXmlSanitizedSnapshot,
+	RekordboxXmlSanitizedTrack
+} from '~/types/rekordboxXmlWorker'
 import type { RekordboxXmlTrack } from '~/utils/rekordboxXml'
+import {
+	RekordboxXmlWorkerCancelledError,
+	RekordboxXmlWorkerParseError
+} from '~/utils/rekordboxXmlWorkerClient'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
 import type { DatabaseRecord, Track } from '~~/shared/types/supabase'
-import type { TrackBatchUpdate } from '~~/shared/types/trackUpdates'
+import type {
+	TrackBatchUpdate,
+	TrackBatchUpdateOutcome,
+	TrackBatchUpdateResult
+} from '~~/shared/types/trackUpdates'
 
 const workflowMocks = vi.hoisted(() => ({
 	buildRows: vi.fn(),
 	buildUpdate: vi.fn(),
-	parseXml: vi.fn()
+	startWorkerParse: vi.fn()
 }))
 
 vi.mock('vue-sonner', () => ({
@@ -21,9 +34,11 @@ vi.mock('vue-sonner', () => ({
 	}
 }))
 
-vi.mock('~/utils/rekordboxXml', async (importOriginal) => ({
-	...(await importOriginal<typeof import('~/utils/rekordboxXml')>()),
-	parseRekordboxXml: workflowMocks.parseXml
+vi.mock('~/utils/rekordboxXmlWorkerClient', async (importOriginal) => ({
+	...(await importOriginal<
+		typeof import('~/utils/rekordboxXmlWorkerClient')
+	>()),
+	startRekordboxXmlWorkerParse: workflowMocks.startWorkerParse
 }))
 
 vi.mock('~/utils/trackEnrichment', async (importOriginal) => ({
@@ -56,9 +71,21 @@ const { useTrackEnrichmentWorkflow } =
 
 const activeScopes: EffectScope[] = []
 
-function createWorkflow() {
+function createWorkflow(options?: {
+	onApplyAttempt?: (
+		attempt: TrackEnrichmentApplyAttempt
+	) => Promise<void> | void
+}) {
 	const scope = effectScope()
-	const workflow = scope.run(() => useTrackEnrichmentWorkflow())
+	const workflow = scope.run(() =>
+		useTrackEnrichmentWorkflow({
+			records: mockRecordsStore as unknown as ReturnType<
+				typeof useRecordsStore
+			>,
+			tracks: mockTracksStore as unknown as ReturnType<typeof useTracksStore>,
+			onApplyAttempt: options?.onApplyAttempt
+		})
+	)
 	if (!workflow) throw new Error('Failed to create enrichment workflow scope')
 	activeScopes.push(scope)
 	return workflow
@@ -102,7 +129,7 @@ function createTrack(overrides: Partial<Track> = {}): Track {
 		beatport_data: null,
 		audio_features: null,
 		created_at: null,
-		updated_at: null,
+		updated_at: '2026-07-22T00:00:00.000Z',
 		...overrides
 	}
 }
@@ -172,8 +199,42 @@ function createRow(
 function createFile(name = 'collection.xml') {
 	return {
 		name,
-		text: vi.fn().mockResolvedValue('<DJ_PLAYLISTS />')
+		size: 1_024
 	} as unknown as File
+}
+
+function createSnapshot(
+	overrides: Partial<RekordboxXmlSanitizedSnapshot> = {}
+): RekordboxXmlSanitizedSnapshot {
+	return {
+		parserPolicyVersion: 'rekordbox-xml-stream-v1',
+		sanitizedSnapshotVersion: 'rekordbox-xml-sanitized-v1',
+		tracks: [createSanitizedSource()],
+		entriesDeclared: 1,
+		warnings: [],
+		errors: [],
+		...overrides
+	}
+}
+
+function createSanitizedSource(
+	overrides: Partial<RekordboxXmlSanitizedTrack> = {}
+): RekordboxXmlSanitizedTrack {
+	return { ...createSource(overrides), ...overrides, location: null }
+}
+
+let workerOperationSequence = 0
+
+function createWorkerHandle(
+	promise: Promise<RekordboxXmlSanitizedSnapshot> = Promise.resolve(
+		createSnapshot()
+	)
+) {
+	return {
+		operationId: `worker-operation-${++workerOperationSequence}`,
+		promise,
+		cancel: vi.fn()
+	}
 }
 
 function createDeferred<T>() {
@@ -228,10 +289,11 @@ function createLocalSelection(): LocalAudioReviewSelection {
 }
 
 function toBatchUpdate(row: TrackEnrichmentRow): TrackBatchUpdate | null {
-	if (!row.track || row.stagingBlockedReason) return null
+	if (!row.track?.updated_at || row.stagingBlockedReason) return null
 
 	return {
 		id: row.track.id,
+		expectedUpdatedAt: row.track.updated_at,
 		updates: {
 			...(row.canFillBpm ? { bpm: row.proposedBpm } : {}),
 			...(row.canFillKeyMode
@@ -245,16 +307,48 @@ function toBatchUpdate(row: TrackEnrichmentRow): TrackBatchUpdate | null {
 	}
 }
 
+function updatedBatchResult(track: Track): TrackBatchUpdateResult {
+	return {
+		id: track.id,
+		status: 'updated',
+		success: true,
+		track,
+		issue: null,
+		error: null,
+		operation: null
+	}
+}
+
+function failedBatchResult(
+	id: string,
+	error = 'Database rejected update'
+): TrackBatchUpdateResult {
+	return {
+		id,
+		status: 'invalid',
+		success: false,
+		track: null,
+		issue: { code: 'update_rejected', message: error },
+		error,
+		operation: null
+	}
+}
+
+const CANCELLED_BATCH_OUTCOME: TrackBatchUpdateOutcome = {
+	results: [],
+	cancelled: true,
+	requiresReview: false
+}
+
 describe('useTrackEnrichmentWorkflow', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
+		workerOperationSequence = 0
 		mockRecordsStore.records = [createRecord()]
 		mockTracksStore.tracks = [createTrack()]
-		workflowMocks.parseXml.mockReturnValue({
-			tracks: [createSource()],
-			warnings: [],
-			errors: []
-		})
+		workflowMocks.startWorkerParse.mockImplementation(() =>
+			createWorkerHandle()
+		)
 		workflowMocks.buildRows.mockImplementation(
 			async (options: {
 				sources: unknown[]
@@ -267,7 +361,8 @@ describe('useTrackEnrichmentWorkflow', () => {
 		workflowMocks.buildUpdate.mockImplementation(toBatchUpdate)
 		mockTracksStore.updateTracksBatch.mockResolvedValue({
 			results: [],
-			cancelled: false
+			cancelled: false,
+			requiresReview: false
 		})
 	})
 
@@ -289,22 +384,187 @@ describe('useTrackEnrichmentWorkflow', () => {
 		expect(first).not.toHaveProperty('tracks')
 	})
 
-	it('preserves XML warnings, stops on parser errors, and always cleans parsing state', async () => {
-		workflowMocks.parseXml.mockReturnValue({
-			tracks: [],
-			warnings: ['Unsupported field ignored'],
-			errors: ['Invalid XML document']
-		})
+	it('stops on Worker parser errors and always cleans parsing state', async () => {
+		workflowMocks.startWorkerParse.mockReturnValueOnce(
+			createWorkerHandle(
+				Promise.reject(
+					new RekordboxXmlWorkerParseError(
+						'malformed_xml',
+						'Invalid XML document'
+					)
+				)
+			)
+		)
 		const workflow = createWorkflow()
 
 		await workflow.parseFile(createFile())
 
 		expect(requestAnimationFrame).toHaveBeenCalledOnce()
-		expect(workflow.parseWarnings.value).toEqual(['Unsupported field ignored'])
+		expect(workflow.parseWarnings.value).toEqual([])
 		expect(workflow.parseErrors.value).toEqual(['Invalid XML document'])
 		expect(workflowMocks.buildRows).not.toHaveBeenCalled()
 		expect(workflow.workflowView.value).toBe('source')
 		expect(workflow.isParsing.value).toBe(false)
+		expect(workflow.canRetryParsing.value).toBe(false)
+	})
+
+	it('reports byte progress before matching progress and preserves Worker warnings', async () => {
+		const workerResult = createDeferred<RekordboxXmlSanitizedSnapshot>()
+		const matchingResult = createDeferred<TrackEnrichmentRow[]>()
+		let reportWorkerProgress:
+			| ((progress: {
+					bytesRead: number
+					totalBytes: number
+					parsedTracks: number
+					entriesDeclared: number | null
+			  }) => void)
+			| undefined
+		let reportMatchingProgress:
+			((completed: number, total: number) => void) | undefined
+		workflowMocks.startWorkerParse.mockImplementationOnce(
+			(_file: File, options: { onProgress?: typeof reportWorkerProgress }) => {
+				reportWorkerProgress = options.onProgress
+				return createWorkerHandle(workerResult.promise)
+			}
+		)
+		workflowMocks.buildRows.mockImplementationOnce(
+			(options: {
+				onProgress?: (completed: number, total: number) => void
+			}) => {
+				reportMatchingProgress = options.onProgress
+				return matchingResult.promise
+			}
+		)
+		const workflow = createWorkflow()
+		const parsing = workflow.parseFile(createFile())
+		await vi.waitFor(() =>
+			expect(workflowMocks.startWorkerParse).toHaveBeenCalledOnce()
+		)
+
+		reportWorkerProgress?.({
+			bytesRead: 512,
+			totalBytes: 1_024,
+			parsedTracks: 3,
+			entriesDeclared: 6
+		})
+		expect(workflow.parsePhase.value).toBe('parsing')
+		expect(workflow.parseProgress.value).toBe(50)
+		expect(workflow.parseCompleted.value).toBe(3)
+		expect(workflow.parseTotal.value).toBe(6)
+
+		workerResult.resolve(
+			createSnapshot({
+				tracks: [createSanitizedSource(), createSanitizedSource({ index: 1 })],
+				entriesDeclared: 2,
+				warnings: ['Unsupported field ignored']
+			})
+		)
+		await vi.waitFor(() =>
+			expect(workflowMocks.buildRows).toHaveBeenCalledOnce()
+		)
+		expect(workflow.parsePhase.value).toBe('matching')
+		expect(workflow.parseWarnings.value).toEqual(['Unsupported field ignored'])
+
+		reportMatchingProgress?.(1, 2)
+		expect(workflow.parseProgress.value).toBe(50)
+		matchingResult.resolve([createRow()])
+		await parsing
+		expect(workflow.workflowView.value).toBe('review')
+		expect(workflow.isParsing.value).toBe(false)
+	})
+
+	it('cancels an active Worker operation without reporting completion', async () => {
+		const workerResult = createDeferred<RekordboxXmlSanitizedSnapshot>()
+		const handle = createWorkerHandle(workerResult.promise)
+		handle.cancel.mockImplementation(() => {
+			workerResult.reject(new RekordboxXmlWorkerCancelledError())
+		})
+		workflowMocks.startWorkerParse.mockReturnValueOnce(handle)
+		const workflow = createWorkflow()
+		const parsing = workflow.parseFile(createFile('cancelled.xml'))
+		await vi.waitFor(() => expect(workflow.isParsing.value).toBe(true))
+		await vi.waitFor(() =>
+			expect(workflowMocks.startWorkerParse).toHaveBeenCalledOnce()
+		)
+
+		workflow.cancelParsing()
+		await parsing
+
+		expect(handle.cancel).toHaveBeenCalledOnce()
+		expect(workflow.rows.value).toEqual([])
+		expect(workflow.parseErrors.value).toEqual([])
+		expect(workflow.parseWarnings.value).toEqual([
+			'Rekordbox XML parsing was cancelled. Retry when you are ready.'
+		])
+		expect(workflow.canRetryParsing.value).toBe(true)
+	})
+
+	it('retries the retained file with a new Worker operation', async () => {
+		const file = createFile('retry.xml')
+		workflowMocks.startWorkerParse
+			.mockReturnValueOnce(
+				createWorkerHandle(
+					Promise.reject(
+						new RekordboxXmlWorkerParseError(
+							'worker_failed',
+							'The parser stopped unexpectedly.',
+							true
+						)
+					)
+				)
+			)
+			.mockReturnValueOnce(createWorkerHandle())
+		const workflow = createWorkflow()
+
+		await workflow.parseFile(file)
+		expect(workflow.canRetryParsing.value).toBe(true)
+		await workflow.retryParsing()
+
+		expect(workflowMocks.startWorkerParse).toHaveBeenCalledTimes(2)
+		expect(workflowMocks.startWorkerParse.mock.calls[0]?.[0]).toBe(file)
+		expect(workflowMocks.startWorkerParse.mock.calls[1]?.[0]).toBe(file)
+		expect(workflow.workflowView.value).toBe('review')
+		expect(workflow.canRetryParsing.value).toBe(false)
+	})
+
+	it('lets a replacement parse own state when the older Worker completes late', async () => {
+		const staleResult = createDeferred<RekordboxXmlSanitizedSnapshot>()
+		const staleHandle = createWorkerHandle(staleResult.promise)
+		workflowMocks.startWorkerParse
+			.mockReturnValueOnce(staleHandle)
+			.mockReturnValueOnce(createWorkerHandle())
+		const workflow = createWorkflow()
+		const staleParsing = workflow.parseFile(createFile('stale.xml'))
+		await vi.waitFor(() =>
+			expect(workflowMocks.startWorkerParse).toHaveBeenCalledOnce()
+		)
+
+		const currentParsing = workflow.parseFile(createFile('current.xml'))
+		await currentParsing
+		expect(staleHandle.cancel).toHaveBeenCalledOnce()
+		expect(workflow.selectedFileName.value).toBe('current.xml')
+		expect(workflow.workflowView.value).toBe('review')
+
+		staleResult.resolve(createSnapshot())
+		await staleParsing
+		expect(workflow.selectedFileName.value).toBe('current.xml')
+		expect(workflowMocks.buildRows).toHaveBeenCalledOnce()
+	})
+
+	it('cancels matching after Worker completion and ignores late rows', async () => {
+		const matchingResult = createDeferred<TrackEnrichmentRow[]>()
+		workflowMocks.buildRows.mockReturnValueOnce(matchingResult.promise)
+		const workflow = createWorkflow()
+		const parsing = workflow.parseFile(createFile())
+		await vi.waitFor(() => expect(workflow.parsePhase.value).toBe('matching'))
+
+		workflow.cancelParsing()
+		matchingResult.resolve([createRow({ id: 'late-row' })])
+		await parsing
+
+		expect(workflow.rows.value).toEqual([])
+		expect(workflow.workflowView.value).toBe('source')
+		expect(workflow.canRetryParsing.value).toBe(true)
 	})
 
 	it('normalizes XML and local review results through the same eligible staging state', async () => {
@@ -330,8 +590,11 @@ describe('useTrackEnrichmentWorkflow', () => {
 			total: 1,
 			succeeded: 1,
 			failed: 0,
+			remaining: 0,
 			bpm: 1,
-			keyMode: 1
+			keyMode: 1,
+			evidence: 1,
+			evidenceOnly: 0
 		}
 		await workflow.reviewLocalSources(createLocalSelection())
 
@@ -387,8 +650,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 		const currentRows = createDeferred<TrackEnrichmentRow[]>()
 		let staleProgress: ((completed: number, total: number) => void) | undefined
 		let currentProgress:
-			| ((completed: number, total: number) => void)
-			| undefined
+			((completed: number, total: number) => void) | undefined
 		workflowMocks.buildRows
 			.mockImplementationOnce(
 				(options: {
@@ -465,8 +727,11 @@ describe('useTrackEnrichmentWorkflow', () => {
 			total: 1,
 			succeeded: 0,
 			failed: 1,
+			remaining: 0,
 			bpm: 0,
-			keyMode: 0
+			keyMode: 0,
+			evidence: 0,
+			evidenceOnly: 0
 		}
 		workflow.parseWarnings.value = ['old warning']
 		workflow.parseErrors.value = ['old error']
@@ -508,8 +773,11 @@ describe('useTrackEnrichmentWorkflow', () => {
 			total: 1,
 			succeeded: 0,
 			failed: 1,
+			remaining: 0,
 			bpm: 0,
-			keyMode: 0
+			keyMode: 0,
+			evidence: 0,
+			evidenceOnly: 0
 		}
 
 		workflow.returnToSource()
@@ -546,7 +814,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 		expect(workflow.workflowView.value).toBe('review')
 	})
 
-	it('rejects blocked and ineligible row staging in both single and bulk controls', () => {
+	it('rejects blocked rows and permits explicit Evidence-only staging', () => {
 		const workflow = createWorkflow()
 		const eligible = createRow({ id: 'eligible' })
 		const blocked = createRow({
@@ -565,12 +833,82 @@ describe('useTrackEnrichmentWorkflow', () => {
 
 		workflow.setRowStaged(blocked, true)
 		workflow.setRowStaged(complete, true)
-		expect([...workflow.stagedRowIds.value]).toEqual([])
+		expect([...workflow.stagedRowIds.value]).toEqual(['complete'])
 
 		workflow.setFilteredRowsStaged(true)
-		expect([...workflow.stagedRowIds.value]).toEqual(['eligible'])
+		expect([...workflow.stagedRowIds.value]).toEqual(['complete', 'eligible'])
 		workflow.setFilteredRowsStaged(false)
-		expect([...workflow.stagedRowIds.value]).toEqual([])
+		expect([...workflow.stagedRowIds.value]).toEqual(['complete'])
+	})
+
+	it('never default-stages Evidence-only rows and applies them with no value-fill intent', async () => {
+		const onApplyAttempt = vi.fn()
+		const workflow = createWorkflow({ onApplyAttempt })
+		const populatedTrack = createTrack({ bpm: 126, key: 8, mode: 1 })
+		const evidenceOnly = createRow({
+			id: 'evidence-only',
+			track: populatedTrack,
+			canFillBpm: false,
+			canFillKeyMode: false,
+			alreadyComplete: true,
+			defaultStaged: false
+		})
+		workflow.loadPreparedReview('library.xml', [evidenceOnly])
+
+		expect(workflow.stagedRowIds.value).toEqual(new Set())
+		expect(
+			workflow.filterOptions.value.find((option) => option.value === 'evidence')
+		).toMatchObject({ label: 'Evidence only', count: 1 })
+
+		workflow.setRowStaged(evidenceOnly, true)
+		expect(workflow.stagedEvidenceOnlyCount.value).toBe(1)
+		mockTracksStore.updateTracksBatch.mockResolvedValueOnce({
+			results: [updatedBatchResult(populatedTrack)],
+			cancelled: false,
+			requiresReview: false
+		})
+
+		await workflow.applyStagedRows()
+
+		expect(onApplyAttempt).toHaveBeenCalledWith(
+			expect.objectContaining({
+				rows: [
+					expect.objectContaining({
+						intentKind: 'evidence-only',
+						requested: { bpm: false, keyMode: false }
+					})
+				]
+			})
+		)
+		expect(workflow.lastApplySummary.value).toMatchObject({
+			evidence: 1,
+			evidenceOnly: 1,
+			bpm: 0,
+			keyMode: 0
+		})
+		expect(populatedTrack).toMatchObject({ bpm: 126, key: 8, mode: 1 })
+	})
+
+	it('keeps a resumed review read-only until its device lease is taken over', async () => {
+		const workflow = createWorkflow()
+		const row = createRow()
+		workflow.loadPreparedReview('saved.xml', [row])
+		workflow.setReviewReadOnly(true)
+
+		workflow.setRowStaged(row, false)
+		workflow.clearStagedRows()
+		workflow.openApplyReview()
+		await workflow.applyStagedRows()
+
+		expect(workflow.stagedRowIds.value).toEqual(new Set(['row-1']))
+		expect(mockTracksStore.updateTracksBatch).not.toHaveBeenCalled()
+		expect(toast.warning).toHaveBeenCalledWith(
+			'Take over this draft before changing or applying it.'
+		)
+
+		workflow.setReviewReadOnly(false)
+		workflow.setRowStaged(row, false)
+		expect(workflow.stagedRowIds.value).toEqual(new Set())
 	})
 
 	it('warns without writing for empty staged and empty prepared sets', async () => {
@@ -634,19 +972,10 @@ describe('useTrackEnrichmentWorkflow', () => {
 				options?.onProgress?.(2)
 				return {
 					cancelled: false,
+					requiresReview: true,
 					results: [
-						{
-							id: 'track-key',
-							success: true,
-							track: updatedKeyTrack,
-							error: null
-						},
-						{
-							id: 'track-bpm',
-							success: false,
-							track: null,
-							error: 'Database rejected update'
-						}
+						updatedBatchResult(updatedKeyTrack),
+						failedBatchResult('track-bpm')
 					]
 				}
 			}
@@ -664,16 +993,23 @@ describe('useTrackEnrichmentWorkflow', () => {
 			1,
 			keyRow,
 			'library.xml',
-			'2026-07-12T00:00:00.000Z'
+			'2026-07-12T00:00:00.000Z',
+			'fill-empty-fields'
 		)
 		expect(workflow.applyCompleted.value).toBe(2)
 		expect(workflow.applyProgress.value).toBe(100)
 		expect(
 			workflow.rows.value.find((row) => row.id === 'row-key')
 		).toMatchObject({ applied: true, error: null, track: updatedKeyTrack })
-		expect(
-			workflow.rows.value.find((row) => row.id === 'row-bpm')
-		).toMatchObject({ applied: false, error: 'Database rejected update' })
+		const failedRow = workflow.rows.value.find((row) => row.id === 'row-bpm')
+		expect(failedRow).toMatchObject({
+			applied: false,
+			error: 'Database rejected update',
+			stagingBlockedReason: null
+		})
+		expect([...workflow.stagedRowIds.value]).toEqual([])
+		workflow.setRowStaged(failedRow!, true)
+		expect([...workflow.stagedRowIds.value]).toEqual(['row-bpm'])
 		expect(
 			workflow.rows.value.find((row) => row.id === 'row-unstaged')
 		).toEqual(unstaged)
@@ -681,8 +1017,11 @@ describe('useTrackEnrichmentWorkflow', () => {
 			total: 2,
 			succeeded: 1,
 			failed: 1,
+			remaining: 0,
 			bpm: 0,
-			keyMode: 1
+			keyMode: 1,
+			evidence: 1,
+			evidenceOnly: 0
 		})
 		expect(toast.error).toHaveBeenCalledOnce()
 		expect(toast.error).toHaveBeenCalledWith('Applied 1 of 2. 1 failed.')
@@ -692,7 +1031,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 	})
 
 	it('cleans its own apply state when the current batch is cancelled', async () => {
-		let resolveBatch!: (value: { results: []; cancelled: true }) => void
+		let resolveBatch!: (value: TrackBatchUpdateOutcome) => void
 		mockTracksStore.updateTracksBatch.mockReturnValueOnce(
 			new Promise((resolve) => {
 				resolveBatch = resolve
@@ -710,26 +1049,106 @@ describe('useTrackEnrichmentWorkflow', () => {
 		expect(workflow.isApplying.value).toBe(true)
 		expect(workflow.showApplyDialog.value).toBe(true)
 
-		resolveBatch({ results: [], cancelled: true })
+		resolveBatch(CANCELLED_BATCH_OUTCOME)
 		await applying
 
-		expect(workflow.lastApplySummary.value).toBeNull()
+		expect(workflow.lastApplySummary.value).toEqual({
+			total: 1,
+			succeeded: 0,
+			failed: 0,
+			remaining: 1,
+			bpm: 0,
+			keyMode: 0,
+			evidence: 0,
+			evidenceOnly: 0
+		})
+		expect(workflow.stagedRowIds.value).toEqual(new Set(['row-1']))
 		expect(workflow.isApplying.value).toBe(false)
 		expect(workflow.showApplyDialog.value).toBe(false)
 		expect(toast.error).not.toHaveBeenCalled()
 		expect(toast.success).not.toHaveBeenCalled()
+		expect(toast.warning).toHaveBeenCalledWith(
+			'Applied 0 of 1. 1 remains to retry.'
+		)
+	})
+
+	it('records confirmed cancelled-batch results before updating only returned rows', async () => {
+		vi.useFakeTimers()
+		vi.setSystemTime(new Date('2026-07-23T04:05:00.000Z'))
+		const onApplyAttempt = vi.fn().mockResolvedValue(undefined)
+		const workflow = createWorkflow({ onApplyAttempt })
+		const first = createRow({
+			id: 'row-first',
+			track: createTrack({ id: 'track-first' })
+		})
+		const second = createRow({
+			id: 'row-second',
+			track: createTrack({ id: 'track-second' })
+		})
+		const updatedFirst = createTrack({
+			id: 'track-first',
+			bpm: 128,
+			key: 9,
+			mode: 0
+		})
+		workflow.rows.value = [first, second]
+		workflow.stagedRowIds.value = new Set([first.id, second.id])
+		mockTracksStore.updateTracksBatch.mockResolvedValueOnce({
+			cancelled: true,
+			requiresReview: false,
+			results: [
+				updatedBatchResult(updatedFirst),
+				{
+					id: 'track-second',
+					status: 'unattempted',
+					success: false,
+					track: null,
+					issue: {
+						code: 'account_replaced',
+						message: 'Workspace changed'
+					},
+					error: 'Workspace changed',
+					operation: null
+				}
+			]
+		})
+
+		await workflow.applyStagedRows()
+
+		expect(onApplyAttempt).toHaveBeenCalledOnce()
+		expect(onApplyAttempt).toHaveBeenCalledWith(
+			expect.objectContaining({
+				attemptedAt: '2026-07-23T04:05:00.000Z',
+				outcome: expect.objectContaining({
+					cancelled: true,
+					results: [expect.objectContaining({ id: 'track-first' })]
+				})
+			})
+		)
+		expect(workflow.rows.value.find(({ id }) => id === first.id)).toMatchObject(
+			{
+				applied: true,
+				track: updatedFirst
+			}
+		)
+		expect(workflow.rows.value.find(({ id }) => id === second.id)).toEqual(
+			second
+		)
+		expect(workflow.stagedRowIds.value).toEqual(new Set([second.id]))
+		expect(workflow.lastApplySummary.value).toMatchObject({
+			total: 2,
+			succeeded: 1,
+			failed: 0,
+			remaining: 1
+		})
+		expect(toast.success).not.toHaveBeenCalled()
+		expect(toast.warning).toHaveBeenCalledWith(
+			'Applied 1 of 2. 1 remains to retry.'
+		)
 	})
 
 	it('ignores stale progress and results after the workflow is reset', async () => {
-		let resolveBatch!: (value: {
-			results: Array<{
-				id: string
-				success: boolean
-				track: Track
-				error: null
-			}>
-			cancelled: false
-		}) => void
+		let resolveBatch!: (value: TrackBatchUpdateOutcome) => void
 		let reportOldProgress!: (completed: number) => void
 		mockTracksStore.updateTracksBatch.mockImplementationOnce(
 			(_updates, options) => {
@@ -757,13 +1176,9 @@ describe('useTrackEnrichmentWorkflow', () => {
 		reportOldProgress(1)
 		resolveBatch({
 			cancelled: false,
+			requiresReview: false,
 			results: [
-				{
-					id: 'track-1',
-					success: true,
-					track: createTrack({ id: 'track-1', title: 'Old result' }),
-					error: null
-				}
+				updatedBatchResult(createTrack({ id: 'track-1', title: 'Old result' }))
 			]
 		})
 		await applying
@@ -780,7 +1195,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 
 	it('does not let an older rejected apply clear a newer apply', async () => {
 		let rejectOldBatch!: (reason: Error) => void
-		let resolveNewBatch!: (value: { results: []; cancelled: true }) => void
+		let resolveNewBatch!: (value: TrackBatchUpdateOutcome) => void
 		let reportOldProgress!: (completed: number) => void
 		mockTracksStore.updateTracksBatch
 			.mockImplementationOnce((_updates, options) => {
@@ -817,7 +1232,7 @@ describe('useTrackEnrichmentWorkflow', () => {
 		expect(workflow.showApplyDialog.value).toBe(true)
 		expect(workflow.lastApplySummary.value).toBeNull()
 
-		resolveNewBatch({ results: [], cancelled: true })
+		resolveNewBatch(CANCELLED_BATCH_OUTCOME)
 		await newApply
 		expect(workflow.isApplying.value).toBe(false)
 		expect(workflow.showApplyDialog.value).toBe(false)
@@ -825,16 +1240,17 @@ describe('useTrackEnrichmentWorkflow', () => {
 
 	it('cleans apply flags and dialog in finally when the batch throws', async () => {
 		const workflow = createWorkflow()
+		const batch = createDeferred<TrackBatchUpdateOutcome>()
 		workflow.rows.value = [createRow()]
 		workflow.stagedRowIds.value = new Set(['row-1'])
 		workflow.showApplyDialog.value = true
-		mockTracksStore.updateTracksBatch.mockRejectedValue(
-			new Error('Connection lost')
-		)
+		mockTracksStore.updateTracksBatch.mockReturnValue(batch.promise)
 
 		const applying = workflow.applyStagedRows()
-		expect(workflow.isApplying.value).toBe(true)
-		await expect(applying).rejects.toThrow('Connection lost')
+		await vi.waitFor(() => expect(workflow.isApplying.value).toBe(true))
+		const rejected = expect(applying).rejects.toThrow('Connection lost')
+		batch.reject(new Error('Connection lost'))
+		await rejected
 
 		expect(workflow.isApplying.value).toBe(false)
 		expect(workflow.showApplyDialog.value).toBe(false)

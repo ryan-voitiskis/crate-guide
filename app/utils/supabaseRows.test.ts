@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Database } from '../../shared/types/database'
+import { mixedTrackEvidenceV2Golden } from '../../test/fixtures/trackEvidence'
 import {
 	decodeRecordRow,
 	decodeSavedSetRow,
@@ -158,7 +159,7 @@ function invalidAudioFeaturesFor(
 }
 
 const audioMutations: AudioMutation[] = [
-	{ description: 'version', path: ['version'], invalidValue: 2 },
+	{ description: 'version', path: ['version'], invalidValue: 3 },
 	...mutationsFor([], ['updatedAt'], 7),
 	{ description: 'applied object', path: ['applied'], invalidValue: null },
 	...mutationsFor(['applied'], ['bpm', 'keyMode'], 'invalid'),
@@ -369,6 +370,17 @@ describe('decodeTrackRow', () => {
 		expect(decoded.issues).toEqual([])
 	})
 
+	it('round-trips a valid mixed-source Evidence v2 row', () => {
+		const decoded = decodeTrackRow(
+			createTrackRow({
+				audio_features: mixedTrackEvidenceV2Golden
+			})
+		)
+
+		expect(decoded.row.audio_features).toBe(mixedTrackEvidenceV2Golden)
+		expect(decoded.issues).toEqual([])
+	})
+
 	const invalidTrackArrayFields: Array<{
 		field: 'artists' | 'extraartists' | 'genres'
 		overrides: Partial<TrackRow>
@@ -468,7 +480,9 @@ describe('decodeSavedSetRow', () => {
 		track_id: 'track-first',
 		time_added: 0,
 		adjusted_bpm: 0,
-		transition_rating: 1
+		transition_rating: 1,
+		track_title: 'Snapshot title',
+		artist_display: 'Snapshot artist'
 	}
 	const secondValidEntry = {
 		track_id: 'track-second',
@@ -565,5 +579,34 @@ describe('decodeSavedSetRow', () => {
 				field: 'played_tracks'
 			}
 		])
+	})
+
+	it('drops malformed snapshot fields without discarding a valid legacy entry', () => {
+		const privateValue = 'SYNTHETIC_PRIVATE_VALUE'
+		const decoded = decodeSavedSetRow(
+			createSavedSetRow({
+				played_tracks: [
+					{
+						...secondValidEntry,
+						track_title: { privateValue },
+						artist_display: 42
+					},
+					firstValidEntry
+				]
+			})
+		)
+
+		expect(decoded.row.played_tracks).toEqual([
+			secondValidEntry,
+			firstValidEntry
+		])
+		expect(decoded.issues).toEqual([
+			{
+				entity: 'saved-set',
+				id: 'set-synthetic',
+				field: 'played_tracks'
+			}
+		])
+		expect(JSON.stringify(decoded.issues)).not.toContain(privateValue)
 	})
 })

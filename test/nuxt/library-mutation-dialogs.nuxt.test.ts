@@ -3,13 +3,15 @@ import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { createTestingPinia } from '@pinia/testing'
 import { DOMWrapper, type VueWrapper, flushPromises } from '@vue/test-utils'
 import type { Pinia } from 'pinia'
-import { createMockRecord } from 'test/mocks/fixtures/records'
+import { createMockLibraryRecord } from 'test/mocks/fixtures/records'
 import { createMockTrack } from 'test/mocks/fixtures/tracks'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import AlertConfirmRemoveRecord from '~/components/records/AlertConfirmRemoveRecord.vue'
+import DialogRecordCreateManual from '~/components/records/DialogRecordCreateManual.vue'
 import DialogClearAllData from '~/components/settings/DialogClearAllData.vue'
 import DialogDeleteAccount from '~/components/settings/DialogDeleteAccount.vue'
 import { useCratesStore } from '~/stores/cratesStore'
+import { useManualRecordEntryStore } from '~/stores/manualRecordEntryStore'
 import { useRecordDetailsStore } from '~/stores/recordDetailsStore'
 import { useRecordsStore } from '~/stores/recordsStore'
 import { useTracksStore } from '~/stores/tracksStore'
@@ -21,6 +23,8 @@ const mutationMocks = vi.hoisted(() => ({
 
 const userMock = vi.hoisted(() => ({
 	supaUser: { email: 'listener@example.com' },
+	supaUserId: 'listener-user-id',
+	currentKeyFormat: 'camelot' as const,
 	deleteAccount: vi.fn(),
 	signOutForReauthentication: vi.fn().mockResolvedValue(true)
 }))
@@ -45,6 +49,14 @@ mockNuxtImport('useRoute', () => {
 mockNuxtImport('navigateTo', () => accountReauthenticationMocks.navigate)
 
 const wrappers = new Set<VueWrapper>()
+
+function createDeferred<T>() {
+	let resolve!: (value: T | PromiseLike<T>) => void
+	const promise = new Promise<T>((resolvePromise) => {
+		resolve = resolvePromise
+	})
+	return { promise, resolve }
+}
 
 function getBody() {
 	return new DOMWrapper(document.body)
@@ -78,7 +90,10 @@ async function mountRemoveRecordDialog() {
 		createSpy: vi.fn,
 		stubActions: true
 	})
-	const record = createMockRecord({ id: 'record-1', title: 'Record One' })
+	const record = createMockLibraryRecord({
+		id: 'record-1',
+		title: 'Record One'
+	})
 	const recordDetails = useRecordDetailsStore(pinia as Pinia)
 	const crates = useCratesStore(pinia as Pinia)
 	recordDetails.recordToRemove = record
@@ -102,8 +117,8 @@ async function mountClearAllDataDialog() {
 	const records = useRecordsStore(pinia as Pinia)
 	const tracks = useTracksStore(pinia as Pinia)
 	records.records = [
-		createMockRecord({ id: 'record-1' }),
-		createMockRecord({ id: 'record-2' })
+		createMockLibraryRecord({ id: 'record-1' }),
+		createMockLibraryRecord({ id: 'record-2' })
 	]
 	tracks.tracks = [createMockTrack({ id: 'track-1' })]
 
@@ -129,11 +144,41 @@ async function mountDeleteAccountDialog(
 	return { wrapper }
 }
 
+async function mountManualRecordDialog() {
+	const pinia = createTestingPinia({
+		createSpy: vi.fn,
+		stubActions: (_actionName, store) =>
+			!['manualRecordEntry', 'recordDetails'].includes(store.$id)
+	})
+	const manualEntry = useManualRecordEntryStore(pinia as Pinia)
+	const recordDetails = useRecordDetailsStore(pinia as Pinia)
+	const records = useRecordsStore(pinia as Pinia)
+	manualEntry.openDialog()
+
+	const wrapper = await mountSuspended(DialogRecordCreateManual, {
+		global: { plugins: [pinia] }
+	})
+	wrappers.add(wrapper)
+	await settleDialog()
+	return { manualEntry, recordDetails, records, wrapper }
+}
+
+async function startManualRecordCreation(title: string) {
+	await getBody().get('#manual-record-title').setValue(title)
+	await findButton('Next').trigger('click')
+	await settleDialog()
+	await findButton('Create record').trigger('click')
+}
+
 describe('library mutation dialogs', () => {
 	afterEach(() => {
 		for (const wrapper of wrappers) wrapper.unmount()
 		wrappers.clear()
 		vi.clearAllMocks()
+		userMock.deleteAccount.mockReset()
+		userMock.supaUser = { email: 'listener@example.com' }
+		userMock.supaUserId = 'listener-user-id'
+		userMock.signOutForReauthentication.mockReset().mockResolvedValue(true)
 		accountReauthenticationMocks.route.query = {}
 		document.body.innerHTML = ''
 	})
@@ -224,6 +269,67 @@ describe('library mutation dialogs', () => {
 		expect(userMock.deleteAccount).toHaveBeenCalledWith('listener@example.com')
 		expect(getBody().text()).not.toContain('This action cannot be undone.')
 	})
+
+	it.each([
+		{ status: 'deleted', coverCleanupComplete: true } as const,
+		{ status: 'recent-auth-required' } as const,
+		{ status: 'failed' } as const
+	])(
+		'ignores stale $status completion after reopening for another account',
+		async (staleResult) => {
+			const firstDeletion = createDeferred<typeof staleResult>()
+			const secondDeletion = createDeferred<{ status: 'failed' }>()
+			userMock.deleteAccount
+				.mockReturnValueOnce(firstDeletion.promise)
+				.mockReturnValueOnce(secondDeletion.promise)
+			const { wrapper } = await mountDeleteAccountDialog()
+			await getBody()
+				.get('#account-deletion-confirmation')
+				.setValue('listener@example.com')
+			await findLastButton('Delete Account').trigger('click')
+			await nextTick()
+
+			await findButton('Cancel').trigger('click')
+			await settleDialog()
+			userMock.supaUser = { email: 'replacement@example.com' }
+			userMock.supaUserId = 'replacement-user-id'
+			await wrapper.get('button').trigger('click')
+			await settleDialog()
+			await getBody()
+				.get('#account-deletion-confirmation')
+				.setValue('replacement@example.com')
+			await findLastButton('Delete Account').trigger('click')
+			await nextTick()
+
+			expect(userMock.deleteAccount).toHaveBeenNthCalledWith(
+				1,
+				'listener@example.com'
+			)
+			expect(userMock.deleteAccount).toHaveBeenNthCalledWith(
+				2,
+				'replacement@example.com'
+			)
+
+			firstDeletion.resolve(staleResult)
+			await settleDialog()
+
+			expect(getBody().text()).toContain('This action cannot be undone.')
+			expect(getBody().text()).not.toContain('Sign in again to continue')
+			expect(
+				(
+					getBody().get('#account-deletion-confirmation')
+						.element as HTMLInputElement
+				).value
+			).toBe('replacement@example.com')
+			expect(
+				findLastButton('Delete Account').attributes('disabled')
+			).toBeDefined()
+
+			secondDeletion.resolve({ status: 'failed' })
+			await settleDialog()
+			expect(getBody().text()).toContain('This action cannot be undone.')
+		}
+	)
 
 	it('shows a fresh-login action without preserving typed confirmation', async () => {
 		userMock.deleteAccount.mockResolvedValue({
@@ -316,4 +422,57 @@ describe('library mutation dialogs', () => {
 		expect(userMock.deleteAccount).toHaveBeenCalledWith('listener@example.com')
 		expect(getBody().text()).not.toContain('This action cannot be undone.')
 	})
+
+	it.each(['success', 'failure'] as const)(
+		'keeps a reopened manual record form when an older creation settles with %s',
+		async (outcome) => {
+			const dialog = await mountManualRecordDialog()
+			const firstCreation = createDeferred<ReturnType<
+				typeof createMockLibraryRecord
+			> | null>()
+			const secondCreation = createDeferred<ReturnType<
+				typeof createMockLibraryRecord
+			> | null>()
+			vi.mocked(dialog.records.createRecordWithTracks)
+				.mockReturnValueOnce(firstCreation.promise)
+				.mockReturnValueOnce(secondCreation.promise)
+
+			await startManualRecordCreation('First Manual Record')
+			await vi.waitFor(() => {
+				expect(dialog.records.createRecordWithTracks).toHaveBeenCalledOnce()
+			})
+			await findButton('Close').trigger('click')
+			await settleDialog()
+			dialog.manualEntry.openDialog()
+			await settleDialog()
+			await startManualRecordCreation('Replacement Manual Record')
+			await vi.waitFor(() => {
+				expect(dialog.records.createRecordWithTracks).toHaveBeenCalledTimes(2)
+			})
+			expect(findButton('Create record').attributes('aria-busy')).toBe('true')
+
+			firstCreation.resolve(
+				outcome === 'success'
+					? createMockLibraryRecord({ id: 'first-created-record' })
+					: null
+			)
+			await settleDialog()
+
+			expect(dialog.manualEntry.isDialogOpen).toBe(true)
+			expect(dialog.recordDetails.selectedRecordId).toBeNull()
+			expect(getBody().text()).toContain('Add Record Manually')
+			await findButton('Back').trigger('click')
+			await settleDialog()
+			expect(
+				(getBody().get('#manual-record-title').element as HTMLInputElement)
+					.value
+			).toBe('Replacement Manual Record')
+			await findButton('Next').trigger('click')
+			await settleDialog()
+			expect(findButton('Create record').attributes('aria-busy')).toBe('true')
+
+			secondCreation.resolve(null)
+			await settleDialog()
+		}
+	)
 })

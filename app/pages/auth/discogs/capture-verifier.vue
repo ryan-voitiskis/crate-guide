@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { TriangleAlert } from 'lucide-vue-next'
+import { TriangleAlert } from '@lucide/vue'
 
 const discogsAuth = useDiscogsAuthStore()
 
@@ -29,6 +29,13 @@ onMounted(async () => await discogsAuth.completeDiscogsOAuth())
 					'Failed to authenticate with Discogs. Please go back and try again.'
 				}}
 			</NoticeWarning>
+
+			<Button
+				v-if="discogsAuth.oAuthFinalizationPending"
+				@click="discogsAuth.resumeDiscogsOAuth()"
+			>
+				Retry profile setup
+			</Button>
 
 			<Button as-child variant="ghost">
 				<NuxtLink to="/">Go back</NuxtLink>

@@ -10,10 +10,10 @@
 - **Priority**: P2
 - **Effort**: L
 - **Risk**: MED
-- **Depends on**: Plans 003, 024, 026, 029, and 051
+- **Depends on**: Plan 051 (historical Plans 003, 024, 026, and 029 have landed)
 - **Category**: CI / test truthfulness / conventions
-- **Planned at**: commit `aba27ff`, 2026-07-19
-- **Status**: TODO
+- **Planned at**: commit `0a0cda6`, 2026-07-22
+- **Status**: DONE
 
 ## Why this matters
 
@@ -24,6 +24,14 @@ gate recognizes only eight type words and omits the documented `Dialog` example
 plus common `Form`, `Button`, `Table`, `Input`, and `Alert` prefixes. The Discogs
 documentation contract rejects a few obsolete strings but empty documentation
 would pass.
+
+Supply-chain verification is also incomplete: npm audits cannot see the Deno
+lockfile, GitHub Actions run mutable major tags, and CI installs Chromium via a
+ranged direct `playwright-core` dependency while `playwright` itself is exact.
+The README also says deploy tasks retain gateway JWT verification although
+`supabase/config.toml` deliberately sets `verify_jwt = false`; handlers perform
+their own authentication, so this is a documentation truth defect rather than
+an authentication bypass.
 
 ## Scope
 
@@ -38,6 +46,10 @@ Modify:
 - `README.md` and `docs/discogs-integration.md` only where the positive contract
   reveals actual drift
 - `package.json`
+- `package-lock.json`
+- `.github/dependabot.yml` (create if absent)
+- `supabase/config.toml`
+- `supabase/deno.lock`
 
 Do not make the normal no-database `npm run verify` start or stop a local
 Supabase stack. Put live-schema comparison in the existing database CI/job and
@@ -51,6 +63,7 @@ sed -n '1,120p' scripts/check-database-type-parity.mjs
 sed -n '1,120p' scripts/check-conventions.mjs
 sed -n '1,100p' scripts/check-discogs-doc-contract.mjs
 rg -n "pageerror|console|requestfailed|createPage" test/e2e/login-redirect.e2e.test.ts
+rg -n "uses:|playwright-core|playwright\"|audit|verify_jwt|gateway JWT" .github package.json README.md supabase/config.toml
 sed -n '45,90p' .github/workflows/verify.yml
 ```
 
@@ -89,6 +102,25 @@ without hiding a known application failure.
      verification statements.
    - Keep obsolete-contract rejection. Empty, missing, or partial documents
      must fail with actionable diagnostics.
+   - Correct the deploy statement: source-controlled function configuration
+     disables gateway verification and each handler authenticates internally.
+     Make the convention/docs gate assert both halves without implying this is
+     an auth bypass or permission to weaken handler checks.
+
+5. Close supply-chain drift gaps.
+   - Add frozen high-severity Deno dependency auditing against the checked-in
+     lockfile. If the runtime audit cannot express reachability, fail on
+     high/critical findings unless a narrow, documented, owner/date/expiry
+     suppression is checked in and tested.
+   - Pin every third-party GitHub Action to a reviewed full commit SHA with a
+     release comment. Configure Dependabot for GitHub Actions so updates remain
+     reviewable rather than frozen forever.
+   - Install Chromium through the exact `playwright` CLI used by tests. Remove
+     the direct `playwright-core` dependency if no source imports it; otherwise
+     exact-pin both and make the dependency-topology gate fail when versions
+     differ.
+   - Add negative fixtures for an unpinned action, a Playwright mismatch, and a
+     simulated high Deno advisory/suppression expiry.
 
 ## Test plan
 
@@ -99,6 +131,9 @@ npm run test:database-type-parity
 npm run test:conventions
 npm run check:conventions
 npm run check:discogs-docs
+npm run audit:edge
+npm run test:dependency-topology
+npm run check:dependency-topology
 npm run test:e2e
 npm run test:db
 npm run genTypes
@@ -112,11 +147,13 @@ prove the worktree remains clean afterward.
 
 ## Done criteria
 
-- [ ] Identical but stale generated type copies fail against the migrated schema.
-- [ ] Every E2E flow fails on uncaught application errors and closes its page reliably.
-- [ ] Type-first conventions cover the repository's actual component vocabulary.
-- [ ] Empty or materially stale Discogs documentation fails its contract gate.
-- [ ] CI, SQL, E2E, convention, docs, and full gates pass.
+- [x] Identical but stale generated type copies fail against the migrated schema.
+- [x] Every E2E flow fails on uncaught application errors and closes its page reliably.
+- [x] Type-first conventions cover the repository's actual component vocabulary.
+- [x] Empty or materially stale Discogs documentation fails its contract gate.
+- [x] README and `config.toml` describe gateway-versus-handler authentication consistently.
+- [x] Deno dependencies, action references, and Playwright browser/runtime parity have deterministic CI gates.
+- [x] CI, SQL, E2E, convention, docs, and full gates pass.
 
 ## STOP conditions
 

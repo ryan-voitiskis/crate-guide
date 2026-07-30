@@ -1,0 +1,88 @@
+{
+	"parserPolicyVersion": "rekordbox-xml-stream-v1",
+	"sanitizedSnapshotVersion": "rekordbox-xml-sanitized-v1",
+	"fixtureGeneratorVersion": "rekordbox-xml-scale-v1",
+	"limits": {
+		"chunkBytes": 262144,
+		"resultBatchTracks": 250,
+		"warningBatchSize": 50,
+		"maxFileBytes": 134217728,
+		"maxTracks": 100000,
+		"maxXmlDepth": 32,
+		"maxMarkupBytes": 262144,
+		"maxAttributesPerElement": 64,
+		"maxAttributeBytes": 16384,
+		"maxElementNameBytes": 128,
+		"maxEntityLength": 32,
+		"maxWarnings": 4096,
+		"maxWarningBytes": 512,
+		"maxLocationHintBytes": 4096,
+		"maxPathSegments": 64
+	},
+	"performanceBudgets": {
+		"firstProgressMs": 1000,
+		"maxProgressSilenceMs": 1000,
+		"cancellationMs": 250,
+		"maxMainThreadLongTaskMs": 50,
+		"maxMainThreadHeapGrowthBytes": 268435456,
+		"totalMs": {
+			"1000": 1000,
+			"10000": 3000,
+			"100000": 15000
+		}
+	},
+	"synchronousBaseline": {
+		"measuredOn": "2026-07-23",
+		"runner": "Node 24.14.0 with Happy DOM 20.10.6",
+		"results": {
+			"1000": {
+				"parseMs": 56.43,
+				"observedHeapGrowthBytes": 65950368,
+				"outputChecksum": "6b1986c3606bf767a89e540fa14a1f41139735a187680166f593e6bb49b74ae2"
+			},
+			"10000": {
+				"parseMs": 402.43,
+				"observedHeapGrowthBytes": 648248296,
+				"outputChecksum": "ae52f3835e53e6bd43cbbc625d985fdaf72d74d596a0bbdfd232a4168137f0e3"
+			},
+			"100000": {
+				"parseMs": 6925.24,
+				"observedHeapGrowthBytes": 6245735864,
+				"outputChecksum": "53ee422b80f6ca2ac35b98c7e9ec7a1f9e8f6a45e6a10f34c19935802cca22bb"
+			}
+		}
+	},
+	"workerBaseline": {
+		"measuredOn": "2026-07-23",
+		"runner": "Headless Chromium 144 with Vitest Browser 4.1.10",
+		"checksum": "FNV-1a 32-bit over entries, warnings, errors, and ordered sanitized tracks",
+		"results": {
+			"1000": {
+				"firstProgressMs": 30.1,
+				"maxProgressSilenceMs": 30.1,
+				"totalMs": 58,
+				"maxMainThreadLongTaskMs": 0,
+				"outputChecksum": "c9976222"
+			},
+			"10000": {
+				"firstProgressMs": 23.5,
+				"maxProgressSilenceMs": 39.4,
+				"totalMs": 574.1,
+				"maxMainThreadLongTaskMs": 0,
+				"outputChecksum": "20fdd99f"
+			},
+			"100000": {
+				"firstProgressMs": 26.3,
+				"maxProgressSilenceMs": 113.3,
+				"totalMs": 6124.2,
+				"maxMainThreadLongTaskMs": 0,
+				"outputChecksum": "ad02ecb7"
+			}
+		},
+		"cancellationMs": {
+			"immediate": 11.5,
+			"firstProgress": 0,
+			"finalBatching": 5.5
+		}
+	}
+}

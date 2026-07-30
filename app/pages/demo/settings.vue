@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import SettingsPage from '../settings.vue'
 
-provideDemoWorkbench()
+definePageMeta({ layout: 'demo' })
 </script>
 
 <template>

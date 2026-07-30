@@ -12,6 +12,7 @@ async function mountSource(
 	const wrapper = await mountSuspended(PanelTrackEnrichmentSource, {
 		props: {
 			activeSource,
+			parsePhase: 'idle',
 			isParsing: false,
 			parseCompleted: 0,
 			parseTotal: 0,
@@ -80,5 +81,29 @@ describe('PanelTrackEnrichmentSource', () => {
 
 		await sources[0]?.trigger('click')
 		expect(wrapper.emitted('selectSource')?.[0]).toEqual(['rekordboxXml'])
+	})
+
+	it('shows operation-bound parsing progress, cancellation, and retry', async () => {
+		const wrapper = await mountSource('rekordboxXml', 'large.xml')
+		await wrapper.setProps({
+			isParsing: true,
+			parsePhase: 'parsing',
+			parseCompleted: 250,
+			parseTotal: 10_000,
+			parseProgress: 12
+		})
+
+		expect(wrapper.text()).toContain('Parsing XML')
+		expect(wrapper.text()).toContain('250 / 10,000')
+		await getButton(wrapper, 'Cancel').trigger('click')
+		expect(wrapper.emitted('cancelParsing')).toHaveLength(1)
+
+		await wrapper.setProps({
+			isParsing: false,
+			parsePhase: 'idle',
+			canRetryParsing: true
+		})
+		await getButton(wrapper, 'Retry').trigger('click')
+		expect(wrapper.emitted('retryParsing')).toHaveLength(1)
 	})
 })

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
-import { Check, Plus } from 'lucide-vue-next'
+import { Check, Plus } from '@lucide/vue'
+import type { LibraryCrate } from '~~/shared/types/library'
 
-const recordDetails = useRecordDetailsStore()
-const cratesStore = useCratesStore()
+const recordDetails = useWorkbenchRecordDetailsStore()
+const cratesStore = useWorkbenchCratesStore()
 
 const record = computed(() => recordDetails.recordToAddToCrate)
 const isOpen = computed(() => !!record.value)
@@ -105,7 +106,7 @@ function handleCancel() {
 	recordDetails.recordToAddToCrate = null
 }
 
-function handleCrateCreated(crate: Crate) {
+function handleCrateCreated(crate: LibraryCrate) {
 	// Auto-check the newly created crate
 	if (!selectedCrateIds.value.includes(crate.id)) {
 		selectedCrateIds.value.push(crate.id)

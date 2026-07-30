@@ -1,18 +1,20 @@
-import { getActivePinia } from 'pinia'
+import { getWorkbenchStorePinia } from '~/utils/workbenchPinia'
+import type { LibraryRecord, LibraryTrack } from '~~/shared/types/library'
 
 export const useRecordDetailsStore = defineStore('recordDetails', () => {
-	const pinia = getActivePinia()
+	const pinia = getWorkbenchStorePinia()
 	const records = useRecordsStore(pinia)
 	const tracks = useTracksStore(pinia)
 
 	const selectedRecordId = ref<string | null>(null)
 	const isEditMode = ref(false)
 	const editFocus = ref<'cover' | null>(null)
-	const trackToConfirmDelete = ref<Track | null>(null)
+	const dialogGeneration = ref(0)
+	const trackToConfirmDelete = ref<LibraryTrack | null>(null)
 
 	// Dialog state (store-based pattern)
-	const recordToRemove = ref<DatabaseRecord | null>(null)
-	const recordToAddToCrate = ref<DatabaseRecord | null>(null)
+	const recordToRemove = ref<LibraryRecord | null>(null)
+	const recordToAddToCrate = ref<LibraryRecord | null>(null)
 
 	const selectedRecord = computed(() =>
 		selectedRecordId.value
@@ -31,12 +33,14 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 		editMode = false,
 		focus: 'cover' | null = null
 	) {
+		dialogGeneration.value += 1
 		selectedRecordId.value = recordId
 		isEditMode.value = editMode
 		editFocus.value = focus
 	}
 
 	function closeRecord() {
+		dialogGeneration.value += 1
 		selectedRecordId.value = null
 		isEditMode.value = false
 		editFocus.value = null
@@ -46,6 +50,7 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 	}
 
 	function toggleEditMode() {
+		dialogGeneration.value += 1
 		isEditMode.value = !isEditMode.value
 	}
 
@@ -55,6 +60,7 @@ export const useRecordDetailsStore = defineStore('recordDetails', () => {
 		recordTracks,
 		isEditMode,
 		editFocus,
+		dialogGeneration,
 		trackToConfirmDelete,
 		recordToRemove,
 		recordToAddToCrate,

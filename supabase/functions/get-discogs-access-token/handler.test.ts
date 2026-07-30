@@ -13,23 +13,104 @@ const config = {
 function credentials(
 	setAccessCredentials = (_token: string, _secret: string) => Promise.resolve(),
 	consumeRequestQuota = () =>
-		Promise.resolve({ allowed: true, retryAfterMs: 0 })
+		Promise.resolve({ allowed: true, retryAfterMs: 0 }),
+	storedCredentials = {
+		request_token: 'request-token',
+		request_secret: 'request-secret',
+		access_token: null as string | null,
+		access_secret: null as string | null
+	},
+	clearRequestCredentials = () => Promise.resolve()
 ): DiscogsCredentialRepository {
 	return {
 		callerClient: {} as SupabaseClient,
 		user: { id: 'verified-user-id' } as User,
-		getCredentials: () =>
-			Promise.resolve({
-				request_token: 'request-token',
-				request_secret: 'request-secret',
-				access_token: null,
-				access_secret: null
-			}),
+		getCredentials: () => Promise.resolve(storedCredentials),
 		setRequestCredentials: () => Promise.resolve(),
 		setAccessCredentials,
+		clearRequestCredentials,
 		consumeRequestQuota
 	}
 }
+
+Deno.test(
+	'access-token handler resumes identity without another verifier exchange',
+	async () => {
+		const storedCredentials = {
+			request_token: 'request-token',
+			request_secret: 'request-secret',
+			access_token: null as string | null,
+			access_secret: null as string | null
+		}
+		let exchangeCalls = 0
+		let identityCalls = 0
+		const repository = credentials(
+			(token, secret) => {
+				storedCredentials.access_token = token
+				storedCredentials.access_secret = secret
+				return Promise.resolve()
+			},
+			undefined,
+			storedCredentials
+		)
+		const handler = createDiscogsAccessTokenHandler(headers, {
+			createCredentials: () => Promise.resolve(repository),
+			fetcher: (() => {
+				exchangeCalls += 1
+				return Promise.resolve(
+					new Response(
+						'oauth_token=access-token&oauth_token_secret=access-secret'
+					)
+				)
+			}) as typeof fetch,
+			generateNonce: () => Promise.resolve('nonce'),
+			getConfig: () => config,
+			fetchIdentity: () => {
+				identityCalls += 1
+				return identityCalls === 1
+					? Promise.reject(new Error('private identity failure'))
+					: Promise.resolve()
+			}
+		})
+
+		const firstResponse = await handler(
+			request({ oauth_token: 'request-token', oauth_verifier: 'verifier' })
+		)
+		assert.equal(firstResponse.status, 503)
+		assert.deepEqual(await firstResponse.json(), {
+			error:
+				'Discogs access is saved, but profile setup is incomplete. Retry profile setup to finish connecting.',
+			code: 'discogs_identity_pending',
+			retryable: true
+		})
+
+		const resumedResponse = await handler(request({ resume: true }))
+		assert.equal(resumedResponse.status, 200)
+		assert.equal(exchangeCalls, 1)
+		assert.equal(identityCalls, 2)
+	}
+)
+
+Deno.test(
+	'access-token handler rejects resumption without access credentials',
+	async () => {
+		let identityCalled = false
+		const handler = createDiscogsAccessTokenHandler(headers, {
+			createCredentials: () => Promise.resolve(credentials()),
+			fetcher: fetch,
+			generateNonce: () => Promise.resolve('nonce'),
+			getConfig: () => config,
+			fetchIdentity: () => {
+				identityCalled = true
+				return Promise.resolve()
+			}
+		})
+
+		const response = await handler(request({ resume: true }))
+		assert.equal(response.status, 400)
+		assert.equal(identityCalled, false)
+	}
+)
 
 function request(body: unknown): Request {
 	return new Request('http://localhost', {

@@ -599,9 +599,9 @@ SELECT throws_ok(
 		SET id = '00000000-0000-0000-0000-000000000593'
 		WHERE id = '00000000-0000-0000-0000-000000000531'
 	$$,
-	'23514',
-	'Library row key is immutable.',
-	'crate IDs are immutable with the same generic error'
+	'42501',
+	'permission denied for table crates',
+	'the metadata-only crate grant denies browser updates to crate IDs'
 );
 SELECT throws_ok(
 	$$
@@ -616,10 +616,11 @@ SELECT throws_ok(
 
 SELECT lives_ok(
 	$$
-		DELETE FROM public.records
-		WHERE id = '00000000-0000-0000-0000-000000000514'
+		SELECT public.remove_record_from_collection(
+			'00000000-0000-0000-0000-000000000514'
+		)
 	$$,
-	'owners may still delete their records'
+	'owners may still remove records through the transactional RPC'
 );
 SELECT is(
 	(

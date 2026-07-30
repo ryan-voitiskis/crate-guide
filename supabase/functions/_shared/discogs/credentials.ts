@@ -24,6 +24,7 @@ export interface DiscogsCredentialRepository {
 	getCredentials(): Promise<DiscogsCredentialsRow | null>
 	setRequestCredentials(token: string, secret: string): Promise<void>
 	setAccessCredentials(token: string, secret: string): Promise<void>
+	clearRequestCredentials(): Promise<void>
 	consumeRequestQuota(): Promise<{
 		allowed: boolean
 		retryAfterMs: number
@@ -101,6 +102,8 @@ export async function createDiscogsCredentialRepository(
 			upsertCredentials({ request_token: token, request_secret: secret }),
 		setAccessCredentials: (token, secret) =>
 			upsertCredentials({ access_token: token, access_secret: secret }),
+		clearRequestCredentials: () =>
+			upsertCredentials({ request_token: null, request_secret: null }),
 		consumeRequestQuota
 	}
 }

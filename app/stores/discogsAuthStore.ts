@@ -1,11 +1,11 @@
 import { toast } from 'vue-sonner'
-import { getActivePinia } from 'pinia'
+import { getWorkbenchStorePinia } from '~/utils/workbenchPinia'
 
 const defaultOAuthErrorMessage =
 	'Failed to authenticate with Discogs. Please try again.'
 
 export const useDiscogsAuthStore = defineStore('discogsAuth', () => {
-	const pinia = getActivePinia()
+	const pinia = getWorkbenchStorePinia()
 	const user = useUserStore(pinia)
 	const discogs = useDiscogsStore(pinia)
 
@@ -14,6 +14,7 @@ export const useDiscogsAuthStore = defineStore('discogsAuth', () => {
 	const isDiscogsConnecting = ref(false)
 	const oAuthCompletionFailed = ref(false)
 	const oAuthCompletionError = ref<string | null>(null)
+	const oAuthFinalizationPending = ref(false)
 
 	// Derived from discogs_username (set at the end of the OAuth flow in
 	// fetchAndSetIdentity, cleared on disconnect) so the client never needs
@@ -37,6 +38,7 @@ export const useDiscogsAuthStore = defineStore('discogsAuth', () => {
 	async function completeDiscogsOAuth(): Promise<boolean> {
 		oAuthCompletionFailed.value = false
 		oAuthCompletionError.value = null
+		oAuthFinalizationPending.value = false
 		const route = useRoute()
 		const oauth_token = route.query.oauth_token as string
 		const oauth_verifier = route.query.oauth_verifier as string
@@ -47,14 +49,28 @@ export const useDiscogsAuthStore = defineStore('discogsAuth', () => {
 			return false
 		}
 
+		return await invokeOAuthCompletion({ oauth_token, oauth_verifier })
+	}
+
+	async function resumeDiscogsOAuth(): Promise<boolean> {
+		oAuthCompletionFailed.value = false
+		oAuthCompletionError.value = null
+		oAuthFinalizationPending.value = false
+		return await invokeOAuthCompletion({ resume: true })
+	}
+
+	async function invokeOAuthCompletion(body: Record<string, unknown>) {
 		const { error } = await supabase.functions.invoke(
 			'get-discogs-access-token',
-			{ body: { oauth_token, oauth_verifier } }
+			{ body }
 		)
 
 		if (error) {
 			oAuthCompletionFailed.value = true
-			oAuthCompletionError.value = await getOAuthErrorMessage(error)
+			const publicError = await getOAuthError(error)
+			oAuthCompletionError.value = publicError.message
+			oAuthFinalizationPending.value =
+				publicError.code === 'discogs_identity_pending'
 			return false
 		} else {
 			if (await user.fetchProfile()) discogs.showGetFoldersDialog = true
@@ -63,8 +79,11 @@ export const useDiscogsAuthStore = defineStore('discogsAuth', () => {
 		}
 	}
 
-	async function getOAuthErrorMessage(error: unknown): Promise<string> {
+	async function getOAuthError(
+		error: unknown
+	): Promise<{ code: string | null; message: string }> {
 		let rawMessage: string | null = null
+		let code: string | null = null
 		const context = (error as { context?: unknown })?.context
 		if (context instanceof Response) {
 			try {
@@ -76,6 +95,14 @@ export const useDiscogsAuthStore = defineStore('discogsAuth', () => {
 					typeof payload.error === 'string'
 				) {
 					rawMessage = payload.error
+				}
+				if (
+					payload &&
+					typeof payload === 'object' &&
+					'code' in payload &&
+					payload.code === 'discogs_identity_pending'
+				) {
+					code = payload.code
 				}
 			} catch {
 				// Intentionally ignore JSON parsing failures and fall back to text parsing.
@@ -91,7 +118,7 @@ export const useDiscogsAuthStore = defineStore('discogsAuth', () => {
 		if (!rawMessage && error instanceof Error && error.message) {
 			rawMessage = error.message
 		}
-		return sanitizeOAuthErrorMessage(rawMessage)
+		return { code, message: sanitizeOAuthErrorMessage(rawMessage) }
 	}
 
 	function sanitizeOAuthErrorMessage(rawMessage: string | null): string {
@@ -119,7 +146,9 @@ export const useDiscogsAuthStore = defineStore('discogsAuth', () => {
 		isOAuthed,
 		oAuthCompletionFailed,
 		oAuthCompletionError,
+		oAuthFinalizationPending,
 		initDiscogsOAuthFlow,
-		completeDiscogsOAuth
+		completeDiscogsOAuth,
+		resumeDiscogsOAuth
 	}
 })

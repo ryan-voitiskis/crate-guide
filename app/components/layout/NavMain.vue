@@ -16,6 +16,7 @@ const { isActive, getHref, visibleNavItems } = useNavigation()
 				v-for="(item, index) in visibleNavItems"
 				:key="item.path"
 				:to="getHref(item.path)"
+				:prefetch="item.prefetch"
 				class="group focus-visible:ring-ring relative flex h-9 items-center gap-2.5 rounded-sm border border-transparent px-2 text-[0.8rem] font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
 				:class="
 					isActive(item.path)

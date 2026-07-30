@@ -1,8 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { runInNewContext } from 'node:vm'
 import { describe, expect, it } from 'vitest'
-import { ANONYMOUS_THEME_STORAGE_KEY } from '../../shared/constants/theme'
-import { buildAnonymousThemeBootstrapScript } from './themeBootstrap'
+import {
+	ANONYMOUS_THEME_STORAGE_KEY,
+	WORKSPACE_THEME_MIRROR_STORAGE_KEY
+} from '../../shared/constants/theme'
+import { buildThemeBootstrapScript } from './themeBootstrap'
 
 type Oklch = [lightness: number, chroma: number, hue: number]
 
@@ -107,13 +111,44 @@ describe('authentication presentation contracts', () => {
 		}
 	)
 
-	it('builds the pre-paint parser from the shared anonymous storage key', () => {
-		const script = buildAnonymousThemeBootstrapScript()
+	it('builds the pre-paint parser from both owned theme storage keys', () => {
+		const script = buildThemeBootstrapScript()
 
 		expect(script).toContain(JSON.stringify(ANONYMOUS_THEME_STORAGE_KEY))
-		expect(script).toContain("saved==='light'||saved==='dark'||saved==='auto'")
+		expect(script).toContain(JSON.stringify(WORKSPACE_THEME_MIRROR_STORAGE_KEY))
 		expect(script).toContain('root.classList.add(resolved)')
 		expect(script).not.toContain('eval(')
+	})
+
+	it('applies an owner-tagged workspace mirror before anonymous fallback', () => {
+		const classes = new Set<string>()
+		const values = new Map<string, string>([
+			[ANONYMOUS_THEME_STORAGE_KEY, 'light'],
+			[
+				WORKSPACE_THEME_MIRROR_STORAGE_KEY,
+				JSON.stringify({
+					location: 'cloud',
+					ownerTag: 'owner:0123456789abcdef',
+					theme: 'dark'
+				})
+			]
+		])
+
+		runInNewContext(buildThemeBootstrapScript(), {
+			document: {
+				documentElement: {
+					classList: {
+						add: (value: string) => classes.add(value),
+						remove: (...removed: string[]) =>
+							removed.forEach((value) => classes.delete(value))
+					}
+				}
+			},
+			localStorage: { getItem: (key: string) => values.get(key) ?? null },
+			matchMedia: () => ({ matches: false })
+		})
+
+		expect(classes).toEqual(new Set(['dark']))
 	})
 
 	it.each([

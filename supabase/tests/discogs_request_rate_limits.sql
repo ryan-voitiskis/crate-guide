@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(39);
+SELECT plan(47);
 
 SELECT has_table(
 	'public',
@@ -73,6 +73,60 @@ SELECT ok(
 		'EXECUTE'
 	),
 	'the service role can consume quota'
+);
+SELECT ok(
+	to_regprocedure('public.delete_discogs_user_rate_limit(uuid)') IS NOT NULL
+	AND to_regprocedure(
+		'public.prune_expired_discogs_user_rate_limits(integer)'
+	) IS NOT NULL,
+	'user-bucket deletion and bounded expiry pruning RPCs exist'
+);
+SELECT ok(
+	(
+		SELECT bool_and(
+			prosecdef
+			AND proconfig @> ARRAY['search_path=pg_catalog, public']
+		)
+		FROM pg_proc
+		WHERE oid IN (
+			'public.delete_discogs_user_rate_limit(uuid)'::REGPROCEDURE,
+			'public.prune_expired_discogs_user_rate_limits(integer)'::REGPROCEDURE
+		)
+	),
+	'rate-limit retirement RPCs are hardened security definers'
+);
+SELECT ok(
+	NOT has_function_privilege(
+		'anon',
+		'public.delete_discogs_user_rate_limit(uuid)',
+		'EXECUTE'
+	)
+	AND NOT has_function_privilege(
+		'authenticated',
+		'public.delete_discogs_user_rate_limit(uuid)',
+		'EXECUTE'
+	)
+	AND NOT has_function_privilege(
+		'anon',
+		'public.prune_expired_discogs_user_rate_limits(integer)',
+		'EXECUTE'
+	)
+	AND NOT has_function_privilege(
+		'authenticated',
+		'public.prune_expired_discogs_user_rate_limits(integer)',
+		'EXECUTE'
+	)
+	AND has_function_privilege(
+		'service_role',
+		'public.delete_discogs_user_rate_limit(uuid)',
+		'EXECUTE'
+	)
+	AND has_function_privilege(
+		'service_role',
+		'public.prune_expired_discogs_user_rate_limits(integer)',
+		'EXECUTE'
+	),
+	'rate-limit retirement remains service-owned'
 );
 SELECT is(
 	(
@@ -407,6 +461,95 @@ SELECT is(
 	),
 	0::BIGINT,
 	'all persisted keys are constructed internally from the verified UUID'
+);
+
+RESET ROLE;
+TRUNCATE public.discogs_request_rate_limits;
+INSERT INTO public.discogs_request_rate_limits (
+	bucket_key,
+	request_count,
+	reset_at
+)
+VALUES
+	('discogs:global', 9, statement_timestamp() - INTERVAL '1 minute'),
+	(
+		'discogs:user:00000000-0000-0000-0000-000000000061',
+		3,
+		statement_timestamp() - INTERVAL '1 minute'
+	),
+	(
+		'discogs:user:00000000-0000-0000-0000-000000000062',
+		2,
+		statement_timestamp() + INTERVAL '1 minute'
+	),
+	(
+		'discogs:user:00000000-0000-0000-0000-000000000063',
+		1,
+		statement_timestamp() - INTERVAL '2 minutes'
+	),
+	(
+		'discogs:user:not-a-uuid',
+		1,
+		statement_timestamp() - INTERVAL '3 minutes'
+	);
+
+SET LOCAL ROLE service_role;
+SELECT ok(
+	public.delete_discogs_user_rate_limit(
+		'00000000-0000-0000-0000-000000000061'
+	),
+	'account cleanup deletes its exact per-user quota bucket'
+);
+SELECT ok(
+	NOT EXISTS (
+		SELECT 1
+		FROM public.discogs_request_rate_limits
+		WHERE bucket_key = 'discogs:user:00000000-0000-0000-0000-000000000061'
+	)
+	AND EXISTS (
+		SELECT 1
+		FROM public.discogs_request_rate_limits
+		WHERE bucket_key = 'discogs:global'
+	)
+	AND EXISTS (
+		SELECT 1
+		FROM public.discogs_request_rate_limits
+		WHERE bucket_key = 'discogs:user:00000000-0000-0000-0000-000000000062'
+	),
+	'exact account retirement leaves the global and other user buckets intact'
+);
+SELECT is(
+	public.prune_expired_discogs_user_rate_limits(1),
+	1,
+	'expiry pruning deletes no more than its explicit row bound'
+);
+SELECT ok(
+	NOT EXISTS (
+		SELECT 1
+		FROM public.discogs_request_rate_limits
+		WHERE bucket_key = 'discogs:user:00000000-0000-0000-0000-000000000063'
+	)
+	AND EXISTS (
+		SELECT 1
+		FROM public.discogs_request_rate_limits
+		WHERE bucket_key = 'discogs:global'
+	)
+	AND EXISTS (
+		SELECT 1
+		FROM public.discogs_request_rate_limits
+		WHERE bucket_key = 'discogs:user:00000000-0000-0000-0000-000000000062'
+	)
+	AND EXISTS (
+		SELECT 1
+		FROM public.discogs_request_rate_limits
+		WHERE bucket_key = 'discogs:user:not-a-uuid'
+	),
+	'pruning removes only expired canonical user buckets, never global, active, or unrelated rows'
+);
+SELECT throws_like(
+	$$ SELECT public.prune_expired_discogs_user_rate_limits(101) $$,
+	'%maximum_rows must be between 1 and 100%',
+	'quota pruning rejects an unbounded row request'
 );
 
 SELECT * FROM finish();

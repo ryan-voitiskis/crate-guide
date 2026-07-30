@@ -3,6 +3,11 @@ import type {
 	DiscogsReleaseFull,
 	DiscogsReleaseToFilter
 } from '../../shared/types/discogs'
+import type {
+	ExternalRecordImportResult,
+	ExternalRecordWithTracksInput
+} from '../../shared/types/library'
+import { transformReleaseDomain } from './discogs-data'
 import {
 	canManuallyRetryDiscogsError,
 	createDiscogsRequestContext,
@@ -19,8 +24,7 @@ interface ProcessExistingResult {
 }
 
 export type DiscogsReleaseTarget =
-	| DiscogsReleaseToFilter
-	| { id: number; label: string }
+	DiscogsReleaseToFilter | { id: number; label: string }
 
 interface FetchDetailsResult {
 	releases: DiscogsReleaseFull[]
@@ -30,8 +34,22 @@ interface FetchDetailsResult {
 
 interface ImportResult {
 	successful: number
+	skipped: Array<{
+		label: string
+		releaseId: number
+		reason: 'duplicate' | 'cancelled'
+	}>
+	confirmedReleaseIds: number[]
 	failed: DiscogsImportFailure[]
 }
+
+export type FindExistingDiscogsIds = (
+	discogsIds: readonly number[]
+) => Promise<Set<number>>
+
+export type ImportExternalRecord = (
+	input: ExternalRecordWithTracksInput
+) => Promise<ExternalRecordImportResult>
 
 interface FetchAttemptStatus {
 	target: DiscogsReleaseTarget
@@ -53,9 +71,12 @@ function targetLabel(target: DiscogsReleaseTarget): string {
 
 // Step 1: Process existing releases and filter out duplicates
 export async function filterOutExistingReleases(
-	selectedReleases: DiscogsReleaseToFilter[]
+	selectedReleases: DiscogsReleaseToFilter[],
+	findExistingDiscogsIds: FindExistingDiscogsIds
 ): Promise<ProcessExistingResult> {
-	const existingDiscogsIds = await getExistingDiscogsIds(selectedReleases)
+	const existingDiscogsIds = await findExistingDiscogsIds(
+		selectedReleases.map((release) => release.id)
+	)
 
 	const skipped: Array<{ label: string }> = []
 	selectedReleases.forEach((release) => {
@@ -170,20 +191,39 @@ export async function fetchReleaseDetails(
 // Step 3: Import fetched releases to database
 export async function importFetchedReleases(
 	releases: DiscogsReleaseFull[],
-	userId: string,
+	importExternalRecord: ImportExternalRecord,
 	shouldCancel: () => boolean = () => false
 ): Promise<ImportResult> {
 	let successful = 0
+	const skipped: ImportResult['skipped'] = []
+	const confirmedReleaseIds: number[] = []
 	const failed: DiscogsImportFailure[] = []
 
-	for (const release of releases) {
-		if (shouldCancel()) break
+	for (const [index, release] of releases.entries()) {
+		if (shouldCancel()) {
+			skipped.push(
+				...releases.slice(index).map((unattempted) => ({
+					label: formatFullReleaseDisplayTitle(unattempted),
+					releaseId: unattempted.id,
+					reason: 'cancelled' as const
+				}))
+			)
+			break
+		}
 		try {
 			if (!isDiscogsReleaseFull(release))
 				throw new Error('Invalid release data structure from Discogs API')
 
-			await importRecordWithTracks(release, userId)
-			successful++
+			const result = await importExternalRecord(transformReleaseDomain(release))
+			confirmedReleaseIds.push(release.id)
+			if (result.inserted) successful++
+			else {
+				skipped.push({
+					label: formatFullReleaseDisplayTitle(release),
+					releaseId: release.id,
+					reason: 'duplicate'
+				})
+			}
 		} catch {
 			failed.push({
 				releaseId: release.id,
@@ -197,5 +237,5 @@ export async function importFetchedReleases(
 		}
 	}
 
-	return { successful, failed }
+	return { successful, skipped, confirmedReleaseIds, failed }
 }

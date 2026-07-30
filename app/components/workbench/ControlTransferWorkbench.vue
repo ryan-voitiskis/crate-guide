@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CheckCircle2, LoaderCircle, TriangleAlert, X } from 'lucide-vue-next'
+import { CheckCircle2, LoaderCircle, TriangleAlert, X } from '@lucide/vue'
 
 interface Props {
 	variant?: 'status' | 'mobile'
@@ -11,7 +11,7 @@ withDefaults(defineProps<Props>(), {
 
 const user = useSupabaseUser()
 const route = useRoute()
-const discogs = useDiscogsStore()
+const discogs = useWorkbenchDiscogsStore()
 
 const isDemo = computed(() => route.path.startsWith('/demo'))
 const isVisible = computed(

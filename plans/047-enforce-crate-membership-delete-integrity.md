@@ -13,7 +13,7 @@
 - **Depends on**: Plans 013, 028, 033, 038, 039, 043, and 044
 - **Category**: database integrity / concurrency / client reconciliation
 - **Planned at**: commit `aba27ff`, 2026-07-19
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -122,11 +122,11 @@ record its command in the final handoff.
 
 ## Done criteria
 
-- [ ] Concurrent add/delete cannot leave an orphan membership in either ordering.
-- [ ] Browser roles cannot directly delete records or update crate membership arrays.
-- [ ] The application exposes one validated record-removal path.
-- [ ] Removing a record invalidates only crates that contained it.
-- [ ] SQL, concurrency, store, generated-type, and full gates pass.
+- [x] Concurrent add/delete cannot leave an orphan membership in either ordering.
+- [x] Browser roles cannot directly delete records or update crate membership arrays.
+- [x] The application exposes one validated record-removal path.
+- [x] Removing a record invalidates only crates that contained it.
+- [x] SQL, concurrency, store, generated-type, and full gates pass.
 
 ## STOP conditions
 

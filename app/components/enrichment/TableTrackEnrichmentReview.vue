@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { AlertTriangle, ArrowRight, Check, Loader2 } from 'lucide-vue-next'
+import { AlertTriangle, ArrowRight, Check, Loader2 } from '@lucide/vue'
 import type { TrackEnrichmentReviewSortKey } from '~/composables/useTrackEnrichmentReviewTable'
+import {
+	canStageTrackEnrichmentWorkflowRow,
+	isTrackEnrichmentEvidenceOnlyRow
+} from '~/composables/useTrackEnrichmentWorkflow'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
-import { canStageTrackEnrichmentRow } from '~/utils/trackEnrichment'
 import type { KeyFormat } from '~~/shared/types/supabase'
 
 const props = defineProps<{
@@ -106,8 +109,10 @@ function getStageLabel(row: TrackEnrichmentRow): string | null {
 	if (row.error) return 'Error'
 	if (row.applied) return 'Applied'
 	if (row.stagingBlockedReason) return 'Blocked'
-	if (isRowStaged(row)) return 'Staged'
-	if (canStageTrackEnrichmentRow(row)) return 'Ready'
+	if (isRowStaged(row))
+		return isTrackEnrichmentEvidenceOnlyRow(row) ? 'Evidence staged' : 'Staged'
+	if (isTrackEnrichmentEvidenceOnlyRow(row)) return 'Evidence only'
+	if (canStageTrackEnrichmentWorkflowRow(row)) return 'Ready'
 	if (row.alreadyComplete) return 'Complete'
 	return null
 }
@@ -180,8 +185,12 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 				<div class="flex items-start gap-2.5">
 					<CheckboxLargeHitArea
 						:model-value="isRowStaged(row)"
-						:disabled="!canStageTrackEnrichmentRow(row) || isApplying"
-						:aria-label="`Stage ${row.source.name || 'source track'}`"
+						:disabled="!canStageTrackEnrichmentWorkflowRow(row) || isApplying"
+						:aria-label="
+							isTrackEnrichmentEvidenceOnlyRow(row)
+								? `Stage Evidence only for ${row.source.name || 'source track'}`
+								: `Stage ${row.source.name || 'source track'}`
+						"
 						@update:model-value="emit('stage-row', row, $event === true)"
 					/>
 					<div class="min-w-0 flex-1">
@@ -372,8 +381,14 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 							<div class="flex items-center gap-2">
 								<CheckboxLargeHitArea
 									:model-value="isRowStaged(row)"
-									:disabled="!canStageTrackEnrichmentRow(row) || isApplying"
-									:aria-label="`Stage ${row.source.name || 'source track'}`"
+									:disabled="
+										!canStageTrackEnrichmentWorkflowRow(row) || isApplying
+									"
+									:aria-label="
+										isTrackEnrichmentEvidenceOnlyRow(row)
+											? `Stage Evidence only for ${row.source.name || 'source track'}`
+											: `Stage ${row.source.name || 'source track'}`
+									"
 									@update:model-value="emit('stage-row', row, $event === true)"
 								/>
 								<div class="min-w-0">

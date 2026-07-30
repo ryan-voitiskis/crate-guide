@@ -1,4 +1,5 @@
 export const DISCOGS_AUTHENTICATED_REQUESTS_PER_MINUTE = 60
+export const DISCOGS_OAUTH_CALLBACK_REQUEST_RESERVE = 3
 export const MAX_DISCOGS_RETRY_AFTER_MS = 120_000
 
 const DEFAULT_PER_USER_LIMIT = 45
@@ -64,9 +65,13 @@ export function getDiscogsRateLimitConfig(
 			'DISCOGS_RATE_LIMIT_PER_USER must not exceed DISCOGS_RATE_LIMIT_GLOBAL'
 		)
 	}
-	if (globalLimit > DISCOGS_AUTHENTICATED_REQUESTS_PER_MINUTE) {
+	if (
+		globalLimit >
+		DISCOGS_AUTHENTICATED_REQUESTS_PER_MINUTE -
+			DISCOGS_OAUTH_CALLBACK_REQUEST_RESERVE
+	) {
 		throw new Error(
-			'DISCOGS_RATE_LIMIT_GLOBAL must not exceed the authenticated provider allowance'
+			'DISCOGS_RATE_LIMIT_GLOBAL must preserve the OAuth callback request reserve'
 		)
 	}
 	if (

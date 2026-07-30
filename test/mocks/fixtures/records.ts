@@ -2,6 +2,10 @@ import type {
 	DiscogsArtistDb,
 	DiscogsLabelDb
 } from '~/../../shared/types/discogs'
+import type {
+	CoverReference,
+	LibraryRecord
+} from '~/../../shared/types/library'
 import type { DatabaseRecord } from '~/../../shared/types/supabase'
 
 type Record = DatabaseRecord
@@ -27,6 +31,45 @@ export function createMockRecord(overrides?: Partial<Record>): Record {
 		...overrides,
 		cover_storage_path: overrides?.cover_storage_path ?? null
 	}
+}
+
+export function createMockLibraryRecord(
+	overrides: Partial<LibraryRecord> = {}
+): LibraryRecord {
+	recordIdCounter++
+	const id = overrides.id ?? `record-${recordIdCounter}`
+	const cover: CoverReference = overrides.cover ?? {
+		kind: 'external',
+		url: 'https://example.com/cover.jpg'
+	}
+
+	return {
+		id,
+		title: `Test Record ${recordIdCounter}`,
+		artists: [{ discogs_id: 1, name: 'Test Artist', role: null }],
+		labels: [{ discogs_id: 1, name: 'Test Label', catno: 'TEST001' }],
+		year: 2024,
+		cover,
+		discogs_id: recordIdCounter,
+		discogs_release_url: `https://discogs.com/release/${recordIdCounter}`,
+		created_at: new Date().toISOString(),
+		updated_at: new Date().toISOString(),
+		...overrides
+	}
+}
+
+export function createMockLibraryRecordWithArtists(
+	artists: DiscogsArtistDb[],
+	overrides?: Partial<LibraryRecord>
+): LibraryRecord {
+	return createMockLibraryRecord({ artists, ...overrides })
+}
+
+export function createMockLibraryRecordWithLabels(
+	labels: DiscogsLabelDb[],
+	overrides?: Partial<LibraryRecord>
+): LibraryRecord {
+	return createMockLibraryRecord({ labels, ...overrides })
 }
 
 export function createMockRecordWithArtists(

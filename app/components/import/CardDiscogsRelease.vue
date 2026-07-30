@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CircleCheck, ImageOff } from 'lucide-vue-next'
+import { CircleCheck, ImageOff } from '@lucide/vue'
 
 const props = defineProps<{
 	release: DiscogsReleaseToFilter | DiscogsRelease

@@ -1,11 +1,5 @@
 <script setup lang="ts">
-import {
-	AlertTriangle,
-	Disc3,
-	FolderOpen,
-	History,
-	Save
-} from 'lucide-vue-next'
+import { AlertTriangle, Disc3, FolderOpen, History, Save } from '@lucide/vue'
 
 const session = useWorkbenchSessionStore()
 const capabilities = useWorkbenchCapabilities()

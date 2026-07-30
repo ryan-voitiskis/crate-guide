@@ -98,4 +98,19 @@ describe('parseBPM', () => {
 		expect(parseBPM('abc')).toBe(null)
 		expect(parseBPM('fast')).toBe(null)
 	})
+
+	it('requires the complete value to be a finite decimal', () => {
+		expect(parseBPM('128abc')).toBe(null)
+		expect(parseBPM('120..5')).toBe(null)
+		expect(parseBPM('120 121')).toBe(null)
+		expect(parseBPM('Infinity')).toBe(null)
+		expect(parseBPM('1e2')).toBe(null)
+	})
+
+	it('enforces the supported BPM boundaries', () => {
+		expect(parseBPM('30')).toBe(30)
+		expect(parseBPM('300')).toBe(300)
+		expect(parseBPM('29.99')).toBe(null)
+		expect(parseBPM('300.01')).toBe(null)
+	})
 })

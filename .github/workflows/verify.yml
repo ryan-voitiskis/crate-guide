@@ -18,18 +18,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24.12.0
+          node-version: 24.18.1
           cache: npm
 
       - name: Set up Deno
-        uses: denoland/setup-deno@v2
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
-          deno-version: v2.9.3
+          deno-version: v2.9.4
 
       - name: Install dependencies
         run: npm ci
@@ -43,26 +43,41 @@ jobs:
       - name: Audit all dependencies
         run: npm run audit:all
 
-      - name: Install Chromium
-        run: npx --no-install playwright-core install --with-deps chromium
+      - name: Audit frozen Edge dependencies
+        run: npm run audit:edge
+
+      - name: Install browser matrix
+        run: npx --no-install playwright install --with-deps chromium firefox webkit
 
       - name: Verify application
         run: npm run verify
+        env:
+          BROWSER_LIBRARY_REQUIRE_FULL_MATRIX: '1'
+          LOCAL_AUDIO_CACHE_REQUIRE_TIMING_BUDGETS: '0'
 
       - name: Build application
         run: npm run build
+        env:
+          SUPABASE_URL: https://config.test.invalid
+          SUPABASE_ANON_KEY: test-public-anon-key
+
+      - name: Check built browser security headers
+        run: npm run check:security-headers
+
+      - name: Check client bundle budget
+        run: npm run check:client-bundle-budget
 
   database:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24.12.0
+          node-version: 24.18.1
           cache: npm
 
       - name: Install dependencies
@@ -73,6 +88,9 @@ jobs:
 
       - name: Test database
         run: npm run test:db
+
+      - name: Compare generated types with migrated schema
+        run: npm run check:database-schema-types
 
       - name: Stop local Supabase
         if: always()

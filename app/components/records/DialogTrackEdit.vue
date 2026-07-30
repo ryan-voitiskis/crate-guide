@@ -10,10 +10,10 @@ import {
 	trackToEditorValues
 } from '~/utils/trackEditor'
 
-const tracks = useTracksStore()
+const tracks = useWorkbenchTracksStore()
 const trackEdit = useTrackEditStore()
-const recordDetails = useRecordDetailsStore()
-const user = useUserStore()
+const recordDetails = useWorkbenchRecordDetailsStore()
+const preferences = useWorkbenchPreferencesStore()
 
 const validationSchema = toTypedSchema(trackEditorSchema)
 
@@ -31,6 +31,8 @@ const extraartists = ref<DiscogsArtistDb[]>([])
 const showUnsavedChangesAlert = ref(false)
 const isSubmitting = ref(false)
 const showValidationErrors = ref(false)
+let nextSubmissionId = 0
+let activeSubmissionId: number | null = null
 
 const dialogOpen = computed({
 	get: () => trackEdit.isDialogOpen,
@@ -54,18 +56,40 @@ const dialogTitle = computed(() =>
 )
 
 const isFormInitialized = ref(false)
+let initializedDialogGeneration = -1
+
+function resetSubmissionState() {
+	activeSubmissionId = null
+	isSubmitting.value = false
+}
 
 watch(
-	[() => editingTrack.value, () => trackEdit.isDialogOpen],
-	([track, isOpen]) => {
-		if (track && isOpen && isEditing.value && !isFormInitialized.value) {
+	[
+		() => trackEdit.dialogGeneration,
+		() => editingTrack.value,
+		() => trackEdit.isDialogOpen,
+		() => isEditing.value
+	],
+	([generation, track, isOpen, editing]) => {
+		if (generation !== initializedDialogGeneration) {
+			initializedDialogGeneration = generation
+			isFormInitialized.value = false
+			showUnsavedChangesAlert.value = false
+			showValidationErrors.value = false
+			resetSubmissionState()
+			resetForm()
+			artists.value = []
+			extraartists.value = []
+		}
+
+		if (track && isOpen && editing && !isFormInitialized.value) {
 			// Editing existing track
 			setValues(trackToEditorValues(track))
 			// Set artists independently
 			artists.value = [...track.artists]
 			extraartists.value = [...track.extraartists]
 			isFormInitialized.value = true
-		} else if (isOpen && !isEditing.value && !isFormInitialized.value) {
+		} else if (isOpen && !editing && !isFormInitialized.value) {
 			// Opening for new track - reset form
 			resetForm()
 			artists.value = []
@@ -78,6 +102,7 @@ watch(
 			resetForm()
 			artists.value = []
 			extraartists.value = []
+			resetSubmissionState()
 		}
 	},
 	{ immediate: true }
@@ -104,12 +129,27 @@ function handleCloseDialog() {
 }
 
 const submitTrack = handleSubmit(async (values) => {
-	if (!selectedRecordId.value) {
+	const recordId = selectedRecordId.value
+	if (!recordId) {
 		toast.error('Record ID is required to save track')
 		return
 	}
+	const dialogGeneration = trackEdit.dialogGeneration
+	const editing = trackEdit.isEditing
+	const trackId = editing ? trackEdit.editingTrackId : null
+	if (editing && !trackId) return
+	const submissionId = ++nextSubmissionId
+	activeSubmissionId = submissionId
 
 	isSubmitting.value = true
+
+	const ownsActiveDialog = () =>
+		activeSubmissionId === submissionId &&
+		trackEdit.dialogGeneration === dialogGeneration &&
+		trackEdit.isDialogOpen &&
+		trackEdit.isEditing === editing &&
+		trackEdit.editingTrackId === trackId &&
+		selectedRecordId.value === recordId
 
 	try {
 		const payload = buildTrackEditorPayload(
@@ -118,32 +158,33 @@ const submitTrack = handleSubmit(async (values) => {
 			extraartists.value
 		)
 
-		if (isEditing.value && editingTrack.value) {
+		if (editing && trackId) {
 			// Update existing track
-			const result = await tracks.updateTrack(editingTrack.value.id, payload)
-			if (result) {
+			const result = await tracks.updateTrack(trackId, payload)
+			if (result && ownsActiveDialog()) {
 				toast.success('Track updated successfully')
+				resetSubmissionState()
 				trackEdit.closeTrackDialog()
-				isFormInitialized.value = false
 			}
 		} else {
 			// Create new track
 			const newTrack = {
-				record_id: selectedRecordId.value,
+				record_id: recordId,
 				...payload,
 				beatport_data: null
 			}
 
 			const result = await tracks.createTrack(newTrack)
-			if (result) {
+			if (result && ownsActiveDialog()) {
 				toast.success('Track created successfully')
+				resetSubmissionState()
 				trackEdit.closeTrackDialog()
 			}
 		}
 	} catch {
-		toast.error('Error saving track')
+		if (ownsActiveDialog()) toast.error('Error saving track')
 	} finally {
-		isSubmitting.value = false
+		if (ownsActiveDialog()) resetSubmissionState()
 	}
 })
 
@@ -189,7 +230,7 @@ function confirmDiscardAndProceed() {
 				<FormTrackEditorFields
 					v-model:artists="artists"
 					v-model:extraartists="extraartists"
-					:key-format="user.currentKeyFormat"
+					:key-format="preferences.currentKeyFormat"
 					:show-validation-errors="showValidationErrors"
 				/>
 

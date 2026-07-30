@@ -13,7 +13,7 @@
 - **Depends on**: Plans 044 and 046
 - **Category**: maintainability / file boundaries / comments
 - **Planned at**: commit `aba27ff`, 2026-07-19
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -102,11 +102,11 @@ git diff --check
 
 ## Done criteria
 
-- [ ] Record collection/reconciliation and cover orchestration have distinct owners.
-- [ ] The cover editor is an application wrapper with a narrow typed contract.
-- [ ] Public behavior, account ownership, cleanup durability, and UX are unchanged.
-- [ ] Comments emphasize invariants rather than template/control-flow narration.
-- [ ] Tests are split by behavior and all focused/full gates pass.
+- [x] Record collection/reconciliation and cover orchestration have distinct owners.
+- [x] The cover editor is an application wrapper with a narrow typed contract.
+- [x] Public behavior, account ownership, cleanup durability, and UX are unchanged.
+- [x] Comments emphasize invariants rather than template/control-flow narration.
+- [x] Tests are split by behavior and all focused/full gates pass.
 
 ## STOP conditions
 

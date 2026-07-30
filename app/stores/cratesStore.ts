@@ -1,15 +1,22 @@
 import { toast } from 'vue-sonner'
-import { getActivePinia } from 'pinia'
+import type { WorkspaceOperationContext } from '~/repositories/library/contracts'
 import {
 	compareCreatedAtDescIdDesc,
 	postgresTimestampMicroseconds
 } from '~/utils/supabaseOrdering'
-import { fetchAllSupabasePages } from '~/utils/supabasePagination'
-import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
+import {
+	ensureWorkbenchRuntime,
+	getWorkbenchRuntime,
+	getWorkbenchStorePinia
+} from '~/utils/workbenchPinia'
+import type {
+	CrateCreateInput,
+	CrateMetadataUpdate,
+	LibraryCrate
+} from '~~/shared/types/library'
 
-type AccountContext = {
+type AccountContext = WorkspaceOperationContext & {
 	generation: number
-	userId: string
 }
 
 type FetchSnapshot = {
@@ -18,13 +25,9 @@ type FetchSnapshot = {
 }
 
 type DecodedCrate = {
-	crate: Crate
+	crate: LibraryCrate
 	version: bigint | null
 }
-
-type CrateMetadataUpdate = Partial<
-	Omit<Crate, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'records'>
->
 
 type CrateMembershipRpc = 'add_record_to_crate' | 'remove_record_from_crate'
 
@@ -32,7 +35,7 @@ type CrateMetadataField = keyof CrateMetadataUpdate
 
 type OptimisticMetadataField = {
 	token: symbol
-	value: Crate[CrateMetadataField]
+	value: LibraryCrate[CrateMetadataField]
 }
 
 type MembershipContext = {
@@ -42,27 +45,29 @@ type MembershipContext = {
 
 type MembershipResult = {
 	context: MembershipContext
-	crate: Crate
+	crate: LibraryCrate
+}
+
+type PendingMembershipOperation = {
+	crateId: string
 }
 
 export const useCratesStore = defineStore('crates', () => {
-	const supabase = useSupabaseClient<Database>()
-	const pinia = getActivePinia()
-	const isDemoStore = isDemoWorkbenchPinia(pinia)
-	const user = useUserStore(pinia)
+	const pinia = getWorkbenchStorePinia()
+	const runtime = getWorkbenchRuntime(pinia) ?? ensureWorkbenchRuntime(pinia!)
 
-	const crates = ref<Crate[]>([])
+	const crates = ref<LibraryCrate[]>([])
 	const isLoadingCrates = ref(false)
 	const isCreatingCrate = ref(false)
 	const isUpdatingCrate = ref(false)
 	const isDeletingCrate = ref(false)
 	let fetchPromise: Promise<boolean> | null = null
 	let accountGeneration = 0
-	let activeFetchUserId: string | null = null
+	let activeFetchContext: AccountContext | null = null
 	let activeCreateOperations = 0
 	let activeUpdateOperations = 0
 	let activeDeleteOperations = 0
-	const authoritativeCrates = new Map<string, Crate>()
+	const authoritativeCrates = new Map<string, LibraryCrate>()
 	const authoritativeVersions = new Map<string, bigint | null>()
 	const crateRevisions = new Map<string, number>()
 	const crateLifecycleBoundaries = new Map<string, number>()
@@ -71,29 +76,42 @@ export const useCratesStore = defineStore('crates', () => {
 		string,
 		Map<CrateMetadataField, OptimisticMetadataField>
 	>()
+	const pendingMembershipOperations = new Map<
+		string,
+		Set<PendingMembershipOperation>
+	>()
+	// A delayed fetch or membership response may predate committed deletion.
+	// Filter only that record while allowing unrelated crate changes to publish.
+	const removedRecordMembershipTombstones = new Set<string>()
 
-	// Dialog state (store-based pattern)
-	const crateToDelete = ref<Crate | null>(null)
+	const crateToDelete = ref<LibraryCrate | null>(null)
 
 	const cratesCount = computed(() => crates.value.length)
 	const hasCrates = computed(() => crates.value.length > 0)
 
 	function captureAccountContext(): AccountContext | null {
-		const userId = user.supaUserId
-		return userId ? { generation: accountGeneration, userId } : null
+		const captured = runtime.capture()
+		return { ...captured.context, generation: accountGeneration }
 	}
 
 	function isCurrentAccountContext(context: AccountContext): boolean {
 		return (
-			context.generation === accountGeneration &&
-			user.supaUserId === context.userId
+			context.generation === accountGeneration && runtime.isCurrent(context)
 		)
 	}
 
 	function isCurrentFetchContext(context: AccountContext): boolean {
-		return (
-			isCurrentAccountContext(context) && activeFetchUserId === context.userId
-		)
+		return isCurrentAccountContext(context) && activeFetchContext === context
+	}
+
+	function repositoriesFor(context: AccountContext) {
+		if (!isCurrentAccountContext(context)) return null
+		const captured = runtime.capture()
+		return runtime.isCurrent(context) ? captured.repositories : null
+	}
+
+	function isReadOnlyWorkbench(): boolean {
+		return runtime.capture().descriptor.readOnly
 	}
 
 	function beginUpdateOperation(context: AccountContext): () => void {
@@ -165,59 +183,49 @@ export const useCratesStore = defineStore('crates', () => {
 		)
 	}
 
-	function decodeCrate(
-		data: unknown,
-		expected: { id?: string; userId: string }
-	): DecodedCrate {
-		if (!data || typeof data !== 'object' || Array.isArray(data)) {
-			throw new Error('Invalid crate response.')
+	function beginMembershipOperation(
+		recordId: string,
+		crateId: string
+	): () => void {
+		const operation = { crateId }
+		let operations = pendingMembershipOperations.get(recordId)
+		if (!operations) {
+			operations = new Set()
+			pendingMembershipOperations.set(recordId, operations)
 		}
+		operations.add(operation)
 
-		const candidate = data as Record<string, unknown>
-		const nullableStringsAreValid = ['description', 'color'].every(
-			(field) =>
-				candidate[field] === null || typeof candidate[field] === 'string'
-		)
-		const createdAtIsValid =
-			candidate.created_at === null || typeof candidate.created_at === 'string'
-		const updatedAtIsValid =
-			candidate.updated_at === null ||
-			(typeof candidate.updated_at === 'string' &&
-				postgresTimestampMicroseconds(candidate.updated_at) !== null)
-
-		if (
-			typeof candidate.id !== 'string' ||
-			candidate.id !== (expected.id ?? candidate.id) ||
-			typeof candidate.name !== 'string' ||
-			typeof candidate.user_id !== 'string' ||
-			candidate.user_id !== expected.userId ||
-			!nullableStringsAreValid ||
-			!createdAtIsValid ||
-			!updatedAtIsValid ||
-			!Array.isArray(candidate.records) ||
-			!candidate.records.every((recordId) => typeof recordId === 'string')
-		) {
-			throw new Error('Invalid crate response.')
-		}
-
-		const updatedAt = candidate.updated_at as string | null
-		return {
-			crate: {
-				id: candidate.id,
-				name: candidate.name,
-				description: candidate.description as string | null,
-				color: candidate.color as string | null,
-				records: candidate.records,
-				user_id: candidate.user_id,
-				created_at: candidate.created_at as string | null,
-				updated_at: updatedAt
-			},
-			version:
-				updatedAt === null ? null : postgresTimestampMicroseconds(updatedAt)
+		return () => {
+			const currentOperations = pendingMembershipOperations.get(recordId)
+			if (!currentOperations?.delete(operation)) return
+			if (currentOperations.size === 0) {
+				pendingMembershipOperations.delete(recordId)
+			}
 		}
 	}
 
-	function overlayOptimisticMetadata(crate: Crate): Crate {
+	function decodeCrate(crate: LibraryCrate, expectedId?: string): DecodedCrate {
+		if (expectedId !== undefined && crate.id !== expectedId) {
+			throw new Error('Invalid crate response.')
+		}
+		const version = crate.updated_at
+			? postgresTimestampMicroseconds(crate.updated_at)
+			: null
+		if (crate.updated_at !== null && version === null) {
+			throw new Error('Invalid crate response.')
+		}
+		return {
+			crate: {
+				...crate,
+				records: crate.records.filter(
+					(recordId) => !removedRecordMembershipTombstones.has(recordId)
+				)
+			},
+			version
+		}
+	}
+
+	function overlayOptimisticMetadata(crate: LibraryCrate): LibraryCrate {
 		const fields = optimisticMetadataFields.get(crate.id)
 		if (!fields) return crate
 
@@ -227,7 +235,10 @@ export const useCratesStore = defineStore('crates', () => {
 		return { ...crate, ...updates }
 	}
 
-	function insertCrateInDeclaredOrder(rows: Crate[], crate: Crate): void {
+	function insertCrateInDeclaredOrder(
+		rows: LibraryCrate[],
+		crate: LibraryCrate
+	): void {
 		const insertAt = rows.findIndex(
 			(existingCrate) => compareCreatedAtDescIdDesc(crate, existingCrate) < 0
 		)
@@ -295,8 +306,8 @@ export const useCratesStore = defineStore('crates', () => {
 
 		const currentRows = new Map(crates.value.map((crate) => [crate.id, crate]))
 		const fetchedIds = new Set<string>()
-		const reconciledRows: Crate[] = []
-		const rowsAddedDuringFetch: Crate[] = []
+		const reconciledRows: LibraryCrate[] = []
+		const rowsAddedDuringFetch: LibraryCrate[] = []
 
 		for (const decoded of decodedRows) {
 			const crateId = decoded.crate.id
@@ -348,36 +359,30 @@ export const useCratesStore = defineStore('crates', () => {
 
 	async function performFetchAllCrates(generation: number): Promise<boolean> {
 		isLoadingCrates.value = true
-		let context: AccountContext | null = null
+		const context = captureAccountContext()
 		try {
-			let userId: string
-			try {
-				userId = await user.resolveAuthenticatedUserId()
-			} catch (error) {
-				if (generation !== accountGeneration) return false
-				console.error('Auth failed in cratesStore:', error)
-				toast.error('Failed to load data')
-				return false
-			}
-			if (generation !== accountGeneration) return false
-			activeFetchUserId = userId
-			context = { generation, userId }
+			if (!context || context.generation !== generation) return false
+			activeFetchContext = context
 			if (!isCurrentFetchContext(context)) return false
 			const snapshot = captureFetchSnapshot()
-
-			const rows = await fetchAllSupabasePages(async (cursor, pageSize) => {
-				let query = supabase
-					.from('crates')
-					.select('*')
-					.eq('user_id', userId)
-					.order('id', { ascending: false })
-				if (cursor !== null) query = query.lt('id', cursor)
-				return await query.limit(pageSize)
-			})
+			const repositories = repositoriesFor(context)
+			if (!repositories) return false
+			const outcome = await repositories.crates.list(context)
 			if (!isCurrentFetchContext(context)) return false
+			if (outcome.status === 'stale') return false
+			if (outcome.status !== 'success') {
+				throw outcome.status === 'unavailable'
+					? (outcome.error ?? new Error(outcome.reason))
+					: new Error(outcome.reason)
+			}
+			if (
+				!runtime.acceptRepositoryRevision(context, outcome.repositoryRevision)
+			) {
+				return false
+			}
 
-			const decodedRows = rows
-				.map((row) => decodeCrate(row, { userId }))
+			const decodedRows = outcome.value
+				.map((crate) => decodeCrate(crate))
 				.sort((left, right) =>
 					compareCreatedAtDescIdDesc(left.crate, right.crate)
 				)
@@ -393,11 +398,11 @@ export const useCratesStore = defineStore('crates', () => {
 				? isCurrentFetchContext(context)
 				: generation === accountGeneration
 			if (isCurrentOperation) isLoadingCrates.value = false
+			if (activeFetchContext === context) activeFetchContext = null
 		}
 	}
 
 	function fetchAllCrates(): Promise<boolean> {
-		if (isDemoStore) return Promise.resolve(true)
 		if (fetchPromise) return fetchPromise
 
 		const createdPromise = performFetchAllCrates(accountGeneration).finally(
@@ -410,9 +415,9 @@ export const useCratesStore = defineStore('crates', () => {
 	}
 
 	async function createCrate(
-		crateData: Omit<Crate, 'id' | 'user_id' | 'created_at' | 'updated_at'>
-	): Promise<Crate | null> {
-		if (isDemoStore) return null
+		crateData: CrateCreateInput
+	): Promise<LibraryCrate | null> {
+		if (isReadOnlyWorkbench()) return null
 		const context = captureAccountContext()
 		if (!context) {
 			toast.error('You must be signed in to create crates.')
@@ -421,19 +426,24 @@ export const useCratesStore = defineStore('crates', () => {
 
 		const finishCreate = beginCreateOperation(context)
 		try {
-			const { data, error } = await supabase
-				.from('crates')
-				.insert({
-					...crateData,
-					user_id: context.userId
-				})
-				.select()
-				.single()
+			const repositories = repositoriesFor(context)
+			if (!repositories) return null
+			const outcome = await repositories.crates.create(context, crateData)
+			if (!isCurrentAccountContext(context) || outcome.status === 'stale') {
+				return null
+			}
+			if (outcome.status !== 'success') {
+				throw outcome.status === 'unavailable'
+					? (outcome.error ?? new Error(outcome.reason))
+					: new Error(outcome.reason)
+			}
+			if (
+				!runtime.acceptRepositoryRevision(context, outcome.repositoryRevision)
+			) {
+				return null
+			}
 
-			if (error) throw error
-			if (!isCurrentAccountContext(context)) return null
-
-			const decoded = decodeCrate(data, { userId: context.userId })
+			const decoded = decodeCrate(outcome.value)
 			applyAuthoritativeCrate(decoded, { insertInDeclaredOrder: true })
 			toast.success('Crate created successfully.')
 			return decoded.crate
@@ -450,9 +460,9 @@ export const useCratesStore = defineStore('crates', () => {
 	async function updateCrate(
 		id: string,
 		updates: CrateMetadataUpdate
-	): Promise<Crate | null> {
-		if (isDemoStore) return null
-		const crateIndex = crates.value.findIndex((c: Crate) => c.id === id)
+	): Promise<LibraryCrate | null> {
+		if (isReadOnlyWorkbench()) return null
+		const crateIndex = crates.value.findIndex((c: LibraryCrate) => c.id === id)
 		if (crateIndex === -1) {
 			toast.error('Crate not found.')
 			return null
@@ -468,25 +478,25 @@ export const useCratesStore = defineStore('crates', () => {
 		const token = Symbol('crate metadata update')
 		const originalValues = new Map<
 			CrateMetadataField,
-			Crate[CrateMetadataField]
+			LibraryCrate[CrateMetadataField]
 		>()
 		const optimisticValues = new Map<
 			CrateMetadataField,
-			Crate[CrateMetadataField]
+			LibraryCrate[CrateMetadataField]
 		>()
 		const owners =
 			optimisticMetadataFields.get(id) ??
 			new Map<CrateMetadataField, OptimisticMetadataField>()
 		const originalCrate = crates.value[crateIndex]!
 		for (const field of Object.keys(updates) as CrateMetadataField[]) {
-			const value = updates[field] as Crate[CrateMetadataField]
+			const value = updates[field] as LibraryCrate[CrateMetadataField]
 			if (value === undefined) continue
 			originalValues.set(field, originalCrate[field])
 			optimisticValues.set(field, value)
 			owners.set(field, { token, value })
 		}
 		if (owners.size > 0) optimisticMetadataFields.set(id, owners)
-		crates.value[crateIndex] = { ...originalCrate, ...updates } as Crate
+		crates.value[crateIndex] = { ...originalCrate, ...updates } as LibraryCrate
 
 		function releaseOwnedFields(): void {
 			const currentOwners = optimisticMetadataFields.get(id)
@@ -526,7 +536,7 @@ export const useCratesStore = defineStore('crates', () => {
 			crates.value[currentIndex] = overlayOptimisticMetadata(rolledBackCrate)
 		}
 
-		function commitOwnedFields(decoded: DecodedCrate): Crate | null {
+		function commitOwnedFields(decoded: DecodedCrate): LibraryCrate | null {
 			const { crate, version } = decoded
 			const currentIndex = crates.value.findIndex(
 				(candidate) => candidate.id === id
@@ -573,17 +583,27 @@ export const useCratesStore = defineStore('crates', () => {
 		}
 
 		try {
-			const { data, error } = await supabase
-				.from('crates')
-				.update(updates)
-				.eq('id', id)
-				.select()
-				.single()
+			const repositories = repositoriesFor(context)
+			if (!repositories) return null
+			const outcome = await repositories.crates.updateMetadata(context, {
+				id,
+				updates
+			})
+			if (!isCurrentAccountContext(context) || outcome.status === 'stale') {
+				return null
+			}
+			if (outcome.status !== 'success') {
+				throw outcome.status === 'unavailable'
+					? (outcome.error ?? new Error(outcome.reason))
+					: new Error(outcome.reason)
+			}
+			if (
+				!runtime.acceptRepositoryRevision(context, outcome.repositoryRevision)
+			) {
+				return null
+			}
 
-			if (error) throw error
-			if (!isCurrentAccountContext(context)) return null
-
-			const decoded = decodeCrate(data, { id, userId: context.userId })
+			const decoded = decodeCrate(outcome.value, id)
 			if (crateRevision !== getCrateRevision(id)) {
 				return commitOwnedFields(decoded)
 			}
@@ -605,6 +625,7 @@ export const useCratesStore = defineStore('crates', () => {
 		crateId: string,
 		recordId: string
 	): Promise<MembershipResult | null> {
+		if (isReadOnlyWorkbench()) return null
 		const account = captureAccountContext()
 		if (!account) {
 			toast.error('Error updating crate.')
@@ -614,20 +635,33 @@ export const useCratesStore = defineStore('crates', () => {
 			account,
 			crateRevision: getCrateRevision(crateId)
 		}
+		const finishMembership = beginMembershipOperation(recordId, crateId)
 		const finishUpdate = beginUpdateOperation(account)
 
 		try {
-			const { data, error } = await supabase.rpc(rpcName, {
-				target_crate_id: crateId,
-				target_record_id: recordId
-			})
-			if (error) throw error
-			if (!isCurrentMembershipContext(context, crateId)) return null
+			const repositories = repositoriesFor(account)
+			if (!repositories) return null
+			const outcome = await (rpcName === 'add_record_to_crate'
+				? repositories.crates.addRecord(account, { crateId, recordId })
+				: repositories.crates.removeRecord(account, { crateId, recordId }))
+			if (
+				!isCurrentMembershipContext(context, crateId) ||
+				outcome.status === 'stale'
+			) {
+				return null
+			}
+			if (outcome.status !== 'success') {
+				throw outcome.status === 'unavailable'
+					? (outcome.error ?? new Error(outcome.reason))
+					: new Error(outcome.reason)
+			}
+			if (
+				!runtime.acceptRepositoryRevision(account, outcome.repositoryRevision)
+			) {
+				return null
+			}
 
-			const decoded = decodeCrate(data, {
-				id: crateId,
-				userId: account.userId
-			})
+			const decoded = decodeCrate(outcome.value, crateId)
 			applyAuthoritativeCrate(decoded)
 			return { context, crate: decoded.crate }
 		} catch (error) {
@@ -636,13 +670,14 @@ export const useCratesStore = defineStore('crates', () => {
 			toast.error('Error updating crate.')
 			return null
 		} finally {
+			finishMembership()
 			finishUpdate()
 		}
 	}
 
 	async function deleteCrate(id: string): Promise<boolean> {
-		if (isDemoStore) return false
-		const crateIndex = crates.value.findIndex((c: Crate) => c.id === id)
+		if (isReadOnlyWorkbench()) return false
+		const crateIndex = crates.value.findIndex((c: LibraryCrate) => c.id === id)
 		if (crateIndex === -1) {
 			toast.error('Crate not found.')
 			return false
@@ -661,10 +696,22 @@ export const useCratesStore = defineStore('crates', () => {
 		const removedCrate = crates.value.splice(crateIndex, 1)[0]!
 
 		try {
-			const { error } = await supabase.from('crates').delete().eq('id', id)
-
-			if (error) throw error
-			if (!isCurrentAccountContext(context)) return false
+			const repositories = repositoriesFor(context)
+			if (!repositories) return false
+			const outcome = await repositories.crates.delete(context, { id })
+			if (!isCurrentAccountContext(context) || outcome.status === 'stale') {
+				return false
+			}
+			if (outcome.status !== 'success') {
+				throw outcome.status === 'unavailable'
+					? (outcome.error ?? new Error(outcome.reason))
+					: new Error(outcome.reason)
+			}
+			if (
+				!runtime.acceptRepositoryRevision(context, outcome.repositoryRevision)
+			) {
+				return false
+			}
 
 			crates.value = crates.value.filter((crate) => crate.id !== id)
 			authoritativeCrates.delete(id)
@@ -677,10 +724,9 @@ export const useCratesStore = defineStore('crates', () => {
 			console.error('Failed to delete crate:', error)
 			const safeCrate = authoritativeCrates.get(id) ?? removedCrate
 			explicitDeletionTombstones.delete(id)
-			applyAuthoritativeCrate(
-				decodeCrate(safeCrate, { id, userId: context.userId }),
-				{ insertInDeclaredOrder: true }
-			)
+			applyAuthoritativeCrate(decodeCrate(safeCrate, id), {
+				insertInDeclaredOrder: true
+			})
 			toast.error('Error deleting crate.')
 			return false
 		} finally {
@@ -700,7 +746,7 @@ export const useCratesStore = defineStore('crates', () => {
 		}
 
 		const wasLocallyPresent = crate.records.includes(recordId)
-		if (isDemoStore) {
+		if (isReadOnlyWorkbench()) {
 			if (wasLocallyPresent && !options?.silent) {
 				toast.info('Record is already in this crate.')
 			}
@@ -738,7 +784,7 @@ export const useCratesStore = defineStore('crates', () => {
 		}
 
 		const wasLocallyAbsent = !crate.records.includes(recordId)
-		if (isDemoStore) {
+		if (isReadOnlyWorkbench()) {
 			if (wasLocallyAbsent) toast.info('Record is not in this crate.')
 			return false
 		}
@@ -761,31 +807,52 @@ export const useCratesStore = defineStore('crates', () => {
 		return true
 	}
 
-	function getCrateById(id: string): Crate | undefined {
-		return crates.value.find((c: Crate) => c.id === id)
+	function getCrateById(id: string): LibraryCrate | undefined {
+		return crates.value.find((c: LibraryCrate) => c.id === id)
 	}
 
-	function getCratesContainingRecord(recordId: string): Crate[] {
-		return crates.value.filter((crate: Crate) =>
+	function getCratesContainingRecord(recordId: string): LibraryCrate[] {
+		return crates.value.filter((crate: LibraryCrate) =>
 			crate.records.includes(recordId)
 		)
 	}
 
-	function removeRecordFromAllCrates(recordId: string) {
-		for (const crate of crates.value) {
-			invalidateCrate(crate.id)
-			const authoritativeCrate = authoritativeCrates.get(crate.id)
+	function getCrateIdsAffectedByRecordRemoval(recordId: string): string[] {
+		const affectedIds = new Set(
+			getCratesContainingRecord(recordId).map(({ id }) => id)
+		)
+		for (const operation of pendingMembershipOperations.get(recordId) ?? []) {
+			affectedIds.add(operation.crateId)
+		}
+		return [...affectedIds]
+	}
+
+	function removeRecordFromCrates(
+		recordId: string,
+		affectedCrateIds: readonly string[]
+	) {
+		removedRecordMembershipTombstones.add(recordId)
+		const affectedIds = new Set([
+			...affectedCrateIds,
+			...getCrateIdsAffectedByRecordRemoval(recordId)
+		])
+		for (const crateId of affectedIds) {
+			const authoritativeCrate = authoritativeCrates.get(crateId)
 			if (authoritativeCrate) {
-				authoritativeCrates.set(crate.id, {
+				authoritativeCrates.set(crateId, {
 					...authoritativeCrate,
 					records: authoritativeCrate.records.filter((id) => id !== recordId)
 				})
 			}
 		}
-		crates.value = crates.value.map((crate) => ({
-			...crate,
-			records: crate.records.filter((id) => id !== recordId)
-		}))
+		crates.value = crates.value.map((crate) =>
+			affectedIds.has(crate.id)
+				? {
+						...crate,
+						records: crate.records.filter((id) => id !== recordId)
+					}
+				: crate
+		)
 	}
 
 	function clearAllCrateRecords() {
@@ -805,11 +872,10 @@ export const useCratesStore = defineStore('crates', () => {
 		}))
 	}
 
-	// Clear crates when user signs out
 	function clearCrates() {
 		accountGeneration += 1
 		fetchPromise = null
-		activeFetchUserId = null
+		activeFetchContext = null
 		activeCreateOperations = 0
 		activeUpdateOperations = 0
 		activeDeleteOperations = 0
@@ -819,6 +885,8 @@ export const useCratesStore = defineStore('crates', () => {
 		crateLifecycleBoundaries.clear()
 		explicitDeletionTombstones.clear()
 		optimisticMetadataFields.clear()
+		pendingMembershipOperations.clear()
+		removedRecordMembershipTombstones.clear()
 		isLoadingCrates.value = false
 		isCreatingCrate.value = false
 		isUpdatingCrate.value = false
@@ -844,7 +912,8 @@ export const useCratesStore = defineStore('crates', () => {
 		removeRecordFromCrate,
 		getCrateById,
 		getCratesContainingRecord,
-		removeRecordFromAllCrates,
+		getCrateIdsAffectedByRecordRemoval,
+		removeRecordFromCrates,
 		clearAllCrateRecords,
 		clearCrates
 	}

@@ -86,8 +86,9 @@ describe('isValidDurationFormat', () => {
 })
 
 describe('isValidBPM', () => {
-	it('returns true for empty string', () => {
+	it('returns true for empty or whitespace-only strings', () => {
 		expect(isValidBPM('')).toBe(true)
+		expect(isValidBPM('   ')).toBe(true)
 	})
 
 	it('returns true for valid BPM values', () => {
@@ -95,6 +96,7 @@ describe('isValidBPM', () => {
 		expect(isValidBPM('90')).toBe(true)
 		expect(isValidBPM('180')).toBe(true)
 		expect(isValidBPM('128.5')).toBe(true)
+		expect(isValidBPM(' 128.5 ')).toBe(true)
 	})
 
 	it('returns true for boundary values', () => {
@@ -116,6 +118,13 @@ describe('isValidBPM', () => {
 	it('returns false for non-numeric input', () => {
 		expect(isValidBPM('fast')).toBe(false)
 		expect(isValidBPM('abc')).toBe(false)
+	})
+
+	it('rejects partial and malformed decimal strings', () => {
+		expect(isValidBPM('128abc')).toBe(false)
+		expect(isValidBPM('120..5')).toBe(false)
+		expect(isValidBPM('120 121')).toBe(false)
+		expect(isValidBPM('Infinity')).toBe(false)
 	})
 })
 

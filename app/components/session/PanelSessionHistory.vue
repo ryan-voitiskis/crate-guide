@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ListX, X } from 'lucide-vue-next'
+import { ListX, X } from '@lucide/vue'
 
 const session = useWorkbenchSessionStore()
 </script>

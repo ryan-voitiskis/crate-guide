@@ -1,19 +1,19 @@
 import {
 	type AccountCoverCleanupResult,
-	processOneAccountCoverCleanup
+	processNextAccountCoverCleanup
 } from '../_shared/accountCoverCleanup.ts'
 import { requireSecretKey } from '../_shared/supabaseHelpers.ts'
 
 interface HandlerDependencies {
 	secretKey(): string
 	compareSecrets(actual: string, expected: string): Promise<boolean>
-	processOne(): Promise<AccountCoverCleanupResult>
+	processNext(): Promise<AccountCoverCleanupResult>
 }
 
 const defaultDependencies: HandlerDependencies = {
 	secretKey: requireSecretKey,
 	compareSecrets: timingSafeSecretEqual,
-	processOne: () => processOneAccountCoverCleanup()
+	processNext: () => processNextAccountCoverCleanup()
 }
 
 function jsonResponse(
@@ -55,7 +55,7 @@ export function createCleanupOrphanedRecordCoversHandler(
 			)
 		}
 
-		let isSecretKey = false
+		let isSecretKey: boolean
 		try {
 			isSecretKey = await dependencies.compareSecrets(
 				request.headers.get('apikey') ?? '',
@@ -86,7 +86,7 @@ export function createCleanupOrphanedRecordCoversHandler(
 
 		let result: AccountCoverCleanupResult
 		try {
-			result = await dependencies.processOne()
+			result = await dependencies.processNext()
 		} catch {
 			result = { processed: false, complete: false, failed: true }
 		}

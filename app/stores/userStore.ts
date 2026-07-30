@@ -4,8 +4,11 @@ import {
 	type SupabaseClient,
 	createClient
 } from '@supabase/supabase-js'
-import { defineStore, getActivePinia } from 'pinia'
-import { isDemoWorkbenchPinia } from '~/utils/workbenchPinia'
+import { defineStore } from 'pinia'
+import {
+	getWorkbenchStorePinia,
+	isDemoWorkbenchPinia
+} from '~/utils/workbenchPinia'
 import {
 	buildCheckInboxPath,
 	buildLoginRedirectPath,
@@ -19,7 +22,17 @@ import {
 // Discogs connection state is derived from discogs_username (see
 // discogsAuthStore isOAuthed).
 export const PROFILE_SAFE_COLUMNS =
-	'id, name, discogs_avatar_url, discogs_uid, discogs_username, just_completed_discogs_oauth, key_format, list_layout, selected_crate, turntable_pitch_range, turntable_theme, ui_theme'
+	'id, name, discogs_avatar_url, discogs_uid, discogs_username, just_completed_discogs_oauth'
+
+export type IdentityProfile = Pick<
+	Database['public']['Tables']['profiles']['Row'],
+	| 'id'
+	| 'name'
+	| 'discogs_avatar_url'
+	| 'discogs_uid'
+	| 'discogs_username'
+	| 'just_completed_discogs_oauth'
+>
 
 export type DeleteAccountResult =
 	| { status: 'deleted'; coverCleanupComplete: boolean }
@@ -52,7 +65,7 @@ const AUTH_FEEDBACK_ACTIONS: AuthFeedbackAction[] = [
 
 export const useUserStore = defineStore('user', () => {
 	const supabase = useSupabaseClient<Database>()
-	const isDemoStore = isDemoWorkbenchPinia(getActivePinia())
+	const isDemoStore = isDemoWorkbenchPinia(getWorkbenchStorePinia())
 	const authenticatedUser = useSupabaseUser()
 	const supaUser = computed(() =>
 		isDemoStore ? null : authenticatedUser.value
@@ -60,7 +73,7 @@ export const useUserStore = defineStore('user', () => {
 	const router = useRouter()
 	const passwordRecovery = usePasswordRecovery()
 
-	const profile = ref<Profile | null>(null)
+	const profile = ref<IdentityProfile | null>(null)
 	const userAlreadyRegistered = ref(false)
 	const authFeedback = ref<Record<AuthFeedbackAction, string | null>>(
 		Object.fromEntries(
@@ -69,10 +82,8 @@ export const useUserStore = defineStore('user', () => {
 	)
 	const pendingSignup = ref<PendingSignupContext | null>(null)
 	const isResendingSignupConfirmation = ref(false)
-	const isUpdatingSettings = ref(false)
 	const isSigningOut = ref(false)
 	const isDeletingAccount = ref(false)
-	const localKeyFormatPreference = ref<'key' | 'camelot'>('key')
 	const anonymousThemePreference = ref<ThemeOptions>(
 		getSavedAnonymousThemePreference() ?? 'auto'
 	)
@@ -87,29 +98,65 @@ export const useUserStore = defineStore('user', () => {
 	})
 	let profileOwnerId: string | null = null
 	let authenticationGeneration = 0
-	let settingsUpdateQueue: Promise<boolean> = Promise.resolve(true)
 
 	type AuthenticatedWork = {
 		userId: string
 		generation: number
 	}
-	type SettingsUpdateOutcome = {
-		didPersist: boolean
-		work: AuthenticatedWork | null
+	type ProfileReadOutcome = {
+		didPublish: boolean
+		didRead: boolean
 	}
-	type AccountBoundMutationClient = Pick<SupabaseClient<Database>, 'rpc'>
+	type AccountBoundMutationClient = Pick<
+		SupabaseClient<Database>,
+		'functions' | 'rpc'
+	>
+	type AccountDeletionOperation = {
+		id: number
+		work: AuthenticatedWork
+	}
+	let accountDeletionSequence = 0
+	let activeAccountDeletion: AccountDeletionOperation | null = null
 
 	function isCurrentWork({ userId, generation }: AuthenticatedWork): boolean {
 		return generation === authenticationGeneration && profileOwnerId === userId
+	}
+
+	function isSameWork(
+		left: AuthenticatedWork,
+		right: AuthenticatedWork
+	): boolean {
+		return left.generation === right.generation && left.userId === right.userId
+	}
+
+	function captureCurrentWork(): AuthenticatedWork | null {
+		const userId = supaUserId.value ?? profileOwnerId
+		if (!userId) return null
+		const work = { userId, generation: authenticationGeneration }
+		return isCurrentWork(work) ? work : null
+	}
+
+	function publishProfileForWork(
+		work: AuthenticatedWork,
+		nextProfile: IdentityProfile | null
+	): boolean {
+		if (!isCurrentWork(work)) return false
+
+		profile.value = nextProfile
+		return true
+	}
+
+	function syncAccountDeletionState() {
+		isDeletingAccount.value = Boolean(
+			activeAccountDeletion && isCurrentWork(activeAccountDeletion.work)
+		)
 	}
 
 	function invalidateIdentity(nextUserId: string | null): number {
 		authenticationGeneration += 1
 		profileOwnerId = nextUserId
 		profile.value = null
-		isUpdatingSettings.value = false
-		settingsUpdateQueue = Promise.resolve(true)
-		setTheme(anonymousThemePreference.value)
+		syncAccountDeletionState()
 		return authenticationGeneration
 	}
 
@@ -206,14 +253,9 @@ export const useUserStore = defineStore('user', () => {
 		return data.user.id
 	}
 
-	const currentTheme = computed((): ThemeOptions => {
-		return profile.value?.ui_theme ?? anonymousThemePreference.value
+	const deviceTheme = computed((): ThemeOptions => {
+		return anonymousThemePreference.value
 	})
-	const currentKeyFormat = computed((): 'key' | 'camelot' => {
-		const stored = profile.value?.key_format
-		return isKeyFormat(stored) ? stored : localKeyFormatPreference.value
-	})
-	setTheme(currentTheme.value)
 
 	async function signUpWithEmail(
 		email: string,
@@ -362,13 +404,24 @@ export const useUserStore = defineStore('user', () => {
 		emailConfirmation: string
 	): Promise<DeleteAccountResult> {
 		if (isDemoStore) return { status: 'failed' }
-		if (isDeletingAccount.value) return { status: 'failed' }
-		isDeletingAccount.value = true
+		const work = captureCurrentWork()
+		if (!work) return { status: 'failed' }
+		if (activeAccountDeletion && isSameWork(activeAccountDeletion.work, work))
+			return { status: 'failed' }
+
+		const operation: AccountDeletionOperation = {
+			id: ++accountDeletionSequence,
+			work
+		}
+		activeAccountDeletion = operation
+		syncAccountDeletionState()
 		try {
 			// getUser performs a server-side session check immediately before the
 			// destructive request instead of trusting only the hydrated JWT claims.
 			const { data: userData, error: userError } = await supabase.auth.getUser()
+			if (!isCurrentWork(work)) return { status: 'failed' }
 			if (userError) throw userError
+			if (userData.user?.id !== work.userId) return { status: 'failed' }
 			const email = userData.user?.email
 			if (!email)
 				throw new Error('Your signed-in account has no email address.')
@@ -382,7 +435,9 @@ export const useUserStore = defineStore('user', () => {
 				return { status: 'failed' }
 			}
 
-			const { data, error } = await supabase.functions.invoke(
+			const accountClient = await createAccountBoundMutationClient(work)
+			if (!accountClient || !isCurrentWork(work)) return { status: 'failed' }
+			const { data, error } = await accountClient.functions.invoke(
 				'delete-account',
 				{
 					body: { confirmation: emailConfirmation }
@@ -414,12 +469,25 @@ export const useUserStore = defineStore('user', () => {
 					data.cover_cleanup_complete !== false) &&
 				(!('cleanup_queue_complete' in data) ||
 					data.cleanup_queue_complete !== false)
+			const deletionResult: DeleteAccountResult = {
+				status: 'deleted',
+				coverCleanupComplete
+			}
+			if (!isCurrentWork(work)) return deletionResult
 
 			// The server-side deletion has completed. Local cleanup failures must not
 			// be reported as a failed account deletion.
-			const { error: signOutError } = await supabase.auth.signOut({
-				scope: 'local'
-			})
+			let signOutError: unknown = null
+			try {
+				const signOutResult = await supabase.auth.signOut({ scope: 'local' })
+				signOutError = signOutResult.error
+			} catch (error) {
+				signOutError = error
+			}
+			const currentUserId = supaUserId.value
+			if (currentUserId && currentUserId !== work.userId) return deletionResult
+			if (currentUserId === work.userId && !isCurrentWork(work))
+				return deletionResult
 			if (signOutError) {
 				console.error('Deleted account, but local auth cleanup failed')
 			}
@@ -430,7 +498,7 @@ export const useUserStore = defineStore('user', () => {
 				)
 			}
 			authenticatedUser.value = null
-			invalidateIdentity(null)
+			if (profileOwnerId !== null) invalidateIdentity(null)
 
 			try {
 				await router.replace('/login')
@@ -440,7 +508,7 @@ export const useUserStore = defineStore('user', () => {
 					'Your account was deleted, but this page could not refresh. Reload the page to finish signing out.',
 					{ duration: 30000 }
 				)
-				return { status: 'deleted', coverCleanupComplete }
+				return deletionResult
 			}
 
 			if (signOutError) {
@@ -451,8 +519,9 @@ export const useUserStore = defineStore('user', () => {
 			} else {
 				toast.success('Your account and its data have been deleted.')
 			}
-			return { status: 'deleted', coverCleanupComplete }
+			return deletionResult
 		} catch (error) {
+			if (!isCurrentWork(work)) return { status: 'failed' }
 			console.error('Account deletion failed')
 			toast.error(
 				error instanceof Error
@@ -462,7 +531,10 @@ export const useUserStore = defineStore('user', () => {
 			)
 			return { status: 'failed' }
 		} finally {
-			isDeletingAccount.value = false
+			if (activeAccountDeletion?.id === operation.id) {
+				activeAccountDeletion = null
+				syncAccountDeletionState()
+			}
 		}
 	}
 
@@ -560,32 +632,39 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
-	async function fetchProfileForWork(
-		work: AuthenticatedWork
-	): Promise<boolean> {
-		if (!isCurrentWork(work)) return false
+	async function readProfileForWork(
+		work: AuthenticatedWork,
+		reportError: boolean
+	): Promise<ProfileReadOutcome> {
+		if (!isCurrentWork(work)) return { didPublish: false, didRead: false }
 		try {
 			const { data, error } = await supabase
 				.from('profiles')
 				.select(PROFILE_SAFE_COLUMNS)
 				.eq('id', work.userId)
 				.single()
-			if (!isCurrentWork(work)) return false
+			if (!isCurrentWork(work)) return { didPublish: false, didRead: false }
 			if (error) throw error
-			profile.value = data as Profile
-			const theme = profile.value.ui_theme ?? 'auto'
-			setTheme(theme)
-			const keyFormat = profile.value.key_format
-			localKeyFormatPreference.value = isKeyFormat(keyFormat)
-				? keyFormat
-				: 'key'
-			return true
+			if (!data) throw new Error('Profile response was empty.')
+			return {
+				didPublish: publishProfileForWork(work, data as IdentityProfile),
+				didRead: true
+			}
 		} catch (e) {
-			if (!isCurrentWork(work)) return false
-			console.error(e)
-			toast.error(`Error getting your profile.`, { duration: 30000 })
-			return false
+			if (!isCurrentWork(work)) return { didPublish: false, didRead: false }
+			if (reportError) {
+				console.error(e)
+				toast.error(`Error getting your profile.`, { duration: 30000 })
+			}
+			return { didPublish: false, didRead: false }
 		}
+	}
+
+	async function fetchProfileForWork(
+		work: AuthenticatedWork
+	): Promise<boolean> {
+		const result = await readProfileForWork(work, true)
+		return result.didRead
 	}
 
 	async function fetchProfile(): Promise<boolean> {
@@ -611,133 +690,10 @@ export const useUserStore = defineStore('user', () => {
 		}
 	}
 
-	async function updateSettingsWithWork(
-		settingsPartial: Partial<Profile>
-	): Promise<SettingsUpdateOutcome> {
-		const capturedUserId = supaUserId.value ?? profileOwnerId
-		let work = capturedUserId
-			? { userId: capturedUserId, generation: authenticationGeneration }
-			: null
-		if (work && !isCurrentWork(work)) return { didPersist: false, work }
-		if (!work) {
-			const resolutionGeneration = authenticationGeneration
-			try {
-				const userId = await resolveAuthenticatedUserId()
-				if (resolutionGeneration !== authenticationGeneration)
-					return { didPersist: false, work: null }
-				const reactiveUserId = supaUserId.value
-				if (reactiveUserId && reactiveUserId !== userId)
-					return { didPersist: false, work: null }
-				if (profileOwnerId !== userId) {
-					if (profileOwnerId !== null) return { didPersist: false, work: null }
-					invalidateIdentity(userId)
-				}
-				work = {
-					userId,
-					generation: authenticationGeneration
-				}
-			} catch (e) {
-				if (resolutionGeneration !== authenticationGeneration)
-					return { didPersist: false, work: null }
-				console.error(e)
-				toast.error(`Error updating your settings.`, { duration: 30000 })
-				return { didPersist: false, work: null }
-			}
-		}
-		if (!isCurrentWork(work)) return { didPersist: false, work }
-
-		// Optimistically update only state owned by the captured identity.
-		if (profile.value) profile.value = { ...profile.value, ...settingsPartial }
-		const runUpdate = async (): Promise<boolean> => {
-			if (!isCurrentWork(work)) return false
-			isUpdatingSettings.value = true
-			try {
-				if (!isCurrentWork(work)) return false
-				const { data, error } = await supabase
-					.from('profiles')
-					.update(settingsPartial)
-					.eq('id', work.userId)
-					.select(PROFILE_SAFE_COLUMNS)
-					.single()
-				if (!isCurrentWork(work)) return false
-				if (!data) {
-					if (error && error.code !== 'PGRST116') throw error
-					if (!isCurrentWork(work)) return false
-					const { data: upsertedData, error: upsertError } = await supabase
-						.from('profiles')
-						.upsert(
-							{
-								id: work.userId,
-								...settingsPartial
-							},
-							{ onConflict: 'id' }
-						)
-						.select(PROFILE_SAFE_COLUMNS)
-						.single()
-					if (!isCurrentWork(work)) return false
-					if (upsertError || !upsertedData) throw upsertError
-					profile.value = upsertedData as Profile
-					return true
-				}
-				if (error) throw error
-				// update with the server response to ensure consistency
-				profile.value = data as Profile
-				return true
-			} catch (e) {
-				if (!isCurrentWork(work)) return false
-				console.error(e)
-				await fetchProfileForWork(work)
-				if (!isCurrentWork(work)) return false
-				toast.error(`Error updating your settings.`, { duration: 30000 })
-				return false
-			} finally {
-				if (isCurrentWork(work)) isUpdatingSettings.value = false
-			}
-		}
-
-		settingsUpdateQueue = settingsUpdateQueue.then(runUpdate, runUpdate)
-		const didPersist = await settingsUpdateQueue
-		return { didPersist, work }
-	}
-
-	async function updateSettings(
-		settingsPartial: Partial<Profile>
-	): Promise<boolean> {
-		if (isDemoStore) {
-			profile.value = profile.value
-				? { ...profile.value, ...settingsPartial }
-				: null
-			return true
-		}
-		const { didPersist } = await updateSettingsWithWork(settingsPartial)
-		return didPersist
-	}
-
 	function setLocalTheme(newTheme: ThemeOptions) {
 		anonymousThemePreference.value = newTheme
 		saveAnonymousThemePreference(newTheme)
 		setTheme(newTheme)
-	}
-
-	async function updateTheme(newTheme: ThemeOptions) {
-		const previousTheme = currentTheme.value
-		setTheme(newTheme)
-		const { didPersist, work } = await updateSettingsWithWork({
-			ui_theme: newTheme
-		})
-		if (!work || !isCurrentWork(work)) return
-		setTheme(didPersist ? newTheme : previousTheme)
-	}
-
-	async function updateKeyFormat(newKeyFormat: 'key' | 'camelot') {
-		if (newKeyFormat === currentKeyFormat.value) return
-		const previousKeyFormat = currentKeyFormat.value
-		localKeyFormatPreference.value = newKeyFormat
-		const { didPersist, work } = await updateSettingsWithWork({
-			key_format: newKeyFormat
-		})
-		if (!didPersist && work && isCurrentWork(work))
-			localKeyFormatPreference.value = previousKeyFormat
 	}
 
 	async function deleteAllUserData(expectedUserId?: string): Promise<boolean> {
@@ -817,13 +773,11 @@ export const useUserStore = defineStore('user', () => {
 		supaUser,
 		supaUserId,
 		profile,
-		currentTheme,
-		currentKeyFormat,
+		deviceTheme,
 		userAlreadyRegistered: readonly(userAlreadyRegistered),
 		authFeedback: readonly(authFeedback),
 		pendingSignup: readonly(pendingSignup),
 		isResendingSignupConfirmation: readonly(isResendingSignupConfirmation),
-		isUpdatingSettings,
 		isSigningOut: readonly(isSigningOut),
 		isDeletingAccount: readonly(isDeletingAccount),
 		resolveAuthenticatedUserId,
@@ -841,10 +795,7 @@ export const useUserStore = defineStore('user', () => {
 		consumeUserAlreadyRegistered,
 		clearPendingSignup,
 		fetchProfile,
-		updateSettings,
 		setLocalTheme,
-		updateTheme,
-		updateKeyFormat,
 		deleteAllUserData
 	}
 })

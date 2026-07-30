@@ -12,8 +12,8 @@
 - **Risk**: MED
 - **Depends on**: Plans 045 and 048
 - **Category**: maintainability / naming / test organization
-- **Planned at**: commit `aba27ff`, 2026-07-19
-- **Status**: TODO
+- **Planned at**: commit `0a0cda6`, 2026-07-22
+- **Status**: DONE
 
 ## Why this matters
 
@@ -31,6 +31,12 @@ There are also source-confirmed unused APIs (`createRecord`, direct
 `deleteRecord` after Plan 047, `searchTracks`, and some key option helpers) plus
 structural comments that narrate obvious branches or markup.
 
+Pitch gestures also invalidate the suggestions computed in `DeckColumn.vue` on
+every pointer event. `getTrackSuggestions` filters and scores the whole pool,
+fully sorts it, and only then keeps 50. The mechanism is expensive, but the
+user-visible threshold has not been profiled; this plan must characterize it
+before choosing an optimization.
+
 ## Scope
 
 Modify/create within:
@@ -40,6 +46,9 @@ Modify/create within:
 - oversized store test suites under `app/stores/__tests__`
 - `test/e2e/login-redirect.e2e.test.ts` and shared E2E fixtures from Plan 052
 - source files containing proven dead public APIs or narration-only comments
+- `app/components/session/DeckPitchFader.vue`
+- `app/components/session/DeckColumn.vue`
+- `app/utils/trackSuggestions.ts` and focused performance/characterization tests
 
 Do not change Pinia store IDs/public behavior, saved-set ordering, deck
 suggestion/scoring results, matching thresholds, E2E coverage, or database
@@ -53,6 +62,7 @@ git status --short
 wc -l app/stores/sessionStore.ts app/utils/trackEnrichment.ts app/stores/__tests__/*Store.test.ts test/e2e/*.test.ts
 rg -n "createRecord\(|deleteRecord\(|searchTracks\(|getKeyOptionsAlt|combinedOptionsMapFnAlt" app test
 rg -n '^\s*//|<!--' app/stores/sessionStore.ts app/components/records app/components/shared
+rg -n "setPitch|getSuggestionsForDeck|getTrackSuggestions|sort\(|slice\(0, limit\)" app/components/session app/stores/sessionStore.ts app/utils/trackSuggestions.ts
 ```
 
 STOP if a supposedly dead API has a runtime/auto-import consumer, if a split
@@ -84,12 +94,32 @@ insufficient to prove score/session equivalence.
 4. Split and rename E2E coverage.
    - Create authentication navigation, library bootstrap/pagination, and layout
      transition suites using the Plan 052 error-aware fixture.
-   - Preserve all eight existing flows and avoid repeated 200-line mock setup.
+   - Preserve every current case and user flow; capture the current case names
+     before moving them so a file split cannot silently reduce coverage. Avoid
+     repeated 200-line mock setup.
 
 5. Remove proven dead APIs and narration-only comments.
    - Confirm absence with source and auto-import-aware searches before removal.
    - Retain comments for concurrency, auth, storage, performance, external
      algorithm provenance, and counterintuitive product behavior.
+
+6. Profile and, only if justified, bound pitch-driven suggestion work.
+   - Add a deterministic 10k-track corpus and measure suggestion recomputation
+     plus a synthetic fader gesture in a real browser. Before observing the
+     baseline, record the supported browser engine, hardware/CPU-throttle
+     protocol, repetitions, warm-up, an explicit p95/frame budget, and the
+     budget's engineering provenance and maintainer-acceptance status in
+     benchmark documentation. Broad implementation authority is not acceptance
+     of a model-proposed numeric budget.
+   - If the current path stays within budget on the supported baseline, retain
+     the simple algorithm and land only the characterization gate.
+   - If it exceeds budget, coalesce pointer-driven recomputation to animation
+     frames and replace full sorting with a stable bounded top-50 selection or
+     equivalently proven algorithm. Preserve exact scores, filters, limit,
+     descending order, and original candidate order for ties.
+   - Memoize only immutable normalization/candidate data; deck BPM/key/pitch,
+     played IDs, library mutation, and source record/track must still invalidate
+     the correct result.
 
 ## Test plan
 
@@ -98,6 +128,7 @@ npm run format
 npm run test:run
 npm run test:e2e
 npm run test:browser
+npx vitest run --project unit app/utils/trackSuggestions.test.ts
 npm run check:conventions
 npm run verify
 git diff --check
@@ -108,18 +139,22 @@ enrichment candidate scores/order/reasons, and E2E flow count/outcomes.
 
 ## Done criteria
 
-- [ ] Session playback and saved-set persistence have distinct cohesive owners.
-- [ ] Enrichment normalization/comparison/scoring boundaries are independently testable.
-- [ ] Oversized store and E2E suites are split by public behavior without coverage loss.
-- [ ] Every removed API is proven unused and no auto-import contract breaks.
-- [ ] Remaining comments explain non-obvious rationale or invariants.
-- [ ] Application, E2E, browser, convention, and full gates pass.
+- [x] Session playback and saved-set persistence have distinct cohesive owners.
+- [x] Enrichment normalization/comparison/scoring boundaries are independently testable.
+- [x] Oversized store and E2E suites are split by public behavior without coverage loss.
+- [x] Every removed API is proven unused and no auto-import contract breaks.
+- [x] Remaining comments explain non-obvious rationale or invariants.
+- [x] A checked-in 10k-track interaction characterization either proves the current suggestion path meets budget or the optimized path does so with identical results.
+- [x] Application, E2E, browser, convention, and full gates pass.
 
 ## STOP conditions
 
 Stop if a refactor changes a score/order/session result, creates circular Pinia
 ownership, removes an auto-registered consumer, weakens concurrency tests, or
-turns cohesive scenario tests into fragmented setup-heavy files.
+turns cohesive scenario tests into fragmented setup-heavy files. If the measured
+suggestion baseline meets the predeclared engineering budget, stop only the
+optional algorithm-optimization stage and finish the behavior-preserving
+decomposition, test splitting, dead-code proof, and characterization gate.
 
 ## Git workflow
 

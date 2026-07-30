@@ -1,6 +1,6 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import assert from 'node:assert/strict'
-import oauthSignature from 'npm:oauth-signature@1.5.0'
+import { createHmac } from 'node:crypto'
 import type { DiscogsCredentialRepository } from './credentials.ts'
 import { makeAuthenticatedRequest } from './makeAuthenticatedRequest.ts'
 import {
@@ -16,7 +16,9 @@ const config = {
 }
 
 function credentials(
-	value: { access_token: string | null; access_secret: string | null } | null
+	value: { access_token: string | null; access_secret: string | null } | null,
+	consumeRequestQuota: DiscogsCredentialRepository['consumeRequestQuota'] = () =>
+		Promise.resolve({ allowed: true, retryAfterMs: 0 })
 ): DiscogsCredentialRepository {
 	return {
 		callerClient: {} as SupabaseClient,
@@ -33,10 +35,34 @@ function credentials(
 			),
 		setRequestCredentials: () => Promise.resolve(),
 		setAccessCredentials: () => Promise.resolve(),
-		consumeRequestQuota: () =>
-			Promise.resolve({ allowed: true, retryAfterMs: 0 })
+		clearRequestCredentials: () => Promise.resolve(),
+		consumeRequestQuota
 	}
 }
+
+Deno.test(
+	'reserves quota immediately before the authenticated request',
+	async () => {
+		const steps: string[] = []
+		await makeAuthenticatedRequest(
+			'https://api.discogs.com/releases/1',
+			credentials(
+				{ access_token: 'fixture-token', access_secret: 'fixture-secret' },
+				() => {
+					steps.push('quota')
+					return Promise.resolve({ allowed: true, retryAfterMs: 0 })
+				}
+			),
+			(() => {
+				steps.push('fetch')
+				return Promise.resolve(Response.json({ id: 1 }))
+			}) as typeof fetch,
+			12_000,
+			config
+		)
+		assert.deepEqual(steps, ['quota', 'fetch'])
+	}
+)
 
 Deno.test(
 	'requires a complete Discogs connection before fetching',
@@ -158,18 +184,31 @@ Deno.test(
 		)
 		const { oauth_signature: signature, ...signatureOAuthParameters } =
 			oauthParameters
-		const expectedSignature = oauthSignature.generate(
+		const sortedParameters = Object.entries({
+			...signatureOAuthParameters,
+			page: '2',
+			per_page: '100'
+		})
+			.map(([key, value]) => [
+				encodeURIComponent(key),
+				encodeURIComponent(value)
+			])
+			.sort(([leftKey], [rightKey]) =>
+				leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0
+			)
+			.map(([key, value]) => `${key}=${value}`)
+			.join('&')
+		const signatureBase = [
 			'GET',
-			'https://api.discogs.com/releases/1',
-			{
-				...signatureOAuthParameters,
-				page: '2',
-				per_page: '100'
-			},
-			config.consumerSecret,
-			'fixture-secret',
-			{ encodeSignature: false }
+			encodeURIComponent('https://api.discogs.com/releases/1'),
+			encodeURIComponent(sortedParameters)
+		].join('&')
+		const expectedSignature = createHmac(
+			'sha1',
+			`${config.consumerSecret}&fixture-secret`
 		)
+			.update(signatureBase)
+			.digest('base64')
 
 		assert.equal(response.status, 200)
 		assert.equal(

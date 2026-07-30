@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const cratesStore = useCratesStore()
+const cratesStore = useWorkbenchCratesStore()
 
 const crate = computed(() => cratesStore.crateToDelete)
 const isOpen = computed(() => !!crate.value)

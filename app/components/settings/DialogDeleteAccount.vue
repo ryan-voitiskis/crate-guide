@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { AlertTriangle } from 'lucide-vue-next'
+import { AlertTriangle } from '@lucide/vue'
 import { buildLoginRedirectPath } from '../../utils/authRoutes'
 
 const props = withDefaults(defineProps<{ openOnMount?: boolean }>(), {
 	openOnMount: false
 })
 
-const user = useUserStore()
+const user = useWorkbenchUserStore()
 const route = useRoute()
 
 const showDialog = ref(false)
@@ -15,8 +15,11 @@ const isDeleting = ref(false)
 const requiresRecentAuthentication = ref(false)
 const isOpeningLogin = ref(false)
 const reauthenticationError = ref<string | null>(null)
+const activeAccountId = ref<string | null>(null)
+const accountEmail = ref('')
+let dialogGeneration = 0
 
-const accountEmail = computed(() => user.supaUser?.email ?? '')
+const currentAccountId = computed(() => user.supaUserId ?? null)
 const isConfirmed = computed(
 	() =>
 		Boolean(accountEmail.value) &&
@@ -25,25 +28,57 @@ const isConfirmed = computed(
 )
 
 function openDialog() {
+	dialogGeneration += 1
+	activeAccountId.value = currentAccountId.value
+	accountEmail.value = user.supaUser?.email ?? ''
 	confirmationInput.value = ''
+	isDeleting.value = false
 	requiresRecentAuthentication.value = false
 	reauthenticationError.value = null
 	showDialog.value = true
 }
 
+function closeDialog() {
+	dialogGeneration += 1
+	showDialog.value = false
+	isDeleting.value = false
+}
+
+function setDialogOpen(open: boolean) {
+	if (open) {
+		if (!showDialog.value) openDialog()
+		return
+	}
+	if (showDialog.value) closeDialog()
+}
+
 async function handleDelete() {
 	if (!isConfirmed.value || isDeleting.value) return
 
+	const submittingAccountId = activeAccountId.value
+	const submittingGeneration = dialogGeneration
+	const confirmation = confirmationInput.value
 	isDeleting.value = true
-	const result = await user.deleteAccount(confirmationInput.value)
+	const result = await user.deleteAccount(confirmation)
+	if (
+		dialogGeneration !== submittingGeneration ||
+		activeAccountId.value !== submittingAccountId ||
+		currentAccountId.value !== submittingAccountId ||
+		!showDialog.value
+	)
+		return
 	isDeleting.value = false
 
-	if (result.status === 'deleted') showDialog.value = false
+	if (result.status === 'deleted') closeDialog()
 	if (result.status === 'recent-auth-required') {
 		confirmationInput.value = ''
 		requiresRecentAuthentication.value = true
 	}
 }
+
+watch(currentAccountId, (accountId) => {
+	if (showDialog.value && accountId !== activeAccountId.value) closeDialog()
+})
 
 async function handleSignInAgain() {
 	if (isOpeningLogin.value) return
@@ -85,7 +120,7 @@ onMounted(async () => {
 <template>
 	<Button variant="destructive" @click="openDialog">Delete Account</Button>
 
-	<Dialog v-model:open="showDialog">
+	<Dialog :open="showDialog" @update:open="setDialogOpen">
 		<DialogContent class="sm:max-w-106.25">
 			<DialogHeader>
 				<DialogTitle class="flex items-center gap-2">
@@ -147,7 +182,7 @@ onMounted(async () => {
 				<Button
 					variant="outline"
 					:disabled="isOpeningLogin"
-					@click="showDialog = false"
+					@click="closeDialog"
 				>
 					Cancel
 				</Button>
@@ -161,13 +196,7 @@ onMounted(async () => {
 			</DialogFooter>
 
 			<DialogFooter v-else class="gap-2">
-				<Button
-					variant="outline"
-					:disabled="isDeleting"
-					@click="showDialog = false"
-				>
-					Cancel
-				</Button>
+				<Button variant="outline" @click="closeDialog">Cancel</Button>
 				<ButtonLoading
 					variant="destructive"
 					:disabled="!isConfirmed || isDeleting"

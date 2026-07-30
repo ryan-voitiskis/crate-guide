@@ -1,16 +1,17 @@
+import type { LibraryRecord, LibraryTrack } from '~~/shared/types/library'
 import { sortTracksByPosition } from './sortTracksByPosition'
 
 export type LoadTrackRecordResult = {
-	record: DatabaseRecord
-	tracks: Track[]
-	previewTracks: Track[]
+	record: LibraryRecord
+	tracks: LibraryTrack[]
+	previewTracks: LibraryTrack[]
 	matchedTrackIds: string[]
 	score: number
 }
 
 export type BuildLoadTrackResultsOptions = {
-	records: DatabaseRecord[]
-	tracks: Track[]
+	records: LibraryRecord[]
+	tracks: LibraryTrack[]
 	query: string
 	recordOrder?: string[]
 }
@@ -46,8 +47,8 @@ function scoreValue(
 }
 
 function getSearchScore(
-	record: DatabaseRecord,
-	tracks: Track[],
+	record: LibraryRecord,
+	tracks: LibraryTrack[],
 	query: string
 ): number {
 	const catalogueNumbers = record.labels.map((label) => normalize(label.catno))
@@ -120,8 +121,8 @@ function getSearchScore(
 }
 
 function getRecordSearchValues(
-	record: DatabaseRecord,
-	tracks: Track[]
+	record: LibraryRecord,
+	tracks: LibraryTrack[]
 ): string[] {
 	return [
 		normalize(record.title),
@@ -141,7 +142,10 @@ function getRecordSearchValues(
 	]
 }
 
-function getMatchedTrackIds(tracks: Track[], tokens: string[]): string[] {
+function getMatchedTrackIds(
+	tracks: LibraryTrack[],
+	tokens: string[]
+): string[] {
 	if (tokens.length === 0) return []
 
 	return tracks
@@ -161,10 +165,10 @@ function getMatchedTrackIds(tracks: Track[], tokens: string[]): string[] {
 }
 
 export function getLoadTrackPreview(
-	tracks: Track[],
+	tracks: LibraryTrack[],
 	matchedTrackIds: string[],
 	limit = DEFAULT_PREVIEW_LIMIT
-): Track[] {
+): LibraryTrack[] {
 	if (limit <= 0) return []
 	if (tracks.length <= limit) return tracks.slice()
 
@@ -186,7 +190,7 @@ export function buildLoadTrackRecordResults({
 	query,
 	recordOrder
 }: BuildLoadTrackResultsOptions): LoadTrackRecordResult[] {
-	const groupedTracks = new Map<string, Track[]>()
+	const groupedTracks = new Map<string, LibraryTrack[]>()
 
 	for (const track of tracks) {
 		if (!track.playable) continue

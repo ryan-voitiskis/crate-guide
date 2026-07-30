@@ -12,7 +12,7 @@ const props = defineProps<{
 
 const records = useWorkbenchRecordsStore()
 const session = useWorkbenchSessionStore()
-const user = useWorkbenchUserStore()
+const preferences = useWorkbenchPreferencesStore()
 
 const record = computed(() => records.getRecordById(props.track.record_id))
 const catalogReference = computed(() => {
@@ -25,7 +25,7 @@ const keyDisplay = computed(() => {
 	return getFormattedKeyString(
 		props.track.key,
 		props.track.mode,
-		user.currentKeyFormat,
+		preferences.currentKeyFormat,
 		'short'
 	)
 })

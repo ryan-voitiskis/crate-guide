@@ -1,7 +1,21 @@
 <script setup lang="ts">
+import { buildWorkspaceStatusPresentation } from '~/utils/workspaceStatusPresentation'
+
 const route = useRoute()
-const { isDemo, isActive, visibleNavItems } = useNavigation()
+const { isActive, visibleNavItems } = useNavigation()
 const online = useOnline()
+const capabilities = useWorkbenchCapabilities()
+
+const workspaceStatus = computed(() =>
+	buildWorkspaceStatusPresentation({
+		location: capabilities.location,
+		connectivity: online.value ? 'online' : 'offline'
+	})
+)
+
+const presentation = computed(() =>
+	workspaceStatus.value.status === 'known' ? workspaceStatus.value : null
+)
 
 const currentSection = computed(() => {
 	const navLabel = visibleNavItems.value.find((item) =>
@@ -20,12 +34,14 @@ const currentSection = computed(() => {
 		<div class="flex min-w-0 items-center gap-2.5">
 			<span
 				class="size-1.5 shrink-0 rounded-full"
-				:class="online ? 'bg-led shadow-[0_0_6px_var(--led)]' : 'bg-signal'"
+				:class="
+					presentation?.connectivity.state === 'online'
+						? 'bg-led shadow-[0_0_6px_var(--led)]'
+						: 'bg-signal'
+				"
 			/>
 			<span class="text-foreground/80 truncate">
-				{{
-					isDemo ? 'Read-only demo' : online ? 'Library ready' : 'Offline mode'
-				}}
+				{{ presentation?.connectivity.label ?? 'Workspace unavailable' }}
 			</span>
 			<span class="text-muted-foreground/50 hidden sm:inline">/</span>
 			<span class="text-muted-foreground hidden truncate sm:inline">
@@ -34,7 +50,13 @@ const currentSection = computed(() => {
 		</div>
 		<div class="text-muted-foreground flex shrink-0 items-center gap-2.5">
 			<ControlTransferWorkbench />
-			<span class="hidden md:inline">Local-first workspace</span>
+			<span class="hidden md:inline">
+				{{ presentation?.location.label ?? 'Unknown library' }}
+			</span>
+			<span class="text-muted-foreground/50 hidden md:inline">•</span>
+			<span class="hidden md:inline">
+				{{ presentation?.backup.label ?? 'Backup unknown' }}
+			</span>
 			<span class="text-muted-foreground/50 hidden md:inline">•</span>
 			<span>CG · 33⅓</span>
 		</div>

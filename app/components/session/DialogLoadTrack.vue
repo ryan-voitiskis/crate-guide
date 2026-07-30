@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, Search } from 'lucide-vue-next'
+import { ArrowLeft, Search } from '@lucide/vue'
 
 const props = defineProps<{
 	open: boolean

@@ -5,16 +5,18 @@ import {
 	ExternalLink,
 	FileMusic,
 	Upload
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 import type { LocalAudioReviewSelection } from '~/types/localAudio'
 
 const props = defineProps<{
 	activeSource: 'rekordboxXml' | 'localAudio'
+	parsePhase: 'idle' | 'parsing' | 'matching'
 	isParsing: boolean
 	parseCompleted: number
 	parseTotal: number
 	parseProgress: number
 	selectedFileName?: string | null
+	canRetryParsing?: boolean
 	disabled?: boolean
 }>()
 
@@ -23,7 +25,23 @@ const emit = defineEmits<{
 	selectFile: []
 	dropFile: [file: File]
 	reviewLocal: [selection: LocalAudioReviewSelection]
+	cancelParsing: []
+	retryParsing: []
 }>()
+
+const progressLabel = computed(() =>
+	props.parsePhase === 'matching' ? 'Matching' : 'Parsing XML'
+)
+
+const progressCount = computed(() => {
+	if (props.parseTotal > 0) {
+		return `${props.parseCompleted.toLocaleString()} / ${props.parseTotal.toLocaleString()}`
+	}
+	if (props.parseCompleted > 0) {
+		return `${props.parseCompleted.toLocaleString()} tracks`
+	}
+	return `${props.parseProgress}%`
+})
 
 function handleDrop(event: DragEvent) {
 	if (props.isParsing || props.disabled) return
@@ -140,14 +158,30 @@ function handleDrop(event: DragEvent) {
 				<div
 					class="flex w-full shrink-0 flex-col items-stretch gap-1 sm:w-auto sm:items-center"
 				>
-					<ButtonLoading
-						:loading="isParsing"
-						:disabled="disabled"
-						@click="emit('selectFile')"
-					>
-						<Upload class="mr-2 size-4" />
-						{{ selectedFileName ? 'Replace XML' : 'Choose XML' }}
-					</ButtonLoading>
+					<div class="flex w-full gap-2 sm:w-auto">
+						<ButtonLoading
+							:loading="isParsing"
+							:disabled="disabled"
+							@click="emit('selectFile')"
+						>
+							<Upload class="mr-2 size-4" />
+							{{ selectedFileName ? 'Replace XML' : 'Choose XML' }}
+						</ButtonLoading>
+						<Button
+							v-if="isParsing"
+							variant="outline"
+							@click="emit('cancelParsing')"
+						>
+							Cancel
+						</Button>
+						<Button
+							v-else-if="canRetryParsing"
+							variant="outline"
+							@click="emit('retryParsing')"
+						>
+							Retry
+						</Button>
+					</div>
 					<span class="text-muted-foreground hidden text-[11px] sm:inline">
 						or drop it here
 					</span>
@@ -155,14 +189,14 @@ function handleDrop(event: DragEvent) {
 			</div>
 
 			<div
-				v-if="isParsing && parseTotal > 0"
+				v-if="isParsing"
 				class="border-border bg-muted/20 space-y-2 border-t px-4 py-3"
 			>
 				<div
 					class="text-muted-foreground flex items-center justify-between font-mono text-[10px] tracking-wide uppercase"
 				>
-					<span>Matching</span>
-					<span>{{ parseCompleted }} / {{ parseTotal }}</span>
+					<span>{{ progressLabel }}</span>
+					<span>{{ progressCount }}</span>
 				</div>
 				<Progress :model-value="parseProgress" />
 			</div>

@@ -3,13 +3,13 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { createTestingPinia } from '@pinia/testing'
 import { DOMWrapper, type VueWrapper, flushPromises } from '@vue/test-utils'
 import type { Pinia } from 'pinia'
-import { createMockRecord } from 'test/mocks/fixtures/records'
+import { createMockLibraryRecord } from 'test/mocks/fixtures/records'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import DialogRecordDetails from '~/components/records/DialogRecordDetails.vue'
 import { useRecordDetailsStore } from '~/stores/recordDetailsStore'
 import { useRecordsStore } from '~/stores/recordsStore'
 import { useTracksStore } from '~/stores/tracksStore'
-import type { DatabaseRecord } from '~~/shared/types/supabase'
+import type { LibraryRecord } from '~~/shared/types/library'
 
 class ControlledImage {
 	static instances: ControlledImage[] = []
@@ -39,6 +39,14 @@ class ControlledImage {
 const wrappers = new Set<VueWrapper>()
 let objectUrlSequence = 0
 
+function createDeferred<T>() {
+	let resolve!: (value: T | PromiseLike<T>) => void
+	const promise = new Promise<T>((resolvePromise) => {
+		resolve = resolvePromise
+	})
+	return { promise, resolve }
+}
+
 function getBody() {
 	return new DOMWrapper(document.body)
 }
@@ -67,11 +75,10 @@ async function settleDialog() {
 	await nextTick()
 }
 
-async function mountDialog(overrides: Partial<DatabaseRecord> = {}) {
-	const record = createMockRecord({
+async function mountDialog(overrides: Partial<LibraryRecord> = {}) {
+	const record = createMockLibraryRecord({
 		id: 'record-cover-editor',
-		cover: null,
-		cover_storage_path: null,
+		cover: { kind: 'none' },
 		...overrides
 	})
 	const pinia = createTestingPinia({
@@ -103,6 +110,45 @@ async function mountDialog(overrides: Partial<DatabaseRecord> = {}) {
 	await settleDialog()
 
 	return { recordDetails, wrapper }
+}
+
+async function mountLifecycleDialog() {
+	const firstRecord = createMockLibraryRecord({
+		id: 'record-lifecycle-1',
+		title: 'First Lifecycle Record',
+		cover: { kind: 'none' }
+	})
+	const replacementRecord = createMockLibraryRecord({
+		id: 'record-lifecycle-2',
+		title: 'Replacement Lifecycle Record',
+		cover: { kind: 'none' }
+	})
+	const pinia = createTestingPinia({
+		createSpy: vi.fn,
+		stubActions: (_actionName, store) => store.$id !== 'recordDetails',
+		initialState: {
+			records: { records: [firstRecord, replacementRecord] },
+			tracks: { tracks: [] }
+		}
+	})
+	const records = useRecordsStore(pinia as Pinia)
+	const tracks = useTracksStore(pinia as Pinia)
+	vi.mocked(records.getRecordById).mockImplementation((id) => {
+		if (id === firstRecord.id) return firstRecord
+		if (id === replacementRecord.id) return replacementRecord
+		return undefined
+	})
+	vi.mocked(tracks.getTracksByRecordId).mockReturnValue([])
+	const recordDetails = useRecordDetailsStore(pinia as Pinia)
+	recordDetails.openRecord(firstRecord.id, true)
+
+	const wrapper = await mountSuspended(DialogRecordDetails, {
+		global: { plugins: [pinia] }
+	})
+	wrappers.add(wrapper)
+	await settleDialog()
+
+	return { firstRecord, recordDetails, records, replacementRecord, wrapper }
 }
 
 async function chooseFile(name: string, type = 'image/png') {
@@ -216,7 +262,7 @@ describe('record details cover inspection', () => {
 		unmountWrapper(resetDialog.wrapper)
 
 		const removeDialog = await mountDialog({
-			cover: 'https://example.com/current.jpg'
+			cover: { kind: 'external', url: 'https://example.com/current.jpg' }
 		})
 		const removeInspection = await chooseFile('remove.png')
 		await findButton('Remove cover').trigger('click')
@@ -285,4 +331,49 @@ describe('record details cover inspection', () => {
 			revokedUrls().filter((url) => url === current.previewUrl)
 		).toHaveLength(1)
 	})
+
+	it.each(['success', 'failure'] as const)(
+		'keeps a newer record editor active when an older save settles with %s',
+		async (outcome) => {
+			const lifecycle = await mountLifecycleDialog()
+			const firstUpdate = createDeferred<LibraryRecord | null>()
+			const secondUpdate = createDeferred<LibraryRecord | null>()
+			vi.mocked(lifecycle.records.updateRecordWithCover)
+				.mockReturnValueOnce(firstUpdate.promise)
+				.mockReturnValueOnce(secondUpdate.promise)
+
+			await findButton('Save Changes').trigger('click')
+			await vi.waitFor(() => {
+				expect(lifecycle.records.updateRecordWithCover).toHaveBeenCalledOnce()
+			})
+			await findButton('Close').trigger('click')
+			await settleDialog()
+			lifecycle.recordDetails.openRecord(lifecycle.replacementRecord.id, true)
+			await settleDialog()
+
+			expect(
+				(getBody().get('input[name="title"]').element as HTMLInputElement).value
+			).toBe('Replacement Lifecycle Record')
+			await findButton('Save Changes').trigger('click')
+			await vi.waitFor(() => {
+				expect(lifecycle.records.updateRecordWithCover).toHaveBeenCalledTimes(2)
+			})
+			expect(findButton('Save Changes').attributes('aria-busy')).toBe('true')
+
+			firstUpdate.resolve(outcome === 'success' ? lifecycle.firstRecord : null)
+			await settleDialog()
+
+			expect(lifecycle.recordDetails.selectedRecordId).toBe(
+				lifecycle.replacementRecord.id
+			)
+			expect(lifecycle.recordDetails.isEditMode).toBe(true)
+			expect(
+				(getBody().get('input[name="title"]').element as HTMLInputElement).value
+			).toBe('Replacement Lifecycle Record')
+			expect(findButton('Save Changes').attributes('aria-busy')).toBe('true')
+
+			secondUpdate.resolve(null)
+			await settleDialog()
+		}
+	)
 })

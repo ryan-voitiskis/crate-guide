@@ -12,8 +12,10 @@ import {
 	buildDiscogsOAuthHttpError,
 	getPublicOAuthErrorMessage
 } from '../_shared/discogs/oauthErrors.ts'
+import { quotaBoundFetch } from '../_shared/discogs/quotaBoundFetch.ts'
+import { DiscogsQuotaExceededError } from '../_shared/discogs/requestErrors.ts'
 import { generateToken } from '../_shared/generateToken.ts'
-import { requireEnv } from '../_shared/supabaseHelpers.ts'
+import { getSiteUrlConfig, parseSiteUrl } from '../_shared/siteUrl.ts'
 
 const requestTokenUrl = 'https://api.discogs.com/oauth/request_token'
 
@@ -33,22 +35,15 @@ const defaultDependencies: HandlerDependencies = {
 	getCallback: buildOAuthCallback
 }
 
-export function buildOAuthCallback(siteUrl = requireEnv('SITE_URL')): string {
-	let parsedSiteUrl: URL
+export function buildOAuthCallback(siteUrl?: string): string {
 	try {
-		parsedSiteUrl = new URL(siteUrl)
+		const { siteBaseUrl } = siteUrl ? parseSiteUrl(siteUrl) : getSiteUrlConfig()
+		return new URL('auth/discogs/capture-verifier', siteBaseUrl).toString()
 	} catch {
 		throw new PublicOAuthError(
-			'Server configuration error: SITE_URL must be a valid absolute URL.'
+			'Server configuration error: SITE_URL must be one absolute HTTP(S) origin.'
 		)
 	}
-
-	parsedSiteUrl.pathname = parsedSiteUrl.pathname.endsWith('/')
-		? parsedSiteUrl.pathname
-		: `${parsedSiteUrl.pathname}/`
-	parsedSiteUrl.search = ''
-	parsedSiteUrl.hash = ''
-	return new URL('auth/discogs/capture-verifier', parsedSiteUrl).toString()
 }
 
 function jsonResponse(
@@ -105,17 +100,18 @@ export function createDiscogsRequestTokenHandler(
 				oauth_signature: `${config.consumerSecret}&`,
 				oauth_callback: dependencies.getCallback()
 			}
-			const quota = await credentials.consumeRequestQuota()
-			if (!quota.allowed) {
-				return rateLimitResponse(headers, quota.retryAfterMs)
-			}
-			const response = await dependencies.fetcher(requestTokenUrl, {
-				method: 'GET',
-				headers: {
-					Authorization: buildOAuthAuthorizationHeader(oauthParameters),
-					'User-Agent': config.userAgent
+			const response = await quotaBoundFetch(
+				credentials,
+				dependencies.fetcher,
+				requestTokenUrl,
+				{
+					method: 'GET',
+					headers: {
+						Authorization: buildOAuthAuthorizationHeader(oauthParameters),
+						'User-Agent': config.userAgent
+					}
 				}
-			})
+			)
 			const responseText = await response.text()
 			if (!response.ok) {
 				console.error('Discogs request token request failed', {
@@ -142,6 +138,9 @@ export function createDiscogsRequestTokenHandler(
 			)
 			return jsonResponse(discogsResponse.oauth_token, headers, 200)
 		} catch (error) {
+			if (error instanceof DiscogsQuotaExceededError) {
+				return rateLimitResponse(headers, error.retryAfterMs)
+			}
 			console.error('Discogs request token handler failed')
 			const message = getPublicOAuthErrorMessage(
 				error,

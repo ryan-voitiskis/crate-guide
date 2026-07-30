@@ -1,20 +1,11 @@
 <script setup lang="ts">
-const props = defineProps<{
-	localOnly?: boolean
-}>()
-
-const user = useWorkbenchUserStore()
-const localKeyFormat = ref<'key' | 'camelot'>(user.currentKeyFormat)
+const preferences = useWorkbenchPreferencesStore()
 
 const keyFormat = computed({
-	get: () => (props.localOnly ? localKeyFormat.value : user.currentKeyFormat),
+	get: () => preferences.currentKeyFormat,
 	set: (value: string) => {
 		if (!isKeyFormat(value)) return
-		if (props.localOnly) {
-			localKeyFormat.value = value
-			return
-		}
-		void user.updateKeyFormat(value)
+		void preferences.updatePreferences({ key_format: value })
 	}
 })
 </script>

@@ -11,10 +11,10 @@
 - **Priority**: P1
 - **Effort**: L
 - **Risk**: HIGH
-- **Depends on**: Plans 034, 041, and 043
+- **Depends on**: none (historical Plans 034, 041, and 043 have landed)
 - **Category**: correctness / concurrency / reconciliation
-- **Planned at**: commit `aba27ff`, 2026-07-19
-- **Status**: READY
+- **Planned at**: commit `0a0cda6`, 2026-07-22
+- **Status**: DONE
 
 ## Why this matters
 
@@ -31,6 +31,11 @@ pre-commit snapshot, cannot find the new record, and reports `null` after the
 database write succeeded. The dialog remains open and a retry can create a
 duplicate.
 
+Record search is a second copy of library state. `searchResults` stores record
+objects captured when the query last changed, while create and update mutate
+only `records`. An active search can therefore show stale fields, omit a new
+match, or retain a record that no longer matches.
+
 ## Scope
 
 Modify:
@@ -41,6 +46,9 @@ Modify:
 - `app/stores/__tests__/recordsStore.test.ts`
 - `app/stores/__tests__/tracksStore.test.ts`
 - `app/stores/__tests__/discogsStore.test.ts`
+- `test/nuxt/records-page-search.nuxt.test.ts` (create)
+- `app/components/shared/InputRecordsSearch.vue` only if the corrected store
+  contract requires a presentation adjustment
 - `app/components/records/DialogRecordCreateManual.vue` and its existing Nuxt
   test only if the corrected store result requires a presentation adjustment
 
@@ -55,7 +63,7 @@ record/track domain shapes, or Discogs import idempotency.
 ```bash
 git status --short
 git rev-parse --short HEAD
-rg -n "recordIndex|startingIds|createdDuringFetch|startingRevision|trackCreateProvenance|fetchPromise|fetchAllRecords|fetchAllTracks" app/stores/{recordsStore,tracksStore,discogsStore}.ts
+rg -n "recordIndex|startingIds|createdDuringFetch|startingRevision|trackCreateProvenance|fetchPromise|fetchAllRecords|fetchAllTracks|searchResults|displayedRecords|performSearch" app/stores/{recordsStore,tracksStore,discogsStore}.ts
 rg -n "during.*fetch|stale.*fetch|createRecordWithTracks|delete.*fetch|update.*fetch" app/stores/__tests__
 ```
 
@@ -113,6 +121,18 @@ post-write fetch fresh requires discarding a valid same-account mutation.
    - Cover simultaneous fresh callers, refresh failure after committed write,
      same-ID update/update, and update/delete ordering.
 
+6. Make active search a derivation of current records.
+   - Keep one normalized query as state and compute displayed matches from the
+     authoritative `records` array. Do not retain record objects in a second
+     mutable result array.
+   - Preserve current artist/title/label/catalogue/year matching semantics,
+     result ordering, empty-query behavior, and the input's debounce contract.
+   - A create or update must immediately enter, leave, or refresh the active
+     result set without another keystroke. Deletion remains immediate through
+     the authoritative array.
+   - If compatibility requires exposing `searchResults`, expose a readonly
+     computed value rather than a writable snapshot.
+
 ## Test plan
 
 ```bash
@@ -121,6 +141,7 @@ npx vitest run --project stores \
   app/stores/__tests__/recordsStore.test.ts \
   app/stores/__tests__/tracksStore.test.ts \
   app/stores/__tests__/discogsStore.test.ts
+npx vitest run --project nuxt test/nuxt/records-page-search.nuxt.test.ts
 npm run check:conventions
 npm run verify
 git diff --check
@@ -128,11 +149,12 @@ git diff --check
 
 ## Done criteria
 
-- [ ] No record mutation writes or rolls back through an index retained across an await.
-- [ ] A pre-mutation fetch cannot overwrite a successful update or resurrect a deletion.
-- [ ] A committed manual import cannot return an apparent failure because it joined an old fetch.
-- [ ] Fresh fetches are bounded, coalesced at the correct boundary, and account-owned.
-- [ ] Focused store tests and the full repository gate pass.
+- [x] No record mutation writes or rolls back through an index retained across an await.
+- [x] A pre-mutation fetch cannot overwrite a successful update or resurrect a deletion.
+- [x] A committed manual import cannot return an apparent failure because it joined an old fetch.
+- [x] Fresh fetches are bounded, coalesced at the correct boundary, and account-owned.
+- [x] Active record search is derived from current records and updates after create, edit, cover change, and delete.
+- [x] Focused store tests and the full repository gate pass.
 
 ## STOP conditions
 

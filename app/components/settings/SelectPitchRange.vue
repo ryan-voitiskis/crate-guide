@@ -1,13 +1,5 @@
 <script setup lang="ts">
-const props = defineProps<{
-	localOnly?: boolean
-}>()
-
-const user = useWorkbenchUserStore()
-
-const turntablePitchRange = ref(
-	user.profile?.turntable_pitch_range.toString() ?? '8'
-)
+const preferences = useWorkbenchPreferencesStore()
 
 const turntablePitchOptions = [
 	{ id: '8', name: '±8%' },
@@ -16,9 +8,14 @@ const turntablePitchOptions = [
 	{ id: '50', name: '±50%' }
 ]
 
-watch(turntablePitchRange, (value) => {
-	if (!props.localOnly)
-		void user.updateSettings({ turntable_pitch_range: parseInt(value) })
+const turntablePitchRange = computed({
+	get: () => preferences.preferences.turntable_pitch_range.toString(),
+	set: (value: string) => {
+		if (!turntablePitchOptions.some((option) => option.id === value)) return
+		void preferences.updatePreferences({
+			turntable_pitch_range: Number(value)
+		})
+	}
 })
 </script>
 

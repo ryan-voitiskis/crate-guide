@@ -1,9 +1,10 @@
-import { getActivePinia } from 'pinia'
+import { createKeyComposite, parseKeyComposite } from '~/utils/keyFunctions'
+import { getWorkbenchStorePinia } from '~/utils/workbenchPinia'
 
 export const useTrackFiltersStore = defineStore('trackFilters', () => {
-	const pinia = getActivePinia()
+	const pinia = getWorkbenchStorePinia()
 	const tracks = useTracksStore(pinia)
-	const user = useUserStore(pinia)
+	const preferences = useLibraryPreferencesStore(pinia)
 	const trackSource = ref<Track[] | null>(null)
 
 	const keyOptions = computed(() => {
@@ -11,8 +12,8 @@ export const useTrackFiltersStore = defineStore('trackFilters', () => {
 		for (let mode = 0; mode <= 1; mode++) {
 			for (let key = 0; key < 12; key++) {
 				options.push({
-					value: key,
-					label: getFormattedKeyString(key, mode, user.currentKeyFormat),
+					value: createKeyComposite(key, mode),
+					label: getFormattedKeyString(key, mode, preferences.currentKeyFormat),
 					color: getKeyColour(key, mode)
 				})
 			}
@@ -24,7 +25,7 @@ export const useTrackFiltersStore = defineStore('trackFilters', () => {
 	const showOnlyPlayable = ref(false)
 	const bpmMin = ref<number | null>(null)
 	const bpmMax = ref<number | null>(null)
-	const selectedKey = ref<number | null>(null)
+	const selectedKeyComposite = ref<string | null>(null)
 	const selectedGenres = ref<string[]>([])
 
 	const filteredTracks = computed(() => {
@@ -58,8 +59,14 @@ export const useTrackFiltersStore = defineStore('trackFilters', () => {
 			})
 		}
 
-		if (selectedKey.value !== null)
-			result = result.filter((track) => track.key === selectedKey.value)
+		if (selectedKeyComposite.value !== null) {
+			const { key, mode } = parseKeyComposite(selectedKeyComposite.value)
+			if (key !== null && mode !== null) {
+				result = result.filter(
+					(track) => track.key === key && track.mode === mode
+				)
+			}
+		}
 
 		if (selectedGenres.value.length > 0)
 			result = result.filter((track) =>
@@ -85,7 +92,7 @@ export const useTrackFiltersStore = defineStore('trackFilters', () => {
 		if (searchQuery.value.trim()) count++
 		if (showOnlyPlayable.value) count++
 		if (bpmMin.value !== null || bpmMax.value !== null) count++
-		if (selectedKey.value !== null) count++
+		if (selectedKeyComposite.value !== null) count++
 		if (selectedGenres.value.length > 0) count++
 		return count
 	})
@@ -101,8 +108,15 @@ export const useTrackFiltersStore = defineStore('trackFilters', () => {
 		bpmMax.value = max
 	}
 
-	function setSelectedKey(key: number | null) {
-		selectedKey.value = key
+	function setSelectedKeyComposite(composite: string | null) {
+		if (composite === null) {
+			selectedKeyComposite.value = null
+			return
+		}
+
+		const { key, mode } = parseKeyComposite(composite)
+		selectedKeyComposite.value =
+			key === null || mode === null ? null : createKeyComposite(key, mode)
 	}
 
 	function toggleGenre(genre: string) {
@@ -121,7 +135,7 @@ export const useTrackFiltersStore = defineStore('trackFilters', () => {
 		showOnlyPlayable.value = false
 		bpmMin.value = null
 		bpmMax.value = null
-		selectedKey.value = null
+		selectedKeyComposite.value = null
 		selectedGenres.value = []
 	}
 
@@ -134,7 +148,7 @@ export const useTrackFiltersStore = defineStore('trackFilters', () => {
 		showOnlyPlayable,
 		bpmMin,
 		bpmMax,
-		selectedKey,
+		selectedKeyComposite,
 		selectedGenres,
 		filteredTracks,
 		availableGenres,
@@ -143,7 +157,7 @@ export const useTrackFiltersStore = defineStore('trackFilters', () => {
 		hasActiveFilters,
 		clearSearchQuery,
 		setBpmRange,
-		setSelectedKey,
+		setSelectedKeyComposite,
 		toggleGenre,
 		clearGenres,
 		resetAllFilters,

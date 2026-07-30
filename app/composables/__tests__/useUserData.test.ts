@@ -58,6 +58,32 @@ const mockCratesStore = {
 	clearCrates: vi.fn()
 }
 
+const mockPreferencesStore = {
+	isLoadingPreferences: false,
+	fetchPreferences: vi.fn(),
+	clearPreferences: vi.fn()
+}
+
+const mockWorkbenchLocation = ref<'cloud' | 'browser' | 'demo'>('cloud')
+const mockWorkbenchRuntime = {
+	descriptor: computed(() => ({
+		id: `${mockWorkbenchLocation.value}-workspace`,
+		location: mockWorkbenchLocation.value
+	})),
+	capture: vi.fn(() => ({
+		context: {
+			workspaceId: `${mockWorkbenchLocation.value}-workspace`,
+			repositoryId: `${mockWorkbenchLocation.value}-repository`,
+			activationGeneration: 0
+		},
+		descriptor: {
+			id: `${mockWorkbenchLocation.value}-workspace`,
+			location: mockWorkbenchLocation.value
+		}
+	})),
+	isCurrent: vi.fn(() => true)
+}
+
 const mockSessionStore = {
 	resetAccountState: vi.fn()
 }
@@ -78,8 +104,10 @@ vi.stubGlobal('useUserStore', () => mockUserStore)
 vi.stubGlobal('useRecordsStore', () => mockRecordsStore)
 vi.stubGlobal('useTracksStore', () => mockTracksStore)
 vi.stubGlobal('useCratesStore', () => mockCratesStore)
+vi.stubGlobal('useLibraryPreferencesStore', () => mockPreferencesStore)
 vi.stubGlobal('useSessionStore', () => mockSessionStore)
 vi.stubGlobal('useDiscogsStore', () => mockDiscogsStore)
+vi.stubGlobal('useWorkbenchRuntime', () => mockWorkbenchRuntime)
 vi.stubGlobal('useRoute', () => mockRoute)
 vi.stubGlobal('useRouter', () => mockRouter)
 
@@ -154,6 +182,7 @@ describe('useUserData', () => {
 		vi.clearAllMocks()
 		mockSupaUser.value = null
 		mockIsSigningOut.value = false
+		mockWorkbenchLocation.value = 'cloud'
 		mockRoute.path = '/settings'
 		mockRouter.replace.mockResolvedValue(undefined)
 		mockUserStore.resolveAuthenticatedUserId.mockImplementation(async () => {
@@ -179,6 +208,9 @@ describe('useUserData', () => {
 		mockCratesStore.clearCrates.mockImplementation(() => {
 			mockCratesStore.hasCrates = false
 		})
+		mockPreferencesStore.isLoadingPreferences = false
+		mockPreferencesStore.fetchPreferences.mockResolvedValue(true)
+		mockPreferencesStore.clearPreferences.mockImplementation(() => undefined)
 		mockSessionStore.resetAccountState.mockImplementation(() => undefined)
 		mockDiscogsStore.resetAccountState.mockImplementation(() => undefined)
 	})
@@ -416,6 +448,9 @@ describe('useUserData', () => {
 			expect(mockCratesStore.clearCrates).toHaveBeenCalledOnce()
 			expect(mockSessionStore.resetAccountState).toHaveBeenCalledOnce()
 			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledOnce()
+			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledWith(
+				'user-123'
+			)
 			expect(mockRouter.replace).toHaveBeenCalledOnce()
 			expect(mockRouter.replace).toHaveBeenCalledWith('/login')
 			const replaceOrder = invocationOrder(mockRouter.replace)
@@ -522,6 +557,7 @@ describe('useUserData', () => {
 			expect(mockCratesStore.clearCrates).toHaveBeenCalledOnce()
 			expect(mockSessionStore.resetAccountState).toHaveBeenCalledOnce()
 			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledOnce()
+			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledWith('user-a')
 			expect(mockRouter.replace).not.toHaveBeenCalled()
 			const replacementFetchOrder = invocationOrder(
 				mockRecordsStore.fetchAllRecords
@@ -769,6 +805,28 @@ describe('useUserData', () => {
 			expect(mockRecordsStore.fetchAllRecords).toHaveBeenCalledOnce()
 			expect(mockTracksStore.fetchAllTracks).toHaveBeenCalledOnce()
 			expect(mockCratesStore.fetchAllCrates).toHaveBeenCalledOnce()
+		})
+
+		it('keeps a browser workspace intact when account identity changes', async () => {
+			mockWorkbenchLocation.value = 'browser'
+			const { hasLoadedData } = createUserData()
+			await vi.waitFor(() => expect(hasLoadedData.value).toBe(true))
+			vi.clearAllMocks()
+
+			mockSupaUser.value = { id: 'user-a' }
+			await nextTick()
+			mockSupaUser.value = { id: 'user-b' }
+			await nextTick()
+			mockSupaUser.value = null
+			await nextTick()
+
+			expect(mockRecordsStore.clearRecords).not.toHaveBeenCalled()
+			expect(mockTracksStore.clearTracks).not.toHaveBeenCalled()
+			expect(mockCratesStore.clearCrates).not.toHaveBeenCalled()
+			expect(mockPreferencesStore.clearPreferences).not.toHaveBeenCalled()
+			expect(mockSessionStore.resetAccountState).not.toHaveBeenCalled()
+			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledWith('user-a')
+			expect(mockDiscogsStore.resetAccountState).toHaveBeenCalledWith('user-b')
 		})
 	})
 

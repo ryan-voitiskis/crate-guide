@@ -18,6 +18,7 @@ afterEach(async () => {
 async function createFixture({
 	canonicalContent = 'export type Database = {}\n',
 	edgeContent = canonicalContent,
+	generatedContent,
 	missing
 } = {}) {
 	const root = await mkdtemp(join(tmpdir(), 'crate-guide-type-parity-'))
@@ -30,22 +31,31 @@ async function createFixture({
 		'types',
 		'database.ts'
 	)
+	const generatedPath = join(root, 'generated', 'database.ts')
 	temporaryDirectories.push(root)
 	await Promise.all([
 		mkdir(join(root, 'shared', 'types'), { recursive: true }),
 		mkdir(join(root, 'supabase', 'functions', '_shared', 'types'), {
 			recursive: true
-		})
+		}),
+		mkdir(join(root, 'generated'), { recursive: true })
 	])
 
 	await Promise.all([
 		...(missing === 'canonical'
 			? []
 			: [writeFile(canonicalPath, canonicalContent)]),
-		...(missing === 'edge' ? [] : [writeFile(edgePath, edgeContent)])
+		...(missing === 'edge' ? [] : [writeFile(edgePath, edgeContent)]),
+		...(generatedContent === undefined
+			? []
+			: [writeFile(generatedPath, generatedContent)])
 	])
 
-	return { canonicalPath, edgePath }
+	return {
+		canonicalPath,
+		edgePath,
+		...(generatedContent === undefined ? {} : { generatedPath })
+	}
 }
 
 test('accepts identical nonempty generated type files', async () => {
@@ -111,6 +121,20 @@ test('rejects one empty file and names both', async () => {
 			error.message,
 			/supabase\/functions\/_shared\/types\/database\.ts/
 		)
+		return true
+	})
+})
+
+test('rejects identical tracked copies that are stale against the migrated schema', async () => {
+	const fixture = await createFixture({
+		canonicalContent: 'export type Database = { stale: true }\n',
+		generatedContent: 'export type Database = { current: true }\n'
+	})
+
+	await assert.rejects(checkDatabaseTypeParity(fixture), (error) => {
+		assert.match(error.message, /differ from the migrated schema/)
+		assert.match(error.message, /shared\/types\/database\.ts/)
+		assert.match(error.message, /generated\/database\.ts/)
 		return true
 	})
 })

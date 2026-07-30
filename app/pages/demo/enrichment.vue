@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import PageTrackEnrichment from '~/components/enrichment/PageTrackEnrichment.vue'
 import type { ReviewFilter } from '~/composables/useTrackEnrichmentWorkflow'
 import { createDemoEnrichmentReview } from '~/demo/enrichmentFixtures'
-import EnrichmentPage from '../enrichment.vue'
 
-provideDemoWorkbench()
+definePageMeta({ layout: 'demo' })
 
 const route = useRoute()
 const reviewFilters: ReviewFilter[] = [
@@ -26,5 +26,5 @@ const initialReview = computed(() => {
 </script>
 
 <template>
-	<EnrichmentPage :key="route.fullPath" :initial-review="initialReview" />
+	<PageTrackEnrichment :key="route.fullPath" :initial-review="initialReview" />
 </template>

@@ -21,10 +21,17 @@ commands in the [README](README.md). In brief:
 
 ```bash
 npm install
-cp .env.example .env
-npx playwright-core install chromium
+npx playwright install chromium
+npm run supa:stack:start
+npm run setup:local
+cp supabase/functions/.env.example supabase/functions/.env
 npm run dev:all
 ```
+
+The setup command reads only the local stack's public API URL and anonymous key
+and refuses to overwrite `.env` without `-- --force`. The separate untracked
+function env file holds Discogs server settings. Never place a service-role key,
+database password, OAuth secret, or hosted credential in the browser `.env`.
 
 Use synthetic or personally controlled development data. Never commit `.env`
 files, credentials, OAuth tokens, production exports, personal data, or private
@@ -34,7 +41,14 @@ fixtures, issues, and pull requests.
 ## Project conventions
 
 - Name components with type-first PascalCase, such as
-  `DialogRecordDetails.vue` and `CardRecordShort.vue`.
+  `DialogRecordDetails.vue` and `CardRecordShort.vue`. The enforced first-party
+  component kinds are `Alert`, `Animation`, `Button`, `Card`, `Checkbox`,
+  `Checklist`, `Command`, `Control`, `Controls`, `Deck`, `Detail`, `Details`,
+  `Dialog`, `Form`, `Header`, `Image`, `Input`, `Inspector`, `Layout`, `Links`,
+  `List`, `Logo`, `Metric`, `Nav`, `Notice`, `Panel`, `Picker`, `Progress`,
+  `Rating`, `Section`, `Select`, `Selector`, `Separator`, `Shell`, `Simulator`,
+  `Spinner`, `State`, `Status`, `Table`, and `Toggle`. Generated
+  `app/components/ui` files remain exempt.
 - Use Tailwind utility classes only; do not add `<style>` blocks or `@apply`.
 - Keep application-specific UI behaviour in wrapper components outside the
   generated `app/components/ui` primitives.

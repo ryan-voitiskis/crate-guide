@@ -11,16 +11,12 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import test from 'node:test'
 import {
+	COMPONENT_KIND_NAMES,
 	checkConventions,
 	discoverAppFiles,
 	evaluateAppPath,
-	evaluateEdgeDeployConfig
+	evaluateEdgeFunctionGatewayConfig
 } from './check-conventions.mjs'
-
-const DEPLOY_WITH_JWT_BYPASS = [
-	'supabase functions deploy',
-	'--no-verify-jwt'
-].join(' ')
 
 function withTemporaryRepository(callback) {
 	const root = mkdtempSync(join(tmpdir(), 'crate-guide-conventions-'))
@@ -64,19 +60,19 @@ test('rejects first-party style, @apply, SCSS, and invalid component names', () 
 	])
 })
 
-test('rejects clear suffix-first names and accepts type-first equivalents', () => {
-	assert.deepEqual(evaluateAppPath('app/components/ColorPicker.vue'), [
-		'component filename must use a type-first name'
-	])
-	assert.deepEqual(
-		evaluateAppPath('app/components/SessionHeaderControls.vue'),
-		['component filename must use a type-first name']
-	)
-	assert.deepEqual(evaluateAppPath('app/components/PickerColor.vue'), [])
-	assert.deepEqual(
-		evaluateAppPath('app/components/HeaderSessionControls.vue'),
-		[]
-	)
+test('rejects inverted names and accepts type-first names for every documented kind', () => {
+	for (const kind of COMPONENT_KIND_NAMES) {
+		assert.deepEqual(
+			evaluateAppPath(`app/components/Domain${kind}.vue`),
+			['component filename must use a type-first name'],
+			kind
+		)
+		assert.deepEqual(
+			evaluateAppPath(`app/components/${kind}Domain.vue`),
+			[],
+			kind
+		)
+	}
 	assert.deepEqual(evaluateAppPath('app/components/turntable/Platter.vue'), [])
 })
 
@@ -96,68 +92,39 @@ test('excludes generated UI only', () => {
 	)
 })
 
-test('accepts Edge deploy tasks with gateway JWT verification', () => {
+test('accepts function configuration that delegates authentication to handlers', () => {
 	assert.deepEqual(
-		evaluateEdgeDeployConfig(
-			JSON.stringify({
-				tasks: {
-					deploy: 'supabase functions deploy',
-					'deploy-all': 'supabase functions deploy'
-				}
-			})
+		evaluateEdgeFunctionGatewayConfig(
+			'[functions.example]\nverify_jwt = false\n',
+			['example']
 		),
 		[]
 	)
 })
 
-test('accepts the local Edge serve JWT bypass', () => {
+test('rejects missing or gateway-verified function configuration', () => {
 	assert.deepEqual(
-		evaluateEdgeDeployConfig(
-			JSON.stringify({
-				tasks: {
-					dev: 'supabase functions serve --no-verify-jwt'
-				}
-			})
+		evaluateEdgeFunctionGatewayConfig(
+			'[functions.first]\nverify_jwt = true\n',
+			['first', 'second']
 		),
-		[]
+		[
+			'[functions.first] must set verify_jwt = false because the handler authenticates internally',
+			'missing [functions.second] configuration'
+		]
 	)
 })
 
-test('rejects a JWT bypass in an Edge deployment task', () => {
-	assert.deepEqual(
-		evaluateEdgeDeployConfig(
-			JSON.stringify({
-				tasks: {
-					'deploy-all': DEPLOY_WITH_JWT_BYPASS
-				}
-			})
-		),
-		['task "deploy-all" must not disable JWT verification during deployment']
-	)
-})
-
-test('reports malformed Edge deployment configuration without throwing', () => {
-	assert.deepEqual(evaluateEdgeDeployConfig('{ invalid'), [
-		'must contain valid JSON'
-	])
-})
-
-test('reports Edge deployment diagnostics at the Supabase config path', () => {
+test('reports function gateway diagnostics at the Supabase config path', () => {
 	withTemporaryRepository(({ root, write }) => {
-		write(
-			'supabase/deno.json',
-			JSON.stringify({
-				tasks: {
-					deploy: DEPLOY_WITH_JWT_BYPASS
-				}
-			})
-		)
+		write('supabase/functions/example/index.ts', '')
+		write('supabase/config.toml', '[functions.example]\nverify_jwt = true\n')
 
 		assert.deepEqual(checkConventions(root), [
 			{
 				message:
-					'task "deploy" must not disable JWT verification during deployment',
-				path: 'supabase/deno.json'
+					'[functions.example] must set verify_jwt = false because the handler authenticates internally',
+				path: 'supabase/config.toml'
 			}
 		])
 	})

@@ -1,0 +1,20 @@
+{
+	"generatorVersion": "rekordbox-xml-scale-v1",
+	"fixtures": [
+		{
+			"tracks": 1000,
+			"bytes": 494838,
+			"sha256": "5ad48396f99a9979c857a6e232dadd8cfdd6d7dd5d2e2d719c7994044abbee22"
+		},
+		{
+			"tracks": 10000,
+			"bytes": 4956925,
+			"sha256": "b8c2ff647277602426107064041d78ee75e6fcd99c27df135f24dc24411ecf58"
+		},
+		{
+			"tracks": 100000,
+			"bytes": 49667766,
+			"sha256": "47695cb232e593269fe3736cf0664d5f8557ac5327e4a05c15f96e5d6caba50b"
+		}
+	]
+}

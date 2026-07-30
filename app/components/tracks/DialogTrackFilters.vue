@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Filter } from 'lucide-vue-next'
+import { Filter } from '@lucide/vue'
 
 const trackFilters = useWorkbenchTrackFiltersStore()
 
@@ -11,22 +11,28 @@ function clearBpmFilter() {
 
 function handleBpmMinInput(event: Event) {
 	const value = (event.target as HTMLInputElement).value
-	const min = value ? parseFloat(value) : null
-	if (min !== null && !isNaN(min)) {
+	const min = parseBPM(value)
+	if (min !== null) {
 		trackFilters.setBpmRange(min, trackFilters.bpmMax)
-	} else if (value === '') {
+	} else if (value.trim() === '') {
 		trackFilters.setBpmRange(null, trackFilters.bpmMax)
 	}
 }
 
 function handleBpmMaxInput(event: Event) {
 	const value = (event.target as HTMLInputElement).value
-	const max = value ? parseFloat(value) : null
-	if (max !== null && !isNaN(max)) {
+	const max = parseBPM(value)
+	if (max !== null) {
 		trackFilters.setBpmRange(trackFilters.bpmMin, max)
-	} else if (value === '') {
+	} else if (value.trim() === '') {
 		trackFilters.setBpmRange(trackFilters.bpmMin, null)
 	}
+}
+
+function handleKeyInput(value: unknown) {
+	trackFilters.setSelectedKeyComposite(
+		typeof value === 'string' && value ? value : null
+	)
 }
 </script>
 
@@ -110,27 +116,25 @@ function handleBpmMaxInput(event: Event) {
 					<div class="flex items-center justify-between">
 						<Label class="text-sm">Key</Label>
 						<Button
-							v-if="trackFilters.selectedKey !== null"
+							v-if="trackFilters.selectedKeyComposite !== null"
 							variant="ghost"
 							size="sm"
 							class="h-auto text-xs"
-							@click="trackFilters.setSelectedKey(null)"
+							@click="trackFilters.setSelectedKeyComposite(null)"
 						>
 							Clear
 						</Button>
 					</div>
 					<Select
-						:model-value="trackFilters.selectedKey?.toString() || ''"
-						@update:model-value="
-							(v) => trackFilters.setSelectedKey(v ? Number(v) : null)
-						"
+						:model-value="trackFilters.selectedKeyComposite || ''"
+						@update:model-value="handleKeyInput"
 					>
 						<SelectTrigger class="w-full">
 							<SelectValue placeholder="All keys">
-								<template v-if="trackFilters.selectedKey !== null">
+								<template v-if="trackFilters.selectedKeyComposite !== null">
 									<span
 										v-for="option in trackFilters.keyOptions"
-										v-show="option.value === trackFilters.selectedKey"
+										v-show="option.value === trackFilters.selectedKeyComposite"
 										:key="`display-${option.value}`"
 										class="inline-flex items-center gap-2"
 									>
@@ -147,7 +151,7 @@ function handleBpmMaxInput(event: Event) {
 							<SelectItem
 								v-for="option in trackFilters.keyOptions"
 								:key="option.value"
-								:value="option.value.toString()"
+								:value="option.value"
 							>
 								<span class="flex items-center gap-2">
 									<span

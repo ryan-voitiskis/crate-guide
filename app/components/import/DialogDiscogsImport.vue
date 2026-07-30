@@ -6,9 +6,9 @@ import {
 	Minimize2,
 	RotateCcw,
 	XCircle
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 
-const discogs = useDiscogsStore()
+const discogs = useWorkbenchDiscogsStore()
 
 const showSkipped = ref(false)
 const showFailures = ref(true)

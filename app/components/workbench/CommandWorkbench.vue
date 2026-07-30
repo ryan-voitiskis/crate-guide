@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Command as CommandIcon, Search } from 'lucide-vue-next'
+import { Command as CommandIcon, Search } from '@lucide/vue'
 
 const router = useRouter()
 const { getHref, visibleNavItems } = useNavigation()

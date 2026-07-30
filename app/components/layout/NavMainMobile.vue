@@ -16,6 +16,7 @@ function handleNavigate() {
 			v-for="(item, index) in visibleNavItems"
 			:key="item.path"
 			:to="getHref(item.path)"
+			:prefetch="item.prefetch"
 			class="focus-visible:ring-ring flex h-10 items-center gap-3 rounded-sm border border-transparent px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
 			:class="
 				isActive(item.path)

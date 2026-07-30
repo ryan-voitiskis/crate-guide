@@ -289,6 +289,51 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			track_enrichment_batch_receipts: {
+				Row: {
+					created_at: string
+					expires_at: string
+					operation_hash: string
+					operation_id: string
+					owner_id: string
+					request_payload: Json
+					response_payload: Json
+				}
+				Insert: {
+					created_at?: string
+					expires_at: string
+					operation_hash: string
+					operation_id: string
+					owner_id: string
+					request_payload: Json
+					response_payload: Json
+				}
+				Update: {
+					created_at?: string
+					expires_at?: string
+					operation_hash?: string
+					operation_id?: string
+					owner_id?: string
+					request_payload?: Json
+					response_payload?: Json
+				}
+				Relationships: []
+			}
+			track_evidence_rpc_write_guards: {
+				Row: {
+					backend_pid: number
+					transaction_id: number
+				}
+				Insert: {
+					backend_pid: number
+					transaction_id: number
+				}
+				Update: {
+					backend_pid?: number
+					transaction_id?: number
+				}
+				Relationships: []
+			}
 			tracks: {
 				Row: {
 					artists: Json
@@ -414,6 +459,10 @@ export type Database = {
 				}[]
 			}
 			delete_all_user_data: { Args: never; Returns: Json }
+			delete_discogs_user_rate_limit: {
+				Args: { target_user_id: string }
+				Returns: boolean
+			}
 			disconnect_discogs: { Args: never; Returns: undefined }
 			enqueue_record_cover_account_cleanup: {
 				Args: { target_user_id: string }
@@ -426,12 +475,56 @@ export type Database = {
 				Args: { record: Json; tracks?: Json }
 				Returns: Json
 			}
+			is_valid_track_enrichment_audio_features: {
+				Args: { candidate: Json }
+				Returns: boolean
+			}
+			is_valid_track_enrichment_audio_features_v1: {
+				Args: { candidate: Json }
+				Returns: boolean
+			}
+			is_valid_track_enrichment_audio_features_v2: {
+				Args: { candidate: Json }
+				Returns: boolean
+			}
 			list_record_cover_account_cleanup_objects: {
 				Args: { target_user_id: string }
 				Returns: {
 					object_name: string
 				}[]
 			}
+			mark_record_cover_cleanup_attempts: {
+				Args: {
+					attempted_at: string
+					observed_attempt_counts: number[]
+					target_job_ids: number[]
+					target_user_id: string
+				}
+				Returns: {
+					changed_job_id: number
+				}[]
+			}
+			persist_track_enrichment_batch: {
+				Args: {
+					p_items: Json
+					p_operation_hash: string
+					p_operation_id: string
+				}
+				Returns: Json
+			}
+			persist_track_enrichment_batch_guarded_internal: {
+				Args: {
+					p_items: Json
+					p_operation_hash: string
+					p_operation_id: string
+				}
+				Returns: Json
+			}
+			prune_expired_discogs_user_rate_limits: {
+				Args: { maximum_rows: number }
+				Returns: number
+			}
+			read_library_snapshot: { Args: never; Returns: Json }
 			release_record_cover_account_cleanup: {
 				Args: { expected_claim_token: string; target_user_id: string }
 				Returns: boolean
@@ -459,6 +552,75 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			schedule_record_cover_account_cleanup: {
+				Args: { target_user_id: string }
+				Returns: boolean
+			}
+			track_evidence_contains_private_data: {
+				Args: { candidate: Json; current_depth?: number }
+				Returns: boolean
+			}
+			track_evidence_has_exact_keys: {
+				Args: {
+					allowed_keys: string[]
+					candidate: Json
+					required_keys: string[]
+				}
+				Returns: boolean
+			}
+			track_evidence_is_application: {
+				Args: { application_name: string; candidate: Json }
+				Returns: boolean
+			}
+			track_evidence_is_bounded_text: {
+				Args: {
+					candidate: Json
+					maximum_length: number
+					minimum_length: number
+				}
+				Returns: boolean
+			}
+			track_evidence_is_current_observation: {
+				Args: { candidate: Json; source_name: string }
+				Returns: boolean
+			}
+			track_evidence_is_embedded_tags_data: {
+				Args: { candidate: Json; is_legacy: boolean }
+				Returns: boolean
+			}
+			track_evidence_is_essentia_data: {
+				Args: { candidate: Json; is_legacy: boolean }
+				Returns: boolean
+			}
+			track_evidence_is_legacy_envelope: {
+				Args: { candidate: Json }
+				Returns: boolean
+			}
+			track_evidence_is_legacy_observation: {
+				Args: { candidate: Json; source_name: string }
+				Returns: boolean
+			}
+			track_evidence_is_match: { Args: { candidate: Json }; Returns: boolean }
+			track_evidence_is_rekordbox_data: {
+				Args: { candidate: Json; is_legacy: boolean }
+				Returns: boolean
+			}
+			track_evidence_is_safe_relative_hint: {
+				Args: { candidate: Json }
+				Returns: boolean
+			}
+			track_evidence_is_text_array: {
+				Args: {
+					candidate: Json
+					maximum_items: number
+					maximum_text_length: number
+				}
+				Returns: boolean
+			}
+			track_evidence_is_timestamp: {
+				Args: { candidate: Json }
+				Returns: boolean
+			}
 		}
 		Enums: {
 			ui_theme_enum: 'light' | 'dark' | 'auto'
@@ -477,12 +639,12 @@ export type Tables<
 	DefaultSchemaTableNameOrOptions extends
 		| keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
 		| { schema: keyof DatabaseWithoutInternals },
-	TableName extends DefaultSchemaTableNameOrOptions extends {
+	TableName extends (DefaultSchemaTableNameOrOptions extends {
 		schema: keyof DatabaseWithoutInternals
 	}
 		? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
 				DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
-		: never = never
+		: never) = never
 > = DefaultSchemaTableNameOrOptions extends {
 	schema: keyof DatabaseWithoutInternals
 }
@@ -504,13 +666,12 @@ export type Tables<
 
 export type TablesInsert<
 	DefaultSchemaTableNameOrOptions extends
-		| keyof DefaultSchema['Tables']
-		| { schema: keyof DatabaseWithoutInternals },
-	TableName extends DefaultSchemaTableNameOrOptions extends {
+		keyof DefaultSchema['Tables'] | { schema: keyof DatabaseWithoutInternals },
+	TableName extends (DefaultSchemaTableNameOrOptions extends {
 		schema: keyof DatabaseWithoutInternals
 	}
 		? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
-		: never = never
+		: never) = never
 > = DefaultSchemaTableNameOrOptions extends {
 	schema: keyof DatabaseWithoutInternals
 }
@@ -529,13 +690,12 @@ export type TablesInsert<
 
 export type TablesUpdate<
 	DefaultSchemaTableNameOrOptions extends
-		| keyof DefaultSchema['Tables']
-		| { schema: keyof DatabaseWithoutInternals },
-	TableName extends DefaultSchemaTableNameOrOptions extends {
+		keyof DefaultSchema['Tables'] | { schema: keyof DatabaseWithoutInternals },
+	TableName extends (DefaultSchemaTableNameOrOptions extends {
 		schema: keyof DatabaseWithoutInternals
 	}
 		? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
-		: never = never
+		: never) = never
 > = DefaultSchemaTableNameOrOptions extends {
 	schema: keyof DatabaseWithoutInternals
 }
@@ -554,13 +714,12 @@ export type TablesUpdate<
 
 export type Enums<
 	DefaultSchemaEnumNameOrOptions extends
-		| keyof DefaultSchema['Enums']
-		| { schema: keyof DatabaseWithoutInternals },
-	EnumName extends DefaultSchemaEnumNameOrOptions extends {
+		keyof DefaultSchema['Enums'] | { schema: keyof DatabaseWithoutInternals },
+	EnumName extends (DefaultSchemaEnumNameOrOptions extends {
 		schema: keyof DatabaseWithoutInternals
 	}
 		? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
-		: never = never
+		: never) = never
 > = DefaultSchemaEnumNameOrOptions extends {
 	schema: keyof DatabaseWithoutInternals
 }
@@ -573,11 +732,11 @@ export type CompositeTypes<
 	PublicCompositeTypeNameOrOptions extends
 		| keyof DefaultSchema['CompositeTypes']
 		| { schema: keyof DatabaseWithoutInternals },
-	CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+	CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
 		schema: keyof DatabaseWithoutInternals
 	}
 		? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
-		: never = never
+		: never) = never
 > = PublicCompositeTypeNameOrOptions extends {
 	schema: keyof DatabaseWithoutInternals
 }

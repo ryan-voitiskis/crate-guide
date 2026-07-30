@@ -81,7 +81,7 @@ export function transformReleaseTracks(release: DiscogsReleaseFull) {
 
 			// Build extraartists array
 			const trackExtraArtists = extraArtists.map((ea: DiscogsArtist) => ({
-				discogs_id: ea.id || null,
+				...(ea.id ? { discogs_id: ea.id } : {}),
 				name: normalizeArtist(ea.name),
 				role: ea.role || null
 			}))
@@ -115,20 +115,29 @@ export function transformReleaseTracks(release: DiscogsReleaseFull) {
 	)
 }
 
-export function transformRelease(release: DiscogsReleaseFull, userId: string) {
+/**
+ * Transforms provider metadata into an account-neutral library payload. The
+ * active repository owns identity, entity IDs, transactions, and persistence.
+ */
+export function transformReleaseDomain(
+	release: DiscogsReleaseFull
+): ExternalRecordWithTracksInput {
 	return {
-		user_id: userId,
-		discogs_id: release.id,
-		discogs_release_url: release.uri,
-		title: release.title.trim(),
-		artists: transformReleaseArtists(release.artists),
-		labels: transformReleaseLabels(release.labels),
-		year: release.year || null,
-		cover:
-			release.images?.find((img: DiscogsImage) => img.type === 'primary')
-				?.resource_url ||
-			release.images?.[0]?.resource_url ||
-			null,
+		record: {
+			discogs_id: release.id,
+			discogs_release_url: release.uri,
+			title: release.title.trim(),
+			artists: transformReleaseArtists(release.artists),
+			labels: transformReleaseLabels(release.labels),
+			year: release.year || null,
+			cover: (() => {
+				const url =
+					release.images?.find(
+						(image: DiscogsImage) => image.type === 'primary'
+					)?.resource_url || release.images?.[0]?.resource_url
+				return url ? { kind: 'external', url } : { kind: 'none' }
+			})()
+		},
 		tracks: transformReleaseTracks(release)
 	}
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const discogs = useDiscogsStore()
+const discogs = useWorkbenchDiscogsStore()
 const showDialog = ref(false)
 
 async function handleDisconnect() {

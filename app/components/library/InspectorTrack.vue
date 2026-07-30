@@ -10,21 +10,26 @@ import {
 	RotateCcw,
 	Tag,
 	X
-} from 'lucide-vue-next'
+} from '@lucide/vue'
+import type { LibraryRecord, LibraryTrack } from '~~/shared/types/library'
 
-const props = defineProps<{
-	track: Track
-	record: DatabaseRecord | null
-	showClose?: boolean
-	readOnly?: boolean
-}>()
+const props = withDefaults(
+	defineProps<{
+		track: LibraryTrack
+		record: LibraryRecord | null
+		showClose?: boolean
+		readOnly?: boolean
+		showEditAction?: boolean
+	}>(),
+	{ showEditAction: true }
+)
 
 const emit = defineEmits<{
 	close: []
 	edit: []
 }>()
 
-const user = useWorkbenchUserStore()
+const preferences = useWorkbenchPreferencesStore()
 
 const artists = computed(() =>
 	[...props.track.artists, ...props.track.extraartists]
@@ -37,7 +42,7 @@ const formattedKey = computed(() => {
 	return getFormattedKeyString(
 		props.track.key,
 		props.track.mode,
-		user.currentKeyFormat,
+		preferences.currentKeyFormat,
 		'short'
 	)
 })
@@ -196,9 +201,21 @@ const keyColour = computed(() => {
 					{{ track.key === null ? 'NO KEY' : 'KEY SET' }}
 				</Badge>
 			</div>
+
+			<LazyPanelTrackEvidence
+				class="border-border mt-5 border-t pt-4"
+				:evidence="track.audio_features"
+				:current-bpm="track.bpm"
+				:current-key="track.key"
+				:current-mode="track.mode"
+				:key-format="preferences.currentKeyFormat"
+			/>
 		</div>
 
-		<div class="border-border shrink-0 border-t p-3">
+		<div
+			v-if="props.showEditAction"
+			class="border-border shrink-0 border-t p-3"
+		>
 			<Button
 				size="sm"
 				class="w-full"

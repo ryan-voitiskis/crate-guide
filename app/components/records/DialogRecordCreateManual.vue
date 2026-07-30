@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, ClipboardList, Plus, Save, Trash2 } from 'lucide-vue-next'
+import { ArrowLeft, ClipboardList, Plus, Save, Trash2 } from '@lucide/vue'
 
 type Step = 'record' | 'tracks'
 type RecordField = 'title' | 'year' | 'cover' | 'labelName'
@@ -15,10 +15,10 @@ type TrackDraft = {
 	keyComposite: string
 }
 
-const manualEntry = useManualRecordEntryStore()
-const records = useRecordsStore()
-const recordDetails = useRecordDetailsStore()
-const user = useUserStore()
+const manualEntry = useWorkbenchManualRecordEntryStore()
+const records = useWorkbenchRecordsStore()
+const recordDetails = useWorkbenchRecordDetailsStore()
+const preferences = useWorkbenchPreferencesStore()
 
 const currentYear = new Date().getFullYear()
 const maxYear = currentYear + 5
@@ -35,7 +35,11 @@ const defaultRpm = ref<number | null>(null)
 const pasteValue = ref('')
 const recordSubmitAttempted = ref(false)
 const trackSubmitAttempted = ref(false)
+const isSubmitting = ref(false)
 let nextTrackRowId = 1
+let dialogGeneration = 0
+let nextSubmissionId = 0
+let activeSubmissionId: number | null = null
 
 const trackRows = ref<TrackDraft[]>([])
 
@@ -47,7 +51,7 @@ const dialogOpen = computed({
 })
 
 const keyOptions = computed(() =>
-	getKeyOptionsForComposite(user.currentKeyFormat)
+	getKeyOptionsForComposite(preferences.currentKeyFormat)
 )
 
 const recordErrors = computed<Partial<Record<RecordField, string>>>(() => {
@@ -110,8 +114,12 @@ const saveLabel = computed(() =>
 watch(
 	() => manualEntry.isDialogOpen,
 	(isOpen) => {
+		dialogGeneration += 1
+		activeSubmissionId = null
+		isSubmitting.value = false
 		if (isOpen) resetForm()
-	}
+	},
+	{ flush: 'sync', immediate: true }
 )
 
 function createEmptyTrackRow(): TrackDraft {
@@ -264,38 +272,56 @@ async function saveManualRecord() {
 		step.value = 'tracks'
 		return
 	}
+	const submissionGeneration = dialogGeneration
+	const submissionId = ++nextSubmissionId
+	activeSubmissionId = submissionId
+	isSubmitting.value = true
 
-	const createdRecord = await records.createRecordWithTracks({
-		title: title.value,
-		artistName: artistName.value,
-		labelName: labelName.value,
-		catno: catno.value,
-		year: parseOptionalYear(),
-		cover: cover.value,
-		defaultGenres: genres.value.map((genre) => genre.trim()).filter(Boolean),
-		defaultRpm: defaultRpm.value,
-		tracks: tracksToCreate.value.map((row) => {
-			const keyData = parseKeyComposite(row.keyComposite || 'none')
+	const ownsOpenDialog = () =>
+		activeSubmissionId === submissionId &&
+		dialogGeneration === submissionGeneration &&
+		manualEntry.isDialogOpen
 
-			return {
-				title: row.title,
-				artistName: row.artist,
-				position: row.position,
-				duration: mmssToMs(row.duration),
-				bpm: parseBPM(row.bpm),
-				rpm: defaultRpm.value,
-				key: keyData.key,
-				mode: keyData.mode,
-				genres: genres.value.map((genre) => genre.trim()).filter(Boolean),
-				playable: true
-			}
+	try {
+		const createdRecord = await records.createRecordWithTracks({
+			title: title.value,
+			artistName: artistName.value,
+			labelName: labelName.value,
+			catno: catno.value,
+			year: parseOptionalYear(),
+			cover: cover.value,
+			defaultGenres: genres.value.map((genre) => genre.trim()).filter(Boolean),
+			defaultRpm: defaultRpm.value,
+			tracks: tracksToCreate.value.map((row) => {
+				const keyData = parseKeyComposite(row.keyComposite || 'none')
+
+				return {
+					title: row.title,
+					artistName: row.artist,
+					position: row.position,
+					duration: mmssToMs(row.duration),
+					bpm: parseBPM(row.bpm),
+					rpm: defaultRpm.value,
+					key: keyData.key,
+					mode: keyData.mode,
+					genres: genres.value.map((genre) => genre.trim()).filter(Boolean),
+					playable: true
+				}
+			})
 		})
-	})
 
-	if (!createdRecord) return
+		if (!createdRecord || !ownsOpenDialog()) return
 
-	manualEntry.closeDialog()
-	recordDetails.openRecord(createdRecord.id)
+		activeSubmissionId = null
+		isSubmitting.value = false
+		manualEntry.closeDialog()
+		recordDetails.openRecord(createdRecord.id)
+	} finally {
+		if (ownsOpenDialog()) {
+			activeSubmissionId = null
+			isSubmitting.value = false
+		}
+	}
 }
 </script>
 
@@ -644,11 +670,7 @@ async function saveManualRecord() {
 				>
 					Next
 				</Button>
-				<ButtonLoading
-					v-else
-					:loading="records.isCreatingRecord"
-					@click="saveManualRecord"
-				>
+				<ButtonLoading v-else :loading="isSubmitting" @click="saveManualRecord">
 					<Save class="mr-2 size-4" />
 					{{ saveLabel }}
 				</ButtonLoading>

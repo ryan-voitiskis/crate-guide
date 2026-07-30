@@ -18,7 +18,7 @@ function dependencies(
 	overrides: {
 		secretKey?: () => string
 		compareSecrets?: (actual: string, expected: string) => Promise<boolean>
-		processOne?: () => Promise<{
+		processNext?: () => Promise<{
 			processed: boolean
 			complete: boolean
 			failed: boolean
@@ -28,8 +28,8 @@ function dependencies(
 	return {
 		secretKey: overrides.secretKey ?? (() => SECRET_KEY),
 		compareSecrets: overrides.compareSecrets ?? timingSafeSecretEqual,
-		processOne:
-			overrides.processOne ??
+		processNext:
+			overrides.processNext ??
 			(() =>
 				Promise.resolve({ processed: false, complete: false, failed: false }))
 	}
@@ -49,7 +49,7 @@ Deno.test('orphan cleanup rejects non-POST methods', async () => {
 	const handler = createCleanupOrphanedRecordCoversHandler(
 		{ 'Content-Type': 'application/json' },
 		dependencies({
-			processOne: () => {
+			processNext: () => {
 				didProcess = true
 				return Promise.resolve({
 					processed: false,
@@ -74,7 +74,7 @@ Deno.test(
 		const handler = createCleanupOrphanedRecordCoversHandler(
 			{ 'Content-Type': 'application/json' },
 			dependencies({
-				processOne: () => {
+				processNext: () => {
 					didProcess = true
 					return Promise.resolve({
 						processed: false,
@@ -110,7 +110,7 @@ Deno.test('orphan cleanup rejects every request body', async () => {
 	const handler = createCleanupOrphanedRecordCoversHandler(
 		{ 'Content-Type': 'application/json' },
 		dependencies({
-			processOne: () => {
+			processNext: () => {
 				didProcess = true
 				return Promise.resolve({
 					processed: false,
@@ -134,7 +134,7 @@ Deno.test('orphan cleanup returns only generic processing state', async () => {
 	const handler = createCleanupOrphanedRecordCoversHandler(
 		{ 'Content-Type': 'application/json' },
 		dependencies({
-			processOne: () =>
+			processNext: () =>
 				Promise.resolve({ processed: true, complete: true, failed: false })
 		})
 	)
@@ -155,7 +155,7 @@ Deno.test(
 		const handler = createCleanupOrphanedRecordCoversHandler(
 			{ 'Content-Type': 'application/json' },
 			dependencies({
-				processOne: () => Promise.reject(new Error(privateDetail))
+				processNext: () => Promise.reject(new Error(privateDetail))
 			})
 		)
 

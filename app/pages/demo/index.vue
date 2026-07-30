@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import SessionPage from '../index.vue'
 
-provideDemoWorkbench()
+definePageMeta({ layout: 'demo' })
 </script>
 
 <template>

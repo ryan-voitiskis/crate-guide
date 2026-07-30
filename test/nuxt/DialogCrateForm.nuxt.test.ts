@@ -81,8 +81,7 @@ describe('DialogCrateForm', () => {
 			expect(crates.createCrate).toHaveBeenCalledWith({
 				name: 'Deep House',
 				description: 'Late-night records',
-				color: '#3B82F6',
-				records: []
+				color: '#3B82F6'
 			})
 		})
 		await settleDialog()

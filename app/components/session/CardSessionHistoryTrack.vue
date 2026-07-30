@@ -1,15 +1,21 @@
 <script setup lang="ts">
+import type { LibraryPlayedTrackEntry } from '~~/shared/types/library'
+
 const props = defineProps<{
-	entry: PlayedTrackEntry
+	entry: LibraryPlayedTrackEntry
 	index: number
 	isFirst: boolean
 }>()
 
 const session = useWorkbenchSessionStore()
 const tracks = useWorkbenchTracksStore()
-const user = useWorkbenchUserStore()
+const preferences = useWorkbenchPreferencesStore()
 
 const track = computed(() => tracks.getTrackById(props.entry.track_id))
+
+const trackTitle = computed(
+	() => props.entry.track_title ?? track.value?.title ?? 'Unknown track'
+)
 
 const timeFormatted = computed(() => {
 	const date = new Date(props.entry.time_added)
@@ -17,8 +23,11 @@ const timeFormatted = computed(() => {
 })
 
 const artistNames = computed(() => {
-	if (!track.value) return ''
-	return track.value.artists.map((a) => a.name).join(', ')
+	return (
+		props.entry.artist_display ??
+		track.value?.artists.map((artist) => artist.name).join(', ') ??
+		'Artist unavailable'
+	)
 })
 
 const keyDisplay = computed(() => {
@@ -27,7 +36,7 @@ const keyDisplay = computed(() => {
 	return getFormattedKeyString(
 		track.value.key,
 		track.value.mode,
-		user.currentKeyFormat,
+		preferences.currentKeyFormat,
 		'short'
 	)
 })
@@ -55,7 +64,7 @@ function handleRatingUpdate(rating: number | null) {
 		</div>
 
 		<!-- Track info -->
-		<div v-if="track" class="space-y-0.5">
+		<div class="space-y-0.5">
 			<div class="flex items-start justify-between gap-2">
 				<span
 					class="text-muted-foreground/70 mt-0.5 w-5 shrink-0 font-mono text-[9px] tabular-nums"
@@ -64,10 +73,16 @@ function handleRatingUpdate(rating: number | null) {
 				</span>
 				<div class="min-w-0 flex-1">
 					<div class="truncate text-sm leading-tight font-medium">
-						{{ track.title }}
+						{{ trackTitle }}
 					</div>
 					<div class="text-muted-foreground truncate text-xs">
 						{{ artistNames }}
+					</div>
+					<div
+						v-if="!track"
+						class="text-muted-foreground truncate text-xs italic"
+					>
+						No longer in library
 					</div>
 				</div>
 				<span
@@ -80,10 +95,10 @@ function handleRatingUpdate(rating: number | null) {
 			<!-- Metadata row -->
 			<div class="ml-5 flex items-center gap-2 font-mono text-[10px]">
 				<!-- Adjusted BPM -->
-				<span v-if="entry.adjusted_bpm" class="text-muted-foreground">
+				<span v-if="entry.adjusted_bpm !== null" class="text-muted-foreground">
 					{{ entry.adjusted_bpm.toFixed(1) }} BPM
 				</span>
-				<span v-else-if="track.bpm" class="text-muted-foreground">
+				<span v-else-if="track?.bpm" class="text-muted-foreground">
 					{{ track.bpm.toFixed(1) }} BPM
 				</span>
 
@@ -96,11 +111,6 @@ function handleRatingUpdate(rating: number | null) {
 					{{ keyDisplay }}
 				</span>
 			</div>
-		</div>
-
-		<!-- Fallback if track not found -->
-		<div v-else class="text-muted-foreground text-sm italic">
-			Track not found
 		</div>
 	</div>
 </template>

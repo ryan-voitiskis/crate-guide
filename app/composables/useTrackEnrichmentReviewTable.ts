@@ -1,14 +1,9 @@
 import type { Ref } from 'vue'
+import { canStageTrackEnrichmentWorkflowRow } from '~/composables/useTrackEnrichmentWorkflow'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
-import { canStageTrackEnrichmentRow } from '~/utils/trackEnrichment'
 
 export type TrackEnrichmentReviewSortKey =
-	| 'library'
-	| 'source'
-	| 'duration'
-	| 'bpm'
-	| 'key'
-	| 'confidence'
+	'library' | 'source' | 'duration' | 'bpm' | 'key' | 'confidence'
 
 type UseTrackEnrichmentReviewTableOptions = {
 	filteredRows: Readonly<Ref<TrackEnrichmentRow[]>>
@@ -117,7 +112,7 @@ export function useTrackEnrichmentReviewTable({
 	})
 
 	const stageableRows = computed(() =>
-		searchedRows.value.filter(canStageTrackEnrichmentRow)
+		searchedRows.value.filter(canStageTrackEnrichmentWorkflowRow)
 	)
 
 	const stagedCount = computed(

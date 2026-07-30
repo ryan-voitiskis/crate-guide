@@ -2,6 +2,7 @@
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import { crateSchema } from '~/utils/schemas/crate'
+import type { LibraryCrate } from '~~/shared/types/library'
 
 const props = defineProps<{
 	open: boolean
@@ -9,10 +10,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
 	'update:open': [value: boolean]
-	saved: [crate: Crate]
+	saved: [crate: LibraryCrate]
 }>()
 
-const cratesStore = useCratesStore()
+const cratesStore = useWorkbenchCratesStore()
 
 const validationSchema = toTypedSchema(crateSchema)
 
@@ -56,10 +57,7 @@ const submitCrate = handleSubmit(async (values) => {
 			color: colorValue.value
 		}
 
-		const result = await cratesStore.createCrate({
-			...crateData,
-			records: []
-		})
+		const result = await cratesStore.createCrate(crateData)
 
 		if (result) {
 			emit('saved', result)

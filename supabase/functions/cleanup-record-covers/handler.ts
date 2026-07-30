@@ -1,5 +1,5 @@
-import type { User } from '@supabase/supabase-js'
-import { processOneAccountCoverCleanup } from '../_shared/accountCoverCleanup.ts'
+import type { SupabaseClient, User } from '@supabase/supabase-js'
+import { processNextAccountCoverCleanup } from '../_shared/accountCoverCleanup.ts'
 import {
 	createAuthedSupabaseClient,
 	createServiceRoleSupabaseClient,
@@ -19,7 +19,7 @@ export interface CleanupJob {
 	attempt_count: number
 }
 
-interface CleanupAdmin {
+export interface CleanupRepository {
 	loadJobs(userId: string, limit: number): Promise<CleanupJob[]>
 	findReferencedPaths(userId: string, paths: string[]): Promise<Set<string>>
 	removeObjects(paths: string[]): Promise<void>
@@ -28,12 +28,12 @@ interface CleanupAdmin {
 		userId: string,
 		jobs: CleanupJob[],
 		attemptedAt: string
-	): Promise<void>
+	): Promise<number[]>
 }
 
 interface HandlerDependencies {
 	authenticate(authHeader: string): Promise<User>
-	createAdmin(): CleanupAdmin
+	createRepository(): CleanupRepository
 	now(): Date
 	processOrphanedAccountCleanup(): Promise<void>
 	scheduleBackground(task: Promise<void>): void
@@ -46,8 +46,9 @@ interface EdgeRuntimeLifetime {
 class CleanupDatabaseError extends Error {}
 class CleanupStorageError extends Error {}
 
-function createDefaultAdmin(): CleanupAdmin {
-	const supabase = createServiceRoleSupabaseClient()
+export function createCleanupRepository(
+	supabase: SupabaseClient = createServiceRoleSupabaseClient()
+): CleanupRepository {
 	const bucket = supabase.storage.from(RECORD_COVER_BUCKET)
 
 	return {
@@ -108,32 +109,58 @@ function createDefaultAdmin(): CleanupAdmin {
 			}
 		},
 		async markAttempts(userId, jobs, attemptedAt) {
-			await Promise.all(
-				jobs.map(async (job) => {
-					const { error } = await supabase
-						.from('record_cover_cleanup_jobs')
-						.update({
-							attempt_count: job.attempt_count + 1,
-							last_attempted_at: attemptedAt
-						})
-						.eq('user_id', userId)
-						.eq('id', job.id)
-						.eq('attempt_count', job.attempt_count)
-					if (error) {
-						throw new CleanupDatabaseError('Cleanup attempt update failed')
-					}
-				})
+			if (!jobs.length) return []
+			const expectedIds = new Set(jobs.map(({ id }) => id))
+			const { data, error } = await supabase.rpc(
+				'mark_record_cover_cleanup_attempts',
+				{
+					target_user_id: userId,
+					target_job_ids: jobs.map(({ id }) => id),
+					observed_attempt_counts: jobs.map(
+						({ attempt_count }) => attempt_count
+					),
+					attempted_at: attemptedAt
+				}
 			)
+			if (error || !Array.isArray(data) || data.length > jobs.length) {
+				throw new CleanupDatabaseError('Cleanup attempt update failed')
+			}
+
+			const changedIds = new Set<number>()
+			for (const row of data) {
+				if (
+					!row ||
+					typeof row !== 'object' ||
+					Array.isArray(row) ||
+					Object.keys(row).length !== 1 ||
+					!Object.hasOwn(row, 'changed_job_id')
+				) {
+					throw new CleanupDatabaseError('Cleanup attempt update failed')
+				}
+				const { changed_job_id: changedJobId } = row as {
+					changed_job_id: unknown
+				}
+				if (
+					typeof changedJobId !== 'number' ||
+					!Number.isSafeInteger(changedJobId) ||
+					!expectedIds.has(changedJobId) ||
+					changedIds.has(changedJobId)
+				) {
+					throw new CleanupDatabaseError('Cleanup attempt update failed')
+				}
+				changedIds.add(changedJobId)
+			}
+			return [...changedIds]
 		}
 	}
 }
 
 const defaultDependencies: HandlerDependencies = {
 	authenticate: (authHeader) => getUser(createAuthedSupabaseClient(authHeader)),
-	createAdmin: createDefaultAdmin,
+	createRepository: createCleanupRepository,
 	now: () => new Date(),
 	processOrphanedAccountCleanup: async () => {
-		await processOneAccountCoverCleanup()
+		await processNextAccountCoverCleanup()
 	},
 	scheduleBackground: (task) => {
 		const edgeRuntime = (
@@ -177,14 +204,14 @@ function isValidManagedJob(job: CleanupJob, userId: string): boolean {
 }
 
 async function markAttemptsBestEffort(
-	admin: CleanupAdmin,
+	repository: CleanupRepository,
 	userId: string,
 	jobs: CleanupJob[],
 	attemptedAt: string
 ): Promise<void> {
 	if (!jobs.length) return
 	try {
-		await admin.markAttempts(userId, jobs, attemptedAt)
+		await repository.markAttempts(userId, jobs, attemptedAt)
 	} catch {
 		// The durable rows remain. A later authenticated drain can retry both the
 		// cleanup and its bounded diagnostic metadata update.
@@ -264,10 +291,10 @@ export function createCleanupRecordCoversHandler(
 			)
 		}
 
-		const admin = dependencies.createAdmin()
+		const repository = dependencies.createRepository()
 		let jobs: CleanupJob[]
 		try {
-			jobs = (await admin.loadJobs(user.id, CLEANUP_JOB_LIMIT)).slice(
+			jobs = (await repository.loadJobs(user.id, CLEANUP_JOB_LIMIT)).slice(
 				0,
 				CLEANUP_JOB_LIMIT
 			)
@@ -299,7 +326,7 @@ export function createCleanupRecordCoversHandler(
 			try {
 				// Discard poisoned queue rows only. Their paths are never sent to Storage,
 				// and valid work later in the same bounded page can continue.
-				await admin.deleteJobs(
+				await repository.deleteJobs(
 					user.id,
 					invalidJobs.map(({ id }) => id)
 				)
@@ -311,14 +338,14 @@ export function createCleanupRecordCoversHandler(
 
 		let referencedPaths: Set<string>
 		try {
-			referencedPaths = await admin.findReferencedPaths(
+			referencedPaths = await repository.findReferencedPaths(
 				user.id,
 				validJobs.map(({ object_path }) => object_path)
 			)
 		} catch {
 			failedJobs.push(...validJobs)
 			await markAttemptsBestEffort(
-				admin,
+				repository,
 				user.id,
 				failedJobs,
 				dependencies.now().toISOString()
@@ -343,7 +370,7 @@ export function createCleanupRecordCoversHandler(
 
 		if (referencedJobs.length) {
 			try {
-				await admin.deleteJobs(
+				await repository.deleteJobs(
 					user.id,
 					referencedJobs.map(({ id }) => id)
 				)
@@ -355,12 +382,12 @@ export function createCleanupRecordCoversHandler(
 
 		if (removableJobs.length) {
 			try {
-				await admin.removeObjects(
+				await repository.removeObjects(
 					removableJobs.map(({ object_path }) => object_path)
 				)
 				removed += removableJobs.length
 				try {
-					await admin.deleteJobs(
+					await repository.deleteJobs(
 						user.id,
 						removableJobs.map(({ id }) => id)
 					)
@@ -374,7 +401,7 @@ export function createCleanupRecordCoversHandler(
 		}
 
 		await markAttemptsBestEffort(
-			admin,
+			repository,
 			user.id,
 			failedJobs,
 			dependencies.now().toISOString()

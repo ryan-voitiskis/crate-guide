@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CircleX } from 'lucide-vue-next'
+import { CircleX } from '@lucide/vue'
 
 const props = defineProps<{
 	deckIndex: number
@@ -7,7 +7,7 @@ const props = defineProps<{
 }>()
 
 const session = useWorkbenchSessionStore()
-const user = useWorkbenchUserStore()
+const preferences = useWorkbenchPreferencesStore()
 
 const suggestions = computed(() =>
 	session.getSuggestionsForDeck(props.deckIndex)
@@ -48,7 +48,7 @@ const blackDeckBackground = `linear-gradient(
 )`
 
 const deckBackground = computed(() => {
-	const theme = user.profile?.turntable_theme ?? 'silver'
+	const theme = preferences.preferences.turntable_theme
 	return theme === 'black' ? blackDeckBackground : silverDeckMaterial
 })
 </script>

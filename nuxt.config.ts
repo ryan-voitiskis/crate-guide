@@ -1,13 +1,30 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath } from 'node:url'
-import { buildAnonymousThemeBootstrapScript } from './app/utils/themeBootstrap'
+import { buildThemeBootstrapScript } from './app/utils/themeBootstrap'
+import { applyDeferredClientAssetPrefetchPolicy } from './scripts/check-client-bundle-budget.mjs'
+import { validatePublicRuntimeConfig } from './scripts/runtime-config.mjs'
+import clientBundleBudget from './shared/config/clientBundleBudget.json'
+
+const publicRuntimeConfig = validatePublicRuntimeConfig()
 
 export default defineNuxtConfig({
+	runtimeConfig: {
+		browserSecurity: {
+			supabaseOrigin: publicRuntimeConfig.url
+				? new URL(publicRuntimeConfig.url).origin
+				: ''
+		}
+	},
 	alias: {
 		test: fileURLToPath(new URL('./test', import.meta.url))
 	},
 	compatibilityDate: '2026-03-01',
+	hooks: {
+		'build:manifest'(manifest) {
+			applyDeferredClientAssetPrefetchPolicy(manifest, clientBundleBudget)
+		}
+	},
 	future: {
 		compatibilityVersion: 4
 	},
@@ -19,6 +36,24 @@ export default defineNuxtConfig({
 	css: ['~/assets/css/main.css'],
 	vite: {
 		plugins: [tailwindcss()],
+		build: {
+			rollupOptions: {
+				output: {
+					manualChunks(id) {
+						const [moduleId = ''] = id.split('?', 1)
+						if (
+							[
+								'/app/types/trackEnrichmentDraft.ts',
+								'/app/utils/trackEnrichmentDraftCodec.ts',
+								'/app/utils/trackEnrichmentDraftPrivacy.ts'
+							].some((suffix) => moduleId.endsWith(suffix))
+						) {
+							return 'track-enrichment-draft-format'
+						}
+					}
+				}
+			}
+		},
 		worker: {
 			format: 'es'
 		}
@@ -64,8 +99,8 @@ export default defineNuxtConfig({
 			link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
 			script: [
 				{
-					key: 'anonymous-theme-bootstrap',
-					innerHTML: buildAnonymousThemeBootstrapScript(),
+					key: 'theme-bootstrap',
+					innerHTML: buildThemeBootstrapScript(),
 					tagPosition: 'head',
 					tagPriority: 'critical'
 				}
@@ -73,8 +108,8 @@ export default defineNuxtConfig({
 		}
 	},
 	supabase: {
-		url: process.env.SUPABASE_URL,
-		key: process.env.SUPABASE_ANON_KEY,
+		url: publicRuntimeConfig.url,
+		key: publicRuntimeConfig.key,
 		redirect: false,
 		types: '~~/shared/types/database.ts'
 	}

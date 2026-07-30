@@ -1,3 +1,4 @@
+import { parseBPM } from './formatting'
 import { parseKeyComposite } from './keyFunctions'
 
 export function isValidTrackPosition(position: string): boolean {
@@ -11,9 +12,8 @@ export function isValidDurationFormat(duration: string): boolean {
 }
 
 export function isValidBPM(bpm: string): boolean {
-	if (bpm === '') return true
-	const num = parseFloat(bpm)
-	return !isNaN(num) && num >= 30 && num <= 300
+	if (bpm.trim() === '') return true
+	return parseBPM(bpm) !== null
 }
 
 export function isValidKeyComposite(keyComposite: string): boolean {

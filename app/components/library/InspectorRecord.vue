@@ -11,10 +11,11 @@ import {
 	Tag,
 	Trash2,
 	X
-} from 'lucide-vue-next'
+} from '@lucide/vue'
+import type { LibraryRecord } from '~~/shared/types/library'
 
 const props = defineProps<{
-	record: DatabaseRecord
+	record: LibraryRecord
 	trackCount: number
 	showClose?: boolean
 	readOnly?: boolean

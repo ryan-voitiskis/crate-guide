@@ -24,7 +24,6 @@ const mockIsError = vi.fn((e) => e instanceof Error)
 const mockIsDiscogsReleaseFull = vi.fn(() => true)
 
 // Stub all auto-imported functions
-vi.stubGlobal('getExistingDiscogsIds', mockGetExistingDiscogsIds)
 vi.stubGlobal('formatReleaseDisplayTitle', mockFormatReleaseDisplayTitle)
 vi.stubGlobal(
 	'formatFullReleaseDisplayTitle',
@@ -32,7 +31,6 @@ vi.stubGlobal(
 )
 vi.stubGlobal('isError', mockIsError)
 vi.stubGlobal('isDiscogsReleaseFull', mockIsDiscogsReleaseFull)
-vi.stubGlobal('importRecordWithTracks', mockImportRecordWithTracks)
 vi.stubGlobal('useDiscogsApi', () => ({
 	getRelease: mockGetRelease
 }))
@@ -60,7 +58,10 @@ describe('filterOutExistingReleases', () => {
 			createSelectableRelease({ id: 3 })
 		]
 
-		const result = await filterOutExistingReleases(releases)
+		const result = await filterOutExistingReleases(
+			releases,
+			mockGetExistingDiscogsIds
+		)
 
 		expect(result.releasesToFetch).toHaveLength(3)
 		expect(result.skipped).toHaveLength(0)
@@ -75,7 +76,10 @@ describe('filterOutExistingReleases', () => {
 			createSelectableRelease({ id: 3 })
 		]
 
-		const result = await filterOutExistingReleases(releases)
+		const result = await filterOutExistingReleases(
+			releases,
+			mockGetExistingDiscogsIds
+		)
 
 		expect(result.releasesToFetch).toHaveLength(1)
 		expect(result.releasesToFetch[0]?.id).toBe(2)
@@ -112,7 +116,10 @@ describe('filterOutExistingReleases', () => {
 			})
 		]
 
-		const result = await filterOutExistingReleases(releases)
+		const result = await filterOutExistingReleases(
+			releases,
+			mockGetExistingDiscogsIds
+		)
 
 		expect(result.skipped).toHaveLength(1)
 		expect(result.skipped[0]?.label).toBeDefined()
@@ -121,7 +128,10 @@ describe('filterOutExistingReleases', () => {
 	it('handles empty input array', async () => {
 		mockGetExistingDiscogsIds.mockResolvedValue(new Set())
 
-		const result = await filterOutExistingReleases([])
+		const result = await filterOutExistingReleases(
+			[],
+			mockGetExistingDiscogsIds
+		)
 
 		expect(result.releasesToFetch).toHaveLength(0)
 		expect(result.skipped).toHaveLength(0)
@@ -136,7 +146,10 @@ describe('filterOutExistingReleases', () => {
 			createSelectableRelease({ id: 3 })
 		]
 
-		const result = await filterOutExistingReleases(releases)
+		const result = await filterOutExistingReleases(
+			releases,
+			mockGetExistingDiscogsIds
+		)
 
 		expect(result.releasesToFetch).toHaveLength(0)
 		expect(result.skipped).toHaveLength(3)
@@ -410,17 +423,21 @@ describe('importFetchedReleases', () => {
 		resetReleaseIdCounter()
 	})
 
-	const userId = 'test-user-id'
-
 	it('imports all releases successfully', async () => {
-		mockImportRecordWithTracks.mockResolvedValue(undefined)
+		mockImportRecordWithTracks.mockResolvedValue({
+			recordId: 'record-id',
+			inserted: true
+		})
 
 		const releases = [
 			createMockDiscogsReleaseFull({ id: 1 }),
 			createMockDiscogsReleaseFull({ id: 2 })
 		]
 
-		const result = await importFetchedReleases(releases, userId)
+		const result = await importFetchedReleases(
+			releases,
+			mockImportRecordWithTracks
+		)
 
 		expect(result.successful).toBe(2)
 		expect(result.failed).toHaveLength(0)
@@ -429,9 +446,9 @@ describe('importFetchedReleases', () => {
 
 	it('handles import failures', async () => {
 		mockImportRecordWithTracks
-			.mockResolvedValueOnce(undefined)
+			.mockResolvedValueOnce({ recordId: 'record-1', inserted: true })
 			.mockRejectedValueOnce(new Error('Database error'))
-			.mockResolvedValueOnce(undefined)
+			.mockResolvedValueOnce({ recordId: 'record-3', inserted: true })
 
 		const releases = [
 			createMockDiscogsReleaseFull({ id: 1 }),
@@ -439,7 +456,10 @@ describe('importFetchedReleases', () => {
 			createMockDiscogsReleaseFull({ id: 3 })
 		]
 
-		const result = await importFetchedReleases(releases, userId)
+		const result = await importFetchedReleases(
+			releases,
+			mockImportRecordWithTracks
+		)
 
 		expect(result.successful).toBe(2)
 		expect(result.failed).toHaveLength(1)
@@ -458,7 +478,10 @@ describe('importFetchedReleases', () => {
 
 		const releases = [createMockDiscogsReleaseFull({ id: 1 })]
 
-		const result = await importFetchedReleases(releases, userId)
+		const result = await importFetchedReleases(
+			releases,
+			mockImportRecordWithTracks
+		)
 
 		expect(result.successful).toBe(0)
 		expect(result.failed).toHaveLength(1)
@@ -468,34 +491,63 @@ describe('importFetchedReleases', () => {
 	})
 
 	it('handles empty input array', async () => {
-		const result = await importFetchedReleases([], userId)
+		const result = await importFetchedReleases([], mockImportRecordWithTracks)
 
 		expect(result.successful).toBe(0)
 		expect(result.failed).toHaveLength(0)
 		expect(mockImportRecordWithTracks).not.toHaveBeenCalled()
 	})
 
-	it('passes userId to import function', async () => {
-		mockImportRecordWithTracks.mockResolvedValue(undefined)
+	it('passes only account-neutral transformed metadata to the destination', async () => {
+		mockImportRecordWithTracks.mockResolvedValue({
+			recordId: 'record-id',
+			inserted: true
+		})
 
 		const releases = [createMockDiscogsReleaseFull({ id: 1 })]
 
-		await importFetchedReleases(releases, userId)
+		await importFetchedReleases(releases, mockImportRecordWithTracks)
 
-		expect(mockImportRecordWithTracks).toHaveBeenCalledWith(
-			expect.any(Object),
-			userId
+		expect(mockImportRecordWithTracks).toHaveBeenCalledOnce()
+		const payload = mockImportRecordWithTracks.mock.calls[0]![0]
+		expect(payload.record.discogs_id).toBe(1)
+		expect(JSON.stringify(payload)).not.toContain('user_id')
+	})
+
+	it('reports a duplicate race as skipped instead of imported or failed', async () => {
+		mockImportRecordWithTracks.mockResolvedValue({
+			recordId: 'existing-record',
+			inserted: false
+		})
+		const release = createMockDiscogsReleaseFull({ id: 9, title: 'Existing' })
+
+		const result = await importFetchedReleases(
+			[release],
+			mockImportRecordWithTracks
 		)
+
+		expect(result).toEqual({
+			successful: 0,
+			skipped: [{ label: 'Existing', releaseId: 9, reason: 'duplicate' }],
+			confirmedReleaseIds: [9],
+			failed: []
+		})
 	})
 
 	it('stops before the next write when cancelled during an in-flight import', async () => {
-		let resolveFirstImport!: () => void
-		const firstImport = new Promise<void>((resolve) => {
+		let resolveFirstImport!: (value: {
+			recordId: string
+			inserted: boolean
+		}) => void
+		const firstImport = new Promise<{
+			recordId: string
+			inserted: boolean
+		}>((resolve) => {
 			resolveFirstImport = resolve
 		})
 		mockImportRecordWithTracks
 			.mockReturnValueOnce(firstImport)
-			.mockResolvedValueOnce(undefined)
+			.mockResolvedValueOnce({ recordId: 'record-2', inserted: true })
 		const releases = [
 			createMockDiscogsReleaseFull({ id: 1 }),
 			createMockDiscogsReleaseFull({ id: 2 })
@@ -504,16 +556,27 @@ describe('importFetchedReleases', () => {
 
 		const importPromise = importFetchedReleases(
 			releases,
-			userId,
+			mockImportRecordWithTracks,
 			() => cancelled
 		)
 		expect(mockImportRecordWithTracks).toHaveBeenCalledTimes(1)
 
 		cancelled = true
-		resolveFirstImport()
+		resolveFirstImport({ recordId: 'record-1', inserted: true })
 		const result = await importPromise
 
 		expect(mockImportRecordWithTracks).toHaveBeenCalledTimes(1)
-		expect(result).toEqual({ successful: 1, failed: [] })
+		expect(result).toEqual({
+			successful: 1,
+			skipped: [
+				{
+					label: expect.any(String),
+					releaseId: 2,
+					reason: 'cancelled'
+				}
+			],
+			confirmedReleaseIds: [1],
+			failed: []
+		})
 	})
 })

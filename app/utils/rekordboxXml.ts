@@ -1,5 +1,9 @@
 import type { RekordboxXmlSource } from '~~/shared/types/audioFeatures'
-import { parseBeatportKey, pitchClassMap } from './keyFunctions'
+import {
+	parseLongFormTonality,
+	parsePitchClassNote,
+	pitchClassMap
+} from './keyFunctions'
 
 export type RekordboxXmlTrack = {
 	sourceType: 'rekordboxXml'
@@ -41,31 +45,11 @@ const QUOTES_AND_APOSTROPHES =
 	/[\u2018\u2019\u201a\u201b\u201c\u201d\u201e\u201f]/g
 const DASHES = /[\u2010-\u2015\u2212]/g
 
-const NOTE_MAP: Record<string, number> = {
-	C: 0,
-	'C#': 1,
-	Db: 1,
-	D: 2,
-	'D#': 3,
-	Eb: 3,
-	E: 4,
-	F: 5,
-	'F#': 6,
-	Gb: 6,
-	G: 7,
-	'G#': 8,
-	Ab: 8,
-	A: 9,
-	'A#': 10,
-	Bb: 10,
-	B: 11
-}
-
 export function stripInvisibleCharacters(input: string): string {
 	return input.replace(INVISIBLE_CHARACTERS, '')
 }
 
-function cleanXmlString(value: string | null): string | null {
+export function cleanRekordboxXmlString(value: string | null): string | null {
 	if (value === null) return null
 	const cleaned = stripInvisibleCharacters(value).normalize('NFKC').trim()
 	return cleaned || null
@@ -96,8 +80,10 @@ export function normalizeFilenameTitle(fileName: string | null | undefined) {
 	return normalizeForTrackMatch(withoutExtension)
 }
 
-function parseNullableInteger(value: string | null): number | null {
-	const cleaned = cleanXmlString(value)
+export function parseRekordboxNullableInteger(
+	value: string | null
+): number | null {
+	const cleaned = cleanRekordboxXmlString(value)
 	if (!cleaned) return null
 
 	const parsed = Number.parseInt(cleaned, 10)
@@ -105,7 +91,7 @@ function parseNullableInteger(value: string | null): number | null {
 }
 
 function parseAverageBpm(value: string | null): number | null {
-	const cleaned = cleanXmlString(value)
+	const cleaned = cleanRekordboxXmlString(value)
 	if (!cleaned) return null
 
 	const parsed = Number.parseFloat(cleaned)
@@ -114,23 +100,12 @@ function parseAverageBpm(value: string | null): number | null {
 	return Math.round(parsed * 10) / 10
 }
 
-function canonicalNote(note: string, accidental: string | undefined): string {
-	const base = note.toUpperCase()
-	const normalizedAccidental = accidental
-		?.replace('\u266f', '#')
-		.replace('\u266d', 'b')
-	if (!normalizedAccidental) return base
-	return normalizedAccidental === '#'
-		? `${base}#`
-		: `${base}${normalizedAccidental.toLowerCase()}`
-}
-
 export function parseRekordboxTonality(tonality: string | null): {
 	key: number | null
 	mode: number | null
 	warning: string | null
 } {
-	const cleaned = cleanXmlString(tonality)
+	const cleaned = cleanRekordboxXmlString(tonality)
 	if (!cleaned) return { key: null, mode: null, warning: null }
 
 	const camelotMatch = cleaned.match(/^([1-9]|1[0-2])\s*([ab])$/i)
@@ -152,18 +127,19 @@ export function parseRekordboxTonality(tonality: string | null): {
 				}
 	}
 
-	const longForm = parseBeatportKey(cleaned)
+	const longForm = parseLongFormTonality(cleaned)
 	if (longForm.key !== null && longForm.mode !== null) {
 		return { ...longForm, warning: null }
 	}
 
 	const shortNoteMatch = cleaned.match(/^([a-g])([#b\u266f\u266d]?)(m?)$/i)
 	if (shortNoteMatch) {
-		const note = canonicalNote(shortNoteMatch[1]!, shortNoteMatch[2])
-		const key = NOTE_MAP[note]
+		const key = parsePitchClassNote(
+			`${shortNoteMatch[1]}${shortNoteMatch[2] ?? ''}`
+		)
 		const mode = shortNoteMatch[3] ? 0 : 1
 
-		return key === undefined
+		return key === null
 			? {
 					key: null,
 					mode: null,
@@ -179,10 +155,6 @@ export function parseRekordboxTonality(tonality: string | null): {
 	}
 }
 
-function getAttribute(element: Element, name: string): string | null {
-	return cleanXmlString(element.getAttribute(name))
-}
-
 function decodeUriComponent(value: string): string {
 	try {
 		return decodeURIComponent(value)
@@ -191,7 +163,9 @@ function decodeUriComponent(value: string): string {
 	}
 }
 
-function decodeLocation(location: string | null): string | null {
+export function decodeRekordboxLocation(
+	location: string | null
+): string | null {
 	if (!location) return null
 
 	try {
@@ -204,14 +178,14 @@ function decodeLocation(location: string | null): string | null {
 	const withoutProtocol = location
 		.replace(/^file:\/\/localhost/i, '')
 		.replace(/^file:\/\//i, '')
-	return cleanXmlString(decodeUriComponent(withoutProtocol))
+	return cleanRekordboxXmlString(decodeUriComponent(withoutProtocol))
 }
 
-function getPathSegments(path: string): string[] {
+export function getRekordboxPathSegments(path: string): string[] {
 	return path.replace(/\\/g, '/').split('/').filter(Boolean)
 }
 
-function stripHomeDirectory(segments: string[]): string[] {
+export function stripRekordboxHomeDirectory(segments: string[]): string[] {
 	const homeRootIndex = segments.findIndex(
 		(segment, index) =>
 			index <= 1 && ['users', 'home'].includes(segment.toLowerCase())
@@ -223,9 +197,9 @@ function stripHomeDirectory(segments: string[]): string[] {
 	return segments.slice(homeRootIndex + 2)
 }
 
-function getCommonDirectory(paths: string[]): string[] {
+export function getRekordboxCommonDirectory(paths: string[]): string[] {
 	const directorySegments = paths
-		.map((path) => getPathSegments(path).slice(0, -1))
+		.map((path) => getRekordboxPathSegments(path).slice(0, -1))
 		.filter((segments) => segments.length > 0)
 
 	if (directorySegments.length < 2) return []
@@ -247,13 +221,20 @@ function getCommonDirectory(paths: string[]): string[] {
 	return common
 }
 
-function toRelativeLocationHint(
+export function toRekordboxRelativeLocationHint(
 	decodedLocation: string | null,
 	commonDirectory: string[]
 ): string | null {
 	if (!decodedLocation) return null
 
-	const segments = getPathSegments(decodedLocation)
+	const segments = getRekordboxPathSegments(decodedLocation)
+	return toRekordboxRelativeLocationHintFromSegments(segments, commonDirectory)
+}
+
+export function toRekordboxRelativeLocationHintFromSegments(
+	segments: string[],
+	commonDirectory: string[]
+): string | null {
 	if (segments.length === 0) return null
 
 	const canUseCommonDirectory =
@@ -262,17 +243,22 @@ function toRelativeLocationHint(
 
 	const relativeSegments = canUseCommonDirectory
 		? segments.slice(commonDirectory.length)
-		: stripHomeDirectory(segments).slice(-3)
+		: stripRekordboxHomeDirectory(segments).slice(-3)
 
 	return relativeSegments.join('/') || null
 }
 
-function parseTrackElement(element: Element, index: number): RekordboxXmlTrack {
+export function buildRekordboxXmlTrack(
+	readAttribute: (name: string) => string | null,
+	index: number
+): RekordboxXmlTrack {
 	const warnings: string[] = []
-	const tonality = getAttribute(element, 'Tonality')
+	const cleanedAttribute = (name: string) =>
+		cleanRekordboxXmlString(readAttribute(name))
+	const tonality = cleanedAttribute('Tonality')
 	const parsedTonality = parseRekordboxTonality(tonality)
-	const name = getAttribute(element, 'Name')
-	const artist = getAttribute(element, 'Artist')
+	const name = cleanedAttribute('Name')
+	const artist = cleanedAttribute('Artist')
 
 	if (!name) warnings.push('Missing track name')
 	if (!artist) warnings.push('Missing artist')
@@ -281,30 +267,34 @@ function parseTrackElement(element: Element, index: number): RekordboxXmlTrack {
 	return {
 		sourceType: 'rekordboxXml',
 		index,
-		trackId: getAttribute(element, 'TrackID'),
+		trackId: cleanedAttribute('TrackID'),
 		name,
 		artist,
-		album: getAttribute(element, 'Album'),
-		genre: getAttribute(element, 'Genre'),
-		kind: getAttribute(element, 'Kind'),
-		totalTimeSeconds: parseNullableInteger(element.getAttribute('TotalTime')),
-		year: parseNullableInteger(element.getAttribute('Year')),
-		averageBpm: parseAverageBpm(element.getAttribute('AverageBpm')),
-		dateAdded: getAttribute(element, 'DateAdded'),
-		bitRate: parseNullableInteger(element.getAttribute('BitRate')),
-		sampleRate: parseNullableInteger(element.getAttribute('SampleRate')),
-		comments: getAttribute(element, 'Comments'),
-		playCount: parseNullableInteger(element.getAttribute('PlayCount')),
-		rating: parseNullableInteger(element.getAttribute('Rating')),
-		location: decodeLocation(getAttribute(element, 'Location')),
+		album: cleanedAttribute('Album'),
+		genre: cleanedAttribute('Genre'),
+		kind: cleanedAttribute('Kind'),
+		totalTimeSeconds: parseRekordboxNullableInteger(readAttribute('TotalTime')),
+		year: parseRekordboxNullableInteger(readAttribute('Year')),
+		averageBpm: parseAverageBpm(readAttribute('AverageBpm')),
+		dateAdded: cleanedAttribute('DateAdded'),
+		bitRate: parseRekordboxNullableInteger(readAttribute('BitRate')),
+		sampleRate: parseRekordboxNullableInteger(readAttribute('SampleRate')),
+		comments: cleanedAttribute('Comments'),
+		playCount: parseRekordboxNullableInteger(readAttribute('PlayCount')),
+		rating: parseRekordboxNullableInteger(readAttribute('Rating')),
+		location: decodeRekordboxLocation(cleanedAttribute('Location')),
 		locationHint: null,
-		remixer: getAttribute(element, 'Remixer'),
+		remixer: cleanedAttribute('Remixer'),
 		tonality,
 		parsedKey: parsedTonality.key,
 		parsedMode: parsedTonality.mode,
-		label: getAttribute(element, 'Label'),
+		label: cleanedAttribute('Label'),
 		warnings
 	}
+}
+
+function parseTrackElement(element: Element, index: number): RekordboxXmlTrack {
+	return buildRekordboxXmlTrack((name) => element.getAttribute(name), index)
 }
 
 export function parseRekordboxXml(xmlText: string): RekordboxXmlParseResult {
@@ -342,7 +332,7 @@ export function parseRekordboxXml(xmlText: string): RekordboxXmlParseResult {
 		}
 	}
 
-	const entriesDeclared = parseNullableInteger(
+	const entriesDeclared = parseRekordboxNullableInteger(
 		collection.getAttribute('Entries')
 	)
 	const trackElements = Array.from(collection.getElementsByTagName('TRACK'))
@@ -356,7 +346,7 @@ export function parseRekordboxXml(xmlText: string): RekordboxXmlParseResult {
 		)
 	}
 
-	const commonDirectory = getCommonDirectory(
+	const commonDirectory = getRekordboxCommonDirectory(
 		tracks
 			.map((track) => track.location)
 			.filter((path): path is string => path !== null)
@@ -365,7 +355,10 @@ export function parseRekordboxXml(xmlText: string): RekordboxXmlParseResult {
 	return {
 		tracks: tracks.map((track) => ({
 			...track,
-			locationHint: toRelativeLocationHint(track.location, commonDirectory)
+			locationHint: toRekordboxRelativeLocationHint(
+				track.location,
+				commonDirectory
+			)
 		})),
 		entriesDeclared,
 		warnings,
@@ -377,13 +370,13 @@ export function getLocationFileName(
 	locationHint: string | null
 ): string | null {
 	if (!locationHint) return null
-	const segments = getPathSegments(locationHint)
+	const segments = getRekordboxPathSegments(locationHint)
 	return segments.at(-1) ?? null
 }
 
 export function getLocationAlbumHint(locationHint: string | null): string {
 	if (!locationHint) return ''
-	const segments = getPathSegments(locationHint)
+	const segments = getRekordboxPathSegments(locationHint)
 	if (segments.length < 2) return ''
 	return normalizeForTrackMatch(segments.at(-2))
 }

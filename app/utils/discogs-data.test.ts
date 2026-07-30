@@ -8,8 +8,8 @@ import {
 import { describe, expect, it } from 'vitest'
 import {
 	normalizeArtist,
-	transformRelease,
 	transformReleaseArtists,
+	transformReleaseDomain,
 	transformReleaseLabels,
 	transformReleaseTracks
 } from './discogs-data'
@@ -552,21 +552,19 @@ describe('transformReleaseTracks', () => {
 	})
 })
 
-describe('transformRelease', () => {
-	const userId = 'test-user-id'
-
-	it('transforms complete release to database format', () => {
+describe('transformReleaseDomain', () => {
+	it('transforms a complete release to an account-neutral import payload', () => {
 		const release = mockDiscogsReleases.standardEp()
 
-		const result = transformRelease(release, userId)
+		const result = transformReleaseDomain(release)
 
-		expect(result.user_id).toBe(userId)
-		expect(result.discogs_id).toBe(release.id)
-		expect(result.discogs_release_url).toBe(release.uri)
-		expect(result.title).toBe(release.title)
-		expect(result.year).toBe(release.year)
-		expect(result.artists).toHaveLength(1)
-		expect(result.labels).toHaveLength(1)
+		expect(result).not.toHaveProperty('user_id')
+		expect(result.record.discogs_id).toBe(release.id)
+		expect(result.record.discogs_release_url).toBe(release.uri)
+		expect(result.record.title).toBe(release.title)
+		expect(result.record.year).toBe(release.year)
+		expect(result.record.artists).toHaveLength(1)
+		expect(result.record.labels).toHaveLength(1)
 		expect(result.tracks).toHaveLength(4)
 	})
 
@@ -575,33 +573,39 @@ describe('transformRelease', () => {
 			title: '  Spaced Title  '
 		})
 
-		const result = transformRelease(release, userId)
+		const result = transformReleaseDomain(release)
 
-		expect(result.title).toBe('Spaced Title')
+		expect(result.record.title).toBe('Spaced Title')
 	})
 
 	it('extracts primary image as cover', () => {
 		const release = mockDiscogsReleases.standardEp()
 
-		const result = transformRelease(release, userId)
+		const result = transformReleaseDomain(release)
 
-		expect(result.cover).toBe(release.images[0]?.resource_url)
+		expect(result.record.cover).toEqual({
+			kind: 'external',
+			url: release.images[0]?.resource_url
+		})
 	})
 
 	it('falls back to first image when no primary', () => {
 		const release = mockDiscogsReleases.secondaryImageOnly()
 
-		const result = transformRelease(release, userId)
+		const result = transformReleaseDomain(release)
 
-		expect(result.cover).toBe(release.images[0]?.resource_url)
+		expect(result.record.cover).toEqual({
+			kind: 'external',
+			url: release.images[0]?.resource_url
+		})
 	})
 
 	it('returns null cover when no images', () => {
 		const release = mockDiscogsReleases.noImages()
 
-		const result = transformRelease(release, userId)
+		const result = transformReleaseDomain(release)
 
-		expect(result.cover).toBeNull()
+		expect(result.record.cover).toEqual({ kind: 'none' })
 	})
 
 	it('handles null year', () => {
@@ -609,8 +613,18 @@ describe('transformRelease', () => {
 			year: 0
 		})
 
-		const result = transformRelease(release, userId)
+		const result = transformReleaseDomain(release)
 
-		expect(result.year).toBeNull()
+		expect(result.record.year).toBeNull()
+	})
+
+	it('does not add destination entity or storage identifiers', () => {
+		const result = transformReleaseDomain(mockDiscogsReleases.standardEp())
+
+		expect(result.record).not.toHaveProperty('id')
+		expect(result.record).not.toHaveProperty('user_id')
+		expect(result.record).not.toHaveProperty('cover_storage_path')
+		expect(result.tracks.every((track) => !('id' in track))).toBe(true)
+		expect(result.tracks.every((track) => !('user_id' in track))).toBe(true)
 	})
 })

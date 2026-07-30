@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { Plus, Search } from 'lucide-vue-next'
+import { Plus, Search } from '@lucide/vue'
+import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
+import type { LibraryCrate, LibraryRecord } from '~~/shared/types/library'
 
 const props = defineProps<{
 	open: boolean
-	crate: Crate
+	crate: LibraryCrate
 }>()
 
 const emit = defineEmits<{
 	'update:open': [value: boolean]
 }>()
 
-const recordsStore = useRecordsStore()
-const cratesStore = useCratesStore()
+const recordsStore = useWorkbenchRecordsStore()
+const cratesStore = useWorkbenchCratesStore()
 
 const searchQuery = ref('')
 const addingRecordId = ref<string | null>(null)
@@ -43,6 +45,10 @@ const availableCount = computed(() => {
 	const crateRecordIds = new Set(props.crate.records)
 	return recordsStore.records.filter((r) => !crateRecordIds.has(r.id)).length
 })
+
+function getRecordKey(record: LibraryRecord) {
+	return record.id
+}
 
 async function addRecord(recordId: string) {
 	addingRecordId.value = recordId
@@ -113,12 +119,22 @@ watch(
 					</p>
 				</div>
 
-				<ScrollArea v-else class="h-full">
-					<TransitionGroup name="record-list" tag="div" class="space-y-1 pr-4">
+				<!-- @vue-generic {LibraryRecord} -->
+				<ListWorkbenchVirtual
+					v-else
+					:items="filteredRecords"
+					:get-item-key="getRecordKey"
+					:item-size="72"
+					:initial-viewport-size="560"
+					label="Records available to add to this crate"
+					item-label="available records"
+					data-testid="crate-record-candidates"
+					class="h-full pr-4"
+				>
+					<template #default="{ item: record }">
 						<div
-							v-for="record in filteredRecords"
-							:key="record.id"
-							class="hover:bg-accent flex items-center gap-3 rounded-lg border p-2 transition-colors"
+							class="hover:bg-accent flex h-17 items-center gap-3 rounded-lg border p-2 transition-colors"
+							:data-candidate-record-id="record.id"
 						>
 							<!-- Cover -->
 							<ImageRecordCover
@@ -156,8 +172,8 @@ watch(
 								<Plus class="size-4" />
 							</ButtonLoading>
 						</div>
-					</TransitionGroup>
-				</ScrollArea>
+					</template>
+				</ListWorkbenchVirtual>
 			</div>
 
 			<!-- Footer -->

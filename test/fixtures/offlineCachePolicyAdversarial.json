@@ -1,0 +1,255 @@
+{
+	"applicationOrigin": "https://crate-guide.test",
+	"allowed": [
+		{
+			"name": "opaque Nuxt JavaScript chunk",
+			"input": { "url": "/_nuxt/CXXmkvqu.js", "destination": "script" },
+			"reason": "immutable-build-asset"
+		},
+		{
+			"name": "named Nuxt stylesheet",
+			"input": { "url": "/_nuxt/entry.C6hscKdQ.css", "destination": "style" },
+			"reason": "immutable-build-asset"
+		},
+		{
+			"name": "local audio Worker",
+			"input": {
+				"url": "/_nuxt/localAudioAnalysis.worker-AbCdEf12.js",
+				"destination": "worker"
+			},
+			"reason": "immutable-build-asset"
+		},
+		{
+			"name": "Essentia WASM",
+			"input": { "url": "/_nuxt/essentia-wasm.es-AbCdEf12.wasm" },
+			"reason": "immutable-build-asset"
+		},
+		{
+			"name": "first-party font",
+			"input": {
+				"url": "/fonts/InterVariable.woff2",
+				"destination": "font"
+			},
+			"reason": "public-static-asset"
+		},
+		{
+			"name": "first-party icon",
+			"input": { "url": "/favicon.svg", "destination": "image" },
+			"reason": "public-static-asset"
+		}
+	],
+	"denied": [
+		{
+			"name": "Supabase REST",
+			"input": { "url": "https://project.supabase.co/rest/v1/records" },
+			"reason": "supabase-service"
+		},
+		{
+			"name": "Supabase Auth",
+			"input": { "url": "https://project.supabase.co/auth/v1/token" },
+			"reason": "supabase-service"
+		},
+		{
+			"name": "Supabase Storage signed cover",
+			"input": {
+				"url": "https://project.supabase.co/storage/v1/object/sign/record-covers/cover.webp?token=secret",
+				"destination": "image"
+			},
+			"reason": "sensitive-query"
+		},
+		{
+			"name": "Supabase Functions",
+			"input": {
+				"url": "https://project.supabase.co/functions/v1/authenticated-discogs-request"
+			},
+			"reason": "supabase-service"
+		},
+		{
+			"name": "custom-domain Supabase proxy",
+			"input": { "url": "/backend/rest/v1/tracks" },
+			"reason": "supabase-service"
+		},
+		{
+			"name": "Discogs API",
+			"input": { "url": "https://api.discogs.com/releases/1" },
+			"reason": "provider-origin"
+		},
+		{
+			"name": "Discogs image",
+			"input": {
+				"url": "https://i.discogs.com/private-cover.jpeg",
+				"destination": "image"
+			},
+			"reason": "provider-origin"
+		},
+		{
+			"name": "generic external image",
+			"input": {
+				"url": "https://images.example/cover.jpg",
+				"destination": "image"
+			},
+			"reason": "external-image"
+		},
+		{
+			"name": "OAuth finalising route",
+			"input": { "url": "/auth/finalising" },
+			"reason": "auth-or-oauth-route"
+		},
+		{
+			"name": "OAuth callback code",
+			"input": { "url": "/callback/discogs?code=secret&state=state" },
+			"reason": "sensitive-query"
+		},
+		{
+			"name": "signed first-party cover",
+			"input": {
+				"url": "/covers/record.webp?X-Amz-Signature=secret",
+				"destination": "image"
+			},
+			"reason": "sensitive-query"
+		},
+		{
+			"name": "portable archive",
+			"input": { "url": "/exports/library.crate-guide" },
+			"reason": "archive-or-download"
+		},
+		{
+			"name": "download response",
+			"input": {
+				"url": "/_nuxt/CXXmkvqu.js",
+				"responseHeaders": {
+					"Content-Disposition": "attachment; filename=library.zip"
+				}
+			},
+			"reason": "downloadable-response"
+		},
+		{
+			"name": "error response with request identifier",
+			"input": {
+				"url": "/_nuxt/CXXmkvqu.js",
+				"responseStatus": 503,
+				"responseHeaders": { "X-Request-Id": "private-request-id" }
+			},
+			"reason": "non-success-response"
+		},
+		{
+			"name": "explicit user-data response",
+			"input": {
+				"url": "/_nuxt/CXXmkvqu.js",
+				"containsUserData": true
+			},
+			"reason": "user-data"
+		},
+		{
+			"name": "authorization-bearing static request",
+			"input": {
+				"url": "/_nuxt/CXXmkvqu.js",
+				"requestHeaders": { "Authorization": "Bearer secret" }
+			},
+			"reason": "authorization-bearing-request"
+		},
+		{
+			"name": "personalized static-looking response",
+			"input": {
+				"url": "/_nuxt/CXXmkvqu.js",
+				"responseHeaders": { "Set-Cookie": "session=secret" }
+			},
+			"reason": "personalized-response"
+		},
+		{
+			"name": "private static-looking response",
+			"input": {
+				"url": "/_nuxt/CXXmkvqu.js",
+				"responseHeaders": { "Cache-Control": "private, max-age=60" }
+			},
+			"reason": "private-response"
+		},
+		{
+			"name": "field-qualified private response",
+			"input": {
+				"url": "/_nuxt/CXXmkvqu.js",
+				"responseHeaders": {
+					"Cache-Control": "public, max-age=60, private = \"Set-Cookie, Authorization\""
+				}
+			},
+			"reason": "private-response"
+		},
+		{
+			"name": "unhashed Nuxt chunk",
+			"input": { "url": "/_nuxt/chunk.js", "destination": "script" },
+			"reason": "unhashed-or-unsupported-build-asset"
+		},
+		{
+			"name": "Nuxt source map",
+			"input": { "url": "/_nuxt/CXXmkvqu.js.map" },
+			"reason": "source-map"
+		},
+		{
+			"name": "Nuxt build metadata",
+			"input": { "url": "/_nuxt/builds/latest.json" },
+			"reason": "unhashed-or-unsupported-build-asset"
+		},
+		{
+			"name": "dynamic records route",
+			"input": { "url": "/records" },
+			"reason": "dynamic-first-party-route"
+		},
+		{
+			"name": "unknown first-party URL",
+			"input": { "url": "/future-static/file.js" },
+			"reason": "unknown-first-party-request"
+		},
+		{
+			"name": "unknown query on allowed asset",
+			"input": { "url": "/favicon.svg?v=1", "destination": "image" },
+			"reason": "dynamic-query"
+		},
+		{
+			"name": "fragment token",
+			"input": { "url": "/favicon.svg#access_token=secret" },
+			"reason": "url-fragment"
+		},
+		{
+			"name": "path traversal into auth",
+			"input": { "url": "/_nuxt/%2e%2e/auth/finalising" },
+			"reason": "encoded-path"
+		},
+		{
+			"name": "encoded path separator",
+			"input": { "url": "/_nuxt/CXXmkvqu%2fignored.js" },
+			"reason": "encoded-path"
+		},
+		{
+			"name": "encoded path control character",
+			"input": { "url": "/_nuxt/CXXmkvqu%0a.js" },
+			"reason": "encoded-path"
+		},
+		{
+			"name": "URL username and password",
+			"input": {
+				"url": "https://cache-user:cache-password@crate-guide.test/favicon.svg"
+			},
+			"reason": "url-credentials"
+		},
+		{
+			"name": "protocol-relative origin confusion",
+			"input": { "url": "//evil.example/_nuxt/CXXmkvqu.js" },
+			"reason": "external-origin"
+		},
+		{
+			"name": "Blob object URL",
+			"input": { "url": "blob:https://crate-guide.test/private-cover" },
+			"reason": "unsupported-scheme"
+		},
+		{
+			"name": "mutation request",
+			"input": { "url": "/_nuxt/CXXmkvqu.js", "method": "POST" },
+			"reason": "unsafe-method"
+		},
+		{
+			"name": "navigation request",
+			"input": { "url": "/", "mode": "navigate" },
+			"reason": "navigation-or-document"
+		}
+	]
+}

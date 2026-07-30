@@ -1,4 +1,6 @@
-export function sortTracksByPosition(tracks: Track[]): Track[] {
+import type { LibraryTrack } from '~~/shared/types/library'
+
+export function sortTracksByPosition(tracks: LibraryTrack[]): LibraryTrack[] {
 	return [...tracks].sort((a, b) => {
 		if (!a.position && !b.position) return 0
 		if (!a.position) return 1

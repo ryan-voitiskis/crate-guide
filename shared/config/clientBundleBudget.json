@@ -1,0 +1,33 @@
+{
+	"version": 1,
+	"baseline": {
+		"measuredOn": "2026-07-30",
+		"allowancePercent": 3,
+		"initialJavaScript": {
+			"rawBytes": 1097413,
+			"gzipBytes": 350959
+		},
+		"largestOrdinaryChunk": {
+			"rawBytes": 127476,
+			"gzipBytes": 36629
+		}
+	},
+	"budgets": {
+		"initialJavaScript": {
+			"rawBytes": 1130336,
+			"gzipBytes": 361488
+		},
+		"largestOrdinaryChunk": {
+			"rawBytes": 131301,
+			"gzipBytes": 37728
+		}
+	},
+	"expectedLazyModules": [
+		"utils/cloudWorkbenchRuntime.ts",
+		"pages/enrichment.vue",
+		"repositories/library/browser/browserDeviceDraftRepository.ts",
+		"../node_modules/music-metadata/lib/mpeg/MpegParser.js"
+	],
+	"workerAssetPatterns": ["localAudioAnalysis.worker-", "rekordboxXml.worker-"],
+	"wasmAssetPatterns": ["essentia-wasm.es-"]
+}

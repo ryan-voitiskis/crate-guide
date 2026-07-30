@@ -1,6 +1,6 @@
 <script setup lang="ts">
-const tracks = useTracksStore()
-const recordDetails = useRecordDetailsStore()
+const tracks = useWorkbenchTracksStore()
+const recordDetails = useWorkbenchRecordDetailsStore()
 
 const track = computed(() => recordDetails.trackToConfirmDelete)
 const isOpen = computed(() => !!track.value)

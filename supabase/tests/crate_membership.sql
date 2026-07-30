@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(40);
+SELECT plan(59);
 
 SELECT ok(
 	to_regprocedure('public.add_record_to_crate(uuid,uuid)') IS NOT NULL,
@@ -9,6 +9,10 @@ SELECT ok(
 SELECT ok(
 	to_regprocedure('public.remove_record_from_crate(uuid,uuid)') IS NOT NULL,
 	'the remove membership RPC exists'
+);
+SELECT ok(
+	to_regprocedure('public.remove_record_from_collection(uuid)') IS NOT NULL,
+	'the transactional record-removal RPC exists'
 );
 SELECT ok(
 	to_regprocedure('public.update_crate_updated_at_monotonic()') IS NOT NULL,
@@ -179,6 +183,57 @@ SELECT ok(
 );
 SELECT ok(
 	position(
+		'FROM public.records' IN pg_get_functiondef(
+			'public.add_record_to_crate(uuid,uuid)'::regprocedure
+		)
+	) > 0
+	AND position(
+		'FROM public.records' IN pg_get_functiondef(
+			'public.add_record_to_crate(uuid,uuid)'::regprocedure
+		)
+	) < position(
+		'FROM public.crates' IN pg_get_functiondef(
+			'public.add_record_to_crate(uuid,uuid)'::regprocedure
+		)
+	),
+	'the add RPC locks and validates the record before the crate'
+);
+SELECT ok(
+	position(
+		'FROM public.records' IN pg_get_functiondef(
+			'public.remove_record_from_collection(uuid)'::regprocedure
+		)
+	) > 0
+	AND position(
+		'FROM public.records' IN pg_get_functiondef(
+			'public.remove_record_from_collection(uuid)'::regprocedure
+		)
+	) < position(
+		'FROM public.crates' IN pg_get_functiondef(
+			'public.remove_record_from_collection(uuid)'::regprocedure
+		)
+	),
+	'the collection-removal RPC locks the record before ordered crates'
+);
+SELECT ok(
+	position(
+		'FROM public.records' IN pg_get_functiondef(
+			'public.delete_all_user_data()'::regprocedure
+		)
+	) > 0
+	AND position(
+		'FROM public.records' IN pg_get_functiondef(
+			'public.delete_all_user_data()'::regprocedure
+		)
+	) < position(
+		'FROM public.crates' IN pg_get_functiondef(
+			'public.delete_all_user_data()'::regprocedure
+		)
+	),
+	'account cleanup follows the same record-before-crate lock order'
+);
+SELECT ok(
+	position(
 		'FOR UPDATE' IN pg_get_functiondef(
 			'public.remove_record_from_crate(uuid,uuid)'::regprocedure
 		)
@@ -200,6 +255,73 @@ SELECT ok(
 		)
 	) > 0,
 	'the remove RPC derives ownership from the authenticated subject'
+);
+SELECT ok(
+	has_function_privilege(
+		'authenticated',
+		'public.remove_record_from_collection(uuid)',
+		'EXECUTE'
+	),
+	'authenticated users can execute transactional record removal'
+);
+SELECT ok(
+	NOT has_table_privilege(
+		'authenticated',
+		'public.records',
+		'DELETE'
+	),
+	'authenticated users cannot delete records directly'
+);
+SELECT ok(
+	NOT has_column_privilege(
+		'authenticated',
+		'public.crates',
+		'records',
+		'UPDATE'
+	),
+	'authenticated users cannot update crate membership arrays directly'
+);
+SELECT ok(
+	has_column_privilege(
+		'authenticated',
+		'public.crates',
+		'records',
+		'INSERT'
+	),
+	'authenticated users retain trigger-guarded empty membership insert compatibility'
+);
+SELECT ok(
+	has_column_privilege('authenticated', 'public.crates', 'name', 'UPDATE')
+	AND has_column_privilege(
+		'authenticated',
+		'public.crates',
+		'description',
+		'UPDATE'
+	)
+	AND has_column_privilege(
+		'authenticated',
+		'public.crates',
+		'color',
+		'UPDATE'
+	),
+	'authenticated users retain the exact crate metadata update columns'
+);
+SELECT ok(
+	has_column_privilege('authenticated', 'public.crates', 'user_id', 'INSERT')
+	AND has_column_privilege('authenticated', 'public.crates', 'name', 'INSERT')
+	AND has_column_privilege(
+		'authenticated',
+		'public.crates',
+		'description',
+		'INSERT'
+	)
+	AND has_column_privilege(
+		'authenticated',
+		'public.crates',
+		'color',
+		'INSERT'
+	),
+	'authenticated users can create crates from metadata-only input'
 );
 
 SET LOCAL ROLE anon;
@@ -259,6 +381,13 @@ VALUES
 		'Other user record',
 		'[]'::JSONB,
 		'[]'::JSONB
+	),
+	(
+		'00000000-0000-0000-0000-000000000135',
+		'00000000-0000-0000-0000-000000000121',
+		'Transactional removal record',
+		'[]'::JSONB,
+		'[]'::JSONB
 	);
 
 INSERT INTO public.crates (
@@ -289,6 +418,13 @@ VALUES
 		'Deleted record crate',
 		ARRAY['00000000-0000-0000-0000-000000000133'::UUID],
 		'2100-01-01 00:00:00+00'
+	),
+	(
+		'00000000-0000-0000-0000-000000000144',
+		'00000000-0000-0000-0000-000000000121',
+		'Transactional removal crate',
+		ARRAY['00000000-0000-0000-0000-000000000135'::UUID],
+		'2100-01-01 00:00:00+00'
 	);
 
 SET LOCAL ROLE authenticated;
@@ -296,6 +432,81 @@ SELECT set_config(
 	'request.jwt.claim.sub',
 	'00000000-0000-0000-0000-000000000121',
 	true
+);
+
+SELECT throws_like(
+	$$
+		DELETE FROM public.records
+		WHERE id = '00000000-0000-0000-0000-000000000133'
+	$$,
+	'%permission denied for table records%',
+	'direct authenticated record deletion is denied'
+);
+SELECT throws_like(
+	$$
+		UPDATE public.crates
+		SET records = ARRAY['00000000-0000-0000-0000-000000000131'::UUID]
+		WHERE id = '00000000-0000-0000-0000-000000000141'
+	$$,
+	'%permission denied%',
+	'direct authenticated crate membership updates are denied'
+);
+SELECT throws_like(
+	$$
+		INSERT INTO public.crates (user_id, name, records)
+		VALUES (
+			'00000000-0000-0000-0000-000000000121',
+			'Pre-populated crate',
+			ARRAY['00000000-0000-0000-0000-000000000131'::UUID]
+		)
+	$$,
+	'%Crate membership must be added through the membership RPC%',
+	'direct authenticated pre-populated crate inserts are denied'
+);
+
+UPDATE public.crates
+SET
+	name = 'Renamed owner crate',
+	description = 'Metadata remains editable',
+	color = '#123456'
+WHERE id = '00000000-0000-0000-0000-000000000141';
+
+SELECT is(
+	(
+		SELECT jsonb_build_object(
+			'name', name,
+			'description', description,
+			'color', color
+		)
+		FROM public.crates
+		WHERE id = '00000000-0000-0000-0000-000000000141'
+	),
+	jsonb_build_object(
+		'name', 'Renamed owner crate',
+		'description', 'Metadata remains editable',
+		'color', '#123456'
+	),
+	'authenticated users can still edit crate metadata'
+);
+
+INSERT INTO public.crates (user_id, name, description, color, records)
+VALUES (
+	'00000000-0000-0000-0000-000000000121',
+	'Empty new crate',
+	'Metadata-only creation',
+	'#654321',
+	'{}'::UUID[]
+);
+
+SELECT is(
+	(
+		SELECT records
+		FROM public.crates
+		WHERE user_id = '00000000-0000-0000-0000-000000000121'
+			AND name = 'Empty new crate'
+	),
+	'{}'::UUID[],
+	'old clients may explicitly insert an empty membership during cutover'
 );
 
 SELECT is(
@@ -442,6 +653,50 @@ SELECT is(
 	'rejected adds leave the owned crate unchanged'
 );
 
+CREATE TEMP TABLE pg_temp.collection_removal_response AS
+SELECT public.remove_record_from_collection(
+	'00000000-0000-0000-0000-000000000135'
+) AS result;
+
+SELECT is(
+	(
+		SELECT result
+		FROM pg_temp.collection_removal_response
+	),
+	jsonb_build_object(
+		'success', true,
+		'record_id', '00000000-0000-0000-0000-000000000135'::UUID
+	),
+	'transactional record removal returns the exact deleted record contract'
+);
+SELECT is(
+	(
+		SELECT count(*)
+		FROM public.records
+		WHERE id = '00000000-0000-0000-0000-000000000135'
+	),
+	0::BIGINT,
+	'transactional record removal deletes the owned record'
+);
+SELECT is(
+	(
+		SELECT records
+		FROM public.crates
+		WHERE id = '00000000-0000-0000-0000-000000000144'
+	),
+	'{}'::UUID[],
+	'transactional record removal clears owned crate membership'
+);
+SELECT throws_like(
+	$$
+		SELECT public.remove_record_from_collection(
+			'00000000-0000-0000-0000-000000000134'
+		)
+	$$,
+	'%Record not found%',
+	'transactional record removal cannot cross ownership'
+);
+
 RESET ROLE;
 SELECT is(
 	(
@@ -453,15 +708,16 @@ SELECT is(
 	'rejected cross-user operations leave the other crate unchanged'
 );
 
+RESET ROLE;
+DELETE FROM public.records
+WHERE id = '00000000-0000-0000-0000-000000000133';
+
 SET LOCAL ROLE authenticated;
 SELECT set_config(
 	'request.jwt.claim.sub',
 	'00000000-0000-0000-0000-000000000121',
 	true
 );
-
-DELETE FROM public.records
-WHERE id = '00000000-0000-0000-0000-000000000133';
 
 SELECT is(
 	(
@@ -485,8 +741,8 @@ SELECT is(
 );
 
 -- pgTAP runs this file in one transaction and cannot hold two independent
--- client calls at the FOR UPDATE boundary. Concurrency proof is the reviewed
--- row lock above plus the stale-input accumulation characterization.
+-- client calls at the row-lock boundary. The exact interleavings are covered by
+-- scripts/test-crate-membership-concurrency.mjs against the reset local stack.
 
 SELECT * FROM finish();
 ROLLBACK;

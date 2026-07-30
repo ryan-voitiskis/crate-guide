@@ -9,12 +9,25 @@ import {
 	LoaderCircle,
 	MoreHorizontal,
 	Plus
-} from 'lucide-vue-next'
+} from '@lucide/vue'
+import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
+import { WORKBENCH_MAX_MOUNTED_ITEMS } from '~/utils/workbenchVirtualList'
+import type { LibraryRecord } from '~~/shared/types/library'
 
 type RecordSortKey = 'artist' | 'title' | 'label' | 'catno' | 'year' | 'tracks'
 type SortDirection = 'asc' | 'desc'
 type Density = 'compact' | 'comfortable'
 type ViewMode = 'table' | 'covers'
+type RecordCoverRow = {
+	key: string
+	records: LibraryRecord[]
+}
+type CoverVirtualListHandle = {
+	scrollToIndexStart: (index: number) => void
+}
+type CoverVirtualRange = {
+	firstVisible: number
+}
 
 const discogs = useWorkbenchDiscogsStore()
 const discogsAuth = useWorkbenchDiscogsAuthStore()
@@ -27,6 +40,10 @@ const capabilities = useWorkbenchCapabilities()
 
 const isActive = usePageActive()
 const isMobile = useMediaQuery('(max-width: 1279px)')
+const isCompactTable = useMediaQuery('(max-width: 767px)')
+const hasThreeCoverColumns = useMediaQuery('(min-width: 640px)')
+const hasFourCoverColumns = useMediaQuery('(min-width: 1024px)')
+const hasSixCoverColumns = useMediaQuery('(min-width: 1536px)')
 
 const selectedRecordId = ref<string | null>(null)
 const mobileInspectorOpen = ref(false)
@@ -34,6 +51,9 @@ const viewMode = ref<ViewMode>('table')
 const density = useState<Density>('workbench-density', () => 'compact')
 const sortKey = ref<RecordSortKey>('artist')
 const sortDirection = ref<SortDirection>('asc')
+const coverViewportWidth = ref(640)
+const coverVirtualList = ref<CoverVirtualListHandle | null>(null)
+const coverAnchorRecordId = ref<string | null>(null)
 
 const discogsImportLabel = computed(() => {
 	if (discogs.hasActiveTransfer) return 'View import'
@@ -93,6 +113,60 @@ const sortedRecords = computed(() => {
 	})
 })
 
+const tableItemSize = computed(() => {
+	if (isCompactTable.value) return 72
+	return density.value === 'compact' ? 40 : 56
+})
+const tableHeaderSize = computed(() => {
+	if (isCompactTable.value) return 0
+	return density.value === 'compact' ? 32 : 40
+})
+const coverColumnCount = computed(() => {
+	if (hasSixCoverColumns.value) return 6
+	if (hasFourCoverColumns.value) return 4
+	if (hasThreeCoverColumns.value) return 3
+	return 2
+})
+const coverRows = computed<RecordCoverRow[]>(() => {
+	const rows: RecordCoverRow[] = []
+	for (
+		let index = 0;
+		index < sortedRecords.value.length;
+		index += coverColumnCount.value
+	) {
+		const rowRecords = sortedRecords.value.slice(
+			index,
+			index + coverColumnCount.value
+		)
+		rows.push({
+			key: rowRecords.map((record) => record.id).join(':'),
+			records: rowRecords
+		})
+	}
+	return rows
+})
+const coverRowSize = computed(() => {
+	const horizontalPadding = 24
+	const columnGap = 8
+	const detailAndRowGap = 80
+	const availableWidth = Math.max(
+		coverColumnCount.value,
+		coverViewportWidth.value -
+			horizontalPadding -
+			(coverColumnCount.value - 1) * columnGap
+	)
+	return Math.ceil(availableWidth / coverColumnCount.value + detailAndRowGap)
+})
+const coverMaxMountedRows = computed(() =>
+	Math.max(1, Math.floor(WORKBENCH_MAX_MOUNTED_ITEMS / coverColumnCount.value))
+)
+const selectedCoverRowKey = computed(
+	() =>
+		coverRows.value.find((row) =>
+			row.records.some((record) => record.id === selectedRecordId.value)
+		)?.key ?? null
+)
+
 function handleDiscogsImport() {
 	if (!capabilities.canConnectDiscogs) return
 	if (discogsAuth.isOAuthed) {
@@ -117,16 +191,33 @@ function selectRecord(recordId: string) {
 	if (isMobile.value) mobileInspectorOpen.value = true
 }
 
-function artistNames(record: DatabaseRecord) {
+function artistNames(record: LibraryRecord) {
 	return record.artists.map((artist) => artist.name).join(', ')
 }
 
-function openRecordMenu(record: DatabaseRecord) {
+function getRecordKey(record: LibraryRecord) {
+	return record.id
+}
+
+function getCoverRowKey(row: RecordCoverRow) {
+	return row.key
+}
+
+function handleCoverViewportResize(size: { width: number }) {
+	coverViewportWidth.value = size.width
+}
+
+function handleCoverRangeChange(range: CoverVirtualRange) {
+	coverAnchorRecordId.value =
+		coverRows.value[range.firstVisible]?.records[0]?.id ?? null
+}
+
+function openRecordMenu(record: LibraryRecord) {
 	if (!capabilities.canMutateLibrary) return
 	recordDetails.openRecord(record.id)
 }
 
-function openCoverEditor(record: DatabaseRecord) {
+function openCoverEditor(record: LibraryRecord) {
 	if (!capabilities.canMutateLibrary) return
 	recordDetails.openRecord(record.id, true, 'cover')
 }
@@ -140,6 +231,24 @@ watch(
 		)
 			selectedRecordId.value = null
 	}
+)
+
+watch(
+	coverColumnCount,
+	async (columnCount, previousColumnCount) => {
+		if (columnCount === previousColumnCount) return
+		const anchorRecordId = coverAnchorRecordId.value
+		if (!anchorRecordId) return
+		const recordIndex = sortedRecords.value.findIndex(
+			(record) => record.id === anchorRecordId
+		)
+		if (recordIndex < 0) return
+		await nextTick()
+		coverVirtualList.value?.scrollToIndexStart(
+			Math.floor(recordIndex / columnCount)
+		)
+	},
+	{ flush: 'pre' }
 )
 </script>
 
@@ -245,76 +354,89 @@ watch(
 					</div>
 				</div>
 
-				<div
+				<!-- @vue-generic {LibraryRecord} -->
+				<ListWorkbenchVirtual
 					v-if="viewMode === 'table'"
-					class="workbench-scrollbar min-h-0 flex-1 overflow-auto"
+					:items="sortedRecords"
+					:get-item-key="getRecordKey"
+					:item-size="tableItemSize"
+					:header-size="tableHeaderSize"
+					:selected-key="selectedRecordId"
+					:data-testid="
+						isCompactTable ? 'compact-record-rows' : 'desktop-record-rows'
+					"
+					label="Record collection"
+					item-label="records"
+					class="workbench-scrollbar min-h-0 flex-1"
 				>
-					<div
-						class="border-border bg-muted/70 sticky top-0 z-10 hidden min-w-230 items-center gap-3 border-b pr-2 backdrop-blur-md md:grid"
-						:class="
-							density === 'compact'
-								? 'h-8 grid-cols-[40px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px]'
-								: 'h-10 grid-cols-[56px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px]'
-						"
-					>
-						<span class="text-muted-foreground pl-2 font-mono text-[9px]">
-							COVER
-						</span>
-						<ButtonLibrarySort
-							label="Artist"
-							:active="sortKey === 'artist'"
-							:direction="sortDirection"
-							@click="setSort('artist')"
-						/>
-						<ButtonLibrarySort
-							label="Title"
-							:active="sortKey === 'title'"
-							:direction="sortDirection"
-							@click="setSort('title')"
-						/>
-						<ButtonLibrarySort
-							label="Label"
-							:active="sortKey === 'label'"
-							:direction="sortDirection"
-							@click="setSort('label')"
-						/>
-						<ButtonLibrarySort
-							label="Catalogue"
-							:active="sortKey === 'catno'"
-							:direction="sortDirection"
-							@click="setSort('catno')"
-						/>
-						<ButtonLibrarySort
-							label="Year"
-							align="right"
-							:active="sortKey === 'year'"
-							:direction="sortDirection"
-							@click="setSort('year')"
-						/>
-						<ButtonLibrarySort
-							label="Trks"
-							align="right"
-							:active="sortKey === 'tracks'"
-							:direction="sortDirection"
-							@click="setSort('tracks')"
-						/>
-						<span />
-					</div>
-
-					<div class="hidden min-w-230 md:block">
+					<template v-if="!isCompactTable" #header>
 						<div
-							v-for="record in sortedRecords"
-							:key="record.id"
-							:data-record-id="record.id"
+							class="border-border bg-muted/70 sticky top-0 z-10 grid min-w-230 items-center gap-3 border-b pr-2 backdrop-blur-md"
+							:class="
+								density === 'compact'
+									? 'h-8 grid-cols-[40px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px]'
+									: 'h-10 grid-cols-[56px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px]'
+							"
+						>
+							<span class="text-muted-foreground pl-2 font-mono text-[9px]">
+								COVER
+							</span>
+							<ButtonLibrarySort
+								label="Artist"
+								:active="sortKey === 'artist'"
+								:direction="sortDirection"
+								@click="setSort('artist')"
+							/>
+							<ButtonLibrarySort
+								label="Title"
+								:active="sortKey === 'title'"
+								:direction="sortDirection"
+								@click="setSort('title')"
+							/>
+							<ButtonLibrarySort
+								label="Label"
+								:active="sortKey === 'label'"
+								:direction="sortDirection"
+								@click="setSort('label')"
+							/>
+							<ButtonLibrarySort
+								label="Catalogue"
+								:active="sortKey === 'catno'"
+								:direction="sortDirection"
+								@click="setSort('catno')"
+							/>
+							<ButtonLibrarySort
+								label="Year"
+								align="right"
+								:active="sortKey === 'year'"
+								:direction="sortDirection"
+								@click="setSort('year')"
+							/>
+							<ButtonLibrarySort
+								label="Trks"
+								align="right"
+								:active="sortKey === 'tracks'"
+								:direction="sortDirection"
+								@click="setSort('tracks')"
+							/>
+							<span />
+						</div>
+					</template>
+
+					<template #default="{ item: record }">
+						<div
+							v-if="!isCompactTable"
 							role="button"
 							tabindex="0"
-							class="border-border hover:bg-accent/50 focus-visible:ring-ring grid w-full items-center gap-3 border-b pr-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
+							:data-record-id="record.id"
+							class="border-border hover:bg-accent/50 focus-visible:ring-ring grid h-full min-w-230 items-center gap-3 border-b pr-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
 							:class="[
 								density === 'compact'
-									? 'h-10 grid-cols-[40px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px]'
-									: 'h-14 grid-cols-[56px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px]',
+									? 'grid-cols-[40px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px]'
+									: 'grid-cols-[56px_minmax(140px,0.9fr)_minmax(190px,1.25fr)_minmax(130px,0.8fr)_110px_64px_58px_36px]',
 								selectedRecordId === record.id && 'bg-accent'
 							]"
+							data-virtual-focus-target
 							@click="selectRecord(record.id)"
 							@dblclick="
 								capabilities.canMutateLibrary &&
@@ -323,7 +445,7 @@ watch(
 							@keydown.enter="selectRecord(record.id)"
 						>
 							<ImageRecordCover
-								v-if="record.cover || record.cover_storage_path"
+								v-if="hasRecordCover(record.cover)"
 								:record="record"
 								class="size-full border"
 							/>
@@ -365,14 +487,14 @@ watch(
 								<MoreHorizontal class="size-3.5" />
 							</Button>
 						</div>
-					</div>
 
-					<div class="divide-border divide-y md:hidden">
 						<button
-							v-for="record in sortedRecords"
-							:key="record.id"
+							v-else
 							type="button"
-							class="hover:bg-accent/50 flex w-full items-center gap-3 px-3 py-2.5 text-left"
+							:data-record-id="record.id"
+							class="border-border hover:bg-accent/50 flex h-full w-full items-center gap-3 border-b px-3 text-left"
+							:class="selectedRecordId === record.id && 'bg-accent'"
+							data-virtual-focus-target
 							@click="selectRecord(record.id)"
 						>
 							<ImageRecordCover
@@ -393,22 +515,45 @@ watch(
 								</p>
 							</div>
 						</button>
-					</div>
-				</div>
+					</template>
+				</ListWorkbenchVirtual>
 
-				<div
-					v-else
-					class="scrollbar-hidden grid min-h-0 flex-1 grid-cols-2 gap-x-2 gap-y-4 overflow-y-auto p-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6"
-				>
-					<CardRecordShort
-						v-for="record in sortedRecords"
-						:key="record.id"
-						:record="record"
-						:selected="selectedRecordId === record.id"
-						:read-only="!capabilities.canMutateLibrary"
-						@select="selectRecord(record.id)"
-					/>
-				</div>
+				<template v-else>
+					<!-- @vue-generic {RecordCoverRow} -->
+					<ListWorkbenchVirtual
+						ref="coverVirtualList"
+						:items="coverRows"
+						:get-item-key="getCoverRowKey"
+						:item-size="coverRowSize"
+						:header-size="12"
+						:max-mounted-items="coverMaxMountedRows"
+						:overscan="2"
+						:selected-key="selectedCoverRowKey"
+						label="Record cover collection"
+						item-label="record rows"
+						class="scrollbar-hidden min-h-0 flex-1"
+						@viewport-resize="handleCoverViewportResize"
+						@range-change="handleCoverRangeChange"
+					>
+						<template #header><div class="h-3" /></template>
+						<template #default="{ item: row }">
+							<div
+								class="grid h-full grid-cols-2 gap-x-2 px-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6"
+							>
+								<CardRecordShort
+									v-for="record in row.records"
+									:key="record.id"
+									:record="record"
+									:selected="selectedRecordId === record.id"
+									:read-only="!capabilities.canMutateLibrary"
+									:data-record-id="record.id"
+									data-virtual-focus-target
+									@select="selectRecord(record.id)"
+								/>
+							</div>
+						</template>
+					</ListWorkbenchVirtual>
+				</template>
 
 				<StateNoSearchResults
 					v-if="records.hasSearchQuery && !records.hasSearchResults"

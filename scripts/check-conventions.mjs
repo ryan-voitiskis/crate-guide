@@ -3,16 +3,48 @@ import { existsSync, lstatSync, readFileSync } from 'node:fs'
 import { basename, extname, relative, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const COMPONENT_KIND_NAMES = [
+export const COMPONENT_KIND_NAMES = Object.freeze([
+	'Alert',
+	'Animation',
+	'Button',
 	'Card',
+	'Checkbox',
+	'Checklist',
+	'Command',
+	'Control',
 	'Controls',
+	'Deck',
+	'Detail',
+	'Details',
+	'Dialog',
+	'Form',
 	'Header',
+	'Image',
+	'Input',
+	'Inspector',
+	'Layout',
+	'Links',
 	'List',
+	'Logo',
+	'Metric',
+	'Nav',
+	'Notice',
 	'Panel',
 	'Picker',
+	'Progress',
 	'Rating',
-	'Select'
-]
+	'Section',
+	'Select',
+	'Selector',
+	'Separator',
+	'Shell',
+	'Simulator',
+	'Spinner',
+	'State',
+	'Status',
+	'Table',
+	'Toggle'
+])
 
 function toRepositoryPath(path) {
 	return path.split(sep).join('/')
@@ -77,26 +109,23 @@ export function evaluateAppPath(path, contents = '') {
 /**
  * Evaluate the local Supabase task configuration without reading other files.
  */
-export function evaluateEdgeDeployConfig(contents) {
-	let config
-	try {
-		config = JSON.parse(contents)
-	} catch {
-		return ['must contain valid JSON']
-	}
-
-	if (!config || typeof config !== 'object' || Array.isArray(config)) return []
-	const { tasks } = config
-	if (!tasks || typeof tasks !== 'object' || Array.isArray(tasks)) return []
-
-	return Object.entries(tasks).flatMap(([taskName, command]) => {
-		if (
-			typeof command === 'string' &&
-			command.includes('supabase functions deploy') &&
-			command.includes('--no-verify-jwt')
-		) {
+export function evaluateEdgeFunctionGatewayConfig(contents, functionNames) {
+	return functionNames.flatMap((functionName) => {
+		const header = `[functions.${functionName}]`
+		const headerStart = contents
+			.split('\n')
+			.findIndex((line) => line.trim() === header)
+		if (headerStart === -1) {
+			return [`missing [functions.${functionName}] configuration`]
+		}
+		const sectionLines = contents.split('\n').slice(headerStart + 1)
+		const nextSection = sectionLines.findIndex((line) => /^\s*\[/.test(line))
+		const section = sectionLines
+			.slice(0, nextSection === -1 ? undefined : nextSection)
+			.join('\n')
+		if (!/^verify_jwt\s*=\s*false\s*$/m.test(section)) {
 			return [
-				`task "${taskName}" must not disable JWT verification during deployment`
+				`[functions.${functionName}] must set verify_jwt = false because the handler authenticates internally`
 			]
 		}
 		return []
@@ -129,15 +158,38 @@ export function checkConventions(root = process.cwd()) {
 		const contents = readFileSync(resolve(root, path), 'utf8')
 		return evaluateAppPath(path, contents).map((message) => ({ path, message }))
 	})
-	const edgeConfigPath = 'supabase/deno.json'
+	const edgeConfigPath = 'supabase/config.toml'
 	const absoluteEdgeConfigPath = resolve(root, edgeConfigPath)
 	if (existsSync(absoluteEdgeConfigPath)) {
 		const contents = readFileSync(absoluteEdgeConfigPath, 'utf8')
+		const functionsRoot = resolve(root, 'supabase/functions')
+		const functionNames = existsSync(functionsRoot)
+			? execFileSync(
+					'git',
+					[
+						'ls-files',
+						'-co',
+						'--exclude-standard',
+						'-z',
+						'--',
+						'supabase/functions/*/index.ts'
+					],
+					{ cwd: root }
+				)
+					.toString('utf8')
+					.split('\0')
+					.filter(Boolean)
+					.map((path) => path.split('/').at(-2))
+					.filter((name) => name && name !== '_shared')
+					.sort()
+			: []
 		diagnostics.push(
-			...evaluateEdgeDeployConfig(contents).map((message) => ({
-				path: edgeConfigPath,
-				message
-			}))
+			...evaluateEdgeFunctionGatewayConfig(contents, functionNames).map(
+				(message) => ({
+					path: edgeConfigPath,
+					message
+				})
+			)
 		)
 	}
 

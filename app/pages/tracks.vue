@@ -6,7 +6,10 @@ import {
 	Search,
 	ShieldAlert,
 	WandSparkles
-} from 'lucide-vue-next'
+} from '@lucide/vue'
+import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
+import type { TrackEvidenceLensRow } from '~/utils/trackEvidenceLens'
+import type { LibraryRecord, LibraryTrack } from '~~/shared/types/library'
 
 type TrackSortKey =
 	| 'title'
@@ -19,11 +22,16 @@ type TrackSortKey =
 	| 'genre'
 type SortDirection = 'asc' | 'desc'
 type Density = 'compact' | 'comfortable'
+type TrackCollectionView = 'tracks' | 'evidence'
+type TrackWorkbenchRow = {
+	record: LibraryRecord | null
+	track: LibraryTrack
+}
 
 const records = useWorkbenchRecordsStore()
 const tracks = useWorkbenchTracksStore()
 const trackFilters = useWorkbenchTrackFiltersStore()
-const user = useWorkbenchUserStore()
+const preferences = useWorkbenchPreferencesStore()
 const capabilities = useWorkbenchCapabilities()
 const { getHref } = useNavigation()
 
@@ -37,6 +45,7 @@ const mobileInspectorOpen = ref(false)
 const density = useState<Density>('workbench-density', () => 'compact')
 const sortKey = ref<TrackSortKey>('artist')
 const sortDirection = ref<SortDirection>('asc')
+const viewMode = ref<TrackCollectionView>('tracks')
 
 watchEffect(() => trackFilters.setTrackSource(tracks.tracks))
 
@@ -65,28 +74,28 @@ const missingAnalysisCount = computed(
 		).length
 )
 
-function formatArtists(track: Track) {
+function formatArtists(track: LibraryTrack) {
 	return [...track.artists, ...track.extraartists]
 		.map((artist) => artist.name)
 		.join(', ')
 }
 
-function formatKey(track: Track): string {
+function formatKey(track: LibraryTrack): string {
 	if (track.key === null || track.mode === null) return '—'
 	return getFormattedKeyString(
 		track.key,
 		track.mode,
-		user.currentKeyFormat,
+		preferences.currentKeyFormat,
 		'short'
 	)
 }
 
-function keyStyle(track: Track) {
+function keyStyle(track: LibraryTrack) {
 	if (track.key === null || track.mode === null) return {}
 	return { color: getKeyColour(track.key, track.mode) }
 }
 
-const sortedTrackRows = computed(() => {
+const sortedTrackRows = computed<TrackWorkbenchRow[]>(() => {
 	const collator = new Intl.Collator(undefined, {
 		numeric: true,
 		sensitivity: 'base'
@@ -141,6 +150,49 @@ const sortedTrackRows = computed(() => {
 		return collator.compare(String(aValue), String(bValue)) * direction
 	})
 })
+
+const evidenceRowsByTrackId = shallowRef<
+	ReadonlyMap<string, TrackEvidenceLensRow>
+>(new Map())
+let evidenceRowsGeneration = 0
+
+watch(
+	[viewMode, () => tracks.tracks],
+	async ([currentView, currentTracks]) => {
+		const generation = ++evidenceRowsGeneration
+		if (currentView !== 'evidence') {
+			evidenceRowsByTrackId.value = new Map()
+			return
+		}
+		const { deriveTrackEvidenceLensRows } =
+			await import('~/utils/trackEvidenceLens')
+		if (generation !== evidenceRowsGeneration) return
+		evidenceRowsByTrackId.value = new Map(
+			deriveTrackEvidenceLensRows(currentTracks).map((row) => [row.id, row])
+		)
+	},
+	{ immediate: true }
+)
+
+const evidenceTrackRows = computed(() =>
+	sortedTrackRows.value.flatMap((row) => {
+		const evidenceRow = evidenceRowsByTrackId.value.get(row.track.id)
+		return evidenceRow ? [evidenceRow] : []
+	})
+)
+
+const trackItemSize = computed(() => {
+	if (isCompactTable.value) return 80
+	return density.value === 'compact' ? 36 : 56
+})
+const trackHeaderSize = computed(() => {
+	if (isCompactTable.value) return 0
+	return density.value === 'compact' ? 32 : 40
+})
+
+function getTrackRowKey(row: TrackWorkbenchRow) {
+	return row.track.id
+}
 
 function setSort(key: TrackSortKey) {
 	if (sortKey.value === key)
@@ -214,7 +266,7 @@ watch(
 		<div v-else-if="tracks.hasTracks" class="flex min-h-0 flex-1">
 			<section class="flex min-w-0 flex-1 flex-col">
 				<div
-					v-if="missingAnalysisCount > 0"
+					v-if="viewMode === 'tracks' && missingAnalysisCount > 0"
 					class="border-border bg-muted/25 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2"
 				>
 					<div class="flex min-w-0 items-center gap-2.5">
@@ -276,7 +328,43 @@ watch(
 				<div
 					class="border-border flex min-h-11 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-1.5"
 				>
-					<div class="flex items-center gap-3 text-sm">
+					<div class="flex flex-wrap items-center gap-3 text-sm">
+						<div
+							class="border-border flex rounded-sm border p-0.5"
+							role="group"
+							aria-label="Track collection view"
+						>
+							<button
+								type="button"
+								class="rounded-xs px-2 py-1 text-[11px] font-medium transition-colors"
+								:class="
+									viewMode === 'tracks'
+										? 'bg-muted text-foreground'
+										: 'text-muted-foreground hover:text-foreground'
+								"
+								:aria-pressed="viewMode === 'tracks'"
+								aria-label="Show Tracks view"
+								data-testid="track-view-tracks"
+								@click="viewMode = 'tracks'"
+							>
+								Tracks
+							</button>
+							<button
+								type="button"
+								class="rounded-xs px-2 py-1 text-[11px] font-medium transition-colors"
+								:class="
+									viewMode === 'evidence'
+										? 'bg-muted text-foreground'
+										: 'text-muted-foreground hover:text-foreground'
+								"
+								:aria-pressed="viewMode === 'evidence'"
+								aria-label="Show Evidence lens"
+								data-testid="track-view-evidence"
+								@click="viewMode = 'evidence'"
+							>
+								Evidence
+							</button>
+						</div>
 						<span class="text-muted-foreground">
 							{{ trackFilters.filteredTracks.length }} of
 							{{ tracks.tracksCount }} tracks
@@ -292,96 +380,108 @@ watch(
 					<ControlLibraryDensity v-model="density" />
 				</div>
 
-				<div
-					v-if="sortedTrackRows.length"
-					class="workbench-scrollbar min-h-0 flex-1 overflow-auto"
+				<!-- @vue-generic {TrackWorkbenchRow} -->
+				<ListWorkbenchVirtual
+					v-if="viewMode === 'tracks' && sortedTrackRows.length"
+					:items="sortedTrackRows"
+					:get-item-key="getTrackRowKey"
+					:item-size="trackItemSize"
+					:header-size="trackHeaderSize"
+					:selected-key="selectedTrackId"
+					:data-testid="
+						isCompactTable ? 'compact-track-rows' : 'desktop-track-rows'
+					"
+					label="Track collection"
+					item-label="tracks"
+					class="workbench-scrollbar min-h-0 flex-1"
 				>
-					<div
-						class="border-border bg-muted/70 sticky top-0 z-10 hidden min-w-270 items-center gap-2 border-b pr-2 backdrop-blur-md md:grid"
-						:class="
-							density === 'compact'
-								? 'h-8 grid-cols-[36px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]'
-								: 'h-10 grid-cols-[56px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]'
-						"
-					>
-						<span class="text-muted-foreground pl-2 font-mono text-[9px]">
-							COVER
-						</span>
-						<span class="text-muted-foreground font-mono text-[9px] uppercase">
-							Pos
-						</span>
-						<ButtonLibrarySort
-							label="Title"
-							:active="sortKey === 'title'"
-							:direction="sortDirection"
-							@click="setSort('title')"
-						/>
-						<ButtonLibrarySort
-							label="Artist"
-							:active="sortKey === 'artist'"
-							:direction="sortDirection"
-							@click="setSort('artist')"
-						/>
-						<ButtonLibrarySort
-							label="Release"
-							:active="sortKey === 'release'"
-							:direction="sortDirection"
-							@click="setSort('release')"
-						/>
-						<ButtonLibrarySort
-							label="Cat. no."
-							:active="sortKey === 'catno'"
-							:direction="sortDirection"
-							@click="setSort('catno')"
-						/>
-						<ButtonLibrarySort
-							label="Time"
-							align="right"
-							:active="sortKey === 'duration'"
-							:direction="sortDirection"
-							@click="setSort('duration')"
-						/>
-						<ButtonLibrarySort
-							label="BPM"
-							align="right"
-							:active="sortKey === 'bpm'"
-							:direction="sortDirection"
-							@click="setSort('bpm')"
-						/>
-						<ButtonLibrarySort
-							label="Key"
-							align="center"
-							:active="sortKey === 'key'"
-							:direction="sortDirection"
-							@click="setSort('key')"
-						/>
-						<ButtonLibrarySort
-							label="Genre"
-							:active="sortKey === 'genre'"
-							:direction="sortDirection"
-							@click="setSort('genre')"
-						/>
-						<span />
-					</div>
-
-					<div
-						v-if="!isCompactTable"
-						class="min-w-270"
-						data-testid="desktop-track-rows"
-					>
+					<template #header>
 						<div
-							v-for="row in sortedTrackRows"
-							:key="row.track.id"
+							v-if="!isCompactTable"
+							class="border-border bg-muted/70 sticky top-0 z-10 grid min-w-270 items-center gap-2 border-b pr-2 backdrop-blur-md"
+							:class="
+								density === 'compact'
+									? 'h-8 grid-cols-[36px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]'
+									: 'h-10 grid-cols-[56px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]'
+							"
+						>
+							<span class="text-muted-foreground pl-2 font-mono text-[9px]">
+								COVER
+							</span>
+							<span
+								class="text-muted-foreground font-mono text-[9px] uppercase"
+							>
+								Pos
+							</span>
+							<ButtonLibrarySort
+								label="Title"
+								:active="sortKey === 'title'"
+								:direction="sortDirection"
+								@click="setSort('title')"
+							/>
+							<ButtonLibrarySort
+								label="Artist"
+								:active="sortKey === 'artist'"
+								:direction="sortDirection"
+								@click="setSort('artist')"
+							/>
+							<ButtonLibrarySort
+								label="Release"
+								:active="sortKey === 'release'"
+								:direction="sortDirection"
+								@click="setSort('release')"
+							/>
+							<ButtonLibrarySort
+								label="Cat. no."
+								:active="sortKey === 'catno'"
+								:direction="sortDirection"
+								@click="setSort('catno')"
+							/>
+							<ButtonLibrarySort
+								label="Time"
+								align="right"
+								:active="sortKey === 'duration'"
+								:direction="sortDirection"
+								@click="setSort('duration')"
+							/>
+							<ButtonLibrarySort
+								label="BPM"
+								align="right"
+								:active="sortKey === 'bpm'"
+								:direction="sortDirection"
+								@click="setSort('bpm')"
+							/>
+							<ButtonLibrarySort
+								label="Key"
+								align="center"
+								:active="sortKey === 'key'"
+								:direction="sortDirection"
+								@click="setSort('key')"
+							/>
+							<ButtonLibrarySort
+								label="Genre"
+								:active="sortKey === 'genre'"
+								:direction="sortDirection"
+								@click="setSort('genre')"
+							/>
+							<span />
+						</div>
+					</template>
+
+					<template #default="{ item: row }">
+						<div
+							v-if="!isCompactTable"
 							role="button"
 							tabindex="0"
 							:data-track-id="row.track.id"
-							class="border-border hover:bg-accent/50 focus-visible:ring-ring grid w-full items-center gap-2 border-b pr-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
+							class="border-border hover:bg-accent/50 focus-visible:ring-ring grid h-full min-w-270 items-center gap-2 border-b pr-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
 							:class="[
 								density === 'compact'
-									? 'h-9 grid-cols-[36px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]'
-									: 'h-14 grid-cols-[56px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]',
+									? 'grid-cols-[36px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]'
+									: 'grid-cols-[56px_64px_minmax(170px,1.2fr)_minmax(140px,0.9fr)_minmax(140px,0.85fr)_96px_66px_64px_58px_minmax(110px,0.7fr)_30px]',
 								selectedTrackId === row.track.id && 'bg-accent'
 							]"
+							data-virtual-focus-target
 							@click="selectTrack(row.track.id)"
 							@dblclick="editTrack(row.track.id)"
 							@keydown.enter="selectTrack(row.track.id)"
@@ -430,19 +530,14 @@ watch(
 								class="text-destructive size-3.5"
 							/>
 						</div>
-					</div>
 
-					<div
-						v-else
-						class="divide-border divide-y"
-						data-testid="compact-track-rows"
-					>
 						<button
-							v-for="row in sortedTrackRows"
-							:key="row.track.id"
+							v-else
 							type="button"
 							:data-track-id="row.track.id"
-							class="hover:bg-accent/50 flex w-full items-center gap-3 px-3 py-2.5 text-left"
+							class="border-border hover:bg-accent/50 flex h-full w-full items-center gap-3 border-b px-3 text-left"
+							:class="selectedTrackId === row.track.id && 'bg-accent'"
+							data-virtual-focus-target
 							@click="selectTrack(row.track.id)"
 						>
 							<div class="bg-muted size-10 shrink-0 rounded-sm border">
@@ -489,11 +584,11 @@ watch(
 								"
 							/>
 						</button>
-					</div>
-				</div>
+					</template>
+				</ListWorkbenchVirtual>
 
 				<div
-					v-else
+					v-else-if="viewMode === 'tracks'"
 					class="flex min-h-0 flex-1 flex-col items-center justify-center p-8 text-center"
 				>
 					<Search class="text-muted-foreground/40 mb-3 size-9 stroke-1" />
@@ -512,6 +607,17 @@ watch(
 						Clear filters
 					</Button>
 				</div>
+
+				<LazyListTrackEvidenceLens
+					v-else
+					:rows="evidenceTrackRows"
+					:records="records.records"
+					:density="density"
+					:compact="isCompactTable"
+					:selected-track-id="selectedTrackId"
+					:key-format="preferences.currentKeyFormat"
+					@select="selectTrack"
+				/>
 			</section>
 
 			<aside
@@ -522,7 +628,8 @@ watch(
 					:track="selectedTrack"
 					:record="selectedRecord"
 					show-close
-					:read-only="!capabilities.canMutateLibrary"
+					:show-edit-action="viewMode === 'tracks'"
+					:read-only="viewMode === 'evidence' || !capabilities.canMutateLibrary"
 					@close="selectedTrackId = null"
 					@edit="editTrack(selectedTrack.id)"
 				/>
@@ -537,7 +644,11 @@ watch(
 						No track selected
 					</p>
 					<p class="text-muted-foreground mt-2 text-xs">
-						Select a track to inspect tempo, key, condition and release context.
+						{{
+							viewMode === 'evidence'
+								? 'Select a track to inspect current values and retained Evidence.'
+								: 'Select a track to inspect tempo, key, condition and release context.'
+						}}
 					</p>
 				</div>
 			</aside>
@@ -559,14 +670,15 @@ watch(
 				<SheetHeader class="sr-only">
 					<SheetTitle>Track inspector</SheetTitle>
 					<SheetDescription>
-						Selected track details and edit action.
+						Selected track details and retained Evidence.
 					</SheetDescription>
 				</SheetHeader>
 				<InspectorTrack
 					v-if="selectedTrack"
 					:track="selectedTrack"
 					:record="selectedRecord"
-					:read-only="!capabilities.canMutateLibrary"
+					:show-edit-action="viewMode === 'tracks'"
+					:read-only="viewMode === 'evidence' || !capabilities.canMutateLibrary"
 					@edit="editTrack(selectedTrack.id)"
 				/>
 			</SheetContent>

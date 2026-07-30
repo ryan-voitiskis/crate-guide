@@ -14,7 +14,7 @@
 - **Depends on**: Plans 052, 054, and 055
 - **Category**: performance / CI regression prevention
 - **Planned at**: commit `aba27ff`, 2026-07-19
-- **Status**: TODO
+- **Status**: DONE
 
 ## Why this matters
 
@@ -93,11 +93,11 @@ the optional chunks are requested only when their feature is opened.
 
 ## Done criteria
 
-- [ ] Initial browser JS has an evidence-backed size reduction or documented stable boundary.
-- [ ] Optional enrichment/audio code is lazy and still works in a real browser.
-- [ ] CI fails a deterministic fixture and real build that exceed the declared budget.
-- [ ] Worker/WASM assets are measured separately rather than hidden or charged to initial JS.
-- [ ] Build, budget, E2E, and full verification pass.
+- [x] Initial browser JS has an evidence-backed size reduction or documented stable boundary.
+- [x] Optional enrichment/audio code is lazy and still works in a real browser.
+- [x] CI fails a deterministic fixture and real build that exceed the declared budget.
+- [x] Worker/WASM assets are measured separately rather than hidden or charged to initial JS.
+- [x] Build, budget, E2E, and full verification pass.
 
 ## STOP conditions
 

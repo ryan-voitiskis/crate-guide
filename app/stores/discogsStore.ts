@@ -1,7 +1,12 @@
 import { toast } from 'vue-sonner'
-import { getActivePinia } from 'pinia'
+import { captureDiscogsLibraryDestination } from '~/utils/discogsLibraryDestination'
+import type { DiscogsLibraryDestination } from '~/utils/discogsLibraryDestination'
+import {
+	ensureWorkbenchRuntime,
+	getWorkbenchRuntime,
+	getWorkbenchStorePinia
+} from '~/utils/workbenchPinia'
 import type {
-	DiscogsErrorCode,
 	DiscogsImportFailure,
 	DiscogsImportResults,
 	DiscogsReleaseToFilter,
@@ -9,137 +14,41 @@ import type {
 	DiscogsRetrySummary
 } from '../../shared/types/discogs'
 import { isDiscogsApiError, isDiscogsRequestId } from '../utils/discogs-errors'
-import type { DiscogsReleaseTarget } from '../utils/discogs-import'
+import {
+	type DiscogsTransferModePolicy,
+	type DiscogsTransferOwnership,
+	type DiscogsTransferResultsUpdate,
+	type DiscogsTransferRunnerEvent,
+	createDiscogsImportTransferPolicy,
+	createDiscogsRetryTransferPolicy,
+	runDiscogsTransfer
+} from '../utils/discogsTransferRunner'
+import {
+	type DiscogsTransferMode,
+	type DiscogsTransferSnapshotPayload,
+	type DiscogsTransferTerminalStatus,
+	createDiscogsTransferSnapshotPersistence
+} from '../utils/discogsTransferSnapshot'
 
-type TransferStatus = 'idle' | 'running' | 'completed' | 'cancelled' | 'failed'
-type TransferMode = 'import' | 'retry' | null
+type TransferStatus = 'idle' | 'running' | DiscogsTransferTerminalStatus
+type TransferMode = DiscogsTransferMode | null
 
 type FolderLoadError = {
 	message: string
 	requestId?: string
 }
 
-const TRANSFER_SNAPSHOT_VERSION = 1
-const TRANSFER_STORAGE_PREFIX = 'crate-guide:discogs-transfer'
-const MAX_SNAPSHOT_FAILURES = 500
-const SNAPSHOT_ERROR_CODES = new Set<DiscogsErrorCode>([
-	'database_write_failed',
-	'discogs_connection_required',
-	'discogs_not_found',
-	'discogs_rate_limited',
-	'discogs_request_rejected',
-	'discogs_timeout',
-	'discogs_transport',
-	'discogs_unavailable',
-	'internal_error',
-	'invalid_request',
-	'invalid_upstream_response',
-	'unknown_error'
-])
-
-interface TransferSnapshot {
-	version: 1
-	userId: string
-	status: Exclude<TransferStatus, 'idle' | 'running'>
-	mode: Exclude<TransferMode, null>
-	results: DiscogsImportResults
-	retrySummary: DiscogsRetrySummary | null
-}
-
 function createEmptyImportResults(): DiscogsImportResults {
 	return { successful: 0, skipped: [], failed: [] }
 }
 
-function isSnapshotFailure(value: unknown): value is DiscogsImportFailure {
-	if (!value || typeof value !== 'object') return false
-	const failure = value as Record<string, unknown>
-	return (
-		(failure.releaseId === null ||
-			(typeof failure.releaseId === 'number' &&
-				Number.isInteger(failure.releaseId) &&
-				failure.releaseId > 0)) &&
-		typeof failure.label === 'string' &&
-		failure.label.length > 0 &&
-		failure.label.length <= 300 &&
-		typeof failure.error === 'string' &&
-		failure.error.length > 0 &&
-		failure.error.length <= 300 &&
-		typeof failure.code === 'string' &&
-		SNAPSHOT_ERROR_CODES.has(failure.code as DiscogsErrorCode) &&
-		(failure.stage === 'fetch' ||
-			failure.stage === 'save' ||
-			failure.stage === 'pipeline') &&
-		typeof failure.retryable === 'boolean' &&
-		typeof failure.attempts === 'number' &&
-		Number.isInteger(failure.attempts) &&
-		failure.attempts >= 1 &&
-		failure.attempts <= 3 &&
-		(failure.requestId === undefined || isDiscogsRequestId(failure.requestId))
-	)
-}
-
-function isTransferSnapshot(
-	value: unknown,
-	userId: string
-): value is TransferSnapshot {
-	if (!value || typeof value !== 'object') return false
-	const snapshot = value as Record<string, unknown>
-	if (
-		snapshot.version !== TRANSFER_SNAPSHOT_VERSION ||
-		snapshot.userId !== userId ||
-		(snapshot.status !== 'completed' &&
-			snapshot.status !== 'cancelled' &&
-			snapshot.status !== 'failed') ||
-		(snapshot.mode !== 'import' && snapshot.mode !== 'retry') ||
-		!snapshot.results ||
-		typeof snapshot.results !== 'object'
-	) {
-		return false
-	}
-	const results = snapshot.results as Record<string, unknown>
-	if (
-		typeof results.successful !== 'number' ||
-		!Number.isInteger(results.successful) ||
-		results.successful < 0 ||
-		!Array.isArray(results.skipped) ||
-		results.skipped.length > 10_000 ||
-		!results.skipped.every(
-			(item) =>
-				Boolean(item) &&
-				typeof item === 'object' &&
-				typeof (item as { label?: unknown }).label === 'string' &&
-				(item as { label: string }).label.length <= 300
-		) ||
-		!Array.isArray(results.failed) ||
-		results.failed.length > MAX_SNAPSHOT_FAILURES ||
-		!results.failed.every(isSnapshotFailure)
-	) {
-		return false
-	}
-	if (snapshot.retrySummary !== null) {
-		if (!snapshot.retrySummary || typeof snapshot.retrySummary !== 'object') {
-			return false
-		}
-		const summary = snapshot.retrySummary as Record<string, unknown>
-		if (
-			!['attempted', 'recovered', 'remaining'].every(
-				(key) =>
-					typeof summary[key] === 'number' &&
-					Number.isInteger(summary[key]) &&
-					(summary[key] as number) >= 0
-			)
-		) {
-			return false
-		}
-	}
-	return true
-}
-
 export const useDiscogsStore = defineStore('discogs', () => {
-	const pinia = getActivePinia()
+	const pinia = getWorkbenchStorePinia()
+	const runtime = getWorkbenchRuntime(pinia) ?? ensureWorkbenchRuntime(pinia!)
 	const user = useUserStore(pinia)
-	const discogsApi = useDiscogsApi()
+	const discogsApi = useDiscogsApi(user)
 	let accountGeneration = 0
+	let folderReviewGeneration = 0
 	const folders = ref<DiscogsFolder[]>([])
 	const selectedFolder = ref<string | undefined>(undefined)
 	const releasesToImport = ref<DiscogsReleaseToFilter[]>([])
@@ -161,10 +70,11 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	const transferMode = ref<TransferMode>(null)
 	const retryStatus = ref<DiscogsRetryStatus | null>(null)
 	const retrySummary = ref<DiscogsRetrySummary | null>(null)
+	const libraryRefreshFailed = ref(false)
 	const shouldCancelImport = ref(false)
 	const importResults = ref<DiscogsImportResults>(createEmptyImportResults())
-	let snapshotUserId: string | null = null
-	let hydratedUserId: string | null = null
+	let snapshotOwnerKey: string | null = null
+	let hydratedOwnerKey: string | null = null
 
 	const hasTransferActivity = computed(() => transferStatus.value !== 'idle')
 	const hasActiveTransfer = computed(
@@ -175,7 +85,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 	)
 	const retryableFailures = computed(() =>
 		importResults.value.failed.filter(
-			(failure) => failure.retryable && failure.releaseId !== null
+			(failure): failure is DiscogsImportFailure & { releaseId: number } =>
+				failure.retryable && failure.releaseId !== null
 		)
 	)
 	const canRetryFailed = computed(
@@ -185,7 +96,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		if (transferStatus.value === 'running') return 'active'
 		if (
 			transferStatus.value === 'completed' &&
-			importResults.value.failed.length === 0
+			importResults.value.failed.length === 0 &&
+			!libraryRefreshFailed.value
 		)
 			return 'success'
 		return 'warning'
@@ -212,7 +124,8 @@ export const useDiscogsStore = defineStore('discogs', () => {
 				: null,
 			importResults.value.failed.length > 0
 				? `${importResults.value.failed.length} failed`
-				: null
+				: null,
+			libraryRefreshFailed.value ? 'refresh needed' : null
 		].filter((part): part is string => Boolean(part))
 
 		return resultParts.length > 0
@@ -224,75 +137,93 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		generation: number
 		userId: string
 	}
+	type TransferOperationContext = DiscogsTransferOwnership
+	type TransferOperation = {
+		context: TransferOperationContext
+		destination: DiscogsLibraryDestination
+	}
 
 	function currentUserId(): string | null {
 		return user.supaUserId ?? user.profile?.id ?? null
 	}
 
-	function transferStorageKey(userId: string): string {
-		return `${TRANSFER_STORAGE_PREFIX}:${encodeURIComponent(userId)}`
+	function transferSnapshotPersistence() {
+		return typeof window === 'undefined'
+			? null
+			: createDiscogsTransferSnapshotPersistence(window.sessionStorage)
 	}
 
-	function clearTransferSnapshot(userId = currentUserId() ?? snapshotUserId) {
-		if (typeof window === 'undefined' || !userId) return
-		window.sessionStorage.removeItem(transferStorageKey(userId))
-		if (snapshotUserId === userId) snapshotUserId = null
+	function currentSnapshotOwnerKey(userId = currentUserId()): string | null {
+		if (!userId) return null
+		const { context } = runtime.capture()
+		return JSON.stringify([userId, context.workspaceId, context.repositoryId])
 	}
 
-	function persistTransferSnapshot() {
-		if (typeof window === 'undefined') return
-		const userId = currentUserId()
-		if (
-			!userId ||
-			transferStatus.value === 'idle' ||
-			transferStatus.value === 'running' ||
-			transferMode.value === null
-		) {
+	function transferSnapshotOwnerKey(context: TransferOperationContext): string {
+		return JSON.stringify([
+			context.ownerId,
+			context.workspaceId,
+			context.repositoryId
+		])
+	}
+
+	function clearTransferSnapshot(userId: string | null = currentUserId()) {
+		const owners = new Set(
+			[
+				snapshotOwnerKey,
+				hydratedOwnerKey,
+				currentSnapshotOwnerKey(userId),
+				// Remove pre-workspace snapshots written by earlier app versions too.
+				userId
+			].filter((owner): owner is string => Boolean(owner))
+		)
+		try {
+			const persistence = transferSnapshotPersistence()
+			for (const owner of owners) persistence?.remove(owner)
+		} catch {
+			// In-memory ownership must still be released when storage is unavailable.
+		}
+		snapshotOwnerKey = null
+		hydratedOwnerKey = null
+	}
+
+	function persistTransferSnapshot(
+		ownerKey: string,
+		terminal: DiscogsTransferSnapshotPayload
+	) {
+		const persistence = transferSnapshotPersistence()
+		if (!persistence) return
+		persistence.write(ownerKey, terminal)
+		snapshotOwnerKey = ownerKey
+	}
+
+	function restoreTransferSnapshot(ownerKey: string) {
+		if (hydratedOwnerKey === ownerKey) return
+		hydratedOwnerKey = ownerKey
+		const persistence = transferSnapshotPersistence()
+		if (!persistence) return
+		let storedSnapshot: ReturnType<typeof persistence.read>
+		try {
+			storedSnapshot = persistence.read(ownerKey)
+		} catch {
 			return
 		}
-		const snapshot: TransferSnapshot = {
-			version: TRANSFER_SNAPSHOT_VERSION,
-			userId,
-			status: transferStatus.value,
-			mode: transferMode.value,
-			results: importResults.value,
-			retrySummary: retrySummary.value
-		}
-		try {
-			window.sessionStorage.setItem(
-				transferStorageKey(userId),
-				JSON.stringify(snapshot)
-			)
-			snapshotUserId = userId
-		} catch {
-			// Transfer state remains available in memory if storage is unavailable.
-		}
-	}
-
-	function restoreTransferSnapshot(userId: string) {
-		if (typeof window === 'undefined' || hydratedUserId === userId) return
-		hydratedUserId = userId
-		let rawSnapshot: string | null = null
-		try {
-			rawSnapshot = window.sessionStorage.getItem(transferStorageKey(userId))
-		} catch {
-			return
-		}
-		if (!rawSnapshot) return
-		try {
-			const snapshot: unknown = JSON.parse(rawSnapshot)
-			if (!isTransferSnapshot(snapshot, userId)) {
-				clearTransferSnapshot(userId)
-				return
+		if (storedSnapshot.kind === 'missing') return
+		if (storedSnapshot.kind === 'invalid') {
+			try {
+				persistence.remove(ownerKey)
+			} catch {
+				// Invalid persisted state must not block the in-memory transfer view.
 			}
-			transferStatus.value = snapshot.status
-			transferMode.value = snapshot.mode
-			importResults.value = snapshot.results
-			retrySummary.value = snapshot.retrySummary
-			snapshotUserId = userId
-		} catch {
-			clearTransferSnapshot(userId)
+			return
 		}
+		const { snapshot } = storedSnapshot
+		transferStatus.value = snapshot.status
+		transferMode.value = snapshot.mode
+		importResults.value = snapshot.results
+		retrySummary.value = snapshot.retrySummary
+		libraryRefreshFailed.value = snapshot.libraryRefreshFailed ?? false
+		snapshotOwnerKey = ownerKey
 	}
 
 	function captureAccountContext(): AccountOperationContext | null {
@@ -307,9 +238,39 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		)
 	}
 
-	function resetAccountState() {
-		clearTransferSnapshot()
+	function captureTransferOperation(): TransferOperation | null {
+		const ownerId = currentUserId()
+		const destination = captureDiscogsLibraryDestination(runtime)
+		return ownerId && destination
+			? {
+					context: {
+						ownerId,
+						accountGeneration,
+						folderGeneration: folderReviewGeneration,
+						...destination.context
+					},
+					destination
+				}
+			: null
+	}
+
+	function isCurrentTransferContext(
+		context: TransferOperationContext
+	): boolean {
+		// The folder generation records which immutable selection produced the
+		// targets. Once started, that copied selection remains owned by the account;
+		// a later folder review does not retarget or cancel the active transfer.
+		return (
+			context.accountGeneration === accountGeneration &&
+			currentUserId() === context.ownerId &&
+			runtime.isCurrent(context)
+		)
+	}
+
+	function resetAccountState(outgoingUserId = currentUserId()) {
+		clearTransferSnapshot(outgoingUserId)
 		accountGeneration += 1
+		folderReviewGeneration += 1
 		shouldCancelImport.value = true
 		folders.value = []
 		folderError.value = null
@@ -329,8 +290,31 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		transferMode.value = null
 		retryStatus.value = null
 		retrySummary.value = null
+		libraryRefreshFailed.value = false
 		importResults.value = createEmptyImportResults()
-		hydratedUserId = null
+		hydratedOwnerKey = null
+		snapshotOwnerKey = null
+	}
+
+	function resetWorkspaceTransferState() {
+		folderReviewGeneration += 1
+		shouldCancelImport.value = true
+		releasesToImport.value = []
+		releaseBeingImported.value = null
+		isLoadingSelectedFolder.value = false
+		showFilterDialog.value = false
+		showImportProgressDialog.value = false
+		importProgress.value = 0
+		isImporting.value = false
+		importPhase.value = null
+		transferStatus.value = 'idle'
+		transferMode.value = null
+		retryStatus.value = null
+		retrySummary.value = null
+		libraryRefreshFailed.value = false
+		importResults.value = createEmptyImportResults()
+		hydratedOwnerKey = null
+		snapshotOwnerKey = null
 	}
 
 	function openTransferMonitor() {
@@ -362,6 +346,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		transferMode.value = null
 		retryStatus.value = null
 		retrySummary.value = null
+		libraryRefreshFailed.value = false
 		importResults.value = createEmptyImportResults()
 	}
 
@@ -399,20 +384,38 @@ export const useDiscogsStore = defineStore('discogs', () => {
 
 	async function fetchFolderReleases() {
 		const context = captureAccountContext()
-		if (!context) return
+		const destination = captureDiscogsLibraryDestination(runtime)
+		if (!context || !destination) return
 		if (!selectedFolder.value) return
-		if (isLoadingSelectedFolder.value) return
-		const folder = folders.value.find((f) => f.name === selectedFolder.value)
+		const selectedFolderValue = selectedFolder.value
+		const folderById = folders.value.find(
+			(candidate) => String(candidate.id) === selectedFolder.value
+		)
+		const foldersByLegacyName = folderById
+			? []
+			: folders.value.filter(
+					(candidate) => candidate.name === selectedFolderValue
+				)
+		const folder =
+			folderById ??
+			(foldersByLegacyName.length === 1 ? foldersByLegacyName[0] : undefined)
 		if (!folder) return
+		const reviewGeneration = ++folderReviewGeneration
+		const ownsReview = () =>
+			isCurrentAccountContext(context) &&
+			destination.isCurrent() &&
+			reviewGeneration === folderReviewGeneration &&
+			selectedFolder.value === selectedFolderValue
 		isLoadingSelectedFolder.value = true
+		releasesToImport.value = []
 		try {
 			const releases: DiscogsRelease[] = []
 			let allReleasesFetched = false
 			let page = 1
 			while (!allReleasesFetched) {
-				if (!isCurrentAccountContext(context)) return
+				if (!ownsReview()) return
 				const data = await discogsApi.getFolderReleases(folder.id, page, 100)
-				if (!isCurrentAccountContext(context)) return
+				if (!ownsReview()) return
 				if (!data.releases) throw new Error('No releases found.')
 				if (!data.pagination) throw new Error('No pagination on response.')
 				releases.push(...data.releases)
@@ -421,14 +424,16 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			}
 			let existingDiscogsIds = new Set<number>()
 			try {
-				existingDiscogsIds = await getExistingDiscogsIds(releases)
+				existingDiscogsIds = await destination.findExistingDiscogsIds(
+					releases.map((release) => release.id)
+				)
 			} catch {
-				if (!isCurrentAccountContext(context)) return
+				if (!ownsReview()) return
 				toast.warning(
 					'Could not compare this folder with your library. Existing records will still be skipped safely.'
 				)
 			}
-			if (!isCurrentAccountContext(context)) return
+			if (!ownsReview()) return
 			releasesToImport.value = releases.map((release) => {
 				const alreadyImported = existingDiscogsIds.has(release.id)
 				return {
@@ -440,10 +445,10 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			showGetFoldersDialog.value = false
 			showFilterDialog.value = true
 		} catch (e) {
-			if (!isCurrentAccountContext(context)) return
+			if (!ownsReview()) return
 			toast.error(isError(e) ? e.message : 'Error fetching folder.')
 		} finally {
-			if (isCurrentAccountContext(context)) {
+			if (ownsReview()) {
 				isLoadingSelectedFolder.value = false
 			}
 		}
@@ -486,74 +491,132 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		shouldCancelImport.value = true
 	}
 
-	function labelForTarget(target: DiscogsReleaseTarget): string {
-		return 'label' in target ? target.label : formatReleaseDisplayTitle(target)
-	}
-
-	function mergeReplacementFailures(
-		existing: DiscogsImportFailure[],
-		replacements: DiscogsImportFailure[]
-	): DiscogsImportFailure[] {
-		const replacedIds = new Set(
-			replacements
-				.map((failure) => failure.releaseId)
-				.filter((releaseId): releaseId is number => releaseId !== null)
-		)
-		return [
-			...existing.filter(
-				(failure) =>
-					failure.releaseId === null || !replacedIds.has(failure.releaseId)
-			),
-			...replacements
-		]
-	}
-
-	function reconcileCompletedFailures(
-		existing: DiscogsImportFailure[],
-		attemptedIds: Set<number>,
-		current: DiscogsImportFailure[]
-	): DiscogsImportFailure[] {
-		return [
-			...existing.filter(
-				(failure) =>
-					failure.releaseId !== null && !attemptedIds.has(failure.releaseId)
-			),
-			...current
-		]
-	}
-
-	function updateAttemptStatus(
-		context: AccountOperationContext,
-		targets: DiscogsReleaseTarget[],
-		status: {
-			target: DiscogsReleaseTarget
-			attempt: number
-			maxAttempts: number
-			waitingMs: number | null
-		}
-	) {
-		if (!isCurrentAccountContext(context)) return
-		const currentIndex = targets.findIndex(
-			(target) => target.id === status.target.id
-		)
-		retryStatus.value = {
-			current: Math.max(1, currentIndex + 1),
-			total: targets.length,
-			label: labelForTarget(status.target),
-			attempt: status.attempt,
-			maxAttempts: status.maxAttempts,
-			waitingMs: status.waitingMs
-		}
-	}
-
-	async function refreshImportedLibrary(context: AccountOperationContext) {
+	async function refreshImportedLibrary(
+		context: TransferOperationContext
+	): Promise<boolean> {
+		if (!isCurrentTransferContext(context)) return false
 		const recordsStore = useRecordsStore(pinia)
 		const tracksStore = useTracksStore(pinia)
-		await Promise.all([
-			recordsStore.fetchAllRecords(),
-			tracksStore.fetchAllTracks()
+		const results = await Promise.allSettled([
+			recordsStore.fetchAllRecords({ fresh: true }),
+			tracksStore.fetchAllTracks({ fresh: true })
 		])
-		return isCurrentAccountContext(context)
+		return (
+			isCurrentTransferContext(context) &&
+			results.every(
+				(result) => result.status === 'fulfilled' && result.value === true
+			)
+		)
+	}
+
+	function applyTerminalState(
+		context: TransferOperationContext,
+		terminal: Extract<
+			DiscogsTransferRunnerEvent,
+			{ type: 'completed' | 'provider-cancelled' | 'unexpected-failure' }
+		>['terminal']
+	) {
+		if (!isCurrentTransferContext(context)) return
+		transferStatus.value = terminal.status
+		transferMode.value = terminal.mode
+		importResults.value = terminal.results
+		retrySummary.value = terminal.retrySummary
+		libraryRefreshFailed.value = terminal.libraryRefreshFailed
+	}
+
+	function applyResultsUpdate(update: DiscogsTransferResultsUpdate) {
+		if (update.kind === 'replace') importResults.value = update.results
+	}
+
+	function applyTransferEvent(
+		context: TransferOperationContext,
+		event: DiscogsTransferRunnerEvent
+	) {
+		if (!isCurrentTransferContext(context)) return
+		switch (event.type) {
+			case 'started':
+				showImportProgressDialog.value = true
+				isImporting.value = true
+				transferStatus.value = 'running'
+				transferMode.value = event.mode
+				shouldCancelImport.value = false
+				importProgress.value = 0
+				importPhase.value = 'fetching'
+				retryStatus.value = null
+				retrySummary.value = null
+				libraryRefreshFailed.value = false
+				applyResultsUpdate(event.resultsUpdate)
+				return
+			case 'prepared':
+				applyResultsUpdate(event.resultsUpdate)
+				return
+			case 'progress':
+				importProgress.value = event.progress
+				releaseBeingImported.value = event.release
+				return
+			case 'attempt-status':
+				retryStatus.value = event.status
+				return
+			case 'saving':
+				importPhase.value = 'saving'
+				retryStatus.value = null
+				return
+			case 'refreshing':
+				return
+			case 'refresh-failed':
+				libraryRefreshFailed.value = true
+				toast.warning(
+					'Discogs changes were saved, but your library could not be refreshed.'
+				)
+				return
+			case 'provider-cancelled':
+				applyTerminalState(context, event.terminal)
+				retryStatus.value = null
+				toast.info(event.message)
+				showImportProgressDialog.value = false
+				return
+			case 'completed':
+				applyTerminalState(context, event.terminal)
+				return
+			case 'unexpected-failure':
+				applyTerminalState(context, event.terminal)
+				toast.error(event.message)
+				return
+			case 'settled':
+				isImporting.value = false
+				importProgress.value = 0
+				importPhase.value = null
+				releaseBeingImported.value = null
+				retryStatus.value = null
+				return
+			case 'stale-owner':
+			case 'snapshot-persist-failed':
+				return
+		}
+	}
+
+	async function runTransfer(
+		operation: TransferOperation,
+		policy: DiscogsTransferModePolicy
+	) {
+		const { context, destination } = operation
+		await runDiscogsTransfer({
+			ownership: context,
+			policy,
+			isCurrentOwnership: isCurrentTransferContext,
+			isCancellationRequested: () => shouldCancelImport.value,
+			fetch: fetchReleaseDetails,
+			save: (releases, shouldCancel) =>
+				importFetchedReleases(
+					releases,
+					destination.importWithTracks,
+					shouldCancel
+				),
+			refresh: () => refreshImportedLibrary(context),
+			persist: (terminal) =>
+				persistTransferSnapshot(transferSnapshotOwnerKey(context), terminal),
+			onEvent: (event) => applyTransferEvent(context, event)
+		})
 	}
 
 	async function importSelectedReleases() {
@@ -564,273 +627,108 @@ export const useDiscogsStore = defineStore('discogs', () => {
 			return
 		}
 
-		const context = captureAccountContext()
+		const operation = captureTransferOperation()
 		const selectedReleases = releasesToImport.value.filter((r) => r.selected)
 		if (selectedReleases.length === 0) {
 			toast.error('No releases selected for import')
 			return
 		}
-		if (!context || !user.profile || user.profile.id !== context.userId) {
+		if (
+			!operation ||
+			!user.profile ||
+			user.profile.id !== operation.context.ownerId
+		) {
 			toast.error('Profile not loaded.')
 			return
 		}
+
 		showFilterDialog.value = false
-		showImportProgressDialog.value = true
-		const previousFailures = [...importResults.value.failed]
-		const selectedIds = new Set(selectedReleases.map((release) => release.id))
-
-		isImporting.value = true
-		transferStatus.value = 'running'
-		transferMode.value = 'import'
-		shouldCancelImport.value = false
-		importProgress.value = 0
-		importPhase.value = 'fetching'
-		retryStatus.value = null
-		retrySummary.value = null
-		importResults.value = {
-			successful: 0,
-			skipped: [],
-			failed: previousFailures
-		}
-
-		try {
-			// Step 1: Handle existing releases
-			const { releasesToFetch, skipped } =
-				await filterOutExistingReleases(selectedReleases)
-			if (!isCurrentAccountContext(context)) return
-			importResults.value.skipped = skipped
-			const fetchTargets: DiscogsReleaseTarget[] = releasesToFetch
-
-			// Step 2: Fetch details with progress tracking
-			const {
-				releases,
-				failed: fetchFailed,
-				cancelled
-			} = await fetchReleaseDetails(
-				fetchTargets,
-				(progress, current) => {
-					if (!isCurrentAccountContext(context)) return
-					importProgress.value = progress
-					releaseBeingImported.value =
-						'basic_information' in current ? current : null
-				},
-				() => shouldCancelImport.value || !isCurrentAccountContext(context),
-				{
-					onAttemptStatus: (status) =>
-						updateAttemptStatus(context, fetchTargets, status)
-				}
-			)
-			if (!isCurrentAccountContext(context)) return
-			retryStatus.value = null
-
-			if (cancelled) {
-				importResults.value.failed = mergeReplacementFailures(
-					previousFailures,
-					fetchFailed
-				)
-				transferStatus.value = 'cancelled'
-				toast.info('Import of Discogs records cancelled')
-				showImportProgressDialog.value = false
-				persistTransferSnapshot()
-				return
-			}
-
-			// Step 3: Import to database
-			if (!isCurrentAccountContext(context)) return
-			importPhase.value = 'saving'
-			const { successful, failed: importFailed } = await importFetchedReleases(
-				releases,
-				context.userId,
-				() => shouldCancelImport.value || !isCurrentAccountContext(context)
-			)
-			if (!isCurrentAccountContext(context)) return
-			importResults.value.successful = successful
-			importResults.value.failed = reconcileCompletedFailures(
-				previousFailures,
-				selectedIds,
-				[...fetchFailed, ...importFailed]
-			)
-
-			// Refresh local stores with newly imported data
-			if (successful > 0) {
-				if (!(await refreshImportedLibrary(context))) return
-			}
-			transferStatus.value = 'completed'
-			persistTransferSnapshot()
-		} catch {
-			if (!isCurrentAccountContext(context)) return
-			transferStatus.value = 'failed'
-			importResults.value.failed = [
-				...previousFailures,
-				{
-					releaseId: null,
-					label: 'Discogs import',
-					error: 'The transfer stopped unexpectedly. Please try again.',
-					code: 'internal_error',
-					stage: 'pipeline',
-					retryable: false,
-					attempts: 1
-				}
-			]
-			toast.error('Discogs import failed. Open Transfers for details.')
-			persistTransferSnapshot()
-		} finally {
-			if (isCurrentAccountContext(context)) {
-				isImporting.value = false
-				importProgress.value = 0
-				importPhase.value = null
-				releaseBeingImported.value = null
-				retryStatus.value = null
-			}
-		}
+		await runTransfer(
+			operation,
+			createDiscogsImportTransferPolicy({
+				selectedReleases,
+				previousResults: importResults.value,
+				prepareTargets: (selected) =>
+					filterOutExistingReleases(
+						selected,
+						operation.destination.findExistingDiscogsIds
+					),
+				formatTargetLabel: (target) => formatReleaseDisplayTitle(target)
+			})
+		)
 	}
 
 	async function retryFailedReleases() {
 		if (isImporting.value) return
-		const context = captureAccountContext()
-		if (!context || !user.profile || user.profile.id !== context.userId) {
+		const operation = captureTransferOperation()
+		if (
+			!operation ||
+			!user.profile ||
+			user.profile.id !== operation.context.ownerId
+		) {
 			toast.error('Profile not loaded.')
 			return
 		}
 		const failuresToRetry = retryableFailures.value
 		if (failuresToRetry.length === 0) return
 
-		const previousFailures = [...importResults.value.failed]
-		const targets: DiscogsReleaseTarget[] = failuresToRetry.map((failure) => ({
-			id: failure.releaseId!,
-			label: failure.label
-		}))
-		const attemptedIds = new Set(targets.map((target) => target.id))
-
-		showImportProgressDialog.value = true
-		isImporting.value = true
-		transferStatus.value = 'running'
-		transferMode.value = 'retry'
-		shouldCancelImport.value = false
-		importProgress.value = 0
-		importPhase.value = 'fetching'
-		retryStatus.value = null
-		retrySummary.value = null
-
-		try {
-			const {
-				releases,
-				failed: fetchFailed,
-				cancelled
-			} = await fetchReleaseDetails(
-				targets,
-				(progress) => {
-					if (!isCurrentAccountContext(context)) return
-					importProgress.value = progress
-					releaseBeingImported.value = null
-				},
-				() => shouldCancelImport.value || !isCurrentAccountContext(context),
-				{
-					onAttemptStatus: (status) =>
-						updateAttemptStatus(context, targets, status)
-				}
-			)
-			if (!isCurrentAccountContext(context)) return
-			retryStatus.value = null
-
-			if (cancelled) {
-				importResults.value.failed = mergeReplacementFailures(
-					previousFailures,
-					fetchFailed
-				)
-				transferStatus.value = 'cancelled'
-				retrySummary.value = {
-					attempted: failuresToRetry.length,
-					recovered: 0,
-					remaining: importResults.value.failed.length
-				}
-				toast.info('Retry of Discogs records cancelled')
-				showImportProgressDialog.value = false
-				persistTransferSnapshot()
-				return
-			}
-
-			importPhase.value = 'saving'
-			const { successful, failed: importFailed } = await importFetchedReleases(
-				releases,
-				context.userId,
-				() => shouldCancelImport.value || !isCurrentAccountContext(context)
-			)
-			if (!isCurrentAccountContext(context)) return
-			const currentFailures = [...fetchFailed, ...importFailed]
-			importResults.value.failed = reconcileCompletedFailures(
-				previousFailures,
-				attemptedIds,
-				currentFailures
-			)
-			const failedAttemptIds = new Set(
-				currentFailures
-					.map((failure) => failure.releaseId)
-					.filter((releaseId): releaseId is number => releaseId !== null)
-			)
-			const recovered = [...attemptedIds].filter(
-				(releaseId) => !failedAttemptIds.has(releaseId)
-			).length
-			importResults.value.successful += recovered
-			retrySummary.value = {
-				attempted: failuresToRetry.length,
-				recovered,
-				remaining: importResults.value.failed.length
-			}
-
-			if (successful > 0) {
-				if (!(await refreshImportedLibrary(context))) return
-			}
-			transferStatus.value = 'completed'
-			persistTransferSnapshot()
-		} catch {
-			if (!isCurrentAccountContext(context)) return
-			transferStatus.value = 'failed'
-			importResults.value.failed = [
-				...previousFailures,
-				{
-					releaseId: null,
-					label: 'Discogs retry',
-					error: 'The retry stopped unexpectedly. Please try again.',
-					code: 'internal_error',
-					stage: 'pipeline',
-					retryable: false,
-					attempts: 1
-				}
-			]
-			retrySummary.value = {
-				attempted: failuresToRetry.length,
-				recovered: 0,
-				remaining: importResults.value.failed.length
-			}
-			toast.error('Discogs retry failed. Open Transfers for details.')
-			persistTransferSnapshot()
-		} finally {
-			if (isCurrentAccountContext(context)) {
-				isImporting.value = false
-				importProgress.value = 0
-				importPhase.value = null
-				releaseBeingImported.value = null
-				retryStatus.value = null
-			}
-		}
+		await runTransfer(
+			operation,
+			createDiscogsRetryTransferPolicy({
+				failuresToRetry,
+				previousResults: importResults.value
+			})
+		)
 	}
 
-	watch(showGetFoldersDialog, (newValue) => {
-		if (!newValue) return
-		if (hasActiveTransfer.value) {
-			showGetFoldersDialog.value = false
-			openTransferMonitor()
-			return
-		}
-		if (folders.value.length === 0) getFolders()
-	})
 	watch(
-		() => currentUserId(),
-		(userId) => {
-			if (userId) restoreTransferSnapshot(userId)
+		selectedFolder,
+		() => {
+			folderReviewGeneration += 1
+			isLoadingSelectedFolder.value = false
+			releasesToImport.value = []
 		},
-		{ immediate: true }
+		{ flush: 'sync' }
+	)
+	watch(
+		showGetFoldersDialog,
+		(newValue) => {
+			folderReviewGeneration += 1
+			isLoadingSelectedFolder.value = false
+			if (!newValue) return
+			if (hasActiveTransfer.value) {
+				showGetFoldersDialog.value = false
+				openTransferMonitor()
+				return
+			}
+			if (folders.value.length === 0) getFolders()
+		},
+		{ flush: 'sync' }
+	)
+	watch(
+		() => currentSnapshotOwnerKey(),
+		(ownerKey, previousOwnerKey) => {
+			if (previousOwnerKey && ownerKey !== previousOwnerKey) {
+				try {
+					transferSnapshotPersistence()?.remove(previousOwnerKey)
+				} catch {
+					// Workspace replacement must proceed even if cleanup is unavailable.
+				}
+				resetWorkspaceTransferState()
+			}
+			if (ownerKey) {
+				const legacyOwner = currentUserId()
+				if (legacyOwner) {
+					try {
+						transferSnapshotPersistence()?.remove(legacyOwner)
+					} catch {
+						// Legacy snapshot cleanup is best effort.
+					}
+				}
+				restoreTransferSnapshot(ownerKey)
+			}
+		},
+		{ flush: 'sync', immediate: true }
 	)
 
 	return {
@@ -854,6 +752,7 @@ export const useDiscogsStore = defineStore('discogs', () => {
 		isRetrying,
 		retryStatus,
 		retrySummary,
+		libraryRefreshFailed,
 		retryableFailures,
 		canRetryFailed,
 		importResults,

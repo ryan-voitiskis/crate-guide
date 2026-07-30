@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Monitor, Moon, Sun } from 'lucide-vue-next'
+import { Monitor, Moon, Sun } from '@lucide/vue'
 
 const user = useUserStore()
 
@@ -10,17 +10,13 @@ const labels: Record<ThemeOptions, string> = {
 	auto: 'Auto'
 }
 
-const current = computed<ThemeOptions>(() => user.currentTheme)
+const current = computed<ThemeOptions>(() => user.deviceTheme)
 const label = computed(() => `Theme: ${labels[current.value]}`)
 
 function cycle() {
 	const idx = order.indexOf(current.value)
 	const next = order[(idx + 1) % order.length] ?? 'auto'
-	// On unauthenticated auth pages skip the DB write path — otherwise a
-	// stale/partial session could surface profile-update error toasts
-	// unrelated to what the user was doing.
-	if (user.supaUserId) user.updateTheme(next)
-	else user.setLocalTheme(next)
+	user.setLocalTheme(next)
 }
 </script>
 

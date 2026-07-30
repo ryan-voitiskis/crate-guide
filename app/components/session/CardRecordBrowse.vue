@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import type { LibraryRecord } from '~~/shared/types/library'
+
 const props = defineProps<{
-	record: DatabaseRecord
+	record: LibraryRecord
 }>()
 
 defineEmits<{

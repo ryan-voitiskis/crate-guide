@@ -3,6 +3,18 @@
 	"configurationVersion": "center-180s-44k1-v1",
 	"sampleRate": 44100,
 	"maxAnalysisSeconds": 180,
+	"decodeSafety": {
+		"policyVersion": "whole-file-pcm-wav-v1",
+		"maxHeaderBytes": 1048576,
+		"maxTotalPeakBytes": 268435456,
+		"fixedSafetyMarginBytes": 33554432,
+		"inputFileCopies": 2,
+		"decodedPcmCopies": 2,
+		"analysisPcmCopies": 3,
+		"maxChannels": 2,
+		"maxSampleRate": 192000,
+		"supportedWavBitsPerSample": [16, 24]
+	},
 	"minimumConfidence": {
 		"bpm": 1.5,
 		"keyStrength": 0.8
