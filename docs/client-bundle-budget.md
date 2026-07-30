@@ -51,7 +51,10 @@ whether to load the Cloud workbench runtime. During initial hydration,
 otherwise fetch Cloud-only code on a signed-out public page. The browser proof
 resolves generated asset names through the semantic manifest, then records
 successful responses across `/login`, the default workbench, enrichment, and a
-real local-audio Worker/WASM interaction.
+real local-audio Worker/WASM interaction. Desktop and mobile navigation also
+disable NuxtLink smart prefetch for the heavy enrichment route while retaining
+it for ordinary destinations, so the route, device-draft repository, Worker,
+and WASM boundaries remain interaction-driven.
 
 ## Commands and interpretation
 

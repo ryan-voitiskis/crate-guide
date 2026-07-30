@@ -50,12 +50,21 @@ describe('navItems', () => {
 		const enrichment = navItems.find((item) => item.label === 'BPM & Key')
 		expect(enrichment).toBeDefined()
 		expect(enrichment?.path).toBe('/enrichment')
+		expect(enrichment?.prefetch).toBe(false)
 	})
 
 	it('includes settings page', () => {
 		const settings = navItems.find((item) => item.label === 'Settings')
 		expect(settings).toBeDefined()
 		expect(settings?.path).toBe('/settings')
+	})
+
+	it('prefetches ordinary navigation destinations', () => {
+		expect(
+			navItems
+				.filter((item) => item.path !== '/enrichment')
+				.every((item) => item.prefetch)
+		).toBe(true)
 	})
 
 	it('each item has an icon', () => {

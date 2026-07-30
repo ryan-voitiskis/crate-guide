@@ -1,3 +1,4 @@
+import type { Component } from 'vue'
 import {
 	Disc,
 	FolderOpen,
@@ -7,12 +8,22 @@ import {
 	WandSparkles
 } from 'lucide-vue-next'
 
+type NavigationItem = {
+	path: string
+	label: string
+	description: string
+	shortcut: string
+	prefetch: boolean
+	icon: Component
+}
+
 export const navItems = [
 	{
 		path: '',
 		label: 'Session',
 		description: 'Build and rehearse a set across virtual decks',
 		shortcut: 'G S',
+		prefetch: true,
 		icon: Radio
 	},
 	{
@@ -20,6 +31,7 @@ export const navItems = [
 		label: 'Tracks',
 		description: 'Search, sort and inspect the full track library',
 		shortcut: 'G T',
+		prefetch: true,
 		icon: Music
 	},
 	{
@@ -27,6 +39,7 @@ export const navItems = [
 		label: 'Records',
 		description: 'Browse releases, labels and catalog numbers',
 		shortcut: 'G R',
+		prefetch: true,
 		icon: Disc
 	},
 	{
@@ -34,6 +47,7 @@ export const navItems = [
 		label: 'Crates',
 		description: 'Organise records into gig-ready collections',
 		shortcut: 'G C',
+		prefetch: true,
 		icon: FolderOpen
 	},
 	{
@@ -41,6 +55,7 @@ export const navItems = [
 		label: 'BPM & Key',
 		description: 'Review and apply local track analysis',
 		shortcut: 'G E',
+		prefetch: false,
 		icon: WandSparkles
 	},
 	{
@@ -48,9 +63,10 @@ export const navItems = [
 		label: 'Settings',
 		description: 'Appearance, accounts and integrations',
 		shortcut: 'G ,',
+		prefetch: true,
 		icon: Settings
 	}
-] as const
+] as const satisfies readonly NavigationItem[]
 
 export function useNavigation() {
 	const route = useRoute()
