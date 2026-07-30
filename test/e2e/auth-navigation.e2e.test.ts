@@ -37,11 +37,13 @@ describe('Authentication navigation', () => {
 
 	it('applies the saved anonymous dark theme before auth styles and content', async () => {
 		const page = await createErrorAwarePage('/login')
+		await page.waitForLoadState('networkidle')
 		await page.addInitScript(() => {
 			localStorage.setItem('crate-guide:anonymous-theme', 'dark')
 		})
 
 		const response = await page.reload()
+		await page.waitForLoadState('networkidle')
 		await page.getByRole('heading', { name: 'Log in' }).waitFor()
 		const html = (await response?.text()) ?? ''
 		const bootstrapIndex = html.indexOf('crate-guide:anonymous-theme')
