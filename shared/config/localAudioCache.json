@@ -7,7 +7,7 @@
 	"maxEntries": 20000,
 	"maxAgeDays": 90,
 	"readChunkSize": 250,
-	"writeChunkSize": 100,
+	"writeChunkSize": 250,
 	"pruneChunkSize": 500,
 	"workerIdleMs": 30000,
 	"baselineReference": {

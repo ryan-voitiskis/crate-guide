@@ -349,13 +349,13 @@ describe('localAudioCache', () => {
 		expect(metrics).toMatchObject({
 			connectionsOpened: 1,
 			readTransactions: 3,
-			writeTransactions: 6,
+			writeTransactions: 3,
 			requestedRecords: 601,
 			cacheHits: 600,
 			cacheMisses: 1,
 			queuedWrites: 600,
 			committedWrites: 600,
-			totalTransactions: 9
+			totalTransactions: 6
 		})
 	})
 

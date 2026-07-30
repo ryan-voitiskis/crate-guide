@@ -104,5 +104,7 @@ an active batch.
 
 ## Maintenance notes
 
-The entry/age limits are policy constants with tests. Revisit them using real
+The entry/age limits are policy constants with tests. Writes use 250-record
+transactions, matching reads, to keep the 10k cold path within its original
+wall-clock budget without relaxing that budget. Revisit limits using real
 storage telemetry, not by silently increasing them when a fixture fails.
