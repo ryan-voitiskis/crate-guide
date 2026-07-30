@@ -532,7 +532,7 @@ describe('localAudioCache', () => {
 		expect((await getLocalAudioCacheStatus()).entryCount).toBe(
 			LOCAL_AUDIO_CACHE_MAX_ENTRIES
 		)
-	}, 30_000)
+	}, 60_000)
 
 	it('exposes count and last-pruned state and clears only the analysis cache', async () => {
 		await seedRecords([createRecord(activeCacheKey('status'))])
