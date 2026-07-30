@@ -2,16 +2,21 @@ import {
 	type AccountCoverCleanupResult,
 	processNextAccountCoverCleanup
 } from '../_shared/accountCoverCleanup.ts'
-import { requireSecretKey } from '../_shared/supabaseHelpers.ts'
+import { requireEnv, requireSecretKey } from '../_shared/supabaseHelpers.ts'
+
+export const ACCOUNT_COVER_CLEANUP_SECRET_HEADER =
+	'x-crate-guide-cleanup-secret'
 
 interface HandlerDependencies {
-	secretKey(): string
+	schedulerSecret(): string
+	projectSecret(): string
 	compareSecrets(actual: string, expected: string): Promise<boolean>
 	processNext(): Promise<AccountCoverCleanupResult>
 }
 
 const defaultDependencies: HandlerDependencies = {
-	secretKey: requireSecretKey,
+	schedulerSecret: () => requireEnv('ACCOUNT_COVER_CLEANUP_SCHEDULER_SECRET'),
+	projectSecret: requireSecretKey,
 	compareSecrets: timingSafeSecretEqual,
 	processNext: () => processNextAccountCoverCleanup()
 }
@@ -28,6 +33,8 @@ export async function timingSafeSecretEqual(
 	actual: string,
 	expected: string
 ): Promise<boolean> {
+	if (!actual || !expected) return false
+
 	const encoder = new TextEncoder()
 	const [actualDigest, expectedDigest] = await Promise.all([
 		crypto.subtle.digest('SHA-256', encoder.encode(actual)),
@@ -57,9 +64,18 @@ export function createCleanupOrphanedRecordCoversHandler(
 
 		let isSecretKey: boolean
 		try {
+			const dedicatedSecret = request.headers.get(
+				ACCOUNT_COVER_CLEANUP_SECRET_HEADER
+			)
+			const suppliedSecret =
+				dedicatedSecret ?? request.headers.get('apikey') ?? ''
+			const expectedSecret =
+				dedicatedSecret === null
+					? dependencies.projectSecret()
+					: dependencies.schedulerSecret()
 			isSecretKey = await dependencies.compareSecrets(
-				request.headers.get('apikey') ?? '',
-				dependencies.secretKey()
+				suppliedSecret,
+				expectedSecret
 			)
 		} catch {
 			return jsonResponse(

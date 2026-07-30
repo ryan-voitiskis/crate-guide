@@ -130,6 +130,7 @@ DISCOGS_USER_AGENT=CrateGuide/2.0
 DISCOGS_RATE_LIMIT_PER_USER=
 DISCOGS_RATE_LIMIT_GLOBAL=
 DISCOGS_RATE_LIMIT_WINDOW_SECONDS=
+ACCOUNT_COVER_CLEANUP_SCHEDULER_SECRET=
 SITE_URL=http://localhost:3000
 ```
 
@@ -356,7 +357,7 @@ prior states and reports if restoration cannot complete. Run
 | `get-discogs-access-token`       | Validates the callback, exchanges/stores credentials, and refreshes public identity.         |
 | `authenticated-discogs-request`  | Dispatches only validated folder, folder-release, and release reads with server signing.     |
 | `cleanup-record-covers`          | Drains durable obsolete-cover jobs for the verified user without accepting client paths.     |
-| `cleanup-orphaned-record-covers` | Processes one bounded, leased account-cover cleanup batch for an exact service-role caller.  |
+| `cleanup-orphaned-record-covers` | Processes one bounded, leased account-cover cleanup batch for an authenticated scheduler.    |
 | `delete-account`                 | Requires recent authentication, schedules durable bounded cleanup, then deletes the account. |
 
 For local emulation, `npm run supa:functions` uses `--no-verify-jwt`; handler
