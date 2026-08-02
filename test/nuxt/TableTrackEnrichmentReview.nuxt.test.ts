@@ -183,6 +183,22 @@ describe('TableTrackEnrichmentReview', () => {
 		)
 	})
 
+	it('reserves wrapping space for evidence-only desktop statuses', async () => {
+		const wrapper = await mountTable([
+			createRow({ canFillBpm: false, canFillKeyMode: false })
+		])
+		const desktopTable = wrapper.get(
+			'[data-testid="enrichment-review-desktop-table"]'
+		)
+		const stageLabel = desktopTable.get('tbody td').get('.whitespace-normal')
+
+		expect(desktopTable.get('thead th').classes()).toContain('w-28')
+		expect(stageLabel.text().trim()).toBe('Evidence only')
+		expect(stageLabel.classes()).toEqual(
+			expect.arrayContaining(['leading-tight', 'whitespace-normal'])
+		)
+	})
+
 	it('omits unavailable labels for non-stageable rows in mixed views', async () => {
 		const wrapper = await mountTable([
 			createRow({

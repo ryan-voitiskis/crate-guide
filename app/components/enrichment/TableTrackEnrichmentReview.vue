@@ -301,7 +301,7 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 					class="bg-muted/70 sticky top-0 z-10 shadow-[0_1px_0_var(--border)] backdrop-blur-md [&_th]:h-8 [&_th]:font-mono [&_th]:text-[9px] [&_th]:tracking-wide [&_th]:uppercase"
 				>
 					<TableRow>
-						<TableHead class="w-24">
+						<TableHead class="w-28">
 							<div class="flex items-center gap-2">
 								<CheckboxLargeHitArea
 									:model-value="filteredSelectionState"
@@ -394,7 +394,7 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 								<div class="min-w-0">
 									<div
 										v-if="getStageLabel(row)"
-										class="font-mono text-[9px] font-semibold tracking-wide uppercase"
+										class="font-mono text-[9px] leading-tight font-semibold tracking-wide whitespace-normal uppercase"
 										:class="getStageClasses(row)"
 									>
 										{{ getStageLabel(row) }}
