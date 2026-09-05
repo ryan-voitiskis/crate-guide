@@ -2,17 +2,80 @@ import { describe, expect, it } from 'vitest'
 import {
 	DEFAULT_DELTA_TIME,
 	MAX_DELTA_TIME,
+	STROBE_DOT_COUNTS,
+	STROBE_REFERENCE_DOT_COUNT,
 	VELOCITY_FACTOR,
 	VELOCITY_THRESHOLD,
 	calculateDeltaTime,
 	calculateNextAngle,
+	calculatePlatterMotionMix,
+	calculateStrobeApparentVelocity,
+	calculateStrobeFlashFrequency,
+	calculateStrobeLockPitch,
+	calculateStrobeRenderAngle,
 	calculateTargetVelocity,
+	resolveTurntableRpm,
 	shouldContinueAnimation,
 	simulateVelocityConvergence,
 	smoothVelocity
 } from './platter-physics'
 
 describe('platter-physics', () => {
+	describe('strobe presentation at low speed', () => {
+		it('uses the physical angle at rest despite accumulated simulated phases', () => {
+			for (const count of STROBE_DOT_COUNTS) {
+				expect(calculateStrobeRenderAngle(137.25, 298.7, 0, count)).toBe(137.25)
+			}
+		})
+
+		it('preserves the independent simulated phase at operating speed', () => {
+			expect(calculateStrobeRenderAngle(137, 298, 0.2, 180)).toBe(298)
+		})
+
+		it('blends along the shortest equivalent mirror spacing', () => {
+			// 101.8 degrees is the same 180-dot phase as 99.8, not a 101.8-degree turn.
+			expect(calculateStrobeRenderAngle(0, 101.8, 0.0225, 180)).toBeCloseTo(
+				359.9
+			)
+		})
+
+		it('converges onto every physical row while coasting down', () => {
+			for (const count of STROBE_DOT_COUNTS) {
+				const period = 360 / count
+				const physical = 73.2
+				const simulated = physical + period * 40 + period * 0.4
+				let previousError = period
+				for (const velocity of [0.04, 0.03, 0.02, 0.01, 0.001, 0]) {
+					const rendered = calculateStrobeRenderAngle(
+						physical,
+						simulated,
+						velocity,
+						count
+					)
+					const error = Math.abs(rendered - physical)
+					expect(error).toBeLessThanOrEqual(previousError)
+					previousError = error
+				}
+				expect(previousError).toBe(0)
+			}
+		})
+
+		it('keeps already aligned rows aligned during restart', () => {
+			for (const velocity of [0, 0.001, 0.02, 0.045, 0.2]) {
+				expect(calculateStrobeRenderAngle(73, 73, velocity, 180)).toBeCloseTo(
+					73
+				)
+			}
+		})
+
+		it('bounds the blur blend and handles reverse motion symmetrically', () => {
+			expect(calculatePlatterMotionMix(0)).toBe(0)
+			expect(calculatePlatterMotionMix(0.0225)).toBe(0.5)
+			expect(calculatePlatterMotionMix(-0.0225)).toBe(0.5)
+			expect(calculatePlatterMotionMix(0.2)).toBe(1)
+		})
+	})
+
 	describe('constants', () => {
 		it('has correct velocity factor for ~2s convergence', () => {
 			// Factor of 0.0015 means ~2000ms to reach 95% of target
@@ -39,10 +102,10 @@ describe('platter-physics', () => {
 			expect(calculateTargetVelocity(45, 50, 16, false)).toBe(0)
 		})
 
-		it('calculates correct base velocity for 33 RPM', () => {
-			// 33 RPM = 33 * 360 / 60000 = 0.198 deg/ms
+		it('treats the 33 control as 33 1/3 RPM', () => {
+			// 33 1/3 RPM = 0.2 deg/ms
 			const velocity = calculateTargetVelocity(33, 0, 8, true)
-			expect(velocity).toBeCloseTo(0.198, 4)
+			expect(velocity).toBeCloseTo(0.2, 4)
 		})
 
 		it('calculates correct base velocity for 45 RPM', () => {
@@ -53,42 +116,42 @@ describe('platter-physics', () => {
 
 		it('applies positive pitch correctly with 8% range', () => {
 			// At 100% pitch with 8% range: factor = 1 + (100/100) * (8/100) = 1.08
-			const baseVelocity = 0.198
+			const baseVelocity = 0.2
 			const velocity = calculateTargetVelocity(33, 100, 8, true)
 			expect(velocity).toBeCloseTo(baseVelocity * 1.08, 4)
 		})
 
 		it('applies negative pitch correctly with 8% range', () => {
 			// At -100% pitch with 8% range: factor = 1 + (-100/100) * (8/100) = 0.92
-			const baseVelocity = 0.198
+			const baseVelocity = 0.2
 			const velocity = calculateTargetVelocity(33, -100, 8, true)
 			expect(velocity).toBeCloseTo(baseVelocity * 0.92, 4)
 		})
 
 		it('applies partial pitch correctly', () => {
 			// At 50% pitch with 8% range: factor = 1 + (50/100) * (8/100) = 1.04
-			const baseVelocity = 0.198
+			const baseVelocity = 0.2
 			const velocity = calculateTargetVelocity(33, 50, 8, true)
 			expect(velocity).toBeCloseTo(baseVelocity * 1.04, 4)
 		})
 
 		it('respects 16% pitch range', () => {
 			// At 100% pitch with 16% range: factor = 1.16
-			const baseVelocity = 0.198
+			const baseVelocity = 0.2
 			const velocity = calculateTargetVelocity(33, 100, 16, true)
 			expect(velocity).toBeCloseTo(baseVelocity * 1.16, 4)
 		})
 
 		it('respects 50% pitch range', () => {
 			// At 100% pitch with 50% range: factor = 1.50
-			const baseVelocity = 0.198
+			const baseVelocity = 0.2
 			const velocity = calculateTargetVelocity(33, 100, 50, true)
 			expect(velocity).toBeCloseTo(baseVelocity * 1.5, 4)
 		})
 
 		it('handles zero pitch range', () => {
 			// With 0% range, pitch has no effect
-			const baseVelocity = 0.198
+			const baseVelocity = 0.2
 			const velocity = calculateTargetVelocity(33, 100, 0, true)
 			expect(velocity).toBeCloseTo(baseVelocity, 4)
 		})
@@ -241,6 +304,60 @@ describe('platter-physics', () => {
 			const result = calculateNextAngle(45, 0.198, 0)
 			expect(result).toBe(45)
 		})
+
+		it('wraps reverse apparent motion to a positive angle', () => {
+			expect(calculateNextAngle(1, -0.2, 10)).toBe(359)
+		})
+	})
+
+	describe('SL-1200 strobe model', () => {
+		it('resolves the conventional 33 label to 33 1/3 RPM', () => {
+			expect(resolveTurntableRpm(33)).toBeCloseTo(100 / 3, 8)
+			expect(resolveTurntableRpm(45)).toBe(45)
+		})
+
+		it('uses the nominal 180-mirror row as the quartz reference', () => {
+			expect(STROBE_REFERENCE_DOT_COUNT).toBe(180)
+			expect(STROBE_DOT_COUNTS).toEqual([186, 180, 174, 169])
+			expect(calculateStrobeFlashFrequency(33)).toBeCloseTo(100, 8)
+			expect(calculateStrobeFlashFrequency(45)).toBeCloseTo(135, 8)
+		})
+
+		it('derives the approximate legend pitches from integer mirror counts', () => {
+			expect(calculateStrobeLockPitch(186)).toBeCloseTo(-3.23, 2)
+			expect(calculateStrobeLockPitch(180)).toBe(0)
+			expect(calculateStrobeLockPitch(174)).toBeCloseTo(3.45, 2)
+			expect(calculateStrobeLockPitch(169)).toBeCloseTo(6.51, 2)
+		})
+
+		it.each([
+			[186, calculateStrobeLockPitch(186)],
+			[180, 0],
+			[174, calculateStrobeLockPitch(174)],
+			[169, calculateStrobeLockPitch(169)]
+		])('holds the %i-mirror row still at its lock pitch', (dotCount, pitch) => {
+			const physicalVelocity = calculateTargetVelocity(
+				33,
+				(pitch / 8) * 100,
+				8,
+				true
+			)
+			expect(
+				calculateStrobeApparentVelocity(physicalVelocity, 33, dotCount)
+			).toBeCloseTo(0, 8)
+		})
+
+		it('shows opposite drift either side of nominal pitch', () => {
+			const slow = calculateTargetVelocity(33, -50, 8, true)
+			const fast = calculateTargetVelocity(33, 50, 8, true)
+
+			expect(calculateStrobeApparentVelocity(slow, 33, 180)).toBeLessThan(0)
+			expect(calculateStrobeApparentVelocity(fast, 33, 180)).toBeGreaterThan(0)
+		})
+
+		it('does not invent reverse motion while the platter is stopped', () => {
+			expect(calculateStrobeApparentVelocity(0, 33, 180)).toBe(0)
+		})
 	})
 
 	describe('simulateVelocityConvergence', () => {
@@ -303,7 +420,7 @@ describe('platter-physics', () => {
 
 			// Start playing
 			const target = calculateTargetVelocity(rpm, pitch, pitchRange, true)
-			expect(target).toBeCloseTo(0.198, 4)
+			expect(target).toBeCloseTo(0.2, 4)
 
 			// Simulate 2 seconds of animation
 			let velocity = 0
@@ -324,7 +441,7 @@ describe('platter-physics', () => {
 		})
 
 		it('simulates full deceleration cycle', () => {
-			const startVelocity = 0.198
+			const startVelocity = 0.2
 
 			// Stop playing (target becomes 0)
 			let velocity = startVelocity
@@ -357,7 +474,7 @@ describe('platter-physics', () => {
 
 			// Change to +50% pitch
 			target = calculateTargetVelocity(rpm, 50, pitchRange, true)
-			const newTarget = 0.198 * 1.04
+			const newTarget = 0.2 * 1.04
 
 			// Should smoothly transition to new target
 			for (let i = 0; i < 125; i++) {
@@ -365,7 +482,7 @@ describe('platter-physics', () => {
 				velocity = smoothVelocity(velocity, target, 16)
 			}
 
-			expect(velocity).toBeGreaterThan(0.198) // Faster than base
+			expect(velocity).toBeGreaterThan(0.2) // Faster than base
 			expect(velocity / newTarget).toBeGreaterThan(0.9)
 		})
 
@@ -397,7 +514,7 @@ describe('platter-physics', () => {
 			// Should have momentum from partial stop
 			expect(velocity).toBeGreaterThan(velocityAtStop)
 			// But not as fast as if we'd been playing the whole time
-			expect(velocity).toBeLessThan(0.198 * 0.95)
+			expect(velocity).toBeLessThan(0.2 * 0.95)
 		})
 
 		it('handles backgrounded tab gracefully', () => {

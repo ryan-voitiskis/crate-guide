@@ -26,6 +26,24 @@ export const MAX_DELTA_TIME = 100
 export const DEFAULT_DELTA_TIME = 16
 
 /**
+ * The large, nominal-speed row on an SL-1200-style platter contains 180
+ * mirrors. At 33 1/3 RPM that gives the quartz-referenced strobe its 100 Hz
+ * cadence; at 45 RPM the same row is driven at 135 Hz.
+ */
+export const STROBE_REFERENCE_DOT_COUNT = 180
+
+/**
+ * Mirror counts from the outside edge towards the record. The integer counts
+ * are why the printed pitch values are approximate rather than exact.
+ */
+export const STROBE_DOT_COUNTS = [186, 180, 174, 169] as const
+
+/** Treat the conventional "33" control label as the actual 33 1/3 RPM. */
+export function resolveTurntableRpm(rpm: number): number {
+	return rpm === 33 ? 100 / 3 : rpm
+}
+
+/**
  * Calculate target angular velocity based on RPM and pitch settings.
  * @param rpm - Turntable RPM (typically 33 or 45)
  * @param pitch - Pitch adjustment as percentage (-100 to 100)
@@ -42,7 +60,7 @@ export function calculateTargetVelocity(
 	if (!isPlaying) return 0
 
 	// RPM to deg/ms: RPM * 360° / 60000ms
-	const baseVelocity = (rpm * 360) / 60000
+	const baseVelocity = (resolveTurntableRpm(rpm) * 360) / 60000
 
 	// Pitch factor: at 100% pitch with 8% range, factor = 1.08
 	const pitchFactor = 1 + (pitch / 100) * (pitchRange / 100)
@@ -109,7 +127,70 @@ export function calculateNextAngle(
 	velocity: number,
 	deltaTime: number
 ): number {
-	return (currentAngle + velocity * deltaTime) % 360
+	return (((currentAngle + velocity * deltaTime) % 360) + 360) % 360
+}
+
+/**
+ * Return the quartz-referenced flash rate for the selected platter speed.
+ * Unlike an early mains-referenced turntable, an SL-1200MK2 changes this
+ * frequency with 33/45 so the same row indicates nominal speed at both RPMs.
+ */
+export function calculateStrobeFlashFrequency(rpm: number): number {
+	return (STROBE_REFERENCE_DOT_COUNT * resolveTurntableRpm(rpm)) / 60
+}
+
+/**
+ * Pitch at which a row appears stationary under the reference strobe.
+ */
+export function calculateStrobeLockPitch(dotCount: number): number {
+	return (STROBE_REFERENCE_DOT_COUNT / dotCount - 1) * 100
+}
+
+/**
+ * Convert physical platter velocity to the slow apparent motion seen under a
+ * strobe. Subtracting the nearest whole mirror-step per flash reproduces the
+ * wagon-wheel alias while remaining independent of display refresh rate.
+ */
+export function calculateStrobeApparentVelocity(
+	physicalVelocity: number,
+	rpm: number,
+	dotCount: number
+): number {
+	if (physicalVelocity === 0 || dotCount <= 0) return 0
+
+	const flashFrequency = calculateStrobeFlashFrequency(rpm)
+	const oneMirrorStepVelocity = ((360 / dotCount) * flashFrequency) / 1000
+	const aliasedSteps = Math.round(physicalVelocity / oneMirrorStepVelocity)
+
+	return physicalVelocity - aliasedSteps * oneMirrorStepVelocity
+}
+
+/** Blend away the motion blur as individual physical mirrors become visible. */
+export function calculatePlatterMotionMix(velocity: number): number {
+	return Math.min(1, Math.max(0, Math.abs(velocity) / 0.045))
+}
+
+/**
+ * At low speed, bring the illuminated mirrors back onto the physical platter.
+ * Rows repeat every mirror spacing, so use the shortest equivalent phase rather
+ * than sweeping through an arbitrary accumulated strobe rotation on stopping.
+ */
+export function calculateStrobeRenderAngle(
+	physicalAngle: number,
+	simulatedAngle: number,
+	velocity: number,
+	dotCount: number
+): number {
+	const mix = calculatePlatterMotionMix(velocity)
+	if (mix === 0 || dotCount <= 0) return physicalAngle
+	if (mix === 1) return simulatedAngle
+	const period = 360 / dotCount
+	const phaseDifference =
+		((((simulatedAngle - physicalAngle + period / 2) % period) + period) %
+			period) -
+		period / 2
+	const easedMix = mix * mix * (3 - 2 * mix)
+	return calculateNextAngle(physicalAngle, phaseDifference * easedMix, 1)
 }
 
 /**
