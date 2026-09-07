@@ -138,6 +138,22 @@ describe('buildTrackEditorPayload', () => {
 })
 
 describe('track editor patches', () => {
+	it.each([null, 0, 180, 1000, 180999])(
+		'preserves an untouched duration of %s milliseconds after conflict review',
+		(duration) => {
+			const baseline = createTrackEditorBaseline(createTrack({ duration }))
+			const reviewed = { ...baseline.payload, title: 'Reviewed title' }
+			const payload = buildTrackEditorPayload(
+				trackToEditorValues(reviewed),
+				reviewed.artists,
+				reviewed.extraartists
+			)
+			expect(buildTrackEditorPatch(baseline.payload, payload)).toEqual({
+				title: 'Reviewed title'
+			})
+		}
+	)
+
 	it('does not mutate its baseline when the source artist metadata changes', () => {
 		const track = createTrack()
 		const baseline = createTrackEditorBaseline(track)
