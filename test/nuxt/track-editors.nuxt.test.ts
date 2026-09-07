@@ -520,9 +520,13 @@ describe('track editor dialogs', () => {
 			expect(options).toMatchObject({ expectedUpdatedAt: baselineUpdatedAt })
 		}
 	)
-	it.each(['edit', 'details'] as const)(
-		'keeps the %s editor input through a conflict and explicitly reviews a new baseline',
-		async (surface) => {
+	it.each(
+		(['edit', 'details'] as const).flatMap((surface) =>
+			[null, 0, 180, 180999].map((duration) => ({ surface, duration }))
+		)
+	)(
+		'keeps the $surface editor input and the latest $duration millisecond duration through conflict review',
+		async ({ surface, duration }) => {
 			const editor =
 				surface === 'edit'
 					? await mountAddOrEditDialog('edit')
@@ -532,6 +536,7 @@ describe('track editor dialogs', () => {
 			const latest = createMockTrack({
 				...editor.track,
 				title: 'Title from another editor',
+				duration,
 				bpm: 140,
 				updated_at: '2026-09-07T12:00:00.000001Z'
 			})

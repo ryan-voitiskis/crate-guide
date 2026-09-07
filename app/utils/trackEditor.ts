@@ -68,7 +68,8 @@ export function trackToEditorValues(
 	return {
 		title: track.title || '',
 		position: track.position || '',
-		duration: msToMMSS(track.duration),
+		// A normalized conflict baseline can contain a meaningful zero duration.
+		duration: track.duration === 0 ? '0:00' : msToMMSS(track.duration),
 		bpm: track.bpm?.toString() || '',
 		keyComposite: createKeyComposite(track.key, track.mode),
 		genres: [...(track.genres || [])],
