@@ -77,10 +77,6 @@ SELECT is(
 					'records_update_updated_at_trigger'
 				),
 				(
-					'public.tracks'::regclass,
-					'tracks_update_updated_at_trigger'
-				),
-				(
 					'public.sets'::regclass,
 					'sets_update_updated_at_trigger'
 				)
@@ -90,8 +86,8 @@ SELECT is(
 		WHERE trigger.tgfoid = 'public.update_updated_at_column()'::regprocedure
 			AND NOT trigger.tgisinternal
 	),
-	3::BIGINT,
-	'unrelated timestamp triggers still use the shared trigger function'
+	2::BIGINT,
+	'record and saved-set timestamp triggers still use the shared trigger function'
 );
 SELECT is(
 	(

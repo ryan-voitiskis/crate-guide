@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
 	type TrackEditorFormValues,
+	buildTrackEditorPatch,
 	buildTrackEditorPayload,
+	createTrackEditorBaseline,
 	createTrackEditorInitialValues,
 	hasTrackEditorChanges,
 	trackEditorSchema,
@@ -133,6 +135,51 @@ describe('buildTrackEditorPayload', () => {
 		expect(payload.artists).toEqual([validArtist])
 		expect(payload.extraartists).toEqual([validArtist])
 	})
+})
+
+describe('track editor patches', () => {
+	it('does not mutate its baseline when the source artist metadata changes', () => {
+		const track = createTrack()
+		const baseline = createTrackEditorBaseline(track)
+		track.artists[0]!.name = 'Changed artist'
+		track.extraartists[0]!.role = 'Remix'
+		track.genres.push('Disco')
+		const edited = buildTrackEditorPayload(
+			trackToEditorValues(track),
+			track.artists,
+			track.extraartists
+		)
+		expect(buildTrackEditorPatch(baseline.payload, edited)).toEqual({
+			artists: track.artists,
+			extraartists: track.extraartists,
+			genres: ['House', 'Disco']
+		})
+	})
+
+	it.each([
+		[{ key: 9 }, { key: 9, mode: 0 }],
+		[{ mode: 1 }, { key: 0, mode: 1 }],
+		[
+			{ key: null, mode: null },
+			{ key: null, mode: null }
+		],
+		[
+			{ time_signature_upper: 3 },
+			{ time_signature_upper: 3, time_signature_lower: 4 }
+		],
+		[
+			{ time_signature_lower: 8 },
+			{ time_signature_upper: 4, time_signature_lower: 8 }
+		]
+	])(
+		'keeps coupled musical values together in a partial edit %j',
+		(edit, expected) => {
+			const baseline = createTrackEditorBaseline(createTrack()).payload
+			expect(buildTrackEditorPatch(baseline, { ...baseline, ...edit })).toEqual(
+				expected
+			)
+		}
+	)
 })
 
 describe('hasTrackEditorChanges', () => {

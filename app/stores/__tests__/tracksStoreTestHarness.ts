@@ -44,7 +44,8 @@ function createMockQueryBuilder() {
 		order: vi.fn().mockReturnThis(),
 		lt: vi.fn().mockReturnThis(),
 		limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-		single: vi.fn().mockResolvedValue({ data: null, error: null })
+		single: vi.fn().mockResolvedValue({ data: null, error: null }),
+		maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null })
 	}
 }
 

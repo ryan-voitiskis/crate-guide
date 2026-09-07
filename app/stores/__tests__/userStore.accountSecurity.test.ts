@@ -1,6 +1,7 @@
 import { nextTick } from 'vue'
 import { toast } from 'vue-sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ACCOUNT_DELETION_QUEUED_RESPONSE } from '../../../shared/types/accountDeletion'
 import { useUserStore as createPiniaUserStore } from '../userStore'
 import {
 	createDeferred,
@@ -107,7 +108,7 @@ describe('userStore account security', () => {
 
 			expect(result).toEqual({
 				status: 'deleted',
-				coverCleanupComplete: true
+				cleanupState: 'complete'
 			})
 			expect(
 				mockAccountBoundSupabaseClient.functions.invoke
@@ -127,6 +128,71 @@ describe('userStore account security', () => {
 			expect(mockRouter.replace).toHaveBeenCalledWith('/login')
 			expect(mockToast.success).toHaveBeenCalledWith(
 				'Your account and its data have been deleted.'
+			)
+		})
+
+		it.each([
+			ACCOUNT_DELETION_QUEUED_RESPONSE,
+			{
+				success: true,
+				cover_cleanup_complete: false,
+				cleanup_queue_complete: false,
+				cleanup_queued: true
+			}
+		])(
+			'acknowledges the producer queued response without a cleanup warning: %#',
+			async (data) => {
+				const store = useUserStore()
+				mockAccountBoundSupabaseClient.functions.invoke.mockResolvedValue({
+					data,
+					error: null
+				})
+				const result = await store.deleteAccount('test@example.com')
+				expect(result).toEqual({ status: 'deleted', cleanupState: 'queued' })
+				expect(mockToast.warning).not.toHaveBeenCalled()
+				expect(mockToast.success).toHaveBeenCalledWith(
+					'Your account has been deleted. Remaining cover images will be removed in the background.'
+				)
+				expect(mockRouter.replace).toHaveBeenCalledWith('/login')
+			}
+		)
+
+		it('keeps a local sign-out failure separate from successful queued cleanup', async () => {
+			const store = useUserStore()
+			mockAccountBoundSupabaseClient.functions.invoke.mockResolvedValue({
+				data: ACCOUNT_DELETION_QUEUED_RESPONSE,
+				error: null
+			})
+			mockSupabaseClient.auth.signOut.mockResolvedValue({
+				error: new Error('Local sign out failed')
+			})
+			expect(await store.deleteAccount('test@example.com')).toEqual({
+				status: 'deleted',
+				cleanupState: 'queued'
+			})
+			expect(mockToast.warning).toHaveBeenCalledOnce()
+			expect(mockToast.warning).toHaveBeenCalledWith(
+				'Your account was deleted. Reload the page if you still appear signed in.',
+				{ duration: 30000 }
+			)
+		})
+
+		it('reports an explicitly failed cleanup without claiming all data was removed', async () => {
+			const store = useUserStore()
+			mockAccountBoundSupabaseClient.functions.invoke.mockResolvedValue({
+				data: { success: true, cleanup_state: 'failed' },
+				error: null
+			})
+			expect(await store.deleteAccount('test@example.com')).toEqual({
+				status: 'deleted',
+				cleanupState: 'failed'
+			})
+			expect(mockToast.warning).toHaveBeenCalledWith(
+				'Your account was deleted, but cover cleanup needs attention. Contact the project owner for help.',
+				{ duration: 30000 }
+			)
+			expect(mockToast.success).toHaveBeenCalledWith(
+				'Your account has been deleted.'
 			)
 		})
 
@@ -165,7 +231,7 @@ describe('userStore account security', () => {
 
 			expect(result).toEqual({
 				status: 'deleted',
-				coverCleanupComplete: true
+				cleanupState: 'complete'
 			})
 			expect(mockSupaUser.value).toBeNull()
 			expect(mockToast.warning).toHaveBeenCalledWith(
@@ -185,10 +251,10 @@ describe('userStore account security', () => {
 
 			expect(result).toEqual({
 				status: 'deleted',
-				coverCleanupComplete: false
+				cleanupState: 'unknown'
 			})
 			expect(mockToast.warning).toHaveBeenCalledWith(
-				'Your account was deleted, but server-side cover cleanup did not finish. Contact the project owner if a cover remains accessible.',
+				'Your account was deleted, but cover cleanup could not be confirmed. Contact the project owner if a cover remains accessible.',
 				{ duration: 30000 }
 			)
 		})
@@ -208,10 +274,10 @@ describe('userStore account security', () => {
 
 			expect(result).toEqual({
 				status: 'deleted',
-				coverCleanupComplete: false
+				cleanupState: 'unknown'
 			})
 			expect(mockToast.warning).toHaveBeenCalledWith(
-				'Your account was deleted, but server-side cover cleanup did not finish. Contact the project owner if a cover remains accessible.',
+				'Your account was deleted, but cover cleanup could not be confirmed. Contact the project owner if a cover remains accessible.',
 				{ duration: 30000 }
 			)
 		})
@@ -311,7 +377,7 @@ describe('userStore account security', () => {
 			deletion.resolve({ data: { success: true }, error: null })
 			await expect(firstResult).resolves.toEqual({
 				status: 'deleted',
-				coverCleanupComplete: true
+				cleanupState: 'complete'
 			})
 		})
 
@@ -388,7 +454,7 @@ describe('userStore account security', () => {
 			firstDeletion.resolve({ data: { success: true }, error: null })
 			await expect(accountAResult).resolves.toEqual({
 				status: 'deleted',
-				coverCleanupComplete: true
+				cleanupState: 'complete'
 			})
 			expect(store.isDeletingAccount).toBe(true)
 			expect(store.profile).toEqual(replacementProfile)
@@ -399,7 +465,7 @@ describe('userStore account security', () => {
 			secondDeletion.resolve({ data: { success: true }, error: null })
 			await expect(accountBResult).resolves.toEqual({
 				status: 'deleted',
-				coverCleanupComplete: true
+				cleanupState: 'complete'
 			})
 			expect(store.isDeletingAccount).toBe(false)
 			expect(mockSupabaseClient.auth.signOut).toHaveBeenCalledOnce()
@@ -429,7 +495,7 @@ describe('userStore account security', () => {
 			deletion.resolve({ data: { success: true }, error: null })
 			await expect(accountAResult).resolves.toEqual({
 				status: 'deleted',
-				coverCleanupComplete: true
+				cleanupState: 'complete'
 			})
 			expect(mockSupabaseClient.auth.signOut).not.toHaveBeenCalled()
 			expect(mockRouter.replace).not.toHaveBeenCalled()
@@ -502,7 +568,7 @@ describe('userStore account security', () => {
 
 			await expect(accountAResult).resolves.toEqual({
 				status: 'deleted',
-				coverCleanupComplete: true
+				cleanupState: 'complete'
 			})
 			expect(store.profile).toEqual(replacementProfile)
 			expect(mockRouter.replace).not.toHaveBeenCalled()

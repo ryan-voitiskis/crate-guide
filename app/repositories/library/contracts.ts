@@ -127,7 +127,11 @@ export interface TracksRepository {
 	): RepositoryCommand<LibraryTrack>
 	update(
 		context: WorkspaceOperationContext,
-		input: { id: string; updates: LibraryTrackUpdateInput }
+		input: {
+			id: string
+			updates: LibraryTrackUpdateInput
+			expectedUpdatedAt?: string | null
+		}
 	): RepositoryCommand<LibraryTrack>
 	updateBatch(
 		context: WorkspaceOperationContext,

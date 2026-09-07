@@ -885,7 +885,7 @@ function createTracksRepository(
 			)
 		},
 
-		update(context, { id, updates }) {
+		update(context, { id, updates, expectedUpdatedAt }) {
 			return state.command(
 				context,
 				{
@@ -901,6 +901,14 @@ function createTracksRepository(
 					const existing = withoutWorkspaceId(
 						decodeBrowserTrackRow(stored, workspaceId)
 					)
+					if (
+						expectedUpdatedAt !== undefined &&
+						existing.updated_at !== expectedUpdatedAt
+					) {
+						throw new BrowserRepositoryDomainConflictError(
+							'precondition-failed'
+						)
+					}
 					const candidate = domainValue(() =>
 						decodeLibraryTrack({
 							...existing,

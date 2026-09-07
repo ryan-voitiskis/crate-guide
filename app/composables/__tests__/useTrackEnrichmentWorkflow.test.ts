@@ -72,6 +72,7 @@ const { useTrackEnrichmentWorkflow } =
 const activeScopes: EffectScope[] = []
 
 function createWorkflow(options?: {
+	captureApplyGuard?: () => () => boolean
 	onApplyAttempt?: (
 		attempt: TrackEnrichmentApplyAttempt
 	) => Promise<void> | void
@@ -83,7 +84,8 @@ function createWorkflow(options?: {
 				typeof useRecordsStore
 			>,
 			tracks: mockTracksStore as unknown as ReturnType<typeof useTracksStore>,
-			onApplyAttempt: options?.onApplyAttempt
+			onApplyAttempt: options?.onApplyAttempt,
+			captureApplyGuard: options?.captureApplyGuard
 		})
 	)
 	if (!workflow) throw new Error('Failed to create enrichment workflow scope')
@@ -1219,6 +1221,10 @@ describe('useTrackEnrichmentWorkflow', () => {
 		await vi.waitFor(() =>
 			expect(mockTracksStore.updateTracksBatch).toHaveBeenCalledOnce()
 		)
+		workflow.startAnotherSource()
+		workflow.loadPreparedReview('replacement.xml', [createRow()])
+		workflow.stagedRowIds.value = new Set(['row-1'])
+		workflow.showApplyDialog.value = true
 		const newApply = workflow.applyStagedRows()
 		await vi.waitFor(() =>
 			expect(mockTracksStore.updateTracksBatch).toHaveBeenCalledTimes(2)
@@ -1247,7 +1253,9 @@ describe('useTrackEnrichmentWorkflow', () => {
 		mockTracksStore.updateTracksBatch.mockReturnValue(batch.promise)
 
 		const applying = workflow.applyStagedRows()
-		await vi.waitFor(() => expect(workflow.isApplying.value).toBe(true))
+		await vi.waitFor(() =>
+			expect(mockTracksStore.updateTracksBatch).toHaveBeenCalledOnce()
+		)
 		const rejected = expect(applying).rejects.toThrow('Connection lost')
 		batch.reject(new Error('Connection lost'))
 		await rejected
@@ -1255,5 +1263,101 @@ describe('useTrackEnrichmentWorkflow', () => {
 		expect(workflow.isApplying.value).toBe(false)
 		expect(workflow.showApplyDialog.value).toBe(false)
 		expect(workflow.lastApplySummary.value).toBeNull()
+	})
+	it('does not dispatch an abandoned apply after asynchronous preparation', async () => {
+		const deferred = createDeferred<TrackBatchUpdate | null>()
+		workflowMocks.buildUpdate.mockReturnValueOnce(deferred.promise)
+		const workflow = createWorkflow()
+		const row = createRow()
+		workflow.loadPreparedReview('original.xml', [row])
+		workflow.stagedRowIds.value = new Set([row.id])
+		const applying = workflow.applyStagedRows()
+		workflow.startAnotherSource()
+		deferred.resolve(toBatchUpdate(row))
+		await applying
+		expect(mockTracksStore.updateTracksBatch).not.toHaveBeenCalled()
+		expect(workflow.isApplying.value).toBe(false)
+	})
+	it.each([
+		'lease loss',
+		'reacquired lease',
+		'page departure',
+		'scope disposal',
+		'workspace replacement'
+	] as const)('does not dispatch preparation after %s', async (reason) => {
+		let isCurrent = true
+		const workflow = createWorkflow({
+			captureApplyGuard: () => () => isCurrent
+		})
+		const row = createRow()
+		workflow.loadPreparedReview('original.xml', [row])
+		workflow.stagedRowIds.value = new Set([row.id])
+		const preparation = createDeferred<TrackBatchUpdate | null>()
+		workflowMocks.buildUpdate.mockReturnValueOnce(preparation.promise)
+		const applying = workflow.applyStagedRows()
+		expect(workflow.isApplying.value).toBe(true)
+		if (reason === 'lease loss' || reason === 'reacquired lease')
+			workflow.setReviewReadOnly(true)
+		if (reason === 'reacquired lease') workflow.setReviewReadOnly(false)
+		if (reason === 'page departure') workflow.cancelPendingApply()
+		if (reason === 'scope disposal') activeScopes.at(-1)!.stop()
+		if (reason === 'workspace replacement') isCurrent = false
+		preparation.resolve(toBatchUpdate(row))
+		await applying
+		expect(mockTracksStore.updateTracksBatch).not.toHaveBeenCalled()
+		expect(workflow.isApplying.value).toBe(false)
+	})
+
+	it('rejects duplicate apply starts during preparation', async () => {
+		const workflow = createWorkflow()
+		const row = createRow()
+		workflow.loadPreparedReview('original.xml', [row])
+		workflow.stagedRowIds.value = new Set([row.id])
+		const preparation = createDeferred<TrackBatchUpdate | null>()
+		workflowMocks.buildUpdate.mockReturnValueOnce(preparation.promise)
+		const applying = workflow.applyStagedRows()
+		await workflow.applyStagedRows()
+		expect(workflowMocks.buildUpdate).toHaveBeenCalledOnce()
+		preparation.resolve(toBatchUpdate(row))
+		await applying
+		expect(mockTracksStore.updateTracksBatch).toHaveBeenCalledOnce()
+	})
+
+	it('clears busy state when preparation itself fails', async () => {
+		const workflow = createWorkflow()
+		workflow.loadPreparedReview('original.xml', [createRow()])
+		workflow.stagedRowIds.value = new Set(['row-1'])
+		workflow.showApplyDialog.value = true
+		workflowMocks.buildUpdate.mockRejectedValueOnce(
+			new Error('Preparation failed')
+		)
+		await expect(workflow.applyStagedRows()).rejects.toThrow(
+			'Preparation failed'
+		)
+		expect(workflow.isApplying.value).toBe(false)
+		expect(workflow.showApplyDialog.value).toBe(false)
+		expect(mockTracksStore.updateTracksBatch).not.toHaveBeenCalled()
+	})
+
+	it('still records an already-dispatched outcome after leaving the page', async () => {
+		const recordAttempt = vi.fn()
+		const workflow = createWorkflow({ onApplyAttempt: recordAttempt })
+		workflow.loadPreparedReview('original.xml', [createRow()])
+		workflow.stagedRowIds.value = new Set(['row-1'])
+		const batch = createDeferred<TrackBatchUpdateOutcome>()
+		mockTracksStore.updateTracksBatch.mockReturnValueOnce(batch.promise)
+		const applying = workflow.applyStagedRows()
+		await vi.waitFor(() =>
+			expect(mockTracksStore.updateTracksBatch).toHaveBeenCalledOnce()
+		)
+		workflow.cancelPendingApply()
+		batch.resolve({
+			cancelled: false,
+			requiresReview: false,
+			results: [updatedBatchResult(createTrack({ bpm: 128 }))]
+		})
+		await applying
+		expect(recordAttempt).toHaveBeenCalledOnce()
+		expect(workflow.isApplying.value).toBe(false)
 	})
 })

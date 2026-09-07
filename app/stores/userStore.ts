@@ -10,6 +10,10 @@ import {
 	isDemoWorkbenchPinia
 } from '~/utils/workbenchPinia'
 import {
+	type AccountCleanupState,
+	readAccountCleanupState
+} from '../../shared/types/accountDeletion'
+import {
 	buildCheckInboxPath,
 	buildLoginRedirectPath,
 	buildUpdatePasswordPath,
@@ -35,7 +39,7 @@ export type IdentityProfile = Pick<
 >
 
 export type DeleteAccountResult =
-	| { status: 'deleted'; coverCleanupComplete: boolean }
+	| { status: 'deleted'; cleanupState: AccountCleanupState }
 	| { status: 'recent-auth-required' }
 	| { status: 'failed' }
 
@@ -464,14 +468,10 @@ export const useUserStore = defineStore('user', () => {
 			) {
 				throw new Error('Your account could not be deleted. Please try again.')
 			}
-			const coverCleanupComplete =
-				(!('cover_cleanup_complete' in data) ||
-					data.cover_cleanup_complete !== false) &&
-				(!('cleanup_queue_complete' in data) ||
-					data.cleanup_queue_complete !== false)
+			const cleanupState = readAccountCleanupState(data)
 			const deletionResult: DeleteAccountResult = {
 				status: 'deleted',
-				coverCleanupComplete
+				cleanupState
 			}
 			if (!isCurrentWork(work)) return deletionResult
 
@@ -491,9 +491,11 @@ export const useUserStore = defineStore('user', () => {
 			if (signOutError) {
 				console.error('Deleted account, but local auth cleanup failed')
 			}
-			if (!coverCleanupComplete) {
+			if (cleanupState === 'failed' || cleanupState === 'unknown') {
 				toast.warning(
-					'Your account was deleted, but server-side cover cleanup did not finish. Contact the project owner if a cover remains accessible.',
+					cleanupState === 'failed'
+						? 'Your account was deleted, but cover cleanup needs attention. Contact the project owner for help.'
+						: 'Your account was deleted, but cover cleanup could not be confirmed. Contact the project owner if a cover remains accessible.',
 					{ duration: 30000 }
 				)
 			}
@@ -517,7 +519,13 @@ export const useUserStore = defineStore('user', () => {
 					{ duration: 30000 }
 				)
 			} else {
-				toast.success('Your account and its data have been deleted.')
+				toast.success(
+					cleanupState === 'queued'
+						? 'Your account has been deleted. Remaining cover images will be removed in the background.'
+						: cleanupState === 'complete'
+							? 'Your account and its data have been deleted.'
+							: 'Your account has been deleted.'
+				)
 			}
 			return deletionResult
 		} catch (error) {

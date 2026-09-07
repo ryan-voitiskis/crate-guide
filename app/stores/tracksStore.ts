@@ -38,6 +38,12 @@ type TrackMutationProvenance = FetchContext & { revision: number } & (
 		{ kind: 'create' | 'update'; row: LibraryTrack } | { kind: 'delete' }
 	)
 
+export type TrackUpdateOptions = {
+	silent?: boolean
+	expectedUpdatedAt?: string | null
+	onConflict?: (current: LibraryTrack | null) => void
+}
+
 type ApplyTrackUpdateResult = {
 	track: LibraryTrack | null
 	error: string | null
@@ -440,7 +446,8 @@ export const useTracksStore = defineStore('tracks', () => {
 		options?: {
 			suppressSuccessToast?: boolean
 			suppressErrorToast?: boolean
-			preconditions?: TrackBatchUpdate['preconditions']
+			expectedUpdatedAt?: string | null
+			onConflict?: TrackUpdateOptions['onConflict']
 		}
 	): Promise<ApplyTrackUpdateResult> {
 		if (runtime.capture().descriptor.readOnly)
@@ -480,6 +487,9 @@ export const useTracksStore = defineStore('tracks', () => {
 				}
 
 				const originalTrack = tracks.value[trackIndex]!
+				if (Object.keys(updates).length === 0) {
+					return { track: originalTrack, error: null, issues: [], stale: false }
+				}
 				const optimisticTrack = {
 					...originalTrack,
 					...updates
@@ -493,11 +503,51 @@ export const useTracksStore = defineStore('tracks', () => {
 					if (!repositories) return staleResult
 					const outcome = await repositories.tracks.update(context, {
 						id,
-						updates
+						updates,
+						expectedUpdatedAt: options?.expectedUpdatedAt
 					})
 
 					if (!isCurrentAccountContext(context) || outcome.status === 'stale') {
 						return { track: null, error: null, issues: [], stale: true }
+					}
+					if (
+						outcome.status === 'conflict' &&
+						outcome.reason === 'precondition-failed'
+					) {
+						if (trackOperationRevisions.get(id) !== operationRevision)
+							return staleResult
+						const currentIndex = tracks.value.findIndex(
+							(track) => track.id === id
+						)
+						if (
+							currentIndex !== -1 &&
+							toRaw(tracks.value[currentIndex]) === optimisticTrack
+						) {
+							tracks.value[currentIndex] = originalTrack
+						}
+						const refreshed = await fetchAllTracks({ fresh: true })
+						if (
+							!isCurrentAccountContext(context) ||
+							trackOperationRevisions.get(id) !== operationRevision
+						)
+							return staleResult
+						if (options?.onConflict) {
+							options.onConflict(
+								refreshed
+									? (tracks.value.find((track) => track.id === id) ?? null)
+									: null
+							)
+						} else if (!options?.suppressErrorToast) {
+							toast.warning(
+								'This track changed after you started editing. Review its latest values before saving again.'
+							)
+						}
+						return {
+							track: null,
+							error: 'Track changed after editing began.',
+							issues: [],
+							stale: false
+						}
 					}
 					if (outcome.status !== 'success') {
 						throw outcome.status === 'unavailable'
@@ -568,7 +618,7 @@ export const useTracksStore = defineStore('tracks', () => {
 	async function updateTrack(
 		id: string,
 		updates: TrackUpdateInput,
-		options?: { silent?: boolean }
+		options?: TrackUpdateOptions
 	): Promise<LibraryTrack | null> {
 		const context = await resolveMutationContext(accountGeneration)
 		if (!context) return null
@@ -577,7 +627,9 @@ export const useTracksStore = defineStore('tracks', () => {
 		try {
 			const result = await applyTrackUpdate(context, id, updates, {
 				suppressSuccessToast: options?.silent,
-				suppressErrorToast: false
+				suppressErrorToast: false,
+				expectedUpdatedAt: options?.expectedUpdatedAt,
+				onConflict: options?.onConflict
 			})
 			if (result.stale || !isCurrentAccountContext(context)) return null
 			reportDecodeIssues(result.issues, (message) => toast.warning(message))

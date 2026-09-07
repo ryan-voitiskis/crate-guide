@@ -273,24 +273,9 @@ describe('track editor dialogs', () => {
 		expect(editPayload).toEqual(detailsPayload)
 		expect(editPayload).toEqual({
 			title: 'Normalized Track',
-			artists: [
-				{ discogs_id: 1, name: 'Test Artist', role: null },
-				{ discogs_id: 2, name: 'Second Artist', role: 'Remix' }
-			],
-			extraartists: [
-				{ name: 'Guest Artist', role: 'Vocals' },
-				{ name: 'Engineer', role: 'Mastered By' }
-			],
 			position: 'B2',
 			duration: 225000,
-			bpm: 128.5,
-			rpm: 33,
-			key: 0,
-			mode: 0,
-			genres: ['House'],
-			time_signature_upper: 4,
-			time_signature_lower: 4,
-			playable: true
+			bpm: 128.5
 		})
 	})
 
@@ -508,6 +493,91 @@ describe('track editor dialogs', () => {
 
 			secondUpdate.resolve(null)
 			await settleDialog()
+		}
+	)
+	it.each(['edit', 'details'] as const)(
+		'saves only changed fields from the immutable %s editor baseline',
+		async (surface) => {
+			const editor =
+				surface === 'edit'
+					? await mountAddOrEditDialog('edit')
+					: await mountDetailsDialog()
+			if (surface === 'details') await enterDetailsEditMode()
+			const baselineUpdatedAt = editor.track.updated_at
+			editor.track.bpm = 140
+			editor.track.updated_at = '2026-09-07T12:00:00.000001Z'
+			vi.mocked(editor.tracks.updateTrack).mockResolvedValue(editor.track)
+			await getBody().get('input[name="title"]').setValue('Retitled Track')
+			await getButton(
+				surface === 'edit' ? 'Update Track' : 'Save Changes'
+			).trigger('click')
+			await vi.waitFor(() =>
+				expect(editor.tracks.updateTrack).toHaveBeenCalledOnce()
+			)
+			const [, patch, options] = vi.mocked(editor.tracks.updateTrack).mock
+				.calls[0]!
+			expect(patch).toEqual({ title: 'Retitled Track' })
+			expect(options).toMatchObject({ expectedUpdatedAt: baselineUpdatedAt })
+		}
+	)
+	it.each(['edit', 'details'] as const)(
+		'keeps the %s editor input through a conflict and explicitly reviews a new baseline',
+		async (surface) => {
+			const editor =
+				surface === 'edit'
+					? await mountAddOrEditDialog('edit')
+					: await mountDetailsDialog()
+			if (surface === 'details') await enterDetailsEditMode()
+			const saveLabel = surface === 'edit' ? 'Update Track' : 'Save Changes'
+			const latest = createMockTrack({
+				...editor.track,
+				title: 'Title from another editor',
+				bpm: 140,
+				updated_at: '2026-09-07T12:00:00.000001Z'
+			})
+			vi.mocked(editor.tracks.updateTrack).mockImplementationOnce(
+				async (_id, _patch, options) => {
+					options?.onConflict?.(latest)
+					return null
+				}
+			)
+			await getBody().get('input[name="title"]').setValue('My title')
+			await getButton(saveLabel).trigger('click')
+			await vi.waitFor(() =>
+				expect(getBody().text()).toContain(
+					'This track changed while you were editing.'
+				)
+			)
+			expect(getBody().text()).toContain('Title from another editor')
+			expect(getBody().text()).toContain('140')
+			expect(getBody().get('input[name="title"]').element).toHaveProperty(
+				'value',
+				'My title'
+			)
+			expect(getButton(saveLabel).attributes('disabled')).toBeDefined()
+			await getButton('Keep my edits and review').trigger('click')
+			await settleDialog()
+			expect(getBody().get('input[name="title"]').element).toHaveProperty(
+				'value',
+				'My title'
+			)
+			expect(getBody().get('input[name="bpm"]').element).toHaveProperty(
+				'value',
+				'140'
+			)
+			vi.mocked(editor.tracks.updateTrack).mockResolvedValueOnce({
+				...latest,
+				title: 'My title'
+			})
+			await getButton(saveLabel).trigger('click')
+			await vi.waitFor(() =>
+				expect(editor.tracks.updateTrack).toHaveBeenCalledTimes(2)
+			)
+			expect(vi.mocked(editor.tracks.updateTrack).mock.calls[1]).toEqual([
+				editor.track.id,
+				{ title: 'My title' },
+				expect.objectContaining({ expectedUpdatedAt: latest.updated_at })
+			])
 		}
 	)
 })

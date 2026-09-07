@@ -210,19 +210,31 @@ export function createCloudTracksRepository(
 			}
 		},
 
-		async update(context, { id, updates }) {
+		async update(context, { id, updates, expectedUpdatedAt }) {
 			const captured = await state.capture(context)
 			if (!state.isLease(captured)) return captured
 			try {
-				const { data, error } = await dependencies.supabase
+				let query = dependencies.supabase
 					.from('tracks')
 					.update(toTrackUpdatePayload(updates))
 					.eq('id', id)
 					.eq('user_id', captured.userId)
-					.select()
-					.single()
+				if (expectedUpdatedAt !== undefined) {
+					query =
+						expectedUpdatedAt === null
+							? query.is('updated_at', null)
+							: query.eq('updated_at', expectedUpdatedAt)
+				}
+				const selected = query.select()
+				const { data, error } =
+					expectedUpdatedAt === undefined
+						? await selected.single()
+						: await selected.maybeSingle()
 				if (!(await state.isCurrent(captured))) return { status: 'stale' }
 				if (error) return state.transportFailure(error)
+				if (!data && expectedUpdatedAt !== undefined) {
+					return { status: 'conflict', reason: 'precondition-failed' }
+				}
 				if (!data || data.id !== id || data.user_id !== captured.userId) {
 					return { status: 'conflict', reason: 'integrity' }
 				}

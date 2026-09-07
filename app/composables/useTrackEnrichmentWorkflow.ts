@@ -1,5 +1,5 @@
 import type { ComputedRef, Ref } from 'vue'
-import { nextTick, shallowRef } from 'vue'
+import { nextTick, onScopeDispose, shallowRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import type { LocalAudioReviewSelection } from '~/types/localAudio'
 import {
@@ -135,10 +135,12 @@ export type TrackEnrichmentWorkflow = {
 	clearStagedRows: () => void
 	openApplyReview: () => void
 	applyStagedRows: () => Promise<void>
+	cancelPendingApply: () => void
 	returnToReview: () => void
 }
 
 export type TrackEnrichmentWorkflowDependencies = {
+	captureApplyGuard?: () => () => boolean
 	records: ReturnType<typeof useRecordsStore>
 	tracks: ReturnType<typeof useTracksStore>
 	onApplyAttempt?: (
@@ -207,6 +209,18 @@ export function useTrackEnrichmentWorkflow(
 	const requiresSourceReconnect = ref(false)
 	const isReviewReadOnly = ref(false)
 	const retryRekordboxFile = shallowRef<File | null>(null)
+	let applyPermissionGeneration = 0
+	function cancelPendingApply() {
+		applyPermissionGeneration++
+	}
+	watch(
+		isReviewReadOnly,
+		(readOnly) => {
+			if (readOnly) cancelPendingApply()
+		},
+		{ flush: 'sync' }
+	)
+	onScopeDispose(cancelPendingApply)
 	let reviewOperationGeneration = 0
 	let applyOperationGeneration = 0
 	let activeRekordboxParse: RekordboxXmlWorkerParseHandle | null = null
@@ -687,6 +701,7 @@ export function useTrackEnrichmentWorkflow(
 	}
 
 	async function applyStagedRows() {
+		if (isApplying.value) return
 		if (isReviewReadOnly.value) {
 			toast.warning('Take over this draft before changing or applying it.')
 			return
@@ -698,7 +713,16 @@ export function useTrackEnrichmentWorkflow(
 			isApplying.value = false
 			showApplyDialog.value = false
 		}
-		const rowsToApply = stagedRows.value
+		const permissionGeneration = applyPermissionGeneration
+		const isCurrentContext = dependencies?.captureApplyGuard?.() ?? (() => true)
+		const mayDispatch = () =>
+			ownsOperation() &&
+			isCurrentContext() &&
+			!isReviewReadOnly.value &&
+			permissionGeneration === applyPermissionGeneration
+		const rowsToApply = [...stagedRows.value]
+		const fileLabel = selectedFileName.value ?? sourceLabel.value
+		isApplying.value = true
 		const importedAt = new Date().toISOString()
 		const preparedUpdates: {
 			row: TrackEnrichmentRow
@@ -708,47 +732,49 @@ export function useTrackEnrichmentWorkflow(
 			>
 		}[] = []
 
-		for (const row of rowsToApply) {
-			const intentKind = getTrackEnrichmentIntentKind(row)
-			const update = await buildTrackEnrichmentUpdate(
-				row,
-				selectedFileName.value ?? sourceLabel.value,
-				importedAt,
-				intentKind
-			)
-			if (update) {
-				preparedUpdates.push({
-					row,
-					intentKind,
-					update
-				})
-			}
-		}
-
-		if (preparedUpdates.length === 0) {
-			toast.warning('No staged matches can be applied.')
-			showApplyDialog.value = false
-			return
-		}
-
-		isApplying.value = true
-		applyCompleted.value = 0
-		applyTotal.value = preparedUpdates.length
-		rows.value = rows.value.map((row) =>
-			stagedRowIds.value.has(row.id) ? { ...row, error: null } : row
-		)
-
 		try {
+			if (!mayDispatch()) return
+			for (const row of rowsToApply) {
+				const intentKind = getTrackEnrichmentIntentKind(row)
+				const update = await buildTrackEnrichmentUpdate(
+					row,
+					fileLabel,
+					importedAt,
+					intentKind
+				)
+				if (!mayDispatch()) return
+				if (update) {
+					preparedUpdates.push({
+						row,
+						intentKind,
+						update
+					})
+				}
+			}
+
+			if (!mayDispatch()) return
+			if (preparedUpdates.length === 0) {
+				toast.warning('No staged matches can be applied.')
+				showApplyDialog.value = false
+				return
+			}
+
+			applyCompleted.value = 0
+			applyTotal.value = preparedUpdates.length
+			rows.value = rows.value.map((row) =>
+				stagedRowIds.value.has(row.id) ? { ...row, error: null } : row
+			)
+
 			const outcome = await tracks.updateTracksBatch(
 				preparedUpdates.map((entry) => entry.update),
 				{
 					onProgress: (completed) => {
-						if (!ownsOperation()) return
+						if (!ownsOperation() || !isCurrentContext()) return
 						applyCompleted.value = completed
 					}
 				}
 			)
-			if (!ownsOperation()) return
+			if (!ownsOperation() || !isCurrentContext()) return
 			const confirmedOutcome = outcome.cancelled
 				? {
 						...outcome,
@@ -771,7 +797,7 @@ export function useTrackEnrichmentWorkflow(
 				outcome: confirmedOutcome,
 				attemptedAt: importedAt
 			})
-			if (!ownsOperation()) return
+			if (!ownsOperation() || !isCurrentContext()) return
 			const results = confirmedOutcome.results
 			const resultByTrackId = new Map(
 				results.map((result) => [result.id, result])
@@ -855,11 +881,9 @@ export function useTrackEnrichmentWorkflow(
 			} else {
 				toast.success(`Applied ${succeeded} of ${results.length}.`)
 			}
-		} catch (error) {
+		} finally {
 			finishOwnedOperation()
-			throw error
 		}
-		finishOwnedOperation()
 	}
 
 	function returnToReview() {
@@ -934,6 +958,7 @@ export function useTrackEnrichmentWorkflow(
 		clearStagedRows,
 		openApplyReview,
 		applyStagedRows,
+		cancelPendingApply,
 		returnToReview
 	}
 }

@@ -13,6 +13,10 @@ import {
 describe('auth route policy', () => {
 	it.each([
 		'/login',
+		'/login/',
+		'/LOGIN/',
+		'/Privacy/',
+		'/TERMS/',
 		'/signup',
 		'/reset-password',
 		'/update-password',
@@ -34,7 +38,6 @@ describe('auth route policy', () => {
 		'/auth/discogs/capture-verifier',
 		'/auth/future-callback',
 		'/auth/confirm/extra',
-		'/login/',
 		'/signup-extra',
 		'/demo-private',
 		'/demonstration'
@@ -42,7 +45,7 @@ describe('auth route policy', () => {
 		expect(isPublicRoute(path)).toBe(false)
 	})
 
-	it.each(['/login', '/signup', '/reset-password'])(
+	it.each(['/login', '/signup', '/reset-password', '/LOGIN/', '/Signup/'])(
 		'classifies %s as signed-out only',
 		(path) => {
 			expect(isSignedOutOnlyRoute(path)).toBe(true)
@@ -69,6 +72,7 @@ describe('auth return paths', () => {
 		'/privacy',
 		'/terms',
 		'/records?crate=house&sort=year#release-1',
+		'/TRACKS/?genre=House#Results',
 		'/demo/records?crate=house'
 	])('preserves safe internal path %s', (path) => {
 		expect(sanitizeAuthReturnPath(path)).toBe(path)
@@ -97,6 +101,9 @@ describe('auth return paths', () => {
 		'/login',
 		'/login?redirect=/records',
 		'/login#retry',
+		'/LOGIN/?redirect=/tracks',
+		'/Auth/Confirm/#callback',
+		'/%6cogin/',
 		'/signup?redirect=/records',
 		'/reset-password#form',
 		'/update-password?redirect=/records',

@@ -240,6 +240,66 @@ describe('tracksStore CRUD', () => {
 			expect(result).toBeNull()
 		})
 
+		it.each([null, '2026-09-07T10:00:00.000001Z'])(
+			'passes the editor version %s to an atomic conditional update',
+			async (expectedUpdatedAt) => {
+				const store = createTracksStore()
+				store.tracks = [createMockTrack({ id: 'track-1' })]
+				mockQueryBuilder.maybeSingle.mockResolvedValue({
+					data: createMockOwnedTrack({ id: 'track-1', title: 'My title' }),
+					error: null
+				})
+				const result = await store.updateTrack(
+					'track-1',
+					{ title: 'My title' },
+					{ expectedUpdatedAt }
+				)
+				expect(result?.title).toBe('My title')
+				if (expectedUpdatedAt === null)
+					expect(mockQueryBuilder.is).toHaveBeenCalledWith('updated_at', null)
+				else
+					expect(mockQueryBuilder.eq).toHaveBeenCalledWith(
+						'updated_at',
+						expectedUpdatedAt
+					)
+				expect(mockQueryBuilder.update).toHaveBeenCalledWith({
+					title: 'My title'
+				})
+				expect(mockQueryBuilder.single).not.toHaveBeenCalled()
+			}
+		)
+
+		it('refreshes the saved values and reports a version conflict without a success toast', async () => {
+			const store = createTracksStore()
+			store.tracks = [
+				createMockTrack({ id: 'track-1', title: 'Old title', bpm: 128 })
+			]
+			const latest = createMockOwnedTrack({
+				id: 'track-1',
+				title: 'Other title',
+				bpm: 140
+			})
+			mockQueryBuilder.maybeSingle.mockResolvedValue({
+				data: null,
+				error: null
+			})
+			mockQueryBuilder.limit.mockResolvedValue({ data: [latest], error: null })
+			const onConflict = vi.fn()
+			const result = await store.updateTrack(
+				'track-1',
+				{ title: 'My title' },
+				{ expectedUpdatedAt: '2026-09-07T10:00:00Z', onConflict }
+			)
+			expect(result).toBeNull()
+			expect(store.tracks[0]).toMatchObject({ title: 'Other title', bpm: 140 })
+			expect(onConflict).toHaveBeenCalledWith(
+				expect.objectContaining({ title: 'Other title', bpm: 140 })
+			)
+			expect(onConflict.mock.calls[0]![0]).not.toHaveProperty('user_id')
+			expect(mockToast.success).not.toHaveBeenCalled()
+			expect(store.isUpdatingTrack).toBe(false)
+		})
+
 		it('performs optimistic update', async () => {
 			const store = createTracksStore()
 			store.tracks = [createMockTrack({ id: 'track-1', title: 'Original' })]

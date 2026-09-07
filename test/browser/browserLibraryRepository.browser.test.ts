@@ -800,6 +800,46 @@ describe('browser library repository core contract', () => {
 		})
 	})
 
+	it('rejects a stale track editor without mutating its current metadata', async () => {
+		const { repository, context } =
+			await createRepositoryHarness('track-editor-cas')
+		const dataset = smallDataset()
+		await repository.replaceSnapshot(context, {
+			snapshot: dataset,
+			covers: { 'record-a/cover.webp': smallCover() }
+		})
+		const baseline = dataset.tracks[0]!
+		const first = await repository.tracks.update(context, {
+			id: baseline.id,
+			updates: { bpm: 140 },
+			expectedUpdatedAt: baseline.updated_at
+		})
+		expect(first.status).toBe('success')
+		expect(
+			await repository.tracks.update(context, {
+				id: baseline.id,
+				updates: { title: 'Stale editor' },
+				expectedUpdatedAt: baseline.updated_at
+			})
+		).toMatchObject({ status: 'conflict', reason: 'precondition-failed' })
+		expect(await repository.tracks.list(context)).toMatchObject({
+			status: 'success',
+			value: [expect.objectContaining({ title: baseline.title, bpm: 140 })]
+		})
+		if (first.status !== 'success')
+			throw new Error('Expected the current editor to save')
+		expect(
+			await repository.tracks.update(context, {
+				id: baseline.id,
+				updates: { title: 'Reviewed edit' },
+				expectedUpdatedAt: first.value.updated_at
+			})
+		).toMatchObject({
+			status: 'success',
+			value: { title: 'Reviewed edit', bpm: 140 }
+		})
+	})
+
 	it('does not advance backup revisions or timestamps for semantic resaves', async () => {
 		const { repository, context } =
 			await createRepositoryHarness('semantic-noops')

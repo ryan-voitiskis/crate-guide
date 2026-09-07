@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { DiscogsArtistDb } from '../../shared/types/discogs'
 import { isDiscogsArtistDb } from '../../shared/types/discogs'
-import type { Track } from '../../shared/types/supabase'
+import type { LibraryTrack } from '../../shared/types/library'
 import { mmssToMs, msToMMSS, parseBPM } from './formatting'
 import { createKeyComposite, parseKeyComposite } from './keyFunctions'
 import {
@@ -31,7 +31,7 @@ export const trackEditorSchema = z.object({
 export type TrackEditorFormValues = z.infer<typeof trackEditorSchema>
 
 export type TrackEditorPayload = Pick<
-	Track,
+	LibraryTrack,
 	| 'title'
 	| 'artists'
 	| 'extraartists'
@@ -62,7 +62,9 @@ export function createTrackEditorInitialValues(): TrackEditorFormValues {
 	}
 }
 
-export function trackToEditorValues(track: Track): TrackEditorFormValues {
+export function trackToEditorValues(
+	track: TrackEditorPayload
+): TrackEditorFormValues {
 	return {
 		title: track.title || '',
 		position: track.position || '',
@@ -78,7 +80,7 @@ export function trackToEditorValues(track: Track): TrackEditorFormValues {
 }
 
 function filterArtists(artists: readonly unknown[]): DiscogsArtistDb[] {
-	return artists.filter(isDiscogsArtistDb)
+	return artists.filter(isDiscogsArtistDb).map((artist) => ({ ...artist }))
 }
 
 export function buildTrackEditorPayload(
@@ -127,7 +129,7 @@ function completeTrackEditorValues(
 }
 
 export function hasTrackEditorChanges(
-	track: Track,
+	track: TrackEditorPayload,
 	values: Partial<TrackEditorFormValues>,
 	artists: readonly unknown[],
 	extraartists: readonly unknown[]
@@ -144,4 +146,48 @@ export function hasTrackEditorChanges(
 	)
 
 	return JSON.stringify(current) !== JSON.stringify(edited)
+}
+
+export type TrackEditorBaseline = {
+	id: string
+	updatedAt: string | null
+	payload: TrackEditorPayload
+}
+
+export function createTrackEditorBaseline(
+	track: LibraryTrack
+): TrackEditorBaseline {
+	return {
+		id: track.id,
+		updatedAt: track.updated_at,
+		payload: buildTrackEditorPayload(
+			trackToEditorValues(track),
+			track.artists,
+			track.extraartists
+		)
+	}
+}
+
+/** Compare to the values the editor actually displayed, not its live store row. */
+export function buildTrackEditorPatch(
+	baseline: TrackEditorPayload,
+	edited: TrackEditorPayload
+): Partial<TrackEditorPayload> {
+	const patch: Partial<TrackEditorPayload> = Object.fromEntries(
+		Object.entries(edited).filter(
+			([field, value]) =>
+				JSON.stringify(value) !==
+				JSON.stringify(baseline[field as keyof TrackEditorPayload])
+		)
+	)
+	// Tonality and time signature are each one logical editor field.
+	if ('key' in patch || 'mode' in patch) {
+		patch.key = edited.key
+		patch.mode = edited.mode
+	}
+	if ('time_signature_upper' in patch || 'time_signature_lower' in patch) {
+		patch.time_signature_upper = edited.time_signature_upper
+		patch.time_signature_lower = edited.time_signature_lower
+	}
+	return patch
 }
