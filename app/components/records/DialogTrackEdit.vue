@@ -3,6 +3,9 @@ import { toast } from 'vue-sonner'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import {
+	type TrackEditorBaseline,
+	buildTrackEditorPatch,
+	createTrackEditorBaseline,
 	buildTrackEditorPayload,
 	createTrackEditorInitialValues,
 	hasTrackEditorChanges,
@@ -30,6 +33,27 @@ const extraartists = ref<DiscogsArtistDb[]>([])
 
 const showUnsavedChangesAlert = ref(false)
 const isSubmitting = ref(false)
+const editBaseline = shallowRef<TrackEditorBaseline | null>(null)
+const editConflict = shallowRef<{ latest: TrackEditorBaseline | null } | null>(
+	null
+)
+
+function reviewLatestTrack() {
+	const latest = editConflict.value?.latest
+	if (!latest || !editBaseline.value) return
+	const parsed = trackEditorSchema.safeParse(values)
+	if (!parsed.success) return
+	const edits = buildTrackEditorPatch(
+		editBaseline.value.payload,
+		buildTrackEditorPayload(parsed.data, artists.value, extraartists.value)
+	)
+	const reviewed = { ...latest.payload, ...edits }
+	editBaseline.value = latest
+	setValues(trackToEditorValues(reviewed))
+	artists.value = reviewed.artists.map((artist) => ({ ...artist }))
+	extraartists.value = reviewed.extraartists.map((artist) => ({ ...artist }))
+	editConflict.value = null
+}
 const showValidationErrors = ref(false)
 let nextSubmissionId = 0
 let activeSubmissionId: number | null = null
@@ -73,6 +97,8 @@ watch(
 	([generation, track, isOpen, editing]) => {
 		if (generation !== initializedDialogGeneration) {
 			initializedDialogGeneration = generation
+			editBaseline.value = null
+			editConflict.value = null
 			isFormInitialized.value = false
 			showUnsavedChangesAlert.value = false
 			showValidationErrors.value = false
@@ -84,10 +110,12 @@ watch(
 
 		if (track && isOpen && editing && !isFormInitialized.value) {
 			// Editing existing track
+			editBaseline.value = createTrackEditorBaseline(track)
+			editConflict.value = null
 			setValues(trackToEditorValues(track))
 			// Set artists independently
-			artists.value = [...track.artists]
-			extraartists.value = [...track.extraartists]
+			artists.value = track.artists.map((artist) => ({ ...artist }))
+			extraartists.value = track.extraartists.map((artist) => ({ ...artist }))
 			isFormInitialized.value = true
 		} else if (isOpen && !editing && !isFormInitialized.value) {
 			// Opening for new track - reset form
@@ -109,11 +137,11 @@ watch(
 )
 
 function hasFormChanges(): boolean {
-	if (!editingTrack.value || !isEditing.value || !isFormInitialized.value)
+	if (!editBaseline.value || !isEditing.value || !isFormInitialized.value)
 		return false
 
 	return hasTrackEditorChanges(
-		editingTrack.value,
+		editBaseline.value.payload,
 		values,
 		artists.value,
 		extraartists.value
@@ -129,6 +157,7 @@ function handleCloseDialog() {
 }
 
 const submitTrack = handleSubmit(async (values) => {
+	if (isSubmitting.value || editConflict.value) return
 	const recordId = selectedRecordId.value
 	if (!recordId) {
 		toast.error('Record ID is required to save track')
@@ -160,7 +189,21 @@ const submitTrack = handleSubmit(async (values) => {
 
 		if (editing && trackId) {
 			// Update existing track
-			const result = await tracks.updateTrack(trackId, payload)
+			const baseline = editBaseline.value
+			if (!baseline || baseline.id !== trackId) return
+			const result = await tracks.updateTrack(
+				trackId,
+				buildTrackEditorPatch(baseline.payload, payload),
+				{
+					expectedUpdatedAt: baseline.updatedAt,
+					onConflict: (current) => {
+						if (ownsActiveDialog())
+							editConflict.value = {
+								latest: current ? createTrackEditorBaseline(current) : null
+							}
+					}
+				}
+			)
 			if (result && ownsActiveDialog()) {
 				toast.success('Track updated successfully')
 				resetSubmissionState()
@@ -227,6 +270,13 @@ function confirmDiscardAndProceed() {
 			</DialogHeader>
 
 			<div class="-mx-6 space-y-6 overflow-y-auto px-6" tabindex="-1">
+				<NoticeTrackEditConflict
+					v-if="editConflict && editBaseline"
+					:baseline="editBaseline.payload"
+					:latest="editConflict.latest?.payload ?? null"
+					:key-format="preferences.currentKeyFormat"
+					@review="reviewLatestTrack"
+				/>
 				<FormTrackEditorFields
 					v-model:artists="artists"
 					v-model:extraartists="extraartists"
@@ -238,7 +288,11 @@ function confirmDiscardAndProceed() {
 					class="flex flex-col justify-end gap-2 pt-0 max-sm:px-2 sm:flex-row"
 				>
 					<Button variant="secondary" @click="handleCancel">Cancel</Button>
-					<ButtonLoading :loading="isSubmitting" @click="saveTrack">
+					<ButtonLoading
+						:loading="isSubmitting"
+						:disabled="!!editConflict"
+						@click="saveTrack"
+					>
 						{{ isEditing ? 'Update Track' : 'Add Track' }}
 					</ButtonLoading>
 				</div>

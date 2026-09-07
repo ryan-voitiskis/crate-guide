@@ -48,6 +48,10 @@ let recordDraftApplyAttempt = async (
 	_attempt: TrackEnrichmentApplyAttempt
 ) => {}
 const workflow = useTrackEnrichmentWorkflow({
+	captureApplyGuard: () => {
+		const { context } = runtime.capture()
+		return () => runtime.isCurrent(context)
+	},
 	records,
 	tracks,
 	onApplyAttempt: (attempt) => recordDraftApplyAttempt(attempt)
@@ -194,11 +198,15 @@ if (import.meta.client) {
 	useEventListener(window, 'beforeunload', handleBeforeUnload)
 }
 
+function cancelPendingWork() {
+	cancelParsing()
+	workflow.cancelPendingApply()
+}
 watch(isActive, (active) => {
-	if (!active) cancelParsing()
+	if (!active) cancelPendingWork()
 })
-onDeactivated(cancelParsing)
-onBeforeUnmount(cancelParsing)
+onDeactivated(cancelPendingWork)
+onBeforeUnmount(cancelPendingWork)
 
 onMounted(async () => {
 	const results = await Promise.all([

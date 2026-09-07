@@ -3,6 +3,9 @@ import { Pencil, PencilOff } from '@lucide/vue'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import {
+	type TrackEditorBaseline,
+	buildTrackEditorPatch,
+	createTrackEditorBaseline,
 	buildTrackEditorPayload,
 	createTrackEditorInitialValues,
 	hasTrackEditorChanges,
@@ -27,6 +30,27 @@ const isEditMode = ref(false)
 const showUnsavedChangesAlert = ref(false)
 const isFormInitialized = ref(false)
 const isSubmitting = ref(false)
+const editBaseline = shallowRef<TrackEditorBaseline | null>(null)
+const editConflict = shallowRef<{ latest: TrackEditorBaseline | null } | null>(
+	null
+)
+
+function reviewLatestTrack() {
+	const latest = editConflict.value?.latest
+	if (!latest || !editBaseline.value) return
+	const parsed = trackEditorSchema.safeParse(values)
+	if (!parsed.success) return
+	const edits = buildTrackEditorPatch(
+		editBaseline.value.payload,
+		buildTrackEditorPayload(parsed.data, artists.value, extraartists.value)
+	)
+	const reviewed = { ...latest.payload, ...edits }
+	editBaseline.value = latest
+	setValues(trackToEditorValues(reviewed))
+	artists.value = reviewed.artists.map((artist) => ({ ...artist }))
+	extraartists.value = reviewed.extraartists.map((artist) => ({ ...artist }))
+	editConflict.value = null
+}
 let detailsGeneration = 0
 let nextSubmissionId = 0
 let activeSubmissionId: number | null = null
@@ -38,6 +62,8 @@ function resetSubmissionState() {
 
 function advanceDetailsGeneration() {
 	detailsGeneration += 1
+	editBaseline.value = null
+	editConflict.value = null
 	resetSubmissionState()
 	isFormInitialized.value = false
 }
@@ -94,9 +120,11 @@ watch(
 	[() => selectedTrack.value, () => isEditMode.value],
 	([track, editMode]) => {
 		if (track && editMode && !isFormInitialized.value) {
+			editBaseline.value = createTrackEditorBaseline(track)
+			editConflict.value = null
 			setValues(trackToEditorValues(track))
-			artists.value = [...track.artists]
-			extraartists.value = [...track.extraartists]
+			artists.value = track.artists.map((artist) => ({ ...artist }))
+			extraartists.value = track.extraartists.map((artist) => ({ ...artist }))
 			isFormInitialized.value = true
 		} else if (!editMode) {
 			isFormInitialized.value = false
@@ -108,11 +136,11 @@ watch(
 )
 
 function hasFormChanges(): boolean {
-	if (!selectedTrack.value || !isEditMode.value || !isFormInitialized.value)
+	if (!editBaseline.value || !isEditMode.value || !isFormInitialized.value)
 		return false
 
 	return hasTrackEditorChanges(
-		selectedTrack.value,
+		editBaseline.value.payload,
 		values,
 		artists.value,
 		extraartists.value
@@ -136,6 +164,7 @@ function handleToggleEditMode() {
 }
 
 const saveTrack = handleSubmit(async (values) => {
+	if (isSubmitting.value || editConflict.value) return
 	const trackId = props.trackId
 	if (!trackId || selectedTrack.value?.id !== trackId) return
 	const submissionGeneration = detailsGeneration
@@ -156,7 +185,21 @@ const saveTrack = handleSubmit(async (values) => {
 	)
 
 	try {
-		const result = await tracks.updateTrack(trackId, updates)
+		const baseline = editBaseline.value
+		if (!baseline || baseline.id !== trackId) return
+		const result = await tracks.updateTrack(
+			trackId,
+			buildTrackEditorPatch(baseline.payload, updates),
+			{
+				expectedUpdatedAt: baseline.updatedAt,
+				onConflict: (current) => {
+					if (ownsActiveEditor())
+						editConflict.value = {
+							latest: current ? createTrackEditorBaseline(current) : null
+						}
+				}
+			}
+		)
 		if (result && ownsActiveEditor()) {
 			resetSubmissionState()
 			setEditMode(false)
@@ -239,6 +282,13 @@ function formatKey(track: LibraryTrack): string {
 						</Button>
 					</div>
 
+					<NoticeTrackEditConflict
+						v-if="editConflict && editBaseline"
+						:baseline="editBaseline.payload"
+						:latest="editConflict.latest?.payload ?? null"
+						:key-format="preferences.currentKeyFormat"
+						@review="reviewLatestTrack"
+					/>
 					<FormTrackEditorFields
 						v-if="isEditMode"
 						v-model:artists="artists"
@@ -375,7 +425,7 @@ function formatKey(track: LibraryTrack): string {
 							Cancel
 						</Button>
 						<ButtonLoading
-							:disabled="!meta.valid"
+							:disabled="!meta.valid || !!editConflict"
 							:loading="isSubmitting"
 							@click="saveTrack"
 						>

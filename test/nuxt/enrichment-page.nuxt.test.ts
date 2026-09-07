@@ -307,6 +307,7 @@ function createWorkflow(): WorkflowHarness {
 		clearStagedRows: vi.fn(),
 		openApplyReview: vi.fn(),
 		applyStagedRows: vi.fn().mockResolvedValue(undefined),
+		cancelPendingApply: vi.fn(),
 		returnToReview: vi.fn()
 	} as unknown as WorkflowHarness
 }
@@ -433,6 +434,16 @@ describe('enrichment page wiring', () => {
 		workflowFactory.mockReset()
 		draftSessionFactory.mockReset()
 		document.body.innerHTML = ''
+	})
+
+	it('cancels pending preparation when the enrichment page unmounts', async () => {
+		const { workflow, wrapper } = await mountPage([true, true])
+		vi.mocked(workflow.cancelParsing).mockClear()
+		vi.mocked(workflow.cancelPendingApply).mockClear()
+		wrapper.unmount()
+		wrappers.delete(wrapper)
+		expect(workflow.cancelParsing).toHaveBeenCalledOnce()
+		expect(workflow.cancelPendingApply).toHaveBeenCalledOnce()
 	})
 
 	it('adapts source, file, review, dialog, and summary UI events to the workflow contract', async () => {

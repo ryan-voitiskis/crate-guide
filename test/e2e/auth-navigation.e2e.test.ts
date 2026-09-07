@@ -136,4 +136,48 @@ describe('Authentication navigation', () => {
 			page.getByRole('heading', { name: 'Account', exact: true }).count()
 		).resolves.toBe(0)
 	})
+	it.each(['/tracks/', '/TRACKS/?genre=House#results'])(
+		'loads the workbench after a cold protected route variant %s',
+		async (target) => {
+			const page = await createErrorAwarePage(target)
+			await page.waitForURL(
+				(currentUrl) =>
+					currentUrl.pathname === '/login' &&
+					currentUrl.searchParams.get('redirect') === target
+			)
+			await mockAuthenticatedSupabase(page)
+			await signInViaForm(page, target)
+			await page
+				.getByRole('heading', { name: 'Add records to build your track list' })
+				.waitFor()
+			expect(new URL(page.url()).pathname).toBe(new URL(url(target)).pathname)
+			await page.evaluate(async () => {
+				const app = (
+					window as unknown as {
+						useNuxtApp: () => {
+							$router: { push: (path: string) => Promise<void> }
+						}
+					}
+				).useNuxtApp()
+				await app.$router.push('/Records/')
+			})
+			await page
+				.getByRole('heading', {
+					name: 'Start your record library',
+					exact: true
+				})
+				.waitFor()
+		}
+	)
+
+	it.each(['/privacy/', '/PRIVACY/'])(
+		'keeps the legal route variant %s public on cold entry',
+		async (target) => {
+			const page = await createErrorAwarePage(target)
+			await page
+				.getByRole('heading', { name: 'Privacy Notice', exact: true })
+				.waitFor()
+			expect(new URL(page.url()).pathname).toBe(target)
+		}
+	)
 })

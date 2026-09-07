@@ -428,6 +428,7 @@ Deno.test(
 		assert.equal(didTraverse, false)
 		assert.deepEqual(await response.json(), {
 			success: true,
+			cleanup_state: 'queued',
 			cover_cleanup_complete: false,
 			cleanup_queue_complete: false,
 			cleanup_queued: true

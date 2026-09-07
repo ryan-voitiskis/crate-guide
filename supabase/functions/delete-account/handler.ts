@@ -1,4 +1,5 @@
 import type { User } from '@supabase/supabase-js'
+import { ACCOUNT_DELETION_QUEUED_RESPONSE } from '../../../shared/types/accountDeletion.ts'
 import {
 	type AccountCoverCleanupRepository,
 	createAccountCoverCleanupRepository
@@ -249,15 +250,6 @@ export function createDeleteAccountHandler(
 		// Storage traversal, ordinary queue retirement, and per-user quota cleanup
 		// now belong exclusively to the bounded durable worker. The response never
 		// waits on an account-sized listing after Auth deletion.
-		return jsonResponse(
-			{
-				success: true,
-				cover_cleanup_complete: false,
-				cleanup_queue_complete: false,
-				cleanup_queued: true
-			},
-			headers,
-			200
-		)
+		return jsonResponse(ACCOUNT_DELETION_QUEUED_RESPONSE, headers, 200)
 	}
 }

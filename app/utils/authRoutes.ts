@@ -1,28 +1,11 @@
-const PUBLIC_AUTH_ROUTES = new Set([
-	'/login',
-	'/signup',
-	'/reset-password',
-	'/update-password',
-	'/auth/check-inbox',
-	'/auth/confirm',
-	'/auth/finalising'
-])
-
-const PUBLIC_LEGAL_ROUTES = new Set(['/privacy', '/terms'])
-
-const SIGNED_OUT_ONLY_ROUTES = new Set(['/login', '/signup', '/reset-password'])
+import { getRoutePolicy } from './routePolicy'
 
 export function isPublicRoute(path: string): boolean {
-	return (
-		PUBLIC_AUTH_ROUTES.has(path) ||
-		PUBLIC_LEGAL_ROUTES.has(path) ||
-		path === '/demo' ||
-		path.startsWith('/demo/')
-	)
+	return getRoutePolicy(path).access !== 'authenticated'
 }
 
 export function isSignedOutOnlyRoute(path: string): boolean {
-	return SIGNED_OUT_ONLY_ROUTES.has(path)
+	return getRoutePolicy(path).access === 'signed-out'
 }
 
 function hasUnsafePathCharacters(value: string): boolean {
@@ -57,8 +40,8 @@ export function sanitizeAuthReturnPath(value: unknown): string {
 	if (
 		decodedValue.startsWith('//') ||
 		hasUnsafePathCharacters(decodedValue) ||
-		PUBLIC_AUTH_ROUTES.has(pathWithoutQueryOrHash(value)) ||
-		PUBLIC_AUTH_ROUTES.has(pathWithoutQueryOrHash(decodedValue))
+		getRoutePolicy(pathWithoutQueryOrHash(value)).authPage ||
+		getRoutePolicy(pathWithoutQueryOrHash(decodedValue)).authPage
 	)
 		return '/'
 
