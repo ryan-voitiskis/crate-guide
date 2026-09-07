@@ -30,25 +30,25 @@ const strobeRows = [
 	{
 		count: STROBE_DOT_COUNTS[0],
 		radius: 177.6,
-		width: 1.8,
+		diameter: 1.8,
 		pitch: calculateStrobeLockPitch(STROBE_DOT_COUNTS[0])
 	},
 	{
 		count: STROBE_DOT_COUNTS[1],
 		radius: 174,
-		width: 3,
+		diameter: 3,
 		pitch: calculateStrobeLockPitch(STROBE_DOT_COUNTS[1])
 	},
 	{
 		count: STROBE_DOT_COUNTS[2],
 		radius: 170.2,
-		width: 1.8,
+		diameter: 1.8,
 		pitch: calculateStrobeLockPitch(STROBE_DOT_COUNTS[2])
 	},
 	{
 		count: STROBE_DOT_COUNTS[3],
 		radius: 166.8,
-		width: 1.8,
+		diameter: 1.8,
 		pitch: calculateStrobeLockPitch(STROBE_DOT_COUNTS[3])
 	}
 ] as const
@@ -165,7 +165,7 @@ function animate(time: number) {
 }
 
 function startAnimation() {
-	if (animationId) return
+	if (animationId !== null || !rotor.value) return
 	lastTime = 0
 	animationId = requestAnimationFrame(animate)
 }
@@ -174,8 +174,7 @@ watch(
 	() => props.deck.isPlaying,
 	(isPlaying) => {
 		if (isPlaying) startAnimation()
-	},
-	{ immediate: true }
+	}
 )
 
 onMounted(() => {
@@ -183,12 +182,13 @@ onMounted(() => {
 		strobeLayer.value?.querySelectorAll<SVGGElement>('[data-strobe-row]') ?? []
 	)
 	renderFrame(0)
+	if (props.deck.isPlaying) startAnimation()
 })
 
 onUnmounted(() => {
 	acceptingCoverResults = false
 	coverRequest += 1
-	if (animationId) {
+	if (animationId !== null) {
 		cancelAnimationFrame(animationId)
 		animationId = null
 	}
@@ -215,7 +215,7 @@ onUnmounted(() => {
 					:key="index"
 					:cx="dot.x"
 					:cy="dot.y"
-					:r="row.width / 2"
+					:r="row.diameter / 2"
 				/>
 			</g>
 			<!-- 90-degree cone, centred northeast (-45 degrees), from the switch. -->
@@ -368,7 +368,7 @@ onUnmounted(() => {
 					:r="row.radius"
 					fill="none"
 					:stroke="`url(#${definitionId('blur-metal')})`"
-					:stroke-width="row.width + 0.6"
+					:stroke-width="row.diameter + 0.6"
 					opacity="0.72"
 				/>
 			</g>

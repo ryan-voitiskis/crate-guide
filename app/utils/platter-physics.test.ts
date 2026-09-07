@@ -33,10 +33,34 @@ describe('platter-physics', () => {
 		})
 
 		it('blends along the shortest equivalent mirror spacing', () => {
-			// 101.8 degrees is the same 180-dot phase as 99.8, not a 101.8-degree turn.
+			// 101.8 degrees is the same 180-dot phase as -0.2, not a 101.8-degree turn.
 			expect(calculateStrobeRenderAngle(0, 101.8, 0.0225, 180)).toBeCloseTo(
 				359.9
 			)
+		})
+
+		it('blends equivalent simulated phases identically across complete mirror steps', () => {
+			for (const count of STROBE_DOT_COUNTS) {
+				const spacing = 360 / count
+				const physical = 73.2
+				const simulated = physical + spacing * 0.4
+				const expected = calculateStrobeRenderAngle(
+					physical,
+					simulated,
+					0.0225,
+					count
+				)
+				for (const wholeSteps of [-100, -1, 1, 100]) {
+					expect(
+						calculateStrobeRenderAngle(
+							physical,
+							simulated + wholeSteps * spacing,
+							0.0225,
+							count
+						)
+					).toBeCloseTo(expected, 8)
+				}
+			}
 		})
 
 		it('converges onto every physical row while coasting down', () => {
@@ -222,13 +246,13 @@ describe('platter-physics', () => {
 			expect(result).toBeCloseTo(0.198, 6)
 		})
 
-		it('is frame-rate independent (same result over same duration)', () => {
+		it('approximates the same acceleration over different frame intervals', () => {
 			// 32ms at once vs two 16ms steps should be similar
 			const target = 0.198
 			const singleStep = smoothVelocity(0, target, 32)
 			const twoSteps = smoothVelocity(smoothVelocity(0, target, 16), target, 16)
 
-			// Not exactly equal due to exponential nature, but within 2% of each other
+			// The linear smoothing step approximates exponential decay; it is not exact.
 			const difference = Math.abs(singleStep - twoSteps)
 			const relativeDifference = difference / singleStep
 			expect(relativeDifference).toBeLessThan(0.02)
@@ -262,8 +286,7 @@ describe('platter-physics', () => {
 			expect(shouldContinueAnimation(0, 0.0002)).toBe(true)
 		})
 
-		it('continues when exactly at threshold', () => {
-			// At threshold, still continue (> not >=)
+		it('stops when exactly at threshold', () => {
 			expect(shouldContinueAnimation(0, VELOCITY_THRESHOLD)).toBe(false)
 		})
 
@@ -316,14 +339,14 @@ describe('platter-physics', () => {
 			expect(resolveTurntableRpm(45)).toBe(45)
 		})
 
-		it('uses the nominal 180-mirror row as the quartz reference', () => {
+		it('uses the chosen 180-mirror row as the synthetic reference', () => {
 			expect(STROBE_REFERENCE_DOT_COUNT).toBe(180)
 			expect(STROBE_DOT_COUNTS).toEqual([186, 180, 174, 169])
 			expect(calculateStrobeFlashFrequency(33)).toBeCloseTo(100, 8)
 			expect(calculateStrobeFlashFrequency(45)).toBeCloseTo(135, 8)
 		})
 
-		it('derives the approximate legend pitches from integer mirror counts', () => {
+		it('derives approximate lock pitches from the chosen integer mirror counts', () => {
 			expect(calculateStrobeLockPitch(186)).toBeCloseTo(-3.23, 2)
 			expect(calculateStrobeLockPitch(180)).toBe(0)
 			expect(calculateStrobeLockPitch(174)).toBeCloseTo(3.45, 2)
@@ -358,6 +381,43 @@ describe('platter-physics', () => {
 		it('does not invent reverse motion while the platter is stopped', () => {
 			expect(calculateStrobeApparentVelocity(0, 33, 180)).toBe(0)
 		})
+
+		it.each([33, 45])(
+			'preserves each row phase between synthetic flashes at %i RPM',
+			(rpm) => {
+				const flashInterval = 1000 / calculateStrobeFlashFrequency(rpm)
+				for (const count of STROBE_DOT_COUNTS) {
+					const spacing = 360 / count
+					for (const pitch of [-100, 0, 100]) {
+						const physical = calculateTargetVelocity(rpm, pitch, 50, true)
+						const apparent = calculateStrobeApparentVelocity(
+							physical,
+							rpm,
+							count
+						)
+						const removedSteps =
+							((physical - apparent) * flashInterval) / spacing
+						expect(removedSteps).toBeCloseTo(Math.round(removedSteps), 8)
+						expect(Math.abs(apparent * flashInterval)).toBeLessThanOrEqual(
+							spacing / 2 + 1e-10
+						)
+					}
+				}
+			}
+		)
+
+		it.each([60, 120, 144])(
+			'integrates the same steady apparent motion at %i display frames per second',
+			(frameRate) => {
+				const physical = calculateTargetVelocity(33, 50, 8, true)
+				const apparent = calculateStrobeApparentVelocity(physical, 33, 180)
+				let angle = 0
+				for (let frame = 0; frame < frameRate; frame++) {
+					angle = calculateNextAngle(angle, apparent, 1000 / frameRate)
+				}
+				expect(angle).toBeCloseTo(calculateNextAngle(0, apparent, 1000), 8)
+			}
+		)
 	})
 
 	describe('simulateVelocityConvergence', () => {

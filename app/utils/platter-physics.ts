@@ -26,17 +26,25 @@ export const MAX_DELTA_TIME = 100
 export const DEFAULT_DELTA_TIME = 16
 
 /**
- * The large, nominal-speed row on an SL-1200-style platter contains 180
- * mirrors. At 33 1/3 RPM that gives the quartz-referenced strobe its 100 Hz
- * cadence; at 45 RPM the same row is driven at 135 Hz.
+ * Our model uses 180 mirrors for the large, nominal-speed row. This gives a
+ * synthetic flash cadence of 100 Hz at 33 1/3 RPM and 135 Hz at 45 RPM.
+ * These are simulation parameters, not verified SL-1200 hardware dimensions.
  */
 export const STROBE_REFERENCE_DOT_COUNT = 180
 
 /**
- * Mirror counts from the outside edge towards the record. The integer counts
- * are why the printed pitch values are approximate rather than exact.
+ * Chosen mirror counts, outside edge towards the record. Their derived lock
+ * pitches approximate the deck's -3.3%, 0%, +3.3%, +6.4% legend.
  */
 export const STROBE_DOT_COUNTS = [186, 180, 174, 169] as const
+
+/** Presentation threshold in deg/ms above which the rim is fully blurred. */
+const FULL_MOTION_BLUR_VELOCITY = 0.045
+
+/** JavaScript's remainder can be negative; angles need a positive wrap. */
+function wrapAngle(angle: number): number {
+	return ((angle % 360) + 360) % 360
+}
 
 /** Treat the conventional "33" control label as the actual 33 1/3 RPM. */
 export function resolveTurntableRpm(rpm: number): number {
@@ -127,13 +135,13 @@ export function calculateNextAngle(
 	velocity: number,
 	deltaTime: number
 ): number {
-	return (((currentAngle + velocity * deltaTime) % 360) + 360) % 360
+	return wrapAngle(currentAngle + velocity * deltaTime)
 }
 
 /**
- * Return the quartz-referenced flash rate for the selected platter speed.
- * Unlike an early mains-referenced turntable, an SL-1200MK2 changes this
- * frequency with 33/45 so the same row indicates nominal speed at both RPMs.
+ * Return the model's flash rate in Hz for the selected nominal platter speed.
+ * It follows 33/45 selection, not pitch or actual velocity: changing the pitch
+ * must make the reference row drift. No screen flashing is needed to draw it.
  */
 export function calculateStrobeFlashFrequency(rpm: number): number {
 	return (STROBE_REFERENCE_DOT_COUNT * resolveTurntableRpm(rpm)) / 60
@@ -150,6 +158,10 @@ export function calculateStrobeLockPitch(dotCount: number): number {
  * Convert physical platter velocity to the slow apparent motion seen under a
  * strobe. Subtracting the nearest whole mirror-step per flash reproduces the
  * wagon-wheel alias while remaining independent of display refresh rate.
+ * @param physicalVelocity - Actual angular velocity in degrees per millisecond
+ * @param rpm - Selected nominal speed (33 or 45), not pitch-adjusted speed
+ * @param dotCount - Number of equally spaced mirrors in this row
+ * @returns Apparent angular velocity in degrees per millisecond
  */
 export function calculateStrobeApparentVelocity(
 	physicalVelocity: number,
@@ -159,15 +171,18 @@ export function calculateStrobeApparentVelocity(
 	if (physicalVelocity === 0 || dotCount <= 0) return 0
 
 	const flashFrequency = calculateStrobeFlashFrequency(rpm)
-	const oneMirrorStepVelocity = ((360 / dotCount) * flashFrequency) / 1000
-	const aliasedSteps = Math.round(physicalVelocity / oneMirrorStepVelocity)
+	const mirrorSpacing = 360 / dotCount
+	const oneMirrorStepVelocity = (mirrorSpacing * flashFrequency) / 1000
+	const wholeStepsPerFlash = Math.round(
+		physicalVelocity / oneMirrorStepVelocity
+	)
 
-	return physicalVelocity - aliasedSteps * oneMirrorStepVelocity
+	return physicalVelocity - wholeStepsPerFlash * oneMirrorStepVelocity
 }
 
 /** Blend away the motion blur as individual physical mirrors become visible. */
 export function calculatePlatterMotionMix(velocity: number): number {
-	return Math.min(1, Math.max(0, Math.abs(velocity) / 0.045))
+	return Math.min(1, Math.abs(velocity) / FULL_MOTION_BLUR_VELOCITY)
 }
 
 /**
@@ -189,8 +204,9 @@ export function calculateStrobeRenderAngle(
 		((((simulatedAngle - physicalAngle + period / 2) % period) + period) %
 			period) -
 		period / 2
+	// Smoothstep keeps the blend gentle at both ends of the low-speed interval.
 	const easedMix = mix * mix * (3 - 2 * mix)
-	return calculateNextAngle(physicalAngle, phaseDifference * easedMix, 1)
+	return wrapAngle(physicalAngle + phaseDifference * easedMix)
 }
 
 /**
