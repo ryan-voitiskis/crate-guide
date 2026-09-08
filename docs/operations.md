@@ -11,14 +11,14 @@ This is the current operating entry point. The [staging release runbook](staging
 
 Both backend projects belong to organization `grxffkeajwssrcfwtxny`. The production Pages branch is `main`; the staging Pages branch is `staging`. Public backend configuration is compiled into the frontend build.
 
-Use a clean checkout at a full, explicit commit SHA. The preflight is read-only:
+Use a clean checkout at a full, explicit commit SHA already verified by a push to `main`. Both staging and production preflights use this merged source. The preflight is read-only:
 
 ```bash
 npm run release:preflight -- --environment staging --commit <full-sha>
 npm run release:preflight -- --environment production --commit <full-sha>
 ```
 
-It verifies the checkout and origin, the latest successful Verify workflow for that exact source, and CLI visibility of the intended healthy Supabase project and organization. It emits migration file hashes and a list of the remaining release checks. It does **not** certify the hosted migration ledger, restore capability, a built artifact, or deployment completion.
+It verifies the checkout and origin, the latest successful push-to-main Verify workflow for that exact source, and CLI visibility of the intended healthy Supabase project and organization. A PR workflow does not satisfy this gate: it tests GitHub's synthetic merge commit, which can contain base changes absent from the PR head. The preflight emits migration file hashes and a list of the remaining release checks. It does **not** certify the hosted migration ledger, restore capability, a built artifact, or deployment completion.
 
 The last release used authenticated dashboard access because the CLI identity could not see this organization. The preflight deliberately fails in that situation. Configure a correctly scoped CLI identity before the next backend release. Do not export privileged credentials into source control, browser evidence, or release logs.
 
@@ -41,11 +41,11 @@ With the existing local Supabase stack running:
 npm run test:integration
 ```
 
-This separate Vitest project runs against the repository's migrated local stack, using real accounts, PostgREST, database triggers, and Storage. It must fail if the stack is unavailable. It cannot be pointed at a hosted project through environment variables: configuration comes from local CLI status and is restricted to literal loopback ports `42821` and `42822`.
+This separate Vitest project runs against the repository's migrated local stack, using real accounts, PostgREST, database triggers, and Storage. It must fail if the stack is unavailable. It cannot be pointed at a hosted project through environment variables: configuration comes from local CLI status and is restricted to literal loopback ports `42821` and `42822`. The server pins its effective runtime URL/key, the browser verifies them before entering credentials, and a request guard blocks origins other than the test app and local Supabase. The suite deliberately supplies conflicting inherited Nuxt/Nitro settings to exercise this boundary.
 
 Each run creates unique, auto-confirmed `example.invalid` accounts without sending mail. Teardown removes only their known cover paths and accounts, then checks that their rows, jobs, and objects are gone. An unrelated synthetic account proves isolation. The developer stack is never reset or stopped.
 
-The browser uses the real Supabase client. Edge requests execute the production handlers with local credential providers in the test process; the global account cleanup dispatcher is excluded so tests cannot drain a developer's unrelated jobs. The account cover worker is exercised with a real, explicitly scoped database claim. Edge gateway configuration and global job claiming remain covered by the existing Edge/database tests and hosted smoke. CI runs this integration gate after database migrations and schema verification.
+The browser uses the real Supabase client. Edge requests execute the production handlers with local credential providers in the test process; the global account cleanup dispatcher and expired-quota pruning are excluded so tests cannot drain a developer's unrelated jobs or quota rows. The account cover worker is exercised with a real, explicitly scoped database claim. Its own quota row is removed while an unrelated expired quota sentinel must remain unchanged; teardown removes and verifies only each fixture's exact quota key. Edge gateway configuration, global job claiming, and expiry pruning remain covered by the existing Edge/database tests and hosted smoke. CI runs this integration gate after database migrations and schema verification.
 
 ## Recovery activation
 

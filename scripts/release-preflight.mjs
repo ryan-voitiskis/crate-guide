@@ -36,11 +36,13 @@ export function assertReleaseChecks(runs, commit) {
 	if (
 		!latest ||
 		latest.headSha !== commit ||
+		latest.event !== 'push' ||
+		latest.headBranch !== 'main' ||
 		latest.status !== 'completed' ||
 		latest.conclusion !== 'success'
 	) {
 		throw new Error(
-			'The latest Verify workflow for this exact source must have completed successfully.'
+			'The latest push-to-main Verify workflow for this exact source must have completed successfully.'
 		)
 	}
 	return latest.url
@@ -95,10 +97,14 @@ export function releasePreflight({ environment, commit }) {
 				commit,
 				'--workflow',
 				'verify.yml',
+				'--event',
+				'push',
+				'--branch',
+				'main',
 				'--limit',
 				'1',
 				'--json',
-				'headSha,status,conclusion,url'
+				'headSha,event,headBranch,status,conclusion,url'
 			])
 		),
 		commit

@@ -9,6 +9,7 @@ type GuardedPage = {
 
 type ErrorAwarePageOptions = {
 	beforeNavigate?: (page: NuxtPage) => Promise<void> | void
+	allowedRequestOrigins?: readonly string[]
 	expectedResourceErrors?: ReadonlyArray<{
 		url: string
 		status: number
@@ -89,6 +90,20 @@ export async function createErrorAwarePage(
 
 	try {
 		await options.beforeNavigate?.(page)
+		if (options.allowedRequestOrigins) {
+			const allowedOrigins = new Set(options.allowedRequestOrigins)
+			await page.route('**/*', async (route) => {
+				const requestUrl = route.request().url()
+				if (allowedOrigins.has(new URL(requestUrl).origin)) {
+					await route.fallback()
+					return
+				}
+				guardedPage.diagnostics.push(
+					`Blocked unexpected request origin: ${safeRequestUrl(requestUrl)}`
+				)
+				await route.abort('blockedbyclient')
+			})
+		}
 		await page.goto(url(path), { waitUntil: 'hydration' })
 		return page
 	} catch (error) {

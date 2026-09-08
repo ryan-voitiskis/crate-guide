@@ -66,9 +66,11 @@ test('backend preflight fails closed for the wrong CLI organization and unhealth
 		assert.throws(() => assertReleaseProjects(projects, target))
 })
 
-test('preflight requires the latest successful workflow for the exact requested commit', () => {
+test('preflight requires the latest successful push-to-main workflow for the exact requested commit', () => {
 	const run = {
 		headSha: source,
+		event: 'push',
+		headBranch: 'main',
 		status: 'completed',
 		conclusion: 'success',
 		url: 'https://github.com/example/run'
@@ -77,6 +79,10 @@ test('preflight requires the latest successful workflow for the exact requested 
 	for (const runs of [
 		[],
 		[{ ...run, headSha: 'b'.repeat(40) }],
+		[{ ...run, event: 'pull_request' }],
+		[{ ...run, event: undefined }],
+		[{ ...run, headBranch: 'staging' }],
+		[{ ...run, headBranch: undefined }],
 		[{ ...run, status: 'in_progress' }, run],
 		[{ ...run, conclusion: 'failure' }, run]
 	])

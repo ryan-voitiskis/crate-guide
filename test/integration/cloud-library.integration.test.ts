@@ -18,6 +18,14 @@ import {
 
 await setup({
 	browser: true,
+	// Nitro applies runtime environment values after module configuration.
+	// Pin its primary prefix, including parent objects, in the server process.
+	env: {
+		NITRO_PUBLIC: '{}',
+		NITRO_PUBLIC_SUPABASE: '{}',
+		NITRO_PUBLIC_SUPABASE_URL: localConfiguration.apiUrl,
+		NITRO_PUBLIC_SUPABASE_KEY: localConfiguration.anonKey
+	},
 	nuxtConfig: {
 		nitro: { preset: 'node-server' },
 		supabase: {
@@ -46,6 +54,10 @@ async function signedInPage(destination = '/tracks') {
 	const page = await createErrorAwarePage(
 		`/login?redirect=${encodeURIComponent(destination)}`,
 		{
+			allowedRequestOrigins: [
+				new URL(url('/')).origin,
+				new URL(localConfiguration.apiUrl).origin
+			],
 			// GoTrue rejects logout after Auth deletion. The SDK accepts this exact
 			// response and clears the local session; the test also checks sign-out.
 			expectedResourceErrors: destination.startsWith('/settings')
@@ -93,6 +105,15 @@ async function signedInPage(destination = '/tracks') {
 			}
 		}
 	)
+	expect(
+		await page.evaluate(
+			({ apiUrl, anonKey }) => {
+				const config = window.__NUXT__?.config?.public?.supabase
+				return config?.url === apiUrl && config?.key === anonKey
+			},
+			{ apiUrl: localConfiguration.apiUrl, anonKey: localConfiguration.anonKey }
+		)
+	).toBe(true)
 	await page.locator('input[name="email"]').fill(fixture.email)
 	await page.locator('input[name="password"]').fill(fixture.password)
 	await page.locator('button[type="submit"]').click()
@@ -368,6 +389,10 @@ describe('Cloud library with real local Supabase', () => {
 	})
 
 	it('deletes through the real account dialog, reports queued cleanup, and completes the scoped cover worker', async () => {
+		fixture.seedExpiredRateLimit()
+		sentinel.seedExpiredRateLimit()
+		const sentinelQuota = sentinel.rateLimitRow()
+		expect(sentinelQuota).not.toBeNull()
 		const page = await signedInPage('/settings?action=delete-account')
 		await page.locator('#account-deletion-confirmation').fill(fixture.email)
 		const deleted = page.waitForResponse(
@@ -401,12 +426,15 @@ describe('Cloud library with real local Supabase', () => {
 					.download(fixture.paths[0]!)
 			).error
 		).toBeNull()
+		expect(fixture.rateLimitRow()).not.toBeNull()
 		expect(await fixture.drainAccountCovers()).toEqual({
 			processed: true,
 			complete: true,
 			failed: false
 		})
 		expect(fixture.accountJobCount()).toBe(0)
+		expect(fixture.rateLimitRow()).toBeNull()
+		expect(sentinel.rateLimitRow()).toEqual(sentinelQuota)
 		for (const recordId of fixture.records)
 			expect(
 				(

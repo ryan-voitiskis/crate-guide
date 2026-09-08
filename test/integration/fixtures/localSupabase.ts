@@ -116,6 +116,21 @@ export async function createLocalFixture(
 				})
 			)
 		},
+		seedExpiredRateLimit() {
+			runLocalSql({
+				databaseUrl: localConfiguration.databaseUrl,
+				sql: "INSERT INTO public.discogs_request_rate_limits (bucket_key, request_count, reset_at) VALUES ('discogs:user:' || :'target_user_id'::uuid::text, 3, '2000-01-01T00:00:00Z');",
+				variables: { target_user_id: userId }
+			})
+		},
+		rateLimitRow() {
+			const row = runLocalSql({
+				databaseUrl: localConfiguration.databaseUrl,
+				sql: "SELECT row_to_json(limits) FROM public.discogs_request_rate_limits AS limits WHERE bucket_key = 'discogs:user:' || :'target_user_id'::uuid::text;",
+				variables: { target_user_id: userId }
+			})
+			return row ? JSON.parse(row) : null
+		},
 		async dispose() {
 			if (disposed) return
 			const failures: unknown[] = []
@@ -128,6 +143,16 @@ export async function createLocalFixture(
 					failures.push(error)
 				}
 			}
+			await attempt(async () => {
+				assert.equal(
+					(
+						await localService.rpc('delete_discogs_user_rate_limit', {
+							target_user_id: userId
+						})
+					).error,
+					null
+				)
+			})
 			await attempt(async () => {
 				assert.equal(
 					(await localService.storage.from('record-covers').remove(paths))
@@ -167,6 +192,11 @@ export async function createLocalFixture(
 					404
 				)
 				assert.equal(fixture.accountJobCount(), 0)
+				assert.equal(
+					fixture.rateLimitRow(),
+					null,
+					'Fixture retained quota state'
+				)
 				for (const table of [
 					'records',
 					'tracks',
@@ -271,6 +301,9 @@ export async function createLocalFixture(
 			assert.equal(row.user_id, userId)
 			return processNextAccountCoverCleanup({
 				...createAccountCoverCleanupRepository(localService),
+				// Global expiry maintenance is covered by Edge/pgTAP tests. This
+				// fixture must preserve other accounts' quota state, even if expired.
+				pruneExpiredUserRateLimits: async () => {},
 				claim: async () => ({ userId, claimToken: row.claim_token })
 			})
 		}
