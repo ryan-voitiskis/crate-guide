@@ -25,7 +25,7 @@
 	"expectedLazyModules": [
 		"utils/cloudWorkbenchRuntime.ts",
 		"pages/enrichment.vue",
-		"repositories/library/browser/browserDeviceDraftRepository.ts",
+		"repositories/deviceDrafts/index.ts",
 		"../node_modules/music-metadata/lib/mpeg/MpegParser.js"
 	],
 	"workerAssetPatterns": ["localAudioAnalysis.worker-", "rekordboxXml.worker-"],

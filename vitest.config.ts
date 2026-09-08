@@ -147,6 +147,33 @@ export default defineConfig({
 			},
 			{
 				test: {
+					name: 'integration',
+					// Deliberate contamination proves the server pins the guarded local
+					// configuration despite inherited Nuxt/Nitro runtime overrides.
+					env: {
+						NUXT_PUBLIC_SUPABASE_URL: 'https://hosted.test.invalid',
+						NUXT_PUBLIC_SUPABASE_KEY: 'test-hosted-anon-key',
+						NITRO_PUBLIC: '{"supabase":{"url":"https://hosted.test.invalid"}}',
+						NITRO_PUBLIC_SUPABASE: '{"url":"https://hosted.test.invalid"}',
+						NITRO_PUBLIC_SUPABASE_URL: 'https://hosted.test.invalid',
+						NITRO_PUBLIC_SUPABASE_KEY: 'test-hosted-anon-key'
+					},
+					include: ['test/integration/**/*.integration.test.ts'],
+					environment: 'node',
+					fileParallelism: false,
+					testTimeout: 120000,
+					hookTimeout: 120000
+				},
+				resolve: {
+					alias: {
+						'~': fileURLToPath(new URL('./app', import.meta.url)),
+						'@': fileURLToPath(new URL('./app', import.meta.url)),
+						'~~': fileURLToPath(new URL('.', import.meta.url))
+					}
+				}
+			},
+			{
+				test: {
 					name: 'e2e',
 					include: ['test/e2e/**/*.e2e.test.ts'],
 					environment: 'node',

@@ -1,4 +1,4 @@
-import type { BrowserWorkspaceIdentity } from '~/repositories/library/browser/browserLibraryTypes'
+import type { BrowserWorkspaceIdentity } from '~/repositories/deviceDrafts/contracts'
 import type { LibraryLocation } from '~/repositories/library/contracts'
 import { sha256TrackEnrichmentDraftValue } from '~/utils/trackEnrichmentDraftFingerprint'
 import { CLOUD_ACCOUNT_WORKSPACE_PREFIX } from '../../shared/constants/theme'

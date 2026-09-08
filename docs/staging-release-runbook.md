@@ -1,5 +1,7 @@
 # Staging release runbook
 
+For current release tooling, environment identities, and open recovery/access requirements, start with [Current operations](operations.md). The rehearsal and umbrella-plan evidence below records the July rollout and is retained as history; later production evidence is linked from the current operating page.
+
 This runbook covers the first hosted rehearsal of the quality-plan portfolio.
 It is deliberately staging-only. It does not authorize a production database
 change, Edge Function deployment, Pages deployment, secret update, scheduler

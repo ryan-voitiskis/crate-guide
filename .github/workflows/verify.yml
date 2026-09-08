@@ -92,6 +92,12 @@ jobs:
       - name: Compare generated types with migrated schema
         run: npm run check:database-schema-types
 
+      - name: Install integration browser
+        run: npx --no-install playwright install --with-deps chromium
+
+      - name: Test application against local Supabase
+        run: npm run test:integration
+
       - name: Stop local Supabase
         if: always()
         run: npx --no-install supabase stop --no-backup

@@ -32,8 +32,7 @@ type SemanticAssets = {
 }
 
 const CLOUD_RUNTIME_MODULE = 'utils/cloudWorkbenchRuntime.ts'
-const DEVICE_DRAFT_REPOSITORY_MODULE =
-	'repositories/library/browser/browserDeviceDraftRepository.ts'
+const DEVICE_DRAFT_REPOSITORY_MODULE = 'repositories/deviceDrafts/index.ts'
 const ENRICHMENT_PAGE_MODULE = 'pages/enrichment.vue'
 const LOCAL_AUDIO_WORKER_PATTERN = 'localAudioAnalysis.worker-'
 const LOCAL_AUDIO_WASM_PATTERN = 'essentia-wasm.es-'
