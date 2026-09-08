@@ -21,7 +21,7 @@ import {
 	type BrowserWorkflowDraft,
 	type BrowserWorkflowDraftEntry,
 	type BrowserWorkspaceIdentity
-} from '~/repositories/library/browser/browserLibraryTypes'
+} from '~/repositories/deviceDrafts/contracts'
 import type { TrackEnrichmentDraftPartialOutcome } from '~/types/trackEnrichmentDraft'
 import { hydrateTrackEnrichmentDraft } from '~/utils/trackEnrichmentDraftHydration'
 import { mapTrackEnrichmentDraftBatchOutcome } from '~/utils/trackEnrichmentDraftOutcome'
@@ -138,7 +138,7 @@ export function useTrackEnrichmentDraftSession(
 		dependencies.openRepository ??
 		(async (options) => {
 			const { openBrowserDeviceDraftRepository } =
-				await import('~/repositories/library/browser/browserDeviceDraftRepository')
+				await import('~/repositories/deviceDrafts')
 			return openBrowserDeviceDraftRepository(options)
 		})
 	const now = dependencies.now ?? (() => new Date())

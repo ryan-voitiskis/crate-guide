@@ -1,3 +1,7 @@
+import {
+	listBrowserWorkspaceDrafts,
+	readBrowserWorkspaceDraft
+} from './browserDraftReads'
 import { DEVICE_DRAFT_REVISION_AUTHORITY } from './browserDraftRevision'
 import { BrowserLibraryBroadcaster } from './browserLibraryBroadcast'
 import {
@@ -35,10 +39,6 @@ import {
 	takeOverBrowserWorkspaceDraft,
 	writeBrowserWorkspaceDraft
 } from './browserWorkspaceDrafts'
-import {
-	listBrowserWorkspaceDrafts,
-	readBrowserWorkspaceDraft
-} from './browserWorkspaceOperations'
 
 function deviceResult<T>(
 	commit: BrowserDraftOperationalCommit<T>

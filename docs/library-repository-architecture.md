@@ -6,8 +6,24 @@ library in this browser, or Demo data without pretending that a local library
 belongs to a Supabase user.
 
 This document is the contract for the domain boundary introduced before local
-browser persistence. It describes the current Cloud and Demo adapters. The
-browser adapter must follow the same rules.
+browser persistence. Cloud and Demo are product-facing adapters. The full
+browser-library adapter exists internally, while its accountless product
+flows remain deferred. Device-local enrichment drafts are already active.
+
+## Active device drafts
+
+Application consumers use `app/repositories/deviceDrafts/contracts.ts` for the
+draft API and lazily open `app/repositories/deviceDrafts/index.ts`. Draft reads
+live in `browserDraftReads.ts`; they no longer import the deferred workspace
+export, copy-receipt, and storage-health operations. A dependency-graph test
+prevents that coupling from returning. Existing workspace-adapter exports
+remain compatible.
+
+This extraction preserves the database name, schema version, object stores,
+keys, codecs, lease behavior, revision checks, and upgrade path. The full
+browser repository and catalog must not become runtime dependencies of the
+active draft entry point. The shared codec, schema, and revision kernel still
+needs incremental work; it cannot be deleted with the deferred product adapter.
 
 ## Ownership
 

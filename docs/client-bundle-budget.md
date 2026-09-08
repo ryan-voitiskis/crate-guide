@@ -35,7 +35,7 @@ maintainer-selected or maintainer-accepted product limits.
 - the enrichment route is a semantic Nuxt lazy module;
 - the track-enrichment draft format, privacy scanner, and schema constants form
   a shared manual chunk rather than being hoisted into the initial entry;
-- `repositories/library/browser/browserDeviceDraftRepository.ts` loads only
+- `repositories/deviceDrafts/index.ts` loads only
   when the enrichment route initializes device-local draft recovery;
 - `music-metadata` format parsers remain dynamic modules;
 - the local-audio Worker and Essentia WASM remain separately emitted assets.

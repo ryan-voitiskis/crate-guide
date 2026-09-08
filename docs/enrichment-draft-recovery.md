@@ -1,5 +1,11 @@
 # Enrichment draft recovery and privacy contract
 
+Device-local enrichment drafts are active in production. Their current public
+code boundary is `app/repositories/deviceDrafts`; storage remains in the
+existing IndexedDB schema. The accountless Local-library product described
+below is deferred. See [the architecture boundary](library-repository-architecture.md#active-device-drafts)
+and [current operations](operations.md) for the integration and release gates.
+
 Track enrichment drafts are device-local recovery state. They let someone
 continue a careful review after navigation, reload, or browser restart without
 requiring a Crate Guide account. They are not a library backup, a cloud-synced

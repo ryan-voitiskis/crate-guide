@@ -5,11 +5,11 @@ import type {
 	TrackEnrichmentResumedReview,
 	TrackEnrichmentWorkflow
 } from '../../app/composables/useTrackEnrichmentWorkflow'
-import { openBrowserDeviceDraftRepository } from '../../app/repositories/library/browser/browserDeviceDraftRepository'
+import { openBrowserDeviceDraftRepository } from '../../app/repositories/deviceDrafts'
 import type {
 	BrowserDeviceDraftRepository,
 	BrowserLibraryDependencies
-} from '../../app/repositories/library/browser/browserLibraryTypes'
+} from '../../app/repositories/deviceDrafts/contracts'
 import type { LibraryRepositoryBundle } from '../../app/repositories/library/contracts'
 import type { RekordboxXmlTrack } from '../../app/utils/rekordboxXml'
 import { buildTrackEnrichmentRows } from '../../app/utils/trackEnrichment'

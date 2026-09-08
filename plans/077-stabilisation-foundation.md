@@ -1,6 +1,6 @@
 # Stabilisation foundation
 
-Status: in progress. Approved by Ryan on 8 September 2026 after the audit-defect production release.
+Status: steps 1–3 implemented and locally verified; recovery activation remains open. Approved by Ryan on 8 September 2026 after the audit-defect production release.
 
 ## Objective
 
@@ -23,8 +23,18 @@ Keep these as separate commits with focused verification. Run formatting, conven
 - The dashboard showed no automatic backups. An independent backup destination has been requested; production export and restore capability remain unverified.
 - Local Supabase ports remain `42820–42829`. Integration tooling must reject hosted endpoints and operate only on its own disposable fixtures.
 
-## Follow-up decisions
+## Verification and remaining work
 
-The release tooling and integration foundation are implemented. The four real local Supabase integration flows passed on 8 September, including teardown readback. Lint and type checking passed. The read-only production smoke verified all ten routes against the existing released build. The new preflight reproduced the missing CLI organization access without exposing unrelated project details. Full repository verification and the draft boundary extraction follow in the next commit.
+The release tooling, integration foundation, and first draft boundary are implemented. `npm run verify:full` passed with the required browser matrix enabled and the CI audio timing setting: 2,526 application tests, 26 E2E passes with the existing conditional skip, 82 browser tests, 146 Edge tests, 473 database assertions, generated-schema parity, conventions, security headers, and bundle budgets. Initial JavaScript measured 1,106,394 raw / 348,913 gzip bytes; the largest ordinary chunk measured 128,150 raw / 37,143 gzip bytes. Existing budgets were not increased.
+
+The four real local Supabase application flows passed, including teardown readback. Final review added a fifth integration test for Auth creation committing before its response is lost; the helper recovers that exact synthetic account and removes it. Formatting, lint, type checking, and the complete five-test integration suite passed after that addition.
+
+The read-only production smoke verified all ten routes against the existing released build. The new preflight reproduced the missing CLI organization access without exposing unrelated project details. No hosted migration, Edge Function, or frontend deployment belongs to this milestone.
+
+The extracted draft read implementation was compared with the preceding commit and is byte-identical. The schema, persisted keys, revisions, leases, and compatibility exports remain unchanged. The new public entry point passed the existing lazy-loading and browser-persistence checks, and a dependency-graph test rejects runtime coupling to the deferred workspace catalog, library adapter, and export/copy operations.
+
+Recovery remains **not activated**: an independent private backup destination and unattended access are still required. [Current operations](../docs/operations.md#recovery-activation) defines the database/object manifest, failure conditions, encryption/retention decisions, and isolated restore acceptance criteria. The earlier July restore rehearsal is historical evidence only.
+
+## Follow-up decisions
 
 After this foundation, extract enrichment lease, autosave, recovery, and apply behavior one boundary at a time. Investigate record/crate metadata write conflicts before changing their contracts. Add actionable cleanup/error monitoring and validate CSP enforcement separately. Measure library hydration and bundle costs with realistic libraries before optimizing.
