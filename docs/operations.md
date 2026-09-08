@@ -49,9 +49,13 @@ The browser uses the real Supabase client. Edge requests execute the production 
 
 ## Recovery activation
 
-Recovery is still an open operational requirement. The dashboard at the last release showed no automatic backups. The July manual database restore rehearsal is historical evidence; it is not a current recovery point.
+Recovery is still an open operational requirement. A fresh production dashboard check on 8 September 2026 still showed **Last backup: No backups**. The July manual database restore rehearsal is historical evidence; it is not a current recovery point.
+
+The same check confirmed that Chrome can access both Crate Guide projects, while the default Supabase CLI identity cannot list either. CLI sign-in to the owning account is required. The installed CLI's named-profile attempt failed with `LegacyProfileLoadError`; no token was created or credentials replaced. Cloudflare's scoped R2 bucket-list call reported that R2 must be enabled on the account hosting Crate Guide. Ryan has been asked to enable it or identify an existing private bucket. No storage, billing, scheduler, or production data was changed.
 
 The proposed baseline is a daily encrypted backup to independent private storage, with 30 daily copies and a monthly isolated restore rehearsal. Before activation, confirm the destination, retention, encryption-key ownership, and access for an unattended operator. Do not upload production data to a guessed destination or use CI logs/artifacts as an implicit backup store.
+
+After access is unblocked, verify visibility of the exact production project above; establish scoped object-storage access and an encryption key whose recovery owner can recover it independently of the application; then capture and restore one complete set before scheduling daily runs. Do not reset the production database password to satisfy a CLI example. Supabase's [backup and restore guide](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore) is the starting point for database connection/export compatibility, and its [backup documentation](https://supabase.com/docs/guides/platform/backups) explains why Storage bytes need their own capture. If R2 is selected, follow Cloudflare's [private bucket setup](https://developers.cloudflare.com/r2/buckets/create-buckets/); keep public access disabled.
 
 A complete backup set must contain:
 
