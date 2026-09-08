@@ -12,19 +12,18 @@ import type {
 	TrackEnrichmentApplyAttempt,
 	TrackEnrichmentWorkflow
 } from '~/composables/useTrackEnrichmentWorkflow'
-import {
-	BROWSER_DRAFT_LEASE_RENEW_INTERVAL_MS,
-	type BrowserClaimedDraft,
-	type BrowserDeviceDraftRepository,
-	type BrowserDraftLease,
-	type BrowserLibraryDependencies,
-	type BrowserWorkflowDraft,
-	type BrowserWorkflowDraftEntry,
-	type BrowserWorkspaceIdentity
+import type {
+	BrowserClaimedDraft,
+	BrowserDeviceDraftRepository,
+	BrowserLibraryDependencies,
+	BrowserWorkflowDraft,
+	BrowserWorkflowDraftEntry,
+	BrowserWorkspaceIdentity
 } from '~/repositories/deviceDrafts/contracts'
 import type { TrackEnrichmentDraftPartialOutcome } from '~/types/trackEnrichmentDraft'
 import { hydrateTrackEnrichmentDraft } from '~/utils/trackEnrichmentDraftHydration'
 import { mapTrackEnrichmentDraftBatchOutcome } from '~/utils/trackEnrichmentDraftOutcome'
+import { createTrackEnrichmentDraftOwnership } from '~/utils/trackEnrichmentDraftOwnership'
 import { projectTrackEnrichmentDraft } from '~/utils/trackEnrichmentDraftProjection'
 import { createTrackEnrichmentDraftWorkspaceIdentity } from '~/utils/trackEnrichmentDraftWorkspaceIdentity'
 import type { WorkbenchRuntime } from '~/utils/workbenchPinia'
@@ -33,7 +32,6 @@ import type { LibraryRecord, LibraryTrack } from '~~/shared/types/library'
 const TRACK_ENRICHMENT_DRAFT_AUTOSAVE_DELAY_MS = 500
 
 type DraftSessionTimer = ReturnType<typeof globalThis.setTimeout>
-type DraftSessionInterval = ReturnType<typeof globalThis.setInterval>
 type DraftMutationQueue = { tail: Promise<void> }
 
 export type TrackEnrichmentDraftSaveState =
@@ -146,12 +144,8 @@ export function useTrackEnrichmentDraftSession(
 		dependencies.randomUUID ?? (() => globalThis.crypto.randomUUID())
 	const scheduleTimeout = dependencies.setTimeout ?? globalThis.setTimeout
 	const cancelTimeout = dependencies.clearTimeout ?? globalThis.clearTimeout
-	const scheduleInterval = dependencies.setInterval ?? globalThis.setInterval
-	const cancelInterval = dependencies.clearInterval ?? globalThis.clearInterval
 	const autosaveDelayMs =
 		dependencies.autosaveDelayMs ?? TRACK_ENRICHMENT_DRAFT_AUTOSAVE_DELAY_MS
-	const leaseRenewIntervalMs =
-		dependencies.leaseRenewIntervalMs ?? BROWSER_DRAFT_LEASE_RENEW_INTERVAL_MS
 	const hydrateDraft = dependencies.hydrateDraft ?? hydrateTrackEnrichmentDraft
 
 	const discoveryState = ref<TrackEnrichmentDraftDiscoveryState>('idle')
@@ -171,8 +165,6 @@ export function useTrackEnrichmentDraftSession(
 	let repository: BrowserDeviceDraftRepository | null = null
 	let unsubscribe: (() => void) | null = null
 	let deviceRevision = 0
-	let ownedLease: BrowserDraftLease | null = null
-	let ownedDraftId: string | null = null
 	let persistedDraft: BrowserWorkflowDraft | null = null
 	let partialOutcomes: TrackEnrichmentDraftPartialOutcome[] = []
 	let replacementTarget: ReplacementTarget | null = null
@@ -184,7 +176,6 @@ export function useTrackEnrichmentDraftSession(
 	let lifecycleGeneration = 0
 	let suppressAutosave = false
 	let saveTimer: DraftSessionTimer | null = null
-	let renewTimer: DraftSessionInterval | null = null
 	let savePromise: Promise<void> | null = null
 	let refreshPromise: Promise<void> | null = null
 	let repositoryRuntimeIdentity: BrowserWorkspaceIdentity | null = null
@@ -194,14 +185,46 @@ export function useTrackEnrichmentDraftSession(
 	let locallyDeletingDraftId: string | null = null
 	let mutationQueue: DraftMutationQueue = { tail: Promise.resolve() }
 	const reviewedAtByRowId = new Map<string, string>()
+	const ownership = createTrackEnrichmentDraftOwnership({
+		ownerToken,
+		getRepository: () => repository,
+		getDeviceRevision: () => deviceRevision,
+		setDeviceRevision: (revision) => {
+			deviceRevision = revision
+		},
+		captureLifecycleGuard,
+		runSerializedMutation,
+		onChange: () => {
+			sessionRevision.value += 1
+		},
+		onRenewed: (currentDraftId, lease) => {
+			if (activeEntry.value?.draft.metadata.id === currentDraftId) {
+				activeEntry.value = {
+					...activeEntry.value,
+					lease: { status: 'live', lease }
+				}
+			}
+		},
+		onRenewalFailed: (error) => {
+			const hadUnsavedWork =
+				hasUnsavedChanges.value || saveState.value === 'saving'
+			resetOwnership()
+			if (hadUnsavedWork) saveState.value = 'failed'
+			saveErrorCode.value = errorCode(error)
+			void refreshDiscovery()
+		},
+		leaseRenewIntervalMs: dependencies.leaseRenewIntervalMs,
+		setInterval: dependencies.setInterval,
+		clearInterval: dependencies.clearInterval
+	})
 
 	const hasDraft = computed(() => activeEntry.value !== null)
 	const isOwned = computed(() => {
 		void sessionRevision.value
 		return (
-			ownedLease !== null &&
-			ownedDraftId !== null &&
-			activeEntry.value?.draft.metadata.id === ownedDraftId
+			ownership.lease !== null &&
+			ownership.draftId !== null &&
+			activeEntry.value?.draft.metadata.id === ownership.draftId
 		)
 	})
 	const isReadOnly = computed(
@@ -341,7 +364,7 @@ export function useTrackEnrichmentDraftSession(
 				isTransitioning.value = false
 				if (workflow.rows.value.length > 0) {
 					workflow.setReviewReadOnly(
-						isDraftMissingConflict.value || !ownedLease
+						isDraftMissingConflict.value || !ownership.lease
 					)
 				}
 			}
@@ -354,24 +377,13 @@ export function useTrackEnrichmentDraftSession(
 		saveTimer = null
 	}
 
-	function clearRenewTimer() {
-		if (renewTimer === null) return
-		cancelInterval(renewTimer)
-		renewTimer = null
-	}
-
 	function resetOwnership() {
-		clearRenewTimer()
-		ownedLease = null
-		ownedDraftId = null
-		sessionRevision.value += 1
+		ownership.reset()
 		workflow.setReviewReadOnly(workflow.rows.value.length > 0)
 	}
 
 	function setClaimed(claimed: BrowserClaimedDraft) {
-		ownedDraftId = claimed.draft.id
-		ownedLease = claimed.lease
-		sessionRevision.value += 1
+		ownership.accept(claimed.draft.id, claimed.lease)
 		persistedDraft = claimed.draft
 		observeTimestamp(claimed.draft.updatedAt)
 		draftId = claimed.draft.id
@@ -380,7 +392,7 @@ export function useTrackEnrichmentDraftSession(
 			structuredClone(outcome)
 		)
 		workflow.setReviewReadOnly(false)
-		startRenewingLease()
+		ownership.startRenewing()
 	}
 
 	function setActiveEntry(entry: BrowserWorkflowDraftEntry | null) {
@@ -477,12 +489,12 @@ export function useTrackEnrichmentDraftSession(
 					workflow.setReviewReadOnly(workflow.rows.value.length > 0)
 					return
 				}
-				const currentOwnedRevision = ownedLease?.leaseRevision ?? null
+				const currentOwnedRevision = ownership.lease?.leaseRevision ?? null
 				const observedRevision = observedLeaseRevision(entry)
 				if (
-					ownedDraftId &&
+					ownership.draftId &&
 					(!entry ||
-						entry.draft.metadata.id !== ownedDraftId ||
+						entry.draft.metadata.id !== ownership.draftId ||
 						currentOwnedRevision !== observedRevision)
 				) {
 					resetOwnership()
@@ -491,9 +503,9 @@ export function useTrackEnrichmentDraftSession(
 					hasUnsavedChanges.value &&
 					entry?.draft.status === 'ready' &&
 					persistedDraft &&
-					ownedDraftId === entry.draft.metadata.id &&
-					ownedLease &&
-					observedRevision === ownedLease.leaseRevision &&
+					ownership.draftId === entry.draft.metadata.id &&
+					ownership.lease &&
+					observedRevision === ownership.lease.leaseRevision &&
 					persistedDraft.id === entry.draft.metadata.id &&
 					persistedDraft.draftRevision === entry.draft.metadata.draftRevision
 				)
@@ -506,7 +518,7 @@ export function useTrackEnrichmentDraftSession(
 					setActiveEntry(entry)
 				}
 				if (workflow.rows.value.length > 0) {
-					workflow.setReviewReadOnly(!ownedLease)
+					workflow.setReviewReadOnly(!ownership.lease)
 				}
 			} catch (error) {
 				if (
@@ -533,76 +545,6 @@ export function useTrackEnrichmentDraftSession(
 		await created
 	}
 
-	function startRenewingLease() {
-		clearRenewTimer()
-		if (!ownedLease || !ownedDraftId) return
-		renewTimer = scheduleInterval(() => {
-			void renewLease()
-		}, leaseRenewIntervalMs)
-	}
-
-	async function renewLease() {
-		const isCurrentLifecycle = captureLifecycleGuard()
-		const generation = lifecycleGeneration
-		await runSerializedMutation(async () => {
-			const currentRepository = repository
-			const lease = ownedLease
-			const currentDraftId = ownedDraftId
-			if (
-				!currentRepository ||
-				!lease ||
-				!currentDraftId ||
-				!isCurrentLifecycle()
-			) {
-				return
-			}
-			try {
-				const result = await currentRepository.renewDraftLease(
-					currentDraftId,
-					ownerToken,
-					{
-						deviceRevision,
-						leaseRevision: lease.leaseRevision
-					}
-				)
-				if (
-					generation !== lifecycleGeneration ||
-					currentRepository !== repository ||
-					!isCurrentLifecycle()
-				) {
-					return
-				}
-				deviceRevision = result.deviceRevision
-				ownedLease = result.value
-				if (
-					activeEntry.value &&
-					activeEntry.value.draft.metadata.id === currentDraftId
-				) {
-					activeEntry.value = {
-						...activeEntry.value,
-						lease: { status: 'live', lease: result.value }
-					}
-				}
-				sessionRevision.value += 1
-				startRenewingLease()
-			} catch (error) {
-				if (
-					generation !== lifecycleGeneration ||
-					currentRepository !== repository ||
-					!isCurrentLifecycle()
-				) {
-					return
-				}
-				const hadUnsavedWork =
-					hasUnsavedChanges.value || saveState.value === 'saving'
-				resetOwnership()
-				if (hadUnsavedWork) saveState.value = 'failed'
-				saveErrorCode.value = errorCode(error)
-				void refreshDiscovery(generation)
-			}
-		})
-	}
-
 	async function releaseAndCloseRepository(
 		outgoingQueue: DraftMutationQueue = mutationQueue,
 		outgoingSave: Promise<void> | null = savePromise
@@ -610,47 +552,27 @@ export function useTrackEnrichmentDraftSession(
 		const currentRepository = repository
 		if (!currentRepository) return
 		clearSaveTimer()
-		clearRenewTimer()
+		ownership.stopRenewing()
 		unsubscribe?.()
 		unsubscribe = null
 		const preDrainDraftId =
-			ownedDraftId ?? draftId ?? persistedDraft?.id ?? null
-		ownedLease = null
-		ownedDraftId = null
-		sessionRevision.value += 1
+			ownership.draftId ?? draftId ?? persistedDraft?.id ?? null
+		ownership.reset()
 		try {
 			await outgoingSave
 			await drainMutationQueue(outgoingQueue)
 			const currentDraftId =
-				ownedDraftId ?? draftId ?? persistedDraft?.id ?? preDrainDraftId
-			clearRenewTimer()
-			if (ownedLease || ownedDraftId) {
-				ownedLease = null
-				ownedDraftId = null
-				sessionRevision.value += 1
-			}
+				ownership.draftId ?? draftId ?? persistedDraft?.id ?? preDrainDraftId
+			ownership.stopRenewing()
+			if (ownership.lease || ownership.draftId) ownership.reset()
 			if (currentDraftId) {
-				const fresh = await currentRepository.readDraft(currentDraftId)
-				if (fresh.value?.lease.status === 'live') {
-					await currentRepository.releaseDraftLease(
-						currentDraftId,
-						ownerToken,
-						{
-							deviceRevision: fresh.deviceRevision,
-							leaseRevision: fresh.value.lease.lease.leaseRevision
-						}
-					)
-				}
+				await ownership.releaseObserved(currentRepository, currentDraftId)
 			}
 		} catch {
 			// A takeover or workspace replacement can legitimately fence this tab.
 		} finally {
-			clearRenewTimer()
-			if (ownedLease || ownedDraftId) {
-				ownedLease = null
-				ownedDraftId = null
-				sessionRevision.value += 1
-			}
+			ownership.stopRenewing()
+			if (ownership.lease || ownership.draftId) ownership.reset()
 			currentRepository.close()
 			if (repository === currentRepository) {
 				repository = null
@@ -837,7 +759,7 @@ export function useTrackEnrichmentDraftSession(
 			repositoryRuntimeIdentity?.workspaceId === captured.context.workspaceId &&
 			repositoryRuntimeIdentity.repositoryId === captured.context.repositoryId
 		if (!isCurrentOperation()) return
-		if (activeEntry.value && !ownedLease && !replacementTarget) {
+		if (activeEntry.value && !ownership.lease && !replacementTarget) {
 			workflow.setReviewReadOnly(true)
 			return
 		}
@@ -900,15 +822,15 @@ export function useTrackEnrichmentDraftSession(
 				deviceRevision = result.deviceRevision
 				claimed = result.value
 			} else {
-				if (!ownedLease) throw new Error('Draft lease is not owned.')
+				if (!ownership.lease) throw new Error('Draft lease is not owned.')
 				const result = await currentRepository.writeDraft(draft, ownerToken, {
 					deviceRevision,
 					draftRevision: persistedDraft.draftRevision,
-					leaseRevision: ownedLease.leaseRevision
+					leaseRevision: ownership.lease.leaseRevision
 				})
 				if (!isCurrentOperation()) return
 				deviceRevision = result.deviceRevision
-				claimed = { draft: result.value, lease: ownedLease }
+				claimed = { draft: result.value, lease: ownership.lease }
 			}
 			if (!isCurrentOperation()) return
 			setClaimed(claimed)
@@ -978,7 +900,7 @@ export function useTrackEnrichmentDraftSession(
 			suppressAutosave ||
 			isDraftMissingConflict.value ||
 			workflow.rows.value.length === 0 ||
-			(activeEntry.value && !ownedLease && !replacementTarget)
+			(activeEntry.value && !ownership.lease && !replacementTarget)
 		) {
 			return
 		}
@@ -1042,10 +964,11 @@ export function useTrackEnrichmentDraftSession(
 		}
 		suppressAutosave = false
 		const ownsCurrentLease =
-			ownedDraftId === expectedDraftId &&
-			ownedLease !== null &&
+			ownership.draftId === expectedDraftId &&
+			ownership.lease !== null &&
 			activeEntry.value?.lease.status === 'live' &&
-			activeEntry.value.lease.lease.leaseRevision === ownedLease.leaseRevision
+			activeEntry.value.lease.lease.leaseRevision ===
+				ownership.lease.leaseRevision
 		workflow.setReviewReadOnly(!ownsCurrentLease)
 		replacementTarget = null
 		sessionRevision.value += 1
@@ -1090,7 +1013,6 @@ export function useTrackEnrichmentDraftSession(
 		isHydrating.value = true
 		workflow.setReviewReadOnly(true)
 		recoveryMessage.value = null
-		let entry = initialEntry
 		try {
 			const read = await currentRepository.readDraft(
 				initialEntry.draft.metadata.id
@@ -1104,31 +1026,21 @@ export function useTrackEnrichmentDraftSession(
 				return false
 			}
 			deviceRevision = read.deviceRevision
-			entry = read.value
+			let entry = read.value
 			setActiveEntry(entry)
 			if (entry.lease.status !== 'live') {
 				try {
-					const result = await runSerializedMutation(async () => {
-						if (!isCurrentOperation()) return null
-						return await currentRepository.claimDraft(
-							entry.draft.metadata.id,
-							ownerToken,
-							deviceRevision
-						)
-					})
-					if (!result || !isCurrentOperation()) {
-						return false
-					}
-					deviceRevision = result.deviceRevision
-					ownedLease = result.value.lease
-					ownedDraftId = entry.draft.metadata.id
-					sessionRevision.value += 1
+					const claimed = await ownership.claim(
+						entry.draft.metadata.id,
+						isCurrentOperation
+					)
+					if (!claimed || !isCurrentOperation()) return false
 					entry = {
-						draft: result.value.draft,
-						lease: { status: 'live', lease: result.value.lease }
+						draft: claimed.draft,
+						lease: { status: 'live', lease: claimed.lease }
 					}
 					if (entry.draft.status !== 'ready') return false
-					startRenewingLease()
+					ownership.startRenewing()
 				} catch (error) {
 					if (!isCurrentOperation()) return false
 					if (!isConflict(error)) throw error
@@ -1165,28 +1077,21 @@ export function useTrackEnrichmentDraftSession(
 		isTakingOver.value = true
 		workflow.setReviewReadOnly(true)
 		try {
-			const result = await runSerializedMutation(async () => {
-				if (!isCurrentOperation()) return null
-				return await currentRepository.takeOverDraft(
-					entry.draft.metadata.id,
-					ownerToken,
-					{ deviceRevision, leaseRevision }
-				)
-			})
-			if (!result || !isCurrentOperation()) return false
-			deviceRevision = result.deviceRevision
-			ownedDraftId = entry.draft.metadata.id
-			ownedLease = result.value.lease
-			sessionRevision.value += 1
-			if (result.value.draft.status === 'ready') {
-				persistedDraft = result.value.draft.draft
+			const claimed = await ownership.takeOver(
+				entry.draft.metadata.id,
+				leaseRevision,
+				isCurrentOperation
+			)
+			if (!claimed || !isCurrentOperation()) return false
+			if (claimed.draft.status === 'ready') {
+				persistedDraft = claimed.draft.draft
 			}
 			const claimedEntry: BrowserWorkflowDraftEntry = {
-				draft: result.value.draft,
-				lease: { status: 'live', lease: result.value.lease }
+				draft: claimed.draft,
+				lease: { status: 'live', lease: claimed.lease }
 			}
 			setActiveEntry(claimedEntry)
-			startRenewingLease()
+			ownership.startRenewing()
 			const hydrated = await hydrateReadyDraftEntry(
 				claimedEntry,
 				isCurrentOperation
@@ -1206,29 +1111,13 @@ export function useTrackEnrichmentDraftSession(
 		isCurrentOperation: () => boolean
 	) {
 		try {
-			return await runSerializedMutation(async () => {
-				const entry = activeEntry.value
-				const currentRepository = repository
-				if (!entry || !currentRepository || !isCurrentOperation()) return false
-				if (ownedLease && ownedDraftId === entry.draft.metadata.id) return true
-				if (entry.lease.status === 'live') return false
-				const result = await currentRepository.claimDraft(
-					entry.draft.metadata.id,
-					ownerToken,
-					deviceRevision
-				)
-				if (!isCurrentOperation()) return false
-				deviceRevision = result.deviceRevision
-				ownedDraftId = entry.draft.metadata.id
-				ownedLease = result.value.lease
-				activeEntry.value = {
-					draft: result.value.draft,
-					lease: { status: 'live', lease: result.value.lease }
+			return await ownership.ensureOwned(
+				() => activeEntry.value,
+				isCurrentOperation,
+				(entry) => {
+					activeEntry.value = entry
 				}
-				sessionRevision.value += 1
-				startRenewingLease()
-				return true
-			})
+			)
 		} catch {
 			if (!isCurrentOperation()) return false
 			await refreshDiscovery()
@@ -1255,7 +1144,7 @@ export function useTrackEnrichmentDraftSession(
 			const result = await runSerializedMutation(async () => {
 				const currentRepository = repository
 				const entry = activeEntry.value
-				const lease = ownedLease
+				const lease = ownership.lease
 				if (
 					!currentRepository ||
 					!entry ||
@@ -1371,7 +1260,7 @@ export function useTrackEnrichmentDraftSession(
 				draftId: currentEntry.draft.metadata.id,
 				draftRevision: currentEntry.draft.metadata.draftRevision,
 				observedLeaseRevision:
-					ownedLease?.leaseRevision ?? observedLeaseRevision(currentEntry)
+					ownership.lease?.leaseRevision ?? observedLeaseRevision(currentEntry)
 			}
 			sessionRevision.value += 1
 			persistedDraft = null
@@ -1410,36 +1299,12 @@ export function useTrackEnrichmentDraftSession(
 			) {
 				return false
 			}
-			if (repository && ownedLease && ownedDraftId) {
-				try {
-					const result = await runSerializedMutation(async () => {
-						const currentRepository = repository
-						const lease = ownedLease
-						const currentDraftId = ownedDraftId
-						if (
-							!currentRepository ||
-							!lease ||
-							!currentDraftId ||
-							!isCurrentOperation()
-						) {
-							return null
-						}
-						return await currentRepository.releaseDraftLease(
-							currentDraftId,
-							ownerToken,
-							{
-								deviceRevision,
-								leaseRevision: lease.leaseRevision
-							}
-						)
-					})
-					if (!result || !isCurrentOperation()) return false
-					deviceRevision = result.deviceRevision
-				} catch {
-					if (!isCurrentOperation()) return false
-					return false
-				}
+			try {
+				if (!(await ownership.release(isCurrentOperation))) return false
+			} catch {
+				return false
 			}
+			if (!isCurrentOperation()) return false
 			resetOwnership()
 			suppressAutosave = true
 			workflow.startAnotherSource()
@@ -1578,7 +1443,7 @@ export function useTrackEnrichmentDraftSession(
 
 	onScopeDispose(() => {
 		clearSaveTimer()
-		clearRenewTimer()
+		ownership.stopRenewing()
 		void flushSave().finally(() => {
 			lifecycleGeneration += 1
 			return releaseAndCloseRepository()
