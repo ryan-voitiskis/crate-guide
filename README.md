@@ -236,6 +236,9 @@ npm run test:nuxt
 # Nuxt Test Utils browser E2E project
 npm run test:e2e
 
+# Real local Supabase + application integration (existing stack required)
+npm run test:integration
+
 # Deno Edge Function type-check, lint, and tests
 npm run check:edge
 npm run lint:edge
@@ -254,6 +257,12 @@ npm run audit:edge
 `npm run test:db` runs every pgTAP suite under `supabase/tests` against the
 local Supabase stack. It requires the Supabase CLI and a running local stack;
 it does not target a linked hosted project.
+
+The separate `test:integration` project exercises the application with real
+local accounts, database contracts, and cover storage. It creates and removes
+only its own disposable fixtures and never resets or stops the developer
+stack. See [Current operations](docs/operations.md) for its Edge gateway scope,
+repeatable release preflight/smoke commands, and recovery activation requirements.
 
 ### Code Quality
 

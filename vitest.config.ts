@@ -147,6 +147,23 @@ export default defineConfig({
 			},
 			{
 				test: {
+					name: 'integration',
+					include: ['test/integration/**/*.integration.test.ts'],
+					environment: 'node',
+					fileParallelism: false,
+					testTimeout: 120000,
+					hookTimeout: 120000
+				},
+				resolve: {
+					alias: {
+						'~': fileURLToPath(new URL('./app', import.meta.url)),
+						'@': fileURLToPath(new URL('./app', import.meta.url)),
+						'~~': fileURLToPath(new URL('.', import.meta.url))
+					}
+				}
+			},
+			{
+				test: {
 					name: 'e2e',
 					include: ['test/e2e/**/*.e2e.test.ts'],
 					environment: 'node',

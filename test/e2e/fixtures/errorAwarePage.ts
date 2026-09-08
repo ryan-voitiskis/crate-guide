@@ -9,6 +9,11 @@ type GuardedPage = {
 
 type ErrorAwarePageOptions = {
 	beforeNavigate?: (page: NuxtPage) => Promise<void> | void
+	expectedResourceErrors?: ReadonlyArray<{
+		url: string
+		status: number
+		statusText: string
+	}>
 }
 
 const guardedPages = new Set<GuardedPage>()
@@ -62,6 +67,15 @@ export async function createErrorAwarePage(
 	})
 	page.on('console', (message) => {
 		if (message.type() !== 'error') return
+		if (
+			options.expectedResourceErrors?.some(
+				(expected) =>
+					message.location().url === expected.url &&
+					message.text() ===
+						`Failed to load resource: the server responded with a status of ${expected.status} (${expected.statusText})`
+			)
+		)
+			return
 		guardedPage.diagnostics.push(`console.error: ${redact(message.text())}`)
 	})
 	page.on('requestfailed', (request) => {

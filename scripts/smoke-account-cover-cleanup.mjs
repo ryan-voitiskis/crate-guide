@@ -115,7 +115,7 @@ export function parseLocalSupabaseStatus(output) {
 	}
 }
 
-function readLocalSupabaseStatus(commandRunner = spawnSync) {
+export function readLocalSupabaseStatus(commandRunner = spawnSync) {
 	const result = commandRunner(
 		localSupabaseBinary,
 		['status', '--output', 'json'],
@@ -140,7 +140,8 @@ function resolvePsqlBinary(environment = process.env) {
 	return existsSync(homebrewPsql) ? homebrewPsql : 'psql'
 }
 
-function runLocalSql({ databaseUrl, sql, variables = {} }) {
+export function runLocalSql({ databaseUrl, sql, variables = {} }) {
+	parseLocalDatabaseUrl(databaseUrl)
 	const args = [
 		'--no-psqlrc',
 		'--no-align',

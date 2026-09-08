@@ -1,0 +1,45 @@
+{
+	"source": "b4a6dbd186ea3541b122951264c84d10c1a3bd94",
+	"function": "delete-account",
+	"productionRef": "czlfiwivlgqhqezmywfx",
+	"stagingRef": "xrekloexiottvfueijgb",
+	"verifyJwt": false,
+	"sdkSpecifier": "npm:@supabase/supabase-js@2.111.0",
+	"files": [
+		{
+			"packagedPath": "index.ts",
+			"sourcePath": "supabase/functions/delete-account/index.ts",
+			"sha256": "101367979fe9c0418ccc399c8e94a2326bc3b8b5b3e24227a4e99e718378bda5"
+		},
+		{
+			"packagedPath": "handler.ts",
+			"sourcePath": "supabase/functions/delete-account/handler.ts",
+			"sha256": "38cc1bdd2f7033808c62c3194ceeb3fea6fbe2477e319d4a080da88b4756c31c"
+		},
+		{
+			"packagedPath": "accountDeletion.ts",
+			"sourcePath": "shared/types/accountDeletion.ts",
+			"sha256": "460773fbd6bf32e2ce00b4e31cc8fe5c66905f65a0d8555a04f806a4346a0183"
+		},
+		{
+			"packagedPath": "../_shared/cors.ts",
+			"sourcePath": "supabase/functions/_shared/cors.ts",
+			"sha256": "840346e5bb7bbe1a1beb7fe878c95f343cb82f5e7b3eebfced581b5f7f283ddf"
+		},
+		{
+			"packagedPath": "../_shared/siteUrl.ts",
+			"sourcePath": "supabase/functions/_shared/siteUrl.ts",
+			"sha256": "2509bf71c6ebfe3a4d5988e8cd2df12e04204bc393d620e8fb7fd80cd09cfffd"
+		},
+		{
+			"packagedPath": "../_shared/accountCoverCleanup.ts",
+			"sourcePath": "supabase/functions/_shared/accountCoverCleanup.ts",
+			"sha256": "9579818eb50479fb4132ba45dc3ee99c38bd179d66ad7556d5d0ccfc37770ca1"
+		},
+		{
+			"packagedPath": "../_shared/supabaseHelpers.ts",
+			"sourcePath": "supabase/functions/_shared/supabaseHelpers.ts",
+			"sha256": "d21578bda42eb3c58b7afcbb264b303102a1bfcd1ab303b08fd160d5fb8f941a"
+		}
+	]
+}

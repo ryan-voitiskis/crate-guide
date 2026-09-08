@@ -4,7 +4,8 @@ import {
 	didCreateGlobalQuotaSentinel,
 	driveAccountCoverCleanup,
 	parseLocalSupabaseStatus,
-	runCleanupSteps
+	runCleanupSteps,
+	runLocalSql
 } from './smoke-account-cover-cleanup.mjs'
 
 const localStatus = {
@@ -13,6 +14,18 @@ const localStatus = {
 	DB_URL: 'postgresql://postgres:postgres@127.0.0.1:42822/postgres',
 	SERVICE_ROLE_KEY: 'local-service-key-at-least-sixteen-characters'
 }
+
+test('SQL helper rejects a hosted or decorated endpoint before starting a command', () => {
+	for (const databaseUrl of [
+		'postgresql://postgres:secret@db.example.test:42822/postgres',
+		'postgresql://postgres:secret@127.0.0.1:42822/postgres?host=db.example.test'
+	]) {
+		assert.throws(
+			() => runLocalSql({ databaseUrl, sql: 'SELECT 1;' }),
+			/requires the running Crate Guide local Supabase stack/
+		)
+	}
+})
 
 test('accepts only the reserved local Supabase API and database endpoints', () => {
 	assert.deepEqual(parseLocalSupabaseStatus(JSON.stringify(localStatus)), {
