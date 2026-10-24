@@ -1,0 +1,37 @@
+[
+	{
+		"id": "GHSA-86w9-cpqp-85rv",
+		"package": "node-forge",
+		"version": "1.4.0",
+		"consumer": "listhen",
+		"consumerVersion": "1.10.1",
+		"owner": "ryan-voitiskis",
+		"expires": "2026-11-23",
+		"reason": "Nuxt build/development TLS dependency. Listhen and node-forge are excluded from every rendered client and Cloudflare Worker bundle by a build guard. No patched release is published. Reassess or remove by expiry; any other advisory, version or consumer remains blocking.",
+		"evidence": "docs/security/node-forge-reachability.md",
+		"chain": [
+			{
+				"package": "nuxt",
+				"version": "4.6.2"
+			},
+			{
+				"package": "@nuxt/nitro-server",
+				"version": "4.6.2"
+			},
+			{
+				"package": "nitropack",
+				"version": "2.13.5"
+			},
+			{
+				"package": "listhen",
+				"version": "1.10.1"
+			},
+			{
+				"package": "node-forge",
+				"version": "1.4.0"
+			}
+		],
+		"integrity": "sha512-LarFH0+6VfriEhqMMcLX2F7SwSXeWwnEAJEsYm5QKWchiVYVvJyV9v7UDvUv+w5HO23ZpQTXDv/GxdDdMyOuoQ==",
+		"severity": "high"
+	}
+]

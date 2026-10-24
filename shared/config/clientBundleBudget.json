@@ -23,6 +23,7 @@
 		}
 	},
 	"expectedLazyModules": [
+		"components/records/DialogRecordDetails.vue",
 		"utils/cloudWorkbenchRuntime.ts",
 		"pages/enrichment.vue",
 		"repositories/deviceDrafts/index.ts",

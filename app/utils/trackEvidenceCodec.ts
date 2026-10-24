@@ -93,10 +93,10 @@ const jsonValueSchema: z.ZodType<TrackEvidenceJson> = z.lazy(() =>
 		z.string(),
 		z.null(),
 		z.array(jsonValueSchema),
-		z.record(jsonValueSchema)
+		z.record(z.string(), jsonValueSchema)
 	])
 )
-const unknownFieldsSchema = z.record(jsonValueSchema)
+const unknownFieldsSchema = z.record(z.string(), jsonValueSchema)
 
 const legacyMatchShape = {
 	confidence,
@@ -265,7 +265,7 @@ const legacyEssentiaEvidenceDataSchema = z
 	.object(legacyEssentiaBrowserDataShape)
 	.strict()
 
-const observationSchema = <T extends z.ZodTypeAny>(data: T) =>
+const observationSchema = <T extends z.ZodType>(data: T) =>
 	z
 		.object({
 			kind: z.literal('observation'),
@@ -276,9 +276,9 @@ const observationSchema = <T extends z.ZodTypeAny>(data: T) =>
 		})
 		.strict()
 
-const legacyObservationSchema = <T extends z.ZodTypeAny>(
+const legacyObservationSchema = <T extends z.ZodType>(
 	data: T,
-	limitations: z.ZodTypeAny
+	limitations: z.ZodType
 ) =>
 	z
 		.object({

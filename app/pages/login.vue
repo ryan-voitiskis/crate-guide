@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { toTypedSchema } from '@vee-validate/zod'
+import { toTypedFormSchema } from '~/utils/toTypedFormSchema'
 import { useForm } from 'vee-validate'
 import * as z from 'zod'
 import {
@@ -33,14 +33,17 @@ const signingInWithGoogle = ref(false)
 const schema = z.object({
 	email: emailSchema,
 	password: z
-		.string({ required_error: 'Password is required' })
+		.string({
+			error: (issue) =>
+				issue.input === undefined ? 'Password is required' : undefined
+		})
 		.min(1, 'Password is required')
 		.max(64, 'Password cannot exceed 64 characters')
 })
 
 type LoginFormValues = z.infer<typeof schema>
 
-const form = useForm({ validationSchema: toTypedSchema(schema) })
+const form = useForm({ validationSchema: toTypedFormSchema(schema) })
 
 watch(
 	() => [form.values.email, form.values.password],
