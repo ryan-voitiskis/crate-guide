@@ -1,7 +1,9 @@
-import type { TrackEnrichmentDraft } from '~/types/trackEnrichmentDraft'
-import { RECORD_COVER_STORED_MAX_BYTES } from '~/utils/recordCover'
 import {
 	TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES,
+	type TrackEnrichmentDraft
+} from '~/types/trackEnrichmentDraft'
+import { RECORD_COVER_STORED_MAX_BYTES } from '~/utils/recordCover'
+import {
 	decodeTrackEnrichmentDraft,
 	encodeTrackEnrichmentDraft
 } from '~/utils/trackEnrichmentDraftCodec'

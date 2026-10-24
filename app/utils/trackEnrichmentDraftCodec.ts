@@ -22,7 +22,6 @@ import {
 	sanitizeTrackEnrichmentDraftRelativePath
 } from './trackEnrichmentDraftPrivacy'
 
-export { TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES } from '~/types/trackEnrichmentDraft'
 const CONTROL_CHARACTERS = /\p{Cc}/u
 
 const boundedText = (maximum: number) =>
