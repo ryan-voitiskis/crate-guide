@@ -259,6 +259,130 @@ describe('track enrichment device-draft browser integration', () => {
 		expect(reloaded.workflow.workflow.stagedRowIds.value.size).toBe(1)
 	})
 
+	it('saves and acknowledges a completed review after takeover and old-owner teardown', async () => {
+		const name = databaseName('takeover-complete')
+		const first = createSession({
+			databaseName: name,
+			label: 'first',
+			rows: reviewRows()
+		})
+		await first.session.initialize()
+		await first.session.flushSave()
+		const second = createSession({ databaseName: name, label: 'second' })
+		await second.session.initialize()
+		expect(await second.session.takeOver()).toBe(true)
+		await vi.waitFor(() => expect(first.session.isOwned.value).toBe(false))
+		first.scope.stop()
+		await vi.waitFor(() => expect(second.session.isOwned.value).toBe(true))
+		const row = second.workflow.workflow.rows.value[0]!
+		await second.session.recordApplyAttempt({
+			rows: [
+				{
+					row,
+					intentKind: 'fill-empty-fields',
+					requested: { bpm: true, keyMode: true }
+				}
+			],
+			outcome: {
+				cancelled: false,
+				requiresReview: false,
+				results: [
+					{
+						id: row.track!.id,
+						status: 'updated',
+						success: true,
+						track: track({ bpm: 128, key: 9, mode: 0 }),
+						issue: null,
+						error: null,
+						operation: null
+					}
+				]
+			},
+			attemptedAt: NOW
+		})
+		second.workflow.workflow.rows.value = [
+			{ ...row, track: track({ bpm: 128, key: 9, mode: 0 }), applied: true }
+		]
+		second.workflow.workflow.stagedRowIds.value = new Set()
+		second.workflow.workflow.lastApplySummary.value = {
+			total: 1,
+			succeeded: 1,
+			failed: 0,
+			remaining: 0,
+			bpm: 1,
+			keyMode: 1,
+			evidence: 1,
+			evidenceOnly: 0
+		}
+		await second.session.flushSave()
+		expect(second.session.saveState.value).toBe('saved')
+		expect(second.session.hasUnsavedChanges.value).toBe(false)
+		expect(await second.session.acknowledgeCompleteAndDelete()).toBe(true)
+		expect(second.workflow.workflow.rows.value).toEqual([])
+		expect(await second.opened[0]!.listDrafts()).toMatchObject({ value: [] })
+	})
+
+	it('retries a confirmed completion when no draft could be stored before apply', async () => {
+		const current = createSession({
+			databaseName: databaseName('complete-quota'),
+			label: 'quota',
+			rows: reviewRows()
+		})
+		await current.session.initialize()
+		const create = vi.spyOn(current.opened[0]!, 'createDraftAndClaim')
+		create
+			.mockRejectedValueOnce({ code: 'quota' })
+			.mockRejectedValueOnce({ code: 'quota' })
+			.mockRejectedValueOnce({ code: 'quota' })
+		await current.session.flushSave()
+		const row = current.workflow.workflow.rows.value[0]!
+		await current.session.recordApplyAttempt({
+			rows: [
+				{
+					row,
+					intentKind: 'fill-empty-fields',
+					requested: { bpm: true, keyMode: true }
+				}
+			],
+			outcome: {
+				cancelled: false,
+				requiresReview: false,
+				results: [
+					{
+						id: row.track!.id,
+						status: 'updated',
+						success: true,
+						track: track({ bpm: 128, key: 9, mode: 0 }),
+						issue: null,
+						error: null,
+						operation: null
+					}
+				]
+			},
+			attemptedAt: NOW
+		})
+		expect(current.session.saveState.value).toBe('failed')
+		current.workflow.workflow.rows.value = [
+			{ ...row, track: track({ bpm: 128, key: 9, mode: 0 }), applied: true }
+		]
+		current.workflow.workflow.stagedRowIds.value = new Set()
+		await current.session.flushSave()
+		expect(current.session.saveState.value).toBe('saved')
+		expect(create).toHaveBeenCalledTimes(4)
+		const stored = await current.opened[0]!.listDrafts()
+		expect(stored.value[0]?.draft).toMatchObject({
+			status: 'ready',
+			draft: {
+				payload: {
+					decisions: [{ kind: 'fill-empty-fields', staged: false }],
+					partialOutcomes: [
+						{ status: 'succeeded', applied: { bpm: true, keyMode: true } }
+					]
+				}
+			}
+		})
+	})
+
 	it('broadcasts takeover and delete across sessions without resurrecting dirty work', async () => {
 		const name = databaseName('takeover-delete')
 		const first = createSession({

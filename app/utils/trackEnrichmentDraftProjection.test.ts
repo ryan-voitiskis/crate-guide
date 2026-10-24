@@ -310,6 +310,86 @@ describe('projectTrackEnrichmentDraft', () => {
 		expect(serialized).not.toContain('live-file-must-not-survive')
 	})
 
+	it.each(['fill-empty-fields', 'evidence-only'] as const)(
+		'preserves the original %s approval as unstaged history after a confirmed write',
+		async (intentKind) => {
+			const rows = buildTrackEnrichmentRows({
+				sources: [xmlSource()],
+				tracks: [
+					track(
+						intentKind === 'evidence-only' ? { bpm: 128, key: 9, mode: 0 } : {}
+					)
+				],
+				records: []
+			})
+			const before = await projectTrackEnrichmentDraft(
+				projectionInput(
+					rows.map((row) => ({ row, staged: true, reviewedAt: REVIEWED_AT }))
+				)
+			)
+			rows[0] = {
+				...rows[0]!,
+				track: track({ bpm: 128, key: 9, mode: 0, updated_at: REVIEWED_AT }),
+				applied: true
+			}
+			const outcome: TrackEnrichmentDraftPartialOutcome = {
+				intentKind,
+				sourceFingerprint: before.observations[0]!.sourceFingerprint,
+				targetTrackId: 'track-1',
+				status: 'succeeded',
+				applied: {
+					bpm: intentKind === 'fill-empty-fields',
+					keyMode: intentKind === 'fill-empty-fields'
+				},
+				attemptedAt: REVIEWED_AT,
+				failureCode: null
+			}
+			const input = projectionInput(
+				rows.map((row) => ({ row, staged: true, reviewedAt: REVIEWED_AT })),
+				{
+					previousDecisions: before.decisions,
+					partialOutcomes: [outcome]
+				}
+			)
+			const after = await projectTrackEnrichmentDraft(input)
+			expect(after.decisions).toEqual(
+				before.decisions.map((decision) => ({ ...decision, staged: false }))
+			)
+			expect(after.partialOutcomes).toEqual([outcome])
+			// Subsequent preference saves retain the same historical approval.
+			expect(
+				(
+					await projectTrackEnrichmentDraft({
+						...input,
+						previousDecisions: after.decisions
+					})
+				).decisions
+			).toEqual(after.decisions)
+			for (const unconfirmed of [
+				{ ...input, previousDecisions: [] },
+				{ ...input, partialOutcomes: [] },
+				{
+					...input,
+					partialOutcomes: [{ ...outcome, targetTrackId: 'other-track' }]
+				},
+				{
+					...input,
+					partialOutcomes: [
+						{ ...outcome, sourceFingerprint: 'different-source' }
+					]
+				},
+				{
+					...input,
+					partialOutcomes: [{ ...outcome, status: 'failed' as const }]
+				}
+			]) {
+				await expect(
+					projectTrackEnrichmentDraft(unconfirmed)
+				).rejects.toMatchObject({ code: 'review-state-mismatch' })
+			}
+		}
+	)
+
 	it('whitelists partial-outcome fields instead of copying runtime properties', async () => {
 		const [row] = buildTrackEnrichmentRows({
 			sources: [xmlSource()],

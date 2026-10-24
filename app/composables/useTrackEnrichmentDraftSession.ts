@@ -20,7 +20,10 @@ import type {
 	BrowserWorkflowDraftEntry,
 	BrowserWorkspaceIdentity
 } from '~/repositories/deviceDrafts/contracts'
-import type { TrackEnrichmentDraftPartialOutcome } from '~/types/trackEnrichmentDraft'
+import type {
+	TrackEnrichmentDraftDecision,
+	TrackEnrichmentDraftPartialOutcome
+} from '~/types/trackEnrichmentDraft'
 import { hydrateTrackEnrichmentDraft } from '~/utils/trackEnrichmentDraftHydration'
 import { mapTrackEnrichmentDraftBatchOutcome } from '~/utils/trackEnrichmentDraftOutcome'
 import { createTrackEnrichmentDraftOwnership } from '~/utils/trackEnrichmentDraftOwnership'
@@ -167,6 +170,7 @@ export function useTrackEnrichmentDraftSession(
 	let deviceRevision = 0
 	let persistedDraft: BrowserWorkflowDraft | null = null
 	let partialOutcomes: TrackEnrichmentDraftPartialOutcome[] = []
+	let attemptedDecisions: readonly TrackEnrichmentDraftDecision[] | null = null
 	let replacementTarget: ReplacementTarget | null = null
 	let draftId: string | null = null
 	let draftCreatedAt: string | null = null
@@ -405,6 +409,7 @@ export function useTrackEnrichmentDraftSession(
 				draftId = null
 				draftCreatedAt = null
 				partialOutcomes = []
+				attemptedDecisions = null
 			}
 			resetOwnership()
 			return
@@ -424,6 +429,7 @@ export function useTrackEnrichmentDraftSession(
 			draftId = entry.draft.metadata.id
 			draftCreatedAt = null
 			partialOutcomes = []
+			attemptedDecisions = null
 		}
 	}
 
@@ -613,6 +619,7 @@ export function useTrackEnrichmentDraftSession(
 		draftId = null
 		draftCreatedAt = null
 		partialOutcomes = []
+		attemptedDecisions = null
 		lastSavedAt.value = null
 		const captured = runtime.capture()
 		const runtimeIdentity = {
@@ -725,6 +732,8 @@ export function useTrackEnrichmentDraftSession(
 				staged: workflow.stagedRowIds.value.has(row.id),
 				reviewedAt: ensureReviewedAt(row.id, createdAt)
 			})),
+			previousDecisions:
+				attemptedDecisions ?? persistedDraft?.payload.decisions,
 			partialOutcomes,
 			ui: {
 				filter: normalizePersistedFilter(workflow.selectedFilter.value),
@@ -973,6 +982,7 @@ export function useTrackEnrichmentDraftSession(
 		replacementTarget = null
 		sessionRevision.value += 1
 		persistedDraft = storedDraft
+		attemptedDecisions = null
 		partialOutcomes = storedDraft.payload.partialOutcomes.map((outcome) =>
 			structuredClone(outcome)
 		)
@@ -1222,6 +1232,7 @@ export function useTrackEnrichmentDraftSession(
 				draftId = null
 				draftCreatedAt = null
 				partialOutcomes = []
+				attemptedDecisions = null
 				dirtyRevision = 0
 				persistedDirtyRevision = 0
 				reviewedAtByRowId.clear()
@@ -1267,6 +1278,7 @@ export function useTrackEnrichmentDraftSession(
 			draftId = null
 			draftCreatedAt = null
 			partialOutcomes = []
+			attemptedDecisions = null
 			dirtyRevision = 0
 			persistedDirtyRevision = 0
 			reviewedAtByRowId.clear()
@@ -1400,6 +1412,8 @@ export function useTrackEnrichmentDraftSession(
 					outcome
 				)
 			}
+			// Keep approval history even when the outcome save runs out of storage.
+			attemptedDecisions = base.decisions
 			partialOutcomes = [...byBinding.values()]
 			dirtyRevision += 1
 			hasUnsavedChanges.value = true
