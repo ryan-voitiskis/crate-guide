@@ -24,6 +24,7 @@ import {
 	vaultRestoreSql,
 	verifyFiles
 } from './recovery-core.mjs'
+import { createR2Storage, validateReceipt } from './recovery-storage.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const config = JSON.parse(
@@ -433,6 +434,34 @@ function seal(directory) {
 	const archive = resolve(directory, 'recovery.tar.gz')
 	const encrypted = resolve(directory, 'recovery.tar.gz.age')
 	const readback = resolve(directory, 'readback.tar.gz.age')
+	const transport = process.env.RECOVERY_R2_TRANSPORT || 'wrangler'
+	if (!['s3', 'wrangler'].includes(transport))
+		throw new Error('Unexpected R2 transport.')
+	const storage = transport === 's3' ? createR2Storage(config) : null
+	const env = {
+		...process.env,
+		CLOUDFLARE_ACCOUNT_ID: config.cloudflareAccountId
+	}
+	const put = (key, file, contentType) =>
+		storage
+			? storage.put(key, file, contentType)
+			: run(
+					wrangler,
+					[
+						'r2',
+						'object',
+						'put',
+						`${config.bucket}/${key}`,
+						'--jurisdiction',
+						config.jurisdiction,
+						'--remote',
+						'--file',
+						file,
+						'--content-type',
+						contentType
+					],
+					{ env }
+				)
 	try {
 		run('tar', [
 			'-czf',
@@ -450,54 +479,58 @@ function seal(directory) {
 			encrypted,
 			archive
 		])
-		const object = `${config.bucket}/recovery-v1/${id}.tar.gz.age`
-		const env = {
-			...process.env,
-			CLOUDFLARE_ACCOUNT_ID: config.cloudflareAccountId
-		}
-		run(
-			wrangler,
-			[
-				'r2',
-				'object',
-				'put',
-				object,
-				'--jurisdiction',
-				config.jurisdiction,
-				'--remote',
-				'--file',
-				encrypted,
-				'--content-type',
-				'application/octet-stream'
-			],
-			{ env }
-		)
-		run(
-			wrangler,
-			[
-				'r2',
-				'object',
-				'get',
-				object,
-				'--jurisdiction',
-				config.jurisdiction,
-				'--remote',
-				'--file',
-				readback
-			],
-			{ env }
-		)
+		const key = `recovery-v1/${id}.tar.gz.age`
+		const object = `${config.bucket}/${key}`
+		put(key, encrypted, 'application/octet-stream')
+		if (storage) storage.get(key, readback)
+		else
+			run(
+				wrangler,
+				[
+					'r2',
+					'object',
+					'get',
+					object,
+					'--jurisdiction',
+					config.jurisdiction,
+					'--remote',
+					'--file',
+					readback
+				],
+				{ env }
+			)
 		const checksum = sha256(readFileSync(encrypted))
 		if (sha256(readFileSync(readback)) !== checksum)
 			throw new Error('Remote ciphertext checksum mismatch.')
-		writeJson(resolve(directory, 'upload-receipt.json'), {
+		const receipt = {
 			id,
+			projectRef: config.projectRef,
 			object,
 			jurisdiction: config.jurisdiction,
 			sha256: checksum,
 			uploadedAt: new Date().toISOString(),
 			bytes: readFileSync(readback).length
-		})
+		}
+		validateReceipt(receipt, config)
+		writeJson(resolve(directory, 'upload-receipt.json'), receipt)
+		// Only complete data/configuration captures advance successful retention.
+		const requiredFiles = [
+			'roles.sql',
+			'schema.sql',
+			'data.sql',
+			'platform-private.json',
+			'config-auth.json',
+			'edge-private.json',
+			'pgsodium.json',
+			'functions.json',
+			'secrets.json'
+		]
+		if (requiredFiles.every((file) => Object.hasOwn(manifest.files, file)))
+			put(
+				`recovery-v1/success/${id}.json`,
+				resolve(directory, 'upload-receipt.json'),
+				'application/json'
+			)
 		console.log(`Encrypted upload and readback verified: ${id}`)
 	} finally {
 		rmSync(archive, { force: true })
@@ -596,7 +629,11 @@ if (
 	resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
 	main().catch((error) => {
-		console.error(error.message)
+		console.error(
+			error instanceof SyntaxError
+				? 'Recovery metadata could not be parsed; private output suppressed.'
+				: error.message
+		)
 		process.exitCode = 1
 	})
 }

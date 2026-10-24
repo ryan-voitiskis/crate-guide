@@ -1,0 +1,79 @@
+name: Independent recovery capture
+
+# Add the daily schedule only after key custody, scoped credentials, manual
+# execution, retention and failure notification have been verified.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crate-guide-production-recovery
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out reviewed main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.18.1
+          cache: npm
+
+      - name: Install dependencies without production credentials
+        run: npm ci
+
+      - name: Install encryption and S3 tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes age awscli
+
+      - name: Capture and validate the production snapshot
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.RECOVERY_SUPABASE_ACCESS_TOKEN }}
+          RECOVERY_EDGE_SECRETS_JSON: ${{ secrets.RECOVERY_EDGE_SECRETS_JSON }}
+        run: |
+          node --input-type=module <<'JS'
+          import { mkdirSync, writeFileSync } from 'node:fs'
+          import { resolve } from 'node:path'
+          import { spawnSync } from 'node:child_process'
+          process.umask(0o077)
+          const directory = resolve(process.env.RUNNER_TEMP, 'crate-guide-recovery')
+          mkdirSync(directory, { mode: 0o700 })
+          const file = resolve(directory, 'edge-secrets.json')
+          let secrets
+          try { secrets = JSON.parse(process.env.RECOVERY_EDGE_SECRETS_JSON) }
+          catch { throw new Error('Recovery secret input is invalid; private contents suppressed.') }
+          writeFileSync(file, JSON.stringify(secrets), { mode: 0o600 })
+          const result = spawnSync(process.execPath, ['scripts/recovery-backup.mjs', 'capture', resolve(directory, 'capture')], { env: { ...process.env, RECOVERY_EDGE_SECRETS_FILE: file }, stdio: 'inherit', timeout: 15 * 60_000 })
+          process.exitCode = result.status ?? 1
+          JS
+
+      - name: Encrypt, upload and verify remote ciphertext
+        env:
+          RECOVERY_R2_TRANSPORT: s3
+          RECOVERY_R2_ACCESS_KEY_ID: ${{ secrets.RECOVERY_R2_ACCESS_KEY_ID }}
+          RECOVERY_R2_SECRET_ACCESS_KEY: ${{ secrets.RECOVERY_R2_SECRET_ACCESS_KEY }}
+        run: node scripts/recovery-backup.mjs seal "$RUNNER_TEMP/crate-guide-recovery/capture"
+
+      - name: Retain the latest 30 successful sets
+        env:
+          RECOVERY_R2_ACCESS_KEY_ID: ${{ secrets.RECOVERY_R2_ACCESS_KEY_ID }}
+          RECOVERY_R2_SECRET_ACCESS_KEY: ${{ secrets.RECOVERY_R2_SECRET_ACCESS_KEY }}
+        run: node scripts/recovery-storage.mjs retain
+
+      - name: Remove runner plaintext
+        if: always()
+        run: |
+          node --input-type=module <<'JS'
+          import { rmSync } from 'node:fs'
+          import { resolve } from 'node:path'
+          rmSync(resolve(process.env.RUNNER_TEMP, 'crate-guide-recovery'), { recursive: true, force: true })
+          JS
