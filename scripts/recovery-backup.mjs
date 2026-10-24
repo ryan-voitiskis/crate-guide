@@ -19,6 +19,7 @@ import {
 	assertRestoreContainer,
 	coverFile,
 	downloadCover,
+	selectRecoveryStorageKey,
 	sha256,
 	sqlLiteral,
 	vaultRestoreSql,
@@ -385,8 +386,7 @@ async function capture(directory) {
 			'json'
 		])
 	)
-	const apiKey = apiKeys.find((k) => k.name === 'service_role')?.api_key
-	if (!apiKey) throw new Error('Storage read credential unavailable.')
+	const apiKey = selectRecoveryStorageKey(apiKeys)
 	mkdirSync(resolve(directory, 'covers'), { mode: 0o700 })
 	const covers = []
 	const snapshot = await withRestore(directory, async ({ snapshot }) => {

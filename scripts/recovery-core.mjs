@@ -57,6 +57,18 @@ export function coverFile(path) {
 	return `covers/${sha256(path)}.bin`
 }
 
+export function selectRecoveryStorageKey(keys) {
+	if (!Array.isArray(keys)) throw new Error('Storage key inventory is invalid.')
+	// Projects can disable legacy JWT API keys while retaining them in the list.
+	// The caller explicitly requests revealed keys from the Management API.
+	const selected =
+		keys.find((key) => key?.type === 'secret') ??
+		keys.find((key) => key?.name === 'service_role')
+	if (typeof selected?.api_key !== 'string' || !selected.api_key.trim())
+		throw new Error('Storage read credential unavailable.')
+	return selected.api_key
+}
+
 export async function downloadCover({
 	apiUrl,
 	apiKey,
