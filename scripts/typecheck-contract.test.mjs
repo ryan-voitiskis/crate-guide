@@ -39,8 +39,9 @@ test('vue-tsc exits non-zero for a TypeScript diagnostic', () => {
 		const result = spawnSync(
 			join(root, 'node_modules', '.bin', 'vue-tsc'),
 			['--noEmit', '--project', join(fixtureRoot, 'tsconfig.json')],
-			{ encoding: 'utf8' }
+			{ encoding: 'utf8', timeout: 60_000, killSignal: 'SIGKILL' }
 		)
+		assert.ifError(result.error)
 		assert.notEqual(result.status, 0)
 		assert.match(`${result.stdout}\n${result.stderr}`, /error TS2322/)
 	} finally {

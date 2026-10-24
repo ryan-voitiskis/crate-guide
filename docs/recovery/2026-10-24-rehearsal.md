@@ -56,4 +56,34 @@ Its 277,637 encrypted bytes have SHA-256 `bdb2c28a3181a861ab4bd98d5e1f523a93bbe5
 
 The owner approved three dedicated credentials expiring 22 January 2027. Supabase production/config reads passed; staging and account-wide project enumeration were denied. The CI values are installed in `production-recovery`, whose sole deployment branch policy is the exact `main` branch. The decryption identity and read-only restore credential remain local and outside CI. `RECOVERY_DAILY_ENABLED=false` was read back before activation.
 
-Unattended operation remains unverified. The gated daily capture, retention, failure alert and watchdog are prepared, but the manual CI capture, real failure-alert exercise and monthly schedule must pass before activation. Follow the [runbook](runbook.md) before activation. No private values, database contents or decryption identity belong in this evidence record.
+At that checkpoint unattended operation was still gated. The activation proof below supersedes that state. No private values, database contents or decryption identity belong in this evidence record.
+
+## Unattended activation and independent verification
+
+The replacement production-only Supabase credential includes the owner-approved Connection Pooling Read grant needed by the CLI to discover IPv4 connection details. A full export and CI capture passed. Staging and account-wide project enumeration remained denied; the superseded token was revoked and returned HTTP 401. The four CI values remain in the exact-main-only `production-recovery` environment. The private age identity and separate R2 reader remain outside CI. All three dedicated recovery credentials expire on 22 January 2027.
+
+The first GitHub-hosted attempt exposed an Ubuntu 24.04 image dependency assumption: the runner already supplies AWS CLI, while its APT repository has no `awscli` package. [PR #25](https://github.com/ryan-voitiskis/crate-guide/pull/25) checks the supplied tool and installs age separately. A subsequent managed-cover capture exposed use of a disabled legacy API key; [PR #26](https://github.com/ryan-voitiskis/crate-guide/pull/26) reveals and prefers the current secret key, retains compatible legacy fallback and fails closed when the selected key is unavailable.
+
+[CI capture 40076008786](https://github.com/ryan-voitiskis/crate-guide/actions/runs/40076008786), from source `4a44f207d6a4a5788794e448ae193be499a45b8e`, completed successfully. It encrypted and remotely verified:
+
+```text
+crate-guide-production-backups/recovery-v1/2026-10-24T07-58-12-941Z-c214b2c2-083b-4108-ab57-5947532d7958.tar.gz.age
+```
+
+The ciphertext SHA-256 is `df37a0d90d2da9656948285180c95f4bcbe26e4dd026ea95601e1aa30cab2a17`. Database capture ended at 07:57:27.514 UTC; upload/readback completed at 07:58:16.650 UTC. A separate local rehearsal downloaded the actual CI object using the read-only R2 credential and the independently held identity. Ciphertext size/hash, decryption, database/Vault/configuration checks, all 35 application migrations and the one managed smoke cover's bytes passed. The isolated SQL restore took 3.298 seconds; this is not a public application recovery-time guarantee. Its non-secret receipt remains in the private local recovery folder; downloaded ciphertext, restored plaintext, container and volume were removed.
+
+A real capture failure opened [alert #24](https://github.com/ryan-voitiskis/crate-guide/issues/24), assigned to the owner. The GitHub notification was read back with reason `assign`; email inbox delivery was not claimed. A deliberately failed pre-capture run and the later cover failure reused that same issue without extra comments. Successful capture closed it at 07:58:51 UTC. [Watchdog 40076375631](https://github.com/ryan-voitiskis/crate-guide/actions/runs/40076375631) subsequently passed without reopening it. Tests also prove a fresh older set cannot clear a newer capture failure.
+
+`RECOVERY_DAILY_ENABLED=true`, both recovery workflows' active state and the sole exact-main environment branch policy were read back after activation. Capture runs at 01:17 UTC daily; the separate watchdog checks every six hours. Retention validates complete success receipts and retained object sizes before selecting anything beyond the newest 30 successful sets. No production pruning was needed during activation; the beyond-30 deletion boundary remains covered by safeguards.
+
+Two active local Codex heartbeats are attached to the originating chat: `crate-guide-recovery-health`, daily at 14:15 Melbourne time, and `crate-guide-monthly-restore`, on the 20th at 14:30. They use the dedicated clean operations checkout, Node 24.18.1 and the private read-only R2 credential; the age identity is used only for restoration. Healthy unchanged checks stay quiet, while meaningful failures, recovery, disabled/stale automation and expiry within 14 days are reported. Monthly completion records its receipt. These checks require this Mac and Codex to be running and supplement the GitHub capture/watchdog's shared scheduler dependency.
+
+## Post-release clean recovery point
+
+After both hosted fixture accounts passed all 28 cleanup scopes and normal browser sign-in rejected their deleted credentials, [capture run 40089218248](https://github.com/ryan-voitiskis/crate-guide/actions/runs/40089218248) passed on application source `1ed0d0e8ddfff8a4ad08197325f19230f33dd9ee`. Its database capture ended at `2026-10-24T11:17:57.994Z` and produced:
+
+```text
+crate-guide-production-backups/recovery-v1/2026-10-24T11-18-29-836Z-0b830121-d8d3-4112-abd6-5846e13d506a.tar.gz.age
+```
+
+Ciphertext SHA-256: `ef14dac586ab35146eeef085e5bdd29ea298037520c53509225b897077e6e621`. A separate local download using the read-only restore credential matched the success receipt, decrypted successfully and restored into isolated PostgreSQL 17 in **3.219 seconds**, with 35 application migrations and the captured database/cover inventories matching. The earlier non-empty managed-cover rehearsal above also remains valid. Network access was disabled, no host port was published and cron stayed disabled. The disposable target, volume, downloaded ciphertext and decrypted files were removed; only the private rehearsal receipt remains. The existing developer Supabase stack was preserved.

@@ -1,6 +1,6 @@
 # Current operations
 
-This is the current operating entry point. The [staging release runbook](staging-release-runbook.md) retains the detailed staging procedures and historical July rehearsal. The latest completed production release is recorded in [8 September release evidence](release-evidence/2026-09-07-audit-defects-release.md).
+This is the current operating entry point. The [staging release runbook](staging-release-runbook.md) retains the detailed staging procedures and historical July rehearsal. The latest completed production release is recorded in [24 October release evidence](release-evidence/2026-10-24-stabilisation.md).
 
 ## Release baseline
 
@@ -49,9 +49,9 @@ The browser uses the real Supabase client. Edge requests execute the production 
 
 ## Recovery activation
 
-Recovery is still an open operational requirement. The dashboard at the last release showed no automatic backups. The July manual database restore rehearsal is historical evidence; it is not a current recovery point.
+Independent encrypted recovery was activated on 24 October 2026. The current capture and isolated restore evidence is in the [October rehearsal](recovery/2026-10-24-rehearsal.md). This is separate from Supabase-managed backup availability.
 
-The proposed baseline is a daily encrypted backup to independent private storage, with 30 daily copies and a monthly isolated restore rehearsal. Before activation, confirm the destination, retention, encryption-key ownership, and access for an unattended operator. Do not upload production data to a guessed destination or use CI logs/artifacts as an implicit backup store.
+The main-only GitHub workflow captures production to the private EU R2 bucket at 01:17 UTC daily and retains the latest 30 verified successful sets. Failure/cancellation alerts and a six-hour watchdog are active. An independent local health check runs daily at 14:15 Melbourne time; the isolated restore rehearsal runs on the 20th at 14:30. Local checks require this Mac and Codex to be running. The decryption identity stays outside CI and is independently escrowed in the owner's password manager. Multiple manual captures count toward the 30-set limit; this is not a guarantee of 30 calendar days.
 
 A complete backup set must contain:
 
@@ -63,6 +63,6 @@ Database snapshots and Storage downloads are not one atomic snapshot. Preserve t
 
 An isolated restore must prove schema/migration parity, representative record/track/crate/set relationships, authentication configuration needed for recovery, and every referenced cover's bytes. Outbound mail, provider calls, cron, and production integrations must remain disabled in that target. Record elapsed restore time and measured data loss window, then remove only the restore target and its synthetic verification fixtures.
 
-Until the destination, unattended access, a successful backup, and a verified restore exist, report backup capability as **not activated**. The automation must alert on failed capture, missing objects, checksum mismatch, stale last success, and failed restore rehearsal.
+CI capture, remote ciphertext readback and independent isolated restore have passed. A deliberately failed capture exercised the single generic owner-assigned GitHub alert; unchanged failures did not duplicate it, and successful capture closed it. Capture freshness is based on database capture time with a 36-hour limit. GitHub capture and watchdog share GitHub scheduling; the local check independently inspects R2 freshness and automation status.
 
-The [8 September recovery preflight](recovery/2026-09-08-preflight.md) is historical. The [24 October rehearsal](recovery/2026-10-24-rehearsal.md) records the private EU destination, encrypted database recovery point and isolated restore. Use the [recovery runbook](recovery/runbook.md) for capture/restore commands and the remaining activation requirements.
+The [8 September recovery preflight](recovery/2026-09-08-preflight.md) is historical. The [24 October rehearsal](recovery/2026-10-24-rehearsal.md) records the private EU destination, encrypted database recovery point and isolated restore. Use the [recovery runbook](recovery/runbook.md) for capture/restore commands and the activated schedules and rotation requirements.
