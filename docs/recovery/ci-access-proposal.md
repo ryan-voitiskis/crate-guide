@@ -4,6 +4,10 @@ Status: the owner approved these exact grants and CI storage on 24 October 2026.
 
 All three credentials expire on 22 January 2027, approximately 90 days after creation. Keep local copies only in the private, ignored recovery folder with mode 600. The capture workflow receives no private age identity.
 
+## Approved connection-pooler correction
+
+A full scoped CLI export exposed an additional required read permission: `GET /v1/projects/czlfiwivlgqhqezmywfx/config/database/pooler` returns HTTP 403 with `database_pooling_config_read` missing. The CLI masks that denial as an IPv6 error. The prepared replacement, `crate-guide-recovery-ci-20261024-pooler`, has the same project boundary, expiry and existing grants, plus Connection Pooling Read (one endpoint). It cannot change pooler settings. Supabase does not permit editing issued token access. The owner approved the correction, replacement of the protected CI/local value, and revocation of the superseded token after verification. The replacement was created; pooler reads now return HTTP 200 while staging and account-wide listing remain denied. Full capture and installation verification are still required.
+
 ## Supabase source credential
 
 Name: `crate-guide-recovery-ci-20261024`. Resource access: production project `czlfiwivlgqhqezmywfx` only, in organization `grxffkeajwssrcfwtxny`. No account-wide or organization-wide grant.
