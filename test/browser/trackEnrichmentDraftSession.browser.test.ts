@@ -159,6 +159,8 @@ function createSession(input: {
 	databaseName: string
 	label: string
 	rows?: EnrichmentRow[]
+	setInterval?: typeof globalThis.setInterval
+	clearInterval?: typeof globalThis.clearInterval
 }) {
 	const runtime = createWorkbenchRuntime(
 		{
@@ -205,6 +207,8 @@ function createSession(input: {
 			now: () => new Date(NOW),
 			randomUUID: () => `${input.label}-${crypto.randomUUID()}`,
 			autosaveDelayMs: 60_000,
+			setInterval: input.setInterval,
+			clearInterval: input.clearInterval,
 			leaseRenewIntervalMs: 120_000
 		})
 	)
@@ -381,6 +385,64 @@ describe('track enrichment device-draft browser integration', () => {
 				}
 			}
 		})
+	})
+
+	it('does not fence its own writer when a renewal broadcast precedes its result', async () => {
+		let renewTimer = () => {}
+		const current = createSession({
+			databaseName: databaseName('renew-broadcast'),
+			label: 'renew',
+			rows: reviewRows(),
+			setInterval: ((callback) => {
+				renewTimer = callback as () => void
+				return 0
+			}) as typeof globalThis.setInterval,
+			clearInterval: () => {}
+		})
+		await current.session.initialize()
+		await current.session.flushSave()
+		const repository = current.opened[0]!
+		const localChanges = vi.fn()
+		const remoteChanges = vi.fn()
+		repository.subscribe(localChanges)
+		repository.subscribe(remoteChanges, { includeOwn: false })
+		const original = repository.renewDraftLease.bind(repository)
+		let release = () => {}
+		const gate = new Promise<void>((resolve) => {
+			release = resolve
+		})
+		let committed = false
+		vi.spyOn(repository, 'renewDraftLease').mockImplementationOnce(
+			async (...args) => {
+				const result = await original(...args)
+				committed = true
+				await gate
+				return result
+			}
+		)
+		renewTimer()
+		let ownedDuringCommit: boolean
+		try {
+			await vi.waitFor(() => expect(committed).toBe(true))
+			await new Promise((resolve) => globalThis.setTimeout(resolve, 20))
+			ownedDuringCommit = current.session.isOwned.value
+		} finally {
+			release()
+		}
+		await vi.waitFor(() =>
+			expect(current.session.activeEntry.value?.lease).toMatchObject({
+				status: 'live',
+				lease: { leaseRevision: 1 }
+			})
+		)
+		expect(localChanges).toHaveBeenCalledOnce()
+		expect(remoteChanges).not.toHaveBeenCalled()
+		expect(ownedDuringCommit).toBe(true)
+		expect(current.session.isOwned.value).toBe(true)
+		expect(current.workflow.workflow.isReviewReadOnly.value).toBe(false)
+		current.workflow.workflow.selectedFilter.value = 'staged'
+		await current.session.flushSave()
+		expect(current.session.saveState.value).toBe('saved')
 	})
 
 	it('broadcasts takeover and delete across sessions without resurrecting dirty work', async () => {

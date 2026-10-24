@@ -86,10 +86,21 @@ export class BrowserLibraryBroadcaster {
 		}
 	}
 
-	subscribe(listener: (change: BrowserRepositoryChange) => void): () => void {
+	subscribe(
+		listener: (change: BrowserRepositoryChange) => void,
+		options: { includeOwn?: boolean } = {}
+	): () => void {
 		if (this.#closed) return () => undefined
-		this.#listeners.add(listener)
-		return () => this.#listeners.delete(listener)
+		// A command publishes before its caller accepts the committed revision.
+		// Callers that handle their own results can opt into peer-only signals.
+		const subscribed =
+			options.includeOwn === false
+				? (change: BrowserRepositoryChange) => {
+						if (change.senderId !== this.#senderId) listener(change)
+					}
+				: listener
+		this.#listeners.add(subscribed)
+		return () => this.#listeners.delete(subscribed)
 	}
 
 	close() {

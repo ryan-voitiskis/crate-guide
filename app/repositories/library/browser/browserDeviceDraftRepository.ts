@@ -348,9 +348,12 @@ class BrowserDeviceDraftRepositoryImpl implements BrowserDeviceDraftRepository {
 		})
 	}
 
-	subscribe(listener: (change: BrowserRepositoryChange) => void): () => void {
+	subscribe(
+		listener: (change: BrowserRepositoryChange) => void,
+		options?: { includeOwn?: boolean }
+	): () => void {
 		this.#ensureOpen()
-		return this.#broadcaster.subscribe(listener)
+		return this.#broadcaster.subscribe(listener, options)
 	}
 
 	close() {

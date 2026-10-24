@@ -1259,7 +1259,11 @@ describe('useTrackEnrichmentDraftSession', () => {
 		expect(workflow.startAnotherSource).not.toHaveBeenCalled()
 		expect(workflow.workflow.rows.value).toHaveLength(1)
 		expect(session.hasUnsavedChanges.value).toBe(true)
-		expect(session.saveState.value).toBe('saving')
+		expect(session.saveState.value).toBe('failed')
+		expect(session.saveErrorCode.value).toBe('conflict')
+		expect(session.saveStatusLabel.value).toBe(
+			"Couldn't save—keep this tab open"
+		)
 	})
 
 	it.each(['deleteDraft', 'startFresh', 'keepForLater'] as const)(
