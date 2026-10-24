@@ -24,6 +24,7 @@ import type {
 	TrackEnrichmentDraftDecision,
 	TrackEnrichmentDraftPartialOutcome
 } from '~/types/trackEnrichmentDraft'
+import { encodeTrackEnrichmentDraft } from '~/utils/trackEnrichmentDraftCodec'
 import { hydrateTrackEnrichmentDraft } from '~/utils/trackEnrichmentDraftHydration'
 import { mapTrackEnrichmentDraftBatchOutcome } from '~/utils/trackEnrichmentDraftOutcome'
 import { createTrackEnrichmentDraftOwnership } from '~/utils/trackEnrichmentDraftOwnership'
@@ -104,10 +105,13 @@ function normalizePersistedFilter(filter: ReviewFilter) {
 }
 
 function payloadSignature(draft: BrowserWorkflowDraft['payload']): string {
-	return JSON.stringify({
+	// Storage normalizes nested property order through the draft codec. Compare
+	// the same representation so an unchanged projection never attempts a write
+	// that storage would correctly reject as having no meaningful changes.
+	return encodeTrackEnrichmentDraft({
 		...draft,
 		draftRevision: 0,
-		updatedAt: '',
+		updatedAt: draft.createdAt,
 		workspace: { ...draft.workspace, repositoryRevision: 0 }
 	})
 }

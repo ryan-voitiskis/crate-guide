@@ -228,6 +228,39 @@ afterEach(async () => {
 })
 
 describe('track enrichment device-draft browser integration', () => {
+	it('keeps an unchanged projected review owned without issuing a no-op write', async () => {
+		const current = createSession({
+			databaseName: databaseName('unchanged-projection'),
+			label: 'writer',
+			rows: reviewRows()
+		})
+		await current.session.initialize()
+		await current.session.flushSave()
+		const repository = current.opened[0]!
+		const write = vi.spyOn(repository, 'writeDraft')
+		const before = await repository.listDrafts()
+		for (let attempt = 0; attempt < 2; attempt++) {
+			current.workflow.workflow.rows.value =
+				current.workflow.workflow.rows.value.map((row) => ({
+					...row,
+					error: null
+				}))
+			await current.session.flushSave()
+		}
+		expect(write).not.toHaveBeenCalled()
+		expect(await repository.listDrafts()).toEqual(before)
+		expect(current.session.isOwned.value).toBe(true)
+		expect(current.session.saveState.value).toBe('saved')
+		current.workflow.workflow.selectedFilter.value = 'staged'
+		await current.session.flushSave()
+		expect(write).toHaveBeenCalledOnce()
+		expect(current.session.saveState.value).toBe('saved')
+		expect((await repository.listDrafts()).value[0]?.draft).toMatchObject({
+			status: 'ready',
+			draft: { payload: { ui: { filter: 'staged' } } }
+		})
+	})
+
 	it('reopens and resumes a persisted review after disposing the first session', async () => {
 		const name = databaseName('reload-resume')
 		const first = createSession({
@@ -279,6 +312,14 @@ describe('track enrichment device-draft browser integration', () => {
 		first.scope.stop()
 		await vi.waitFor(() => expect(second.session.isOwned.value).toBe(true))
 		const row = second.workflow.workflow.rows.value[0]!
+		const write = vi.spyOn(second.opened[0]!, 'writeDraft')
+		// Applying clears row errors before the cloud command returns. Even an
+		// unchanged row emits a new projection and must remain a safe no-op save.
+		second.workflow.workflow.rows.value = [{ ...row, error: null }]
+		await second.session.flushSave()
+		expect(second.session.isOwned.value).toBe(true)
+		expect(second.session.saveState.value).toBe('saved')
+		expect(write).not.toHaveBeenCalled()
 		await second.session.recordApplyAttempt({
 			rows: [
 				{
