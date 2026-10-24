@@ -297,6 +297,8 @@ async function capture(directory) {
 		return resources
 	}
 	const resources = await readResources()
+	if (!/^[a-f0-9]{64}$/i.test(resources.pgsodium?.root_key || ''))
+		throw new Error('Production encryption root key was not exported.')
 	const platform = sourceQuery(platformQuery)
 	writeJson(resolve(directory, 'platform-private.json'), [platform])
 	dump(directory, 'roles.sql', ['--role-only'])

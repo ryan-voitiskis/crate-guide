@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+	mkdirSync,
+	mkdtempSync,
+	realpathSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import test from 'node:test'
@@ -27,6 +35,30 @@ test('rejects recovery files inside the checkout and path traversal in cover nam
 		coverFile('owner/record/cover.webp'),
 		/^covers\/[a-f0-9]{64}\.bin$/
 	)
+})
+
+test('resolves symlinks and requires home-repository storage to be explicitly ignored', () => {
+	const home = mkdtempSync(resolve(tmpdir(), 'crate-recovery-home-'))
+	const project = resolve(home, 'project')
+	try {
+		assert.equal(spawnSync('git', ['init', '--quiet', home]).status, 0)
+		mkdirSync(project)
+		assert.equal(spawnSync('git', ['init', '--quiet', project]).status, 0)
+		assert.throws(() =>
+			assertPrivateDirectory(resolve(home, 'unignored'), project)
+		)
+		writeFileSync(resolve(home, '.gitignore'), '.private/\n')
+		assert.equal(
+			assertPrivateDirectory(resolve(home, '.private/capture'), project),
+			resolve(realpathSync(home), '.private/capture')
+		)
+		symlinkSync(project, resolve(home, '.private-link'))
+		assert.throws(() =>
+			assertPrivateDirectory(resolve(home, '.private-link/capture'), project)
+		)
+	} finally {
+		rmSync(home, { recursive: true })
+	}
 })
 
 test('missing, redirected, same-size changed and truncated covers fail capture without exposing credentials', async () => {
