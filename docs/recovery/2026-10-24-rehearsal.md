@@ -36,4 +36,14 @@ The original development checkout remains clean at PR #18. Application formattin
 
 Independent key custody was completed in the owner's Proton Pass Personal vault. The saved secure note was reloaded and its private identity matched the original local identity; the temporary import file was removed. The local identity remains outside the repository for restore rehearsals.
 
+With the owner's approval, a 30-day account token was created with Object Read & Write restricted to this EU bucket. It expires on 23 November 2026 and is stored privately outside Git. An encrypted synthetic S3 object passed upload, download/hash, decryption and deletion checks. A final bucket inventory confirmed that no synthetic object remained.
+
+A fresh complete production capture then exercised the committed capture/seal/restore commands through that scoped S3 credential:
+
+```text
+crate-guide-production-backups/recovery-v1/2026-10-24T04-50-35-290Z-6231eadb-cedd-46c0-92e2-5063558437be.tar.gz.age
+```
+
+The ciphertext is 277,636 bytes with SHA-256 `74f1a18b8354f07eba06da0a8e844f0db8a8e7d0d510755cd1a227ba2f607d30`. Capture used Node 24.18.1 at revision `8dbec4ca39a4b1a798604e4ae19b4dd7d90253ad`; its data-export window was 04:48:14.709–04:49:08.518 UTC. Remote readback, decryption and isolated restore passed in 3.105 seconds with the same counts as above. The success marker was read back and matched the upload receipt. Live retention verified both complete sets, kept both and removed none; deletion beyond the newest 30 remains covered by safeguard tests rather than a production pruning exercise. The bucket holds three encrypted recovery objects (including the initial partial set) and two complete success markers. Plaintext capture/restore files and the isolated target were removed after verification.
+
 Unattended operation remains unverified. There is no daily schedule, automatic retention deletion, staleness alert or monthly automated restore yet. Follow the [runbook](runbook.md) before activation. No private values, database contents or decryption identity belong in this evidence record.
