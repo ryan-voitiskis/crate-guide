@@ -65,4 +65,4 @@ An isolated restore must prove schema/migration parity, representative record/tr
 
 Until the destination, unattended access, a successful backup, and a verified restore exist, report backup capability as **not activated**. The automation must alert on failed capture, missing objects, checksum mismatch, stale last success, and failed restore rehearsal.
 
-The [8 September recovery preflight](recovery/2026-09-08-preflight.md) records restored CLI access, the PostgreSQL tooling correction, and the remaining Cloudflare billing step.
+The [8 September recovery preflight](recovery/2026-09-08-preflight.md) is historical. The [24 October rehearsal](recovery/2026-10-24-rehearsal.md) records the private EU destination, encrypted database recovery point and isolated restore. Use the [recovery runbook](recovery/runbook.md) for capture/restore commands and the remaining activation requirements.

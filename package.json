@@ -70,7 +70,7 @@
 		"test:typecheck-contract": "node --test scripts/typecheck-contract.test.mjs",
 		"format": "prettier --write '**/*.{ts,js,mjs,cjs,mts,cts,vue,css,md,json}'",
 		"format:check": "prettier --check '**/*.{ts,js,mjs,cjs,mts,cts,vue,css,md,json}'",
-		"verify": "npm run format:check && npm run lint && npm run test:typecheck-contract && npm run typecheck && npm run test:run && npm run test:e2e && npm run test:browser && npm run check:edge && npm run lint:edge && npm run test:edge && npm run test:edge-imports && npm run check:edge-imports && npm run test:typegen-script && npm run test:database-type-parity && npm run check:database-types && npm run test:audio-config && npm run test:dev-start-script && npm run test:runtime-config && npm run test:account-cleanup-smoke && npm run test:release-tooling && npm run test:staging-secrets && npm run test:conventions && npm run check:conventions && npm run test:tailwind-canonical && npm run check:tailwind-canonical && npm run test:discogs-docs && npm run check:discogs-docs && npm run test:edge-audit && npm run test:security-headers && npm run test:offline-cache-policy && npm run test:client-bundle-budget && npm run test:dependency-topology && npm run check:dependency-topology && npm run test:production-dependencies && npm run test:node-audit",
+		"verify": "npm run format:check && npm run lint && npm run test:typecheck-contract && npm run typecheck && npm run test:run && npm run test:e2e && npm run test:browser && npm run check:edge && npm run lint:edge && npm run test:edge && npm run test:edge-imports && npm run check:edge-imports && npm run test:typegen-script && npm run test:database-type-parity && npm run check:database-types && npm run test:audio-config && npm run test:dev-start-script && npm run test:runtime-config && npm run test:account-cleanup-smoke && npm run test:release-tooling && npm run test:staging-secrets && npm run test:conventions && npm run check:conventions && npm run test:tailwind-canonical && npm run check:tailwind-canonical && npm run test:discogs-docs && npm run check:discogs-docs && npm run test:edge-audit && npm run test:security-headers && npm run test:offline-cache-policy && npm run test:client-bundle-budget && npm run test:dependency-topology && npm run check:dependency-topology && npm run test:production-dependencies && npm run test:node-audit && npm run test:recovery",
 		"verify:full": "npm run verify && npm run build && npm run check:security-headers && npm run check:client-bundle-budget && npm run test:db && npm run check:database-schema-types && npm run test:integration",
 		"supa:start": "node scripts/dev-start.mjs",
 		"supa:stack:start": "supabase start",
@@ -83,7 +83,15 @@
 		"smoke:account-cleanup": "node scripts/smoke-account-cover-cleanup.mjs",
 		"secrets:staging": "node scripts/set-staging-secrets.mjs",
 		"genTypes": "node scripts/generate-database-types.mjs",
-		"test:node-audit": "node --test scripts/audit-node-dependencies.test.mjs"
+		"test:node-audit": "node --test scripts/audit-node-dependencies.test.mjs",
+		"test:recovery": "node --test scripts/recovery-core.test.mjs scripts/recovery-storage.test.mjs scripts/recovery-operations.test.mjs scripts/recovery-notification.test.mjs",
+		"recovery:capture": "node scripts/recovery-backup.mjs capture",
+		"recovery:seal": "node scripts/recovery-backup.mjs seal",
+		"recovery:restore": "node scripts/recovery-backup.mjs restore",
+		"smoke:recovery-cover": "node scripts/smoke-recovery-cover.mjs",
+		"recovery:retain": "node scripts/recovery-storage.mjs retain",
+		"recovery:check": "node scripts/recovery-operations.mjs check",
+		"recovery:rehearse": "node scripts/recovery-operations.mjs rehearse"
 	},
 	"dependencies": {
 		"@lucide/vue": "^1.41.0",
