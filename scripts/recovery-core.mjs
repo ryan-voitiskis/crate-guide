@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { basename, dirname, resolve, sep } from 'node:path'
@@ -20,10 +21,20 @@ export function assertPrivateDirectory(directory, repository) {
 		throw new Error('Recovery files must be stored outside the repository.')
 	}
 	for (let parent = target; ; parent = dirname(parent)) {
-		if (existsSync(resolve(parent, '.git')))
-			throw new Error(
-				'Recovery files must be stored outside every Git checkout.'
+		if (existsSync(resolve(parent, '.git'))) {
+			// A home-directory dotfiles repository can surround private storage.
+			// Require that repository to explicitly ignore the destination.
+			const ignored = spawnSync(
+				'git',
+				['-C', parent, 'check-ignore', '--quiet', '--no-index', '--', target],
+				{ timeout: 5000, stdio: 'ignore' }
 			)
+			if (ignored.status !== 0)
+				throw new Error(
+					'Recovery storage is inside another Git checkout and is not ignored.'
+				)
+			break
+		}
 		if (parent === dirname(parent)) break
 	}
 	return target
