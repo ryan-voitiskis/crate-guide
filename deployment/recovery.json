@@ -1,0 +1,10 @@
+{
+	"formatVersion": 1,
+	"projectRef": "czlfiwivlgqhqezmywfx",
+	"organizationId": "grxffkeajwssrcfwtxny",
+	"cloudflareAccountId": "2584e96da1501a94e4af53e21f8f018d",
+	"bucket": "crate-guide-production-backups",
+	"jurisdiction": "eu",
+	"recipient": "age1djgh33ntqqltgjrp3kvhr6ewsqkuk38zqf4jxy4fv5nw359za4ts06y6ns",
+	"restoreImage": "public.ecr.aws/supabase/postgres@sha256:ba10e934f0a59990379f78ab9ed93926f1c291dd61a12fe4026f4202f1b89770"
+}
