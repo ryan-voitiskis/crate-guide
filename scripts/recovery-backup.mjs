@@ -309,6 +309,14 @@ async function capture(directory) {
 	const resources = await readResources()
 	if (!/^[a-f0-9]{64}$/i.test(resources.pgsodium?.root_key || ''))
 		throw new Error('Production encryption root key was not exported.')
+	// A fresh runner has no pooler metadata. Linking resolves the IPv4 endpoint
+	// before exports, without changing the fixed production target.
+	run(supabase, ['--agent', 'no', 'link', '--project-ref', config.projectRef])
+	if (
+		readFileSync(resolve(root, 'supabase/.temp/project-ref'), 'utf8').trim() !==
+		config.projectRef
+	)
+		throw new Error('Recovery CLI link does not match the production source.')
 	const platform = sourceQuery(platformQuery)
 	writeJson(resolve(directory, 'platform-private.json'), [platform])
 	dump(directory, 'roles.sql', ['--role-only'])
