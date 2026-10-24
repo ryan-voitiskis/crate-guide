@@ -577,6 +577,9 @@ export interface BrowserDeviceDraftRepository {
 		ownerToken: string,
 		expected: BrowserDeviceDraftReplaceCas
 	): Promise<BrowserDeviceDraftReadResult<BrowserClaimedDraft>>
-	subscribe(listener: (change: BrowserRepositoryChange) => void): () => void
+	subscribe(
+		listener: (change: BrowserRepositoryChange) => void,
+		options?: { includeOwn?: boolean }
+	): () => void
 	close(): void
 }

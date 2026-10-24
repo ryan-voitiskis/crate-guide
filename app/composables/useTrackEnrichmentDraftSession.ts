@@ -504,6 +504,10 @@ export function useTrackEnrichmentDraftSession(
 						currentOwnedRevision !== observedRevision)
 				) {
 					resetOwnership()
+					if (hasUnsavedChanges.value) {
+						saveState.value = 'failed'
+						saveErrorCode.value = 'conflict'
+					}
 				}
 				const preserveDirtyOwnedProjection = Boolean(
 					hasUnsavedChanges.value &&
@@ -677,16 +681,19 @@ export function useTrackEnrichmentDraftSession(
 		}
 		repository = opened
 		repositoryRuntimeIdentity = runtimeIdentity
-		unsubscribe = opened.subscribe((change) => {
-			if (
-				change.workspaceId !== opened.identity.workspaceId ||
-				change.repositoryId !== opened.identity.repositoryId ||
-				!change.invalidations.some(({ entity }) => entity === 'drafts')
-			) {
-				return
-			}
-			void refreshDiscovery(generation)
-		})
+		unsubscribe = opened.subscribe(
+			(change) => {
+				if (
+					change.workspaceId !== opened.identity.workspaceId ||
+					change.repositoryId !== opened.identity.repositoryId ||
+					!change.invalidations.some(({ entity }) => entity === 'drafts')
+				) {
+					return
+				}
+				void refreshDiscovery(generation)
+			},
+			{ includeOwn: false }
+		)
 		await refreshDiscovery(generation)
 		if (
 			generation === lifecycleGeneration &&
@@ -770,6 +777,8 @@ export function useTrackEnrichmentDraftSession(
 		if (!isCurrentOperation()) return
 		if (activeEntry.value && !ownership.lease && !replacementTarget) {
 			workflow.setReviewReadOnly(true)
+			saveState.value = 'failed'
+			saveErrorCode.value = 'conflict'
 			return
 		}
 		saveState.value = 'saving'
