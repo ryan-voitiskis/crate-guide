@@ -119,10 +119,10 @@ export function createR2Storage(
 	}
 }
 
-export function retainSuccesses(storage, config) {
+export function readSuccessReceipts(storage, config) {
 	const directory = mkdtempSync(resolve(tmpdir(), 'crate-guide-retention-'))
 	try {
-		const receipts = storage.listSuccesses().map((key, index) => {
+		return storage.listSuccesses().map((key, index) => {
 			const file = resolve(directory, `${index}.json`)
 			storage.get(key, file)
 			const receipt = validateReceipt(JSON.parse(readFileSync(file)), config)
@@ -130,27 +130,31 @@ export function retainSuccesses(storage, config) {
 				throw new Error('Success receipt path mismatch.')
 			return receipt
 		})
-		if (!receipts.length)
-			throw new Error('No successful recovery sets found; retention aborted.')
-		const plan = planRetention(receipts, config)
-		// Check every retained ciphertext before deleting anything older.
-		for (const receipt of plan.keep) {
-			const metadata = storage.head(
-				receipt.object.slice(config.bucket.length + 1)
-			)
-			if (metadata.ContentLength !== receipt.bytes)
-				throw new Error(
-					'Retained recovery set is missing or has changed; retention aborted.'
-				)
-		}
-		for (const receipt of plan.remove) {
-			storage.remove(receipt.object.slice(config.bucket.length + 1))
-			storage.remove(`recovery-v1/success/${receipt.id}.json`)
-		}
-		return { kept: plan.keep.length, removed: plan.remove.length }
 	} finally {
 		rmSync(directory, { recursive: true, force: true })
 	}
+}
+
+export function retainSuccesses(storage, config) {
+	const receipts = readSuccessReceipts(storage, config)
+	if (!receipts.length)
+		throw new Error('No successful recovery sets found; retention aborted.')
+	const plan = planRetention(receipts, config)
+	// Check every retained ciphertext before deleting anything older.
+	for (const receipt of plan.keep) {
+		const metadata = storage.head(
+			receipt.object.slice(config.bucket.length + 1)
+		)
+		if (metadata.ContentLength !== receipt.bytes)
+			throw new Error(
+				'Retained recovery set is missing or has changed; retention aborted.'
+			)
+	}
+	for (const receipt of plan.remove) {
+		storage.remove(receipt.object.slice(config.bucket.length + 1))
+		storage.remove(`recovery-v1/success/${receipt.id}.json`)
+	}
+	return { kept: plan.keep.length, removed: plan.remove.length }
 }
 
 if (

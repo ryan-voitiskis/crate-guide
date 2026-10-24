@@ -32,7 +32,7 @@ const config = JSON.parse(
 )
 const supabase =
 	process.env.RECOVERY_SUPABASE_CLI ||
-	resolve(root, 'node_modules/.bin/supabase')
+	resolve(root, 'tooling/recovery/node_modules/.bin/supabase')
 const wrangler =
 	process.env.RECOVERY_WRANGLER_CLI ||
 	resolve(root, 'node_modules/.bin/wrangler')
@@ -263,10 +263,19 @@ async function capture(directory) {
 		throw new Error(
 			'Provide an authorized Supabase Management token through the environment.'
 		)
-	const project = JSON.parse(
-		run(supabase, ['--agent', 'no', 'projects', 'list', '--output', 'json'])
-	).find((p) => p.id === config.projectRef)
+	const projectResponse = await fetch(
+		`https://api.supabase.com/v1/projects/${config.projectRef}`,
+		{
+			headers: { Authorization: `Bearer ${token}` },
+			redirect: 'error',
+			signal: AbortSignal.timeout(30_000)
+		}
+	)
+	if (!projectResponse.ok)
+		throw new Error(`Project export failed: HTTP ${projectResponse.status}.`)
+	const project = await projectResponse.json()
 	if (
+		project?.id !== config.projectRef ||
 		project?.organization_id !== config.organizationId ||
 		project.status !== 'ACTIVE_HEALTHY' ||
 		!project.database?.version?.startsWith('17.')
@@ -508,6 +517,8 @@ function seal(directory) {
 			object,
 			jurisdiction: config.jurisdiction,
 			sha256: checksum,
+			dataStartedAt: manifest.dataStartedAt,
+			dataEndedAt: manifest.dataEndedAt,
 			uploadedAt: new Date().toISOString(),
 			bytes: readFileSync(readback).length
 		}
