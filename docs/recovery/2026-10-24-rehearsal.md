@@ -34,4 +34,6 @@ That complete data/configuration set is 277,626 encrypted bytes with SHA-256 `c8
 
 The original development checkout remains clean at PR #18. Application formatting, lint/type checks, unit/E2E/browser/Edge suites and the new recovery safeguard tests passed; the real local integration and synthetic-cover smoke passed. The independent dependency repair is draft [PR #21](https://github.com/ryan-voitiskis/crate-guide/pull/21): its database CI passed, while the unchanged application audit gate remains blocked by the Zod and node-forge advisory roots. No audit exception was added.
 
-Independent password-manager key custody and unattended operation remain unverified. There is no daily schedule, automatic retention deletion, staleness alert or monthly automated restore yet. Follow the [runbook](runbook.md) before activation. No private values, database contents or decryption identity belong in this evidence record.
+Independent key custody was completed in the owner's Proton Pass Personal vault. The saved secure note was reloaded and its private identity matched the original local identity; the temporary import file was removed. The local identity remains outside the repository for restore rehearsals.
+
+Unattended operation remains unverified. There is no daily schedule, automatic retention deletion, staleness alert or monthly automated restore yet. Follow the [runbook](runbook.md) before activation. No private values, database contents or decryption identity belong in this evidence record.
