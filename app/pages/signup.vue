@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { toTypedSchema } from '@vee-validate/zod'
+import { toTypedFormSchema } from '~/utils/toTypedFormSchema'
 import { useForm } from 'vee-validate'
 import * as z from 'zod'
 import {
@@ -30,7 +30,7 @@ const schema = z.object({
 
 type SignupFormValues = z.infer<typeof schema>
 
-const form = useForm({ validationSchema: toTypedSchema(schema) })
+const form = useForm({ validationSchema: toTypedFormSchema(schema) })
 
 watch(
 	() => [form.values.email, form.values.password],

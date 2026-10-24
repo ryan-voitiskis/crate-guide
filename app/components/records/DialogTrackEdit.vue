@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
-import { toTypedSchema } from '@vee-validate/zod'
+import { toTypedFormSchema } from '~/utils/toTypedFormSchema'
 import { useForm } from 'vee-validate'
 import {
 	type TrackEditorBaseline,
@@ -18,7 +18,7 @@ const trackEdit = useTrackEditStore()
 const recordDetails = useWorkbenchRecordDetailsStore()
 const preferences = useWorkbenchPreferencesStore()
 
-const validationSchema = toTypedSchema(trackEditorSchema)
+const validationSchema = toTypedFormSchema(trackEditorSchema)
 
 const form = useForm({
 	validationSchema,

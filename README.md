@@ -136,7 +136,7 @@ SITE_URL=http://localhost:3000
 
 #### Auth Redirect URLs
 
-The repository's `supabase/config.toml` configures only the local Supabase
+Auth settings in `supabase/config.toml` configure the local Supabase
 stack. For every hosted environment, verify the actual Supabase Auth URL
 Configuration and explicitly add these Redirect URLs using that environment's
 real `SITE_URL`:
@@ -156,7 +156,9 @@ intentional remote configuration change.
 
 Crate Guide reserves the uncommon `42820-42829` range for its local Supabase
 stack so it can run alongside projects using Supabase's default `54320-54329`
-ports. The main local endpoints are:
+ports. Its configured PostgreSQL major version is **17**, matching production
+and staging. The CLI also uses this setting to select tools for hosted exports;
+an older `pg_dump` cannot export a newer server. The main local endpoints are:
 
 | Service         | URL / port                             |
 | --------------- | -------------------------------------- |

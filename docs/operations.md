@@ -64,3 +64,5 @@ Database snapshots and Storage downloads are not one atomic snapshot. Preserve t
 An isolated restore must prove schema/migration parity, representative record/track/crate/set relationships, authentication configuration needed for recovery, and every referenced cover's bytes. Outbound mail, provider calls, cron, and production integrations must remain disabled in that target. Record elapsed restore time and measured data loss window, then remove only the restore target and its synthetic verification fixtures.
 
 Until the destination, unattended access, a successful backup, and a verified restore exist, report backup capability as **not activated**. The automation must alert on failed capture, missing objects, checksum mismatch, stale last success, and failed restore rehearsal.
+
+The [8 September recovery preflight](recovery/2026-09-08-preflight.md) records restored CLI access, the PostgreSQL tooling correction, and the remaining Cloudflare billing step.

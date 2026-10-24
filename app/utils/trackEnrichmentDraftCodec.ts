@@ -665,7 +665,7 @@ export class TrackEnrichmentDraftCodecError extends Error {
 	}
 }
 
-function schemaPath(path: (string | number)[]): string {
+function schemaPath(path: PropertyKey[]): string {
 	return path
 		.map((segment) => String(segment).replace(/~/g, '~0').replace(/\//g, '~1'))
 		.map((segment) => `/${segment}`)

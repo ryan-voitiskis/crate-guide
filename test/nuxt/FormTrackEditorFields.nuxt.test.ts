@@ -8,11 +8,11 @@ import {
 	ref
 } from 'vue'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
-import { toTypedSchema } from '@vee-validate/zod'
 import { DOMWrapper, type VueWrapper, flushPromises } from '@vue/test-utils'
 import { useForm } from 'vee-validate'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import FormTrackEditorFields from '~/components/tracks/FormTrackEditorFields.vue'
+import { toTypedFormSchema } from '~/utils/toTypedFormSchema'
 import {
 	type TrackEditorFormValues,
 	createTrackEditorInitialValues,
@@ -54,7 +54,7 @@ function createHarness(options?: {
 		name: 'TrackEditorFieldsHarness',
 		setup() {
 			const form = useForm<TrackEditorFormValues>({
-				validationSchema: toTypedSchema(trackEditorSchema),
+				validationSchema: toTypedFormSchema(trackEditorSchema),
 				initialValues: createTrackEditorInitialValues()
 			})
 			vi.spyOn(form, 'defineField')

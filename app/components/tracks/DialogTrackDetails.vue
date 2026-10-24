@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Pencil, PencilOff } from '@lucide/vue'
-import { toTypedSchema } from '@vee-validate/zod'
+import { toTypedFormSchema } from '~/utils/toTypedFormSchema'
 import { useForm } from 'vee-validate'
 import {
 	type TrackEditorBaseline,
@@ -91,7 +91,7 @@ const recordForTrack = computed(() =>
 		: null
 )
 
-const validationSchema = toTypedSchema(trackEditorSchema)
+const validationSchema = toTypedFormSchema(trackEditorSchema)
 
 const form = useForm({
 	validationSchema,

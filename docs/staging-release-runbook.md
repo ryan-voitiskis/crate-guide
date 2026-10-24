@@ -188,11 +188,13 @@ six candidate migrations pending, and current main still deployed. A fresh
 all-migrations install is useful, but it does not replace an upgrade rehearsal
 from the current production baseline.
 
-Local Supabase currently exercises PostgreSQL 15 while production and this
-staging project use PostgreSQL 17. Local verification remains required, but the
-hosted baseline and candidate dry-run/application on PostgreSQL 17 are the
-release-version proof. Do not treat local PostgreSQL 15 alone as sufficient
-hosted migration evidence.
+The July rehearsal used local PostgreSQL 15 while production and this staging
+project used PostgreSQL 17. The current configuration now selects PostgreSQL 17
+for local development and CLI export tooling. Existing local data must not be
+reset to apply this setting: verify the running image/version first, and plan
+any actual local major-version upgrade separately. Local verification remains
+required alongside the hosted baseline and candidate migration rehearsal; a
+matching major version alone is not hosted migration evidence.
 
 ## Rollout order
 

@@ -3,6 +3,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath } from 'node:url'
 import { buildThemeBootstrapScript } from './app/utils/themeBootstrap'
 import { applyDeferredClientAssetPrefetchPolicy } from './scripts/check-client-bundle-budget.mjs'
+import { productionDependencyGuard } from './scripts/production-dependency-guard.mjs'
 import { validatePublicRuntimeConfig } from './scripts/runtime-config.mjs'
 import clientBundleBudget from './shared/config/clientBundleBudget.json'
 
@@ -30,7 +31,8 @@ export default defineNuxtConfig({
 	},
 	ssr: false,
 	nitro: {
-		preset: 'cloudflare-pages'
+		preset: 'cloudflare-pages',
+		rollupConfig: { plugins: [productionDependencyGuard('worker')] }
 	},
 	devtools: { enabled: false },
 	css: ['~/assets/css/main.css'],
@@ -38,6 +40,7 @@ export default defineNuxtConfig({
 		plugins: [tailwindcss()],
 		build: {
 			rollupOptions: {
+				plugins: [productionDependencyGuard('client')],
 				output: {
 					manualChunks(id) {
 						const [moduleId = ''] = id.split('?', 1)

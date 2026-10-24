@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 import { Disc3, Pencil, PencilOff, Plus, Trash2 } from '@lucide/vue'
-import { toTypedSchema } from '@vee-validate/zod'
+import { toTypedFormSchema } from '~/utils/toTypedFormSchema'
 import { useForm } from 'vee-validate'
 import { crateSchema } from '~/utils/schemas/crate'
 import type { LibraryCrate } from '~~/shared/types/library'
@@ -26,7 +26,7 @@ const showUnsavedChangesAlert = ref(false)
 const isFormInitialized = ref(false)
 
 // Form setup
-const validationSchema = toTypedSchema(crateSchema)
+const validationSchema = toTypedFormSchema(crateSchema)
 
 const form = useForm({
 	validationSchema,

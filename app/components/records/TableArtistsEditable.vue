@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Check, GripVertical, Pencil, Plus, Trash, X } from '@lucide/vue'
-import { toTypedSchema } from '@vee-validate/zod'
+import { toTypedFormSchema } from '~/utils/toTypedFormSchema'
 import { useSortable } from '@vueuse/integrations/useSortable'
 import { useForm } from 'vee-validate'
 import { z } from 'zod'
@@ -33,7 +33,7 @@ const artistSchema = z.object({
 	role: z.string().trim().optional()
 })
 
-const validationSchema = toTypedSchema(artistSchema)
+const validationSchema = toTypedFormSchema(artistSchema)
 
 const formMode = ref<'edit' | 'new' | null>(null)
 const editingIndex = ref<number | null>(null)

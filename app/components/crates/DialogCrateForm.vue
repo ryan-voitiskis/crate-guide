@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { toTypedSchema } from '@vee-validate/zod'
+import { toTypedFormSchema } from '~/utils/toTypedFormSchema'
 import { useForm } from 'vee-validate'
 import { crateSchema } from '~/utils/schemas/crate'
 import type { LibraryCrate } from '~~/shared/types/library'
@@ -15,7 +15,7 @@ const emit = defineEmits<{
 
 const cratesStore = useWorkbenchCratesStore()
 
-const validationSchema = toTypedSchema(crateSchema)
+const validationSchema = toTypedFormSchema(crateSchema)
 
 const form = useForm({
 	validationSchema,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Pencil, PencilOff } from '@lucide/vue'
-import { toTypedSchema } from '@vee-validate/zod'
+import { toTypedFormSchema } from '~/utils/toTypedFormSchema'
 import { useForm } from 'vee-validate'
 import { z } from 'zod'
 import type { LibraryCoverChange } from '~~/shared/types/library'
@@ -41,7 +41,7 @@ const recordSchema = z.object({
 	])
 })
 
-const validationSchema = toTypedSchema(recordSchema)
+const validationSchema = toTypedFormSchema(recordSchema)
 
 const form = useForm({
 	validationSchema,
