@@ -1,6 +1,6 @@
 # Dedicated recovery credential proposal
 
-Status: prepared for owner approval on 24 October 2026. No new credential in this proposal has been created or installed in CI.
+Status: the owner approved these exact grants and CI storage on 24 October 2026. All three credentials were created. The four CI values were installed in the `production-recovery` GitHub environment, whose deployment policy was read back as the main branch only. The local restore credential was not provisioned to GitHub. Live checks confirmed that the Supabase token can access production while staging and the account-wide project list return HTTP 403; the R2 restore credential can read its synthetic probe but both upload and deletion are denied.
 
 All three credentials expire on 22 January 2027, approximately 90 days after creation. Keep local copies only in the private, ignored recovery folder with mode 600. The capture workflow receives no private age identity.
 

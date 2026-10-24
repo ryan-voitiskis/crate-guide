@@ -26,7 +26,7 @@ jobs:
           node-version: 24.18.1
 
       - name: Verify recovery safeguards without credentials
-        run: node --test scripts/recovery-core.test.mjs scripts/recovery-storage.test.mjs scripts/recovery-operations.test.mjs
+        run: node --test scripts/recovery-core.test.mjs scripts/recovery-storage.test.mjs scripts/recovery-operations.test.mjs scripts/recovery-notification.test.mjs
 
       - name: Install the isolated recovery CLI without credentials
         run: npm ci --prefix tooling/recovery

@@ -84,7 +84,7 @@
 		"secrets:staging": "node scripts/set-staging-secrets.mjs",
 		"genTypes": "node scripts/generate-database-types.mjs",
 		"test:node-audit": "node --test scripts/audit-node-dependencies.test.mjs",
-		"test:recovery": "node --test scripts/recovery-core.test.mjs scripts/recovery-storage.test.mjs scripts/recovery-operations.test.mjs",
+		"test:recovery": "node --test scripts/recovery-core.test.mjs scripts/recovery-storage.test.mjs scripts/recovery-operations.test.mjs scripts/recovery-notification.test.mjs",
 		"recovery:capture": "node scripts/recovery-backup.mjs capture",
 		"recovery:seal": "node scripts/recovery-backup.mjs seal",
 		"recovery:restore": "node scripts/recovery-backup.mjs restore",
