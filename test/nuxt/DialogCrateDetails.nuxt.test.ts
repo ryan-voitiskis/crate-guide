@@ -87,11 +87,6 @@ async function mountDialog(updateResult: Promise<Crate | null>) {
 	const records = useRecordsStore(pinia as Pinia)
 	vi.mocked(records.getRecordsByIds).mockReturnValue([])
 	vi.mocked(crates.updateCrate).mockReturnValueOnce(updateResult)
-	vi.mocked(crates.updateCrate).mockResolvedValueOnce({
-		...authoritativeCrate,
-		name: 'Deliberate v4',
-		updated_at: '2026-07-19T04:00:00.000004Z'
-	})
 
 	const wrapper = await mountSuspended(DialogCrateDetails, {
 		props: { open: true, crate: initialCrate },
@@ -111,64 +106,102 @@ describe('DialogCrateDetails', () => {
 		document.body.innerHTML = ''
 	})
 
-	it('resets a rejected edit to the transitioned authoritative baseline before a subsequent edit', async () => {
-		const updateResult = createDeferred<Crate | null>()
-		const { crates, wrapper } = await mountDialog(updateResult.promise)
-
+	it('keeps a rejected edit and merges only deliberate changes after reviewing the latest version', async () => {
+		const pending = createDeferred<Crate | null>()
+		const { crates, wrapper } = await mountDialog(pending.promise)
 		await getBody().get('[aria-label="Edit crate"]').trigger('click')
 		await settleDialog()
-		expect(getBody().text()).toContain('Edit Crate')
-		await getBody().get('input[name="name"]').setValue('Rejected local name')
-		await getBody()
-			.get('textarea[name="description"]')
-			.setValue('Rejected local description')
-		await getBody().get('[aria-label="Red"]').trigger('click')
+		await getBody().get('input[name="name"]').setValue('My edited name')
 		await getButton('Save').trigger('click')
-		await vi.waitFor(() => {
-			expect(crates.updateCrate).toHaveBeenCalledWith('crate-1', {
-				name: 'Rejected local name',
-				description: 'Rejected local description',
-				color: '#EF4444'
-			})
-		})
-
+		await vi.waitFor(() => expect(crates.updateCrate).toHaveBeenCalledOnce())
+		expect(crates.updateCrate).toHaveBeenCalledWith(
+			'crate-1',
+			{ name: 'My edited name' },
+			expect.objectContaining({ expectedUpdatedAt: initialCrate.updated_at })
+		)
 		await wrapper.setProps({ crate: authoritativeCrate })
+		vi.mocked(crates.updateCrate).mock.calls[0]![2]!.onConflict!(
+			authoritativeCrate
+		)
+		pending.resolve(null)
+		await settleDialog()
+		expect(getBody().text()).toContain(
+			'This crate changed while you were editing.'
+		)
+		expect(getBody().get('input[name="name"]').element).toHaveProperty(
+			'value',
+			'My edited name'
+		)
+		expect(getButton('Save').attributes('disabled')).toBeDefined()
+		await getButton('Keep my edits and review').trigger('click')
 		await settleDialog()
 		expect(
-			(getBody().get('input[name="name"]').element as HTMLInputElement).value
-		).toBe('Rejected local name')
-
-		updateResult.resolve(null)
-		await settleDialog()
-
-		expect(getBody().text()).toContain('Edit Crate')
-		expect(getBody().find('[aria-label="Cancel edit"]').exists()).toBe(true)
-		expect(
-			(getBody().get('input[name="name"]').element as HTMLInputElement).value
-		).toBe('Remote v3')
-		expect(
-			(
-				getBody().get('textarea[name="description"]')
-					.element as HTMLTextAreaElement
-			).value
-		).toBe('Authoritative description')
+			getBody().get('textarea[name="description"]').element
+		).toHaveProperty('value', authoritativeCrate.description)
 		expect(getBody().get('[aria-label="Blue"]').classes()).toContain(
 			'border-foreground'
 		)
-		expect(getBody().get('[aria-label="Red"]').classes()).not.toContain(
-			'border-foreground'
-		)
-
-		await getBody().get('input[name="name"]').setValue('Deliberate v4')
-		await getButton('Save').trigger('click')
-		await vi.waitFor(() => {
-			expect(crates.updateCrate).toHaveBeenLastCalledWith('crate-1', {
-				name: 'Deliberate v4',
-				description: 'Authoritative description',
-				color: '#3B82F6'
-			})
+		vi.mocked(crates.updateCrate).mockResolvedValueOnce({
+			...authoritativeCrate,
+			name: 'My edited name'
 		})
+		await getButton('Save').trigger('click')
+		await vi.waitFor(() => expect(crates.updateCrate).toHaveBeenCalledTimes(2))
+		expect(crates.updateCrate).toHaveBeenLastCalledWith(
+			'crate-1',
+			{ name: 'My edited name' },
+			expect.objectContaining({
+				expectedUpdatedAt: authoritativeCrate.updated_at
+			})
+		)
 		await settleDialog()
 		expect(getBody().text()).not.toContain('Edit Crate')
+	})
+
+	it('retains unsaved values after a transport failure instead of resetting to changing props', async () => {
+		const pending = createDeferred<Crate | null>()
+		const { wrapper } = await mountDialog(pending.promise)
+		await getBody().get('[aria-label="Edit crate"]').trigger('click')
+		await settleDialog()
+		await getBody().get('input[name="name"]').setValue('Keep this input')
+		await getBody().get('[aria-label="Red"]').trigger('click')
+		await getButton('Save').trigger('click')
+		await wrapper.setProps({ crate: authoritativeCrate })
+		pending.resolve(null)
+		await settleDialog()
+		expect(getBody().get('input[name="name"]').element).toHaveProperty(
+			'value',
+			'Keep this input'
+		)
+		expect(getBody().get('[aria-label="Red"]').classes()).toContain(
+			'border-foreground'
+		)
+		expect(getBody().text()).toContain('Edit Crate')
+	})
+
+	it('does not let an older save close a newly opened editor', async () => {
+		const pending = createDeferred<Crate | null>()
+		const { crates, wrapper } = await mountDialog(pending.promise)
+		await getBody().get('[aria-label="Edit crate"]').trigger('click')
+		await settleDialog()
+		await getBody().get('input[name="name"]').setValue('First editor')
+		await getButton('Save').trigger('click')
+		await vi.waitFor(() => expect(crates.updateCrate).toHaveBeenCalledOnce())
+		await wrapper.setProps({ open: false })
+		await wrapper.setProps({
+			open: true,
+			crate: { ...authoritativeCrate, id: 'crate-2' }
+		})
+		await settleDialog()
+		await getBody().get('[aria-label="Edit crate"]').trigger('click')
+		await settleDialog()
+		await getBody().get('input[name="name"]').setValue('Second editor')
+		pending.resolve({ ...initialCrate, name: 'First editor' })
+		await settleDialog()
+		expect(getBody().text()).toContain('Edit Crate')
+		expect(getBody().get('input[name="name"]').element).toHaveProperty(
+			'value',
+			'Second editor'
+		)
 	})
 })

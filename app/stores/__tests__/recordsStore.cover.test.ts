@@ -818,4 +818,54 @@ describe('recordsStore cover workflows', () => {
 			}
 		)
 	})
+	it('cleans only its rejected upload after authoritative cover reconciliation', async () => {
+		const row = createMockRecord({
+			id: 'record-cover-cas',
+			title: 'Original',
+			cover_storage_path: 'test-user-id/record-cover-cas/newer.webp',
+			updated_at: '2026-10-24T00:00:00.000002Z'
+		})
+		const store = createRecordsStore()
+		store.records = [
+			createDomainRecord({
+				id: row.id,
+				title: row.title,
+				updated_at: '2026-10-24T00:00:00.000001Z'
+			})
+		]
+		mockQueryBuilder.maybeSingle.mockResolvedValue({ data: null, error: null })
+		mockQueryBuilder.limit.mockResolvedValue({ data: [row], error: null })
+		mockBoundRecordQuery.maybeSingle.mockResolvedValue({
+			data: { cover_storage_path: row.cover_storage_path },
+			error: null
+		})
+		const onConflict = vi.fn()
+		await expect(
+			store.updateRecordWithCover(
+				row.id,
+				{ title: 'My title' },
+				{
+					type: 'upload',
+					file: new File(['cover'], 'cover.png', { type: 'image/png' }),
+					crop: { positionX: 50, positionY: 50 }
+				},
+				{ expectedUpdatedAt: '2026-10-24T00:00:00.000001Z', onConflict }
+			)
+		).resolves.toBeNull()
+		expect(onConflict).toHaveBeenCalledWith(
+			expect.objectContaining({
+				title: 'Original',
+				cover: {
+					kind: 'cloud',
+					assetId: row.cover_storage_path,
+					fallbackUrl: row.cover
+				}
+			})
+		)
+		expect(mockStorageBucket.upload).toHaveBeenCalledOnce()
+		const uploadedPath = mockStorageBucket.upload.mock.calls[0]![0]
+		expect(mockStorageBucket.remove).toHaveBeenCalledWith([uploadedPath])
+		expect(uploadedPath).not.toBe(row.cover_storage_path)
+		expect(mockBoundFunctionsInvoke).not.toHaveBeenCalled()
+	})
 })

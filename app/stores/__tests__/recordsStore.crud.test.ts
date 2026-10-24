@@ -906,4 +906,72 @@ describe('recordsStore CRUD', () => {
 			}
 		)
 	})
+	it('refreshes a rejected metadata edit and preserves the full original version precondition', async () => {
+		const row = createMockRecord({
+			id: 'record-cas',
+			title: 'Original',
+			updated_at: '2026-10-24T00:00:00.000001Z'
+		})
+		const latest = {
+			...row,
+			title: 'Remote title',
+			year: 2001,
+			updated_at: '2026-10-24T00:00:00.000002Z'
+		}
+		const store = createRecordsStore()
+		store.records = [decodeLibraryRecordRow(row).row]
+		mockQueryBuilder.maybeSingle.mockResolvedValue({ data: null, error: null })
+		mockQueryBuilder.limit.mockResolvedValue({ data: [latest], error: null })
+		const onConflict = vi.fn()
+		await expect(
+			store.updateRecord(
+				row.id,
+				{ title: 'My title' },
+				{ expectedUpdatedAt: row.updated_at, onConflict }
+			)
+		).resolves.toBeNull()
+		expect(mockQueryBuilder.eq).toHaveBeenCalledWith(
+			'updated_at',
+			row.updated_at
+		)
+		expect(onConflict).toHaveBeenCalledWith(
+			expect.objectContaining({
+				title: 'Remote title',
+				year: 2001,
+				updated_at: latest.updated_at
+			})
+		)
+		expect(store.records[0]!.title).toBe('Remote title')
+		expect(mockToast.success).not.toHaveBeenCalled()
+	})
+	it('suppresses a conflict refresh that finishes after the account store is cleared', async () => {
+		const original = createMockRecord({ id: 'record-late-conflict' })
+		const store = createRecordsStore()
+		store.records = [decodeLibraryRecordRow(original).row]
+		const delayed = createDeferred<{ data: (typeof original)[]; error: null }>()
+		mockQueryBuilder.maybeSingle.mockResolvedValue({ data: null, error: null })
+		mockQueryBuilder.limit.mockReturnValueOnce(delayed.promise)
+		const onConflict = vi.fn()
+		const pending = store.updateRecord(
+			original.id,
+			{ title: 'Local' },
+			{ expectedUpdatedAt: original.updated_at, onConflict }
+		)
+		await vi.waitFor(() =>
+			expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
+		)
+		store.clearRecords()
+		const replacement = createDomainRecord({
+			id: original.id,
+			title: 'Replacement workspace'
+		})
+		store.records = [replacement]
+		delayed.resolve({
+			data: [{ ...original, title: 'Old account response' }],
+			error: null
+		})
+		await expect(pending).resolves.toBeNull()
+		expect(onConflict).not.toHaveBeenCalled()
+		expect(store.records).toEqual([replacement])
+	})
 })

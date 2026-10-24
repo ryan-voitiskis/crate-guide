@@ -3,11 +3,17 @@ import { Pencil, PencilOff } from '@lucide/vue'
 import { toTypedFormSchema } from '~/utils/toTypedFormSchema'
 import { useForm } from 'vee-validate'
 import { z } from 'zod'
+import {
+	recordEditorBaseline,
+	recordEditorChanges,
+	recordEditorPatch
+} from '~/utils/metadataEditor'
 import type { LibraryCoverChange } from '~~/shared/types/library'
 import { Separator } from '../ui/separator'
 
 const records = useWorkbenchRecordsStore()
 const recordDetails = useWorkbenchRecordDetailsStore()
+const runtime = useWorkbenchRuntime()
 
 const dialogOpen = computed({
 	get: () => !!recordDetails.selectedRecordId,
@@ -58,6 +64,57 @@ const [yearValue] = form.defineField('year')
 const [coverValue] = form.defineField('cover')
 
 const artists = ref<DiscogsArtistDb[]>([])
+const editBaseline = shallowRef<ReturnType<typeof recordEditorBaseline> | null>(
+	null
+)
+const editConflict = shallowRef<{
+	latest: ReturnType<typeof recordEditorBaseline> | null
+} | null>(null)
+const conflictChanges = computed(() =>
+	editBaseline.value && editConflict.value?.latest
+		? recordEditorChanges(
+				editBaseline.value.payload,
+				editConflict.value.latest.payload
+			)
+		: []
+)
+
+function editorPayload(formValues: {
+	title?: string
+	year?: string
+	cover?: string
+}) {
+	const baseline = editBaseline.value!
+	return {
+		title: (formValues.title || '').trim(),
+		year: formValues.year ? Number(formValues.year) : null,
+		artists: artists.value.map((artist) => ({ ...artist })),
+		cover:
+			(formValues.cover || null) === getCoverFallbackUrl(baseline.payload.cover)
+				? { ...baseline.payload.cover }
+				: formValues.cover
+					? { kind: 'external' as const, url: formValues.cover }
+					: { kind: 'none' as const }
+	}
+}
+
+function reviewLatestRecord() {
+	const latest = editConflict.value?.latest
+	if (!latest || !editBaseline.value) return
+	const edits = recordEditorPatch(
+		editBaseline.value.payload,
+		editorPayload(values)
+	)
+	const reviewed = { ...latest.payload, ...edits }
+	editBaseline.value = latest
+	setValues({
+		title: reviewed.title,
+		year: reviewed.year?.toString() || '',
+		cover: getCoverFallbackUrl(reviewed.cover) || ''
+	})
+	artists.value = reviewed.artists.map((artist) => ({ ...artist }))
+	editConflict.value = null
+}
 const coverEditorRef = ref<{
 	focus: () => Promise<void>
 	getChange: () => LibraryCoverChange
@@ -99,16 +156,19 @@ watch(
 			showUnsavedChangesAlert.value = false
 			resetSubmissionState()
 			resetCoverEditor()
+			editBaseline.value = null
+			editConflict.value = null
 		}
 
 		if (record && isEditMode && !isFormInitialized.value) {
 			resetCoverEditor()
+			editBaseline.value = recordEditorBaseline(record)
 			setValues({
 				title: record.title || '',
 				year: record.year?.toString() || '',
 				cover: getCoverFallbackUrl(record.cover) || ''
 			})
-			artists.value = record.artists || []
+			artists.value = record.artists.map((artist) => ({ ...artist }))
 			isFormInitialized.value = true
 			if (recordDetails.editFocus === 'cover') void focusCoverEditor()
 		} else if (!isEditMode) isFormInitialized.value = false
@@ -124,16 +184,12 @@ function hasFormChanges(): boolean {
 	)
 		return false
 
-	const current = recordDetails.selectedRecord
-	const form = values
-
 	return (
-		(current.title || '') !== (form.title || '') ||
-		(current.year?.toString() || '') !== (form.year || '') ||
-		(getCoverFallbackUrl(current.cover) || '') !== (form.cover || '') ||
-		coverEditorRef.value?.hasPendingChange() === true ||
-		JSON.stringify(current.artists || []) !==
-			JSON.stringify(artists.value || [])
+		!!editBaseline.value &&
+		(Object.keys(
+			recordEditorPatch(editBaseline.value.payload, editorPayload(values))
+		).length > 0 ||
+			coverEditorRef.value?.hasPendingChange() === true)
 	)
 }
 
@@ -155,9 +211,16 @@ function handleToggleEditMode() {
 }
 
 const saveRecord = handleSubmit(async (values) => {
+	if (isSubmitting.value || editConflict.value || !editBaseline.value) return
 	const recordId = recordDetails.selectedRecordId
-	if (!recordId || recordDetails.selectedRecord?.id !== recordId) return
+	if (
+		!recordId ||
+		recordDetails.selectedRecord?.id !== recordId ||
+		editBaseline.value.id !== recordId
+	)
+		return
 	const dialogGeneration = recordDetails.dialogGeneration
+	const context = runtime.capture().context
 	const submissionId = ++nextSubmissionId
 	activeSubmissionId = submissionId
 	isSubmitting.value = true
@@ -166,34 +229,31 @@ const saveRecord = handleSubmit(async (values) => {
 		activeSubmissionId === submissionId &&
 		recordDetails.dialogGeneration === dialogGeneration &&
 		recordDetails.selectedRecordId === recordId &&
-		recordDetails.isEditMode
+		recordDetails.isEditMode &&
+		runtime.isCurrent(context)
 
 	const coverChange = coverEditorRef.value?.getChange() ?? {
 		type: 'keep' as const
 	}
-	const currentFallbackUrl = getCoverFallbackUrl(
-		recordDetails.selectedRecord.cover
+	const updates = recordEditorPatch(
+		editBaseline.value.payload,
+		editorPayload(values)
 	)
-	const shouldUpdateCover =
-		coverChange.type !== 'keep' || (values.cover || null) !== currentFallbackUrl
-	const updates = {
-		title: values.title.trim(),
-		year: values.year ? Number(values.year) : null,
-		artists: artists.value,
-		...(shouldUpdateCover
-			? {
-					cover: values.cover
-						? ({ kind: 'external', url: values.cover } as const)
-						: ({ kind: 'none' } as const)
-				}
-			: {})
-	}
 
 	try {
 		const result = await records.updateRecordWithCover(
 			recordId,
 			updates,
-			coverChange
+			coverChange,
+			{
+				expectedUpdatedAt: editBaseline.value.expectedUpdatedAt,
+				onConflict(latest) {
+					if (ownsActiveEditor())
+						editConflict.value = {
+							latest: latest ? recordEditorBaseline(latest) : null
+						}
+				}
+			}
 		)
 		if (!result || !ownsActiveEditor()) return
 		resetSubmissionState()
@@ -256,11 +316,22 @@ function startCoverEdit(): void {
 				tabindex="-1"
 			>
 				<div class="space-y-6">
+					<NoticeMetadataEditConflict
+						v-if="recordDetails.isEditMode && editConflict"
+						entity="record"
+						:has-latest="!!editConflict.latest"
+						:changes="conflictChanges"
+						@review="reviewLatestRecord"
+					/>
 					<div class="grid gap-4 sm:gap-6 md:grid-cols-[180px_minmax(0,1fr)]">
 						<FormRecordCoverEditor
 							ref="coverEditorRef"
 							v-model="coverValue"
-							:record="recordDetails.selectedRecord ?? null"
+							:record="
+								recordDetails.isEditMode && editBaseline
+									? editBaseline.payload
+									: (recordDetails.selectedRecord ?? null)
+							"
 							:is-edit-mode="recordDetails.isEditMode"
 							:url-error="errors.cover"
 							@start-edit="startCoverEdit"
@@ -355,7 +426,7 @@ function startCoverEdit(): void {
 							Cancel
 						</Button>
 						<ButtonLoading
-							:disabled="!meta.valid"
+							:disabled="!meta.valid || !!editConflict"
 							:loading="isSubmitting"
 							@click="saveRecord"
 						>

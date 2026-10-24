@@ -195,6 +195,167 @@ describe('Cloud library with real local Supabase', () => {
 		expect(await fixture.readTrack()).toMatchObject({ bpm: 141, duration: 180 })
 	})
 
+	it('reconciles record metadata from two browser sessions without losing either editor input or a newer year', async () => {
+		const first = await signedInPage('/records')
+		const second = await signedInPage('/records')
+		expect(first.context()).not.toBe(second.context())
+		for (const page of [first, second]) {
+			await page
+				.getByText('Integration record 1', { exact: true })
+				.first()
+				.dblclick()
+			await page
+				.getByRole('dialog')
+				.getByRole('button', { name: 'Edit Record', exact: true })
+				.click()
+		}
+		const firstDialog = first.getByRole('dialog')
+		const secondDialog = second.getByRole('dialog')
+		await firstDialog
+			.locator('input[name="title"]')
+			.fill('Reviewed record title')
+		await secondDialog.locator('input[name="year"]').fill('2021')
+		await secondDialog
+			.getByRole('button', { name: 'Save Changes', exact: true })
+			.click()
+		const readRecord = async () => {
+			const result = await fixture.client
+				.from('records')
+				.select('*')
+				.eq('id', fixture.records[0]!)
+				.single()
+			expect(result.error).toBeNull()
+			return result.data!
+		}
+		await expect.poll(async () => (await readRecord()).year).toBe(2021)
+		await firstDialog
+			.getByRole('button', { name: 'Save Changes', exact: true })
+			.click()
+		await firstDialog
+			.getByText('This record changed while you were editing.')
+			.waitFor()
+		expect(await firstDialog.locator('input[name="title"]').inputValue()).toBe(
+			'Reviewed record title'
+		)
+		expect(
+			await firstDialog
+				.getByRole('button', { name: 'Save Changes', exact: true })
+				.isDisabled()
+		).toBe(true)
+		expect(await readRecord()).toMatchObject({
+			title: 'Integration record 1',
+			year: 2021
+		})
+		await firstDialog
+			.getByRole('button', { name: 'Keep my edits and review' })
+			.click()
+		expect(await firstDialog.locator('input[name="year"]').inputValue()).toBe(
+			'2021'
+		)
+		await firstDialog
+			.getByRole('button', { name: 'Save Changes', exact: true })
+			.click()
+		await expect
+			.poll(async () => (await readRecord()).title)
+			.toBe('Reviewed record title')
+		expect(await readRecord()).toMatchObject({
+			year: 2021,
+			cover_storage_path: fixture.paths[0]
+		})
+	})
+
+	it('requires deliberate review of a same-field crate conflict while preserving newer notes and membership', async () => {
+		const created = await fixture.client
+			.from('crates')
+			.insert({
+				user_id: fixture.userId,
+				name: 'Concurrent crate',
+				records: []
+			})
+			.select()
+			.single()
+		expect(created.error).toBeNull()
+		const crateId = created.data!.id
+		expect(
+			(
+				await fixture.client.rpc('add_record_to_crate', {
+					target_crate_id: crateId,
+					target_record_id: fixture.records[0]!
+				})
+			).error
+		).toBeNull()
+		const first = await signedInPage('/crates')
+		const second = await signedInPage('/crates')
+		expect(first.context()).not.toBe(second.context())
+		for (const page of [first, second]) {
+			await page.getByRole('button', { name: 'Edit', exact: true }).click()
+			await page
+				.getByRole('dialog')
+				.getByRole('button', { name: 'Edit crate', exact: true })
+				.click()
+		}
+		const firstDialog = first.getByRole('dialog')
+		const secondDialog = second.getByRole('dialog')
+		await firstDialog.locator('input[name="name"]').fill('My reviewed crate')
+		await secondDialog.locator('input[name="name"]').fill('Another editor name')
+		await secondDialog
+			.locator('textarea[name="description"]')
+			.fill('New notes from another editor')
+		await secondDialog
+			.getByRole('button', { name: 'Save', exact: true })
+			.click()
+		const readCrate = async () => {
+			const result = await fixture.client
+				.from('crates')
+				.select('*')
+				.eq('id', crateId)
+				.single()
+			expect(result.error).toBeNull()
+			return result.data!
+		}
+		await expect
+			.poll(async () => (await readCrate()).name)
+			.toBe('Another editor name')
+		expect(
+			(
+				await fixture.client.rpc('add_record_to_crate', {
+					target_crate_id: crateId,
+					target_record_id: fixture.records[1]!
+				})
+			).error
+		).toBeNull()
+		await firstDialog.getByRole('button', { name: 'Save', exact: true }).click()
+		await firstDialog
+			.getByText('This crate changed while you were editing.')
+			.waitFor()
+		expect(await firstDialog.locator('input[name="name"]').inputValue()).toBe(
+			'My reviewed crate'
+		)
+		expect(
+			await firstDialog
+				.getByRole('button', { name: 'Save', exact: true })
+				.isDisabled()
+		).toBe(true)
+		expect(await readCrate()).toMatchObject({
+			name: 'Another editor name',
+			records: fixture.records
+		})
+		await firstDialog
+			.getByRole('button', { name: 'Keep my edits and review' })
+			.click()
+		expect(
+			await firstDialog.locator('textarea[name="description"]').inputValue()
+		).toBe('New notes from another editor')
+		await firstDialog.getByRole('button', { name: 'Save', exact: true }).click()
+		await expect
+			.poll(async () => (await readCrate()).name)
+			.toBe('My reviewed crate')
+		expect(await readCrate()).toMatchObject({
+			description: 'New notes from another editor',
+			records: fixture.records
+		})
+	})
+
 	it('rejects cross-owner updates and removes a deleted record’s cover without changing another account', async () => {
 		const forbidden = await fixture.client
 			.from('tracks')
