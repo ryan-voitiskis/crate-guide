@@ -17,6 +17,7 @@ import {
 	assertRestoreContainer,
 	coverFile,
 	downloadCover,
+	selectRecoveryStorageKey,
 	sha256,
 	sqlLiteral,
 	vaultRestoreSql,
@@ -162,4 +163,25 @@ test('Vault recovery escapes values and binds encryption to the original UUID', 
 	assert.match(sql, /secret''value/)
 	assert.match(sql, /additional:=convert_to\(id::text,'utf8'\)/)
 	assert.match(sql, /WHERE id='original-id'::uuid/)
+})
+
+test('Storage exports prefer revealed secret keys when legacy JWT keys are disabled', () => {
+	const legacy = {
+		name: 'service_role',
+		type: 'legacy',
+		api_key: 'legacy-fixture-key'
+	}
+	const modern = {
+		name: 'default',
+		type: 'secret',
+		api_key: 'sb_secret_fixture'
+	}
+	assert.equal(selectRecoveryStorageKey([legacy, modern]), modern.api_key)
+	assert.equal(selectRecoveryStorageKey([legacy]), legacy.api_key)
+	assert.throws(
+		() => selectRecoveryStorageKey([legacy, { ...modern, api_key: null }]),
+		/unavailable/
+	)
+	assert.throws(() => selectRecoveryStorageKey([]), /unavailable/)
+	assert.throws(() => selectRecoveryStorageKey(null), /invalid/)
 })
