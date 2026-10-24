@@ -1,8 +1,10 @@
 # Record and crate editor concurrency
 
+Historical investigation: the defects below were fixed in [PR #23](https://github.com/ryan-voitiskis/crate-guide/pull/23), merged on 24 October 2026. See [the current conflict contract](metadata-edit-conflicts.md) for the implemented behavior, forward migration and regression evidence. Hosted migration and release evidence must be recorded separately.
+
 Confirmed on 8 September 2026 against the migrated local Supabase stack, using two independently authenticated clients for one disposable account. Source baseline: `845bcb3308a35b4dfe8d4a24a9b10d8de4529b39` (PR #17). The ownership extraction does not change these paths.
 
-## Observed behavior
+## Observed behavior at the September baseline
 
 Both editors can silently overwrite a newer edit from another session. This is a persisted lost update, not merely an optimistic display problem.
 
@@ -24,7 +26,7 @@ The temporary probe asserted both lost updates, advancing record timestamps, pre
 
 To repeat the experiment, create a fixture through `createLocalFixture` in `test/integration/fixtures/localSupabase.ts`; sign a second client into that exact fixture account using the guarded local URL; select an initial row with client A; update the other fields with client B; then submit the metadata fields shown above with client A. Assert persisted values, dispose the fixture in `finally`, and additionally verify no `public.crates` rows remain for the exact fixture user. Do not run this against a hosted project or retain a test asserting lost updates as correct behavior.
 
-## Recommended next implementation
+## Original implementation recommendation
 
 Extend the existing track-editor conflict contract in a separate correctness PR:
 
