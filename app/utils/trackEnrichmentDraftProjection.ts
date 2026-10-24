@@ -1,5 +1,6 @@
 import type {
 	TrackEnrichmentDraft,
+	TrackEnrichmentDraftDecision,
 	TrackEnrichmentDraftPartialOutcome,
 	TrackEnrichmentDraftProposal,
 	TrackEnrichmentDraftUiState,
@@ -43,6 +44,7 @@ export type TrackEnrichmentDraftProjectionInput = {
 	updatedAt: string
 	sourceLabel: string
 	rows: readonly TrackEnrichmentDraftProjectionRow[]
+	previousDecisions?: readonly TrackEnrichmentDraftDecision[]
 	partialOutcomes?: readonly TrackEnrichmentDraftPartialOutcome[]
 	ui: TrackEnrichmentDraftProjectionUiState
 }
@@ -173,6 +175,29 @@ export async function projectTrackEnrichmentDraft(
 		)
 	}
 
+	const completedBindings = new Map(
+		(input.partialOutcomes ?? [])
+			.filter((outcome) => outcome.status === 'succeeded')
+			.map((outcome) => [
+				`${outcome.sourceFingerprint}\n${outcome.targetTrackId}`,
+				outcome.intentKind
+			])
+	)
+	const previousDecisions = new Map<
+		string,
+		Exclude<TrackEnrichmentDraftDecision, { kind: 'unknown' }>
+	>(
+		(input.previousDecisions ?? []).flatMap((decision) =>
+			decision.kind === 'unknown'
+				? []
+				: [
+						[
+							`${decision.sourceBinding.sourceFingerprint}\n${decision.targetBinding.trackId}`,
+							decision
+						] as const
+					]
+		)
+	)
 	const decisions: TrackEnrichmentDraft['decisions'] = []
 	for (const [ordinal, { row, reviewedAt, staged }] of rows.entries()) {
 		const observation = observationSet.observations[ordinal]
@@ -183,6 +208,25 @@ export async function projectTrackEnrichmentDraft(
 		}
 		if (!proposalMatchesRow(row, observation.proposal)) {
 			throw new TrackEnrichmentDraftProjectionError('proposal-mismatch')
+		}
+
+		// A completed row contains the post-write track. Its original approval
+		// remains historical evidence, never a fresh approval for filled fields.
+		if (row.applied) {
+			const binding = `${observation.sourceFingerprint}\n${row.track?.id}`
+			const previous = previousDecisions.get(binding)
+			if (
+				!previous ||
+				completedBindings.get(binding) !== previous.kind ||
+				previous.sourceBinding.observationFingerprint !==
+					observation.observationFingerprint ||
+				(previous.kind === 'fill-empty-fields' &&
+					!proposalMatchesRow(row, previous.proposalBinding))
+			) {
+				throw new TrackEnrichmentDraftProjectionError('review-state-mismatch')
+			}
+			decisions.push({ ...structuredClone(previous), staged: false })
+			continue
 		}
 
 		const canFillBpm =
