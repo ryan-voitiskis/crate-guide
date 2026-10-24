@@ -33,6 +33,11 @@ type CrateMembershipRpc = 'add_record_to_crate' | 'remove_record_from_crate'
 
 type CrateMetadataField = keyof CrateMetadataUpdate
 
+type CrateEditOptions = {
+	expectedUpdatedAt?: string | null
+	onConflict?: (latest: LibraryCrate | null) => void
+}
+
 type OptimisticMetadataField = {
 	token: symbol
 	value: LibraryCrate[CrateMetadataField]
@@ -62,6 +67,7 @@ export const useCratesStore = defineStore('crates', () => {
 	const isUpdatingCrate = ref(false)
 	const isDeletingCrate = ref(false)
 	let fetchPromise: Promise<boolean> | null = null
+	let freshFetchPromise: Promise<boolean> | null = null
 	let accountGeneration = 0
 	let activeFetchContext: AccountContext | null = null
 	let activeCreateOperations = 0
@@ -402,7 +408,21 @@ export const useCratesStore = defineStore('crates', () => {
 		}
 	}
 
-	function fetchAllCrates(): Promise<boolean> {
+	function fetchAllCrates(options: { fresh?: boolean } = {}): Promise<boolean> {
+		if (options.fresh) {
+			if (freshFetchPromise) return freshFetchPromise
+			const generation = accountGeneration
+			const priorFetch = fetchPromise
+			const createdFreshPromise = (async () => {
+				if (priorFetch) await priorFetch
+				if (generation !== accountGeneration) return false
+				return await (fetchPromise ?? fetchAllCrates())
+			})().finally(() => {
+				if (freshFetchPromise === createdFreshPromise) freshFetchPromise = null
+			})
+			freshFetchPromise = createdFreshPromise
+			return createdFreshPromise
+		}
 		if (fetchPromise) return fetchPromise
 
 		const createdPromise = performFetchAllCrates(accountGeneration).finally(
@@ -459,7 +479,8 @@ export const useCratesStore = defineStore('crates', () => {
 
 	async function updateCrate(
 		id: string,
-		updates: CrateMetadataUpdate
+		updates: CrateMetadataUpdate,
+		options: CrateEditOptions = {}
 	): Promise<LibraryCrate | null> {
 		if (isReadOnlyWorkbench()) return null
 		const crateIndex = crates.value.findIndex((c: LibraryCrate) => c.id === id)
@@ -587,9 +608,34 @@ export const useCratesStore = defineStore('crates', () => {
 			if (!repositories) return null
 			const outcome = await repositories.crates.updateMetadata(context, {
 				id,
-				updates
+				updates,
+				expectedUpdatedAt: options.expectedUpdatedAt
 			})
 			if (!isCurrentAccountContext(context) || outcome.status === 'stale') {
+				return null
+			}
+			if (
+				outcome.status === 'conflict' &&
+				outcome.reason === 'precondition-failed'
+			) {
+				if (wasInvalidatedByLifecycle(id, crateRevision)) return null
+				rollbackOwnedFields()
+				const refreshed = await fetchAllCrates({ fresh: true })
+				if (
+					!isCurrentAccountContext(context) ||
+					wasInvalidatedByLifecycle(id, crateRevision)
+				)
+					return null
+				if (options.onConflict)
+					options.onConflict(
+						refreshed
+							? (crates.value.find((crate) => crate.id === id) ?? null)
+							: null
+					)
+				else
+					toast.warning(
+						'This crate changed after you started editing. Review its latest values before saving again.'
+					)
 				return null
 			}
 			if (outcome.status !== 'success') {
@@ -875,6 +921,7 @@ export const useCratesStore = defineStore('crates', () => {
 	function clearCrates() {
 		accountGeneration += 1
 		fetchPromise = null
+		freshFetchPromise = null
 		activeFetchContext = null
 		activeCreateOperations = 0
 		activeUpdateOperations = 0

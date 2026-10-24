@@ -99,7 +99,11 @@ export interface RecordsRepository {
 	): RepositoryCommand<LibraryRecord>
 	update(
 		context: WorkspaceOperationContext,
-		input: { id: string; updates: RecordUpdateInput }
+		input: {
+			id: string
+			updates: RecordUpdateInput
+			expectedUpdatedAt?: string | null
+		}
 	): RepositoryCommand<LibraryRecord>
 	updateWithCover(
 		context: WorkspaceOperationContext,
@@ -107,6 +111,7 @@ export interface RecordsRepository {
 			id: string
 			updates: RecordUpdateInput
 			change: LibraryCoverChange
+			expectedUpdatedAt?: string | null
 		}
 	): RepositoryCommand<LibraryRecord>
 	removeFromCollection(
@@ -158,7 +163,11 @@ export interface CratesRepository {
 	): RepositoryCommand<LibraryCrate>
 	updateMetadata(
 		context: WorkspaceOperationContext,
-		input: { id: string; updates: CrateMetadataUpdate }
+		input: {
+			id: string
+			updates: CrateMetadataUpdate
+			expectedUpdatedAt?: string | null
+		}
 	): RepositoryCommand<LibraryCrate>
 	delete(
 		context: WorkspaceOperationContext,

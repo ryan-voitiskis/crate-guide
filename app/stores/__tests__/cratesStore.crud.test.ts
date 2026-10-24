@@ -896,4 +896,83 @@ describe('cratesStore CRUD', () => {
 			}
 		})
 	})
+	it('refreshes a rejected metadata edit without dropping newer membership', async () => {
+		const row = createMockCrate({
+			id: 'crate-cas',
+			name: 'Original',
+			updated_at: '2026-10-24T00:00:00.000001Z'
+		})
+		const latest = createMockCrate({
+			...row,
+			name: 'Remote name',
+			records: ['new-record'],
+			updated_at: '2026-10-24T00:00:00.000002Z'
+		})
+		const store = useCratesStore()
+		store.crates = [row]
+		mockQueryBuilder.maybeSingle.mockResolvedValue({ data: null, error: null })
+		mockQueryBuilder.limit.mockResolvedValue({ data: [latest], error: null })
+		const onConflict = vi.fn()
+		await expect(
+			store.updateCrate(
+				row.id,
+				{ name: 'My name' },
+				{ expectedUpdatedAt: row.updated_at, onConflict }
+			)
+		).resolves.toBeNull()
+		expect(mockQueryBuilder.eq).toHaveBeenCalledWith(
+			'updated_at',
+			row.updated_at
+		)
+		expect(onConflict).toHaveBeenCalledWith(
+			expect.objectContaining({ name: 'Remote name', records: ['new-record'] })
+		)
+		expect(store.crates[0]).toMatchObject({
+			name: 'Remote name',
+			records: ['new-record']
+		})
+		expect(mockToast.success).not.toHaveBeenCalled()
+	})
+	it('starts a post-conflict traversal instead of sharing a pre-save crate fetch', async () => {
+		const original = createMockCrate({
+			id: 'crate-fresh-conflict',
+			updated_at: '2026-10-24T00:00:00.000001Z'
+		})
+		const latest = createMockCrate({
+			...original,
+			name: 'Latest metadata',
+			records: ['new-member'],
+			updated_at: '2026-10-24T00:00:00.000002Z'
+		})
+		const store = useCratesStore()
+		store.crates = [original]
+		const earlier = createDeferred<{ data: (typeof original)[]; error: null }>()
+		mockQueryBuilder.limit
+			.mockReturnValueOnce(earlier.promise)
+			.mockResolvedValueOnce({ data: [latest], error: null })
+		const earlierFetch = store.fetchAllCrates()
+		await vi.waitFor(() =>
+			expect(mockQueryBuilder.limit).toHaveBeenCalledOnce()
+		)
+		const onConflict = vi.fn()
+		mockQueryBuilder.maybeSingle.mockResolvedValue({ data: null, error: null })
+		const pending = store.updateCrate(
+			original.id,
+			{ name: 'Local' },
+			{ expectedUpdatedAt: original.updated_at, onConflict }
+		)
+		await vi.waitFor(() =>
+			expect(mockQueryBuilder.maybeSingle).toHaveBeenCalledOnce()
+		)
+		earlier.resolve({ data: [original], error: null })
+		await earlierFetch
+		await expect(pending).resolves.toBeNull()
+		expect(mockQueryBuilder.limit).toHaveBeenCalledTimes(2)
+		expect(onConflict).toHaveBeenCalledWith(
+			expect.objectContaining({
+				name: 'Latest metadata',
+				records: ['new-member']
+			})
+		)
+	})
 })

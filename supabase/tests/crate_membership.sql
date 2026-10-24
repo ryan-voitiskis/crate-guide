@@ -73,10 +73,6 @@ SELECT is(
 		INNER JOIN (
 			VALUES
 				(
-					'public.records'::regclass,
-					'records_update_updated_at_trigger'
-				),
-				(
 					'public.sets'::regclass,
 					'sets_update_updated_at_trigger'
 				)
@@ -86,8 +82,8 @@ SELECT is(
 		WHERE trigger.tgfoid = 'public.update_updated_at_column()'::regprocedure
 			AND NOT trigger.tgisinternal
 	),
-	2::BIGINT,
-	'record and saved-set timestamp triggers still use the shared trigger function'
+	1::BIGINT,
+	'the saved-set timestamp trigger still uses the shared trigger function'
 );
 SELECT is(
 	(

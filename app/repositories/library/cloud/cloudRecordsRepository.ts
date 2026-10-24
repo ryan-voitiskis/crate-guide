@@ -145,6 +145,7 @@ export function createCloudRecordsRepository(
 		lease: CloudOperationLease,
 		id: string,
 		updates: RecordUpdateInput & { cover_storage_path?: string | null },
+		expectedUpdatedAt?: string | null,
 		onResponseFailure?: () => Promise<void>
 	): Promise<
 		| {
@@ -163,13 +164,22 @@ export function createCloudRecordsRepository(
 			error: unknown
 		}
 		try {
-			response = await dependencies.supabase
+			let query = dependencies.supabase
 				.from('records')
 				.update(payload)
 				.eq('id', id)
 				.eq('user_id', lease.userId)
-				.select()
-				.single()
+			if (expectedUpdatedAt !== undefined) {
+				query =
+					expectedUpdatedAt === null
+						? query.is('updated_at', null)
+						: query.eq('updated_at', expectedUpdatedAt)
+			}
+			const selected = query.select()
+			response =
+				expectedUpdatedAt === undefined
+					? await selected.single()
+					: await selected.maybeSingle()
 		} catch (error) {
 			await onResponseFailure?.()
 			throw error
@@ -181,7 +191,12 @@ export function createCloudRecordsRepository(
 			await onResponseFailure?.()
 			return state.transportFailure(error)
 		}
+		if (!data && expectedUpdatedAt !== undefined) {
+			await onResponseFailure?.()
+			return { status: 'conflict', reason: 'precondition-failed' }
+		}
 		if (!data || data.user_id !== lease.userId || data.id !== id) {
+			await onResponseFailure?.()
 			return { status: 'conflict', reason: 'integrity' }
 		}
 		const decoded = decodeLibraryRecordRow(data)
@@ -373,11 +388,11 @@ export function createCloudRecordsRepository(
 			})
 		},
 
-		async update(context, { id, updates }) {
+		async update(context, { id, updates, expectedUpdatedAt }) {
 			const captured = await state.capture(context)
 			if (!state.isLease(captured)) return captured
 			try {
-				const result = await updateRaw(captured, id, updates)
+				const result = await updateRaw(captured, id, updates, expectedUpdatedAt)
 				if ('status' in result) return result
 				return state.complete(captured, result.record, {
 					issues: result.issues,
@@ -390,9 +405,9 @@ export function createCloudRecordsRepository(
 			}
 		},
 
-		async updateWithCover(context, { id, updates, change }) {
+		async updateWithCover(context, { id, updates, change, expectedUpdatedAt }) {
 			if (change.type === 'keep') {
-				return repository.update(context, { id, updates })
+				return repository.update(context, { id, updates, expectedUpdatedAt })
 			}
 			const captured = await state.capture(context)
 			if (!state.isLease(captured)) return captured
@@ -401,6 +416,7 @@ export function createCloudRecordsRepository(
 				userId: captured.userId,
 				workspaceContext: captured.context
 			}
+			let persistenceFailure: RepositoryOutcome<never> | undefined
 			const outcome = await coverCoordinator.mutate({
 				context: coverContext,
 				recordId: id,
@@ -410,15 +426,20 @@ export function createCloudRecordsRepository(
 						captured,
 						id,
 						{ ...updates, cover_storage_path: path },
+						expectedUpdatedAt,
 						onResponseFailure
 					)
-					return 'status' in result ? null : result.record
+					if ('status' in result) {
+						persistenceFailure = result
+						return null
+					}
+					return result.record
 				}
 			})
 
 			if (outcome.status === 'stale') return { status: 'stale' }
 			if (outcome.status === 'not-updated') {
-				return { status: 'conflict', reason: 'not-found' }
+				return persistenceFailure ?? { status: 'conflict', reason: 'not-found' }
 			}
 			if (outcome.status === 'failed') {
 				return state.transportFailure(outcome.error)

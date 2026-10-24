@@ -500,7 +500,7 @@ function createRecordsRepository(
 			)
 		},
 
-		update(context, { id, updates }) {
+		update(context, { id, updates, expectedUpdatedAt }) {
 			return state.command(
 				context,
 				{
@@ -521,6 +521,14 @@ function createRecordsRepository(
 					const existing = withoutWorkspaceId(
 						decodeBrowserRecordRow(stored, workspaceId)
 					)
+					if (
+						expectedUpdatedAt !== undefined &&
+						existing.updated_at !== expectedUpdatedAt
+					) {
+						throw new BrowserRepositoryDomainConflictError(
+							'precondition-failed'
+						)
+					}
 					if (
 						updates.cover?.kind === 'browser' &&
 						(existing.cover.kind !== 'browser' ||
@@ -567,10 +575,10 @@ function createRecordsRepository(
 			)
 		},
 
-		async updateWithCover(context, { id, updates, change }) {
+		async updateWithCover(context, { id, updates, change, expectedUpdatedAt }) {
 			if (!state.isCurrentContext(context)) return { status: 'stale' }
 			if (change.type === 'keep') {
-				return this.update(context, { id, updates })
+				return this.update(context, { id, updates, expectedUpdatedAt })
 			}
 
 			let processedCover: Blob | null = null
@@ -618,6 +626,14 @@ function createRecordsRepository(
 					const existing = withoutWorkspaceId(
 						decodeBrowserRecordRow(stored, workspaceId)
 					)
+					if (
+						expectedUpdatedAt !== undefined &&
+						existing.updated_at !== expectedUpdatedAt
+					) {
+						throw new BrowserRepositoryDomainConflictError(
+							'precondition-failed'
+						)
+					}
 					const { cover: _ignoredCover, ...metadataUpdates } = updates
 					const cover: CoverReference =
 						change.type === 'remove'
@@ -1144,7 +1160,7 @@ function createCratesRepository(
 			)
 		},
 
-		updateMetadata(context, { id, updates }) {
+		updateMetadata(context, { id, updates, expectedUpdatedAt }) {
 			return state.command(
 				context,
 				{
@@ -1160,6 +1176,14 @@ function createCratesRepository(
 					const existing = withoutWorkspaceId(
 						decodeBrowserCrateRow(stored, workspaceId)
 					)
+					if (
+						expectedUpdatedAt !== undefined &&
+						existing.updated_at !== expectedUpdatedAt
+					) {
+						throw new BrowserRepositoryDomainConflictError(
+							'precondition-failed'
+						)
+					}
 					const candidate = domainValue(() =>
 						decodeLibraryCrate({
 							...existing,

@@ -840,6 +840,114 @@ describe('browser library repository core contract', () => {
 		})
 	})
 
+	it('rejects stale record/crate metadata and cover writes atomically in the local adapter', async () => {
+		const { repository, context } = await createRepositoryHarness(
+			'metadata-editor-cas',
+			{ processCoverFile: async () => smallCover() }
+		)
+		const dataset = smallDataset()
+		await repository.replaceSnapshot(context, {
+			snapshot: dataset,
+			covers: { 'record-a/cover.webp': smallCover() }
+		})
+		const record = dataset.records[0]!
+		const savedRecord = await repository.records.update(context, {
+			id: record.id,
+			updates: { year: 2021 },
+			expectedUpdatedAt: record.updated_at
+		})
+		expect(savedRecord.status).toBe('success')
+		expect(
+			await repository.records.update(context, {
+				id: record.id,
+				updates: { title: 'Stale title' },
+				expectedUpdatedAt: record.updated_at
+			})
+		).toMatchObject({ status: 'conflict', reason: 'precondition-failed' })
+		expect(
+			await repository.records.updateWithCover(context, {
+				id: record.id,
+				updates: { title: 'Stale cover title' },
+				change: {
+					type: 'upload',
+					file: new File(['cover'], 'cover.png', { type: 'image/png' }),
+					crop: { positionX: 50, positionY: 50 }
+				},
+				expectedUpdatedAt: record.updated_at
+			})
+		).toMatchObject({ status: 'conflict', reason: 'precondition-failed' })
+		const crate = dataset.crates[0]!
+		const savedCrate = await repository.crates.updateMetadata(context, {
+			id: crate.id,
+			updates: { description: 'Remote notes' },
+			expectedUpdatedAt: crate.updated_at
+		})
+		expect(savedCrate.status).toBe('success')
+		expect(
+			await repository.crates.updateMetadata(context, {
+				id: crate.id,
+				updates: { name: 'Stale name' },
+				expectedUpdatedAt: crate.updated_at
+			})
+		).toMatchObject({ status: 'conflict', reason: 'precondition-failed' })
+		const observed = await repository.readLibrarySnapshot(context)
+		expect(observed).toMatchObject({
+			status: 'success',
+			value: {
+				dataset: {
+					records: [
+						expect.objectContaining({
+							title: record.title,
+							year: 2021,
+							cover: record.cover
+						})
+					],
+					crates: [
+						expect.objectContaining({
+							name: crate.name,
+							description: 'Remote notes',
+							records: crate.records
+						})
+					]
+				},
+				managedCovers: [
+					expect.objectContaining({ assetId: 'record-a/cover.webp' })
+				]
+			}
+		})
+		if (
+			observed.status !== 'success' ||
+			savedRecord.status !== 'success' ||
+			savedCrate.status !== 'success'
+		)
+			throw new Error('Expected committed metadata')
+		expect(observed.value.managedCovers).toHaveLength(1)
+		expect(
+			await repository.records.update(context, {
+				id: record.id,
+				updates: { title: 'Reviewed' },
+				expectedUpdatedAt: savedRecord.value.updated_at
+			})
+		).toMatchObject({
+			status: 'success',
+			value: { title: 'Reviewed', year: 2021 }
+		})
+		expect(
+			await repository.crates.updateMetadata(context, {
+				id: crate.id,
+				updates: { name: 'Reviewed' },
+				expectedUpdatedAt: savedCrate.value.updated_at
+			})
+		).toMatchObject({
+			status: 'success',
+			value: {
+				name: 'Reviewed',
+				description: 'Remote notes',
+				records: crate.records
+			}
+		})
+	})
+
 	it('does not advance backup revisions or timestamps for semantic resaves', async () => {
 		const { repository, context } =
 			await createRepositoryHarness('semantic-noops')

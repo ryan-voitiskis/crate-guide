@@ -376,4 +376,65 @@ describe('record details cover inspection', () => {
 			await settleDialog()
 		}
 	)
+	it('keeps typed metadata and the pending cover through conflict review and retries at the latest version', async () => {
+		const { records, firstRecord } = await mountLifecycleDialog()
+		const pending = createDeferred<LibraryRecord | null>()
+		vi.mocked(records.updateRecordWithCover).mockReturnValueOnce(
+			pending.promise
+		)
+		await getBody().get('input[name="title"]').setValue('My edited title')
+		const selection = await chooseFile('my-cover.png')
+		selection.image!.succeed()
+		await settleDialog()
+		await findButton('Save Changes').trigger('click')
+		await vi.waitFor(() =>
+			expect(records.updateRecordWithCover).toHaveBeenCalledOnce()
+		)
+		const latest = {
+			...firstRecord,
+			title: 'Remote title',
+			year: 2021,
+			updated_at: '2026-10-24T00:00:00.000002Z'
+		}
+		const firstCall = vi.mocked(records.updateRecordWithCover).mock.calls[0]!
+		expect(firstCall[3]).toMatchObject({
+			expectedUpdatedAt: firstRecord.updated_at
+		})
+		firstCall[3]!.onConflict!(latest)
+		pending.resolve(null)
+		await settleDialog()
+		expect(getBody().text()).toContain(
+			'This record changed while you were editing.'
+		)
+		expect(getBody().get('input[name="title"]').element).toHaveProperty(
+			'value',
+			'My edited title'
+		)
+		expect(hasImageSource(selection.previewUrl)).toBe(true)
+		expect(findButton('Save Changes').attributes('disabled')).toBeDefined()
+		await findButton('Keep my edits and review').trigger('click')
+		await settleDialog()
+		expect(getBody().get('input[name="year"]').element).toHaveProperty(
+			'value',
+			'2021'
+		)
+		expect(hasImageSource(selection.previewUrl)).toBe(true)
+		vi.mocked(records.updateRecordWithCover).mockResolvedValueOnce({
+			...latest,
+			title: 'My edited title'
+		})
+		await findButton('Save Changes').trigger('click')
+		await vi.waitFor(() =>
+			expect(records.updateRecordWithCover).toHaveBeenCalledTimes(2)
+		)
+		expect(records.updateRecordWithCover).toHaveBeenLastCalledWith(
+			firstRecord.id,
+			{ title: 'My edited title' },
+			expect.objectContaining({
+				type: 'upload',
+				file: firstCall[2].type === 'upload' ? firstCall[2].file : undefined
+			}),
+			expect.objectContaining({ expectedUpdatedAt: latest.updated_at })
+		)
+	})
 })

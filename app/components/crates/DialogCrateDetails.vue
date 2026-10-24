@@ -4,6 +4,11 @@ import { Disc3, Pencil, PencilOff, Plus, Trash2 } from '@lucide/vue'
 import { toTypedFormSchema } from '~/utils/toTypedFormSchema'
 import { useForm } from 'vee-validate'
 import { crateSchema } from '~/utils/schemas/crate'
+import {
+	crateEditorBaseline,
+	crateEditorChanges,
+	crateEditorPatch
+} from '~/utils/metadataEditor'
 import type { LibraryCrate } from '~~/shared/types/library'
 
 const props = defineProps<{
@@ -19,11 +24,22 @@ const emit = defineEmits<{
 
 const records = useWorkbenchRecordsStore()
 const cratesStore = useWorkbenchCratesStore()
+const runtime = useWorkbenchRuntime()
 
 // Edit mode state
 const isEditMode = ref(false)
 const showUnsavedChangesAlert = ref(false)
 const isFormInitialized = ref(false)
+const isSubmitting = ref(false)
+const editBaseline = shallowRef<ReturnType<typeof crateEditorBaseline> | null>(
+	null
+)
+const editConflict = shallowRef<{
+	latest: ReturnType<typeof crateEditorBaseline> | null
+} | null>(null)
+let dialogGeneration = 0
+let nextSubmissionId = 0
+let activeSubmissionId: number | null = null
 
 // Form setup
 const validationSchema = toTypedFormSchema(crateSchema)
@@ -41,6 +57,38 @@ const [nameValue] = form.defineField('name')
 const [descriptionValue] = form.defineField('description')
 
 const colorValue = ref<string | null>(null)
+const conflictChanges = computed(() =>
+	editBaseline.value && editConflict.value?.latest
+		? crateEditorChanges(
+				editBaseline.value.payload,
+				editConflict.value.latest.payload
+			)
+		: []
+)
+
+function editorPayload(formValues: { name?: string; description?: string }) {
+	return {
+		name: (formValues.name || '').trim(),
+		description: formValues.description?.trim() || null,
+		color: colorValue.value
+	}
+}
+
+function reviewLatestCrate() {
+	const latest = editConflict.value?.latest
+	if (!latest || !editBaseline.value) return
+	const edits = crateEditorPatch(
+		editBaseline.value.payload,
+		editorPayload(values)
+	)
+	const reviewed = { ...latest.payload, ...edits }
+	editBaseline.value = latest
+	resetForm({
+		values: { name: reviewed.name, description: reviewed.description || '' }
+	})
+	colorValue.value = reviewed.color
+	editConflict.value = null
+}
 
 const descriptionLength = computed(() => descriptionValue.value?.length || 0)
 
@@ -51,6 +99,8 @@ const crateRecords = computed(() =>
 const recordCount = computed(() => props.crate.records.length)
 
 function initializeFormFromCrate(crate: LibraryCrate) {
+	editBaseline.value = crateEditorBaseline(crate)
+	editConflict.value = null
 	resetForm({
 		values: {
 			name: crate.name,
@@ -74,25 +124,43 @@ watch(
 	{ immediate: true }
 )
 
-// Reset edit mode when dialog closes
 watch(
-	() => props.open,
-	(open) => {
-		if (!open) {
-			isEditMode.value = false
-			isFormInitialized.value = false
-			resetForm()
+	isEditMode,
+	() => {
+		dialogGeneration += 1
+		activeSubmissionId = null
+		isSubmitting.value = false
+		if (!isEditMode.value) {
+			editBaseline.value = null
+			editConflict.value = null
 		}
-	}
+	},
+	{ flush: 'sync' }
+)
+
+// A different selected crate or dialog lifetime cannot inherit a pending save.
+watch(
+	[() => props.open, () => props.crate.id],
+	() => {
+		dialogGeneration += 1
+		activeSubmissionId = null
+		isSubmitting.value = false
+		isEditMode.value = false
+		isFormInitialized.value = false
+		showUnsavedChangesAlert.value = false
+		resetForm()
+	},
+	{ flush: 'sync' }
 )
 
 function hasFormChanges(): boolean {
 	if (!isEditMode.value || !isFormInitialized.value) return false
 
 	return (
-		props.crate.name !== (values.name || '') ||
-		(props.crate.description || '') !== (values.description || '') ||
-		props.crate.color !== colorValue.value
+		!!editBaseline.value &&
+		Object.keys(
+			crateEditorPatch(editBaseline.value.payload, editorPayload(values))
+		).length > 0
 	)
 }
 
@@ -121,18 +189,49 @@ function confirmDiscardAndProceed() {
 }
 
 const saveChanges = handleSubmit(async (formValues) => {
-	const result = await cratesStore.updateCrate(props.crate.id, {
-		name: formValues.name.trim(),
-		description: formValues.description?.trim() || null,
-		color: colorValue.value
-	})
-
-	if (result) {
-		isEditMode.value = false
-		isFormInitialized.value = false
-	} else {
-		await nextTick()
-		initializeFormFromCrate(props.crate)
+	if (
+		isSubmitting.value ||
+		editConflict.value ||
+		!editBaseline.value ||
+		!props.open
+	)
+		return
+	const baseline = editBaseline.value
+	const generation = dialogGeneration
+	const submissionId = ++nextSubmissionId
+	const context = runtime.capture().context
+	activeSubmissionId = submissionId
+	isSubmitting.value = true
+	const ownsActiveEditor = () =>
+		activeSubmissionId === submissionId &&
+		dialogGeneration === generation &&
+		props.open &&
+		props.crate.id === baseline.id &&
+		isEditMode.value &&
+		runtime.isCurrent(context)
+	try {
+		const result = await cratesStore.updateCrate(
+			baseline.id,
+			crateEditorPatch(baseline.payload, editorPayload(formValues)),
+			{
+				expectedUpdatedAt: baseline.expectedUpdatedAt,
+				onConflict(latest) {
+					if (ownsActiveEditor())
+						editConflict.value = {
+							latest: latest ? crateEditorBaseline(latest) : null
+						}
+				}
+			}
+		)
+		if (result && ownsActiveEditor()) {
+			isEditMode.value = false
+			isFormInitialized.value = false
+		}
+	} finally {
+		if (ownsActiveEditor()) {
+			activeSubmissionId = null
+			isSubmitting.value = false
+		}
 	}
 })
 
@@ -252,6 +351,13 @@ function handleInteractOutside(event: Event) {
 						Edit crate details
 					</DialogDescription>
 					<div class="space-y-3">
+						<NoticeMetadataEditConflict
+							v-if="editConflict"
+							entity="crate"
+							:has-latest="!!editConflict.latest"
+							:changes="conflictChanges"
+							@review="reviewLatestCrate"
+						/>
 						<FormItem>
 							<Label for="edit-name">
 								Name
@@ -295,8 +401,8 @@ function handleInteractOutside(event: Event) {
 								<PickerColor v-model="colorValue" />
 							</div>
 							<ButtonLoading
-								:loading="cratesStore.isUpdatingCrate"
-								:disabled="!meta.valid"
+								:loading="isSubmitting"
+								:disabled="!meta.valid || !!editConflict"
 								@click="saveChanges"
 							>
 								Save

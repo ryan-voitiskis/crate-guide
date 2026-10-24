@@ -28,6 +28,11 @@ type LibraryFetchOptions = {
 	fresh?: boolean
 }
 
+type RecordEditOptions = {
+	expectedUpdatedAt?: string | null
+	onConflict?: (latest: LibraryRecord | null) => void
+}
+
 type RecordMutationProvenance = RecordAccountContext & { revision: number } & (
 		{ kind: 'create' | 'update'; row: LibraryRecord } | { kind: 'delete' }
 	)
@@ -437,11 +442,35 @@ export const useRecordsStore = defineStore('records', () => {
 		}
 	}
 
+	async function refreshEditConflict(
+		context: RecordAccountContext,
+		id: string,
+		revision: number,
+		options: RecordEditOptions,
+		rollback: () => void
+	) {
+		if (recordOperationRevisions.get(id) !== revision) return
+		rollback()
+		const refreshed = await fetchAllRecords({ fresh: true })
+		if (
+			!isCurrentAccountContext(context) ||
+			recordOperationRevisions.get(id) !== revision
+		)
+			return
+		if (options.onConflict)
+			options.onConflict(refreshed ? (getRecordById(id) ?? null) : null)
+		else
+			toast.warning(
+				'This record changed after you started editing. Review its latest values before saving again.'
+			)
+	}
+
 	async function updateRecordForContext(
 		context: RecordAccountContext,
 		id: string,
 		updates: RecordUpdateInput,
-		activity: MutationActivityToken = beginMutationActivity('update')
+		activity: MutationActivityToken = beginMutationActivity('update'),
+		options: RecordEditOptions = {}
 	): Promise<LibraryRecord | null> {
 		try {
 			if (!isCurrentAccountContext(context)) return null
@@ -481,9 +510,23 @@ export const useRecordsStore = defineStore('records', () => {
 					if (!repositories) return null
 					const outcome = await repositories.records.update(context, {
 						id,
-						updates
+						updates,
+						expectedUpdatedAt: options.expectedUpdatedAt
 					})
 					if (!isCurrentAccountContext(context) || outcome.status === 'stale') {
+						return null
+					}
+					if (
+						outcome.status === 'conflict' &&
+						outcome.reason === 'precondition-failed'
+					) {
+						await refreshEditConflict(
+							context,
+							id,
+							currentOperationRevision,
+							options,
+							rollbackIfOwned
+						)
 						return null
 					}
 					if (outcome.status !== 'success') {
@@ -534,19 +577,26 @@ export const useRecordsStore = defineStore('records', () => {
 
 	async function updateRecord(
 		id: string,
-		updates: RecordUpdateInput
+		updates: RecordUpdateInput,
+		options: RecordEditOptions = {}
 	): Promise<LibraryRecord | null> {
 		const activity = beginMutationActivity('update')
 		const immediateContext = captureImmediateAccountContext()
 		if (immediateContext) {
-			return updateRecordForContext(immediateContext, id, updates, activity)
+			return updateRecordForContext(
+				immediateContext,
+				id,
+				updates,
+				activity,
+				options
+			)
 		}
 		const context = await resolveMutationContext(activity.generation)
 		if (!context) {
 			finishMutationActivity(activity)
 			return null
 		}
-		return updateRecordForContext(context, id, updates, activity)
+		return updateRecordForContext(context, id, updates, activity, options)
 	}
 
 	async function drainCoverCleanup(
@@ -574,9 +624,10 @@ export const useRecordsStore = defineStore('records', () => {
 	async function updateRecordWithCover(
 		id: string,
 		updates: RecordUpdateInput,
-		coverChange: LibraryCoverChange
+		coverChange: LibraryCoverChange,
+		options: RecordEditOptions = {}
 	): Promise<LibraryRecord | null> {
-		if (coverChange.type === 'keep') return updateRecord(id, updates)
+		if (coverChange.type === 'keep') return updateRecord(id, updates, options)
 
 		const activity = beginMutationActivity('cover')
 		let context: RecordAccountContext | null = null
@@ -605,13 +656,25 @@ export const useRecordsStore = defineStore('records', () => {
 					const currentOperationRevision = nextOperationRevision()
 					recordOperationRevisions.set(id, currentOperationRevision)
 					records.value[currentIndex] = optimisticRecord
+					const rollbackIfOwned = () => {
+						const rollbackIndex = records.value.findIndex(
+							(record) => record.id === id
+						)
+						if (
+							recordOperationRevisions.get(id) === currentOperationRevision &&
+							rollbackIndex !== -1 &&
+							toRaw(records.value[rollbackIndex]) === optimisticRecord
+						)
+							records.value[rollbackIndex] = originalRecord
+					}
 					try {
 						const outcome = await repositories.records.updateWithCover(
 							operationContext,
 							{
 								id,
 								updates,
-								change: coverChange
+								change: coverChange,
+								expectedUpdatedAt: options.expectedUpdatedAt
 							}
 						)
 						if (
@@ -619,6 +682,19 @@ export const useRecordsStore = defineStore('records', () => {
 							outcome.status === 'stale' ||
 							recordOperationRevisions.get(id) !== currentOperationRevision
 						) {
+							return null
+						}
+						if (
+							outcome.status === 'conflict' &&
+							outcome.reason === 'precondition-failed'
+						) {
+							await refreshEditConflict(
+								operationContext,
+								id,
+								currentOperationRevision,
+								options,
+								rollbackIfOwned
+							)
 							return null
 						}
 						if (outcome.status !== 'success') {
