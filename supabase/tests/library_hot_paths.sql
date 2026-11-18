@@ -55,7 +55,8 @@ SELECT is(
 			ON attribute.attrelid = expected.table_oid
 			AND attribute.attname = expected.column_name
 		WHERE NOT trigger.tgisinternal
-			AND trigger.tgattr::INT2[] = ARRAY[attribute.attnum]
+			-- int2vector renders as space-separated column numbers.
+			AND trigger.tgattr::TEXT = attribute.attnum::TEXT
 	),
 	7,
 	'validation triggers fire on insert and on updates of their own column only'
