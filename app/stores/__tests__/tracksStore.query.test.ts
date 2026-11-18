@@ -62,7 +62,7 @@ describe('tracksStore queries', () => {
 			expect(result?.title).toBe('Found Track')
 		})
 
-		it('rebuilds the index after replacement, additions, removals, and reset', () => {
+		it('rebuilds the index whenever the immutable array is replaced', () => {
 			const store = createTracksStore()
 			const original = createMockTrack({ id: 'track-1', title: 'Original' })
 			store.tracks = [original]
@@ -77,10 +77,10 @@ describe('tracksStore queries', () => {
 			expect(store.getTrackById('track-1')?.title).toBe('Replacement')
 
 			const added = createMockTrack({ id: 'track-2' })
-			store.tracks.push(added)
+			store.tracks = [...store.tracks, added]
 			expect(store.getTrackById('track-2')?.id).toBe(added.id)
 
-			store.tracks.splice(0, 1)
+			store.tracks = store.tracks.slice(1)
 			expect(store.getTrackById('track-1')).toBeUndefined()
 
 			store.clearTracks()
@@ -112,7 +112,7 @@ describe('tracksStore queries', () => {
 			expect(result.map((t) => t.id)).toEqual(['track-1', 'track-2'])
 		})
 
-		it('rebuilds grouped indexes after replacement, mutation, and reset', () => {
+		it('rebuilds grouped indexes whenever the immutable array is replaced', () => {
 			const store = createTracksStore()
 			const first = createMockTrack({
 				id: 'track-1',
@@ -138,13 +138,13 @@ describe('tracksStore queries', () => {
 				id: 'track-4',
 				record_id: 'record-2'
 			})
-			store.tracks.push(added)
+			store.tracks = [...store.tracks, added]
 			expect(store.getTracksByRecordId('record-2')).toEqual([
 				replacement,
 				added
 			])
 
-			store.tracks.splice(0, 1)
+			store.tracks = store.tracks.slice(1)
 			expect(store.getTracksByRecordId('record-2')).toEqual([added])
 
 			store.clearTracks()

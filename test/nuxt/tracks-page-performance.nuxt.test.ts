@@ -1,4 +1,4 @@
-import { computed, defineComponent, h, nextTick, reactive } from 'vue'
+import { computed, defineComponent, h, nextTick, shallowReactive } from 'vue'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { type VueWrapper, flushPromises } from '@vue/test-utils'
 import { createMockRecord } from 'test/mocks/fixtures/records'
@@ -210,7 +210,7 @@ describe('tracks page render work', () => {
 			'track-alpha',
 			'track-zebra'
 		])
-		expect(pageMocks.records.getRecordById).toHaveBeenCalledTimes(6)
+		expect(pageMocks.records.getRecordById).toHaveBeenCalledTimes(3)
 
 		await wrapper?.get('[data-sort-label="Title"]').trigger('click')
 		await nextTick()
@@ -219,7 +219,7 @@ describe('tracks page render work', () => {
 			'track-middle',
 			'track-zebra'
 		])
-		expect(pageMocks.records.getRecordById).toHaveBeenCalledTimes(9)
+		expect(pageMocks.records.getRecordById).toHaveBeenCalledTimes(3)
 	})
 
 	it('switches to a read-only virtualized Evidence lens without losing the complete filtered set', async () => {
@@ -262,30 +262,51 @@ describe('tracks page render work', () => {
 		}
 	})
 
-	it('re-derives only an edited track in the Evidence lens after an in-place store update', async () => {
-		const reactiveTracks = reactive([...pageMocks.tracks.tracks])
-		pageMocks.tracks.tracks = reactiveTracks
-		await mountTracksPage()
-		await wrapper?.get('[data-testid="track-view-evidence"]').trigger('click')
-		await flushPromises()
-		await vi.waitFor(() => {
-			expect(
-				wrapper?.findComponent({ name: 'ListTrackEvidenceLens' }).exists()
-			).toBe(true)
+	it('re-derives only an edited track in the Evidence lens after a store update', async () => {
+		const originalTracks = pageMocks.tracks
+		const originalFilters = pageMocks.trackFilters
+		// The tracks store publishes a new immutable array for every write.
+		const trackState = shallowReactive({
+			...originalTracks,
+			tracks: [...originalTracks.tracks]
 		})
-		const lens = () => wrapper?.findComponent({ name: 'ListTrackEvidenceLens' })
-		const rowFor = (id: string) =>
-			(lens()?.props('rows') as TrackEvidenceLensRow[]).find(
-				(row) => row.id === id
-			)
-		const untouched = rowFor('track-zebra')
-		expect(rowFor('track-middle')?.current.bpm).not.toBe(126.5)
+		pageMocks.tracks = trackState
+		pageMocks.trackFilters = {
+			...originalFilters,
+			get filteredTracks() {
+				return trackState.tracks
+			}
+		}
+		try {
+			await mountTracksPage()
+			await wrapper?.get('[data-testid="track-view-evidence"]').trigger('click')
+			await flushPromises()
+			await vi.waitFor(() => {
+				expect(
+					wrapper?.findComponent({ name: 'ListTrackEvidenceLens' }).exists()
+				).toBe(true)
+			})
+			const rowFor = (id: string) =>
+				(
+					wrapper
+						?.findComponent({ name: 'ListTrackEvidenceLens' })
+						.props('rows') as TrackEvidenceLensRow[]
+				).find((row) => row.id === id)
+			const untouched = rowFor('track-zebra')
+			expect(untouched).toBeDefined()
+			expect(rowFor('track-middle')?.current.bpm).not.toBe(126.5)
 
-		const index = reactiveTracks.findIndex(({ id }) => id === 'track-middle')
-		reactiveTracks[index] = { ...reactiveTracks[index]!, bpm: 126.5 }
-		await nextTick()
+			const next = [...trackState.tracks]
+			const index = next.findIndex(({ id }) => id === 'track-middle')
+			next[index] = { ...next[index]!, bpm: 126.5 }
+			trackState.tracks = next
+			await nextTick()
 
-		expect(rowFor('track-middle')?.current.bpm).toBe(126.5)
-		expect(rowFor('track-zebra')).toBe(untouched)
+			expect(rowFor('track-middle')?.current.bpm).toBe(126.5)
+			expect(rowFor('track-zebra')).toBe(untouched)
+		} finally {
+			pageMocks.tracks = originalTracks
+			pageMocks.trackFilters = originalFilters
+		}
 	})
 })

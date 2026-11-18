@@ -50,6 +50,21 @@ const density = useState<Density>('workbench-density', () => 'compact')
 const sortKey = ref<TrackSortKey>('artist')
 const sortDirection = ref<LibrarySortDirection>('asc')
 const viewMode = ref<TrackCollectionView>('tracks')
+// Typing updates the input immediately; filtering follows after a short pause.
+const searchInput = ref(trackFilters.searchQuery)
+watchDebounced(
+	searchInput,
+	(query) => {
+		trackFilters.searchQuery = query
+	},
+	{ debounce: 150 }
+)
+watch(
+	() => trackFilters.searchQuery,
+	(query) => {
+		if (query !== searchInput.value) searchInput.value = query
+	}
+)
 
 watchEffect(() => trackFilters.setTrackSource(tracks.tracks))
 
@@ -99,12 +114,22 @@ function keyStyle(track: LibraryTrack) {
 	return { color: getKeyColour(track.key, track.mode) }
 }
 
-const sortedTrackRows = computed<TrackWorkbenchRow[]>(() => {
-	const rows = trackFilters.filteredTracks.map((track) => ({
+// Rows resolve their record once per library change, the full list is sorted
+// once per sort change, and filtering only selects from that sorted list.
+const trackRows = computed<TrackWorkbenchRow[]>(() =>
+	tracks.tracks.map((track) => ({
 		track,
 		record: records.getRecordById(track.record_id) ?? null
 	}))
-	return sortByLibraryKey(rows, getTrackSortValue, sortDirection.value)
+)
+const sortedAllTrackRows = computed(() =>
+	sortByLibraryKey(trackRows.value, getTrackSortValue, sortDirection.value)
+)
+const sortedTrackRows = computed<TrackWorkbenchRow[]>(() => {
+	const filtered = trackFilters.filteredTracks
+	if (filtered === tracks.tracks) return sortedAllTrackRows.value
+	const visible = new Set<LibraryTrack>(filtered)
+	return sortedAllTrackRows.value.filter(({ track }) => visible.has(track))
 })
 
 function getTrackSortValue({
@@ -206,9 +231,10 @@ function editTrack(trackId: string) {
 }
 
 watch(
-	() => trackFilters.filteredTracks,
+	() => (isActive.value ? trackFilters.filteredTracks : null),
 	(filtered) => {
 		if (
+			filtered &&
 			selectedTrackId.value &&
 			!filtered.some((track) => track.id === selectedTrackId.value)
 		)
@@ -232,7 +258,7 @@ watch(
 						class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
 					/>
 					<Input
-						v-model="trackFilters.searchQuery"
+						v-model="searchInput"
 						name="search"
 						placeholder="Search tracks, artists or genres"
 						class="bg-background pr-3 pl-10"

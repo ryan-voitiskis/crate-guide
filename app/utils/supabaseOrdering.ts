@@ -83,19 +83,18 @@ export function postgresTimestampMicroseconds(value: string): bigint | null {
 	return absoluteMilliseconds * 1000n + BigInt(fraction.padEnd(6, '0'))
 }
 
-export function compareCreatedAtDescIdDesc<T extends CreatedAtRow>(
-	left: T,
-	right: T
-): number {
-	const leftCreatedAt =
-		typeof left.created_at === 'string'
-			? postgresTimestampMicroseconds(left.created_at)
-			: null
-	const rightCreatedAt =
-		typeof right.created_at === 'string'
-			? postgresTimestampMicroseconds(right.created_at)
-			: null
+function createdAtKey(row: CreatedAtRow): bigint | null {
+	return typeof row.created_at === 'string'
+		? postgresTimestampMicroseconds(row.created_at)
+		: null
+}
 
+function compareCreatedAtKeysDescIdDesc(
+	leftCreatedAt: bigint | null,
+	leftId: string,
+	rightCreatedAt: bigint | null,
+	rightId: string
+): number {
 	if (leftCreatedAt === null && rightCreatedAt !== null) return 1
 	if (leftCreatedAt !== null && rightCreatedAt === null) return -1
 	if (leftCreatedAt !== null && rightCreatedAt !== null) {
@@ -103,12 +102,35 @@ export function compareCreatedAtDescIdDesc<T extends CreatedAtRow>(
 		if (leftCreatedAt < rightCreatedAt) return 1
 	}
 
-	if (left.id === right.id) return 0
-	return left.id > right.id ? -1 : 1
+	if (leftId === rightId) return 0
+	return leftId > rightId ? -1 : 1
 }
 
+export function compareCreatedAtDescIdDesc<T extends CreatedAtRow>(
+	left: T,
+	right: T
+): number {
+	return compareCreatedAtKeysDescIdDesc(
+		createdAtKey(left),
+		left.id,
+		createdAtKey(right),
+		right.id
+	)
+}
+
+/** Parses each timestamp once instead of twice per comparison. */
 export function sortCreatedAtDescIdDesc<T extends CreatedAtRow>(
 	rows: readonly T[]
 ): T[] {
-	return [...rows].sort(compareCreatedAtDescIdDesc)
+	return rows
+		.map((row) => ({ row, createdAt: createdAtKey(row) }))
+		.sort((left, right) =>
+			compareCreatedAtKeysDescIdDesc(
+				left.createdAt,
+				left.row.id,
+				right.createdAt,
+				right.row.id
+			)
+		)
+		.map(({ row }) => row)
 }

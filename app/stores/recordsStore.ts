@@ -1,7 +1,10 @@
-import { toRaw } from 'vue'
 import { toast } from 'vue-sonner'
 import type { WorkspaceOperationContext } from '~/repositories/library/contracts'
-import { sortCreatedAtDescIdDesc } from '~/utils/supabaseOrdering'
+import { createEntityList, sortedInsertionIndex } from '~/utils/entityList'
+import {
+	compareCreatedAtDescIdDesc,
+	sortCreatedAtDescIdDesc
+} from '~/utils/supabaseOrdering'
 import { reportDecodeIssues } from '~/utils/supabaseRows'
 import {
 	ensureWorkbenchRuntime,
@@ -49,7 +52,8 @@ export const useRecordsStore = defineStore('records', () => {
 	const runtime = getWorkbenchRuntime(pinia) ?? ensureWorkbenchRuntime(pinia!)
 	const tracksStore = useTracksStore(pinia)
 
-	const records = ref<LibraryRecord[]>([])
+	const recordList = createEntityList<LibraryRecord>()
+	const records = recordList.items
 	const isLoadingRecords = ref(false)
 	const isCreatingRecord = ref(false)
 	const isUpdatingRecord = ref(false)
@@ -211,12 +215,33 @@ export const useRecordsStore = defineStore('records', () => {
 	}
 
 	function upsertRecord(record: LibraryRecord): void {
-		const currentIndex = records.value.findIndex(({ id }) => id === record.id)
+		const currentIndex = recordList.indexOf(record.id)
 		if (currentIndex !== -1) {
-			records.value[currentIndex] = record
+			recordList.replaceAt(currentIndex, record)
 			return
 		}
-		records.value = sortCreatedAtDescIdDesc([...records.value, record])
+		recordList.insertAt(
+			sortedInsertionIndex(
+				recordList.current(),
+				record,
+				compareCreatedAtDescIdDesc
+			),
+			record
+		)
+	}
+
+	/** Restores `original` only while the optimistic row is still current. */
+	function rollbackRecord(
+		optimisticRecord: LibraryRecord,
+		originalRecord: LibraryRecord
+	): void {
+		const currentIndex = recordList.indexOf(originalRecord.id)
+		if (
+			currentIndex !== -1 &&
+			recordList.current()[currentIndex] === optimisticRecord
+		) {
+			recordList.replaceAt(currentIndex, originalRecord)
+		}
 	}
 
 	function runSerializedRecordOperation<T>(
@@ -314,10 +339,8 @@ export const useRecordsStore = defineStore('records', () => {
 				return false
 			}
 			reportDecodeIssues(outcome.issues, (message) => toast.warning(message))
-			records.value = reconcileFetchedRecords(
-				context,
-				startingRevision,
-				outcome.value
+			recordList.setAll(
+				reconcileFetchedRecords(context, startingRevision, outcome.value)
 			)
 			return true
 		} catch (error) {
@@ -475,34 +498,24 @@ export const useRecordsStore = defineStore('records', () => {
 		try {
 			if (!isCurrentAccountContext(context)) return null
 			return await runSerializedRecordOperation(context, id, null, async () => {
-				const recordIndex = records.value.findIndex(
-					(record) => record.id === id
-				)
+				const recordIndex = recordList.indexOf(id)
 				if (recordIndex === -1) {
 					toast.error('Record not found.')
 					return null
 				}
 
-				const originalRecord = records.value[recordIndex]!
+				const originalRecord = recordList.current()[recordIndex]!
 				const optimisticRecord = {
 					...originalRecord,
 					...updates
 				} as LibraryRecord
 				const currentOperationRevision = nextOperationRevision()
 				recordOperationRevisions.set(id, currentOperationRevision)
-				records.value[recordIndex] = optimisticRecord
+				recordList.replaceAt(recordIndex, optimisticRecord)
 
 				const rollbackIfOwned = () => {
-					const currentIndex = records.value.findIndex(
-						(record) => record.id === id
-					)
-					if (
-						recordOperationRevisions.get(id) === currentOperationRevision &&
-						currentIndex !== -1 &&
-						toRaw(records.value[currentIndex]) === optimisticRecord
-					) {
-						records.value[currentIndex] = originalRecord
-					}
+					if (recordOperationRevisions.get(id) === currentOperationRevision)
+						rollbackRecord(optimisticRecord, originalRecord)
 				}
 
 				try {
@@ -647,25 +660,16 @@ export const useRecordsStore = defineStore('records', () => {
 				id,
 				null,
 				async () => {
-					const currentIndex = records.value.findIndex(
-						(record) => record.id === id
-					)
+					const currentIndex = recordList.indexOf(id)
 					if (currentIndex === -1) return null
-					const originalRecord = records.value[currentIndex]!
+					const originalRecord = recordList.current()[currentIndex]!
 					const optimisticRecord = { ...originalRecord, ...updates }
 					const currentOperationRevision = nextOperationRevision()
 					recordOperationRevisions.set(id, currentOperationRevision)
-					records.value[currentIndex] = optimisticRecord
+					recordList.replaceAt(currentIndex, optimisticRecord)
 					const rollbackIfOwned = () => {
-						const rollbackIndex = records.value.findIndex(
-							(record) => record.id === id
-						)
-						if (
-							recordOperationRevisions.get(id) === currentOperationRevision &&
-							rollbackIndex !== -1 &&
-							toRaw(records.value[rollbackIndex]) === optimisticRecord
-						)
-							records.value[rollbackIndex] = originalRecord
+						if (recordOperationRevisions.get(id) === currentOperationRevision)
+							rollbackRecord(optimisticRecord, originalRecord)
 					}
 					try {
 						const outcome = await repositories.records.updateWithCover(
@@ -725,15 +729,7 @@ export const useRecordsStore = defineStore('records', () => {
 							isCurrentAccountContext(operationContext) &&
 							recordOperationRevisions.get(id) === currentOperationRevision
 						) {
-							const rollbackIndex = records.value.findIndex(
-								(record) => record.id === id
-							)
-							if (
-								rollbackIndex !== -1 &&
-								toRaw(records.value[rollbackIndex]) === optimisticRecord
-							) {
-								records.value[rollbackIndex] = originalRecord
-							}
+							rollbackRecord(optimisticRecord, originalRecord)
 						}
 						throw error
 					} finally {
@@ -810,7 +806,8 @@ export const useRecordsStore = defineStore('records', () => {
 						}
 
 						recordCommittedMutation(id, operationContext, { kind: 'delete' })
-						records.value = records.value.filter((record) => record.id !== id)
+						const committedIndex = recordList.indexOf(id)
+						if (committedIndex !== -1) recordList.removeAt(committedIndex)
 						await drainCoverCleanup({ fresh: true, context: operationContext })
 						if (!isCurrentAccountContext(operationContext)) return false
 
@@ -875,7 +872,7 @@ export const useRecordsStore = defineStore('records', () => {
 			setMutationActivity(activity, false)
 		}
 		isLoadingRecords.value = false
-		records.value = []
+		recordList.setAll([])
 		searchQuery.value = ''
 	}
 
