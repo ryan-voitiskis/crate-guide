@@ -20,11 +20,8 @@ import type {
 	BrowserWorkflowDraftEntry,
 	BrowserWorkspaceIdentity
 } from '~/repositories/deviceDrafts/contracts'
-import type {
-	TrackEnrichmentDraft,
-	TrackEnrichmentDraftDecision,
-	TrackEnrichmentDraftPartialOutcome
-} from '~/types/trackEnrichmentDraft'
+import type { TrackEnrichmentDraft } from '~/types/trackEnrichmentDraft'
+import { createTrackEnrichmentDraftBinding } from '~/utils/trackEnrichmentDraftBinding'
 import { encodeTrackEnrichmentDraftContentSignature } from '~/utils/trackEnrichmentDraftCodec'
 import { createTrackEnrichmentDraftObservationFingerprintCache } from '~/utils/trackEnrichmentDraftFingerprint'
 import { hydrateTrackEnrichmentDraft } from '~/utils/trackEnrichmentDraftHydration'
@@ -158,18 +155,15 @@ export function useTrackEnrichmentDraftSession(
 	const recoveryMessage = ref<string | null>(null)
 	const sessionRevision = ref(0)
 	const ownerToken = randomUUID()
+	const binding = createTrackEnrichmentDraftBinding({
+		hasUnsavedChanges,
+		saveState
+	})
 
 	let repository: BrowserDeviceDraftRepository | null = null
 	let unsubscribe: (() => void) | null = null
 	let deviceRevision = 0
-	let persistedDraft: BrowserWorkflowDraft | null = null
-	let partialOutcomes: TrackEnrichmentDraftPartialOutcome[] = []
-	let attemptedDecisions: readonly TrackEnrichmentDraftDecision[] | null = null
 	let replacementTarget: ReplacementTarget | null = null
-	let draftId: string | null = null
-	let draftCreatedAt: string | null = null
-	let dirtyRevision = 0
-	let persistedDirtyRevision = 0
 	let lastIssuedTimestamp = 0
 	let lifecycleGeneration = 0
 	let suppressAutosave = false
@@ -232,11 +226,23 @@ export function useTrackEnrichmentDraftSession(
 			activeEntry.value?.draft.metadata.id === ownership.draftId
 		)
 	})
-	const isReadOnly = computed(
-		() =>
+	// The single source of review read-only state, injected into the workflow.
+	// An open review is locked while a resume, takeover, or destructive
+	// transition settles, after its draft was deleted elsewhere, and whenever a
+	// stored draft exists that this tab neither owns nor is replacing.
+	const isReadOnly = computed(() => {
+		void sessionRevision.value
+		return (
 			workflow.rows.value.length > 0 &&
-			(isDraftMissingConflict.value || (hasDraft.value && !isOwned.value))
-	)
+			(isHydrating.value ||
+				isTakingOver.value ||
+				isTransitioning.value ||
+				isDraftMissingConflict.value ||
+				(activeEntry.value !== null &&
+					ownership.lease === null &&
+					replacementTarget === null))
+		)
+	})
 	const isSourceBlockedByDraft = computed(() => {
 		void sessionRevision.value
 		return (
@@ -357,7 +363,6 @@ export function useTrackEnrichmentDraftSession(
 		isTransitioning.value = true
 		const transitionRevision = ++destructiveTransitionRevision
 		const isCurrentSessionOperation = beginSessionOperation()
-		workflow.setReviewReadOnly(workflow.rows.value.length > 0)
 		return {
 			isCurrentOperation: () =>
 				isCurrentSessionOperation() &&
@@ -367,13 +372,13 @@ export function useTrackEnrichmentDraftSession(
 				if (transitionRevision !== destructiveTransitionRevision) return
 				destructiveTransitionActive = false
 				isTransitioning.value = false
-				if (workflow.rows.value.length > 0) {
-					workflow.setReviewReadOnly(
-						isDraftMissingConflict.value || !ownership.lease
-					)
-				}
 			}
 		}
+	}
+
+	function setReplacementTarget(target: ReplacementTarget | null) {
+		replacementTarget = target
+		sessionRevision.value += 1
 	}
 
 	function clearSaveTimer() {
@@ -384,19 +389,12 @@ export function useTrackEnrichmentDraftSession(
 
 	function resetOwnership() {
 		ownership.reset()
-		workflow.setReviewReadOnly(workflow.rows.value.length > 0)
 	}
 
 	function setClaimed(claimed: BrowserClaimedDraft) {
 		ownership.accept(claimed.draft.id, claimed.lease)
-		persistedDraft = claimed.draft
+		binding.bindStored(claimed.draft)
 		observeTimestamp(claimed.draft.updatedAt)
-		draftId = claimed.draft.id
-		draftCreatedAt = claimed.draft.payload.createdAt
-		partialOutcomes = claimed.draft.payload.partialOutcomes.map((outcome) =>
-			structuredClone(outcome)
-		)
-		workflow.setReviewReadOnly(false)
 		ownership.startRenewing()
 	}
 
@@ -405,13 +403,8 @@ export function useTrackEnrichmentDraftSession(
 		if (!entry) {
 			discoveryState.value = 'none'
 			lastSavedAt.value = null
-			persistedDraft = null
-			if (!replacementTarget) {
-				draftId = null
-				draftCreatedAt = null
-				partialOutcomes = []
-				attemptedDecisions = null
-			}
+			binding.persistedDraft = null
+			if (!replacementTarget) binding.forgetDraft()
 			resetOwnership()
 			return
 		}
@@ -419,18 +412,10 @@ export function useTrackEnrichmentDraftSession(
 		lastSavedAt.value = entry.draft.metadata.updatedAt
 		observeTimestamp(entry.draft.metadata.updatedAt)
 		if (entry.draft.status === 'ready') {
-			persistedDraft = entry.draft.draft
-			draftId = entry.draft.draft.id
-			draftCreatedAt = entry.draft.draft.payload.createdAt
-			partialOutcomes = entry.draft.draft.payload.partialOutcomes.map(
-				(outcome) => structuredClone(outcome)
-			)
+			binding.bindStored(entry.draft.draft)
 		} else {
-			persistedDraft = null
-			draftId = entry.draft.metadata.id
-			draftCreatedAt = null
-			partialOutcomes = []
-			attemptedDecisions = null
+			binding.forgetDraft()
+			binding.draftId = entry.draft.metadata.id
 		}
 	}
 
@@ -474,28 +459,22 @@ export function useTrackEnrichmentDraftSession(
 					(workflow.rows.value.length > 0 || hasUnsavedChanges.value)
 				) {
 					clearSaveTimer()
-					replacementTarget = null
+					setReplacementTarget(null)
 					activeEntry.value = null
-					persistedDraft = null
-					draftId = null
-					draftCreatedAt = null
+					binding.persistedDraft = null
+					binding.draftId = null
+					binding.draftCreatedAt = null
 					lastSavedAt.value = null
 					discoveryState.value = 'none'
 					resetOwnership()
 					isDraftMissingConflict.value = true
-					if (!hasUnsavedChanges.value) dirtyRevision += 1
-					hasUnsavedChanges.value = true
-					saveState.value = 'failed'
+					binding.markFailedDirty()
 					saveErrorCode.value = 'conflict'
 					recoveryMessage.value =
 						'This saved review was deleted in another tab. Start fresh to continue; no review was recreated.'
-					workflow.setReviewReadOnly(true)
 					return
 				}
-				if (isDraftMissingConflict.value) {
-					workflow.setReviewReadOnly(workflow.rows.value.length > 0)
-					return
-				}
+				if (isDraftMissingConflict.value) return
 				const currentOwnedRevision = ownership.lease?.leaseRevision ?? null
 				const observedRevision = observedLeaseRevision(entry)
 				if (
@@ -513,12 +492,13 @@ export function useTrackEnrichmentDraftSession(
 				const preserveDirtyOwnedProjection = Boolean(
 					hasUnsavedChanges.value &&
 					entry?.draft.status === 'ready' &&
-					persistedDraft &&
+					binding.persistedDraft &&
 					ownership.draftId === entry.draft.metadata.id &&
 					ownership.lease &&
 					observedRevision === ownership.lease.leaseRevision &&
-					persistedDraft.id === entry.draft.metadata.id &&
-					persistedDraft.draftRevision === entry.draft.metadata.draftRevision
+					binding.persistedDraft.id === entry.draft.metadata.id &&
+					binding.persistedDraft.draftRevision ===
+						entry.draft.metadata.draftRevision
 				)
 				if (preserveDirtyOwnedProjection && entry) {
 					activeEntry.value = entry
@@ -527,9 +507,6 @@ export function useTrackEnrichmentDraftSession(
 					observeTimestamp(entry.draft.metadata.updatedAt)
 				} else {
 					setActiveEntry(entry)
-				}
-				if (workflow.rows.value.length > 0) {
-					workflow.setReviewReadOnly(!ownership.lease)
 				}
 			} catch (error) {
 				if (
@@ -543,11 +520,7 @@ export function useTrackEnrichmentDraftSession(
 				recoveryMessage.value =
 					'Device-local draft storage is unavailable in this browser.'
 				saveErrorCode.value = errorCode(error)
-				if (workflow.rows.value.length > 0) {
-					if (!hasUnsavedChanges.value) dirtyRevision += 1
-					hasUnsavedChanges.value = true
-					saveState.value = 'failed'
-				}
+				if (workflow.rows.value.length > 0) binding.markFailedDirty()
 			}
 		})().finally(() => {
 			if (refreshPromise === created) refreshPromise = null
@@ -567,13 +540,16 @@ export function useTrackEnrichmentDraftSession(
 		unsubscribe?.()
 		unsubscribe = null
 		const preDrainDraftId =
-			ownership.draftId ?? draftId ?? persistedDraft?.id ?? null
+			ownership.draftId ?? binding.draftId ?? binding.persistedDraft?.id ?? null
 		ownership.reset()
 		try {
 			await outgoingSave
 			await drainMutationQueue(outgoingQueue)
 			const currentDraftId =
-				ownership.draftId ?? draftId ?? persistedDraft?.id ?? preDrainDraftId
+				ownership.draftId ??
+				binding.draftId ??
+				binding.persistedDraft?.id ??
+				preDrainDraftId
 			ownership.stopRenewing()
 			if (ownership.lease || ownership.draftId) ownership.reset()
 			if (currentDraftId) {
@@ -612,19 +588,13 @@ export function useTrackEnrichmentDraftSession(
 		savePromise = null
 		mutationQueue = { tail: Promise.resolve() }
 		deviceRevision = 0
-		dirtyRevision = 0
-		persistedDirtyRevision = 0
+		binding.reset()
 		hasUnsavedChanges.value = false
 		saveState.value = 'idle'
 		saveErrorCode.value = null
 		reviewedAtByRowId.clear()
-		replacementTarget = null
+		setReplacementTarget(null)
 		activeEntry.value = null
-		persistedDraft = null
-		draftId = null
-		draftCreatedAt = null
-		partialOutcomes = []
-		attemptedDecisions = null
 		lastSavedAt.value = null
 		const captured = runtime.capture()
 		const runtimeIdentity = {
@@ -666,11 +636,7 @@ export function useTrackEnrichmentDraftSession(
 			saveErrorCode.value = errorCode(error)
 			recoveryMessage.value =
 				'Device-local draft storage is unavailable in this browser.'
-			if (workflow.rows.value.length > 0) {
-				if (!hasUnsavedChanges.value) dirtyRevision += 1
-				hasUnsavedChanges.value = true
-				saveState.value = 'failed'
-			}
+			if (workflow.rows.value.length > 0) binding.markFailedDirty()
 			return
 		}
 		if (
@@ -731,10 +697,10 @@ export function useTrackEnrichmentDraftSession(
 			throw new Error('Device-local draft storage is unavailable.')
 		}
 		const updatedAt = nextTimestamp()
-		const currentDraftId = draftId ?? randomUUID()
-		const createdAt = draftCreatedAt ?? updatedAt
-		draftId = currentDraftId
-		draftCreatedAt = createdAt
+		const currentDraftId = binding.draftId ?? randomUUID()
+		const createdAt = binding.draftCreatedAt ?? updatedAt
+		binding.draftId = currentDraftId
+		binding.draftCreatedAt = createdAt
 		return await projectTrackEnrichmentDraftWithSignature({
 			id: currentDraftId,
 			workspace: {
@@ -753,8 +719,8 @@ export function useTrackEnrichmentDraftSession(
 				reviewedAt: ensureReviewedAt(row.id, createdAt)
 			})),
 			previousDecisions:
-				attemptedDecisions ?? persistedDraft?.payload.decisions,
-			partialOutcomes,
+				binding.attemptedDecisions ?? binding.persistedDraft?.payload.decisions,
+			partialOutcomes: binding.partialOutcomes,
 			ui: {
 				filter: normalizePersistedFilter(workflow.selectedFilter.value),
 				sortKey: sortKey.value,
@@ -790,16 +756,15 @@ export function useTrackEnrichmentDraftSession(
 			repositoryRuntimeIdentity.repositoryId === captured.context.repositoryId
 		if (!isCurrentOperation()) return
 		if (activeEntry.value && !ownership.lease && !replacementTarget) {
-			workflow.setReviewReadOnly(true)
 			saveState.value = 'failed'
 			saveErrorCode.value = 'conflict'
 			return
 		}
 		saveState.value = 'saving'
 		saveErrorCode.value = null
-		const savingDirtyRevision = dirtyRevision
+		const savingDirtyRevision = binding.dirtyRevision
 		try {
-			const currentRevision = persistedDraft?.draftRevision ?? null
+			const currentRevision = binding.persistedDraft?.draftRevision ?? null
 			const nextRevision = replacementTarget
 				? 0
 				: currentRevision === null
@@ -809,15 +774,16 @@ export function useTrackEnrichmentDraftSession(
 			const payload = projection.draft
 			if (!isCurrentOperation()) return
 			if (
-				persistedDraft &&
+				binding.persistedDraft &&
 				!replacementTarget &&
-				payloadSignature(persistedDraft.payload) === projection.signature
+				payloadSignature(binding.persistedDraft.payload) ===
+					projection.signature
 			) {
-				persistedDirtyRevision = Math.max(
-					persistedDirtyRevision,
+				binding.persistedDirtyRevision = Math.max(
+					binding.persistedDirtyRevision,
 					savingDirtyRevision
 				)
-				const isStable = dirtyRevision === savingDirtyRevision
+				const isStable = binding.dirtyRevision === savingDirtyRevision
 				hasUnsavedChanges.value = !isStable
 				saveState.value = isStable ? 'saved' : 'saving'
 				return
@@ -844,8 +810,8 @@ export function useTrackEnrichmentDraftSession(
 				if (!isCurrentOperation()) return
 				deviceRevision = result.deviceRevision
 				claimed = result.value
-				replacementTarget = null
-			} else if (!persistedDraft) {
+				setReplacementTarget(null)
+			} else if (!binding.persistedDraft) {
 				const result = await currentRepository.createDraftAndClaim(
 					draft,
 					ownerToken,
@@ -858,7 +824,7 @@ export function useTrackEnrichmentDraftSession(
 				if (!ownership.lease) throw new Error('Draft lease is not owned.')
 				const result = await currentRepository.writeDraft(draft, ownerToken, {
 					deviceRevision,
-					draftRevision: persistedDraft.draftRevision,
+					draftRevision: binding.persistedDraft.draftRevision,
 					leaseRevision: ownership.lease.leaseRevision
 				})
 				if (!isCurrentOperation()) return
@@ -885,11 +851,11 @@ export function useTrackEnrichmentDraftSession(
 			}
 			discoveryState.value = 'ready'
 			lastSavedAt.value = claimed.draft.updatedAt
-			persistedDirtyRevision = Math.max(
-				persistedDirtyRevision,
+			binding.persistedDirtyRevision = Math.max(
+				binding.persistedDirtyRevision,
 				savingDirtyRevision
 			)
-			const isStable = dirtyRevision === savingDirtyRevision
+			const isStable = binding.dirtyRevision === savingDirtyRevision
 			hasUnsavedChanges.value = !isStable
 			saveState.value = isStable ? 'saved' : 'saving'
 		} catch (error) {
@@ -911,7 +877,7 @@ export function useTrackEnrichmentDraftSession(
 	async function flushSave() {
 		clearSaveTimer()
 		while (hasUnsavedChanges.value) {
-			const persistedBeforeSave = persistedDirtyRevision
+			const persistedBeforeSave = binding.persistedDirtyRevision
 			if (savePromise) {
 				await savePromise
 			} else {
@@ -924,7 +890,7 @@ export function useTrackEnrichmentDraftSession(
 			if (
 				!hasUnsavedChanges.value ||
 				saveState.value === 'failed' ||
-				persistedDirtyRevision === persistedBeforeSave
+				binding.persistedDirtyRevision === persistedBeforeSave
 			) {
 				return
 			}
@@ -940,7 +906,7 @@ export function useTrackEnrichmentDraftSession(
 		) {
 			return
 		}
-		dirtyRevision += 1
+		binding.dirtyRevision += 1
 		hasUnsavedChanges.value = true
 		saveState.value = discoveryState.value === 'failed' ? 'failed' : 'saving'
 		if (!repository && discoveryState.value === 'failed') return
@@ -987,34 +953,24 @@ export function useTrackEnrichmentDraftSession(
 			resumeSummary: hydration.summary,
 			requiresReconnect: storedDraft.payload.source.requiresReconnect
 		})
-		// loadResumedReview resets its normal editable state. Keep the exact
-		// claimed revision locked until hydration has fully committed here.
-		workflow.setReviewReadOnly(true)
+		// The review stays read-only (resume/takeover in progress) until the
+		// exact claimed revision has fully committed here.
 		await nextTick()
 		if (!isExactDraftCurrent()) {
-			if (isCurrentOperation()) {
-				suppressAutosave = false
-				workflow.setReviewReadOnly(true)
-			}
+			if (isCurrentOperation()) suppressAutosave = false
 			return false
 		}
 		suppressAutosave = false
-		const ownsCurrentLease =
-			ownership.draftId === expectedDraftId &&
-			ownership.lease !== null &&
-			activeEntry.value?.lease.status === 'live' &&
-			activeEntry.value.lease.lease.leaseRevision ===
-				ownership.lease.leaseRevision
-		workflow.setReviewReadOnly(!ownsCurrentLease)
-		replacementTarget = null
+		setReplacementTarget(null)
 		sessionRevision.value += 1
-		persistedDraft = storedDraft
-		attemptedDecisions = null
-		partialOutcomes = storedDraft.payload.partialOutcomes.map((outcome) =>
-			structuredClone(outcome)
+		// Identity was bound by setActiveEntry for this exact draft revision.
+		binding.persistedDraft = storedDraft
+		binding.attemptedDecisions = null
+		binding.partialOutcomes = storedDraft.payload.partialOutcomes.map(
+			(outcome) => structuredClone(outcome)
 		)
-		dirtyRevision = 0
-		persistedDirtyRevision = 0
+		binding.dirtyRevision = 0
+		binding.persistedDirtyRevision = 0
 		hasUnsavedChanges.value = false
 		reviewedAtByRowId.clear()
 		for (const [index, hydratedDecision] of hydration.decisions.entries()) {
@@ -1048,7 +1004,6 @@ export function useTrackEnrichmentDraftSession(
 			return false
 		}
 		isHydrating.value = true
-		workflow.setReviewReadOnly(true)
 		recoveryMessage.value = null
 		try {
 			const read = await currentRepository.readDraft(
@@ -1112,7 +1067,6 @@ export function useTrackEnrichmentDraftSession(
 		const leaseRevision = observedLeaseRevision(entry)
 		if (leaseRevision === null) return await resume()
 		isTakingOver.value = true
-		workflow.setReviewReadOnly(true)
 		try {
 			const claimed = await ownership.takeOver(
 				entry.draft.metadata.id,
@@ -1121,7 +1075,7 @@ export function useTrackEnrichmentDraftSession(
 			)
 			if (!claimed || !isCurrentOperation()) return false
 			if (claimed.draft.status === 'ready') {
-				persistedDraft = claimed.draft.draft
+				binding.persistedDraft = claimed.draft.draft
 			}
 			const claimedEntry: BrowserWorkflowDraftEntry = {
 				draft: claimed.draft,
@@ -1208,8 +1162,8 @@ export function useTrackEnrichmentDraftSession(
 				return false
 			}
 			deviceRevision = result.deviceRevision
-			replacementTarget = null
-			persistedDirtyRevision = dirtyRevision
+			setReplacementTarget(null)
+			binding.persistedDirtyRevision = binding.dirtyRevision
 			hasUnsavedChanges.value = false
 			saveState.value = 'idle'
 			setActiveEntry(null)
@@ -1254,14 +1208,8 @@ export function useTrackEnrichmentDraftSession(
 				suppressAutosave = true
 				clearSaveTimer()
 				isDraftMissingConflict.value = false
-				replacementTarget = null
-				persistedDraft = null
-				draftId = null
-				draftCreatedAt = null
-				partialOutcomes = []
-				attemptedDecisions = null
-				dirtyRevision = 0
-				persistedDirtyRevision = 0
+				setReplacementTarget(null)
+				binding.reset()
 				reviewedAtByRowId.clear()
 				hasUnsavedChanges.value = false
 				saveState.value = 'idle'
@@ -1271,7 +1219,6 @@ export function useTrackEnrichmentDraftSession(
 				await nextTick()
 				if (!isCurrentOperation()) return false
 				suppressAutosave = false
-				workflow.setReviewReadOnly(false)
 				await refreshDiscovery()
 				return isCurrentOperation()
 			}
@@ -1294,20 +1241,14 @@ export function useTrackEnrichmentDraftSession(
 			if (!isCurrentOperation()) return false
 			const currentEntry = activeEntry.value
 			if (!currentEntry) return false
-			replacementTarget = {
+			setReplacementTarget({
 				draftId: currentEntry.draft.metadata.id,
 				draftRevision: currentEntry.draft.metadata.draftRevision,
 				observedLeaseRevision:
 					ownership.lease?.leaseRevision ?? observedLeaseRevision(currentEntry)
-			}
+			})
 			sessionRevision.value += 1
-			persistedDraft = null
-			draftId = null
-			draftCreatedAt = null
-			partialOutcomes = []
-			attemptedDecisions = null
-			dirtyRevision = 0
-			persistedDirtyRevision = 0
+			binding.reset()
 			reviewedAtByRowId.clear()
 			hasUnsavedChanges.value = false
 			saveState.value = 'saved'
@@ -1316,7 +1257,6 @@ export function useTrackEnrichmentDraftSession(
 			await nextTick()
 			if (!isCurrentOperation()) return false
 			suppressAutosave = false
-			workflow.setReviewReadOnly(false)
 			return true
 		} finally {
 			transition.finish()
@@ -1392,7 +1332,7 @@ export function useTrackEnrichmentDraftSession(
 		try {
 			await flushSave()
 			if (!isCurrentOperation()) return
-			let base = persistedDraft?.payload ?? null
+			let base = binding.persistedDraft?.payload ?? null
 			if (!base && workflow.rows.value.length > 0) {
 				base = (await projectDraft(0)).draft
 				if (!isCurrentOperation()) return
@@ -1428,7 +1368,7 @@ export function useTrackEnrichmentDraftSession(
 				attemptedAt: attempt.attemptedAt
 			})
 			const byBinding = new Map(
-				partialOutcomes.map((outcome) => [
+				binding.partialOutcomes.map((outcome) => [
 					`${outcome.sourceFingerprint}\n${outcome.targetTrackId}`,
 					outcome
 				])
@@ -1440,17 +1380,15 @@ export function useTrackEnrichmentDraftSession(
 				)
 			}
 			// Keep approval history even when the outcome save runs out of storage.
-			attemptedDecisions = base.decisions
-			partialOutcomes = [...byBinding.values()]
-			dirtyRevision += 1
+			binding.attemptedDecisions = base.decisions
+			binding.partialOutcomes = [...byBinding.values()]
+			binding.dirtyRevision += 1
 			hasUnsavedChanges.value = true
 			saveState.value = 'saving'
 			await flushSave()
 		} catch (error) {
 			if (!isCurrentOperation()) return
-			if (!hasUnsavedChanges.value) dirtyRevision += 1
-			hasUnsavedChanges.value = true
-			saveState.value = 'failed'
+			binding.markFailedDirty()
 			saveErrorCode.value = errorCode(error)
 		}
 	}

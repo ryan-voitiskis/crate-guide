@@ -47,6 +47,9 @@ const density = useState<Density>('workbench-density', () => 'compact')
 let recordDraftApplyAttempt = async (
 	_attempt: TrackEnrichmentApplyAttempt
 ) => {}
+// The draft session owns review read-only state but is created after the
+// workflow it observes; bind it reactively once the session exists.
+const draftReadOnly = shallowRef<() => boolean>(() => false)
 const workflow = useTrackEnrichmentWorkflow({
 	captureApplyGuard: () => {
 		const { context } = runtime.capture()
@@ -54,7 +57,8 @@ const workflow = useTrackEnrichmentWorkflow({
 	},
 	records,
 	tracks,
-	onApplyAttempt: (attempt) => recordDraftApplyAttempt(attempt)
+	onApplyAttempt: (attempt) => recordDraftApplyAttempt(attempt),
+	readOnly: () => draftReadOnly.value()
 })
 const {
 	activeSource,
@@ -165,6 +169,7 @@ const draftSession = useTrackEnrichmentDraftSession({
 	sortDirection: reviewSortDirection
 })
 recordDraftApplyAttempt = draftSession.recordApplyAttempt
+draftReadOnly.value = () => draftSession.isReadOnly.value
 const {
 	activeEntry: activeDraftEntry,
 	discoveryState: draftDiscoveryState,

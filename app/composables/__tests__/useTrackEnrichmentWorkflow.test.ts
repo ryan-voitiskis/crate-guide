@@ -1,4 +1,4 @@
-import { type EffectScope, effectScope, nextTick } from 'vue'
+import { type EffectScope, effectScope, nextTick, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TrackEnrichmentApplyAttempt } from '~/composables/useTrackEnrichmentWorkflow'
@@ -78,6 +78,8 @@ function createWorkflow(options?: {
 	) => Promise<void> | void
 }) {
 	const scope = effectScope()
+	// Stands in for the draft session, which owns review read-only state.
+	const readOnly = ref(false)
 	const workflow = scope.run(() =>
 		useTrackEnrichmentWorkflow({
 			records: mockRecordsStore as unknown as ReturnType<
@@ -85,12 +87,17 @@ function createWorkflow(options?: {
 			>,
 			tracks: mockTracksStore as unknown as ReturnType<typeof useTracksStore>,
 			onApplyAttempt: options?.onApplyAttempt,
-			captureApplyGuard: options?.captureApplyGuard
+			captureApplyGuard: options?.captureApplyGuard,
+			readOnly: () => readOnly.value
 		})
 	)
 	if (!workflow) throw new Error('Failed to create enrichment workflow scope')
 	activeScopes.push(scope)
-	return workflow
+	return Object.assign(workflow, {
+		setReviewReadOnly(value: boolean) {
+			readOnly.value = value
+		}
+	})
 }
 
 function createRecord(overrides: Partial<DatabaseRecord> = {}): DatabaseRecord {

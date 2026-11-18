@@ -98,7 +98,7 @@ export type TrackEnrichmentWorkflow = {
 	changedRowIds: Ref<ReadonlySet<string>>
 	resumeSummary: Ref<TrackEnrichmentDraftResumeSummary | null>
 	requiresSourceReconnect: Ref<boolean>
-	isReviewReadOnly: Ref<boolean>
+	isReviewReadOnly: Readonly<Ref<boolean>>
 	currentStep: ComputedRef<1 | 2 | 3>
 	matchedRows: ComputedRef<TrackEnrichmentRow[]>
 	readyRows: ComputedRef<TrackEnrichmentRow[]>
@@ -132,7 +132,6 @@ export type TrackEnrichmentWorkflow = {
 	selectSource: (source: TrackEnrichmentSourceKind) => void
 	loadPreparedReview: (fileLabel: string, rows: TrackEnrichmentRow[]) => void
 	loadResumedReview: (review: TrackEnrichmentResumedReview) => void
-	setReviewReadOnly: (readOnly: boolean) => void
 	returnToSource: () => void
 	startAnotherSource: () => void
 	setRowStaged: (row: TrackEnrichmentRow, checked: boolean) => void
@@ -151,6 +150,11 @@ export type TrackEnrichmentWorkflowDependencies = {
 	onApplyAttempt?: (
 		attempt: TrackEnrichmentApplyAttempt
 	) => Promise<void> | void
+	/**
+	 * Whether the open review must not be edited or applied (for example while
+	 * another tab owns its device-local draft). Read reactively.
+	 */
+	readOnly?: () => boolean
 }
 
 export function getTrackEnrichmentIntentKind(
@@ -192,7 +196,7 @@ export function useTrackEnrichmentWorkflow(
 	const changedRowIds = shallowRef<ReadonlySet<string>>(new Set())
 	const resumeSummary = ref<TrackEnrichmentDraftResumeSummary | null>(null)
 	const requiresSourceReconnect = ref(false)
-	const isReviewReadOnly = ref(false)
+	const isReviewReadOnly = computed(() => dependencies?.readOnly?.() ?? false)
 	const retryRekordboxFile = shallowRef<File | null>(null)
 	let applyPermissionGeneration = 0
 	function cancelPendingApply() {
@@ -350,7 +354,6 @@ export function useTrackEnrichmentWorkflow(
 		changedRowIds.value = new Set()
 		resumeSummary.value = null
 		requiresSourceReconnect.value = false
-		isReviewReadOnly.value = false
 		showApplyDialog.value = false
 		applyCompleted.value = 0
 		applyTotal.value = 0
@@ -381,10 +384,6 @@ export function useTrackEnrichmentWorkflow(
 				: review.selectedFilter
 	}
 
-	function setReviewReadOnly(readOnly: boolean) {
-		isReviewReadOnly.value = readOnly
-	}
-
 	function resetWorkflow(nextSource?: TrackEnrichmentSourceKind) {
 		activeRekordboxParse?.cancel()
 		activeRekordboxParse = null
@@ -413,7 +412,6 @@ export function useTrackEnrichmentWorkflow(
 		changedRowIds.value = new Set()
 		resumeSummary.value = null
 		requiresSourceReconnect.value = false
-		isReviewReadOnly.value = false
 		workflowView.value = 'source'
 	}
 
@@ -918,7 +916,6 @@ export function useTrackEnrichmentWorkflow(
 		selectSource,
 		loadPreparedReview,
 		loadResumedReview,
-		setReviewReadOnly,
 		returnToSource,
 		startAnotherSource,
 		setRowStaged,
