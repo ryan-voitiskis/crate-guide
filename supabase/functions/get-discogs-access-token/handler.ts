@@ -16,6 +16,12 @@ import {
 import { quotaBoundFetch } from '../_shared/discogs/quotaBoundFetch.ts'
 import { DiscogsQuotaExceededError } from '../_shared/discogs/requestErrors.ts'
 import { generateToken } from '../_shared/generateToken.ts'
+import {
+	discogsRateLimitResponse,
+	jsonResponse,
+	missingAuthorizationResponse,
+	preflightResponse
+} from '../_shared/http.ts'
 import { validateDiscogsCallbackCredentials } from './validateCredentials.ts'
 
 const accessTokenUrl = 'https://api.discogs.com/oauth/access_token'
@@ -39,39 +45,6 @@ const defaultDependencies: HandlerDependencies = {
 	fetchIdentity: fetchAndSetIdentity
 }
 
-function jsonResponse(
-	body: unknown,
-	headers: HeadersInit,
-	status: number,
-	retryAfterMs?: number
-): Response {
-	const responseHeaders = new Headers(headers)
-	if (retryAfterMs !== undefined) {
-		responseHeaders.set('Retry-After', String(Math.ceil(retryAfterMs / 1000)))
-	}
-	return new Response(JSON.stringify(body), {
-		headers: responseHeaders,
-		status
-	})
-}
-
-function rateLimitResponse(
-	headers: HeadersInit,
-	retryAfterMs: number
-): Response {
-	return jsonResponse(
-		{
-			error: 'Discogs is receiving too many requests. Retrying shortly.',
-			code: 'discogs_rate_limited',
-			retryable: true,
-			retry_after_ms: retryAfterMs
-		},
-		headers,
-		429,
-		retryAfterMs
-	)
-}
-
 function identityPendingResponse(
 	headers: HeadersInit,
 	retryAfterMs?: number
@@ -86,7 +59,7 @@ function identityPendingResponse(
 		},
 		headers,
 		retryAfterMs === undefined ? 503 : 429,
-		retryAfterMs
+		{ retryAfterMs }
 	)
 }
 
@@ -95,9 +68,9 @@ export function createDiscogsAccessTokenHandler(
 	dependencies: HandlerDependencies = defaultDependencies
 ): (request: Request) => Promise<Response> {
 	return async (request) => {
-		if (request.method === 'OPTIONS') return new Response('ok', { headers })
+		if (request.method === 'OPTIONS') return preflightResponse(headers)
 		const authHeader = request.headers.get('Authorization')
-		if (!authHeader) return new Response(null, { headers, status: 401 })
+		if (!authHeader) return missingAuthorizationResponse(headers)
 
 		try {
 			let body: unknown
@@ -224,7 +197,7 @@ export function createDiscogsAccessTokenHandler(
 			return jsonResponse({ success: true }, headers, 200)
 		} catch (error) {
 			if (error instanceof DiscogsQuotaExceededError) {
-				return rateLimitResponse(headers, error.retryAfterMs)
+				return discogsRateLimitResponse(headers, error.retryAfterMs)
 			}
 			console.error('Discogs access token handler failed')
 			return jsonResponse(

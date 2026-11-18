@@ -4,6 +4,7 @@ import {
 	type AccountCoverCleanupRepository,
 	createAccountCoverCleanupRepository
 } from '../_shared/accountCoverCleanup.ts'
+import { jsonResponse, preflightResponse } from '../_shared/http.ts'
 import {
 	createAuthedSupabaseClient,
 	createServiceRoleSupabaseClient,
@@ -125,14 +126,6 @@ export function hasRecentAuthentication(
 	return nowSeconds - newestTimestamp <= RECENT_AUTHENTICATION_MAX_AGE_SECONDS
 }
 
-function jsonResponse(
-	body: unknown,
-	headers: HeadersInit,
-	status: number
-): Response {
-	return new Response(JSON.stringify(body), { headers, status })
-}
-
 function normaliseEmail(value: string): string {
 	return value.trim().toLocaleLowerCase('en-US')
 }
@@ -142,7 +135,7 @@ export function createDeleteAccountHandler(
 	dependencies: HandlerDependencies = defaultDependencies
 ): (request: Request) => Promise<Response> {
 	return async (request) => {
-		if (request.method === 'OPTIONS') return new Response('ok', { headers })
+		if (request.method === 'OPTIONS') return preflightResponse(headers)
 		if (request.method !== 'POST') {
 			return jsonResponse(
 				{ error: 'Method not allowed.', code: 'method_not_allowed' },

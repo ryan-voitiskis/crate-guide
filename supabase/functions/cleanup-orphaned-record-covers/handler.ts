@@ -2,6 +2,7 @@ import {
 	type AccountCoverCleanupResult,
 	processNextAccountCoverCleanup
 } from '../_shared/accountCoverCleanup.ts'
+import { jsonResponse } from '../_shared/http.ts'
 import { requireEnv, requireSecretKey } from '../_shared/supabaseHelpers.ts'
 
 export const ACCOUNT_COVER_CLEANUP_SECRET_HEADER =
@@ -19,14 +20,6 @@ const defaultDependencies: HandlerDependencies = {
 	projectSecret: requireSecretKey,
 	compareSecrets: timingSafeSecretEqual,
 	processNext: () => processNextAccountCoverCleanup()
-}
-
-function jsonResponse(
-	body: unknown,
-	headers: HeadersInit,
-	status: number
-): Response {
-	return new Response(JSON.stringify(body), { headers, status })
 }
 
 export async function timingSafeSecretEqual(

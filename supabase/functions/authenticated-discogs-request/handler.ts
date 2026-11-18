@@ -9,6 +9,11 @@ import {
 	DiscogsUpstreamTimeoutError,
 	DiscogsUpstreamTransportError
 } from '../_shared/discogs/requestErrors.ts'
+import {
+	jsonResponse,
+	missingAuthorizationResponse,
+	preflightResponse
+} from '../_shared/http.ts'
 import { getUserProfile } from '../_shared/supabaseHelpers.ts'
 
 const DISCOGS_API_ORIGIN = 'https://api.discogs.com'
@@ -224,24 +229,6 @@ export async function resolveDiscogsRequestUrl(
 	}
 }
 
-function jsonResponse(
-	body: unknown,
-	headers: HeadersInit,
-	status: number,
-	requestId?: string,
-	retryAfterMs?: number
-): Response {
-	const responseHeaders = new Headers(headers)
-	if (requestId) responseHeaders.set('X-Request-ID', requestId)
-	if (retryAfterMs !== undefined) {
-		responseHeaders.set('Retry-After', String(Math.ceil(retryAfterMs / 1000)))
-	}
-	return new Response(JSON.stringify(body), {
-		headers: responseHeaders,
-		status
-	})
-}
-
 function errorResponse(
 	definition: ErrorDefinition,
 	headers: HeadersInit,
@@ -259,8 +246,7 @@ function errorResponse(
 		},
 		headers,
 		status,
-		context.requestId,
-		retryAfterMs
+		{ requestId: context.requestId, retryAfterMs }
 	)
 }
 
@@ -269,10 +255,10 @@ export function createAuthenticatedDiscogsRequestHandler(
 	dependencies: HandlerDependencies = defaultDependencies
 ): (request: Request) => Promise<Response> {
 	return async (request) => {
-		if (request.method === 'OPTIONS') return new Response('ok', { headers })
+		if (request.method === 'OPTIONS') return preflightResponse(headers)
 
 		const authHeader = request.headers.get('Authorization')
-		if (!authHeader) return new Response(null, { headers, status: 401 })
+		if (!authHeader) return missingAuthorizationResponse(headers)
 
 		let context: RequestContext = {
 			requestId: crypto.randomUUID(),
@@ -339,7 +325,9 @@ export function createAuthenticatedDiscogsRequestHandler(
 				return errorResponse(definition, headers, 502, context)
 			}
 
-			return jsonResponse(responseBody, headers, 200, context.requestId)
+			return jsonResponse(responseBody, headers, 200, {
+				requestId: context.requestId
+			})
 		} catch (error) {
 			if (error instanceof RequestValidationError) {
 				return errorResponse(
