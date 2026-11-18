@@ -1,12 +1,11 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { readFile } from 'node:fs/promises'
+import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { format, resolveConfig } from 'prettier'
-import { checkDatabaseTypeParity } from './check-database-type-parity.mjs'
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const trackedTypesPath = 'shared/types/database.ts'
 
 function runSupabaseGenerator(command, args, options) {
 	return spawnSync(command, args, options)
@@ -20,8 +19,7 @@ async function formatGeneratedTypes(source, filepath) {
 export async function checkDatabaseSchemaTypes({
 	commandRunner = runSupabaseGenerator,
 	formatter = formatGeneratedTypes,
-	root = repositoryRoot,
-	temporaryRoot = tmpdir()
+	root = repositoryRoot
 } = {}) {
 	let result
 	try {
@@ -47,22 +45,29 @@ export async function checkDatabaseSchemaTypes({
 		throw new Error('Supabase type generation returned invalid output')
 	}
 
-	const canonicalPath = resolve(root, 'shared/types/database.ts')
-	const generatedContent = await formatter(generatedSource, canonicalPath)
-	const temporaryDirectory = await mkdtemp(
-		join(temporaryRoot, 'crate-guide-schema-types-')
+	const canonicalPath = resolve(root, trackedTypesPath)
+	const generatedContent = Buffer.from(
+		await formatter(generatedSource, canonicalPath)
 	)
-	const generatedPath = join(temporaryDirectory, 'database.ts')
 
+	let trackedContent
 	try {
-		await writeFile(generatedPath, generatedContent, { flag: 'wx' })
-		await checkDatabaseTypeParity({
-			canonicalPath,
-			edgePath: resolve(root, 'supabase/functions/_shared/types/database.ts'),
-			generatedPath
-		})
-	} finally {
-		await rm(temporaryDirectory, { force: true, recursive: true })
+		trackedContent = await readFile(canonicalPath)
+	} catch (error) {
+		throw new Error(
+			`Tracked database types could not be read (${trackedTypesPath})`,
+			{ cause: error }
+		)
+	}
+
+	if (trackedContent.length === 0) {
+		throw new Error(`Tracked database types are empty (${trackedTypesPath})`)
+	}
+
+	if (!trackedContent.equals(generatedContent)) {
+		throw new Error(
+			`Tracked database types differ from the migrated schema (${trackedTypesPath})`
+		)
 	}
 }
 

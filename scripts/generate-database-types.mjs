@@ -7,10 +7,6 @@ import { format, resolveConfig } from 'prettier'
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const defaultCanonicalPath = resolve(repositoryRoot, 'shared/types/database.ts')
-const defaultEdgePath = resolve(
-	repositoryRoot,
-	'supabase/functions/_shared/types/database.ts'
-)
 
 function runSupabaseGenerator(command, args, options) {
 	return spawnSync(command, args, options)
@@ -85,26 +81,6 @@ async function restoreDestination(filepath, originalState, temporaryPaths) {
 	await chmod(filepath, originalState.mode)
 }
 
-async function restoreOriginalStates(destinations, temporaryPaths) {
-	const results = []
-
-	for (const destination of destinations) {
-		try {
-			await restoreDestination(
-				destination.filepath,
-				destination.originalState,
-				temporaryPaths
-			)
-		} catch (error) {
-			results.push(error)
-		}
-	}
-
-	if (results.length > 0) {
-		throw new AggregateError(results, 'Could not restore generated type files')
-	}
-}
-
 async function removeTemporaryFiles(temporaryPaths) {
 	await Promise.all(
 		[...temporaryPaths].map((temporaryPath) =>
@@ -115,22 +91,12 @@ async function removeTemporaryFiles(temporaryPaths) {
 
 export async function generateDatabaseTypes({
 	canonicalPath = defaultCanonicalPath,
-	edgePath = defaultEdgePath,
 	commandRunner = runSupabaseGenerator,
 	formatter = formatWithPrettier,
 	replaceDestination = rename,
 	workingDirectory = repositoryRoot
 } = {}) {
-	if (resolve(canonicalPath) === resolve(edgePath)) {
-		throw new Error('Database type destinations must be different files')
-	}
-
-	const destinations = await Promise.all(
-		[canonicalPath, edgePath].map(async (filepath) => ({
-			filepath,
-			originalState: await readOriginalState(filepath)
-		}))
-	)
+	const originalState = await readOriginalState(canonicalPath)
 	const temporaryPaths = new Set()
 
 	try {
@@ -185,45 +151,28 @@ export async function generateDatabaseTypes({
 			throw new Error('Formatting produced invalid database types')
 		}
 
-		const temporaryFiles = []
-
-		for (const destination of destinations) {
-			temporaryFiles.push(
-				await writeTemporaryFile(
-					destination.filepath,
-					formattedOutput,
-					temporaryPaths,
-					destination.originalState.mode
-				)
-			)
-		}
+		const temporaryFile = await writeTemporaryFile(
+			canonicalPath,
+			formattedOutput,
+			temporaryPaths,
+			originalState.mode
+		)
 
 		try {
-			for (const [index, destination] of destinations.entries()) {
-				await replaceDestination(temporaryFiles[index], destination.filepath)
-				temporaryPaths.delete(temporaryFiles[index])
-			}
-
-			const [canonicalContent, edgeContent] = await Promise.all([
-				readFile(canonicalPath),
-				readFile(edgePath)
-			])
-
-			if (!canonicalContent.equals(edgeContent)) {
-				throw new Error('Generated database type files are not identical')
-			}
+			await replaceDestination(temporaryFile, canonicalPath)
+			temporaryPaths.delete(temporaryFile)
 		} catch (error) {
 			try {
-				await restoreOriginalStates(destinations, temporaryPaths)
+				await restoreDestination(canonicalPath, originalState, temporaryPaths)
 			} catch (restoreError) {
 				throw new Error(
-					'Database type update failed and the original files could not be fully restored',
+					'Database type update failed and the original file could not be restored',
 					{ cause: restoreError }
 				)
 			}
 
 			throw new Error(
-				'Database type update failed; the original files were restored',
+				'Database type update failed; the original file was restored',
 				{ cause: error }
 			)
 		}

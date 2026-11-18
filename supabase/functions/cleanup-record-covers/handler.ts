@@ -1,5 +1,6 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { processNextAccountCoverCleanup } from '../_shared/accountCoverCleanup.ts'
+import { jsonResponse, preflightResponse } from '../_shared/http.ts'
 import {
 	createAuthedSupabaseClient,
 	createServiceRoleSupabaseClient,
@@ -173,14 +174,6 @@ const defaultDependencies: HandlerDependencies = {
 	}
 }
 
-function jsonResponse(
-	body: unknown,
-	headers: HeadersInit,
-	status: number
-): Response {
-	return new Response(JSON.stringify(body), { headers, status })
-}
-
 function isValidManagedJob(job: CleanupJob, userId: string): boolean {
 	if (
 		!Number.isSafeInteger(job.id) ||
@@ -254,7 +247,7 @@ export function createCleanupRecordCoversHandler(
 	dependencies: HandlerDependencies = defaultDependencies
 ): (request: Request) => Promise<Response> {
 	return async (request) => {
-		if (request.method === 'OPTIONS') return new Response('ok', { headers })
+		if (request.method === 'OPTIONS') return preflightResponse(headers)
 		if (request.method !== 'POST') {
 			return jsonResponse(
 				{ error: 'Method not allowed.', code: 'method_not_allowed' },

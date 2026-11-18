@@ -1,9 +1,4 @@
-function percentEncode(value: string) {
-	return encodeURIComponent(value).replace(
-		/[!'()*]/g,
-		(character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`
-	)
-}
+import { encodeOAuthComponent } from './oauthAuthorization.ts'
 
 function bytesToBase64(bytes: Uint8Array) {
 	let binary = ''
@@ -21,7 +16,10 @@ export async function generateOAuthSignature(
 	const normalizedParameters = (
 		Array.isArray(parameters) ? parameters : Object.entries(parameters)
 	)
-		.map(([key, value]) => [percentEncode(key), percentEncode(value)] as const)
+		.map(
+			([key, value]) =>
+				[encodeOAuthComponent(key), encodeOAuthComponent(value)] as const
+		)
 		.sort(([leftKey, leftValue], [rightKey, rightValue]) => {
 			if (leftKey < rightKey) return -1
 			if (leftKey > rightKey) return 1
@@ -33,10 +31,10 @@ export async function generateOAuthSignature(
 		.join('&')
 	const signatureBase = [
 		method.toUpperCase(),
-		percentEncode(baseUrl),
-		percentEncode(normalizedParameters)
+		encodeOAuthComponent(baseUrl),
+		encodeOAuthComponent(normalizedParameters)
 	].join('&')
-	const signingKey = `${percentEncode(consumerSecret)}&${percentEncode(tokenSecret)}`
+	const signingKey = `${encodeOAuthComponent(consumerSecret)}&${encodeOAuthComponent(tokenSecret)}`
 	const cryptoKey = await crypto.subtle.importKey(
 		'raw',
 		new TextEncoder().encode(signingKey),
