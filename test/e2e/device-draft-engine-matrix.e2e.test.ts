@@ -602,7 +602,7 @@ afterAll(async () => {
 	await server?.close()
 })
 
-describe.sequential('device draft repository engine matrix', () => {
+describe('device draft repository engine matrix', () => {
 	for (const engine of ENGINES) {
 		it.skipIf(!REQUIRE_FULL_MATRIX && !isEngineInstalled(engine))(
 			`proves multi-page device draft behavior in ${engine.name}`,
