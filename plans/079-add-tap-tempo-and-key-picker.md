@@ -19,7 +19,8 @@
 - **Depends on**: none
 - **Category**: product / metadata entry
 - **Planned at**: commit `8984bfb`, 2026-11-18
-- **Status**: IN PROGRESS
+- **Status**: DONE (implementation delivered in three stacked PRs; remove
+  after the maintainer confirms the evidence below)
 - **Product context**: Phase 1b of
   [docs/product-direction-2026-11.md](../docs/product-direction-2026-11.md).
   It is independent of Phase 1a (microphone analysis) and Phase 2c (ratings in
@@ -289,14 +290,14 @@ the assertion rather than hiding the panel.
 
 ## Done criteria
 
-- [ ] A user on the Tracks page can set BPM by tapping and key by clicking a wheel without opening the editor dialog.
-- [ ] Both editor dialogs expose the same controls bound to the form, and `track-editors.nuxt.test.ts` passes unchanged.
-- [ ] Record details has an annotation mode that walks tracks in position order with keyboard shortcuts and shows progress.
-- [ ] Every write goes through `updateTrack` with `expectedUpdatedAt`; a conflict is shown and never silently overwritten.
-- [ ] `audio_features`, enrichment, schema and Edge code are byte-identical to the baseline.
-- [ ] Demo renders the surfaces read-only with no write attempt.
-- [ ] The record dialog shows a formatted key instead of a raw integer.
-- [ ] Bundle budget, conventions and `npm run verify` pass.
+- [x] A user on the Tracks page can set BPM by tapping and key by clicking a wheel without opening the editor dialog.
+- [x] Both editor dialogs expose the same controls bound to the form, and `track-editors.nuxt.test.ts` passes unchanged.
+- [x] Record details has an annotation mode that walks tracks in position order with keyboard shortcuts and shows progress.
+- [x] Every write goes through `updateTrack` with `expectedUpdatedAt`; a conflict is shown and never silently overwritten.
+- [x] `audio_features`, enrichment, schema and Edge code are byte-identical to the baseline.
+- [x] Demo renders the surfaces read-only with no write attempt.
+- [x] The record dialog shows a formatted key instead of a raw integer.
+- [x] Bundle budget, conventions and `npm run verify` pass.
 
 ## STOP conditions
 
