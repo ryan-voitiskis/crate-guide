@@ -89,9 +89,13 @@ Changes to schemas, RLS, RPCs, storage policies, or migrations must also pass
 deployment-affecting handoffs, run `npm run verify:full`; it combines the
 read-only application gate, production build, and local database tests.
 
-Every pull request also runs source-controlled GitHub Actions CI. The
-application job runs `npm run verify` and the production build, while the
-database job starts the tracked local Supabase stack and runs `npm run test:db`.
+Every pull request also runs source-controlled GitHub Actions CI. `npm run
+verify` is split across two parallel jobs: the static job runs
+`npm run verify:static` (formatting, lint, types, Edge and tooling contracts)
+plus the dependency audits, and the application job runs `npm run verify:app`
+(Vitest projects, E2E and the browser matrix) and the production build inside
+the digest-pinned Playwright image. The database job starts the tracked local
+Supabase stack and runs `npm run test:db`.
 `npm run verify:full` is the nearest local equivalent and requires Docker plus a
 running local Supabase stack.
 

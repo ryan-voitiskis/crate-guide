@@ -34,7 +34,7 @@ jobs:
       - name: Audit the isolated recovery toolchain
         run: npm audit --prefix tooling/recovery --audit-level=high
 
-  application:
+  static:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -55,9 +55,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check dependency topology
-        run: npm run check:dependency-topology
-
       - name: Audit production dependencies
         run: npm run audit:prod
 
@@ -67,11 +64,33 @@ jobs:
       - name: Audit frozen Edge dependencies
         run: npm run audit:edge
 
-      - name: Install browser matrix
-        run: npx --no-install playwright install --with-deps chromium firefox webkit
+      - name: Verify formatting, types, Edge and tooling contracts
+        run: npm run verify:static
 
-      - name: Verify application
-        run: npm run verify
+  application:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # The Playwright image ships Chromium, Firefox and WebKit with their system
+    # packages, so the job never waits on an Ubuntu package mirror. Its version
+    # must match the locked playwright package (check:dependency-topology).
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579
+      options: --user 1001
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.18.1
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify application, E2E and browser matrix
+        run: npm run verify:app
         env:
           BROWSER_LIBRARY_REQUIRE_FULL_MATRIX: '1'
           LOCAL_AUDIO_CACHE_REQUIRE_TIMING_BUDGETS: '0'

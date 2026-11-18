@@ -4,6 +4,7 @@ import {
 	REVIEWED_DEPENDENCIES,
 	VUE_ROUTER_VOLAR_PLUGIN,
 	checkDependencyTopology,
+	evaluatePlaywrightContainers,
 	evaluatePlaywrightManifest,
 	evaluateWorkflowActionPins
 } from './check-dependency-topology.mjs'
@@ -153,5 +154,45 @@ test('rejects installed Playwright package mismatches', () => {
 				})
 			),
 		/Playwright package mismatch/
+	)
+})
+
+test('requires the Playwright CI image to be digest-pinned at the locked version', () => {
+	const digest = 'a'.repeat(64)
+	const image = (tag) =>
+		`jobs:\n  application:\n    container:\n      image: mcr.microsoft.com/playwright:${tag}\n`
+	assert.deepEqual(
+		evaluatePlaywrightContainers(
+			image(`v1.59.1-noble@sha256:${digest}`),
+			'1.59.1'
+		),
+		[]
+	)
+	assert.match(
+		evaluatePlaywrightContainers(
+			image(`v1.59.0-noble@sha256:${digest}`),
+			'1.59.1'
+		)[0],
+		/does not match playwright 1\.59\.1/
+	)
+	for (const tag of ['v1.59.1-noble', 'latest', `v1.59.1@sha256:${digest}`]) {
+		assert.match(
+			evaluatePlaywrightContainers(image(tag), '1.59.1')[0],
+			/exact version tag and digest/
+		)
+	}
+	assert.throws(
+		() =>
+			checkDependencyTopology(
+				createCheckOptions({
+					readTextFile(path) {
+						return path.endsWith('verify.yml')
+							? validWorkflow +
+									`    container:\n      image: mcr.microsoft.com/playwright:v1.58.0-noble@sha256:${digest}\n`
+							: JSON.stringify(validPackageJson)
+					}
+				})
+			),
+		/does not match playwright/
 	)
 })
