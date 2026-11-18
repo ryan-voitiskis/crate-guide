@@ -1,29 +1,59 @@
 # Library repository architecture
 
 Crate Guide treats storage location, account identity, and connectivity as
-independent state. A workbench can therefore target a Cloud library, a future
-library in this browser, or Demo data without pretending that a local library
-belongs to a Supabase user.
+independent state. A workbench can therefore target a Cloud library or Demo
+data, and a future browser library could join them, without pretending that a
+local library belongs to a Supabase user.
 
 This document is the contract for the domain boundary introduced before local
-browser persistence. Cloud and Demo are product-facing adapters. The full
-browser-library adapter exists internally, while its accountless product
-flows remain deferred. Device-local enrichment drafts are already active.
+browser persistence. Cloud and Demo are product-facing adapters. The only
+browser storage in production is device-local enrichment drafts. There is no
+browser library adapter: the deferred Local library code (Plans 070-073 and 076) has been removed.
 
 ## Active device drafts
 
 Application consumers use `app/repositories/deviceDrafts/contracts.ts` for the
-draft API and lazily open `app/repositories/deviceDrafts/index.ts`. Draft reads
-live in `browserDraftReads.ts`; they no longer import the deferred workspace
-export, copy-receipt, and storage-health operations. A dependency-graph test
-prevents that coupling from returning. Existing workspace-adapter exports
-remain compatible.
+draft API and lazily open `app/repositories/deviceDrafts/index.ts`. That entry
+point opens `browserDeviceDraftRepository.ts`. Its storage kernel is in
+`app/repositories/library/browser/`:
 
-This extraction preserves the database name, schema version, object stores,
-keys, codecs, lease behavior, revision checks, and upgrade path. The full
-browser repository and catalog must not become runtime dependencies of the
-active draft entry point. The shared codec, schema, and revision kernel still
-needs incremental work; it cannot be deleted with the deferred product adapter.
+- `browserLibrarySchema.ts`: IndexedDB schema, migrations, and open lifecycle;
+- `browserLibraryTypes.ts`: types, keys, and constants;
+- `browserLibraryCodecs.ts`: strict codecs;
+- `browserLibraryErrors.ts`: error classification;
+- `browserLibraryRuntime.ts`: transaction runtime;
+- `browserLibraryBroadcast.ts`: cross-tab broadcast;
+- `browserDraftReads.ts`, `browserDraftRevision.ts`, and
+  `browserWorkspaceDrafts.ts`: draft reads, revisions, leases, and writes.
+
+`app/repositories/deviceDrafts/boundary.test.ts` holds the draft entry point's
+runtime dependency graph to that kernel and a short list of draft codec
+helpers. Any other module that appears in the graph fails the test.
+
+These files still declare some types, codecs, and revision paths that only the
+removed library adapter used. A later cleanup will trim them. Data
+compatibility does not depend on that cleanup. The `crate-guide-library`
+database name, `BROWSER_LIBRARY_SCHEMA_VERSION` 2, the full store and index
+definitions, migrations 1-2, persisted keys, the broadcast protocol, and the
+lease constants are unchanged, so existing browser data keeps its upgrade
+path. Do not rename or drop a store or index without a new schema version
+and migration.
+
+On `versionchange` the kernel closes its connection, so a newer tab can
+upgrade. The draft repository has no in-place recovery method. After the
+close, reads and writes fail as `unavailable`, and the caller reopens the
+repository. `test/e2e/device-draft-engine-matrix.e2e.test.ts` runs this
+aborted-upgrade path and draft lease fencing in Chromium, Firefox, and WebKit.
+
+### Removed deferred Local library code
+
+The deferred Local library code has been removed: the workspace catalog, the
+full browser library repository with its snapshot and operations modules,
+the local-to-cloud copy, workspace transition, startup selection, backup
+reminder, and storage-health label policies, and the physical Safari probe.
+To recover it, use the git tag `archive/local-library-2026-11` on the last
+commit before the removal. Resuming any of Plans 070-073 or 076 starts from
+that tag and must re-prove its guarantees against the current schema.
 
 ## Ownership
 
@@ -134,10 +164,10 @@ shared ephemeral overlay for the current Demo session and the main workspace
 theme is restored when Demo is left. Demo is neither a mutable in-memory
 library nor a persistence fallback.
 
-Browser persistence is intentionally unavailable until its adapter can provide
-transactional writes, strict codecs, durable health/recovery state, and the
-same stale/conflict guarantees. Signed-out route access is a separate product
-launch decision.
+Browser library persistence is not available, and no adapter exists for it.
+A future one must provide transactional writes, strict codecs, durable
+health and recovery state, and the same stale and conflict guarantees.
+Signed-out route access is a separate product launch decision.
 
 ## Adding a backend
 

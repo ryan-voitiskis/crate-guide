@@ -87,8 +87,30 @@ function runtimeGraph(entry: string) {
 	return [...seen].map((file) => relative(root, file))
 }
 
+// The device-draft runtime may only reach the shared IndexedDB storage kernel
+// (schema, codecs, broadcast, draft reads/writes) and the files it already
+// depended on. Anything new in this graph is coupling to non-draft code.
+const ALLOWED_RUNTIME_MODULES = [
+	'app/repositories/deviceDrafts/index.ts',
+	'app/repositories/library/browser/browserDeviceDraftRepository.ts',
+	'app/repositories/library/browser/browserDraftReads.ts',
+	'app/repositories/library/browser/browserDraftRevision.ts',
+	'app/repositories/library/browser/browserLibraryBroadcast.ts',
+	'app/repositories/library/browser/browserLibraryCodecs.ts',
+	'app/repositories/library/browser/browserLibraryErrors.ts',
+	'app/repositories/library/browser/browserLibraryRuntime.ts',
+	'app/repositories/library/browser/browserLibrarySchema.ts',
+	'app/repositories/library/browser/browserLibraryTypes.ts',
+	'app/repositories/library/browser/browserWorkspaceDrafts.ts',
+	'app/types/trackEnrichmentDraft.ts',
+	'app/utils/trackEnrichmentDraftCodec.ts',
+	'app/utils/trackEnrichmentDraftPrivacy.ts',
+	// Reached through the shared codecs' record decoders.
+	'app/utils/recordCover.ts'
+]
+
 describe('active device-draft dependency boundary', () => {
-	it('has no runtime dependency on deferred workspace catalog, library, or export/copy operations', () => {
+	it('reaches only the device-draft storage kernel at runtime', () => {
 		const graph = runtimeGraph('app/repositories/deviceDrafts/index.ts')
 		expect(graph).toContain(
 			'app/repositories/library/browser/browserDraftReads.ts'
@@ -96,21 +118,27 @@ describe('active device-draft dependency boundary', () => {
 		expect(graph).toContain(
 			'app/repositories/library/browser/browserLibrarySchema.ts'
 		)
-		for (const module of [
-			'browserWorkspaceCatalog.ts',
-			'browserLibraryRepository.ts',
-			'browserWorkspaceOperations.ts'
-		]) {
-			expect(
-				graph.some((file) => file.endsWith('/' + module)),
-				`${module} crossed the active draft boundary`
-			).toBe(false)
+		const unexpected = graph
+			.filter(
+				(file) =>
+					!ALLOWED_RUNTIME_MODULES.includes(file) && !file.startsWith('shared/')
+			)
+			.sort()
+		expect(
+			unexpected,
+			'non-draft modules crossed the active draft boundary'
+		).toEqual([])
+		for (const file of graph) {
+			expect(file, 'draft runtime must not reach UI or app state').not.toMatch(
+				/^app\/(?:components|composables|pages|stores|layouts|plugins)\//
+			)
 		}
 	})
 
 	it('keeps the active application consumers on the explicit draft API', () => {
 		for (const file of [
 			'app/composables/useTrackEnrichmentDraftSession.ts',
+			'app/utils/trackEnrichmentDraftOwnership.ts',
 			'app/utils/trackEnrichmentDraftWorkspaceIdentity.ts'
 		]) {
 			const imports = dependencies(resolve(root, file), false).map((path) =>
