@@ -1,4 +1,4 @@
-import { type EffectScope, computed, effectScope, ref } from 'vue'
+import { type EffectScope, computed, effectScope, ref, shallowRef } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useTrackEnrichmentDraftSession } from '../../app/composables/useTrackEnrichmentDraftSession'
 import type {
@@ -119,7 +119,9 @@ function workflowHarness(initialRows: EnrichmentRow[] = []) {
 	const selectedFileName = ref<string | null>(
 		initialRows.length > 0 ? 'collection.xml' : null
 	)
-	const isReviewReadOnly = ref(false)
+	// The session owns read-only state; tests bind it once a session exists.
+	const readOnlySource = shallowRef<() => boolean>(() => false)
+	const isReviewReadOnly = computed(() => readOnlySource.value())
 	const lastApplySummary =
 		ref<TrackEnrichmentWorkflow['lastApplySummary']['value']>(null)
 	const loadResumedReview = vi.fn((review: TrackEnrichmentResumedReview) => {
@@ -134,7 +136,6 @@ function workflowHarness(initialRows: EnrichmentRow[] = []) {
 		selectedFilter.value = 'ready'
 		selectedFileName.value = null
 		lastApplySummary.value = null
-		isReviewReadOnly.value = false
 	})
 	const workflow = {
 		rows,
@@ -147,12 +148,16 @@ function workflowHarness(initialRows: EnrichmentRow[] = []) {
 		isReviewReadOnly,
 		lastApplySummary,
 		loadResumedReview,
-		startAnotherSource,
-		setReviewReadOnly: vi.fn((readOnly: boolean) => {
-			isReviewReadOnly.value = readOnly
-		})
+		startAnotherSource
 	} as unknown as TrackEnrichmentWorkflow
-	return { workflow, loadResumedReview }
+	return { workflow, loadResumedReview, readOnlySource }
+}
+
+function bindReviewReadOnly(
+	harness: { readOnlySource: { value: () => boolean } },
+	session: { isReadOnly: { value: boolean } }
+) {
+	harness.readOnlySource.value = () => session.isReadOnly.value
 }
 
 function createSession(input: {
@@ -213,6 +218,7 @@ function createSession(input: {
 		})
 	)
 	if (!session) throw new Error('Failed to create draft session.')
+	bindReviewReadOnly(workflow, session)
 	scopes.add(scope)
 	return { session, workflow, scope, opened }
 }

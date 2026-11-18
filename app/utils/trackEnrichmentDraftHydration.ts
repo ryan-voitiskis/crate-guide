@@ -177,6 +177,8 @@ function hasExactAppliedMarker(input: {
 	)
 }
 
+// Equality-only key (never persisted or hashed). Kept on localeCompare key
+// order rather than canonicalJson()'s code-unit order so behaviour is unchanged.
 function canonicalizeEvidenceValue(value: unknown): string {
 	if (value === null || typeof value !== 'object') return JSON.stringify(value)
 	if (Array.isArray(value)) {

@@ -9,6 +9,7 @@ import {
 	type TrackEnrichmentDraftObservation,
 	type TrackEnrichmentDraftProposal
 } from '~/types/trackEnrichmentDraft'
+import { canonicalJson, sha256Hex } from './canonicalJson'
 import { LOCAL_AUDIO_METADATA_VERSION } from './localAudio'
 import type { RekordboxXmlTrack } from './rekordboxXml'
 import {
@@ -33,6 +34,26 @@ type ObservationWithoutFingerprints = Omit<
 export type TrackEnrichmentDraftObservationSet = {
 	datasetFingerprint: string
 	observations: TrackEnrichmentDraftObservation[]
+}
+
+/**
+ * Per-review memo of observation fingerprints keyed by the immutable source
+ * object. A fingerprinted observation depends only on its source fields and
+ * its snapshot ID (the XML snapshot ID can depend on sibling TrackIDs and the
+ * ordinal), so an entry is reused only when that snapshot ID still matches.
+ * Sources are never mutated during a review; a changed source is a new object.
+ */
+export type TrackEnrichmentDraftObservationFingerprintCache = WeakMap<
+	object,
+	{ sourceSnapshotId: string; observationFingerprint: Promise<string> }
+>
+
+export function createTrackEnrichmentDraftObservationFingerprintCache(): TrackEnrichmentDraftObservationFingerprintCache {
+	return new WeakMap()
+}
+
+export type TrackEnrichmentDraftObservationSetOptions = {
+	fingerprintCache?: TrackEnrichmentDraftObservationFingerprintCache
 }
 
 export class TrackEnrichmentDraftFingerprintError extends Error {
@@ -145,15 +166,9 @@ function buildProposal(input: {
 	}
 }
 
+// Draft fingerprints are persisted; 'token' keeps their historical encoding.
 function canonicalize(value: unknown): string {
-	if (value === null || typeof value !== 'object') return JSON.stringify(value)
-	if (Array.isArray(value)) {
-		return `[${value.map((item) => canonicalize(item)).join(',')}]`
-	}
-	return `{${Object.entries(value as Record<string, unknown>)
-		.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-		.map(([key, nested]) => `${JSON.stringify(key)}:${canonicalize(nested)}`)
-		.join(',')}}`
+	return canonicalJson(value, { onUndefined: 'token' })
 }
 
 export async function sha256TrackEnrichmentDraftValue(
@@ -162,26 +177,50 @@ export async function sha256TrackEnrichmentDraftValue(
 	const subtle = globalThis.crypto?.subtle
 	if (!subtle)
 		throw new TrackEnrichmentDraftFingerprintError('crypto-unavailable')
-	const digest = await subtle.digest('SHA-256', new TextEncoder().encode(value))
-	return Array.from(new Uint8Array(digest), (byte) =>
-		byte.toString(16).padStart(2, '0')
-	).join('')
+	return sha256Hex(value)
+}
+
+function fingerprintObservation(
+	observation: ObservationWithoutFingerprints
+): Promise<string> {
+	const { ordinal: _ordinal, ...fingerprintedObservation } = observation
+	void _ordinal
+	return sha256TrackEnrichmentDraftValue(
+		`${OBSERVATION_PREFIX}\n${canonicalize(fingerprintedObservation)}`
+	)
 }
 
 async function fingerprintObservations(
-	observations: ObservationWithoutFingerprints[]
+	observations: ObservationWithoutFingerprints[],
+	sources: readonly object[],
+	cache: TrackEnrichmentDraftObservationFingerprintCache | undefined
 ): Promise<string[]> {
 	const fingerprints: string[] = []
 	for (let start = 0; start < observations.length; start += DIGEST_BATCH_SIZE) {
 		const batch = observations.slice(start, start + DIGEST_BATCH_SIZE)
 		fingerprints.push(
 			...(await Promise.all(
-				batch.map(async (observation) => {
-					const { ordinal: _ordinal, ...fingerprintedObservation } = observation
-					void _ordinal
-					return sha256TrackEnrichmentDraftValue(
-						`${OBSERVATION_PREFIX}\n${canonicalize(fingerprintedObservation)}`
-					)
+				batch.map((observation, offset) => {
+					if (!cache) return fingerprintObservation(observation)
+					const source = sources[start + offset]!
+					const cached = cache.get(source)
+					if (cached?.sourceSnapshotId === observation.sourceSnapshotId) {
+						return cached.observationFingerprint
+					}
+					const observationFingerprint = fingerprintObservation(observation)
+					cache.set(source, {
+						sourceSnapshotId: observation.sourceSnapshotId,
+						observationFingerprint
+					})
+					observationFingerprint.catch(() => {
+						if (
+							cache.get(source)?.observationFingerprint ===
+							observationFingerprint
+						) {
+							cache.delete(source)
+						}
+					})
+					return observationFingerprint
 				})
 			))
 		)
@@ -255,7 +294,8 @@ function toXmlObservation(
 }
 
 export async function createRekordboxDraftObservationSet(
-	tracks: readonly RekordboxXmlTrack[]
+	tracks: readonly RekordboxXmlTrack[],
+	options: TrackEnrichmentDraftObservationSetOptions = {}
 ): Promise<TrackEnrichmentDraftObservationSet> {
 	const trackIdCounts = new Map<string, number>()
 	for (const track of tracks) {
@@ -267,7 +307,11 @@ export async function createRekordboxDraftObservationSet(
 	const prepared = tracks.map((track, ordinal) =>
 		toXmlObservation(track, ordinal, trackIdCounts)
 	)
-	const observationFingerprints = await fingerprintObservations(prepared)
+	const observationFingerprints = await fingerprintObservations(
+		prepared,
+		tracks,
+		options.fingerprintCache
+	)
 	const datasetFingerprint = await sha256TrackEnrichmentDraftValue(
 		`${DATASET_PREFIX}:rekordboxXml\n${observationFingerprints.join('\n')}`
 	)
@@ -413,7 +457,8 @@ function toLocalObservation(
 }
 
 export async function createLocalAudioDraftObservationSet(
-	sources: readonly LocalAudioTrackSource[]
+	sources: readonly LocalAudioTrackSource[],
+	options: TrackEnrichmentDraftObservationSetOptions = {}
 ): Promise<TrackEnrichmentDraftObservationSet> {
 	const prepared = sources.map(toLocalObservation)
 	const identities = prepared.map((observation) =>
@@ -425,7 +470,11 @@ export async function createLocalAudioDraftObservationSet(
 		throw new TrackEnrichmentDraftFingerprintError('duplicate-local-identity')
 	}
 
-	const observationFingerprints = await fingerprintObservations(prepared)
+	const observationFingerprints = await fingerprintObservations(
+		prepared,
+		sources,
+		options.fingerprintCache
+	)
 	const sourceFingerprints = prepared.map((observation) => {
 		const identity = (observation.evidence as TrackEnrichmentDraftLocalEvidence)
 			.fileIdentity

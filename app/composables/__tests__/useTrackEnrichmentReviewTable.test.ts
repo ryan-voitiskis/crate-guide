@@ -2,7 +2,10 @@ import { effectScope, nextTick, ref } from 'vue'
 import { createMockRecord } from 'test/mocks/fixtures/records'
 import { createMockTrack } from 'test/mocks/fixtures/tracks'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { useTrackEnrichmentReviewTable } from '~/composables/useTrackEnrichmentReviewTable'
+import {
+	type TrackEnrichmentReviewSortKey,
+	useTrackEnrichmentReviewTable
+} from '~/composables/useTrackEnrichmentReviewTable'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
 
 const scopes = new Set<ReturnType<typeof effectScope>>()
@@ -94,7 +97,124 @@ function createTable(rows: TrackEnrichmentRow[]) {
 	}
 }
 
+// The pre-collator comparator, kept verbatim as an ordering oracle.
+function legacyCompare(
+	left: string | number | null | undefined,
+	right: string | number | null | undefined
+): number {
+	if (left === null || left === undefined || left === '')
+		return right === null || right === undefined || right === '' ? 0 : 1
+	if (right === null || right === undefined || right === '') return -1
+	if (typeof left === 'number' && typeof right === 'number') return left - right
+	return String(left).localeCompare(String(right), undefined, {
+		numeric: true,
+		sensitivity: 'base'
+	})
+}
+
+function legacySortValue(
+	row: TrackEnrichmentRow,
+	key: TrackEnrichmentReviewSortKey
+): string | number | null | undefined {
+	switch (key) {
+		case 'library':
+			return `${row.track?.artists[0]?.name || ''} ${row.track?.title || ''}`
+		case 'source':
+			return `${row.source.artist || ''} ${row.source.name || ''}`
+		case 'duration':
+			return row.source.totalTimeSeconds
+		case 'bpm':
+			return row.proposedBpm
+		case 'key':
+			return row.proposedKey === null || row.proposedKey === undefined
+				? null
+				: row.proposedKey * 2 + (row.proposedMode ?? 0)
+		case 'confidence':
+			return (
+				({ high: 300, medium: 200, manual: 100 } as const)[row.confidence] +
+				row.score
+			)
+	}
+}
+
+function createSortFixture(): TrackEnrichmentRow[] {
+	const titles = [
+		'Track 10',
+		'track 2',
+		'Éclair',
+		'eclair',
+		'Zebra',
+		'',
+		'Track 1',
+		'ångström',
+		'Alpha'
+	]
+	return titles.map((title, index) => {
+		const row = createRow(`row-${index}`, title, [128, 120, 0][index % 3]!)
+		return {
+			...row,
+			source: {
+				...row.source,
+				artist: ['B Artist', 'a artist', ''][index % 3]!,
+				totalTimeSeconds: index % 4 === 0 ? null : 300 - index * 7
+			},
+			track:
+				index === 5
+					? null
+					: { ...row.track!, artists: [{ name: `Artist ${9 - index}` }] },
+			proposedBpm: index % 5 === 0 ? null : row.proposedBpm,
+			proposedKey: index % 3 === 0 ? null : index % 12,
+			proposedMode: index % 2,
+			confidence: (['high', 'medium', 'manual'] as const)[index % 3]!,
+			score: 50 + ((index * 13) % 40)
+		} as TrackEnrichmentRow
+	})
+}
+
 describe('useTrackEnrichmentReviewTable', () => {
+	it('orders every sort key exactly like the legacy localeCompare sort', () => {
+		const rows = createSortFixture()
+		const keys: TrackEnrichmentReviewSortKey[] = [
+			'library',
+			'source',
+			'duration',
+			'bpm',
+			'key',
+			'confidence'
+		]
+		const table = createTable(rows)
+		for (const key of keys) {
+			for (const direction of ['asc', 'desc'] as const) {
+				table.sortKey.value = key
+				table.sortDirection.value = direction
+				const factor = direction === 'asc' ? 1 : -1
+				const expected = [...rows]
+					.sort(
+						(left, right) =>
+							legacyCompare(
+								legacySortValue(left, key),
+								legacySortValue(right, key)
+							) * factor
+					)
+					.map((row) => row.id)
+				expect(table.sortedRows.value.map((row) => row.id)).toEqual(expected)
+			}
+		}
+	})
+
+	it('derives search text from the current row object', () => {
+		const original = createRow('alpha', 'Alpha')
+		const table = createTable([original])
+		table.query.value = 'alpha'
+		expect(table.searchedRows.value).toHaveLength(1)
+
+		table.filteredRows.value = [{ ...original, reasons: ['Gamma evidence'] }]
+		table.query.value = 'gamma'
+		expect(table.searchedRows.value).toHaveLength(1)
+		table.query.value = 'exact title'
+		expect(table.searchedRows.value).toHaveLength(0)
+	})
+
 	afterEach(() => {
 		for (const scope of scopes) scope.stop()
 		scopes.clear()

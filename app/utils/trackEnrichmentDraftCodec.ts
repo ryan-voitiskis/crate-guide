@@ -840,9 +840,9 @@ export function decodeTrackEnrichmentDraft(
 	return validateDraft(value)
 }
 
-export function encodeTrackEnrichmentDraft(
+function validateForEncoding(
 	draft: TrackEnrichmentDraft
-): string {
+): TrackEnrichmentDraft {
 	const result = validateDraft(draft)
 	if (result.status !== 'ok') {
 		const issues =
@@ -851,7 +851,11 @@ export function encodeTrackEnrichmentDraft(
 				: [{ code: 'invalid-schema' as const, path: '/schemaVersion' }]
 		throw new TrackEnrichmentDraftCodecError(issues)
 	}
-	const serialized = JSON.stringify(result.draft)
+	return result.draft
+}
+
+function serializeValidatedDraft(draft: TrackEnrichmentDraft): string {
+	const serialized = JSON.stringify(draft)
 	if (
 		serialized.length > TRACK_ENRICHMENT_DRAFT_MAX_SERIALIZED_BYTES ||
 		new TextEncoder().encode(serialized).byteLength >
@@ -860,6 +864,61 @@ export function encodeTrackEnrichmentDraft(
 		throw new TrackEnrichmentDraftCodecError([{ code: 'too-large', path: '' }])
 	}
 	return serialized
+}
+
+export function encodeTrackEnrichmentDraft(
+	draft: TrackEnrichmentDraft
+): string {
+	return serializeValidatedDraft(validateForEncoding(draft))
+}
+
+/**
+ * Validates once and returns the strict normalized draft with its storage
+ * encoding. Callers that must also persist the result can reuse both instead
+ * of encoding, decoding, and re-encoding the same payload.
+ */
+export function encodeTrackEnrichmentDraftWithValue(
+	draft: TrackEnrichmentDraft
+): { draft: TrackEnrichmentDraft; serialized: string } {
+	const normalized = validateForEncoding(draft)
+	return { draft: normalized, serialized: serializeValidatedDraft(normalized) }
+}
+
+/**
+ * Encoding of a draft's reviewable content: the same bytes as encoding it
+ * with `draftRevision: 0`, `updatedAt: createdAt`, and repository revision 0.
+ * Revision and save-time bookkeeping therefore never count as a change.
+ */
+export function encodeTrackEnrichmentDraftContentSignature(
+	draft: TrackEnrichmentDraft
+): string {
+	return signValidatedDraft(validateForEncoding(draft))
+}
+
+function signValidatedDraft(normalized: TrackEnrichmentDraft): string {
+	// Strict validation passes these scalar fields through unchanged, so
+	// replacing them on the normalized value is identical to normalizing the
+	// replaced draft (pinned by the persisted-format golden tests).
+	return serializeValidatedDraft({
+		...normalized,
+		draftRevision: 0,
+		updatedAt: normalized.createdAt,
+		workspace: { ...normalized.workspace, repositoryRevision: 0 }
+	})
+}
+
+/**
+ * Validates once and returns both the storage encoding and the content
+ * signature used to skip writes that would not change the stored review.
+ */
+export function encodeTrackEnrichmentDraftWithSignature(
+	draft: TrackEnrichmentDraft
+): { serialized: string; signature: string } {
+	const normalized = validateForEncoding(draft)
+	return {
+		serialized: serializeValidatedDraft(normalized),
+		signature: signValidatedDraft(normalized)
+	}
 }
 
 export function getCurrentTrackEnrichmentDraftVersions(

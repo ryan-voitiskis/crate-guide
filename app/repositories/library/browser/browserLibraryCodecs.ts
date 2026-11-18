@@ -5,7 +5,8 @@ import {
 import { RECORD_COVER_STORED_MAX_BYTES } from '~/utils/recordCover'
 import {
 	decodeTrackEnrichmentDraft,
-	encodeTrackEnrichmentDraft
+	encodeTrackEnrichmentDraft,
+	encodeTrackEnrichmentDraftWithValue
 } from '~/utils/trackEnrichmentDraftCodec'
 import { containsUnsafeTrackEnrichmentDraftPath } from '~/utils/trackEnrichmentDraftPrivacy'
 import type { TrackAudioFeatures } from '~~/shared/types/audioFeatures'
@@ -1232,7 +1233,17 @@ export function encodeBrowserWorkflowDraftRow(
 	identity: BrowserWorkspaceIdentity,
 	draft: BrowserWorkflowDraft
 ): BrowserStoredWorkflowDraft {
-	const payload = decodeTrackEnrichmentDraftPayload(draft.payload)
+	// One strict validation yields both the normalized payload and its storage
+	// encoding. Encoding is idempotent over normalized drafts, so this is the
+	// same serialized payload the former encode -> decode -> encode produced.
+	let payload: TrackEnrichmentDraft
+	let serializedPayload: string
+	try {
+		;({ draft: payload, serialized: serializedPayload } =
+			encodeTrackEnrichmentDraftWithValue(draft.payload))
+	} catch {
+		fail('/draft/payload', undefined)
+	}
 	if (draft.kind !== 'track-enrichment') fail('/draft/kind')
 	if (
 		draft.id !== payload.id ||
@@ -1252,7 +1263,7 @@ export function encodeBrowserWorkflowDraftRow(
 			kind: draft.kind,
 			draftRevision: draft.draftRevision,
 			updatedAt: draft.updatedAt,
-			serializedPayload: encodeTrackEnrichmentDraft(payload)
+			serializedPayload
 		},
 		identity.workspaceId,
 		identity.repositoryId

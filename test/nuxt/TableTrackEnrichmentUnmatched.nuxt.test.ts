@@ -1,11 +1,27 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import type { VueWrapper } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import TableTrackEnrichmentUnmatched from '~/components/enrichment/TableTrackEnrichmentUnmatched.vue'
 import { createLocalAudioTrackSource } from '~/utils/localAudio'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
 
 const wrappers = new Set<VueWrapper>()
+
+function stubCompactViewport() {
+	return vi.spyOn(window, 'matchMedia').mockImplementation(
+		(query: string) =>
+			({
+				matches: query === '(max-width: 767px)',
+				media: query,
+				onchange: null,
+				addEventListener: () => {},
+				removeEventListener: () => {},
+				addListener: () => {},
+				removeListener: () => {},
+				dispatchEvent: () => false
+			}) as MediaQueryList
+	)
+}
 
 function createUnmatchedRow(): TrackEnrichmentRow {
 	return {
@@ -54,6 +70,7 @@ describe('TableTrackEnrichmentUnmatched', () => {
 		for (const wrapper of wrappers) wrapper.unmount()
 		wrappers.clear()
 		document.body.innerHTML = ''
+		vi.restoreAllMocks()
 	})
 
 	it('reduces unmatched rows to source track facts', async () => {
@@ -79,12 +96,38 @@ describe('TableTrackEnrichmentUnmatched', () => {
 		expect(desktopTable.text()).toContain('130.0')
 		expect(
 			wrapper.findAll('[data-testid="enrichment-unmatched-mobile-row"]')
-		).toHaveLength(1)
+		).toHaveLength(0)
 		expect(wrapper.text()).not.toContain('Unavailable')
 		expect(wrapper.text()).not.toContain('No collection match')
 		expect(wrapper.text()).not.toContain('Match quality')
 		expect(wrapper.text()).not.toContain('Score 0')
 		expect(wrapper.text()).not.toContain('No matching Crate Guide track found')
+	})
+
+	it('renders only the compact rows on narrow viewports', async () => {
+		stubCompactViewport()
+		const wrapper = await mountSuspended(TableTrackEnrichmentUnmatched, {
+			props: {
+				rows: [createUnmatchedRow()],
+				keyFormat: 'key',
+				sourceLabel: 'Local audio',
+				density: 'compact',
+				sortKey: null,
+				sortDirection: 'asc'
+			}
+		})
+		wrappers.add(wrapper)
+
+		expect(
+			wrapper.findAll('[data-testid="enrichment-unmatched-mobile-row"]')
+		).toHaveLength(1)
+		expect(
+			wrapper
+				.find('[data-testid="enrichment-unmatched-desktop-table"]')
+				.exists()
+		).toBe(false)
+		expect(wrapper.text()).toContain('Source Track')
+		expect(wrapper.text()).toContain('1 not in collection')
 	})
 
 	it('emits source-oriented sorting', async () => {

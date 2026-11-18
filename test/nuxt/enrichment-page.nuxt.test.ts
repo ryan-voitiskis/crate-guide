@@ -166,6 +166,8 @@ const DialogStub = defineComponent({
 
 type WorkflowHarness = TrackEnrichmentWorkflow & {
 	currentStep: ReturnType<typeof ref<1 | 2 | 3>>
+	// The mocked workflow exposes a writable stand-in for session-derived state.
+	isReviewReadOnly: ReturnType<typeof ref<boolean>>
 }
 
 function createRow(): TrackEnrichmentRow {
@@ -299,7 +301,6 @@ function createWorkflow(): WorkflowHarness {
 		selectSource: vi.fn(),
 		loadPreparedReview,
 		loadResumedReview: vi.fn(),
-		setReviewReadOnly: vi.fn(),
 		returnToSource: vi.fn(),
 		startAnotherSource: vi.fn(),
 		setRowStaged: vi.fn(),

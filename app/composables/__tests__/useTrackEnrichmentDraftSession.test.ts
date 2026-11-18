@@ -1,4 +1,11 @@
-import { type EffectScope, computed, effectScope, nextTick, ref } from 'vue'
+import {
+	type EffectScope,
+	computed,
+	effectScope,
+	nextTick,
+	ref,
+	shallowRef
+} from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
 	TrackEnrichmentApplyAttempt,
@@ -107,7 +114,9 @@ function workflowHarness(rows: EnrichmentRow[] = []) {
 	const selectedFileName = ref<string | null>(
 		rows.length ? 'collection.xml' : null
 	)
-	const isReviewReadOnly = ref(false)
+	// The session owns read-only state; tests bind it once a session exists.
+	const readOnlySource = shallowRef<() => boolean>(() => false)
+	const isReviewReadOnly = computed(() => readOnlySource.value())
 	const lastApplySummary =
 		ref<TrackEnrichmentWorkflow['lastApplySummary']['value']>(null)
 	const loadResumedReview = vi.fn((review: TrackEnrichmentResumedReview) => {
@@ -122,7 +131,6 @@ function workflowHarness(rows: EnrichmentRow[] = []) {
 		selectedFilter.value = 'ready'
 		selectedFileName.value = null
 		lastApplySummary.value = null
-		isReviewReadOnly.value = false
 	})
 	const workflow = {
 		rows: workflowRows,
@@ -135,12 +143,16 @@ function workflowHarness(rows: EnrichmentRow[] = []) {
 		isReviewReadOnly,
 		lastApplySummary,
 		loadResumedReview,
-		startAnotherSource,
-		setReviewReadOnly: vi.fn((readOnly: boolean) => {
-			isReviewReadOnly.value = readOnly
-		})
+		startAnotherSource
 	} as unknown as TrackEnrichmentWorkflow
-	return { workflow, loadResumedReview, startAnotherSource }
+	return { workflow, loadResumedReview, startAnotherSource, readOnlySource }
+}
+
+function bindReviewReadOnly(
+	harness: { readOnlySource: { value: () => boolean } },
+	session: { isReadOnly: { value: boolean } }
+) {
+	harness.readOnlySource.value = () => session.isReadOnly.value
 }
 
 function runtime(workspaceId = 'workspace-1', repositoryId = 'repository-1') {
@@ -416,6 +428,7 @@ function createSession(input: {
 		})
 	)
 	if (!session) throw new Error('Failed to create draft session')
+	bindReviewReadOnly(workflow, session)
 	activeScopes.push(scope)
 	return { session, workflow, runtime: activeRuntime }
 }
@@ -450,6 +463,7 @@ function createSwitchableSession(input: {
 		})
 	)
 	if (!session) throw new Error('Failed to create switchable draft session')
+	bindReviewReadOnly(workflow, session)
 	activeScopes.push(scope)
 	return { activeRuntime, openRepository, session, workflow }
 }
@@ -509,6 +523,70 @@ describe('useTrackEnrichmentDraftSession', () => {
 		expect(session.shouldWarnBeforeUnload.value).toBe(false)
 	})
 
+	it('reuses observation fingerprints and the persisted signature across autosaves', async () => {
+		const fake = fakeRepository()
+		const harness = workflowHarness()
+		const { session } = createSession({
+			repository: fake.repository,
+			workflow: harness
+		})
+		await session.initialize()
+		harness.workflow.selectedFileName.value = 'collection.xml'
+		harness.workflow.rows.value = reviewRows()
+		harness.workflow.stagedRowIds.value = new Set([
+			harness.workflow.rows.value[0]!.id
+		])
+		await vi.advanceTimersByTimeAsync(500)
+		await session.flushSave()
+		expect(fake.createDraftAndClaim).toHaveBeenCalledOnce()
+
+		const digest = vi.spyOn(globalThis.crypto.subtle, 'digest')
+		try {
+			harness.workflow.stagedRowIds.value = new Set()
+			await vi.advanceTimersByTimeAsync(500)
+			await session.flushSave()
+			expect(fake.writeDraft).toHaveBeenCalledOnce()
+			// Only the dataset digest; the observation is fingerprinted once.
+			expect(digest).toHaveBeenCalledTimes(1)
+
+			digest.mockClear()
+			harness.workflow.selectedFilter.value = 'staged'
+			await nextTick()
+			harness.workflow.selectedFilter.value = 'ready'
+			await vi.advanceTimersByTimeAsync(500)
+			await session.flushSave()
+			// Toggling back to the persisted UI state is not a meaningful change.
+			expect(fake.writeDraft).toHaveBeenCalledOnce()
+			expect(digest).toHaveBeenCalledTimes(1)
+		} finally {
+			digest.mockRestore()
+		}
+
+		const written = fake.writeDraft.mock.calls[0]![0].payload
+		expect(written.decisions[0]).toMatchObject({ staged: false })
+		const fresh = await projectTrackEnrichmentDraft({
+			id: written.id,
+			workspace: written.workspace,
+			draftRevision: written.draftRevision,
+			createdAt: written.createdAt,
+			updatedAt: written.updatedAt,
+			sourceLabel: 'collection.xml',
+			rows: harness.workflow.rows.value.map((row) => ({
+				row,
+				staged: false,
+				reviewedAt: written.createdAt
+			})),
+			ui: {
+				filter: 'ready',
+				sortKey: null,
+				sortDirection: 'asc',
+				density: 'compact',
+				anchorSourceIndex: null
+			}
+		})
+		expect(JSON.stringify(written)).toBe(JSON.stringify(fresh))
+	})
+
 	it('routes cloud drafts through an opaque alias without persisting the account ID', async () => {
 		const rawWorkspaceId = 'cloud:account:auth-user-a'
 		const draftIdentity = await createTrackEnrichmentDraftWorkspaceIdentity(
@@ -535,6 +613,7 @@ describe('useTrackEnrichmentDraftSession', () => {
 			})
 		)
 		if (!session) throw new Error('Failed to create draft session')
+		bindReviewReadOnly(harness, session)
 		activeScopes.push(scope)
 
 		await session.initialize()
@@ -602,6 +681,46 @@ describe('useTrackEnrichmentDraftSession', () => {
 		expect(harness.workflow.rows.value).toHaveLength(1)
 		expect(session.hasDraft.value).toBe(false)
 		expect(session.saveState.value).toBe('failed')
+	})
+
+	it('keeps a fresh unsaved review editable and locks it during transitions', async () => {
+		const fake = fakeRepository()
+		const pending = deferred<{
+			value: BrowserClaimedDraft
+			deviceRevision: number
+		}>()
+		const harness = workflowHarness()
+		const { session } = createSession({
+			repository: fake.repository,
+			workflow: harness
+		})
+		await session.initialize()
+		harness.workflow.selectedFileName.value = 'collection.xml'
+		harness.workflow.rows.value = reviewRows()
+
+		// No stored draft exists, so discovery has nothing to defer to.
+		await session.refreshDiscovery()
+		expect(session.isReadOnly.value).toBe(false)
+		expect(harness.workflow.isReviewReadOnly.value).toBe(false)
+
+		fake.createDraftAndClaim.mockReturnValueOnce(pending.promise)
+		const keeping = session.keepForLater()
+		expect(session.isTransitioning.value).toBe(true)
+		expect(harness.workflow.isReviewReadOnly.value).toBe(true)
+
+		await vi.waitFor(() =>
+			expect(fake.createDraftAndClaim).toHaveBeenCalledOnce()
+		)
+		expect(harness.workflow.isReviewReadOnly.value).toBe(true)
+		const draft = fake.createDraftAndClaim.mock.calls[0]![0]
+		pending.resolve({
+			value: { draft, lease: lease(0) },
+			deviceRevision: 1
+		})
+		expect(await keeping).toBe(true)
+		expect(session.isTransitioning.value).toBe(false)
+		expect(harness.workflow.rows.value).toEqual([])
+		expect(harness.workflow.isReviewReadOnly.value).toBe(false)
 	})
 
 	it('resumes a live draft read-only and requires explicit takeover to edit', async () => {
@@ -1568,6 +1687,7 @@ describe('useTrackEnrichmentDraftSession', () => {
 			})
 		)
 		if (!session) throw new Error('Failed to create draft session')
+		bindReviewReadOnly(workflow, session)
 		activeScopes.push(scope)
 		await session.initialize()
 		activeRuntime.replaceWorkspace(
@@ -1626,6 +1746,7 @@ describe('useTrackEnrichmentDraftSession', () => {
 			})
 		)
 		if (!session) throw new Error('Failed to create draft session')
+		bindReviewReadOnly(workflow, session)
 		activeScopes.push(scope)
 		await session.initialize()
 		workflow.workflow.selectedFileName.value = 'old.xml'
