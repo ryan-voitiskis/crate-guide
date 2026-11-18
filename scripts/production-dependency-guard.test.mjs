@@ -5,8 +5,8 @@ import {
 	productionDependencyGuard
 } from './production-dependency-guard.mjs'
 
-test('rejects build-only TLS packages in local, Windows, pnpm and external module paths', () => {
-	for (const name of ['node-forge', 'listhen']) {
+test('rejects build-only packages in local, Windows, pnpm and external module paths', () => {
+	for (const name of ['node-forge', 'listhen', 'picomatch']) {
 		for (const id of [
 			name,
 			`\0${name}?commonjs-external`,

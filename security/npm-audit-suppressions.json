@@ -1,37 +1,29 @@
 [
 	{
-		"id": "GHSA-86w9-cpqp-85rv",
-		"package": "node-forge",
-		"version": "1.4.0",
-		"consumer": "listhen",
-		"consumerVersion": "1.10.1",
+		"id": "GHSA-fc5q-39xc-vjpf",
+		"package": "picomatch",
+		"scope": "build-only",
 		"owner": "ryan-voitiskis",
-		"expires": "2026-11-23",
-		"reason": "Nuxt build/development TLS dependency. Listhen and node-forge are excluded from every rendered client and Cloudflare Worker bundle by a build guard. No patched release is published. Reassess or remove by expiry; any other advisory, version or consumer remains blocking.",
-		"evidence": "docs/security/node-forge-reachability.md",
-		"chain": [
+		"expires": "2026-12-18",
+		"reason": "Unpatched ReDoS (every release through 4.0.7). Picomatch is used only by Nuxt, Vite, Nitro, vue-router, ESLint and Vitest build/test tooling to match repository-authored glob patterns. The production dependency guard rejects it from every rendered client and Worker bundle. Reassess or remove by expiry; any other advisory, version or installation remains blocking.",
+		"evidence": "docs/security/picomatch-reachability.md",
+		"severity": "high",
+		"installations": [
 			{
-				"package": "nuxt",
-				"version": "4.6.2"
+				"path": "node_modules/anymatch/node_modules/picomatch",
+				"version": "2.3.2",
+				"integrity": "sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA=="
 			},
 			{
-				"package": "@nuxt/nitro-server",
-				"version": "4.6.2"
+				"path": "node_modules/micromatch/node_modules/picomatch",
+				"version": "2.3.2",
+				"integrity": "sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA=="
 			},
 			{
-				"package": "nitropack",
-				"version": "2.13.5"
-			},
-			{
-				"package": "listhen",
-				"version": "1.10.1"
-			},
-			{
-				"package": "node-forge",
-				"version": "1.4.0"
+				"path": "node_modules/picomatch",
+				"version": "4.0.7",
+				"integrity": "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA=="
 			}
-		],
-		"integrity": "sha512-LarFH0+6VfriEhqMMcLX2F7SwSXeWwnEAJEsYm5QKWchiVYVvJyV9v7UDvUv+w5HO23ZpQTXDv/GxdDdMyOuoQ==",
-		"severity": "high"
+		]
 	}
 ]

@@ -209,3 +209,135 @@ test('audit command covers dev dependencies explicitly and rejects network or ma
 		/invalid JSON/
 	)
 })
+
+const buildOnlyId = 'GHSA-fc5q-39xc-vjpf'
+const buildOnlyPolicy = [
+	{
+		id: buildOnlyId,
+		package: 'picomatch',
+		scope: 'build-only',
+		severity: 'high',
+		owner: 'owner',
+		expires: '2026-12-18',
+		reason: 'Unpatched build tooling; guarded out of production.',
+		evidence: 'docs/security/picomatch-reachability.md',
+		installations: [
+			{
+				path: 'node_modules/picomatch',
+				version: '4.0.7',
+				integrity: 'sha512-new'
+			},
+			{
+				path: 'node_modules/micromatch/node_modules/picomatch',
+				version: '2.3.2',
+				integrity: 'sha512-old'
+			}
+		]
+	}
+]
+const buildOnlyLock = {
+	packages: {
+		'': { dependencies: { vite: '*', micromatch: '*' } },
+		'node_modules/vite': { dependencies: { picomatch: '^4' } },
+		'node_modules/micromatch': { dependencies: { picomatch: '^2' } },
+		'node_modules/picomatch': {
+			version: '4.0.7',
+			integrity: 'sha512-new',
+			resolved: 'https://registry.npmjs.org/picomatch/-/picomatch-4.0.7.tgz'
+		},
+		'node_modules/micromatch/node_modules/picomatch': {
+			version: '2.3.2',
+			integrity: 'sha512-old',
+			resolved: 'https://registry.npmjs.org/picomatch/-/picomatch-2.3.2.tgz'
+		}
+	}
+}
+const buildOnlyReport = () =>
+	report({
+		picomatch: finding('picomatch', [
+			{ ...source(buildOnlyId), name: 'picomatch' }
+		]),
+		vite: finding('vite', ['picomatch']),
+		micromatch: finding('micromatch', ['picomatch'])
+	})
+
+test('build-only exceptions waive one guarded advisory across every pinned installation', () => {
+	assert.deepEqual(
+		evaluateNodeAudit(buildOnlyReport(), buildOnlyPolicy, buildOnlyLock, now),
+		{ blocking: [], suppressed: [buildOnlyId], findingCount: 3 }
+	)
+	const another = buildOnlyReport()
+	another.vulnerabilities.picomatch.via.push({
+		...source('GHSA-aaaa-bbbb-cccc'),
+		name: 'picomatch'
+	})
+	assert.equal(
+		evaluateNodeAudit(
+			report(another.vulnerabilities),
+			buildOnlyPolicy,
+			buildOnlyLock,
+			now
+		).blocking.length,
+		1
+	)
+})
+
+test('build-only exceptions fail closed on changed installations, unguarded packages, expiry or missing fields', () => {
+	for (const mutate of [
+		(l) => {
+			l.packages['node_modules/picomatch'].version = '4.0.8'
+		},
+		(l) => {
+			l.packages['node_modules/picomatch'].integrity = 'sha512-changed'
+		},
+		(l) => {
+			l.packages['node_modules/picomatch'].resolved =
+				'https://other.invalid/picomatch.tgz'
+		},
+		(l) => {
+			l.packages['node_modules/other/node_modules/picomatch'] = {
+				version: '4.0.7',
+				integrity: 'sha512-new',
+				resolved: 'https://registry.npmjs.org/picomatch/-/picomatch-4.0.7.tgz'
+			}
+		},
+		(l) => {
+			delete l.packages['node_modules/micromatch/node_modules/picomatch']
+		}
+	]) {
+		const changed = structuredClone(buildOnlyLock)
+		mutate(changed)
+		assert.throws(
+			() => evaluateNodeAudit(buildOnlyReport(), buildOnlyPolicy, changed, now),
+			/Changed Node audit dependency installations/
+		)
+	}
+	const unguarded = structuredClone(buildOnlyPolicy)
+	unguarded[0].package = 'micromatch'
+	assert.throws(
+		() => validateNodeSuppressions(unguarded, buildOnlyLock, now),
+		/production bundle guard/
+	)
+	assert.throws(
+		() =>
+			validateNodeSuppressions(
+				buildOnlyPolicy,
+				buildOnlyLock,
+				new Date('2026-12-18T00:00:00Z')
+			),
+		/Expired/
+	)
+	for (const field of ['installations', 'evidence', 'owner', 'expires']) {
+		const incomplete = structuredClone(buildOnlyPolicy)
+		delete incomplete[0][field]
+		assert.throws(() =>
+			validateNodeSuppressions(incomplete, buildOnlyLock, now)
+		)
+	}
+	const duplicated = structuredClone(buildOnlyPolicy)
+	duplicated[0].installations.push(duplicated[0].installations[0])
+	assert.throws(
+		() => validateNodeSuppressions(duplicated, buildOnlyLock, now),
+		/Changed/
+	)
+})

@@ -1,5 +1,7 @@
 # Time-limited node-forge audit exception
 
+> **Resolved 18 November 2026.** node-forge 1.4.3 fixes every listed advisory and is now locked; the exception was removed from `security/npm-audit-suppressions.json`. The production dependency guard still rejects node-forge and listhen. This page is historical.
+
 The owner approved this exact, 30-day exception on 24 October 2026. It is active only for the advisory and locked dependency chain below. The normal high-severity gate continues to block every other unapproved finding.
 
 The one remaining root advisory is [GHSA-86w9-cpqp-85rv](https://github.com/advisories/GHSA-86w9-cpqp-85rv), affecting RSA PKCS#1 v1.5 signature verification in node-forge through 1.4.0. The npm registry still publishes 1.4.0 as latest, and the [upstream repair](https://github.com/digitalbazaar/forge/pull/1152) is unmerged as of 24 October 2026. Vendoring an unreviewed cryptography fork or downgrading Nuxt would add maintenance and compatibility risk.

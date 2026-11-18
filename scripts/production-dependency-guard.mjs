@@ -1,4 +1,8 @@
-const excludedPackages = ['node-forge', 'listhen']
+export const excludedPackages = Object.freeze([
+	'node-forge',
+	'listhen',
+	'picomatch'
+])
 
 export function assertProductionModules(moduleIds) {
 	for (const id of moduleIds) {
