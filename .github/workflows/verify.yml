@@ -34,6 +34,39 @@ jobs:
       - name: Audit the isolated recovery toolchain
         run: npm audit --prefix tooling/recovery --audit-level=high
 
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.18.1
+          cache: npm
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.9.4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit production dependencies
+        run: npm run audit:prod
+
+      - name: Audit all dependencies
+        run: npm run audit:all
+
+      - name: Audit frozen Edge dependencies
+        run: npm run audit:edge
+
+      - name: Verify formatting, types, Edge and tooling contracts
+        run: npm run verify:static
+
   application:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -53,28 +86,11 @@ jobs:
           node-version: 24.18.1
           cache: npm
 
-      - name: Set up Deno
-        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
-        with:
-          deno-version: v2.9.4
-
       - name: Install dependencies
         run: npm ci
 
-      - name: Check dependency topology
-        run: npm run check:dependency-topology
-
-      - name: Audit production dependencies
-        run: npm run audit:prod
-
-      - name: Audit all dependencies
-        run: npm run audit:all
-
-      - name: Audit frozen Edge dependencies
-        run: npm run audit:edge
-
-      - name: Verify application
-        run: npm run verify
+      - name: Verify application, E2E and browser matrix
+        run: npm run verify:app
         env:
           BROWSER_LIBRARY_REQUIRE_FULL_MATRIX: '1'
           LOCAL_AUDIO_CACHE_REQUIRE_TIMING_BUDGETS: '0'
