@@ -9,6 +9,7 @@ import {
 	type TrackEnrichmentDraftObservation,
 	type TrackEnrichmentDraftProposal
 } from '~/types/trackEnrichmentDraft'
+import { canonicalJson, sha256Hex } from './canonicalJson'
 import { LOCAL_AUDIO_METADATA_VERSION } from './localAudio'
 import type { RekordboxXmlTrack } from './rekordboxXml'
 import {
@@ -165,15 +166,9 @@ function buildProposal(input: {
 	}
 }
 
+// Draft fingerprints are persisted; 'token' keeps their historical encoding.
 function canonicalize(value: unknown): string {
-	if (value === null || typeof value !== 'object') return JSON.stringify(value)
-	if (Array.isArray(value)) {
-		return `[${value.map((item) => canonicalize(item)).join(',')}]`
-	}
-	return `{${Object.entries(value as Record<string, unknown>)
-		.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-		.map(([key, nested]) => `${JSON.stringify(key)}:${canonicalize(nested)}`)
-		.join(',')}}`
+	return canonicalJson(value, { onUndefined: 'token' })
 }
 
 export async function sha256TrackEnrichmentDraftValue(
@@ -182,10 +177,7 @@ export async function sha256TrackEnrichmentDraftValue(
 	const subtle = globalThis.crypto?.subtle
 	if (!subtle)
 		throw new TrackEnrichmentDraftFingerprintError('crypto-unavailable')
-	const digest = await subtle.digest('SHA-256', new TextEncoder().encode(value))
-	return Array.from(new Uint8Array(digest), (byte) =>
-		byte.toString(16).padStart(2, '0')
-	).join('')
+	return sha256Hex(value)
 }
 
 function fingerprintObservation(

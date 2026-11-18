@@ -4,6 +4,7 @@ import type {
 	TrackBatchOperationIdentity,
 	TrackBatchUpdate
 } from '~~/shared/types/trackUpdates'
+import { sha256Hex } from './canonicalJson'
 
 export const TRACK_ENRICHMENT_BATCH_SIZE = 100
 export const TRACK_ENRICHMENT_RECEIPT_RETENTION_HOURS = 24
@@ -55,6 +56,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+// Not canonicalJson(): request hashes use strict JSON-value semantics
+// (non-finite numbers and undefined array entries are rejected, and integer-like
+// keys follow JSON.stringify ordering). Changing that would change request_hash.
 function toCanonicalJson(value: unknown): CanonicalJson {
 	if (
 		value === null ||
@@ -78,16 +82,6 @@ function toCanonicalJson(value: unknown): CanonicalJson {
 
 export function canonicalizeTrackEnrichmentRequest(value: unknown): string {
 	return JSON.stringify(toCanonicalJson(value))
-}
-
-async function sha256Hex(value: string): Promise<string> {
-	const digest = await globalThis.crypto.subtle.digest(
-		'SHA-256',
-		new TextEncoder().encode(value)
-	)
-	return Array.from(new Uint8Array(digest), (byte) =>
-		byte.toString(16).padStart(2, '0')
-	).join('')
 }
 
 function serializeEnrichmentUpdates(

@@ -1,4 +1,5 @@
 import { TRACK_ENRICHMENT_DRAFT_EVIDENCE_PRECONDITION_VERSION } from '~/types/trackEnrichmentDraft'
+import { canonicalJson } from './canonicalJson'
 import { sha256TrackEnrichmentDraftValue } from './trackEnrichmentDraftFingerprint'
 import { decodeTrackEvidence } from './trackEvidenceCodec'
 
@@ -10,15 +11,10 @@ type CanonicalJson =
 	| CanonicalJson[]
 	| { [key: string]: CanonicalJson }
 
+// The digest is persisted in draft preconditions; 'token' keeps its
+// historical encoding byte-identical.
 function canonicalize(value: CanonicalJson): string {
-	if (value === null || typeof value !== 'object') return JSON.stringify(value)
-	if (Array.isArray(value)) {
-		return `[${value.map((item) => canonicalize(item)).join(',')}]`
-	}
-	return `{${Object.entries(value)
-		.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-		.map(([key, nested]) => `${JSON.stringify(key)}:${canonicalize(nested)}`)
-		.join(',')}}`
+	return canonicalJson(value, { onUndefined: 'token' })
 }
 
 // Persisted track Evidence objects are replaced, never mutated, so a digest is
