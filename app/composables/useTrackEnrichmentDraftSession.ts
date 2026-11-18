@@ -24,7 +24,7 @@ import type { TrackEnrichmentDraft } from '~/types/trackEnrichmentDraft'
 import { createTrackEnrichmentDraftBinding } from '~/utils/trackEnrichmentDraftBinding'
 import { encodeTrackEnrichmentDraftContentSignature } from '~/utils/trackEnrichmentDraftCodec'
 import { createTrackEnrichmentDraftObservationFingerprintCache } from '~/utils/trackEnrichmentDraftFingerprint'
-import { hydrateTrackEnrichmentDraft } from '~/utils/trackEnrichmentDraftHydration'
+import type { hydrateTrackEnrichmentDraft } from '~/utils/trackEnrichmentDraftHydration'
 import { mapTrackEnrichmentDraftBatchOutcome } from '~/utils/trackEnrichmentDraftOutcome'
 import { createTrackEnrichmentDraftOwnership } from '~/utils/trackEnrichmentDraftOwnership'
 import { projectTrackEnrichmentDraftWithSignature } from '~/utils/trackEnrichmentDraftProjection'
@@ -140,7 +140,15 @@ export function useTrackEnrichmentDraftSession(
 	const cancelTimeout = dependencies.clearTimeout ?? globalThis.clearTimeout
 	const autosaveDelayMs =
 		dependencies.autosaveDelayMs ?? TRACK_ENRICHMENT_DRAFT_AUTOSAVE_DELAY_MS
-	const hydrateDraft = dependencies.hydrateDraft ?? hydrateTrackEnrichmentDraft
+	// Resume rematching is only needed after the user chooses Resume or Take
+	// over, so its code loads on demand instead of with the enrichment page.
+	const hydrateDraft: typeof hydrateTrackEnrichmentDraft =
+		dependencies.hydrateDraft ??
+		(async (input) => {
+			const { hydrateTrackEnrichmentDraft } =
+				await import('~/utils/trackEnrichmentDraftHydration')
+			return await hydrateTrackEnrichmentDraft(input)
+		})
 
 	const discoveryState = ref<TrackEnrichmentDraftDiscoveryState>('idle')
 	const saveState = ref<TrackEnrichmentDraftSaveState>('idle')
