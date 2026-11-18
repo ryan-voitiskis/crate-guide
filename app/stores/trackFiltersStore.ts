@@ -1,3 +1,4 @@
+import { shallowRef } from 'vue'
 import { createKeyComposite, parseKeyComposite } from '~/utils/keyFunctions'
 import { getWorkbenchStorePinia } from '~/utils/workbenchPinia'
 

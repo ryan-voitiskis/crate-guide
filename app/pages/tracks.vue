@@ -50,21 +50,6 @@ const density = useState<Density>('workbench-density', () => 'compact')
 const sortKey = ref<TrackSortKey>('artist')
 const sortDirection = ref<LibrarySortDirection>('asc')
 const viewMode = ref<TrackCollectionView>('tracks')
-// Typing updates the input immediately; filtering follows after a short pause.
-const searchInput = ref(trackFilters.searchQuery)
-watchDebounced(
-	searchInput,
-	(query) => {
-		trackFilters.searchQuery = query
-	},
-	{ debounce: 150 }
-)
-watch(
-	() => trackFilters.searchQuery,
-	(query) => {
-		if (query !== searchInput.value) searchInput.value = query
-	}
-)
 
 watchEffect(() => trackFilters.setTrackSource(tracks.tracks))
 
@@ -258,7 +243,7 @@ watch(
 						class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
 					/>
 					<Input
-						v-model="searchInput"
+						v-model="trackFilters.searchQuery"
 						name="search"
 						placeholder="Search tracks, artists or genres"
 						class="bg-background pr-3 pl-10"
