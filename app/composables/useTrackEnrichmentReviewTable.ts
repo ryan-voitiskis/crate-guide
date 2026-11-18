@@ -16,7 +16,26 @@ type UseTrackEnrichmentReviewTableOptions = {
 
 const rowsPerPage = 100
 
+// Same ordering as String#localeCompare(other, undefined, options), without
+// resolving locale data on every comparison.
+const sortCollator = new Intl.Collator(undefined, {
+	numeric: true,
+	sensitivity: 'base'
+})
+
+// Review rows are replaced, never mutated, so the lowercased search text of a
+// row object is stable for its lifetime.
+const searchTextByRow = new WeakMap<TrackEnrichmentRow, string>()
+
 function getSearchText(row: TrackEnrichmentRow): string {
+	const cached = searchTextByRow.get(row)
+	if (cached !== undefined) return cached
+	const text = buildSearchText(row)
+	searchTextByRow.set(row, text)
+	return text
+}
+
+function buildSearchText(row: TrackEnrichmentRow): string {
 	return [
 		row.track?.title,
 		row.track?.position,
@@ -45,10 +64,7 @@ function compareNullableValues(
 		return right === null || right === undefined || right === '' ? 0 : 1
 	if (right === null || right === undefined || right === '') return -1
 	if (typeof left === 'number' && typeof right === 'number') return left - right
-	return String(left).localeCompare(String(right), undefined, {
-		numeric: true,
-		sensitivity: 'base'
-	})
+	return sortCollator.compare(String(left), String(right))
 }
 
 function getSortValue(
@@ -102,13 +118,16 @@ export function useTrackEnrichmentReviewTable({
 
 		const direction = sortDirection.value === 'asc' ? 1 : -1
 		const key = sortKey.value
-		return [...searchedRows.value].sort(
+		// Build each composite key once instead of twice per comparison.
+		const decorated = searchedRows.value.map((row) => ({
+			row,
+			value: getSortValue(row, key)
+		}))
+		decorated.sort(
 			(left, right) =>
-				compareNullableValues(
-					getSortValue(left, key),
-					getSortValue(right, key)
-				) * direction
+				compareNullableValues(left.value, right.value) * direction
 		)
+		return decorated.map((entry) => entry.row)
 	})
 
 	const stageableRows = computed(() =>

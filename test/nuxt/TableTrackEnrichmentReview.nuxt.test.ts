@@ -2,13 +2,29 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import type { VueWrapper } from '@vue/test-utils'
 import { createMockRecord } from 'test/mocks/fixtures/records'
 import { createMockTrack } from 'test/mocks/fixtures/tracks'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import TableTrackEnrichmentReview from '~/components/enrichment/TableTrackEnrichmentReview.vue'
 import Checkbox from '~/components/ui/checkbox/Checkbox.vue'
 import { createLocalAudioTrackSource } from '~/utils/localAudio'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
 
 const wrappers = new Set<VueWrapper>()
+
+function stubCompactViewport() {
+	return vi.spyOn(window, 'matchMedia').mockImplementation(
+		(query: string) =>
+			({
+				matches: query === '(max-width: 767px)',
+				media: query,
+				onchange: null,
+				addEventListener: () => {},
+				removeEventListener: () => {},
+				addListener: () => {},
+				removeListener: () => {},
+				dispatchEvent: () => false
+			}) as MediaQueryList
+	)
+}
 
 function createRow(
 	overrides: Partial<TrackEnrichmentRow> = {}
@@ -92,6 +108,38 @@ describe('TableTrackEnrichmentReview', () => {
 		for (const wrapper of wrappers) wrapper.unmount()
 		wrappers.clear()
 		document.body.innerHTML = ''
+		vi.restoreAllMocks()
+	})
+
+	it('mounts only the desktop table on wide viewports', async () => {
+		const wrapper = await mountTable([createRow()])
+
+		expect(
+			wrapper.find('[data-testid="enrichment-review-desktop-table"]').exists()
+		).toBe(true)
+		expect(
+			wrapper.findAll('[data-testid="enrichment-review-mobile-row"]')
+		).toHaveLength(0)
+		expect(wrapper.findAll('[aria-label="Stage Source Track"]')).toHaveLength(1)
+	})
+
+	it('mounts only compact rows on narrow viewports and keeps staging', async () => {
+		stubCompactViewport()
+		const row = createRow()
+		const wrapper = await mountTable([row])
+
+		expect(
+			wrapper.find('[data-testid="enrichment-review-desktop-table"]').exists()
+		).toBe(false)
+		expect(
+			wrapper.findAll('[data-testid="enrichment-review-mobile-row"]')
+		).toHaveLength(1)
+		await wrapper.get('[aria-label="Stage Source Track"]').trigger('click')
+		await wrapper
+			.get('[aria-label="Stage all eligible tracks in this view"]')
+			.trigger('click')
+		expect(wrapper.emitted('stage-row')).toEqual([[row, true]])
+		expect(wrapper.emitted('stage-all')).toEqual([[true]])
 	})
 
 	it('emits row and bulk staging payloads', async () => {

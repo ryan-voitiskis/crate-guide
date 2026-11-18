@@ -27,6 +27,10 @@ const emit = defineEmits<{
 	sort: [key: TrackEnrichmentReviewSortKey]
 }>()
 
+// Render only the layout for the current breakpoint instead of mounting both
+// row trees and hiding one with CSS.
+const isCompactLayout = useMediaQuery('(max-width: 767px)')
+
 function isRowStaged(row: TrackEnrichmentRow): boolean {
 	return props.stagedRowIds.has(row.id)
 }
@@ -154,7 +158,7 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 	<div
 		class="border-border overflow-hidden rounded-sm border md:flex md:min-h-0 md:flex-col"
 	>
-		<div class="divide-border divide-y md:hidden">
+		<div v-if="isCompactLayout" class="divide-border divide-y">
 			<div
 				class="bg-muted/70 sticky top-0 z-10 flex h-9 items-center justify-between px-3 backdrop-blur-md"
 			>
@@ -179,6 +183,7 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 			<div
 				v-for="row in rows"
 				:key="row.id"
+				data-testid="enrichment-review-mobile-row"
 				class="px-3 py-2.5"
 				:class="getRowClasses(row)"
 			>
@@ -290,8 +295,9 @@ function getEvidenceText(row: TrackEnrichmentRow): string {
 		</div>
 
 		<div
+			v-else
 			data-testid="enrichment-review-table-scroll"
-			class="workbench-scrollbar hidden min-h-0 flex-1 overflow-auto md:block"
+			class="workbench-scrollbar min-h-0 flex-1 overflow-auto"
 		>
 			<Table
 				data-testid="enrichment-review-desktop-table"
