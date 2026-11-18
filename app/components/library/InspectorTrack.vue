@@ -141,6 +141,14 @@ const keyColour = computed(() => {
 				</div>
 			</div>
 
+			<LazyPanelTrackQuickSetLive
+				v-if="!readOnly"
+				:key="track.id"
+				class="border-border mt-4 border-t pt-4"
+				:track="track"
+				:key-format="preferences.currentKeyFormat"
+			/>
+
 			<dl class="mt-4 space-y-3 text-sm">
 				<div class="flex gap-3">
 					<ListMusic class="text-muted-foreground mt-0.5 size-3.5 shrink-0" />

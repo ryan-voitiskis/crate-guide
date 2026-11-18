@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useFormContext } from 'vee-validate'
+import { parseBPM } from '~/utils/formatting'
 import type { TrackEditorFormValues } from '~/utils/trackEditor'
 import type { DiscogsArtistDb } from '~~/shared/types/discogs'
 import type { KeyFormat } from '~~/shared/types/supabase'
@@ -28,6 +29,17 @@ const [timeSignatureUpperValue] = form.defineField('time_signature_upper')
 const [timeSignatureLowerValue] = form.defineField('time_signature_lower')
 
 const keyOptions = computed(() => getKeyOptionsForComposite(props.keyFormat))
+
+const quickSetBpm = computed(() => parseBPM(bpmValue.value ?? ''))
+const quickSetKeyComposite = computed(() => keyCompositeValue.value || 'none')
+
+function applyQuickSetBpm(bpm: number) {
+	bpmValue.value = bpm.toString()
+}
+
+function applyQuickSetKey(composite: string) {
+	keyCompositeValue.value = composite
+}
 </script>
 
 <template>
@@ -108,6 +120,20 @@ const keyOptions = computed(() => getKeyOptionsForComposite(props.keyFormat))
 			</TagsInputItem>
 			<TagsInputInput placeholder="Add genres..." />
 		</TagsInput>
+	</div>
+
+	<!-- Quick set: tap tempo and key wheel bound to the form fields below -->
+	<div
+		class="border-border bg-muted/20 rounded-md border p-3"
+		data-testid="track-editor-quick-set"
+	>
+		<PanelTrackQuickSet
+			:bpm="quickSetBpm"
+			:key-composite="quickSetKeyComposite"
+			:key-format="keyFormat"
+			@update:bpm="applyQuickSetBpm"
+			@update:key-composite="applyQuickSetKey"
+		/>
 	</div>
 
 	<!-- Technical Details -->
