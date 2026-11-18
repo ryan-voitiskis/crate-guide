@@ -816,6 +816,55 @@ describe('useTrackEnrichmentWorkflow', () => {
 		expect(workflow.workflowView.value).toBe('review')
 	})
 
+	it('marks resumed done rows applied without mutating hydrated rows', () => {
+		const workflow = createWorkflow()
+		const done = createRow({ id: 'done' })
+		const open = createRow({ id: 'open' })
+
+		workflow.loadResumedReview({
+			fileLabel: 'saved.xml',
+			rows: [done, open],
+			stagedRowIds: ['open'],
+			changedRowIds: [],
+			doneRowIds: ['done'],
+			selectedFilter: 'changed',
+			resumeSummary: {
+				retained: 1,
+				changed: 0,
+				dropped: 0,
+				unstaged: 0
+			} as never,
+			requiresReconnect: false
+		})
+
+		expect(done.applied).toBe(false)
+		expect(workflow.rows.value[0]).toMatchObject({ id: 'done', applied: true })
+		expect(workflow.rows.value[1]).toBe(open)
+		expect(workflow.doneRows.value.map((row) => row.id)).toEqual(['done'])
+		expect(workflow.readyRows.value.map((row) => row.id)).toEqual(['open'])
+		expect(workflow.selectedFilter.value).toBe('review')
+	})
+
+	it('republishes only the staged selection when staging changes', () => {
+		const workflow = createWorkflow()
+		const first = createRow({ id: 'first' })
+		const second = createRow({ id: 'second', canFillKeyMode: false })
+		workflow.loadPreparedReview('demo.xml', [first, second])
+		const ready = workflow.readyRows.value
+		const matched = workflow.matchedRows.value
+
+		workflow.setRowStaged(first, false)
+
+		expect(workflow.readyRows.value).toBe(ready)
+		expect(workflow.matchedRows.value).toBe(matched)
+		expect(workflow.stagedRows.value).toEqual([second])
+		expect(workflow.stagedBpmCount.value).toBe(1)
+		expect(workflow.stagedKeyModeCount.value).toBe(0)
+		expect(
+			workflow.filterOptions.value.find((option) => option.value === 'staged')
+		).toMatchObject({ count: 1 })
+	})
+
 	it('rejects blocked rows and permits explicit Evidence-only staging', () => {
 		const workflow = createWorkflow()
 		const eligible = createRow({ id: 'eligible' })

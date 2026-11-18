@@ -15,6 +15,11 @@ import {
 	canStageTrackEnrichmentRow
 } from '~/utils/trackEnrichment'
 import type { TrackEnrichmentDraftResumeSummary } from '~/utils/trackEnrichmentDraftResume'
+import {
+	canStageTrackEnrichmentWorkflowRow,
+	classifyTrackEnrichmentRowBuckets,
+	selectStagedTrackEnrichmentRows
+} from '~/utils/trackEnrichmentReviewView'
 import type { TrackBatchUpdateOutcome } from '~~/shared/types/trackUpdates'
 
 export type ReviewFilter =
@@ -73,7 +78,7 @@ export type TrackEnrichmentWorkflow = {
 	activeSource: Ref<TrackEnrichmentSourceKind>
 	selectedFileName: Ref<string | null>
 	rows: Ref<TrackEnrichmentRow[]>
-	stagedRowIds: Ref<Set<string>>
+	stagedRowIds: Ref<ReadonlySet<string>>
 	selectedFilter: Ref<ReviewFilter>
 	currentPage: Ref<number>
 	parseWarnings: Ref<string[]>
@@ -90,7 +95,7 @@ export type TrackEnrichmentWorkflow = {
 	applyTotal: Ref<number>
 	lastApplySummary: Ref<ApplySummary | null>
 	workflowView: Ref<TrackEnrichmentWorkflowView>
-	changedRowIds: Ref<Set<string>>
+	changedRowIds: Ref<ReadonlySet<string>>
 	resumeSummary: Ref<TrackEnrichmentDraftResumeSummary | null>
 	requiresSourceReconnect: Ref<boolean>
 	isReviewReadOnly: Ref<boolean>
@@ -148,28 +153,6 @@ export type TrackEnrichmentWorkflowDependencies = {
 	) => Promise<void> | void
 }
 
-export function isTrackEnrichmentEvidenceOnlyRow(
-	row: TrackEnrichmentRow
-): boolean {
-	return Boolean(
-		row.track &&
-		!row.canFillBpm &&
-		!row.canFillKeyMode &&
-		!row.stagingBlockedReason
-	)
-}
-
-export function canStageTrackEnrichmentWorkflowRow(
-	row: TrackEnrichmentRow
-): boolean {
-	if (canStageTrackEnrichmentRow(row)) return true
-	return Boolean(
-		isTrackEnrichmentEvidenceOnlyRow(row) &&
-		!row.applied &&
-		row.track?.updated_at
-	)
-}
-
 export function getTrackEnrichmentIntentKind(
 	row: TrackEnrichmentRow
 ): 'fill-empty-fields' | 'evidence-only' {
@@ -186,8 +169,10 @@ export function useTrackEnrichmentWorkflow(
 
 	const activeSource = ref<TrackEnrichmentSourceKind>('rekordboxXml')
 	const selectedFileName = ref<string | null>(null)
-	const rows = ref<TrackEnrichmentRow[]>([])
-	const stagedRowIds = ref<Set<string>>(new Set())
+	// Review state is published immutably: every write replaces the array or
+	// Set, so shallow refs avoid deep proxies over thousands of rows.
+	const rows = shallowRef<TrackEnrichmentRow[]>([])
+	const stagedRowIds = shallowRef<ReadonlySet<string>>(new Set())
 	const selectedFilter = ref<ReviewFilter>('ready')
 	const currentPage = ref(1)
 	const parseWarnings = ref<string[]>([])
@@ -204,7 +189,7 @@ export function useTrackEnrichmentWorkflow(
 	const applyTotal = ref(0)
 	const lastApplySummary = ref<ApplySummary | null>(null)
 	const workflowView = ref<TrackEnrichmentWorkflowView>('source')
-	const changedRowIds = ref<Set<string>>(new Set())
+	const changedRowIds = shallowRef<ReadonlySet<string>>(new Set())
 	const resumeSummary = ref<TrackEnrichmentDraftResumeSummary | null>(null)
 	const requiresSourceReconnect = ref(false)
 	const isReviewReadOnly = ref(false)
@@ -231,44 +216,22 @@ export function useTrackEnrichmentWorkflow(
 		return workflowView.value === 'review' && rows.value.length > 0 ? 2 : 1
 	})
 
-	const matchedRows = computed(() => rows.value.filter((row) => !!row.track))
-	const readyRows = computed(() =>
-		rows.value.filter((row) => row.defaultStaged && !row.applied)
+	const rowBuckets = computed(() =>
+		classifyTrackEnrichmentRowBuckets(rows.value, changedRowIds.value)
 	)
-	const reviewRows = computed(() =>
-		rows.value.filter(
-			(row) =>
-				!!row.track &&
-				!row.applied &&
-				!row.defaultStaged &&
-				(row.canFillBpm || row.canFillKeyMode || !!row.stagingBlockedReason)
-		)
+	const stagedSelection = computed(() =>
+		selectStagedTrackEnrichmentRows(rows.value, stagedRowIds.value)
 	)
-	const evidenceOnlyRows = computed(() =>
-		rows.value.filter(
-			(row) => !row.applied && isTrackEnrichmentEvidenceOnlyRow(row)
-		)
-	)
-	const unmatchedRows = computed(() => rows.value.filter((row) => !row.track))
-	const doneRows = computed(() =>
-		rows.value.filter((row) => row.applied || row.alreadyComplete)
-	)
-	const changedRows = computed(() =>
-		rows.value.filter((row) => changedRowIds.value.has(row.id))
-	)
-	const stagedRows = computed(() =>
-		rows.value.filter(
-			(row) =>
-				stagedRowIds.value.has(row.id) &&
-				canStageTrackEnrichmentWorkflowRow(row)
-		)
-	)
-	const blockedCount = computed(
-		() => rows.value.filter((row) => !!row.stagingBlockedReason).length
-	)
-	const rowErrorCount = computed(
-		() => rows.value.filter((row) => !!row.error).length
-	)
+	const matchedRows = computed(() => rowBuckets.value.matched)
+	const readyRows = computed(() => rowBuckets.value.ready)
+	const reviewRows = computed(() => rowBuckets.value.review)
+	const evidenceOnlyRows = computed(() => rowBuckets.value.evidenceOnly)
+	const unmatchedRows = computed(() => rowBuckets.value.unmatched)
+	const doneRows = computed(() => rowBuckets.value.done)
+	const changedRows = computed(() => rowBuckets.value.changed)
+	const stagedRows = computed(() => stagedSelection.value.rows)
+	const blockedCount = computed(() => rowBuckets.value.blockedCount)
+	const rowErrorCount = computed(() => rowBuckets.value.rowErrorCount)
 	const errorCount = computed(
 		() => parseErrors.value.length + rowErrorCount.value
 	)
@@ -354,15 +317,11 @@ export function useTrackEnrichmentWorkflow(
 	const stageableFilteredRows = computed(() =>
 		filteredRows.value.filter(canStageTrackEnrichmentWorkflowRow)
 	)
-	const stagedBpmCount = computed(
-		() => stagedRows.value.filter((row) => row.canFillBpm).length
-	)
-	const stagedKeyModeCount = computed(
-		() => stagedRows.value.filter((row) => row.canFillKeyMode).length
-	)
-	const stagedEvidenceCount = computed(() => stagedRows.value.length)
+	const stagedBpmCount = computed(() => stagedSelection.value.bpmCount)
+	const stagedKeyModeCount = computed(() => stagedSelection.value.keyModeCount)
+	const stagedEvidenceCount = computed(() => stagedSelection.value.rows.length)
 	const stagedEvidenceOnlyCount = computed(
-		() => stagedRows.value.filter(isTrackEnrichmentEvidenceOnlyRow).length
+		() => stagedSelection.value.evidenceOnlyCount
 	)
 
 	watch(selectedFilter, () => {
@@ -399,10 +358,19 @@ export function useTrackEnrichmentWorkflow(
 	}
 
 	function loadResumedReview(review: TrackEnrichmentResumedReview) {
-		loadPreparedReview(review.fileLabel, review.rows)
-		for (const row of rows.value) {
-			if (review.doneRowIds.includes(row.id)) row.applied = true
-		}
+		// Draft hydration already marks done rows applied; keep this as an
+		// idempotent guard for direct callers without mutating row objects.
+		const doneRowIds = new Set(review.doneRowIds)
+		loadPreparedReview(
+			review.fileLabel,
+			doneRowIds.size === 0
+				? review.rows
+				: review.rows.map((row) =>
+						doneRowIds.has(row.id) && !row.applied
+							? { ...row, applied: true }
+							: row
+					)
+		)
 		stagedRowIds.value = new Set(review.stagedRowIds)
 		changedRowIds.value = new Set(review.changedRowIds)
 		resumeSummary.value = review.resumeSummary

@@ -1,13 +1,13 @@
 import type { Ref } from 'vue'
-import { canStageTrackEnrichmentWorkflowRow } from '~/composables/useTrackEnrichmentWorkflow'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
+import { canStageTrackEnrichmentWorkflowRow } from '~/utils/trackEnrichmentReviewView'
 
 export type TrackEnrichmentReviewSortKey =
 	'library' | 'source' | 'duration' | 'bpm' | 'key' | 'confidence'
 
 type UseTrackEnrichmentReviewTableOptions = {
 	filteredRows: Readonly<Ref<TrackEnrichmentRow[]>>
-	stagedRowIds: Ref<Set<string>>
+	stagedRowIds: Ref<ReadonlySet<string>>
 	currentPage: Ref<number>
 	selectedFileName: Readonly<Ref<string | null>>
 	setRowStaged: (row: TrackEnrichmentRow, checked: boolean) => void

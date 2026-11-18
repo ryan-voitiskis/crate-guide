@@ -4,13 +4,13 @@ import type { TrackEnrichmentReviewSortKey } from '~/composables/useTrackEnrichm
 import {
 	canStageTrackEnrichmentWorkflowRow,
 	isTrackEnrichmentEvidenceOnlyRow
-} from '~/composables/useTrackEnrichmentWorkflow'
+} from '~/utils/trackEnrichmentReviewView'
 import type { TrackEnrichmentRow } from '~/utils/trackEnrichment'
 import type { KeyFormat } from '~~/shared/types/supabase'
 
 const props = defineProps<{
 	rows: TrackEnrichmentRow[]
-	stagedRowIds: Set<string>
+	stagedRowIds: ReadonlySet<string>
 	filteredSelectionState: boolean | 'indeterminate'
 	stageableRowCount: number
 	isApplying: boolean
