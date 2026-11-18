@@ -93,7 +93,9 @@ function largeDraft(observationCount: number): TrackEnrichmentDraft {
 }
 
 describe('track enrichment draft strict codec', () => {
-	it.each([50_000, TRACK_ENRICHMENT_DRAFT_MAX_OBSERVATIONS])(
+	// The maximum covers every smaller size; a second large case only doubled
+	// the unit run's slowest file.
+	it.each([TRACK_ENRICHMENT_DRAFT_MAX_OBSERVATIONS])(
 		'round-trips %i observations within the advertised privacy and schema bounds',
 		(observationCount) => {
 			const startedAt = performance.now()

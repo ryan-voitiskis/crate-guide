@@ -42,6 +42,12 @@ The Chromium performance gate requires first progress within 1,000 ms,
 progress at least every 1,000 ms while work continues, cancellation settlement
 within 250 ms, and no attributable main-thread long task above 50 ms. Total
 Worker budgets are 1,000 ms for 1k, 3,000 ms for 10k, and 15,000 ms for 100k.
+Total-time budgets are enforced unless `REKORDBOX_REQUIRE_TIMING_BUDGETS=0`.
+CI sets it to `0` (owner decision, 18 November 2026): shared runners measured
+the 100k parse between 13,081 and 15,548 ms across seven runs, so the 15 s
+limit failed about half of all pull requests. CI still logs every total and
+enforces correctness, checksums, first progress, progress cadence, cancellation
+and main-thread long tasks; developer machines enforce the totals.
 The main-thread post-run heap-growth ceiling is 256 MiB when Chromium exposes a
 heap metric; an unavailable metric is reported explicitly rather than inferred.
 Vitest runs browser files serially so unrelated Worker, IndexedDB, and CPU-heavy

@@ -21,7 +21,7 @@ No application fixes, dependency changes, commits, or deployments were made. The
 ### Source and production are different baselines
 
 - Local and remote `main` both resolved to `725357f0929f23358b371221485c0fd6b8ec0719` during review. Its [GitHub verification run](https://github.com/ryan-voitiskis/crate-guide/actions/runs/34109677973) completed successfully for both application and database jobs.
-- The public response from [crate.guide](https://crate.guide/) at **10:13:06 UTC on 7 September** contained build ID `255966e6-7b29-4198-84b5-dbb7d3b6af67`. This matches the source-controlled [6 September production evidence](/Users/vz/projects/crate-guide/docs/release-evidence/2026-09-06-d8d76df-production.md:1) for `d8d76dfd7950352d3255807bef9229028d69dc2d`. This association comes from the live build ID and recorded release evidence; a fresh Cloudflare deployment API lookup was not performed.
+- The public response from [crate.guide](https://crate.guide/) at **10:13:06 UTC on 7 September** contained build ID `255966e6-7b29-4198-84b5-dbb7d3b6af67`. This matches the source-controlled [6 September production evidence](../docs/release-evidence/2026-09-06-d8d76df-production.md#L1) for `d8d76dfd7950352d3255807bef9229028d69dc2d`. This association comes from the live build ID and recorded release evidence; a fresh Cloudflare deployment API lookup was not performed.
 - The newer source includes the strobe lifecycle fix. The four defect locations below are unchanged between that documented production source and the reviewed head. Their reproductions were local, not observations of affected production users.
 - The working checkout's installed dependencies differed from the lockfile in 28 direct packages, including Nuxt, Pinia, TypeScript, and Playwright. Authoritative application verification therefore used an isolated copy with `npm ci`. The user's existing installation was preserved.
 
@@ -40,15 +40,15 @@ These are physical source-line counts, including comments and blank lines, rathe
 
 There are 34 application TypeScript/Vue files longer than 500 lines, including six longer than 1,000. The most relevant hotspots are:
 
-| File                                                                                                                         | Lines | Reason to inspect or split                                                       |
-| ---------------------------------------------------------------------------------------------------------------------------- | ----: | -------------------------------------------------------------------------------- |
-| [browserLibraryRepository.ts](/Users/vz/projects/crate-guide/app/repositories/library/browser/browserLibraryRepository.ts:1) | 1,857 | Complete deferred library adapter; separate from the active draft API            |
-| [browserLibraryCodecs.ts](/Users/vz/projects/crate-guide/app/repositories/library/browser/browserLibraryCodecs.ts:1)         | 1,622 | Multiple persisted domains and compatibility rules                               |
-| [useTrackEnrichmentDraftSession.ts](/Users/vz/projects/crate-guide/app/composables/useTrackEnrichmentDraftSession.ts:1)      | 1,620 | Discovery, ownership, renewal, autosave, recovery, and destructive transitions   |
-| [browserWorkspaceCatalog.ts](/Users/vz/projects/crate-guide/app/repositories/library/browser/browserWorkspaceCatalog.ts:1)   | 1,198 | Deferred workspace lifecycle                                                     |
-| [PageTrackEnrichment.vue](/Users/vz/projects/crate-guide/app/components/enrichment/PageTrackEnrichment.vue:1)                | 1,189 | Source selection, review, recovery, and apply UI                                 |
-| [tracksStore.ts](/Users/vz/projects/crate-guide/app/stores/tracksStore.ts:1)                                                 | 1,083 | Hydration, ordinary mutation, optimistic state, and batch outcome reconciliation |
-| [useTrackEnrichmentWorkflow.ts](/Users/vz/projects/crate-guide/app/composables/useTrackEnrichmentWorkflow.ts:1)              |   939 | Parsing, matching, staging, and apply orchestration                              |
+| File                                                                                              | Lines | Reason to inspect or split                                                       |
+| ------------------------------------------------------------------------------------------------- | ----: | -------------------------------------------------------------------------------- |
+| [browserLibraryRepository.ts](../app/repositories/library/browser/browserLibraryRepository.ts#L1) | 1,857 | Complete deferred library adapter; separate from the active draft API            |
+| [browserLibraryCodecs.ts](../app/repositories/library/browser/browserLibraryCodecs.ts#L1)         | 1,622 | Multiple persisted domains and compatibility rules                               |
+| [useTrackEnrichmentDraftSession.ts](../app/composables/useTrackEnrichmentDraftSession.ts#L1)      | 1,620 | Discovery, ownership, renewal, autosave, recovery, and destructive transitions   |
+| [browserWorkspaceCatalog.ts](../app/repositories/library/browser/browserWorkspaceCatalog.ts#L1)   | 1,198 | Deferred workspace lifecycle                                                     |
+| [PageTrackEnrichment.vue](../app/components/enrichment/PageTrackEnrichment.vue#L1)                | 1,189 | Source selection, review, recovery, and apply UI                                 |
+| [tracksStore.ts](../app/stores/tracksStore.ts#L1)                                                 | 1,083 | Hydration, ordinary mutation, optimistic state, and batch outcome reconciliation |
+| [useTrackEnrichmentWorkflow.ts](../app/composables/useTrackEnrichmentWorkflow.ts#L1)              |   939 | Parsing, matching, staging, and apply orchestration                              |
 
 The browser repository directory alone contains about **9,300 production source lines**. This is the size of an entangled subsystem, not an estimate of safely deletable code.
 
@@ -81,7 +81,7 @@ Here, **P1** means prioritise before the next substantial feature tranche becaus
 
 **Trigger:** open a track editor at BPM 128, let another writer change the track to BPM 140, edit only its title, then save. The editor submits BPM 128 alongside the new title.
 
-The form captures its initial values once in [DialogTrackEdit.vue](/Users/vz/projects/crate-guide/app/components/records/DialogTrackEdit.vue:85). Its save handler passes the entire [editor payload](/Users/vz/projects/crate-guide/app/utils/trackEditor.ts:91), including BPM, key, artists, and other fields, to `updateTrack`. [DialogTrackDetails.vue](/Users/vz/projects/crate-guide/app/components/tracks/DialogTrackDetails.vue:95) uses the same pattern. The [Cloud update](/Users/vz/projects/crate-guide/app/repositories/library/cloud/cloudTracksRepository.ts:213) filters by track and owner, with no persisted version precondition.
+The form captures its initial values once in [DialogTrackEdit.vue](../app/components/records/DialogTrackEdit.vue#L85). Its save handler passes the entire [editor payload](../app/utils/trackEditor.ts#L91), including BPM, key, artists, and other fields, to `updateTrack`. [DialogTrackDetails.vue](../app/components/tracks/DialogTrackDetails.vue#L95) uses the same pattern. The [Cloud update](../app/repositories/library/cloud/cloudTracksRepository.ts#L213) filters by track and owner, with no persisted version precondition.
 
 The focused Nuxt component reproduction produced:
 
@@ -101,7 +101,7 @@ Per-entity queues and workspace generations protect other classes of race; they 
 
 ### A2. Enrichment invalidates an operation after it has already dispatched
 
-In [applyStagedRows](/Users/vz/projects/crate-guide/app/composables/useTrackEnrichmentWorkflow.ts:689), the operation generation is captured before asynchronous preparation. Each `buildTrackEnrichmentUpdate` is awaited, but `isApplying` is set only after preparation, and the first ownership check after preparation occurs **after** `updateTracksBatch` returns.
+In [applyStagedRows](../app/composables/useTrackEnrichmentWorkflow.ts#L689), the operation generation is captured before asynchronous preparation. Each `buildTrackEnrichmentUpdate` is awaited, but `isApplying` is set only after preparation, and the first ownership check after preparation occurs **after** `updateTracksBatch` returns.
 
 If the workflow is reset while preparation is awaiting, the old invocation can still set `isApplying`, dispatch the old rows, and then return without clearing the busy state because it no longer owns the operation. Preparation genuinely contains asynchronous work; this is not a purely synchronous theoretical boundary. The read-only draft check also occurs only at entry.
 
@@ -123,7 +123,7 @@ Keep the existing distinction between cancellation before dispatch and an uncert
 
 ### A3. Trailing slashes can break navigation and make public pages require login
 
-[requiresCloudWorkbenchRuntime](/Users/vz/projects/crate-guide/app/utils/workbenchRuntimeAvailability.ts:1) compares exact path strings. [Authentication route classification](/Users/vz/projects/crate-guide/app/utils/authRoutes.ts:15) does the same. The router accepts route variants that those sets reject, while the [workbench plugin](/Users/vz/projects/crate-guide/app/plugins/workbench.client.ts:19) and application bootstrap depend on those classifications.
+[requiresCloudWorkbenchRuntime](../app/utils/workbenchRuntimeAvailability.ts#L1) compares exact path strings. [Authentication route classification](../app/utils/authRoutes.ts#L15) does the same. The router accepts route variants that those sets reject, while the [workbench plugin](../app/plugins/workbench.client.ts#L19) and application bootstrap depend on those classifications.
 
 The local browser reproduced both behaviours:
 
@@ -138,7 +138,7 @@ This is a navigation/bootstrap defect, not an authentication bypass.
 
 ### A4. The account-deletion UI treats the normal cleanup queue state as exceptional
 
-The [delete-account handler](/Users/vz/projects/crate-guide/supabase/functions/delete-account/handler.ts:249) deliberately returns:
+The [delete-account handler](../supabase/functions/delete-account/handler.ts#L249) deliberately returns:
 
 ```json
 {
@@ -151,7 +151,7 @@ The [delete-account handler](/Users/vz/projects/crate-guide/supabase/functions/d
 
 It persists cleanup intent before deleting the auth user; bounded storage traversal belongs to the worker. That is sensible server behaviour.
 
-The [client interpretation](/Users/vz/projects/crate-guide/app/stores/userStore.ts:467) ignores `cleanup_queued`. In the normal current-session success path it displays a 30-second warning that cleanup did not finish and suggests contacting the owner if a cover remains accessible. The state “queued as designed” is therefore indistinguishable from an exceptional incomplete cleanup. This does not mean account deletion itself failed or that the worker is malfunctioning.
+The [client interpretation](../app/stores/userStore.ts#L467) ignores `cleanup_queued`. In the normal current-session success path it displays a 30-second warning that cleanup did not finish and suggests contacting the owner if a cover remains accessible. The state “queued as designed” is therefore indistinguishable from an exceptional incomplete cleanup. This does not mean account deletion itself failed or that the worker is malfunctioning.
 
 **Recommended change:** use an explicit shared cleanup state such as `queued`, `complete`, or `failed`, with a compatible transition for the current response. A successful queued response should give a truthful acknowledgement without implying user intervention is required. Actual worker failures and excessive queue age need an operational signal. Preserve recent-authentication enforcement and enqueue-before-delete ordering.
 
@@ -161,11 +161,11 @@ The [client interpretation](/Users/vz/projects/crate-guide/app/stores/userStore.
 
 ### 1. Separate shipped device drafts from deferred Local-library scope
 
-The [plan index](/Users/vz/projects/crate-guide/plans/README.md:35) records **28 completed plans and five deliberately deferred plans**. Portable archives, the signed-out Local product, Local-to-Cloud copying, accountless Discogs, and an offline app shell are not unfinished cleanup obligations. They are product decisions.
+The [plan index](../plans/README.md#L35) records **28 completed plans and five deliberately deferred plans**. Portable archives, the signed-out Local product, Local-to-Cloud copying, accountless Discogs, and an offline app shell are not unfinished cleanup obligations. They are product decisions.
 
-Production caller searches found `openBrowserLibraryRepository` and `createBrowserWorkspaceCatalog` only at their declarations; their callers are tests. In contrast, [useTrackEnrichmentDraftSession](/Users/vz/projects/crate-guide/app/composables/useTrackEnrichmentDraftSession.ts:140) actively opens `openBrowserDeviceDraftRepository`.
+Production caller searches found `openBrowserLibraryRepository` and `createBrowserWorkspaceCatalog` only at their declarations; their callers are tests. In contrast, [useTrackEnrichmentDraftSession](../app/composables/useTrackEnrichmentDraftSession.ts#L140) actively opens `openBrowserDeviceDraftRepository`.
 
-The complication is that [the active draft repository](/Users/vz/projects/crate-guide/app/repositories/library/browser/browserDeviceDraftRepository.ts:1) imports shared browser schema, types, revisions, broadcasts, and workspace draft operations. Current drafts and future Local work therefore share storage machinery and compatibility history.
+The complication is that [the active draft repository](../app/repositories/library/browser/browserDeviceDraftRepository.ts#L1) imports shared browser schema, types, revisions, broadcasts, and workspace draft operations. Current drafts and future Local work therefore share storage machinery and compatibility history.
 
 First give the active draft subsystem an explicit API and dependency boundary. Then make a product decision about deferred-only adapter and policy code: retain it as a clearly isolated future module with an owner, or remove it from the maintained application after checking dependencies and preserving its history. Keep the deployed IndexedDB schema and upgrade paths required to recover existing drafts. An unused public adapter constructor does not prove that every helper in its directory is unused.
 
@@ -181,13 +181,13 @@ The application repeatedly coordinates workspace generations, mutation queues, r
 | Per-entity queue and optimistic revision | Ordering and rollback within the current client              | Whether an editor's initial data is still current |
 | Persisted precondition or draft lease    | Database/draft conflict and ownership decisions              | Whether the current UI still owns a completion    |
 
-The [repository architecture contract](/Users/vz/projects/crate-guide/docs/library-repository-architecture.md:47) explicitly says an adapter revision is not a cross-client mutation precondition. A1 illustrates why that distinction matters.
+The [repository architecture contract](../docs/library-repository-architecture.md#L47) explicitly says an adapter revision is not a cross-client mutation precondition. A1 illustrates why that distinction matters.
 
 Extract a small operation scope, keyed command queue, or owned activity counter only after writing down its guarantees and applying it to one representative store. Keep record/cover changes, crate membership, saved-set history, and enrichment outcomes as semantic operations. Avoid a generic repository wrapper that obscures their different transaction and recovery rules.
 
 ### 3. Split enrichment by lifecycle responsibility
 
-The [draft-session state declarations](/Users/vz/projects/crate-guide/app/composables/useTrackEnrichmentDraftSession.ts:157) reveal why changes are difficult: discovery, lease ownership, hydration, autosave, recovery, replacement, deletion, and UI state are coordinated in one closure. The workflow and page add parsing, matching, staging, and persistence concerns around it.
+The [draft-session state declarations](../app/composables/useTrackEnrichmentDraftSession.ts#L157) reveal why changes are difficult: discovery, lease ownership, hydration, autosave, recovery, replacement, deletion, and UI state are coordinated in one closure. The workflow and page add parsing, matching, staging, and persistence concerns around it.
 
 A useful decomposition would give each of these a small, explicit owner:
 
@@ -206,7 +206,7 @@ Splitting a long file into several files that share all the same mutable flags w
 
 The test investment is valuable and should be preserved. Database suites cover ownership, credentials, function privileges, crate integrity, idempotent imports, cover queues, and Evidence writes. Application and browser suites cover many adverse lifecycle cases. The four findings escaped because the existing suites did not combine the relevant behaviours.
 
-Some application E2E tests use [a synthetic Supabase fixture](/Users/vz/projects/crate-guide/test/e2e/fixtures/authenticatedWorkbench.ts:59), while real SQL verification runs separately. That arrangement is useful for deterministic UI tests but does not validate every client/server response contract.
+Some application E2E tests use [a synthetic Supabase fixture](../test/e2e/fixtures/authenticatedWorkbench.ts#L59), while real SQL verification runs separately. That arrangement is useful for deterministic UI tests but does not validate every client/server response contract.
 
 Add a small number of integrated journeys against an isolated local Supabase environment, using synthetic data:
 
@@ -219,7 +219,7 @@ Keep exhaustive permutations in focused tests. Add the route variants to browser
 
 ### 5. Make the operating documentation current
 
-The [staging runbook](/Users/vz/projects/crate-guide/docs/staging-release-runbook.md:8) still calls July 30 observations “Current evidence,” including pending production migrations and absent browser headers. Later release evidence and the public response contradict that as a present-state description. The repository architecture document also describes browser persistence as unavailable without distinguishing the implemented internal adapter from the deferred product launch.
+The [staging runbook](../docs/staging-release-runbook.md#L8) still calls July 30 observations “Current evidence,” including pending production migrations and absent browser headers. Later release evidence and the public response contradict that as a present-state description. The repository architecture document also describes browser persistence as unavailable without distinguishing the implemented internal adapter from the deferred product launch.
 
 Keep historical release records intact. Add a short current-state entrypoint that identifies the shipped product scope, current release evidence, production/staging identities, runtime versions, migration compatibility, and applicable rollout procedure. Clearly label the old umbrella-portfolio rehearsal as historical. Archive completed plans out of the active working queue while preserving their links and decisions.
 
@@ -229,7 +229,7 @@ The local dependency drift is a related contributor to confusing verification re
 
 ### Finish the browser-policy rollout deliberately
 
-The live response enforced `frame-ancestors 'none'`, `base-uri 'self'`, and `object-src 'none'`. The fuller resource policy, including `script-src` and `connect-src`, remained **Content-Security-Policy-Report-Only**, matching [the source policy](/Users/vz/projects/crate-guide/shared/security/browserHeaders.ts:173). The response had no CSP `report-uri` or `report-to` directive. Cloudflare's separate `cf-nel` reporting configuration reports network errors; it is not a CSP collector.
+The live response enforced `frame-ancestors 'none'`, `base-uri 'self'`, and `object-src 'none'`. The fuller resource policy, including `script-src` and `connect-src`, remained **Content-Security-Policy-Report-Only**, matching [the source policy](../shared/security/browserHeaders.ts#L173). The response had no CSP `report-uri` or `report-to` directive. Cloudflare's separate `cf-nel` reporting configuration reports network errors; it is not a CSP collector.
 
 This is a hardening rollout gap, not a demonstrated injection vulnerability. Collect actionable violation evidence, exercise OAuth, covers, fonts, audio workers/WASM, and supported browsers, then promote the tested resource policy to enforcement. Keep reporting minimal and scrub sensitive URLs and user data.
 
@@ -253,7 +253,7 @@ The audited production build passed its existing bundle boundaries:
 
 The initial limits are 1,130,336 raw / 361,488 gzip, leaving about 2.5% raw headroom. Cloud runtime, the enrichment route, the device draft repository, and the MPEG metadata parser retained their intended lazy boundaries. The WASM figure is not initial JavaScript cost.
 
-[Cloud track hydration](/Users/vz/projects/crate-guide/app/repositories/library/cloud/cloudTracksRepository.ts:158) fetches all owned pages using `select('*')`, including rich metadata. List virtualisation limits rendering work, but it does not limit total fetched or retained data. This is a plausible future scale constraint; the audit did not establish a current production performance incident.
+[Cloud track hydration](../app/repositories/library/cloud/cloudTracksRepository.ts#L158) fetches all owned pages using `select('*')`, including rich metadata. List virtualisation limits rendering work, but it does not limit total fetched or retained data. This is a plausible future scale constraint; the audit did not establish a current production performance incident.
 
 Measure cold mobile startup, library payload size, memory at representative library sizes, route reactivation, and enrichment preparation time. If those measurements justify it, separate lightweight library summaries from detailed Evidence/audio metadata and load detail on demand. Account for matching and session features that require a whole-library view. Keep audio work and parsing in their current bounded workers.
 
@@ -261,7 +261,7 @@ Strict audio timing budgets were disabled for the functional verification run, a
 
 ### Resolve one playback product ambiguity
 
-[Adjusted BPM/key calculation](/Users/vz/projects/crate-guide/app/stores/sessionPlayback.ts:68) applies pitch but does not use the selected deck RPM relative to the track's source RPM. The platter does use deck RPM. Decide whether the speed selector is intended to affect musical playback calculations or only the visual simulation. If it represents playing a 33⅓ RPM recording at 45 RPM, a nominal 120 BPM would become 162 BPM before pitch; the current calculation still returns 120.
+[Adjusted BPM/key calculation](../app/stores/sessionPlayback.ts#L68) applies pitch but does not use the selected deck RPM relative to the track's source RPM. The platter does use deck RPM. Decide whether the speed selector is intended to affect musical playback calculations or only the visual simulation. If it represents playing a 33⅓ RPM recording at 45 RPM, a nominal 120 BPM would become 162 BPM before pitch; the current calculation still returns 120.
 
 This is recorded as a product-semantics decision, not one of the reproduced defects. Preserve the strobe's separate physical and apparent motion, fixed lamp mask, and stop-phase convergence while making any later playback change.
 

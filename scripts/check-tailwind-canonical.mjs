@@ -74,6 +74,28 @@ export async function createCanonicalClassChecker({
 		base: dirname(absoluteCssPath)
 	})
 	const scanner = new Scanner({})
+	// The same class appears thousands of times across the repository; compile
+	// and canonicalize each distinct candidate once.
+	const canonicalByCandidate = new Map()
+
+	function canonicalize(candidate) {
+		if (canonicalByCandidate.has(candidate))
+			return canonicalByCandidate.get(candidate)
+		let canonical = null
+		if (canCompileCandidate(designSystem, candidate)) {
+			const canonicalCandidates = designSystem.canonicalizeCandidates(
+				[candidate],
+				{ rem: rootFontSize }
+			)
+			if (
+				canonicalCandidates.length === 1 &&
+				canonicalCandidates[0] !== candidate
+			)
+				canonical = canonicalCandidates[0]
+		}
+		canonicalByCandidate.set(candidate, canonical)
+		return canonical
+	}
 
 	return function evaluateContents(contents, extension) {
 		const diagnostics = []
@@ -87,22 +109,13 @@ export async function createCanonicalClassChecker({
 			if (seenCandidates.has(candidateKey)) continue
 			seenCandidates.add(candidateKey)
 
-			if (!canCompileCandidate(designSystem, candidate)) continue
-
-			const canonicalCandidates = designSystem.canonicalizeCandidates(
-				[candidate],
-				{ rem: rootFontSize }
-			)
-			if (
-				canonicalCandidates.length !== 1 ||
-				canonicalCandidates[0] === candidate
-			)
-				continue
+			const canonicalCandidate = canonicalize(candidate)
+			if (canonicalCandidate === null) continue
 
 			diagnostics.push({
 				...getLocation(contents, position),
 				candidate,
-				canonicalCandidate: canonicalCandidates[0],
+				canonicalCandidate,
 				position
 			})
 		}
