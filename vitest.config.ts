@@ -16,6 +16,16 @@ if (
 }
 const requireLocalAudioCacheTimingBudgets = localAudioCacheTimingSetting !== '0'
 
+const rekordboxTimingSetting = process.env.REKORDBOX_REQUIRE_TIMING_BUDGETS
+if (
+	rekordboxTimingSetting !== undefined &&
+	rekordboxTimingSetting !== '0' &&
+	rekordboxTimingSetting !== '1'
+) {
+	throw new Error('REKORDBOX_REQUIRE_TIMING_BUDGETS must be exactly 0 or 1')
+}
+const requireRekordboxTimingBudgets = rekordboxTimingSetting !== '0'
+
 const nuxtProject = await defineVitestProject({
 	test: {
 		name: 'nuxt',
@@ -84,7 +94,10 @@ export default defineConfig({
 				},
 				define: {
 					'import.meta.env.LOCAL_AUDIO_CACHE_REQUIRE_TIMING_BUDGETS':
-						JSON.stringify(requireLocalAudioCacheTimingBudgets)
+						JSON.stringify(requireLocalAudioCacheTimingBudgets),
+					'import.meta.env.REKORDBOX_REQUIRE_TIMING_BUDGETS': JSON.stringify(
+						requireRekordboxTimingBudgets
+					)
 				}
 			},
 			// Unit tests - pure functions, no Nuxt runtime needed
