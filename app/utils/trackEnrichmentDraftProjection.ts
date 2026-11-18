@@ -11,11 +11,12 @@ import {
 	TRACK_ENRICHMENT_DRAFT_SCHEMA_VERSION
 } from '~/types/trackEnrichmentDraft'
 import {
-	encodeTrackEnrichmentDraft,
+	encodeTrackEnrichmentDraftWithSignature,
 	getCurrentTrackEnrichmentDraftVersions
 } from './trackEnrichmentDraftCodec'
 import { createTrackEnrichmentCurrentEvidenceFingerprint } from './trackEnrichmentDraftEvidencePrecondition'
 import {
+	type TrackEnrichmentDraftObservationFingerprintCache,
 	createLocalAudioDraftObservationSet,
 	createRekordboxDraftObservationSet
 } from './trackEnrichmentDraftFingerprint'
@@ -47,6 +48,16 @@ export type TrackEnrichmentDraftProjectionInput = {
 	previousDecisions?: readonly TrackEnrichmentDraftDecision[]
 	partialOutcomes?: readonly TrackEnrichmentDraftPartialOutcome[]
 	ui: TrackEnrichmentDraftProjectionUiState
+	/** Reuses observation fingerprints across saves of the same review. */
+	observationFingerprintCache?: TrackEnrichmentDraftObservationFingerprintCache
+}
+
+export type TrackEnrichmentDraftProjectionResult = {
+	draft: TrackEnrichmentDraft
+	/** Storage encoding of `draft`, produced by the fail-closed validation. */
+	serialized: string
+	/** Content signature that ignores revision and save-time bookkeeping. */
+	signature: string
 }
 
 export class TrackEnrichmentDraftProjectionError extends Error {
@@ -123,6 +134,12 @@ function clonePartialOutcome(
 export async function projectTrackEnrichmentDraft(
 	input: TrackEnrichmentDraftProjectionInput
 ): Promise<TrackEnrichmentDraft> {
+	return (await projectTrackEnrichmentDraftWithSignature(input)).draft
+}
+
+export async function projectTrackEnrichmentDraftWithSignature(
+	input: TrackEnrichmentDraftProjectionInput
+): Promise<TrackEnrichmentDraftProjectionResult> {
 	if (input.rows.length === 0) {
 		throw new TrackEnrichmentDraftProjectionError('empty-review')
 	}
@@ -150,6 +167,9 @@ export async function projectTrackEnrichmentDraft(
 	const rows = [...input.rows].sort(
 		(left, right) => left.row.source.index - right.row.source.index
 	)
+	const observationOptions = {
+		fingerprintCache: input.observationFingerprintCache
+	}
 	const observationSet =
 		sourceKind === 'rekordboxXml'
 			? await createRekordboxDraftObservationSet(
@@ -158,7 +178,8 @@ export async function projectTrackEnrichmentDraft(
 							throw new TrackEnrichmentDraftProjectionError('mixed-source-kind')
 						}
 						return row.source
-					})
+					}),
+					observationOptions
 				)
 			: await createLocalAudioDraftObservationSet(
 					rows.map(({ row }) => {
@@ -166,13 +187,30 @@ export async function projectTrackEnrichmentDraft(
 							throw new TrackEnrichmentDraftProjectionError('mixed-source-kind')
 						}
 						return row.source
-					})
+					}),
+					observationOptions
 				)
 
 	if (observationSet.observations.length !== rows.length) {
 		throw new TrackEnrichmentDraftProjectionError(
 			'observation-projection-mismatch'
 		)
+	}
+
+	// Start the Evidence-only precondition digests together instead of awaiting
+	// them one row at a time; unchanged Evidence objects are memoized.
+	const currentEvidenceFingerprints = new Map<
+		EnrichmentRow,
+		Promise<string | null>
+	>()
+	for (const { row } of rows) {
+		if (row.applied || !row.track || row.canFillBpm || row.canFillKeyMode)
+			continue
+		const fingerprint = createTrackEnrichmentCurrentEvidenceFingerprint(
+			row.track.audio_features
+		)
+		fingerprint.catch(() => {})
+		currentEvidenceFingerprints.set(row, fingerprint)
 	}
 
 	const completedBindings = new Map(
@@ -267,10 +305,10 @@ export async function projectTrackEnrichmentDraft(
 			continue
 		}
 
-		const currentEvidenceFingerprint =
-			await createTrackEnrichmentCurrentEvidenceFingerprint(
-				row.track.audio_features
-			)
+		const currentEvidenceFingerprint = await (currentEvidenceFingerprints.get(
+			row
+		) ??
+			createTrackEnrichmentCurrentEvidenceFingerprint(row.track.audio_features))
 		if (!currentEvidenceFingerprint) {
 			if (staged) {
 				throw new TrackEnrichmentDraftProjectionError(
@@ -345,7 +383,9 @@ export async function projectTrackEnrichmentDraft(
 	}
 
 	// Keep the projection boundary fail-closed if the draft schema or privacy
-	// contract changes independently of this adapter.
-	encodeTrackEnrichmentDraft(draft)
-	return draft
+	// contract changes independently of this adapter. The one validation pass
+	// also yields the storage bytes and the change signature.
+	const { serialized, signature } =
+		encodeTrackEnrichmentDraftWithSignature(draft)
+	return { draft, serialized, signature }
 }

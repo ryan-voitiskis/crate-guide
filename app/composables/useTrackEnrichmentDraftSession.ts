@@ -21,14 +21,16 @@ import type {
 	BrowserWorkspaceIdentity
 } from '~/repositories/deviceDrafts/contracts'
 import type {
+	TrackEnrichmentDraft,
 	TrackEnrichmentDraftDecision,
 	TrackEnrichmentDraftPartialOutcome
 } from '~/types/trackEnrichmentDraft'
-import { encodeTrackEnrichmentDraft } from '~/utils/trackEnrichmentDraftCodec'
+import { encodeTrackEnrichmentDraftContentSignature } from '~/utils/trackEnrichmentDraftCodec'
+import { createTrackEnrichmentDraftObservationFingerprintCache } from '~/utils/trackEnrichmentDraftFingerprint'
 import { hydrateTrackEnrichmentDraft } from '~/utils/trackEnrichmentDraftHydration'
 import { mapTrackEnrichmentDraftBatchOutcome } from '~/utils/trackEnrichmentDraftOutcome'
 import { createTrackEnrichmentDraftOwnership } from '~/utils/trackEnrichmentDraftOwnership'
-import { projectTrackEnrichmentDraft } from '~/utils/trackEnrichmentDraftProjection'
+import { projectTrackEnrichmentDraftWithSignature } from '~/utils/trackEnrichmentDraftProjection'
 import { createTrackEnrichmentDraftWorkspaceIdentity } from '~/utils/trackEnrichmentDraftWorkspaceIdentity'
 import type { WorkbenchRuntime } from '~/utils/workbenchPinia'
 import type { LibraryRecord, LibraryTrack } from '~~/shared/types/library'
@@ -102,18 +104,6 @@ function observedLeaseRevision(
 
 function normalizePersistedFilter(filter: ReviewFilter) {
 	return filter === 'changed' ? ('review' as const) : filter
-}
-
-function payloadSignature(draft: BrowserWorkflowDraft['payload']): string {
-	// Storage normalizes nested property order through the draft codec. Compare
-	// the same representation so an unchanged projection never attempts a write
-	// that storage would correctly reject as having no meaningful changes.
-	return encodeTrackEnrichmentDraft({
-		...draft,
-		draftRevision: 0,
-		updatedAt: draft.createdAt,
-		workspace: { ...draft.workspace, repositoryRevision: 0 }
-	})
 }
 
 function formatSavedTime(value: string | null): string | null {
@@ -193,6 +183,13 @@ export function useTrackEnrichmentDraftSession(
 	let locallyDeletingDraftId: string | null = null
 	let mutationQueue: DraftMutationQueue = { tail: Promise.resolve() }
 	const reviewedAtByRowId = new Map<string, string>()
+	// Review sources never change while a review is open, so observation
+	// fingerprints are reused across autosaves (keyed by source identity).
+	const observationFingerprintCache =
+		createTrackEnrichmentDraftObservationFingerprintCache()
+	// Persisted payloads are immutable; remember each one's content signature
+	// instead of re-encoding it on every autosave.
+	const signatureByPayload = new WeakMap<TrackEnrichmentDraft, string>()
 	const ownership = createTrackEnrichmentDraftOwnership({
 		ownerToken,
 		getRepository: () => repository,
@@ -708,6 +705,18 @@ export function useTrackEnrichmentDraftSession(
 		}
 	}
 
+	function payloadSignature(payload: TrackEnrichmentDraft): string {
+		// Storage normalizes nested property order through the draft codec.
+		// Compare the same representation so an unchanged projection never
+		// attempts a write that storage would correctly reject as having no
+		// meaningful changes.
+		const remembered = signatureByPayload.get(payload)
+		if (remembered !== undefined) return remembered
+		const signature = encodeTrackEnrichmentDraftContentSignature(payload)
+		signatureByPayload.set(payload, signature)
+		return signature
+	}
+
 	function ensureReviewedAt(rowId: string, fallback: string): string {
 		const existing = reviewedAtByRowId.get(rowId)
 		if (existing) return existing
@@ -726,7 +735,7 @@ export function useTrackEnrichmentDraftSession(
 		const createdAt = draftCreatedAt ?? updatedAt
 		draftId = currentDraftId
 		draftCreatedAt = createdAt
-		return await projectTrackEnrichmentDraft({
+		return await projectTrackEnrichmentDraftWithSignature({
 			id: currentDraftId,
 			workspace: {
 				workspaceId: draftIdentity.workspaceId,
@@ -752,7 +761,8 @@ export function useTrackEnrichmentDraftSession(
 				sortDirection: sortDirection.value,
 				density: density.value,
 				anchorSourceIndex: null
-			}
+			},
+			observationFingerprintCache
 		})
 	}
 
@@ -795,12 +805,13 @@ export function useTrackEnrichmentDraftSession(
 				: currentRevision === null
 					? 0
 					: currentRevision + 1
-			const payload = await projectDraft(nextRevision)
+			const projection = await projectDraft(nextRevision)
+			const payload = projection.draft
 			if (!isCurrentOperation()) return
 			if (
 				persistedDraft &&
 				!replacementTarget &&
-				payloadSignature(persistedDraft.payload) === payloadSignature(payload)
+				payloadSignature(persistedDraft.payload) === projection.signature
 			) {
 				persistedDirtyRevision = Math.max(
 					persistedDirtyRevision,
@@ -855,6 +866,9 @@ export function useTrackEnrichmentDraftSession(
 				claimed = { draft: result.value, lease: ownership.lease }
 			}
 			if (!isCurrentOperation()) return
+			// The repository stored exactly this validated projection, so its
+			// content signature is already known for the next comparison.
+			signatureByPayload.set(claimed.draft.payload, projection.signature)
 			setClaimed(claimed)
 			activeEntry.value = {
 				draft: {
@@ -1380,7 +1394,7 @@ export function useTrackEnrichmentDraftSession(
 			if (!isCurrentOperation()) return
 			let base = persistedDraft?.payload ?? null
 			if (!base && workflow.rows.value.length > 0) {
-				base = await projectDraft(0)
+				base = (await projectDraft(0)).draft
 				if (!isCurrentOperation()) return
 			}
 			if (!base) return

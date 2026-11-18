@@ -509,6 +509,70 @@ describe('useTrackEnrichmentDraftSession', () => {
 		expect(session.shouldWarnBeforeUnload.value).toBe(false)
 	})
 
+	it('reuses observation fingerprints and the persisted signature across autosaves', async () => {
+		const fake = fakeRepository()
+		const harness = workflowHarness()
+		const { session } = createSession({
+			repository: fake.repository,
+			workflow: harness
+		})
+		await session.initialize()
+		harness.workflow.selectedFileName.value = 'collection.xml'
+		harness.workflow.rows.value = reviewRows()
+		harness.workflow.stagedRowIds.value = new Set([
+			harness.workflow.rows.value[0]!.id
+		])
+		await vi.advanceTimersByTimeAsync(500)
+		await session.flushSave()
+		expect(fake.createDraftAndClaim).toHaveBeenCalledOnce()
+
+		const digest = vi.spyOn(globalThis.crypto.subtle, 'digest')
+		try {
+			harness.workflow.stagedRowIds.value = new Set()
+			await vi.advanceTimersByTimeAsync(500)
+			await session.flushSave()
+			expect(fake.writeDraft).toHaveBeenCalledOnce()
+			// Only the dataset digest; the observation is fingerprinted once.
+			expect(digest).toHaveBeenCalledTimes(1)
+
+			digest.mockClear()
+			harness.workflow.selectedFilter.value = 'staged'
+			await nextTick()
+			harness.workflow.selectedFilter.value = 'ready'
+			await vi.advanceTimersByTimeAsync(500)
+			await session.flushSave()
+			// Toggling back to the persisted UI state is not a meaningful change.
+			expect(fake.writeDraft).toHaveBeenCalledOnce()
+			expect(digest).toHaveBeenCalledTimes(1)
+		} finally {
+			digest.mockRestore()
+		}
+
+		const written = fake.writeDraft.mock.calls[0]![0].payload
+		expect(written.decisions[0]).toMatchObject({ staged: false })
+		const fresh = await projectTrackEnrichmentDraft({
+			id: written.id,
+			workspace: written.workspace,
+			draftRevision: written.draftRevision,
+			createdAt: written.createdAt,
+			updatedAt: written.updatedAt,
+			sourceLabel: 'collection.xml',
+			rows: harness.workflow.rows.value.map((row) => ({
+				row,
+				staged: false,
+				reviewedAt: written.createdAt
+			})),
+			ui: {
+				filter: 'ready',
+				sortKey: null,
+				sortDirection: 'asc',
+				density: 'compact',
+				anchorSourceIndex: null
+			}
+		})
+		expect(JSON.stringify(written)).toBe(JSON.stringify(fresh))
+	})
+
 	it('routes cloud drafts through an opaque alias without persisting the account ID', async () => {
 		const rawWorkspaceId = 'cloud:account:auth-user-a'
 		const draftIdentity = await createTrackEnrichmentDraftWorkspaceIdentity(

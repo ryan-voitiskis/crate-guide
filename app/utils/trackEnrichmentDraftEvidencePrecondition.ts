@@ -21,12 +21,38 @@ function canonicalize(value: CanonicalJson): string {
 		.join(',')}}`
 }
 
+// Persisted track Evidence objects are replaced, never mutated, so a digest is
+// stable for the lifetime of the object. Shared by draft projection (autosave)
+// and draft hydration (resume).
+const fingerprintByEvidenceObject = new WeakMap<
+	object,
+	Promise<string | null>
+>()
+
 /**
  * Produces a bounded digest of the track's current persisted Evidence read
  * model. Invalid, private, or oversized Evidence has no trustworthy
  * fingerprint and therefore fails resume closed as changed.
  */
-export async function createTrackEnrichmentCurrentEvidenceFingerprint(
+export function createTrackEnrichmentCurrentEvidenceFingerprint(
+	value: unknown
+): Promise<string | null> {
+	if (value === null || typeof value !== 'object') {
+		return computeCurrentEvidenceFingerprint(value)
+	}
+	const cached = fingerprintByEvidenceObject.get(value)
+	if (cached) return cached
+	const fingerprint = computeCurrentEvidenceFingerprint(value)
+	fingerprintByEvidenceObject.set(value, fingerprint)
+	fingerprint.catch(() => {
+		if (fingerprintByEvidenceObject.get(value) === fingerprint) {
+			fingerprintByEvidenceObject.delete(value)
+		}
+	})
+	return fingerprint
+}
+
+async function computeCurrentEvidenceFingerprint(
 	value: unknown
 ): Promise<string | null> {
 	let evidence: CanonicalJson

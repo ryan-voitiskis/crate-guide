@@ -4,8 +4,11 @@
  * refactors; any change here changes bytes on disk, draft fingerprints,
  * observation IDs, or batch request hashes and must be a deliberate migration.
  */
-import { describe, expect, it } from 'vitest'
-import { encodeBrowserWorkflowDraftRow } from '~/repositories/library/browser/browserLibraryCodecs'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+	decodeBrowserWorkflowDraft,
+	encodeBrowserWorkflowDraftRow
+} from '~/repositories/library/browser/browserLibraryCodecs'
 import type { LocalAudioTrackSource } from '~/types/localAudio'
 import type { TrackEnrichmentDraft } from '~/types/trackEnrichmentDraft'
 import type { Track } from '~~/shared/types/supabase'
@@ -15,14 +18,23 @@ import {
 	canonicalizeTrackEnrichmentRequest,
 	createTrackEnrichmentBatchRequest
 } from './trackEnrichmentBatch'
-import { encodeTrackEnrichmentDraft } from './trackEnrichmentDraftCodec'
+import {
+	decodeTrackEnrichmentDraft,
+	encodeTrackEnrichmentDraft,
+	encodeTrackEnrichmentDraftContentSignature
+} from './trackEnrichmentDraftCodec'
 import { createTrackEnrichmentCurrentEvidenceFingerprint } from './trackEnrichmentDraftEvidencePrecondition'
 import {
 	createLocalAudioDraftObservationSet,
 	createRekordboxDraftObservationSet,
+	createTrackEnrichmentDraftObservationFingerprintCache,
 	sha256TrackEnrichmentDraftValue
 } from './trackEnrichmentDraftFingerprint'
-import { projectTrackEnrichmentDraft } from './trackEnrichmentDraftProjection'
+import {
+	type TrackEnrichmentDraftProjectionInput,
+	projectTrackEnrichmentDraft,
+	projectTrackEnrichmentDraftWithSignature
+} from './trackEnrichmentDraftProjection'
 import { createTrackEvidenceObservationId } from './trackEvidenceObservationId'
 
 const REVIEWED_AT = '2026-07-23T01:00:00.000Z'
@@ -184,7 +196,7 @@ const UI = {
 	anchorSourceIndex: null
 }
 
-async function projectXmlDraft(): Promise<TrackEnrichmentDraft> {
+function xmlProjectionInput(): TrackEnrichmentDraftProjectionInput {
 	const rows = buildTrackEnrichmentRows({
 		sources: [
 			xmlSource(),
@@ -220,7 +232,7 @@ async function projectXmlDraft(): Promise<TrackEnrichmentDraft> {
 		],
 		records: []
 	})
-	return await projectTrackEnrichmentDraft({
+	return {
 		id: 'draft-xml',
 		workspace: {
 			workspaceId: 'workspace-1',
@@ -233,10 +245,10 @@ async function projectXmlDraft(): Promise<TrackEnrichmentDraft> {
 		sourceLabel: 'rekordbox.xml',
 		rows: rows.map((row) => ({ row, staged: true, reviewedAt: REVIEWED_AT })),
 		ui: UI
-	})
+	}
 }
 
-async function projectLocalDraft(): Promise<TrackEnrichmentDraft> {
+function localProjectionInput(): TrackEnrichmentDraftProjectionInput {
 	const rows = buildTrackEnrichmentRows({
 		sources: [
 			localSource({ index: 4 }),
@@ -258,7 +270,7 @@ async function projectLocalDraft(): Promise<TrackEnrichmentDraft> {
 		tracks: [track()],
 		records: []
 	})
-	return await projectTrackEnrichmentDraft({
+	return {
 		id: 'draft-local',
 		workspace: {
 			workspaceId: 'workspace-1',
@@ -275,7 +287,15 @@ async function projectLocalDraft(): Promise<TrackEnrichmentDraft> {
 			reviewedAt: REVIEWED_AT
 		})),
 		ui: UI
-	})
+	}
+}
+
+async function projectXmlDraft(): Promise<TrackEnrichmentDraft> {
+	return await projectTrackEnrichmentDraft(xmlProjectionInput())
+}
+
+async function projectLocalDraft(): Promise<TrackEnrichmentDraft> {
+	return await projectTrackEnrichmentDraft(localProjectionInput())
 }
 
 // The draft session's change signature, verbatim from before the refactor.
@@ -503,5 +523,91 @@ describe('persisted enrichment formats (golden)', () => {
 			  "operationHash": "b46e6de4ecbba19b0272e0cd19e8b3d3db8cfaed0db1355f699deca2dbf20a85",
 			}
 		`)
+	})
+})
+
+describe('autosave caches keep persisted formats identical', () => {
+	afterEach(() => {
+		vi.restoreAllMocks()
+	})
+
+	it.each([
+		['xml', xmlProjectionInput],
+		['local', localProjectionInput]
+	] as const)(
+		'returns the legacy bytes and signature for a %s projection',
+		async (_name, createInput) => {
+			const input = createInput()
+			const uncached = await projectTrackEnrichmentDraft(input)
+			const cache = createTrackEnrichmentDraftObservationFingerprintCache()
+			const first = await projectTrackEnrichmentDraftWithSignature({
+				...input,
+				observationFingerprintCache: cache
+			})
+			const second = await projectTrackEnrichmentDraftWithSignature({
+				...input,
+				observationFingerprintCache: cache
+			})
+
+			for (const result of [first, second]) {
+				expect(result.draft).toEqual(uncached)
+				expect(result.serialized).toBe(encodeTrackEnrichmentDraft(uncached))
+				expect(result.signature).toBe(legacyPayloadSignature(uncached))
+				expect(encodeTrackEnrichmentDraftContentSignature(result.draft)).toBe(
+					result.signature
+				)
+			}
+
+			// The session remembers the projection signature for the payload the
+			// repository stored; it must equal a fresh signature of that payload.
+			const stored = decodeBrowserWorkflowDraft(
+				encodeBrowserWorkflowDraftRow(
+					{
+						workspaceId: uncached.workspace.workspaceId,
+						repositoryId: uncached.workspace.repositoryId
+					},
+					{
+						id: uncached.id,
+						kind: 'track-enrichment',
+						draftRevision: uncached.draftRevision,
+						updatedAt: uncached.updatedAt,
+						payload: first.draft
+					}
+				)
+			)
+			expect(legacyPayloadSignature(stored.payload)).toBe(first.signature)
+			expect(encodeTrackEnrichmentDraft(stored.payload)).toBe(first.serialized)
+		}
+	)
+
+	it('keeps storage encoding idempotent over decoded drafts', async () => {
+		for (const draft of [await projectXmlDraft(), await projectLocalDraft()]) {
+			const serialized = encodeTrackEnrichmentDraft(draft)
+			const decoded = decodeTrackEnrichmentDraft(serialized)
+			if (decoded.status !== 'ok') throw new Error('Expected a valid draft')
+			expect(encodeTrackEnrichmentDraft(decoded.draft)).toBe(serialized)
+		}
+	})
+
+	it('does not re-hash unchanged observations or Evidence on the next save', async () => {
+		const input = xmlProjectionInput()
+		const cache = createTrackEnrichmentDraftObservationFingerprintCache()
+		const digest = vi.spyOn(globalThis.crypto.subtle, 'digest')
+
+		await projectTrackEnrichmentDraftWithSignature({
+			...input,
+			observationFingerprintCache: cache
+		})
+		// Three observations, one dataset digest, and one Evidence digest.
+		expect(digest).toHaveBeenCalledTimes(5)
+
+		digest.mockClear()
+		await projectTrackEnrichmentDraftWithSignature({
+			...input,
+			rows: input.rows.map((entry) => ({ ...entry, staged: false })),
+			observationFingerprintCache: cache
+		})
+		// Only the dataset digest over the cached observation fingerprints.
+		expect(digest).toHaveBeenCalledTimes(1)
 	})
 })
