@@ -196,7 +196,7 @@ describe('SectionRecordTracks annotation mode', () => {
 
 		expect(focusedId(wrapper)).toBe('track-a1')
 		expect(
-			wrapper.get('[data-testid="record-tracks-shortcuts"]').exists()
+			wrapper.find('[data-testid="record-tracks-shortcuts"]').exists()
 		).toBe(true)
 		expect(
 			wrapper.findAll('[data-testid="panel-track-quick-set"]')
