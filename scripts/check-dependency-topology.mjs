@@ -42,6 +42,27 @@ export function evaluateWorkflowActionPins(contents) {
 	return diagnostics
 }
 
+const PLAYWRIGHT_IMAGE =
+	/^\s*image:\s*mcr\.microsoft\.com\/playwright:v(\d+\.\d+\.\d+)-[a-z]+@sha256:[0-9a-f]{64}\s*$/
+
+export function evaluatePlaywrightContainers(contents, playwrightVersion) {
+	const diagnostics = []
+	for (const [index, line] of contents.split('\n').entries()) {
+		if (!/^\s*image:\s*mcr\.microsoft\.com\/playwright:/.test(line)) continue
+		const match = line.match(PLAYWRIGHT_IMAGE)
+		if (!match) {
+			diagnostics.push(
+				`line ${index + 1}: Playwright image must use an exact version tag and digest`
+			)
+		} else if (match[1] !== playwrightVersion) {
+			diagnostics.push(
+				`line ${index + 1}: Playwright image ${match[1]} does not match playwright ${playwrightVersion}`
+			)
+		}
+	}
+	return diagnostics
+}
+
 export function evaluatePlaywrightManifest(packageJson) {
 	const diagnostics = []
 	const dependencySections = [
@@ -102,9 +123,14 @@ export function checkDependencyTopology({
 	if (manifestDiagnostics.length > 0) {
 		throw new Error(manifestDiagnostics.join('; '))
 	}
-	const workflowDiagnostics = evaluateWorkflowActionPins(
-		readTextFile(resolve(root, '.github/workflows/verify.yml'))
-	)
+	const workflow = readTextFile(resolve(root, '.github/workflows/verify.yml'))
+	const workflowDiagnostics = [
+		...evaluateWorkflowActionPins(workflow),
+		...evaluatePlaywrightContainers(
+			workflow,
+			packageJson.devDependencies?.playwright
+		)
+	]
 	if (workflowDiagnostics.length > 0) {
 		throw new Error(workflowDiagnostics.join('; '))
 	}

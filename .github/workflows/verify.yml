@@ -37,6 +37,12 @@ jobs:
   application:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # The Playwright image ships Chromium, Firefox and WebKit with their system
+    # packages, so the job never waits on an Ubuntu package mirror. Its version
+    # must match the locked playwright package (check:dependency-topology).
+    container:
+      image: mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579
+      options: --user 1001
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -66,9 +72,6 @@ jobs:
 
       - name: Audit frozen Edge dependencies
         run: npm run audit:edge
-
-      - name: Install browser matrix
-        run: npx --no-install playwright install --with-deps chromium firefox webkit
 
       - name: Verify application
         run: npm run verify
