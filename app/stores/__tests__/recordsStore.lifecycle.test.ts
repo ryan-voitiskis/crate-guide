@@ -35,7 +35,7 @@ describe('recordsStore account lifecycle and queries', () => {
 			expect(result?.title).toBe('Found Record')
 		})
 
-		it('rebuilds the index after replacement, additions, removals, and reset', () => {
+		it('rebuilds the index whenever the immutable array is replaced', () => {
 			const store = createRecordsStore()
 			const original = createMockRecord({
 				id: 'record-1',
@@ -53,10 +53,10 @@ describe('recordsStore account lifecycle and queries', () => {
 			expect(store.getRecordById('record-1')?.title).toBe('Replacement')
 
 			const added = createMockRecord({ id: 'record-2' })
-			store.records.push(added)
+			store.records = [...store.records, added]
 			expect(store.getRecordById('record-2')?.id).toBe(added.id)
 
-			store.records.splice(0, 1)
+			store.records = store.records.slice(1)
 			expect(store.getRecordById('record-1')).toBeUndefined()
 
 			store.clearRecords()

@@ -1,3 +1,4 @@
+import { shallowRef } from 'vue'
 import { createKeyComposite, parseKeyComposite } from '~/utils/keyFunctions'
 import { getWorkbenchStorePinia } from '~/utils/workbenchPinia'
 
@@ -5,7 +6,27 @@ export const useTrackFiltersStore = defineStore('trackFilters', () => {
 	const pinia = getWorkbenchStorePinia()
 	const tracks = useTracksStore(pinia)
 	const preferences = useLibraryPreferencesStore(pinia)
-	const trackSource = ref<Track[] | null>(null)
+	// Shallow: the source is the tracks store's immutable array, so filtering
+	// must not wrap every track in a deep reactive proxy.
+	const trackSource = shallowRef<Track[] | null>(null)
+	const searchTextByTrack = new WeakMap<Track, string>()
+
+	function searchText(track: Track): string {
+		let text = searchTextByTrack.get(track)
+		if (text === undefined) {
+			text = [
+				track.title,
+				...track.artists.map((artist) => artist.name),
+				...track.extraartists.map((artist) => artist.name),
+				...track.genres,
+				track.position ?? ''
+			]
+				.join('\n')
+				.toLowerCase()
+			searchTextByTrack.set(track, text)
+		}
+		return text
+	}
 
 	const keyOptions = computed(() => {
 		const options = []
@@ -33,18 +54,9 @@ export const useTrackFiltersStore = defineStore('trackFilters', () => {
 
 		if (searchQuery.value.trim()) {
 			const query = searchQuery.value.toLowerCase()
-			result = result.filter(
-				(track) =>
-					track.title.toLowerCase().includes(query) ||
-					track.artists.some((artist) =>
-						artist.name.toLowerCase().includes(query)
-					) ||
-					track.extraartists.some((artist) =>
-						artist.name.toLowerCase().includes(query)
-					) ||
-					track.genres.some((genre) => genre.toLowerCase().includes(query)) ||
-					(track.position && track.position.toLowerCase().includes(query))
-			)
+			// Each field is joined by a newline, which a typed query cannot
+			// contain, so a match never spans two fields.
+			result = result.filter((track) => searchText(track).includes(query))
 		}
 
 		if (showOnlyPlayable.value)

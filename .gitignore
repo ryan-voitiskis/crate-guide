@@ -25,3 +25,6 @@ logs
 
 # Local config
 .nuxtrc
+
+# Local agent worktrees
+.claude/worktrees/

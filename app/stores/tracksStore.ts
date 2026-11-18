@@ -1,7 +1,10 @@
-import { toRaw } from 'vue'
 import { toast } from 'vue-sonner'
 import type { WorkspaceOperationContext } from '~/repositories/library/contracts'
-import { sortCreatedAtDescIdDesc } from '~/utils/supabaseOrdering'
+import { createEntityList, sortedInsertionIndex } from '~/utils/entityList'
+import {
+	compareCreatedAtDescIdDesc,
+	sortCreatedAtDescIdDesc
+} from '~/utils/supabaseOrdering'
 import { type DecodeIssue, reportDecodeIssues } from '~/utils/supabaseRows'
 import { TRACK_ENRICHMENT_BATCH_SIZE } from '~/utils/trackEnrichmentBatch'
 import {
@@ -93,7 +96,8 @@ export const useTracksStore = defineStore('tracks', () => {
 	const pinia = getWorkbenchStorePinia()
 	const runtime = getWorkbenchRuntime(pinia) ?? ensureWorkbenchRuntime(pinia!)
 
-	const tracks = ref<LibraryTrack[]>([])
+	const trackList = createEntityList<LibraryTrack>()
+	const tracks = trackList.items
 	const isLoadingTracks = ref(false)
 	const isCreatingTrack = ref(false)
 	const isUpdatingTrack = ref(false)
@@ -210,12 +214,33 @@ export const useTracksStore = defineStore('tracks', () => {
 	}
 
 	function upsertTrack(track: LibraryTrack): void {
-		const currentIndex = tracks.value.findIndex(({ id }) => id === track.id)
+		const currentIndex = trackList.indexOf(track.id)
 		if (currentIndex !== -1) {
-			tracks.value[currentIndex] = track
+			trackList.replaceAt(currentIndex, track)
 			return
 		}
-		tracks.value = sortCreatedAtDescIdDesc([...tracks.value, track])
+		trackList.insertAt(
+			sortedInsertionIndex(
+				trackList.current(),
+				track,
+				compareCreatedAtDescIdDesc
+			),
+			track
+		)
+	}
+
+	/** Restores `original` only while the optimistic row is still current. */
+	function rollbackTrack(
+		optimisticTrack: LibraryTrack,
+		originalTrack: LibraryTrack
+	): void {
+		const currentIndex = trackList.indexOf(originalTrack.id)
+		if (
+			currentIndex !== -1 &&
+			trackList.current()[currentIndex] === optimisticTrack
+		) {
+			trackList.replaceAt(currentIndex, originalTrack)
+		}
 	}
 
 	function reconcileFetchedTracks(
@@ -350,10 +375,8 @@ export const useTracksStore = defineStore('tracks', () => {
 				return false
 			}
 			reportDecodeIssues(outcome.issues, (message) => toast.warning(message))
-			tracks.value = reconcileFetchedTracks(
-				context,
-				startingRevision,
-				outcome.value
+			trackList.setAll(
+				reconcileFetchedTracks(context, startingRevision, outcome.value)
 			)
 			return true
 		} catch (error) {
@@ -473,9 +496,7 @@ export const useTracksStore = defineStore('tracks', () => {
 				) {
 					return { track: null, error: null, issues: [], stale: true }
 				}
-				const trackIndex = tracks.value.findIndex(
-					(track: LibraryTrack) => track.id === id
-				)
+				const trackIndex = trackList.indexOf(id)
 				if (trackIndex === -1) {
 					if (!options?.suppressErrorToast) toast.error('Track not found.')
 					return {
@@ -486,7 +507,7 @@ export const useTracksStore = defineStore('tracks', () => {
 					}
 				}
 
-				const originalTrack = tracks.value[trackIndex]!
+				const originalTrack = trackList.current()[trackIndex]!
 				if (Object.keys(updates).length === 0) {
 					return { track: originalTrack, error: null, issues: [], stale: false }
 				}
@@ -496,7 +517,7 @@ export const useTracksStore = defineStore('tracks', () => {
 				} as LibraryTrack
 				const operationRevision = nextMutationRevision()
 				trackOperationRevisions.set(id, operationRevision)
-				tracks.value[trackIndex] = optimisticTrack
+				trackList.replaceAt(trackIndex, optimisticTrack)
 
 				try {
 					const repositories = repositoriesFor(context)
@@ -516,15 +537,7 @@ export const useTracksStore = defineStore('tracks', () => {
 					) {
 						if (trackOperationRevisions.get(id) !== operationRevision)
 							return staleResult
-						const currentIndex = tracks.value.findIndex(
-							(track) => track.id === id
-						)
-						if (
-							currentIndex !== -1 &&
-							toRaw(tracks.value[currentIndex]) === optimisticTrack
-						) {
-							tracks.value[currentIndex] = originalTrack
-						}
+						rollbackTrack(optimisticTrack, originalTrack)
 						const refreshed = await fetchAllTracks({ fresh: true })
 						if (
 							!isCurrentAccountContext(context) ||
@@ -532,11 +545,7 @@ export const useTracksStore = defineStore('tracks', () => {
 						)
 							return staleResult
 						if (options?.onConflict) {
-							options.onConflict(
-								refreshed
-									? (tracks.value.find((track) => track.id === id) ?? null)
-									: null
-							)
+							options.onConflict(refreshed ? (trackList.get(id) ?? null) : null)
 						} else if (!options?.suppressErrorToast) {
 							toast.warning(
 								'This track changed after you started editing. Review its latest values before saving again.'
@@ -584,21 +593,13 @@ export const useTracksStore = defineStore('tracks', () => {
 					if (!isCurrentAccountContext(context)) {
 						return { track: null, error: null, issues: [], stale: true }
 					}
-					const currentIndex = tracks.value.findIndex(
-						(track) => track.id === id
-					)
 					const ownsOperation =
 						trackOperationRevisions.get(id) === operationRevision
 					if (!ownsOperation) {
 						return { track: null, error: null, issues: [], stale: true }
 					}
 					console.error('Failed to update track:', error)
-					if (
-						currentIndex !== -1 &&
-						toRaw(tracks.value[currentIndex]) === optimisticTrack
-					) {
-						tracks.value[currentIndex] = originalTrack
-					}
+					rollbackTrack(optimisticTrack, originalTrack)
 					if (!options?.suppressErrorToast) toast.error('Error updating track.')
 					return {
 						track: null,
@@ -664,19 +665,17 @@ export const useTracksStore = defineStore('tracks', () => {
 	function beginOptimisticBatchMutation(
 		batchUpdate: TrackBatchUpdate
 	): OptimisticBatchMutation | null {
-		const trackIndex = tracks.value.findIndex(
-			(track) => track.id === batchUpdate.id
-		)
+		const trackIndex = trackList.indexOf(batchUpdate.id)
 		if (trackIndex === -1) return null
 
-		const originalTrack = tracks.value[trackIndex]!
+		const originalTrack = trackList.current()[trackIndex]!
 		const optimisticTrack = {
 			...originalTrack,
 			...batchUpdate.updates
 		} as LibraryTrack
 		const operationRevision = nextMutationRevision()
 		trackOperationRevisions.set(batchUpdate.id, operationRevision)
-		tracks.value[trackIndex] = optimisticTrack
+		trackList.replaceAt(trackIndex, optimisticTrack)
 		return {
 			id: batchUpdate.id,
 			originalTrack,
@@ -694,15 +693,7 @@ export const useTracksStore = defineStore('tracks', () => {
 		) {
 			return
 		}
-		const currentIndex = tracks.value.findIndex(
-			(track) => track.id === mutation.id
-		)
-		if (
-			currentIndex !== -1 &&
-			toRaw(tracks.value[currentIndex]) === mutation.optimisticTrack
-		) {
-			tracks.value[currentIndex] = mutation.originalTrack
-		}
+		rollbackTrack(mutation.optimisticTrack, mutation.originalTrack)
 	}
 
 	function finishOptimisticBatchMutation(
@@ -846,11 +837,14 @@ export const useTracksStore = defineStore('tracks', () => {
 						if (!(await confirmMutationContext(context, true))) {
 							return { kind: 'cancelled' } as const
 						}
-						const optimisticMutations = new Map(
-							entries.map((entry) => [
-								entry.update.id,
-								beginOptimisticBatchMutation(entry.update)
-							])
+						const optimisticMutations = trackList.batch(
+							() =>
+								new Map(
+									entries.map((entry) => [
+										entry.update.id,
+										beginOptimisticBatchMutation(entry.update)
+									])
+								)
 						)
 						const response = await requestTrackEnrichmentChunk(
 							context,
@@ -859,9 +853,11 @@ export const useTracksStore = defineStore('tracks', () => {
 
 						if (response.kind !== 'settled') {
 							if (isCurrentAccountContext(context)) {
-								for (const mutation of optimisticMutations.values()) {
-									rollbackOptimisticBatchMutation(mutation)
-								}
+								trackList.batch(() => {
+									for (const mutation of optimisticMutations.values()) {
+										rollbackOptimisticBatchMutation(mutation)
+									}
+								})
 							}
 							for (const mutation of optimisticMutations.values()) {
 								finishOptimisticBatchMutation(mutation)
@@ -870,45 +866,51 @@ export const useTracksStore = defineStore('tracks', () => {
 						}
 
 						const reconciledResults: TrackBatchUpdateResult[] = []
-						for (const [index, serverResult] of response.results.entries()) {
-							const entry = entries[index]!
-							const mutation = optimisticMutations.get(entry.update.id) ?? null
-							if (serverResult.status === 'updated' && serverResult.track) {
-								try {
-									if (serverResult.track.id !== entry.update.id) {
-										throw new Error('Track batch response ID mismatch')
-									}
-									if (
-										!isCurrentAccountContext(context) ||
-										(mutation &&
-											trackOperationRevisions.get(entry.update.id) !==
-												mutation.operationRevision)
-									) {
-										return { kind: 'cancelled' } as const
-									}
-									recordCommittedTrackMutation(entry.update.id, context, {
-										kind: 'update',
-										row: serverResult.track
-									})
-									upsertTrack(serverResult.track)
-									reconciledResults.push(serverResult)
-								} catch {
-									rollbackOptimisticBatchMutation(mutation)
-									reconciledResults.push(
-										createFailedTrackBatchResult(
-											entry.update.id,
-											'invalid',
-											'invalid_response',
-											serverResult.operation
+						// Publish every reconciled row of this chunk as one array.
+						const reconcileCancelled = trackList.batch(() => {
+							for (const [index, serverResult] of response.results.entries()) {
+								const entry = entries[index]!
+								const mutation =
+									optimisticMutations.get(entry.update.id) ?? null
+								if (serverResult.status === 'updated' && serverResult.track) {
+									try {
+										if (serverResult.track.id !== entry.update.id) {
+											throw new Error('Track batch response ID mismatch')
+										}
+										if (
+											!isCurrentAccountContext(context) ||
+											(mutation &&
+												trackOperationRevisions.get(entry.update.id) !==
+													mutation.operationRevision)
+										) {
+											return true
+										}
+										recordCommittedTrackMutation(entry.update.id, context, {
+											kind: 'update',
+											row: serverResult.track
+										})
+										upsertTrack(serverResult.track)
+										reconciledResults.push(serverResult)
+									} catch {
+										rollbackOptimisticBatchMutation(mutation)
+										reconciledResults.push(
+											createFailedTrackBatchResult(
+												entry.update.id,
+												'invalid',
+												'invalid_response',
+												serverResult.operation
+											)
 										)
-									)
+									}
+								} else {
+									rollbackOptimisticBatchMutation(mutation)
+									reconciledResults.push(serverResult)
 								}
-							} else {
-								rollbackOptimisticBatchMutation(mutation)
-								reconciledResults.push(serverResult)
+								finishOptimisticBatchMutation(mutation)
 							}
-							finishOptimisticBatchMutation(mutation)
-						}
+							return false
+						})
+						if (reconcileCancelled) return { kind: 'cancelled' } as const
 						return {
 							kind: 'settled',
 							results: reconciledResults,
@@ -1007,19 +1009,15 @@ export const useTracksStore = defineStore('tracks', () => {
 		if (!context) return false
 		return await runSerializedTrackOperation(context, id, false, async () => {
 			if (!(await confirmMutationContext(context))) return false
-			const trackIndex = tracks.value.findIndex(
-				(t: LibraryTrack) => t.id === id
-			)
+			const trackIndex = trackList.indexOf(id)
 			if (trackIndex === -1) {
 				toast.error('Track not found.')
 				return false
 			}
-			const removedTrack = tracks.value[trackIndex]!
-			const previousTrackId = tracks.value[trackIndex - 1]?.id
-			const nextTrackId = tracks.value[trackIndex + 1]?.id
+			const removedTrack = trackList.current()[trackIndex]!
 			const operationRevision = nextMutationRevision()
 			trackOperationRevisions.set(id, operationRevision)
-			tracks.value.splice(trackIndex, 1)
+			trackList.removeAt(trackIndex)
 			try {
 				const repositories = repositoriesFor(context)
 				if (!repositories) return false
@@ -1042,7 +1040,8 @@ export const useTracksStore = defineStore('tracks', () => {
 					return false
 				}
 				recordCommittedTrackMutation(id, context, { kind: 'delete' })
-				tracks.value = tracks.value.filter((track) => track.id !== id)
+				const committedIndex = trackList.indexOf(id)
+				if (committedIndex !== -1) trackList.removeAt(committedIndex)
 				toast.success('Track deleted successfully.')
 				return true
 			} catch (error) {
@@ -1053,17 +1052,15 @@ export const useTracksStore = defineStore('tracks', () => {
 					return false
 				}
 				console.error('Failed to delete track:', error)
-				if (!tracks.value.some((track) => track.id === id)) {
-					const nextIndex = nextTrackId
-						? tracks.value.findIndex((track) => track.id === nextTrackId)
-						: -1
-					if (nextIndex !== -1) tracks.value.splice(nextIndex, 0, removedTrack)
-					else {
-						const previousIndex = previousTrackId
-							? tracks.value.findIndex((track) => track.id === previousTrackId)
-							: -1
-						tracks.value.splice(previousIndex + 1, 0, removedTrack)
-					}
+				if (trackList.indexOf(id) === -1) {
+					trackList.insertAt(
+						sortedInsertionIndex(
+							trackList.current(),
+							removedTrack,
+							compareCreatedAtDescIdDesc
+						),
+						removedTrack
+					)
 				}
 				toast.error('Error deleting track.')
 				return false
@@ -1084,16 +1081,19 @@ export const useTracksStore = defineStore('tracks', () => {
 	}
 
 	function removeTracksByRecordId(recordId: string) {
-		const removedTracks = tracks.value.filter(
-			(track) => track.record_id === recordId
-		)
+		const removedTracks = trackList
+			.current()
+			.filter((track) => track.record_id === recordId)
 		const context = captureContext(accountGeneration)
 		if (context) {
 			for (const track of removedTracks) {
 				recordCommittedTrackMutation(track.id, context, { kind: 'delete' })
 			}
 		}
-		tracks.value = tracks.value.filter((track) => track.record_id !== recordId)
+		if (removedTracks.length === 0) return
+		trackList.setAll(
+			trackList.current().filter((track) => track.record_id !== recordId)
+		)
 	}
 
 	// Clear tracks when user signs out
@@ -1111,7 +1111,7 @@ export const useTracksStore = defineStore('tracks', () => {
 		isLoadingTracks.value = false
 		isCreatingTrack.value = false
 		isUpdatingTrack.value = false
-		tracks.value = []
+		trackList.setAll([])
 	}
 
 	return {
