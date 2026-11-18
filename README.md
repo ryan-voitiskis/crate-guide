@@ -280,9 +280,8 @@ npm run audit:edge           # Audit frozen Edge dependencies through OSV
 npm run check:conventions    # Component naming and Tailwind boundaries
 npm run check:discogs-docs   # Reject stale Discogs documentation contracts
 npm run test:typegen-script  # Failure/rollback tests for genTypes
-npm run test:database-type-parity # Tests for the generated type parity gate
-npm run check:database-types # Reject missing, empty, or differing type copies
-npm run check:database-schema-types # Compare copies to the migrated schema
+npm run test:database-schema-types # Tests for the live schema type gate
+npm run check:database-schema-types # Compare tracked types to the migrated schema
 npm run test:audio-config    # Shared analyzer/benchmark config tests
 npm run test:conventions     # Convention checker tests
 npm run test:dependency-topology # Tests for the focused topology gate
@@ -304,8 +303,8 @@ is also a separate release check. For release and deployment-affecting
 handoffs, run `npm run verify:full`; it adds the production build and local
 database tests, so it requires a running local Supabase stack.
 
-The live schema comparison generates types into a temporary directory and
-byte-compares them with both tracked copies; it never rewrites the CI worktree.
+The live schema comparison generates and formats types in memory and
+byte-compares them with the tracked file; it never rewrites the CI worktree.
 Edge auditing covers every npm package in `supabase/deno.lock` and fails closed
 on unsupported remote or JSR entries. A temporary high-severity exception in
 `security/edge-audit-suppressions.json` must name the advisory and package plus
@@ -352,13 +351,12 @@ npm run supa:reset
 ```
 
 `npm run genTypes` validates and Prettier-formats generated output before
-replacing the intentional byte-identical copies at `shared/types/database.ts`
-and `supabase/functions/_shared/types/database.ts`. The application and Deno
-Edge Function module trees consume their respective copies. Any failure before
-replacement leaves both files unchanged; a partial replacement restores both
-prior states and reports if restoration cannot complete. Run
-`npm run check:database-types` to check the tracked copies without a database;
-`npm run verify` includes this gate and rejects one-sided drift.
+replacing `shared/types/database.ts`, the single tracked copy. The application
+and the Deno Edge Functions both import it; Edge code reaches it through a
+relative `shared/` import. Any failure before replacement leaves the file
+unchanged; a failed replacement restores the prior state and reports if
+restoration cannot complete. `npm run check:database-schema-types` compares the
+tracked file with the running local schema.
 
 ## Edge Functions
 

@@ -24,65 +24,40 @@ afterEach(async () => {
 	)
 })
 
-async function createFixture({ filesExist = true } = {}) {
+async function createFixture({ fileExists = true } = {}) {
 	const root = await mkdtemp(join(tmpdir(), 'crate-guide-typegen-'))
 	const canonicalDirectory = join(root, 'shared', 'types')
-	const edgeDirectory = join(root, 'supabase', 'functions', '_shared', 'types')
 	const canonicalPath = join(canonicalDirectory, 'database.ts')
-	const edgePath = join(edgeDirectory, 'database.ts')
 	temporaryDirectories.push(root)
-	await Promise.all([
-		mkdir(canonicalDirectory, { recursive: true }),
-		mkdir(edgeDirectory, { recursive: true })
-	])
+	await mkdir(canonicalDirectory, { recursive: true })
 
-	if (filesExist) {
-		await Promise.all([
-			writeFile(canonicalPath, 'canonical original\n'),
-			writeFile(edgePath, 'edge original\n')
-		])
+	if (fileExists) {
+		await writeFile(canonicalPath, 'canonical original\n')
 	}
 
-	return {
-		canonicalDirectory,
-		canonicalPath,
-		edgeDirectory,
-		edgePath,
-		root
-	}
+	return { canonicalDirectory, canonicalPath, root }
 }
 
 function createOptions(fixture, overrides = {}) {
 	return {
 		canonicalPath: fixture.canonicalPath,
 		commandRunner: () => ({ status: 0, stdout: generatedSource }),
-		edgePath: fixture.edgePath,
 		formatter: async (source) => `${source.trim()}\n`,
 		workingDirectory: fixture.root,
 		...overrides
 	}
 }
 
-async function readFixtureFiles(fixture) {
-	return Promise.all([
-		readFile(fixture.canonicalPath),
-		readFile(fixture.edgePath)
-	])
-}
-
 async function assertNoTemporaryFiles(fixture) {
-	const entries = await Promise.all([
-		readdir(fixture.canonicalDirectory),
-		readdir(fixture.edgeDirectory)
-	])
+	const entries = await readdir(fixture.canonicalDirectory)
 
 	assert.deepEqual(
-		entries.flat().filter((entry) => entry.includes('.tmp-')),
+		entries.filter((entry) => entry.includes('.tmp-')),
 		[]
 	)
 }
 
-test('writes identical validated output to both destinations', async () => {
+test('writes validated output to the canonical destination', async () => {
 	const fixture = await createFixture()
 	let commandInvocation
 
@@ -95,9 +70,10 @@ test('writes identical validated output to both destinations', async () => {
 		})
 	)
 
-	const [canonicalContent, edgeContent] = await readFixtureFiles(fixture)
-	assert.equal(canonicalContent.toString(), `${generatedSource}\n`)
-	assert.deepEqual(canonicalContent, edgeContent)
+	assert.equal(
+		await readFile(fixture.canonicalPath, 'utf8'),
+		`${generatedSource}\n`
+	)
 	assert.deepEqual(commandInvocation, [
 		'supabase',
 		['gen', 'types', '--lang=typescript', '--local'],
@@ -110,9 +86,9 @@ test('writes identical validated output to both destinations', async () => {
 	await assertNoTemporaryFiles(fixture)
 })
 
-test('preserves both destination bytes when generation fails', async () => {
+test('preserves the destination bytes when generation fails', async () => {
 	const fixture = await createFixture()
-	const before = await readFixtureFiles(fixture)
+	const before = await readFile(fixture.canonicalPath)
 
 	await assert.rejects(
 		generateDatabaseTypes(
@@ -123,13 +99,13 @@ test('preserves both destination bytes when generation fails', async () => {
 		/exited with status 1/
 	)
 
-	assert.deepEqual(await readFixtureFiles(fixture), before)
+	assert.deepEqual(await readFile(fixture.canonicalPath), before)
 	await assertNoTemporaryFiles(fixture)
 })
 
-test('preserves both destination bytes when output is empty', async () => {
+test('preserves the destination bytes when output is empty', async () => {
 	const fixture = await createFixture()
-	const before = await readFixtureFiles(fixture)
+	const before = await readFile(fixture.canonicalPath)
 
 	await assert.rejects(
 		generateDatabaseTypes(
@@ -140,13 +116,13 @@ test('preserves both destination bytes when output is empty', async () => {
 		/returned empty output/
 	)
 
-	assert.deepEqual(await readFixtureFiles(fixture), before)
+	assert.deepEqual(await readFile(fixture.canonicalPath), before)
 	await assertNoTemporaryFiles(fixture)
 })
 
-test('preserves both destination bytes when the Database type is missing', async () => {
+test('preserves the destination bytes when the Database type is missing', async () => {
 	const fixture = await createFixture()
-	const before = await readFixtureFiles(fixture)
+	const before = await readFile(fixture.canonicalPath)
 
 	await assert.rejects(
 		generateDatabaseTypes(
@@ -160,13 +136,13 @@ test('preserves both destination bytes when the Database type is missing', async
 		/output without the Database type/
 	)
 
-	assert.deepEqual(await readFixtureFiles(fixture), before)
+	assert.deepEqual(await readFile(fixture.canonicalPath), before)
 	await assertNoTemporaryFiles(fixture)
 })
 
-test('restores both originals when replacing the second destination fails', async () => {
+test('restores the original when replacement fails after renaming', async () => {
 	const fixture = await createFixture()
-	const before = await readFixtureFiles(fixture)
+	const before = await readFile(fixture.canonicalPath)
 	let replacementCount = 0
 
 	await assert.rejects(
@@ -174,46 +150,53 @@ test('restores both originals when replacing the second destination fails', asyn
 			createOptions(fixture, {
 				replaceDestination: async (source, destination) => {
 					replacementCount += 1
-
-					if (replacementCount === 2) {
-						throw new Error('simulated replacement failure')
-					}
-
 					await rename(source, destination)
+					throw new Error('simulated failure after replacement')
 				}
 			})
 		),
-		/original files were restored/
+		/original file was restored/
 	)
 
-	assert.equal(replacementCount, 2)
-	assert.deepEqual(await readFixtureFiles(fixture), before)
+	assert.equal(replacementCount, 1)
+	assert.deepEqual(await readFile(fixture.canonicalPath), before)
 	await assertNoTemporaryFiles(fixture)
 })
 
-test('restores absent destinations when replacement fails', async () => {
-	const fixture = await createFixture({ filesExist: false })
-	let replacementCount = 0
+test('preserves the original when replacement fails before renaming', async () => {
+	const fixture = await createFixture()
+	const before = await readFile(fixture.canonicalPath)
+
+	await assert.rejects(
+		generateDatabaseTypes(
+			createOptions(fixture, {
+				replaceDestination: async () => {
+					throw new Error('simulated replacement failure')
+				}
+			})
+		),
+		/original file was restored/
+	)
+
+	assert.deepEqual(await readFile(fixture.canonicalPath), before)
+	await assertNoTemporaryFiles(fixture)
+})
+
+test('removes an absent destination when replacement fails', async () => {
+	const fixture = await createFixture({ fileExists: false })
 
 	await assert.rejects(
 		generateDatabaseTypes(
 			createOptions(fixture, {
 				replaceDestination: async (source, destination) => {
-					replacementCount += 1
 					await rename(source, destination)
-
-					if (replacementCount === 2) {
-						throw new Error('simulated failure after replacement')
-					}
+					throw new Error('simulated failure after replacement')
 				}
 			})
 		),
-		/original files were restored/
+		/original file was restored/
 	)
 
-	await Promise.all([
-		assert.rejects(readFile(fixture.canonicalPath), { code: 'ENOENT' }),
-		assert.rejects(readFile(fixture.edgePath), { code: 'ENOENT' })
-	])
+	await assert.rejects(readFile(fixture.canonicalPath), { code: 'ENOENT' })
 	await assertNoTemporaryFiles(fixture)
 })
