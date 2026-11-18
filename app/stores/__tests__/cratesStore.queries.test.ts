@@ -579,9 +579,15 @@ describe('cratesStore queries and local cleanup', () => {
 		})
 
 		it('does not let an old delete finalizer clear replacement activity', async () => {
-			const oldResponse = createDeferred<{ data: null; error: null }>()
-			const newResponse = createDeferred<{ data: null; error: null }>()
-			mockQueryBuilder.eq
+			const oldResponse = createDeferred<{
+				data: { id: string; user_id: string }
+				error: null
+			}>()
+			const newResponse = createDeferred<{
+				data: { id: string; user_id: string }
+				error: null
+			}>()
+			mockQueryBuilder.single
 				.mockReturnValueOnce(oldResponse.promise)
 				.mockReturnValueOnce(newResponse.promise)
 			const store = useCratesStore()
@@ -595,11 +601,17 @@ describe('cratesStore queries and local cleanup', () => {
 			store.crates = [createMockCrate({ id: 'new-crate' })]
 			const newDelete = store.deleteCrate('new-crate')
 			expect(store.isDeletingCrate).toBe(true)
-			oldResponse.resolve({ data: null, error: null })
+			oldResponse.resolve({
+				data: { id: 'old-crate', user_id: 'test-user-id' },
+				error: null
+			})
 			await expect(oldDelete).resolves.toBe(false)
 			expect(store.isDeletingCrate).toBe(true)
 
-			newResponse.resolve({ data: null, error: null })
+			newResponse.resolve({
+				data: { id: 'new-crate', user_id: 'test-user-id' },
+				error: null
+			})
 			await expect(newDelete).resolves.toBe(true)
 			expect(store.isDeletingCrate).toBe(false)
 			expect(store.crates).toEqual([])

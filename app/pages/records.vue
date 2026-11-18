@@ -11,11 +11,14 @@ import {
 	Plus
 } from '@lucide/vue'
 import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
+import type {
+	LibrarySortDirection,
+	LibrarySortValue
+} from '~/utils/librarySort'
 import { WORKBENCH_MAX_MOUNTED_ITEMS } from '~/utils/workbenchVirtualList'
 import type { LibraryRecord } from '~~/shared/types/library'
 
 type RecordSortKey = 'artist' | 'title' | 'label' | 'catno' | 'year' | 'tracks'
-type SortDirection = 'asc' | 'desc'
 type Density = 'compact' | 'comfortable'
 type ViewMode = 'table' | 'covers'
 type RecordCoverRow = {
@@ -36,6 +39,9 @@ const records = useWorkbenchRecordsStore()
 const tracks = useWorkbenchTracksStore()
 const crates = useWorkbenchCratesStore()
 const recordDetails = useWorkbenchRecordDetailsStore()
+const hasOpenedAddToCrate = useOpenedOnce(
+	() => !!recordDetails.recordToAddToCrate
+)
 const capabilities = useWorkbenchCapabilities()
 
 const isActive = usePageActive()
@@ -50,7 +56,7 @@ const mobileInspectorOpen = ref(false)
 const viewMode = ref<ViewMode>('table')
 const density = useState<Density>('workbench-density', () => 'compact')
 const sortKey = ref<RecordSortKey>('artist')
-const sortDirection = ref<SortDirection>('asc')
+const sortDirection = ref<LibrarySortDirection>('asc')
 const coverViewportWidth = ref(640)
 const coverVirtualList = ref<CoverVirtualListHandle | null>(null)
 const coverAnchorRecordId = ref<string | null>(null)
@@ -71,47 +77,30 @@ const selectedRecord = computed(() =>
 	selectedRecordId.value ? records.getRecordById(selectedRecordId.value) : null
 )
 
-const sortedRecords = computed(() => {
-	const collator = new Intl.Collator(undefined, {
-		numeric: true,
-		sensitivity: 'base'
-	})
-	const direction = sortDirection.value === 'asc' ? 1 : -1
+const sortedRecords = computed(() =>
+	sortByLibraryKey(
+		records.displayedRecords,
+		getRecordSortValue,
+		sortDirection.value
+	)
+)
 
-	return [...records.displayedRecords].sort((a, b) => {
-		let aValue: string | number = ''
-		let bValue: string | number = ''
-
-		switch (sortKey.value) {
-			case 'artist':
-				aValue = a.artists[0]?.name || ''
-				bValue = b.artists[0]?.name || ''
-				break
-			case 'title':
-				aValue = a.title
-				bValue = b.title
-				break
-			case 'label':
-				aValue = a.labels[0]?.name || ''
-				bValue = b.labels[0]?.name || ''
-				break
-			case 'catno':
-				aValue = a.labels[0]?.catno || ''
-				bValue = b.labels[0]?.catno || ''
-				break
-			case 'year':
-				aValue = a.year || 0
-				bValue = b.year || 0
-				break
-			case 'tracks':
-				aValue = trackCounts.value.get(a.id) || 0
-				bValue = trackCounts.value.get(b.id) || 0
-				break
-		}
-
-		return collator.compare(String(aValue), String(bValue)) * direction
-	})
-})
+function getRecordSortValue(record: LibraryRecord): LibrarySortValue {
+	switch (sortKey.value) {
+		case 'artist':
+			return record.artists[0]?.name || ''
+		case 'title':
+			return record.title
+		case 'label':
+			return record.labels[0]?.name || ''
+		case 'catno':
+			return record.labels[0]?.catno || ''
+		case 'year':
+			return record.year || 0
+		case 'tracks':
+			return trackCounts.value.get(record.id) || 0
+	}
+}
 
 const tableItemSize = computed(() => {
 	if (isCompactTable.value) return 72
@@ -254,7 +243,7 @@ watch(
 
 <template>
 	<div class="flex h-full min-h-0 flex-col">
-		<DialogAddToCrate />
+		<LazyDialogAddToCrate v-if="hasOpenedAddToCrate" />
 		<AlertConfirmRemoveRecord />
 
 		<Teleport to="#header-left" defer>

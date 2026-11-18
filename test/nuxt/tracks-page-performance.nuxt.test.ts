@@ -1,10 +1,11 @@
-import { computed, defineComponent, h, nextTick } from 'vue'
+import { computed, defineComponent, h, nextTick, reactive } from 'vue'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { type VueWrapper, flushPromises } from '@vue/test-utils'
 import { createMockRecord } from 'test/mocks/fixtures/records'
 import { createMockTrack } from 'test/mocks/fixtures/tracks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import TracksPage from '~/pages/tracks.vue'
+import type { TrackEvidenceLensRow } from '~/utils/trackEvidenceLens'
 
 const pageMocks = vi.hoisted(() => ({
 	isCompact: false,
@@ -259,5 +260,32 @@ describe('tracks page render work', () => {
 			expect(inspector.props('showEditAction')).toBe(false)
 			expect(inspector.props('readOnly')).toBe(true)
 		}
+	})
+
+	it('re-derives only an edited track in the Evidence lens after an in-place store update', async () => {
+		const reactiveTracks = reactive([...pageMocks.tracks.tracks])
+		pageMocks.tracks.tracks = reactiveTracks
+		await mountTracksPage()
+		await wrapper?.get('[data-testid="track-view-evidence"]').trigger('click')
+		await flushPromises()
+		await vi.waitFor(() => {
+			expect(
+				wrapper?.findComponent({ name: 'ListTrackEvidenceLens' }).exists()
+			).toBe(true)
+		})
+		const lens = () => wrapper?.findComponent({ name: 'ListTrackEvidenceLens' })
+		const rowFor = (id: string) =>
+			(lens()?.props('rows') as TrackEvidenceLensRow[]).find(
+				(row) => row.id === id
+			)
+		const untouched = rowFor('track-zebra')
+		expect(rowFor('track-middle')?.current.bpm).not.toBe(126.5)
+
+		const index = reactiveTracks.findIndex(({ id }) => id === 'track-middle')
+		reactiveTracks[index] = { ...reactiveTracks[index]!, bpm: 126.5 }
+		await nextTick()
+
+		expect(rowFor('track-middle')?.current.bpm).toBe(126.5)
+		expect(rowFor('track-zebra')).toBe(untouched)
 	})
 })

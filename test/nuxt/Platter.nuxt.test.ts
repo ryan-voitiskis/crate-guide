@@ -1,3 +1,4 @@
+import { KeepAlive, defineComponent, h, nextTick, ref } from 'vue'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import type { VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -120,5 +121,34 @@ describe('Platter animation lifecycle', () => {
 				physicalMirrors.attributes('transform')
 			)
 		}
+	})
+
+	it('pauses the frame loop while a kept-alive page is hidden and resumes a playing deck', async () => {
+		const showPlatter = ref(true)
+		const deck = createDeck(true)
+		const Hidden = defineComponent({ render: () => h('div') })
+		wrapper = await mountSuspended(
+			defineComponent({
+				setup: () => () =>
+					h(KeepAlive, null, [
+						showPlatter.value
+							? h(Platter, { key: 'platter', deckIndex: 0, deck })
+							: h(Hidden, { key: 'hidden' })
+					])
+			}),
+			{ attachTo: container }
+		)
+		advanceFrame()
+		expect(pendingFrames.size).toBe(1)
+
+		showPlatter.value = false
+		await nextTick()
+		expect(pendingFrames.size).toBe(0)
+		const requestsWhileHidden = requestFrame.mock.calls.length
+
+		showPlatter.value = true
+		await nextTick()
+		expect(requestFrame.mock.calls.length).toBe(requestsWhileHidden + 1)
+		expect(pendingFrames.size).toBe(1)
 	})
 })

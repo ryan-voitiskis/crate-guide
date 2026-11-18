@@ -138,12 +138,18 @@ export function createCloudCratesRepository(
 			const captured = await state.capture(context)
 			if (!state.isLease(captured)) return captured
 			try {
-				const { error } = await dependencies.supabase
+				const { data, error } = await dependencies.supabase
 					.from('crates')
 					.delete()
 					.eq('id', id)
+					.eq('user_id', captured.userId)
+					.select('id, user_id')
+					.single()
 				if (!(await state.isCurrent(captured))) return { status: 'stale' }
 				if (error) return state.transportFailure(error)
+				if (!data || data.id !== id || data.user_id !== captured.userId) {
+					return { status: 'conflict', reason: 'integrity' }
+				}
 				return state.complete(captured, { id }, { mutated: true })
 			} catch (error) {
 				return (await state.isCurrent(captured))

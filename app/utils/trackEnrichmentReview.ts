@@ -21,6 +21,7 @@ import type {
 	EnrichmentRow,
 	EnrichmentSource
 } from './trackEnrichmentTypes'
+import { yieldToMain } from './yieldToMain'
 
 export function canStageEnrichmentRow(row: EnrichmentRow): boolean {
 	return (
@@ -223,28 +224,31 @@ export async function buildEnrichmentRowsAsync({
 	tracks,
 	records,
 	onProgress,
-	yieldEvery = 20
+	yieldBudgetMs = 10
 }: BuildEnrichmentRowsOptions & {
 	onProgress?: (completed: number, total: number) => void
-	yieldEvery?: number
+	/** Main-thread time to spend matching before yielding to the browser. */
+	yieldBudgetMs?: number
 }): Promise<EnrichmentRow[]> {
 	const context = prepareCandidateMatchingContext(tracks, records)
 	const builtRows: EnrichmentRow[] = []
-	const batchSize = Math.max(1, yieldEvery)
+	let sliceStartedAt = performance.now()
+	let reported = 0
 
 	for (let index = 0; index < sources.length; index++) {
 		const source = sources[index]
 		if (!source) continue
 		builtRows.push(projectEnrichmentReviewRow(source, context))
 
-		const completed = index + 1
-		if (completed % batchSize === 0) {
-			onProgress?.(completed, sources.length)
-			await new Promise<void>((resolve) => setTimeout(resolve, 0))
+		if (performance.now() - sliceStartedAt >= yieldBudgetMs) {
+			reported = index + 1
+			onProgress?.(reported, sources.length)
+			await yieldToMain()
+			sliceStartedAt = performance.now()
 		}
 	}
 
-	if (sources.length % batchSize !== 0) {
+	if (reported !== sources.length) {
 		onProgress?.(sources.length, sources.length)
 	}
 	return blockCompetingEnrichmentMatches(builtRows)

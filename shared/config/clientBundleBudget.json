@@ -1,25 +1,25 @@
 {
 	"version": 1,
 	"baseline": {
-		"measuredOn": "2026-07-30",
+		"measuredOn": "2026-11-18",
 		"allowancePercent": 3,
 		"initialJavaScript": {
-			"rawBytes": 1097413,
-			"gzipBytes": 350959
+			"rawBytes": 738666,
+			"gzipBytes": 233888
 		},
 		"largestOrdinaryChunk": {
-			"rawBytes": 127476,
-			"gzipBytes": 36629
+			"rawBytes": 129994,
+			"gzipBytes": 37662
 		}
 	},
 	"budgets": {
 		"initialJavaScript": {
-			"rawBytes": 1130336,
-			"gzipBytes": 361488
+			"rawBytes": 760826,
+			"gzipBytes": 240905
 		},
 		"largestOrdinaryChunk": {
-			"rawBytes": 131301,
-			"gzipBytes": 37728
+			"rawBytes": 133894,
+			"gzipBytes": 38792
 		}
 	},
 	"expectedLazyModules": [
@@ -27,7 +27,11 @@
 		"utils/cloudWorkbenchRuntime.ts",
 		"pages/enrichment.vue",
 		"repositories/deviceDrafts/index.ts",
-		"../node_modules/music-metadata/lib/mpeg/MpegParser.js"
+		"../node_modules/music-metadata/lib/mpeg/MpegParser.js",
+		"components/import/DialogDiscogsImport.vue",
+		"components/records/DialogRecordCreateManual.vue",
+		"components/tracks/DialogTrackDetails.vue",
+		"components/crates/DialogCrateDetails.vue"
 	],
 	"workerAssetPatterns": ["localAudioAnalysis.worker-", "rekordboxXml.worker-"],
 	"wasmAssetPatterns": ["essentia-wasm.es-"]

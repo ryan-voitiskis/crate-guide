@@ -23,6 +23,9 @@ const isActive = usePageActive()
 const showCreateDialog = ref(false)
 const showDetailDialog = ref(false)
 const showAddRecordsDialog = ref(false)
+const hasOpenedCreateDialog = useOpenedOnce(() => showCreateDialog.value)
+const hasOpenedDetailDialog = useOpenedOnce(() => showDetailDialog.value)
+const hasOpenedAddRecords = useOpenedOnce(() => showAddRecordsDialog.value)
 const selectedCrateId = ref<string | null>(null)
 const crateQuery = ref('')
 const recordQuery = ref('')
@@ -128,20 +131,24 @@ watch(
 
 <template>
 	<div class="flex h-full min-h-0 flex-col">
-		<DialogCrateForm
-			v-if="capabilities.canManageCrates"
+		<LazyDialogCrateForm
+			v-if="capabilities.canManageCrates && hasOpenedCreateDialog"
 			v-model:open="showCreateDialog"
 			@saved="handleCreated"
 		/>
-		<DialogCrateDetails
-			v-if="selectedCrate && capabilities.canManageCrates"
+		<LazyDialogCrateDetails
+			v-if="
+				selectedCrate && capabilities.canManageCrates && hasOpenedDetailDialog
+			"
 			v-model:open="showDetailDialog"
 			:crate="selectedCrate"
 			@delete="handleDelete"
 			@add-record="handleAddRecord"
 		/>
-		<DialogAddRecords
-			v-if="selectedCrate && capabilities.canManageCrates"
+		<LazyDialogAddRecords
+			v-if="
+				selectedCrate && capabilities.canManageCrates && hasOpenedAddRecords
+			"
 			v-model:open="showAddRecordsDialog"
 			:crate="selectedCrate"
 		/>
