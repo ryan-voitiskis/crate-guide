@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { excludedPackages } from './production-dependency-guard.mjs'
 
 const severities = ['info', 'low', 'moderate', 'high', 'critical']
 const high = (severity) => ['high', 'critical'].includes(severity)
@@ -10,11 +11,76 @@ const advisoryId = (url) =>
 		url
 	)?.[1]
 
+function validateExpiry(entry, now) {
+	if (
+		!/^\d{4}-\d{2}-\d{2}$/.test(entry.expires || '') ||
+		!Number.isFinite(Date.parse(`${entry.expires}T00:00:00Z`)) ||
+		new Date(`${entry.expires}T00:00:00Z`).toISOString().slice(0, 10) !==
+			entry.expires
+	)
+		throw new Error('Invalid Node audit exception expiry date.')
+	if (now >= new Date(`${entry.expires}T00:00:00Z`))
+		throw new Error(`Expired Node audit exception ${entry.id}.`)
+}
+
+// A build-only exception covers an unpatched package with many build-tool
+// consumers. Instead of one consumer chain, it pins every locked installation
+// (path, version, integrity, registry source) and requires the package to be
+// rejected from rendered production bundles by the dependency guard.
+function validateBuildOnlySuppression(entry, lock, now, ids) {
+	if (
+		!/^GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$/.test(entry.id || '') ||
+		ids.has(entry.id) ||
+		!['package', 'owner', 'reason'].every(
+			(field) => typeof entry[field] === 'string' && entry[field].length > 0
+		) ||
+		entry.severity !== 'high' ||
+		!entry.evidence?.startsWith('docs/security/') ||
+		!Array.isArray(entry.installations) ||
+		entry.installations.length === 0
+	)
+		throw new Error(
+			'Each build-only Node audit exception needs an exact advisory, installations, owner, evidence and expiry.'
+		)
+	ids.add(entry.id)
+	validateExpiry(entry, now)
+	if (!excludedPackages.includes(entry.package))
+		throw new Error(
+			`Build-only Node audit exception ${entry.id} needs a production bundle guard for ${entry.package}.`
+		)
+	const suffix = `node_modules/${entry.package}`
+	const locked = Object.entries(lock.packages)
+		.filter(([name]) => name === suffix || name.endsWith(`/${suffix}`))
+		.map(([path, value]) => ({ path, ...value }))
+	const expected = new Map(entry.installations.map((item) => [item.path, item]))
+	if (
+		expected.size !== entry.installations.length ||
+		locked.length !== expected.size ||
+		locked.some((installed) => {
+			const item = expected.get(installed.path)
+			return (
+				!item ||
+				installed.version !== item.version ||
+				installed.integrity !== item.integrity ||
+				installed.resolved !==
+					`https://registry.npmjs.org/${entry.package}/-/${entry.package}-${item.version}.tgz`
+			)
+		})
+	)
+		throw new Error(
+			`Changed Node audit dependency installations: ${entry.package}.`
+		)
+}
+
 export function validateNodeSuppressions(suppressions, lock, now = new Date()) {
 	if (!Array.isArray(suppressions) || !lock?.packages)
 		throw new Error('Invalid Node audit policy or lockfile.')
 	const ids = new Set()
 	for (const entry of suppressions) {
+		if (entry?.scope === 'build-only') {
+			validateBuildOnlySuppression(entry, lock, now, ids)
+			continue
+		}
 		if (
 			!/^GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$/.test(entry.id || '') ||
 			ids.has(entry.id) ||
