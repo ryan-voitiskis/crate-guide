@@ -1,16 +1,20 @@
 # Browser Library Storage Diagnostics
 
-The browser-library repository stores named Local workspaces in the versioned
-`crate-guide-library` IndexedDB database. A successful committed write survives
-ordinary reloads in the same browser profile, but it is **not a backup** and is
-not copied to Crate Guide's database. Site-data clearing, browser-profile or
-device loss, private-session closure, and browser eviction can still remove it.
-Portable exports are the user-controlled recovery boundary.
+Production uses the versioned `crate-guide-library` IndexedDB database only
+for device-local enrichment drafts; see
+[`library-repository-architecture.md`](./library-repository-architecture.md).
+A committed write survives ordinary reloads in the same browser profile, but
+it is **not a backup** and is not copied to Crate Guide's database.
+Site-data clearing, browser-profile or device loss, private-session closure,
+and browser eviction can still remove it.
 
-The dated physical macOS Safari repository smoke is recorded in
-[`browser-library-physical-safari.md`](./browser-library-physical-safari.md).
-That evidence is narrower than a complete application or iOS Safari support
-claim.
+The Local library adapter, its workspace catalog, and the physical macOS
+Safari repository smoke and its probe were removed. They are recoverable from
+the git tag `archive/local-library-2026-11`. That Safari evidence never
+supported a full application or iOS Safari claim. The probe, state, and
+matrix contract below still applies to the shared schema. It also applies to
+any resumed Local workspace work, which must also restore portable exports
+as the user-controlled recovery boundary.
 
 This document is the engineering and support contract for storage health. It
 must not be simplified into an “online” signal, a quota percentage, or an
@@ -177,7 +181,14 @@ Run the automated matrix with:
 ```sh
 npx playwright install --with-deps chromium firefox webkit
 BROWSER_LIBRARY_REQUIRE_FULL_MATRIX=1 npx vitest run --project e2e test/e2e/browser-library-engine-matrix.e2e.test.ts --reporter=verbose
+BROWSER_LIBRARY_REQUIRE_FULL_MATRIX=1 npx vitest run --project e2e test/e2e/device-draft-engine-matrix.e2e.test.ts --reporter=verbose
 ```
+
+The second command runs the production device draft repository in two pages
+per engine. It checks lease claim, takeover, expiry, and old-owner fencing. It
+also checks that an aborted version upgrade closes the stale connection and
+leaves the database at `BROWSER_LIBRARY_SCHEMA_VERSION`, and that the draft is
+still readable and writable after the repository is reopened.
 
 The default repository gate skips an engine binary that is not installed. An
 evidence run sets `BROWSER_LIBRARY_REQUIRE_FULL_MATRIX=1`, so a missing binary

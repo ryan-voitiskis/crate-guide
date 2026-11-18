@@ -73,6 +73,16 @@ evidence that a STOP or dependency was resolved.
 Historical prerequisites named inside older plans have landed. The table lists
 only active dependencies.
 
+The implementation code for the deferred Plans 070-073 and 076 has been
+removed. Plan 069's catalog and library repository were removed with it,
+along with the local-to-cloud copy, workspace transition, startup selection,
+backup reminder, and storage-health label policies. Production keeps only the
+device-draft storage kernel that Plan 074 uses, and the IndexedDB schema is
+unchanged. The removed code is recoverable from the git tag
+`archive/local-library-2026-11`. A resumed plan must start from that tag and
+re-prove its guarantees against the current schema; see
+[`docs/library-repository-architecture.md`](../docs/library-repository-architecture.md).
+
 ## Finding coverage
 
 Every retained audit finding has one owning plan:
@@ -131,8 +141,9 @@ preserved at `codex/accountless-mode-foundation` (`3253e15`).
 4. **Budgets, parsing, and workbench scale**: 053 after 052/054/055; 065 after
    045/052/053; 063 after the bundle, cover, verification, and reconciliation
    seams are stable.
-5. **Retained Local foundation**: 068 and 069 are complete internal seams. Plan
-   070 is deferred; do not open signed-out routes.
+5. **Retained Local foundation**: 068 is a complete internal seam. Plan 069
+   remains only as the device-draft storage kernel. Plan 070 is deferred and
+   its code is archived; do not open signed-out routes.
 6. **Deferred Local launch**: 071 remains out of the current scope; if resumed,
    launch only after security, scale, bounded audio, durable Local writes,
    portable restore, and core Discogs acquisition pass together.

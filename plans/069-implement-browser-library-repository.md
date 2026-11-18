@@ -179,6 +179,12 @@ memory, or if managed covers cannot be bounded/tested as Blobs.
 Browser persistence reduces normal reload loss; it does not protect against
 site-data clearing, private-session closure, profile/device loss, or every
 browser eviction policy. Plan 070 is the user-owned recovery boundary. The
-2026-07-28 physical macOS Safari repository smoke is recorded in
+2026-07-28 physical macOS Safari repository smoke was recorded in
 `docs/browser-library-physical-safari.md`; iOS and full application support
 remain separate evidence.
+
+The workspace catalog, browser library repository, snapshot and operations
+modules, and the physical Safari probe and its record have since been
+removed. They are recoverable from the git tag
+`archive/local-library-2026-11`. Production keeps the schema, codecs, and
+draft kernel used by device drafts (Plan 074).

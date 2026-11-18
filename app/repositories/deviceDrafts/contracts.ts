@@ -1,5 +1,5 @@
-// Active device-draft API. The storage kernel remains shared with the deferred
-// browser-library adapter so existing databases retain their upgrade path.
+// Active device-draft API. The storage kernel keeps the original
+// `crate-guide-library` schema so existing databases retain their upgrade path.
 export { BROWSER_DRAFT_LEASE_RENEW_INTERVAL_MS } from '../library/browser/browserLibraryTypes'
 export type {
 	BrowserClaimedDraft,
