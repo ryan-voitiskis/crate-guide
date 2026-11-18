@@ -62,7 +62,10 @@ function onlyMatchingAsset(
 }
 
 async function loadSemanticAssets(): Promise<SemanticAssets> {
-	const outputDirectory = useTestContext().nuxt?.options.nitro.output.dir
+	// The shared E2E build is not loaded in this process; its output directory
+	// is the one the test server was started from.
+	const outputDirectory =
+		useTestContext().options.nuxtConfig?.nitro?.output?.dir
 	if (!outputDirectory) {
 		throw new Error('Nuxt E2E output directory is unavailable')
 	}

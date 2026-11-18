@@ -1,5 +1,7 @@
 import { setup, url } from '@nuxt/test-utils/e2e'
 import type { NuxtPage as Page } from '@nuxt/test-utils/e2e'
+import { inject } from 'vitest'
+import { E2E_NUXT_CONFIG } from './e2eNuxtConfig'
 
 export type E2EKeysetCompletion = {
 	table: string
@@ -24,15 +26,13 @@ export type E2EQueryObservations = {
 export const LIBRARY_TABLES = ['records', 'tracks', 'crates', 'sets']
 
 export async function setupWorkbenchE2E() {
+	// Serve the build produced once by test/e2e/globalSetup.ts.
 	await setup({
 		browser: true,
-		nuxtConfig: {
-			nitro: { preset: 'node-server' },
-			supabase: {
-				url: 'https://e2e.invalid',
-				key: 'e2e-public-key'
-			}
-		}
+		build: false,
+		server: true,
+		buildDir: inject('e2eBuildDir'),
+		nuxtConfig: E2E_NUXT_CONFIG
 	})
 }
 

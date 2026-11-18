@@ -176,6 +176,7 @@ export default defineConfig({
 				test: {
 					name: 'e2e',
 					include: ['test/e2e/**/*.e2e.test.ts'],
+					globalSetup: ['test/e2e/globalSetup.ts'],
 					environment: 'node',
 					testTimeout: 120000
 				},
