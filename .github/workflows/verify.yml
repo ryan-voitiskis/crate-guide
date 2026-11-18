@@ -23,7 +23,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24.18.1
+          node-version-file: .nvmrc
 
       - name: Verify recovery safeguards without credentials
         run: node --test scripts/recovery-core.test.mjs scripts/recovery-storage.test.mjs scripts/recovery-operations.test.mjs scripts/recovery-notification.test.mjs
@@ -44,7 +44,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24.18.1
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Set up Deno
@@ -83,7 +83,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24.18.1
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Install dependencies
@@ -117,7 +117,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24.18.1
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Install dependencies

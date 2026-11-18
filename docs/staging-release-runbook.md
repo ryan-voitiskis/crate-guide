@@ -428,8 +428,8 @@ approved by this runbook.
 
 The staging Pages project uses Direct Upload, matching production. Cloudflare
 does not build or inject runtime variables into this client artifact. In a
-clean, detached worktree at the exact approved SHA, use Node `24.18.1` and npm
-`11.16.0`, supply only the staging `SUPABASE_URL` and `SUPABASE_ANON_KEY` to the
+clean, detached worktree at the exact approved SHA, use Node `26.13.1` and npm
+`11.20.0`, supply only the staging `SUPABASE_URL` and `SUPABASE_ANON_KEY` to the
 build process, and run:
 
 ```bash

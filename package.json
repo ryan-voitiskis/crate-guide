@@ -6,8 +6,8 @@
 		"url": "https://ryanvoitiskis.com"
 	},
 	"engines": {
-		"node": ">=24.18.1",
-		"npm": ">=11.16.0"
+		"node": ">=26.13.1",
+		"npm": ">=11.20.0"
 	},
 	"private": true,
 	"license": "AGPL-3.0-only",

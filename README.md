@@ -81,8 +81,8 @@ A DJ-focused vinyl record collection manager with real-time session mixing, harm
 
 ### Prerequisites
 
-- Node.js 24.18.1
-- npm 11.16.0
+- Node.js 26.13.1 (LTS; see `.nvmrc`)
+- npm 11.20.0
 - Deno 2.x (for Edge Function checks and tests)
 - Docker (for Supabase local development)
 - [Supabase CLI](https://supabase.com/docs/guides/cli)
