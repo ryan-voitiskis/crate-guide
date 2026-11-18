@@ -574,7 +574,7 @@ describe('buildTrackEnrichmentRowsAsync', () => {
 
 		const asyncRows = await buildTrackEnrichmentRowsAsync({
 			...options,
-			yieldEvery: 1,
+			yieldBudgetMs: 0,
 			onProgress: (completed) => progress.push(completed)
 		})
 

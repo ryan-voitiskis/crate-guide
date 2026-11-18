@@ -33,6 +33,15 @@ function createDeferred<T>() {
 vi.stubGlobal('useUserStore', () => mockUserStore)
 vi.stubGlobal('useSupabaseClient', () => mockSupabaseClient)
 
+type CrateDeleteResult = {
+	data: { id: string; user_id: string } | null
+	error: Error | null
+}
+
+function deletedCrate(id: string): CrateDeleteResult {
+	return { data: { id, user_id: 'test-user-id' }, error: null }
+}
+
 describe('cratesStore CRUD', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
@@ -473,7 +482,7 @@ describe('cratesStore CRUD', () => {
 			expect(store.crates.length).toBe(1)
 			expect(store.crates[0]!.id).toBe('crate-2')
 
-			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
+			mockQueryBuilder.single.mockResolvedValue(deletedCrate('crate-1'))
 			await deletePromise
 		})
 
@@ -488,7 +497,7 @@ describe('cratesStore CRUD', () => {
 				created_at: '2026-07-19T04:00:00.000001Z'
 			})
 			store.crates = [crate1, crate2]
-			mockQueryBuilder.eq.mockResolvedValue({
+			mockQueryBuilder.single.mockResolvedValue({
 				data: null,
 				error: new Error('Delete failed')
 			})
@@ -502,7 +511,7 @@ describe('cratesStore CRUD', () => {
 		it('sets isDeletingCrate during delete', async () => {
 			const store = useCratesStore()
 			store.crates = [createMockCrate({ id: 'crate-1' })]
-			mockQueryBuilder.eq.mockResolvedValue({ data: null, error: null })
+			mockQueryBuilder.single.mockResolvedValue(deletedCrate('crate-1'))
 
 			const deletePromise = store.deleteCrate('crate-1')
 			expect(store.isDeletingCrate).toBe(true)
@@ -512,9 +521,9 @@ describe('cratesStore CRUD', () => {
 		})
 
 		it('keeps delete activity true until concurrent success and failure settle', async () => {
-			const firstResponse = createDeferred<{ data: null; error: null }>()
-			const secondResponse = createDeferred<{ data: null; error: Error }>()
-			mockQueryBuilder.eq
+			const firstResponse = createDeferred<CrateDeleteResult>()
+			const secondResponse = createDeferred<CrateDeleteResult>()
+			mockQueryBuilder.single
 				.mockReturnValueOnce(firstResponse.promise)
 				.mockReturnValueOnce(secondResponse.promise)
 			const consoleError = vi
@@ -530,7 +539,7 @@ describe('cratesStore CRUD', () => {
 				const secondDelete = store.deleteCrate('crate-2')
 				expect(store.isDeletingCrate).toBe(true)
 
-				firstResponse.resolve({ data: null, error: null })
+				firstResponse.resolve(deletedCrate('crate-1'))
 				await expect(firstDelete).resolves.toBe(true)
 				expect(store.isDeletingCrate).toBe(true)
 
@@ -549,9 +558,9 @@ describe('cratesStore CRUD', () => {
 		it.each(['first-delete', 'second-delete'] as const)(
 			'restores concurrent failed deletes in declared order when %s fails first',
 			async (firstFailure) => {
-				const firstResponse = createDeferred<{ data: null; error: Error }>()
-				const secondResponse = createDeferred<{ data: null; error: Error }>()
-				mockQueryBuilder.eq
+				const firstResponse = createDeferred<CrateDeleteResult>()
+				const secondResponse = createDeferred<CrateDeleteResult>()
+				mockQueryBuilder.single
 					.mockReturnValueOnce(firstResponse.promise)
 					.mockReturnValueOnce(secondResponse.promise)
 				const consoleError = vi
@@ -633,9 +642,9 @@ describe('cratesStore CRUD', () => {
 				data: ReturnType<typeof createMockCrate>
 				error: null
 			}>()
-			const deleteResponse = createDeferred<{ data: null; error: Error }>()
+			const deleteResponse = createDeferred<CrateDeleteResult>()
 			mockSupabaseClient.rpc.mockReturnValue(membershipResponse.promise)
-			mockQueryBuilder.eq.mockReturnValue(deleteResponse.promise)
+			mockQueryBuilder.single.mockReturnValue(deleteResponse.promise)
 			const consoleError = vi
 				.spyOn(console, 'error')
 				.mockImplementation(() => undefined)
@@ -677,15 +686,15 @@ describe('cratesStore CRUD', () => {
 				data: ReturnType<typeof createMockCrate>
 				error: null
 			}>()
-			const deleteResponse = createDeferred<{ data: null; error: null }>()
+			const deleteResponse = createDeferred<CrateDeleteResult>()
 			mockSupabaseClient.rpc.mockReturnValue(membershipResponse.promise)
-			mockQueryBuilder.eq.mockReturnValue(deleteResponse.promise)
+			mockQueryBuilder.single.mockReturnValue(deleteResponse.promise)
 			const store = useCratesStore()
 			store.crates = [createMockCrate({ id: 'crate-1', records: [] })]
 
 			const addPromise = store.addRecordToCrate('crate-1', 'record-1')
 			const deletePromise = store.deleteCrate('crate-1')
-			deleteResponse.resolve({ data: null, error: null })
+			deleteResponse.resolve(deletedCrate('crate-1'))
 			await expect(deletePromise).resolves.toBe(true)
 			expect(store.crates).toEqual([])
 			expect(store.isUpdatingCrate).toBe(true)
@@ -719,7 +728,7 @@ describe('cratesStore CRUD', () => {
 			})
 			await expect(store.fetchAllCrates()).resolves.toBe(true)
 
-			mockQueryBuilder.eq.mockResolvedValueOnce({ data: null, error: null })
+			mockQueryBuilder.single.mockResolvedValueOnce(deletedCrate('crate-1'))
 			await expect(store.deleteCrate('crate-1')).resolves.toBe(true)
 			expect(store.crates).toEqual([])
 
@@ -758,8 +767,8 @@ describe('cratesStore CRUD', () => {
 				expect(mockQueryBuilder.limit).toHaveBeenCalledTimes(2)
 			)
 
-			const deleteResponse = createDeferred<{ data: null; error: null }>()
-			mockQueryBuilder.eq.mockReturnValue(deleteResponse.promise)
+			const deleteResponse = createDeferred<CrateDeleteResult>()
+			mockQueryBuilder.single.mockReturnValue(deleteResponse.promise)
 			const deletePromise = store.deleteCrate('crate-1')
 			expect(store.crates).toEqual([])
 
@@ -768,7 +777,7 @@ describe('cratesStore CRUD', () => {
 			expect(store.crates).toEqual([])
 			expect(store.isDeletingCrate).toBe(true)
 
-			deleteResponse.resolve({ data: null, error: null })
+			deleteResponse.resolve(deletedCrate('crate-1'))
 			await expect(deletePromise).resolves.toBe(true)
 			expect(store.crates).toEqual([])
 			expect(store.isDeletingCrate).toBe(false)
@@ -795,7 +804,7 @@ describe('cratesStore CRUD', () => {
 				data: ReturnType<typeof createMockCrate>
 				error: null
 			}>()
-			const deleteResponse = createDeferred<{ data: null; error: Error }>()
+			const deleteResponse = createDeferred<CrateDeleteResult>()
 			mockQueryBuilder.limit.mockReturnValue(fetchResponse.promise)
 			mockSupabaseClient.rpc.mockReturnValue(membershipResponse.promise)
 			const fetchPromise = store.fetchAllCrates()
@@ -803,7 +812,7 @@ describe('cratesStore CRUD', () => {
 			await vi.waitFor(() =>
 				expect(mockQueryBuilder.limit).toHaveBeenCalledTimes(2)
 			)
-			mockQueryBuilder.eq.mockReturnValue(deleteResponse.promise)
+			mockQueryBuilder.single.mockReturnValue(deleteResponse.promise)
 			const consoleError = vi
 				.spyOn(console, 'error')
 				.mockImplementation(() => undefined)
@@ -863,10 +872,10 @@ describe('cratesStore CRUD', () => {
 				data: ReturnType<typeof createMockCrate>
 				error: null
 			}>()
-			const deleteResponse = createDeferred<{ data: null; error: Error }>()
+			const deleteResponse = createDeferred<CrateDeleteResult>()
 			mockQueryBuilder.single.mockReturnValue(metadataResponse.promise)
 			const metadataPromise = store.updateCrate('crate-1', { name: 'Pending' })
-			mockQueryBuilder.eq.mockReturnValue(deleteResponse.promise)
+			mockQueryBuilder.single.mockReturnValue(deleteResponse.promise)
 			const consoleError = vi
 				.spyOn(console, 'error')
 				.mockImplementation(() => undefined)

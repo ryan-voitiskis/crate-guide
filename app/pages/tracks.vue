@@ -8,6 +8,10 @@ import {
 	WandSparkles
 } from '@lucide/vue'
 import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
+import type {
+	LibrarySortDirection,
+	LibrarySortValue
+} from '~/utils/librarySort'
 import type { TrackEvidenceLensRow } from '~/utils/trackEvidenceLens'
 import type { LibraryRecord, LibraryTrack } from '~~/shared/types/library'
 
@@ -20,7 +24,6 @@ type TrackSortKey =
 	| 'bpm'
 	| 'key'
 	| 'genre'
-type SortDirection = 'asc' | 'desc'
 type Density = 'compact' | 'comfortable'
 type TrackCollectionView = 'tracks' | 'evidence'
 type TrackWorkbenchRow = {
@@ -41,10 +44,11 @@ const isCompactTable = useMediaQuery('(max-width: 767px)')
 
 const selectedTrackId = ref<string | null>(null)
 const editingTrackId = ref<string | null>(null)
+const hasOpenedTrackEditor = useOpenedOnce(() => editingTrackId.value !== null)
 const mobileInspectorOpen = ref(false)
 const density = useState<Density>('workbench-density', () => 'compact')
 const sortKey = ref<TrackSortKey>('artist')
-const sortDirection = ref<SortDirection>('asc')
+const sortDirection = ref<LibrarySortDirection>('asc')
 const viewMode = ref<TrackCollectionView>('tracks')
 
 watchEffect(() => trackFilters.setTrackSource(tracks.tracks))
@@ -96,83 +100,70 @@ function keyStyle(track: LibraryTrack) {
 }
 
 const sortedTrackRows = computed<TrackWorkbenchRow[]>(() => {
-	const collator = new Intl.Collator(undefined, {
-		numeric: true,
-		sensitivity: 'base'
-	})
-	const direction = sortDirection.value === 'asc' ? 1 : -1
 	const rows = trackFilters.filteredTracks.map((track) => ({
 		track,
 		record: records.getRecordById(track.record_id) ?? null
 	}))
-
-	return rows.sort((aRow, bRow) => {
-		const { record: aRecord, track: a } = aRow
-		const { record: bRecord, track: b } = bRow
-		let aValue: string | number = ''
-		let bValue: string | number = ''
-
-		switch (sortKey.value) {
-			case 'title':
-				aValue = a.title
-				bValue = b.title
-				break
-			case 'artist':
-				aValue = a.artists[0]?.name || ''
-				bValue = b.artists[0]?.name || ''
-				break
-			case 'release':
-				aValue = aRecord?.title || ''
-				bValue = bRecord?.title || ''
-				break
-			case 'catno':
-				aValue = aRecord?.labels[0]?.catno || ''
-				bValue = bRecord?.labels[0]?.catno || ''
-				break
-			case 'duration':
-				aValue = a.duration || 0
-				bValue = b.duration || 0
-				break
-			case 'bpm':
-				aValue = a.bpm || 0
-				bValue = b.bpm || 0
-				break
-			case 'key':
-				aValue = a.key === null ? -1 : a.key
-				bValue = b.key === null ? -1 : b.key
-				break
-			case 'genre':
-				aValue = a.genres[0] || ''
-				bValue = b.genres[0] || ''
-				break
-		}
-
-		return collator.compare(String(aValue), String(bValue)) * direction
-	})
+	return sortByLibraryKey(rows, getTrackSortValue, sortDirection.value)
 })
 
-const evidenceRowsByTrackId = shallowRef<
-	ReadonlyMap<string, TrackEvidenceLensRow>
->(new Map())
-let evidenceRowsGeneration = 0
+function getTrackSortValue({
+	record,
+	track
+}: TrackWorkbenchRow): LibrarySortValue {
+	switch (sortKey.value) {
+		case 'title':
+			return track.title
+		case 'artist':
+			return track.artists[0]?.name || ''
+		case 'release':
+			return record?.title || ''
+		case 'catno':
+			return record?.labels[0]?.catno || ''
+		case 'duration':
+			return track.duration || 0
+		case 'bpm':
+			return track.bpm || 0
+		case 'key':
+			return track.key === null ? -1 : track.key
+		case 'genre':
+			return track.genres[0] || ''
+	}
+}
+
+type TrackEvidenceLensModule = typeof import('~/utils/trackEvidenceLens')
+
+const evidenceLens = shallowRef<TrackEvidenceLensModule | null>(null)
+// Rows are derived per immutable track object, so an edited or enriched track
+// is re-derived while unchanged tracks reuse their cached row.
+const evidenceRowCache = new WeakMap<LibraryTrack, TrackEvidenceLensRow>()
 
 watch(
-	[viewMode, () => tracks.tracks],
-	async ([currentView, currentTracks]) => {
-		const generation = ++evidenceRowsGeneration
-		if (currentView !== 'evidence') {
-			evidenceRowsByTrackId.value = new Map()
-			return
-		}
-		const { deriveTrackEvidenceLensRows } =
-			await import('~/utils/trackEvidenceLens')
-		if (generation !== evidenceRowsGeneration) return
-		evidenceRowsByTrackId.value = new Map(
-			deriveTrackEvidenceLensRows(currentTracks).map((row) => [row.id, row])
-		)
+	viewMode,
+	async (currentView) => {
+		if (currentView !== 'evidence' || evidenceLens.value) return
+		evidenceLens.value = await import('~/utils/trackEvidenceLens')
 	},
 	{ immediate: true }
 )
+
+const evidenceRowsByTrackId = computed<
+	ReadonlyMap<string, TrackEvidenceLensRow>
+>(() => {
+	const lens = evidenceLens.value
+	if (viewMode.value !== 'evidence' || !lens) return new Map()
+	const rows = new Map<string, TrackEvidenceLensRow>()
+	for (const track of tracks.tracks) {
+		const rawTrack = toRaw(track)
+		let row = evidenceRowCache.get(rawTrack)
+		if (!row) {
+			row = lens.deriveTrackEvidenceLensRow(rawTrack)
+			evidenceRowCache.set(rawTrack, row)
+		}
+		rows.set(rawTrack.id, row)
+	}
+	return rows
+})
 
 const evidenceTrackRows = computed(() =>
 	sortedTrackRows.value.flatMap((row) => {
@@ -228,8 +219,8 @@ watch(
 
 <template>
 	<div class="flex h-full min-h-0 flex-col">
-		<DialogTrackDetails
-			v-if="capabilities.canMutateLibrary"
+		<LazyDialogTrackDetails
+			v-if="capabilities.canMutateLibrary && hasOpenedTrackEditor"
 			:track-id="editingTrackId"
 			@close="editingTrackId = null"
 		/>

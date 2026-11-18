@@ -164,10 +164,20 @@ function animate(time: number) {
 	}
 }
 
+// Kept-alive session pages stay mounted while hidden, so pause the frame loop
+// while the platter is deactivated and resume it when shown again.
+let isActive = true
+
 function startAnimation() {
-	if (animationId !== null || !rotor.value) return
+	if (!isActive || animationId !== null || !rotor.value) return
 	lastTime = 0
 	animationId = requestAnimationFrame(animate)
+}
+
+function stopAnimation() {
+	if (animationId === null) return
+	cancelAnimationFrame(animationId)
+	animationId = null
 }
 
 watch(
@@ -185,13 +195,20 @@ onMounted(() => {
 	if (props.deck.isPlaying) startAnimation()
 })
 
+onActivated(() => {
+	isActive = true
+	if (props.deck.isPlaying || velocity !== 0) startAnimation()
+})
+
+onDeactivated(() => {
+	isActive = false
+	stopAnimation()
+})
+
 onUnmounted(() => {
 	acceptingCoverResults = false
 	coverRequest += 1
-	if (animationId !== null) {
-		cancelAnimationFrame(animationId)
-		animationId = null
-	}
+	stopAnimation()
 })
 </script>
 

@@ -4,6 +4,23 @@ Crate Guide measures the emitted Cloudflare Pages browser assets after
 `npm run build`. The gate follows Nuxt's semantic client manifest instead of
 depending on content hashes, and it excludes source maps.
 
+## 2026-11-18 baseline
+
+The workbench import, manual-record, track-edit, crate and add-to-crate
+dialogs now load on first open (`useOpenedOnce`) instead of with every route or
+page. That removed about a quarter of the initial closure. The baseline was
+recaptured on Node 26.13.1 after the November dependency refresh:
+
+| Boundary                           | Raw bytes | Gzip bytes |                   CI limit |
+| ---------------------------------- | --------: | ---------: | -------------------------: |
+| Initial client JavaScript          |   738,666 |    233,888 | 760,826 raw / 240,905 gzip |
+| Largest ordinary lazy/shared chunk |   129,994 |     37,662 |  133,894 raw / 38,792 gzip |
+
+Before this change the initial closure measured 982,112 raw / 310,198 gzip
+bytes. Limits remain the measured value plus exactly 3%. The deferred dialogs
+are listed in `expectedLazyModules`, so a regression that pulls them back into
+the entry or prefetches them fails the gate.
+
 ## 2026-07-30 baseline
 
 The baseline was recaptured after the July dependency refresh moved the current
