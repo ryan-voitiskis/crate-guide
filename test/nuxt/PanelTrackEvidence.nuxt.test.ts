@@ -274,8 +274,9 @@ describe('PanelTrackEvidence', () => {
 			audio_features:
 				legacyTrackAudioFeaturesV1Golden as LibraryTrack['audio_features']
 		}) as LibraryTrack
+		// Read-only keeps the quick-set panel out so only the Edit action renders.
 		const wrapper = await mountSuspended(InspectorTrack, {
-			props: { track, record: null }
+			props: { track, record: null, readOnly: true }
 		})
 		wrappers.add(wrapper)
 

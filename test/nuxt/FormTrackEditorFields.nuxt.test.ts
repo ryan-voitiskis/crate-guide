@@ -12,6 +12,7 @@ import { DOMWrapper, type VueWrapper, flushPromises } from '@vue/test-utils'
 import { useForm } from 'vee-validate'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import FormTrackEditorFields from '~/components/tracks/FormTrackEditorFields.vue'
+import { TAP_TEMPO_CLOCK } from '~/utils/tapTempo'
 import { toTypedFormSchema } from '~/utils/toTypedFormSchema'
 import {
 	type TrackEditorFormValues,
@@ -171,11 +172,13 @@ async function settle() {
 async function mountHarness(
 	options?: Parameters<typeof createHarness>[0],
 	stubArtists = true,
-	additionalStubs: Record<string, Component> = {}
+	additionalStubs: Record<string, Component> = {},
+	provide: Record<symbol, unknown> = {}
 ) {
 	const harness = createHarness(options)
 	const wrapper = await mountSuspended(harness.Harness, {
 		global: {
+			provide,
 			stubs: {
 				...(stubArtists ? { TableArtistsEditable: ArtistTableStub } : {}),
 				...additionalStubs
@@ -282,6 +285,61 @@ describe('FormTrackEditorFields', () => {
 			expect(options[24]).toBe(last)
 		}
 	)
+
+	it('binds the quick-set controls to the bpm and key form fields', async () => {
+		const timestamps = [0, 500, 1000, 1500, 2000]
+		const { state, wrapper } = await mountHarness(
+			{ keyFormat: 'camelot' },
+			true,
+			{},
+			{
+				[TAP_TEMPO_CLOCK as symbol]: () => timestamps.shift() ?? 0
+			}
+		)
+
+		const quickSet = wrapper.get('[data-testid="track-editor-quick-set"]')
+		const tap = quickSet.get('[data-testid="tap-tempo-tap"]')
+		for (let index = 0; index < 5; index++) await tap.trigger('click')
+		await settle()
+		expect(state.form.values.bpm).toBe('')
+
+		await quickSet.get('[data-testid="tap-tempo-use"]').trigger('click')
+		await settle()
+		expect(state.form.values.bpm).toBe('120')
+		expect(
+			wrapper.get<HTMLInputElement>('input[name="bpm"]').element.value
+		).toBe('120')
+
+		// Camelot 8B is C major, composite "100".
+		await quickSet.get('[data-composite="100"]').trigger('click')
+		await settle()
+		expect(state.form.values.keyComposite).toBe('100')
+		expect(quickSet.get('[data-testid="quick-set-saved-key"]').text()).toBe(
+			'Saved 8B'
+		)
+
+		await quickSet
+			.get('[data-testid="picker-key-wheel-clear"]')
+			.trigger('click')
+		await settle()
+		expect(state.form.values.keyComposite).toBe('none')
+		expect(state.form.meta.value.dirty).toBe(true)
+	})
+
+	it('reflects typed bpm and key values back into the quick-set controls', async () => {
+		const { state, wrapper } = await mountHarness({ keyFormat: 'camelot' })
+		state.form.setValues({ bpm: '127.5', keyComposite: '009' })
+		await settle()
+
+		const quickSet = wrapper.get('[data-testid="track-editor-quick-set"]')
+		expect(quickSet.text()).toContain('Saved 127.5')
+		expect(quickSet.get('[data-testid="quick-set-saved-key"]').text()).toBe(
+			'Saved 8A'
+		)
+		expect(
+			quickSet.get('[data-composite="009"]').attributes('aria-checked')
+		).toBe('true')
+	})
 
 	it('updates both artist models in order without mutating their inputs', async () => {
 		const artists: DiscogsArtistDb[] = [
