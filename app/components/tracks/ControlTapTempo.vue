@@ -8,15 +8,18 @@ import {
 	doubleBpm,
 	halveBpm
 } from '~/utils/tapTempo'
+import { isBpmInRange } from '~/utils/formatting'
 
 const props = withDefaults(
 	defineProps<{
-		/** The value currently saved on the track, shown for comparison. */
+		/** The committed value (saved, or held by a form), shown for comparison. */
 		currentBpm: number | null
+		/** Whether `currentBpm` is saved on the track or only held by a form. */
+		valueSource?: 'saved' | 'form'
 		disabled?: boolean
 		pending?: boolean
 	}>(),
-	{ disabled: false, pending: false }
+	{ valueSource: 'saved', disabled: false, pending: false }
 )
 
 const emit = defineEmits<{
@@ -30,12 +33,17 @@ const readoutId = useId()
 
 const inactive = computed(() => props.disabled || props.pending)
 const hasEstimate = computed(() => state.value.bpm !== null)
+const usableBpm = computed(() => {
+	const bpm = state.value.bpm
+	return bpm !== null && Number.isFinite(bpm) && isBpmInRange(bpm) ? bpm : null
+})
 const canHalve = computed(() => halveBpm(state.value.bpm) !== null)
 const canDouble = computed(() => doubleBpm(state.value.bpm) !== null)
 
 const statusLabel = computed(() => {
 	if (state.value.tapCount === 0) return 'Tap along to the beat'
 	if (state.value.tapCount === 1) return 'Keep tapping'
+	if (state.value.bpm === null) return 'Uneven taps · keep tapping'
 	if (state.value.stable) return `${state.value.tapCount} taps · steady`
 	return `${state.value.tapCount} taps · settling`
 })
@@ -45,6 +53,15 @@ const readout = computed(() =>
 )
 
 const now = inject(TAP_TEMPO_CLOCK, defaultTapTempoClock)
+
+const currentLabel = computed(() => {
+	const bpm = props.currentBpm
+	if (props.valueSource === 'form')
+		return bpm === null
+			? 'No BPM in this form'
+			: `In this form: ${bpm.toFixed(1)}`
+	return bpm === null ? 'No BPM saved' : `Saved ${bpm.toFixed(1)}`
+})
 
 function tap() {
 	if (inactive.value) return
@@ -56,8 +73,8 @@ function reset() {
 }
 
 function use() {
-	if (inactive.value || state.value.bpm === null) return
-	emit('use', state.value.bpm)
+	if (inactive.value || usableBpm.value === null) return
+	emit('use', usableBpm.value)
 }
 
 function applyScale(scale: (bpm: number | null) => number | null) {
@@ -156,18 +173,15 @@ defineExpose({ tap, reset, use })
 			</Button>
 			<span
 				class="text-muted-foreground ml-auto font-mono text-[10px] tabular-nums"
+				data-testid="tap-tempo-current"
 			>
-				{{
-					currentBpm === null
-						? 'No BPM saved'
-						: `Saved ${currentBpm.toFixed(1)}`
-				}}
+				{{ currentLabel }}
 			</span>
 			<ButtonLoading
 				type="button"
 				size="sm"
 				:loading="pending"
-				:disabled="inactive || !hasEstimate"
+				:disabled="inactive || usableBpm === null"
 				aria-label="Use this BPM"
 				data-testid="tap-tempo-use"
 				@click="use"

@@ -262,6 +262,64 @@ describe('tracks page render work', () => {
 		}
 	})
 
+	it('keeps the selected track inspector mounted through a background refresh', async () => {
+		const originalTracks = pageMocks.tracks
+		const originalRecords = pageMocks.records
+		// A rejected quick-set write refreshes the collection while tracks exist.
+		const trackState = shallowReactive({ ...originalTracks })
+		const recordState = shallowReactive({ ...originalRecords })
+		pageMocks.tracks = trackState
+		pageMocks.records = recordState
+		try {
+			await mountTracksPage()
+			await wrapper?.get('[data-track-id="track-middle"]').trigger('click')
+			await flushPromises()
+			const inspector = wrapper?.findComponent({ name: 'InspectorTrack' })
+			expect(inspector?.exists()).toBe(true)
+			expect(inspector?.props('track')).toMatchObject({ id: 'track-middle' })
+
+			trackState.isLoadingTracks = true
+			recordState.isLoadingRecords = true
+			await nextTick()
+
+			expect(wrapper?.findComponent({ name: 'StateLoading' }).exists()).toBe(
+				false
+			)
+			const during = wrapper?.findComponent({ name: 'InspectorTrack' })
+			expect(during?.exists()).toBe(true)
+			// The same instance survives, so its tap sequence and feedback do too.
+			expect(during?.vm).toBe(inspector?.vm)
+
+			trackState.isLoadingTracks = false
+			recordState.isLoadingRecords = false
+			await nextTick()
+			expect(wrapper?.findComponent({ name: 'InspectorTrack' }).vm).toBe(
+				inspector?.vm
+			)
+		} finally {
+			pageMocks.tracks = originalTracks
+			pageMocks.records = originalRecords
+		}
+	})
+
+	it('still shows the loading state for the first load', async () => {
+		const originalTracks = pageMocks.tracks
+		pageMocks.tracks = {
+			...originalTracks,
+			tracks: [],
+			hasTracks: false,
+			isLoadingTracks: true
+		}
+		try {
+			await mountTracksPage()
+			expect(wrapper?.findComponent({ name: 'StateLoading' }).exists()).toBe(
+				true
+			)
+		} finally {
+			pageMocks.tracks = originalTracks
+		}
+	})
+
 	it('re-derives only an edited track in the Evidence lens after a store update', async () => {
 		const originalTracks = pageMocks.tracks
 		const originalFilters = pageMocks.trackFilters

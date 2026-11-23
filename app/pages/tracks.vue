@@ -253,8 +253,14 @@ watch(
 			</template>
 		</Teleport>
 
+		<!-- Only the first load replaces the page. A background refresh, such as
+		the one after a rejected track edit, keeps the list and inspector mounted
+		so their state and conflict feedback survive. -->
 		<StateLoading
-			v-if="records.isLoadingRecords || tracks.isLoadingTracks"
+			v-if="
+				(records.isLoadingRecords && !records.hasRecords) ||
+				(tracks.isLoadingTracks && !tracks.hasTracks)
+			"
 			message="Loading tracks..."
 		/>
 
