@@ -279,6 +279,27 @@ export function parseKeyComposite(composite: string): {
 	return { key, mode }
 }
 
+/**
+ * Validates a stored key/mode pair. The database accepts any nullable
+ * smallint for both columns, so a partial or out-of-range pair is treated as
+ * no key rather than passed to helpers that throw on unknown pitch classes.
+ */
+export function parseKeyMode(
+	key: number | null | undefined,
+	mode: number | null | undefined
+): KeyAndMode | null {
+	if (
+		typeof key !== 'number' ||
+		typeof mode !== 'number' ||
+		!Number.isInteger(key) ||
+		key < 0 ||
+		key > 11 ||
+		(mode !== 0 && mode !== 1)
+	)
+		return null
+	return { key, mode }
+}
+
 // Helper to create composite key ID from separate key and mode values
 // e.g., key: 0, mode: 1 -> "100", key: null -> "none"
 export function createKeyComposite(

@@ -17,6 +17,7 @@ import {
 	isKeyFormat,
 	mod,
 	parseKeyComposite,
+	parseKeyMode,
 	parseLongFormTonality,
 	pitchClassDistance,
 	pitchClassMap,
@@ -497,5 +498,26 @@ describe('pitchClassMap data integrity', () => {
 			expect(key.majorColour).toMatch(/^#[0-9A-F]{6}$/i)
 			expect(key.minorColour).toMatch(/^#[0-9A-F]{6}$/i)
 		})
+	})
+})
+
+describe('parseKeyMode', () => {
+	it('accepts every valid pair, including pitch class 0', () => {
+		expect(parseKeyMode(0, 0)).toEqual({ key: 0, mode: 0 })
+		expect(parseKeyMode(11, 1)).toEqual({ key: 11, mode: 1 })
+	})
+
+	it('rejects partial pairs', () => {
+		expect(parseKeyMode(11, null)).toBeNull()
+		expect(parseKeyMode(null, 1)).toBeNull()
+		expect(parseKeyMode(undefined, undefined)).toBeNull()
+	})
+
+	it('rejects out-of-range or fractional values', () => {
+		expect(parseKeyMode(-1, 1)).toBeNull()
+		expect(parseKeyMode(12, 0)).toBeNull()
+		expect(parseKeyMode(3.5, 0)).toBeNull()
+		expect(parseKeyMode(3, 2)).toBeNull()
+		expect(parseKeyMode(Number.NaN, 0)).toBeNull()
 	})
 })

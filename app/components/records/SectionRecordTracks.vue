@@ -1,15 +1,67 @@
 <script setup lang="ts">
 import { ListChecks, Pencil, Plus, Trash, X } from '@lucide/vue'
+import { useTrackQuickSetStore } from '~/stores/trackQuickSetStore'
+import { parseKeyMode } from '~/utils/keyFunctions'
 import type { LibraryTrack } from '~~/shared/types/library'
 
 const recordDetails = useWorkbenchRecordDetailsStore()
 const trackEdit = useTrackEditStore()
 const preferences = useWorkbenchPreferencesStore()
 const capabilities = useWorkbenchCapabilities()
+const quickSet = useTrackQuickSetStore(useWorkbenchPinia())
 
 const annotating = ref(false)
 const focusedTrackId = ref<string | null>(null)
-const focusedRow = ref<HTMLElement | null>(null)
+/** Stable owner of the list; panels are looked up inside it by track ID. */
+const root = ref<HTMLElement | null>(null)
+let listenerScope: HTMLElement | null = null
+
+type RowStatus = 'saving' | 'not-saved' | null
+
+type TrackRow = {
+	track: LibraryTrack
+	bpmLabel: string
+	keyLabel: string
+	keyColour: string | null
+	complete: boolean
+	status: RowStatus
+}
+
+function rowStatus(trackId: string): RowStatus {
+	const entry = quickSet.entries[trackId]
+	if (!entry) return null
+	if (entry.issue) return 'not-saved'
+	if (entry.pending.bpm || entry.pending.key) return 'saving'
+	return null
+}
+
+const rows = computed<TrackRow[]>(() =>
+	recordDetails.recordTracks.map((track) => {
+		const keyMode = parseKeyMode(track.key, track.mode)
+		const hasBpm = track.bpm !== null && Number.isFinite(track.bpm)
+		return {
+			track,
+			bpmLabel: hasBpm ? track.bpm!.toFixed(1) : '–',
+			keyLabel: keyMode
+				? getFormattedKeyString(
+						keyMode.key,
+						keyMode.mode,
+						preferences.currentKeyFormat,
+						'short'
+					)
+				: '–',
+			keyColour: keyMode ? getKeyColour(keyMode.key, keyMode.mode) : null,
+			complete: hasBpm && keyMode !== null,
+			status: rowStatus(track.id)
+		}
+	})
+)
+
+const unsavedTrackIds = computed(() =>
+	rows.value
+		.filter((row) => row.status === 'not-saved')
+		.map((row) => row.track.id)
+)
 
 const canAnnotate = computed(
 	() => capabilities.canMutateLibrary && recordDetails.recordTracks.length > 0
@@ -22,10 +74,7 @@ const focusedIndex = computed(() =>
 )
 
 const annotatedCount = computed(
-	() =>
-		recordDetails.recordTracks.filter(
-			(track) => track.bpm !== null && track.key !== null
-		).length
+	() => rows.value.filter((row) => row.complete).length
 )
 
 const progressLabel = computed(() => {
@@ -36,28 +85,28 @@ const progressLabel = computed(() => {
 	} BPM and key`
 })
 
-function formatBpm(track: LibraryTrack): string {
-	return track.bpm === null ? '–' : track.bpm.toFixed(1)
-}
+const unsavedLabel = computed(() => {
+	const count = unsavedTrackIds.value.length
+	if (count === 0) return null
+	return count === 1
+		? '1 change was not saved.'
+		: `${count} changes were not saved.`
+})
 
-function formatKey(track: LibraryTrack): string {
-	if (track.key === null || track.mode === null) return '–'
-	return getFormattedKeyString(
-		track.key,
-		track.mode,
-		preferences.currentKeyFormat,
-		'short'
+/** The expanded panel for the focused track, resolved after each render. */
+function activePanel(): HTMLElement | null {
+	const id = focusedTrackId.value
+	if (!id || !root.value) return null
+	return (
+		[
+			...root.value.querySelectorAll<HTMLElement>('[data-quick-set-track]')
+		].find((element) => element.dataset.quickSetTrack === id) ?? null
 	)
-}
-
-function keyColour(track: LibraryTrack): string | undefined {
-	if (track.key === null || track.mode === null) return undefined
-	return getKeyColour(track.key, track.mode)
 }
 
 async function focusTapButton() {
 	await nextTick()
-	focusedRow.value
+	activePanel()
 		?.querySelector<HTMLButtonElement>('[data-testid="tap-tempo-tap"]')
 		?.focus?.()
 }
@@ -81,17 +130,24 @@ function moveFocus(step: 1 | -1) {
 	focusTrack(tracks[next]!.id)
 }
 
-function startAnnotating() {
+function startAnnotating(trackId?: string) {
 	if (!canAnnotate.value) return
 	annotating.value = true
+	const ids = recordDetails.recordTracks.map((track) => track.id)
 	focusTrack(
-		focusedTrackId.value &&
-			recordDetails.recordTracks.some(
-				(track) => track.id === focusedTrackId.value
-			)
-			? focusedTrackId.value
-			: recordDetails.recordTracks[0]!.id
+		trackId && ids.includes(trackId)
+			? trackId
+			: focusedTrackId.value && ids.includes(focusedTrackId.value)
+				? focusedTrackId.value
+				: ids[0]!
 	)
+}
+
+function reviewUnsaved() {
+	const first = unsavedTrackIds.value[0]
+	if (!first) return
+	if (annotating.value) focusTrack(first)
+	else startAnnotating(first)
 }
 
 function stopAnnotating() {
@@ -119,7 +175,7 @@ function isInsideKeyWheel(target: EventTarget | null) {
 }
 
 function clickInFocusedRow(testId: string) {
-	focusedRow.value
+	activePanel()
 		?.querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`)
 		?.click()
 }
@@ -169,14 +225,31 @@ function handleKeydown(event: KeyboardEvent) {
 	}
 }
 
+function detachListener() {
+	listenerScope?.removeEventListener('keydown', handleKeydown)
+	listenerScope = null
+}
+
+/**
+ * Shortcuts listen on the enclosing Record Details dialog only. A nested
+ * dialog (Add Track, a confirmation) is portalled outside it, so its keys and
+ * its Escape never reach annotation mode. Inside the dialog this listener
+ * runs before reka-ui's window-level Escape handler, which respects the
+ * prevented default and keeps the record open.
+ */
+function attachListener() {
+	detachListener()
+	listenerScope =
+		root.value?.closest<HTMLElement>('[role="dialog"]') ?? root.value
+	listenerScope?.addEventListener('keydown', handleKeydown)
+}
+
 watch(annotating, (active) => {
-	if (active) document.addEventListener('keydown', handleKeydown)
-	else document.removeEventListener('keydown', handleKeydown)
+	if (active) attachListener()
+	else detachListener()
 })
 
-onBeforeUnmount(() => {
-	document.removeEventListener('keydown', handleKeydown)
-})
+onBeforeUnmount(detachListener)
 
 // Leaving or switching records ends annotation; a removed track moves focus.
 watch(
@@ -198,7 +271,7 @@ watch(
 </script>
 
 <template>
-	<div class="space-y-4" data-testid="section-record-tracks">
+	<div ref="root" class="space-y-4" data-testid="section-record-tracks">
 		<div class="flex flex-wrap items-center justify-between gap-2">
 			<div class="min-w-0">
 				<Label>Tracks ({{ recordDetails.recordTracks.length }})</Label>
@@ -242,10 +315,29 @@ watch(
 			J / K or ↑ / ↓ move · Space taps · Enter uses BPM · Esc done
 		</p>
 
+		<div
+			v-if="unsavedLabel"
+			role="status"
+			class="flex items-center justify-between gap-2 rounded-md border border-amber-600/30 bg-amber-600/10 px-2 py-1.5 text-xs"
+			data-testid="record-tracks-unsaved"
+		>
+			<span>{{ unsavedLabel }}</span>
+			<Button
+				v-if="canAnnotate"
+				type="button"
+				size="sm"
+				variant="outline"
+				data-testid="record-tracks-review-unsaved"
+				@click="reviewUnsaved"
+			>
+				Review
+			</Button>
+		</div>
+
 		<!-- Tracks List -->
 		<div class="space-y-2">
 			<Card
-				v-for="track in recordDetails.recordTracks"
+				v-for="{ track, bpmLabel, keyLabel, keyColour, status } in rows"
 				:key="track.id"
 				class="flex flex-col gap-0 p-1.5 transition-colors"
 				:class="[
@@ -270,8 +362,24 @@ watch(
 
 					<!-- Title & Artists -->
 					<div class="min-w-0 flex-1">
-						<div class="h-5 truncate text-sm leading-5 font-medium">
-							{{ track.title }}
+						<div class="flex h-5 items-center gap-1.5">
+							<span class="truncate text-sm leading-5 font-medium">
+								{{ track.title }}
+							</span>
+							<span
+								v-if="status === 'not-saved'"
+								class="shrink-0 rounded-sm border border-amber-600/40 bg-amber-600/10 px-1 font-mono text-[9px] uppercase"
+								:data-testid="`record-track-status-${track.id}`"
+							>
+								Not saved
+							</span>
+							<span
+								v-else-if="status === 'saving'"
+								class="text-muted-foreground shrink-0 font-mono text-[9px] uppercase"
+								:data-testid="`record-track-status-${track.id}`"
+							>
+								Saving…
+							</span>
 						</div>
 						<div class="text-muted-foreground h-4 truncate text-xs leading-4">
 							<span v-if="track.artists.length">
@@ -295,17 +403,26 @@ watch(
 						class="text-muted-foreground w-12 text-right font-mono text-xs tabular-nums"
 						:data-testid="`record-track-bpm-${track.id}`"
 					>
-						{{ formatBpm(track) }}
+						{{ bpmLabel }}
 					</div>
 
 					<!-- Key -->
+					<!-- Key text stays in the foreground colour for contrast; the key
+					colour is carried by a swatch instead. -->
 					<div
-						class="w-12 text-center font-mono text-xs font-semibold"
-						:style="{ color: keyColour(track) }"
-						:class="keyColour(track) ? '' : 'text-muted-foreground'"
-						:data-testid="`record-track-key-${track.id}`"
+						class="flex w-14 items-center justify-center gap-1 font-mono text-xs font-semibold"
+						:class="keyColour ? 'text-foreground' : 'text-muted-foreground'"
 					>
-						{{ formatKey(track) }}
+						<span
+							v-if="keyColour"
+							aria-hidden="true"
+							class="size-2 shrink-0 rounded-full border border-black/15"
+							:style="{ backgroundColor: keyColour }"
+							:data-testid="`record-track-key-swatch-${track.id}`"
+						/>
+						<span :data-testid="`record-track-key-${track.id}`">
+							{{ keyLabel }}
+						</span>
 					</div>
 
 					<!-- Actions -->
@@ -333,7 +450,7 @@ watch(
 
 				<div
 					v-if="annotating && track.id === focusedTrackId"
-					:ref="(element) => (focusedRow = element as HTMLElement | null)"
+					:data-quick-set-track="track.id"
 					class="border-border mt-2 border-t px-1 pt-3 pb-1"
 					@click.stop
 				>
@@ -345,10 +462,7 @@ watch(
 				</div>
 			</Card>
 
-			<div
-				v-if="!recordDetails.recordTracks.length"
-				class="text-muted-foreground py-8 text-center"
-			>
+			<div v-if="!rows.length" class="text-muted-foreground py-8 text-center">
 				No tracks found. Add some tracks to get started.
 			</div>
 		</div>

@@ -1,4 +1,4 @@
-import { nextTick } from 'vue'
+import { defineComponent, h, nextTick } from 'vue'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { createTestingPinia } from '@pinia/testing'
 import { type VueWrapper, flushPromises } from '@vue/test-utils'
@@ -27,6 +27,9 @@ const clockQueue: number[] = []
 
 // Camelot 8B is C major.
 const EIGHT_B = createKeyComposite(0, 1)
+
+/** Where key presses originate unless a test names another element. */
+let keyTarget: Element = document.body
 
 async function settle() {
 	await nextTick()
@@ -79,18 +82,27 @@ async function mountSection(options: {
 	tracks?: LibraryTrack[]
 	canMutateLibrary?: boolean
 	updateTrack?: ReturnType<typeof vi.fn>
+	keyFormat?: 'camelot' | 'key'
+	/** Mount inside an element with role="dialog", like Record Details. */
+	inDialog?: boolean
 }) {
 	const tracks = options.tracks ?? createRecordTracks()
 	const updateTrack = options.updateTrack ?? vi.fn().mockResolvedValue(null)
 	factories.capabilities.mockReturnValue({
 		canMutateLibrary: options.canMutateLibrary ?? true
 	})
-	factories.preferences.mockReturnValue({ currentKeyFormat: 'camelot' })
-	factories.tracks.mockReturnValue({ updateTrack })
+	factories.preferences.mockReturnValue({
+		currentKeyFormat: options.keyFormat ?? 'camelot'
+	})
+	factories.tracks.mockReturnValue({
+		updateTrack,
+		fetchAllTracks: vi.fn().mockResolvedValue(true)
+	})
 
 	const pinia = createTestingPinia({
 		createSpy: vi.fn,
-		stubActions: true,
+		// The quick-set store must run for real: it owns write state.
+		stubActions: (_action, store) => store.$id !== 'trackQuickSet',
 		initialState: {
 			tracks: { tracks },
 			recordDetails: { selectedRecordId: 'record-1' }
@@ -103,7 +115,16 @@ async function mountSection(options: {
 	const recordDetails = useRecordDetailsStore(pinia as Pinia)
 	recordDetails.selectedRecordId = 'record-1'
 
-	const wrapper = await mountSuspended(SectionRecordTracks, {
+	const component = options.inDialog
+		? defineComponent({
+				setup: () => () =>
+					h('div', { role: 'dialog', 'data-testid': 'dialog-scope' }, [
+						h(SectionRecordTracks)
+					])
+			})
+		: SectionRecordTracks
+	const wrapper = await mountSuspended(component, {
+		attachTo: document.body,
 		global: {
 			plugins: [pinia],
 			provide: { [TAP_TEMPO_CLOCK as symbol]: () => clockQueue.shift() ?? 0 }
@@ -111,6 +132,7 @@ async function mountSection(options: {
 	})
 	wrappers.add(wrapper)
 	await settle()
+	keyTarget = wrapper.get('[data-testid="section-record-tracks"]').element
 	return { wrapper, recordDetails, updateTrack, tracks }
 }
 
@@ -134,9 +156,19 @@ function focusedId(wrapper: VueWrapper) {
 		.replace('record-track-row-', '')
 }
 
-async function pressKey(key: string, target: Element = document.body) {
-	target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+async function pressKey(key: string, target: Element = keyTarget) {
+	const event = new KeyboardEvent('keydown', {
+		key,
+		bubbles: true,
+		cancelable: true
+	})
+	target.dispatchEvent(event)
 	await settle()
+	return event
+}
+
+function tapButton(wrapper: VueWrapper) {
+	return focusedRow(wrapper).get('[data-testid="tap-tempo-tap"]').element
 }
 
 async function enterAnnotation(wrapper: VueWrapper) {
@@ -269,7 +301,7 @@ describe('SectionRecordTracks annotation mode', () => {
 		const { wrapper, updateTrack } = await mountSection({})
 		await enterAnnotation(wrapper)
 		const input = document.createElement('input')
-		document.body.append(input)
+		keyTarget.append(input)
 		clockQueue.push(0, 500, 1000)
 
 		await pressKey(' ', input)
@@ -341,5 +373,174 @@ describe('SectionRecordTracks annotation mode', () => {
 			empty.wrapper.find('[data-testid="record-tracks-annotate"]').exists()
 		).toBe(false)
 		expect(empty.wrapper.text()).toContain('No tracks found')
+	})
+	it.each([
+		{ name: 'J then K', keys: ['j', 'k'], expected: 'track-a1' },
+		{
+			name: 'K wrapping to the last row',
+			keys: ['k'],
+			expected: 'track-untitled'
+		},
+		{
+			name: 'J wrapping to the first row',
+			keys: ['k', 'j'],
+			expected: 'track-a1'
+		}
+	])(
+		'keeps focus and tap shortcuts on the row reached by $name',
+		async ({ keys, expected }) => {
+			const { wrapper } = await mountSection({})
+			await enterAnnotation(wrapper)
+
+			for (const key of keys) await pressKey(key)
+			expect(focusedId(wrapper)).toBe(expected)
+			expect(document.activeElement).toBe(tapButton(wrapper))
+
+			clockQueue.push(0, 500)
+			await pressKey(' ')
+			await pressKey(' ')
+			expect(
+				focusedRow(wrapper).get('[data-testid="tap-tempo-readout"]').text()
+			).toContain('120.0')
+		}
+	)
+
+	it('ignores keys from a dialog portalled outside the record dialog', async () => {
+		const { wrapper } = await mountSection({ inDialog: true })
+		await enterAnnotation(wrapper)
+		const nested = document.createElement('div')
+		nested.setAttribute('role', 'dialog')
+		const nestedButton = document.createElement('button')
+		nested.append(nestedButton)
+		document.body.append(nested)
+
+		await pressKey('j', nestedButton)
+		await pressKey(' ', nestedButton)
+		const escape = await pressKey('Escape', nestedButton)
+
+		expect(focusedId(wrapper)).toBe('track-a1')
+		expect(
+			focusedRow(wrapper).get('[data-testid="tap-tempo-readout"]').text()
+		).toContain('—')
+		expect(escape.defaultPrevented).toBe(false)
+		expect(wrapper.get('[data-testid="record-tracks-annotate"]').text()).toBe(
+			'Done'
+		)
+	})
+
+	it('handles keys anywhere in its own dialog and claims Escape there', async () => {
+		const { wrapper } = await mountSection({ inDialog: true })
+		await enterAnnotation(wrapper)
+		const dialog = wrapper.get('[data-testid="dialog-scope"]').element
+
+		await pressKey('j', dialog)
+		expect(focusedId(wrapper)).toBe('track-a2')
+
+		const escape = await pressKey('Escape', dialog)
+		// reka-ui leaves the dialog open when Escape is already prevented.
+		expect(escape.defaultPrevented).toBe(true)
+		expect(wrapper.findAll('[data-focused="true"]')).toHaveLength(0)
+	})
+
+	it('flags a save rejected after moving on and leads back to it', async () => {
+		let finishWrite!: () => void
+		const updateTrack = vi.fn(
+			(
+				_id: string,
+				_updates: unknown,
+				options: { onConflict?: (latest: LibraryTrack | null) => void }
+			) =>
+				new Promise<LibraryTrack | null>((resolve) => {
+					finishWrite = () => {
+						options.onConflict?.(createRecordTracks()[2]!)
+						resolve(null)
+					}
+				})
+		)
+		const { wrapper } = await mountSection({ updateTrack })
+		await enterAnnotation(wrapper)
+
+		await focusedRow(wrapper)
+			.get(`[data-composite="${EIGHT_B}"]`)
+			.trigger('click')
+		await settle()
+		expect(
+			wrapper.get('[data-testid="record-track-status-track-a1"]').text()
+		).toBe('Saving…')
+
+		await pressKey('j')
+		expect(focusedId(wrapper)).toBe('track-a2')
+		finishWrite()
+		await settle()
+
+		expect(
+			wrapper.get('[data-testid="record-track-status-track-a1"]').text()
+		).toBe('Not saved')
+		expect(
+			wrapper.get('[data-testid="record-tracks-unsaved"]').text()
+		).toContain('1 change was not saved.')
+
+		await wrapper
+			.get('[data-testid="record-tracks-review-unsaved"]')
+			.trigger('click')
+		await settle()
+		expect(focusedId(wrapper)).toBe('track-a1')
+		expect(
+			focusedRow(wrapper).get('[data-testid="quick-set-issue"]').text()
+		).toContain('your key 8B was not saved')
+	})
+
+	it('draws the key in the foreground colour with a colour swatch', async () => {
+		const { wrapper } = await mountSection({})
+		const label = wrapper.get('[data-testid="record-track-key-track-b1"]')
+		expect(label.text()).toBe('8A')
+		expect(label.attributes('style')).toBeUndefined()
+		expect(label.element.parentElement!.className).toContain('text-foreground')
+		const swatch = wrapper.get(
+			'[data-testid="record-track-key-swatch-track-b1"]'
+		)
+		expect(swatch.attributes('style')).toContain('background-color')
+		expect(
+			wrapper.find('[data-testid="record-track-key-swatch-track-a1"]').exists()
+		).toBe(false)
+	})
+
+	it('treats partial or out-of-range stored keys as missing', async () => {
+		const tracks = [
+			createMockTrack({
+				id: 'track-partial',
+				record_id: 'record-1',
+				position: 'A1',
+				bpm: 120,
+				key: 11,
+				mode: null
+			}),
+			createMockTrack({
+				id: 'track-invalid',
+				record_id: 'record-1',
+				position: 'A2',
+				bpm: 121,
+				key: -1,
+				mode: 1
+			})
+		] as LibraryTrack[]
+		const { wrapper } = await mountSection({ tracks, keyFormat: 'key' })
+
+		expect(wrapper.get('[data-testid="record-tracks-progress"]').text()).toBe(
+			'0 of 2 tracks have BPM and key'
+		)
+		expect(
+			wrapper.get('[data-testid="record-track-key-track-partial"]').text()
+		).toBe('–')
+		expect(
+			wrapper.get('[data-testid="record-track-key-track-invalid"]').text()
+		).toBe('–')
+
+		// The tracks remain available for correction.
+		await enterAnnotation(wrapper)
+		expect(focusedId(wrapper)).toBe('track-partial')
+		expect(
+			focusedRow(wrapper).get('[data-testid="quick-set-saved-key"]').text()
+		).toBe('No key saved')
 	})
 })
