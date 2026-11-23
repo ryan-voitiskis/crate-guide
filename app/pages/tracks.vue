@@ -8,6 +8,7 @@ import {
 	WandSparkles
 } from '@lucide/vue'
 import ListWorkbenchVirtual from '~/components/workbench/ListWorkbenchVirtual.vue'
+import { useTrackQuickSetStore } from '~/stores/trackQuickSetStore'
 import type {
 	LibrarySortDirection,
 	LibrarySortValue
@@ -43,6 +44,13 @@ const isMobile = useMediaQuery('(max-width: 1279px)')
 const isCompactTable = useMediaQuery('(max-width: 767px)')
 
 const selectedTrackId = ref<string | null>(null)
+const quickSet = useTrackQuickSetStore(useWorkbenchPinia())
+/** A refresh while tracks are already shown keeps the page interactive. */
+const isRefreshingInBackground = computed(
+	() =>
+		(tracks.isLoadingTracks && tracks.hasTracks) ||
+		(records.isLoadingRecords && records.hasRecords)
+)
 const editingTrackId = ref<string | null>(null)
 const hasOpenedTrackEditor = useOpenedOnce(() => editingTrackId.value !== null)
 const mobileInspectorOpen = ref(false)
@@ -215,12 +223,26 @@ function editTrack(trackId: string) {
 	mobileInspectorOpen.value = false
 }
 
+// A quick-set write updates the track optimistically, which can move it out
+// of the active filter until the write settles or rolls back. Keep it
+// selected while it has a pending or rejected quick-set value, so the
+// inspector and any rejection notice stay where the user is working.
 watch(
-	() => (isActive.value ? trackFilters.filteredTracks : null),
-	(filtered) => {
+	() =>
+		isActive.value
+			? ([
+					trackFilters.filteredTracks,
+					selectedTrackId.value
+						? quickSet.hasActivity(selectedTrackId.value)
+						: false
+				] as const)
+			: null,
+	(state) => {
+		if (!state) return
+		const [filtered, keepSelection] = state
 		if (
-			filtered &&
 			selectedTrackId.value &&
+			!keepSelection &&
 			!filtered.some((track) => track.id === selectedTrackId.value)
 		)
 			selectedTrackId.value = null
@@ -272,7 +294,19 @@ watch(
 		/>
 
 		<div v-else-if="tracks.hasTracks" class="flex min-h-0 flex-1">
-			<section class="flex min-w-0 flex-1 flex-col">
+			<section
+				class="flex min-w-0 flex-1 flex-col"
+				:aria-busy="isRefreshingInBackground || undefined"
+			>
+				<div
+					v-if="isRefreshingInBackground"
+					role="status"
+					class="border-border bg-muted/40 text-muted-foreground flex shrink-0 items-center gap-2 border-b px-3 py-1 font-mono text-[10px] tracking-wide"
+					data-testid="tracks-background-refresh"
+				>
+					<SpinnerLoading :width="12" :height="12" />
+					Refreshing tracks…
+				</div>
 				<div
 					v-if="viewMode === 'tracks' && missingAnalysisCount > 0"
 					class="border-border bg-muted/25 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2"

@@ -1,5 +1,6 @@
 import { type MaybeRefOrGetter, computed, ref, toValue } from 'vue'
 import {
+	QUICK_SET_FIELDS,
 	type QuickSetField,
 	type QuickSetIssue,
 	type QuickSetProposal,
@@ -15,10 +16,10 @@ import type {
 } from '~~/shared/types/library'
 
 export type QuickSetIssueView = {
+	field: QuickSetField
 	kind: QuickSetIssue['kind']
 	message: string
 	canRetry: boolean
-	canRefresh: boolean
 	canDismiss: boolean
 }
 
@@ -33,36 +34,41 @@ export function describeQuickSetProposal(
 		: 'key removal'
 }
 
+/**
+ * Describes one rejected field. Recovery actions come from the same state as
+ * the write lock: while the track needs a refresh nothing can be retried or
+ * dismissed, and the panel offers a single Refresh instead.
+ */
 export function describeQuickSetIssue(
 	issue: QuickSetIssue,
-	keyFormat: LibraryKeyFormat
+	keyFormat: LibraryKeyFormat,
+	needsRefresh: boolean
 ): QuickSetIssueView {
 	const value = describeQuickSetProposal(issue.proposal, keyFormat)
+	const base = {
+		field: issue.proposal.field,
+		kind: issue.kind,
+		canRetry: !needsRefresh,
+		canDismiss: !needsRefresh
+	}
 	switch (issue.kind) {
 		case 'conflict':
 			return {
-				kind: issue.kind,
-				message: `This track changed elsewhere, so your ${value} was not saved. The latest saved values are shown.`,
-				canRetry: true,
-				canRefresh: false,
-				canDismiss: true
+				...base,
+				message: `This track changed elsewhere, so your ${value} was not saved. The latest saved values are shown.`
 			}
 		case 'conflict-unrefreshed':
 			return {
-				kind: issue.kind,
-				message: `This track changed elsewhere, so your ${value} was not saved. Its latest version could not be loaded. Refresh before trying again.`,
-				canRetry: false,
-				canRefresh: true,
-				canDismiss: false
+				...base,
+				message: `This track changed elsewhere, so your ${value} was not saved. Its latest version could not be loaded.`
+			}
+		case 'not-sent':
+			return {
+				...base,
+				message: `Your ${value} was not sent because this track has to be refreshed first.`
 			}
 		case 'failed':
-			return {
-				kind: issue.kind,
-				message: `Your ${value} could not be saved.`,
-				canRetry: true,
-				canRefresh: false,
-				canDismiss: true
-			}
+			return { ...base, message: `Your ${value} could not be saved.` }
 	}
 }
 
@@ -92,7 +98,12 @@ export function useTrackQuickSet(track: MaybeRefOrGetter<LibraryTrack | null>) {
 		bpm: entry.value?.pending.bpm ?? false,
 		key: entry.value?.pending.key ?? false
 	}))
-	const issue = computed(() => entry.value?.issue ?? null)
+	const issues = computed<QuickSetIssue[]>(() =>
+		QUICK_SET_FIELDS.flatMap((field) => {
+			const issue = entry.value?.issues[field]
+			return issue ? [issue] : []
+		})
+	)
 	const needsRefresh = computed(() => entry.value?.needsRefresh ?? false)
 
 	function submit(proposal: QuickSetProposal): Promise<LibraryTrack | null> {
@@ -106,6 +117,16 @@ export function useTrackQuickSet(track: MaybeRefOrGetter<LibraryTrack | null>) {
 		const seenVersion = current.updated_at
 		store.beginWrite(trackId, proposal.field)
 		return store.enqueue(trackId, async () => {
+			// An earlier write in this queue may have found the track stale and
+			// unloadable. Hold this one back instead of sending a stale version.
+			if (store.entries[trackId]?.needsRefresh) {
+				store.finishWrite(trackId, proposal.field, {
+					kind: 'not-sent',
+					proposal
+				})
+				return null
+			}
+
 			const expectedUpdatedAt = store.resolveVersion(trackId, seenVersion)
 			const outcome: { conflict?: LibraryTrack | null } = {}
 			let result: LibraryTrack | null
@@ -154,8 +175,8 @@ export function useTrackQuickSet(track: MaybeRefOrGetter<LibraryTrack | null>) {
 		})
 	}
 
-	function retry(): Promise<LibraryTrack | null> {
-		const proposal = issue.value?.proposal
+	function retry(field: QuickSetField): Promise<LibraryTrack | null> {
+		const proposal = entry.value?.issues[field]?.proposal
 		if (!proposal || needsRefresh.value) return Promise.resolve(null)
 		return submit(proposal)
 	}
@@ -173,14 +194,14 @@ export function useTrackQuickSet(track: MaybeRefOrGetter<LibraryTrack | null>) {
 		}
 	}
 
-	function dismiss() {
+	function dismiss(field: QuickSetField) {
 		const trackId = toValue(track)?.id
-		if (trackId) store.dismissIssue(trackId)
+		if (trackId) store.dismissIssue(trackId, field)
 	}
 
 	return {
 		pending,
-		issue,
+		issues,
 		needsRefresh,
 		refreshing,
 		setBpm,

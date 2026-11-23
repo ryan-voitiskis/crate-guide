@@ -145,6 +145,16 @@ function handleSegmentFocus(composite: string) {
 	pointerActive = false
 }
 
+/**
+ * Chromium can make the SVG itself a sequential tab stop. It is removed from
+ * the tab order, and any focus that still lands on it moves to the roving
+ * radio so the first Tab always reaches a key that can be confirmed.
+ */
+function handleRootFocus(event: FocusEvent) {
+	if (event.target !== root.value || props.disabled) return
+	void focusSegment(tabTarget.value)
+}
+
 function handleFocusOut(event: FocusEvent) {
 	const next = event.relatedTarget
 	if (next instanceof Node && root.value?.contains(next)) return
@@ -206,11 +216,14 @@ function handleKeydown(event: KeyboardEvent) {
 				ref="root"
 				viewBox="0 0 200 200"
 				class="block aspect-square w-full select-none"
+				tabindex="-1"
+				focusable="false"
 				role="radiogroup"
 				aria-label="Key"
 				:aria-disabled="disabled || undefined"
 				@keydown="handleKeydown"
 				@pointerdown="handlePointerDown"
+				@focus="handleRootFocus"
 				@focusout="handleFocusOut"
 			>
 				<g

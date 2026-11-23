@@ -32,6 +32,7 @@ const state = ref<TapTempoState>(tempo.getState())
 const readoutId = useId()
 
 const inactive = computed(() => props.disabled || props.pending)
+const tapButton = ref<HTMLButtonElement | null>(null)
 const hasEstimate = computed(() => state.value.bpm !== null)
 const usableBpm = computed(() => {
 	const bpm = state.value.bpm
@@ -55,6 +56,8 @@ const readout = computed(() =>
 const now = inject(TAP_TEMPO_CLOCK, defaultTapTempoClock)
 
 const currentLabel = computed(() => {
+	// The store applies a pending value optimistically; don't call it saved yet.
+	if (props.valueSource === 'saved' && props.pending) return 'Saving…'
 	const bpm = props.currentBpm
 	if (props.valueSource === 'form')
 		return bpm === null
@@ -75,6 +78,10 @@ function reset() {
 function use() {
 	if (inactive.value || usableBpm.value === null) return
 	emit('use', usableBpm.value)
+	// Use becomes disabled while the save runs, and a disabled button drops
+	// focus to the document body. Keep focus on Tap so keyboard shortcuts
+	// keep working inside an enclosing dialog.
+	tapButton.value?.focus()
 }
 
 function applyScale(scale: (bpm: number | null) => number | null) {
@@ -104,10 +111,14 @@ defineExpose({ tap, reset, use })
 <template>
 	<div class="space-y-2" data-testid="control-tap-tempo">
 		<div class="flex items-stretch gap-2">
+			<!-- Only read-only disables Tap natively. While a save is pending it
+			stays focusable and ignores taps, so focus is never dropped. -->
 			<button
+				ref="tapButton"
 				type="button"
-				class="bg-primary text-primary-foreground hover:bg-primary/85 focus-visible:ring-ring flex h-16 min-w-0 flex-1 flex-col items-center justify-center rounded-md text-sm font-semibold tracking-wide uppercase shadow-sm transition-colors select-none focus-visible:ring-2 focus-visible:outline-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none"
-				:disabled="inactive"
+				class="bg-primary text-primary-foreground hover:bg-primary/85 focus-visible:ring-ring flex h-16 min-w-0 flex-1 flex-col items-center justify-center rounded-md text-sm font-semibold tracking-wide uppercase shadow-sm transition-colors select-none focus-visible:ring-2 focus-visible:outline-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 aria-disabled:opacity-60 motion-reduce:transition-none"
+				:disabled="disabled"
+				:aria-disabled="pending || undefined"
 				:aria-describedby="readoutId"
 				aria-label="Tap along to the beat. Press Enter to use the estimate."
 				data-testid="tap-tempo-tap"

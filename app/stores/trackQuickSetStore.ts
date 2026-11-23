@@ -1,9 +1,20 @@
 export type QuickSetField = 'bpm' | 'key'
 
+export const QUICK_SET_FIELDS: readonly QuickSetField[] = ['bpm', 'key']
+
 export type QuickSetProposal =
 	{ field: 'bpm'; bpm: number } | { field: 'key'; composite: string }
 
-export type QuickSetIssueKind = 'conflict' | 'conflict-unrefreshed' | 'failed'
+/**
+ * - `conflict`: the server rejected the write; the latest version is loaded.
+ * - `conflict-unrefreshed`: the write was rejected and the latest version
+ *   could not be loaded.
+ * - `not-sent`: the write was queued behind one that needs a refresh, so it
+ *   was held back rather than sent with a version known to be stale.
+ * - `failed`: the write failed for another reason.
+ */
+export type QuickSetIssueKind =
+	'conflict' | 'conflict-unrefreshed' | 'not-sent' | 'failed'
 
 export type QuickSetIssue = {
 	kind: QuickSetIssueKind
@@ -13,7 +24,8 @@ export type QuickSetIssue = {
 
 export type QuickSetEntry = {
 	pending: Record<QuickSetField, boolean>
-	issue: QuickSetIssue | null
+	/** Rejected proposals, kept independently per field. */
+	issues: Record<QuickSetField, QuickSetIssue | null>
 	/** Writes stay disabled until the track's latest version has been loaded. */
 	needsRefresh: boolean
 }
@@ -34,17 +46,18 @@ export const useTrackQuickSetStore = defineStore('trackQuickSet', () => {
 		if (!entries.value[trackId]) {
 			entries.value[trackId] = {
 				pending: { bpm: false, key: false },
-				issue: null,
+				issues: { bpm: null, key: null },
 				needsRefresh: false
 			}
 		}
 		return entries.value[trackId]!
 	}
 
+	/** A new write for a field supersedes only that field's rejected value. */
 	function beginWrite(trackId: string, field: QuickSetField) {
 		const entry = ensureEntry(trackId)
 		entry.pending[field] = true
-		entry.issue = null
+		entry.issues[field] = null
 	}
 
 	function finishWrite(
@@ -55,23 +68,38 @@ export const useTrackQuickSetStore = defineStore('trackQuickSet', () => {
 		const entry = ensureEntry(trackId)
 		entry.pending[field] = false
 		if (!issue) return
-		entry.issue = issue
+		entry.issues[field] = issue
 		if (issue.kind === 'conflict-unrefreshed') entry.needsRefresh = true
 	}
 
-	function dismissIssue(trackId: string) {
+	function dismissIssue(trackId: string, field: QuickSetField) {
 		const entry = entries.value[trackId]
 		if (!entry || entry.needsRefresh) return
-		entry.issue = null
+		entry.issues[field] = null
 	}
 
 	function markRefreshed(trackId: string) {
 		const entry = entries.value[trackId]
 		if (!entry) return
 		entry.needsRefresh = false
-		if (entry.issue?.kind === 'conflict-unrefreshed') {
-			entry.issue = { ...entry.issue, kind: 'conflict' }
+		for (const field of QUICK_SET_FIELDS) {
+			const issue = entry.issues[field]
+			if (
+				issue &&
+				(issue.kind === 'conflict-unrefreshed' || issue.kind === 'not-sent')
+			) {
+				// The latest version is now shown, so the value can be retried.
+				entry.issues[field] = { ...issue, kind: 'conflict' }
+			}
 		}
+	}
+
+	function hasActivity(trackId: string): boolean {
+		const entry = entries.value[trackId]
+		if (!entry) return false
+		return QUICK_SET_FIELDS.some(
+			(field) => entry.pending[field] || entry.issues[field] !== null
+		)
 	}
 
 	function acknowledgeVersion(
@@ -130,6 +158,7 @@ export const useTrackQuickSetStore = defineStore('trackQuickSet', () => {
 		finishWrite,
 		dismissIssue,
 		markRefreshed,
+		hasActivity,
 		acknowledgeVersion,
 		resolveVersion,
 		enqueue
