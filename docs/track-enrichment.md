@@ -60,10 +60,14 @@ the server still rejects it if anyone else changed the track.
 Pending and rejected writes are held per track in `trackQuickSetStore`, not in
 the panel, so a rejection that arrives after the user has moved to another
 track still shows: the record dialog marks the row **Not saved** and the panel
-shows the rejected value when that track is opened again. A rejected value is
+shows the rejected value when that track is opened again. Rejections are kept
+per field, so saving the BPM never discards a rejected key. A rejected value is
 never retried automatically; the user can **Try again** against the latest
-version. If the latest version could not be loaded after a conflict, the panel
-says so and blocks writes for that track until **Refresh** succeeds.
+version. If the latest version could not be loaded after a conflict, writes for
+that track are blocked and a single **Refresh** is offered; a write already
+queued behind it is held back as not sent rather than sent with a stale
+version. On the Tracks page, a track with a pending or rejected value stays
+selected even if its optimistic value briefly leaves the active filter.
 
 Manual entry does **not** create Evidence or touch
 `audio_features`; it is user data, not analyzer or provider data. Because the

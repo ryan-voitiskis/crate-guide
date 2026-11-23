@@ -543,4 +543,74 @@ describe('SectionRecordTracks annotation mode', () => {
 			focusedRow(wrapper).get('[data-testid="quick-set-saved-key"]').text()
 		).toBe('No key saved')
 	})
+	it('keeps keyboard focus in the dialog after Enter saves a BPM', async () => {
+		let finishWrite!: () => void
+		const updateTrack = vi.fn(
+			() =>
+				new Promise<LibraryTrack | null>((resolve) => {
+					finishWrite = () => resolve(createRecordTracks()[2]!)
+				})
+		)
+		const { wrapper } = await mountSection({ updateTrack, inDialog: true })
+		await enterAnnotation(wrapper)
+		const tap = tapButton(wrapper) as HTMLButtonElement
+		expect(document.activeElement).toBe(tap)
+
+		// Two native Space presses click the focused Tap button.
+		clockQueue.push(0, 500)
+		tap.click()
+		tap.click()
+		await settle()
+		await pressKey('Enter', tap)
+		expect(updateTrack).toHaveBeenCalledTimes(1)
+
+		// While the save runs, Tap keeps focus instead of dropping to the body.
+		expect(tap.disabled).toBe(false)
+		expect(tap.getAttribute('aria-disabled')).toBe('true')
+		expect(document.activeElement).toBe(tap)
+
+		await pressKey('j', document.activeElement!)
+		expect(focusedId(wrapper)).toBe('track-a2')
+		finishWrite()
+		await settle()
+
+		const escape = await pressKey('Escape', document.activeElement!)
+		expect(escape.defaultPrevented).toBe(true)
+		expect(wrapper.findAll('[data-focused="true"]')).toHaveLength(0)
+		expect(document.activeElement).toBe(
+			wrapper.get('[data-testid="record-tracks-annotate"]').element
+		)
+	})
+
+	it('counts both rejected fields on one track', async () => {
+		const updateTrack = vi.fn(
+			async (
+				_id: string,
+				_updates: unknown,
+				options: { onConflict?: (latest: LibraryTrack | null) => void }
+			) => {
+				options.onConflict?.(createRecordTracks()[2]!)
+				return null
+			}
+		)
+		const { wrapper } = await mountSection({ updateTrack })
+		await enterAnnotation(wrapper)
+		clockQueue.push(0, 500)
+		const tap = tapButton(wrapper) as HTMLButtonElement
+		tap.click()
+		tap.click()
+		await settle()
+		await pressKey('Enter', tap)
+		await focusedRow(wrapper)
+			.get(`[data-composite="${EIGHT_B}"]`)
+			.trigger('click')
+		await settle()
+
+		expect(
+			wrapper.get('[data-testid="record-tracks-unsaved"]').text()
+		).toContain('2 changes were not saved.')
+		expect(
+			focusedRow(wrapper).findAll('[data-testid="quick-set-issue"]')
+		).toHaveLength(2)
+	})
 })

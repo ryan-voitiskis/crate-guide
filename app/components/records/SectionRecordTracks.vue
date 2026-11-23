@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ListChecks, Pencil, Plus, Trash, X } from '@lucide/vue'
-import { useTrackQuickSetStore } from '~/stores/trackQuickSetStore'
+import {
+	QUICK_SET_FIELDS,
+	useTrackQuickSetStore
+} from '~/stores/trackQuickSetStore'
 import { parseKeyMode } from '~/utils/keyFunctions'
 import type { LibraryTrack } from '~~/shared/types/library'
 
@@ -30,7 +33,7 @@ type TrackRow = {
 function rowStatus(trackId: string): RowStatus {
 	const entry = quickSet.entries[trackId]
 	if (!entry) return null
-	if (entry.issue) return 'not-saved'
+	if (QUICK_SET_FIELDS.some((field) => entry.issues[field])) return 'not-saved'
 	if (entry.pending.bpm || entry.pending.key) return 'saving'
 	return null
 }
@@ -85,8 +88,18 @@ const progressLabel = computed(() => {
 	} BPM and key`
 })
 
+/** Rejected values across the record; one track can have two. */
+const unsavedChangeCount = computed(() =>
+	unsavedTrackIds.value.reduce((total, trackId) => {
+		const entry = quickSet.entries[trackId]
+		return (
+			total + QUICK_SET_FIELDS.filter((field) => entry?.issues[field]).length
+		)
+	}, 0)
+)
+
 const unsavedLabel = computed(() => {
-	const count = unsavedTrackIds.value.length
+	const count = unsavedChangeCount.value
 	if (count === 0) return null
 	return count === 1
 		? '1 change was not saved.'
@@ -150,13 +163,26 @@ function reviewUnsaved() {
 	else startAnnotating(first)
 }
 
-function stopAnnotating() {
+/**
+ * Ends annotation. When the user ends it (Escape or Done), focus moves to the
+ * Annotate toggle: the focused panel is about to unmount, and a modal must
+ * not leave focus on the document body.
+ */
+function stopAnnotating(options: { restoreFocus?: boolean } = {}) {
 	annotating.value = false
 	focusedTrackId.value = null
+	if (options.restoreFocus) void focusAnnotateToggle()
+}
+
+async function focusAnnotateToggle() {
+	await nextTick()
+	root.value
+		?.querySelector<HTMLButtonElement>('[data-testid="record-tracks-annotate"]')
+		?.focus?.()
 }
 
 function toggleAnnotating() {
-	if (annotating.value) stopAnnotating()
+	if (annotating.value) stopAnnotating({ restoreFocus: true })
 	else startAnnotating()
 }
 
@@ -187,7 +213,7 @@ function handleKeydown(event: KeyboardEvent) {
 	switch (event.key) {
 		case 'Escape':
 			event.preventDefault()
-			stopAnnotating()
+			stopAnnotating({ restoreFocus: true })
 			return
 		case 'j':
 		case 'J':
