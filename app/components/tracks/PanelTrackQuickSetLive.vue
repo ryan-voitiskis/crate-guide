@@ -21,10 +21,10 @@ const keyComposite = computed(() =>
 	createKeyComposite(props.track.key, props.track.mode)
 )
 
-const issueView = computed(() =>
-	quickSet.issue.value
-		? describeQuickSetIssue(quickSet.issue.value, props.keyFormat)
-		: null
+const issueViews = computed(() =>
+	quickSet.issues.value.map((issue) =>
+		describeQuickSetIssue(issue, props.keyFormat, quickSet.needsRefresh.value)
+	)
 )
 </script>
 
@@ -37,7 +37,8 @@ const issueView = computed(() =>
 		:read-only="readOnly || quickSet.needsRefresh.value"
 		:pending-bpm="quickSet.pending.value.bpm"
 		:pending-key="quickSet.pending.value.key"
-		:issue="issueView"
+		:issues="issueViews"
+		:needs-refresh="quickSet.needsRefresh.value"
 		:refreshing="quickSet.refreshing.value"
 		@update:bpm="quickSet.setBpm"
 		@update:key-composite="quickSet.setKey"

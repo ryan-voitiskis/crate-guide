@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Gauge, KeyRound } from '@lucide/vue'
 import type { QuickSetIssueView } from '~/composables/useTrackQuickSet'
+import type { QuickSetField } from '~/stores/trackQuickSetStore'
 import { getWheelSegment, getWheelSegmentLabel } from '~/utils/camelotWheel'
 import type { LibraryKeyFormat } from '~~/shared/types/library'
 
@@ -19,7 +20,10 @@ const props = withDefaults(
 		readOnly?: boolean
 		pendingBpm?: boolean
 		pendingKey?: boolean
-		issue?: QuickSetIssueView | null
+		/** Rejected values, at most one per field. */
+		issues?: QuickSetIssueView[]
+		/** The track must be reloaded before anything can be written. */
+		needsRefresh?: boolean
 		refreshing?: boolean
 	}>(),
 	{
@@ -27,7 +31,8 @@ const props = withDefaults(
 		readOnly: false,
 		pendingBpm: false,
 		pendingKey: false,
-		issue: null,
+		issues: () => [],
+		needsRefresh: false,
 		refreshing: false
 	}
 )
@@ -35,9 +40,9 @@ const props = withDefaults(
 const emit = defineEmits<{
 	'update:bpm': [bpm: number]
 	'update:keyComposite': [composite: string]
-	retry: []
+	retry: [field: QuickSetField]
 	refresh: []
-	dismiss: []
+	dismiss: [field: QuickSetField]
 }>()
 
 const wheelSelection = ref(props.keyComposite)
@@ -72,16 +77,52 @@ function handleBpmUse(bpm: number) {
 <template>
 	<div class="space-y-4" data-testid="panel-track-quick-set">
 		<div
-			v-if="issue"
+			v-if="issues.length || needsRefresh"
 			role="alert"
 			class="space-y-2 rounded-md border border-amber-600/30 bg-amber-600/10 p-2 text-xs"
-			:data-issue-kind="issue.kind"
-			data-testid="quick-set-issue"
+			data-testid="quick-set-issues"
 		>
-			<p data-testid="quick-set-issue-message">{{ issue.message }}</p>
-			<div class="flex flex-wrap gap-1.5">
+			<div
+				v-for="issue in issues"
+				:key="issue.field"
+				class="space-y-1.5"
+				:data-issue-kind="issue.kind"
+				:data-issue-field="issue.field"
+				data-testid="quick-set-issue"
+			>
+				<p data-testid="quick-set-issue-message">{{ issue.message }}</p>
+				<div
+					v-if="issue.canRetry || issue.canDismiss"
+					class="flex flex-wrap gap-1.5"
+				>
+					<Button
+						v-if="issue.canRetry"
+						type="button"
+						size="sm"
+						variant="outline"
+						:disabled="readOnly"
+						data-testid="quick-set-issue-retry"
+						@click="emit('retry', issue.field)"
+					>
+						Try again
+					</Button>
+					<Button
+						v-if="issue.canDismiss"
+						type="button"
+						size="sm"
+						variant="ghost"
+						data-testid="quick-set-issue-dismiss"
+						@click="emit('dismiss', issue.field)"
+					>
+						Dismiss
+					</Button>
+				</div>
+			</div>
+			<div v-if="needsRefresh" class="flex flex-wrap items-center gap-2">
+				<p class="min-w-0 flex-1">
+					Refresh this track before changing it again.
+				</p>
 				<ButtonLoading
-					v-if="issue.canRefresh"
 					type="button"
 					size="sm"
 					variant="outline"
@@ -91,27 +132,6 @@ function handleBpmUse(bpm: number) {
 				>
 					Refresh
 				</ButtonLoading>
-				<Button
-					v-if="issue.canRetry"
-					type="button"
-					size="sm"
-					variant="outline"
-					:disabled="readOnly"
-					data-testid="quick-set-issue-retry"
-					@click="emit('retry')"
-				>
-					Try again
-				</Button>
-				<Button
-					v-if="issue.canDismiss"
-					type="button"
-					size="sm"
-					variant="ghost"
-					data-testid="quick-set-issue-dismiss"
-					@click="emit('dismiss')"
-				>
-					Dismiss
-				</Button>
 			</div>
 		</div>
 

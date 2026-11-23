@@ -359,6 +359,28 @@ describe('PickerKeyWheel through PanelTrackQuickSet', () => {
 		expect(radio(wrapper, NINE_A).attributes('aria-checked')).toBe('true')
 	})
 
+	it('keeps the SVG out of the tab order and hands its focus to the roving radio', async () => {
+		const wrapper = await mountPanel()
+		const svg = wrapper.get('[role="radiogroup"]')
+		expect(svg.attributes('tabindex')).toBe('-1')
+		const tabStops = wrapper
+			.findAll('[tabindex="0"]')
+			.filter((element) => element.element.closest('svg'))
+		expect(tabStops).toHaveLength(1)
+		const target = radio(wrapper, EIGHT_A).element as HTMLElement & {
+			focus: () => void
+		}
+		const focusSpy = vi.fn()
+		Object.defineProperty(target, 'focus', {
+			value: focusSpy,
+			configurable: true
+		})
+
+		await svg.trigger('focus')
+		await settle()
+		expect(focusSpy).toHaveBeenCalledTimes(1)
+	})
+
 	it('hides the focus ring when the wheel is used with a pointer', async () => {
 		const wrapper = await mountPanel({ keyComposite: EIGHT_A })
 		await wrapper.get('[role="radiogroup"]').trigger('pointerdown')
@@ -460,28 +482,90 @@ describe('PickerKeyWheel through PanelTrackQuickSet', () => {
 		)
 	})
 
-	it('renders issue actions from the view flags and forwards them', async () => {
+	it('renders one issue per field and forwards actions with that field', async () => {
 		const wrapper = await mountPanel({
-			issue: {
-				kind: 'conflict',
-				message: 'Changed elsewhere',
-				canRetry: true,
-				canRefresh: false,
-				canDismiss: true
-			}
+			issues: [
+				{
+					field: 'bpm',
+					kind: 'conflict',
+					message: 'BPM changed elsewhere',
+					canRetry: true,
+					canDismiss: true
+				},
+				{
+					field: 'key',
+					kind: 'failed',
+					message: 'Key failed',
+					canRetry: true,
+					canDismiss: true
+				}
+			]
 		})
-		expect(wrapper.get('[data-testid="quick-set-issue-message"]').text()).toBe(
-			'Changed elsewhere'
+		const issues = wrapper.findAll('[data-testid="quick-set-issue"]')
+		expect(issues.map((issue) => issue.attributes('data-issue-field'))).toEqual(
+			['bpm', 'key']
 		)
 		expect(
 			wrapper.find('[data-testid="quick-set-issue-refresh"]').exists()
 		).toBe(false)
-		await wrapper.get('[data-testid="quick-set-issue-retry"]').trigger('click')
-		await wrapper
+		await issues[1]!
+			.get('[data-testid="quick-set-issue-retry"]')
+			.trigger('click')
+		await issues[0]!
 			.get('[data-testid="quick-set-issue-dismiss"]')
 			.trigger('click')
-		expect(wrapper.emitted('retry')).toHaveLength(1)
-		expect(wrapper.emitted('dismiss')).toHaveLength(1)
+		expect(wrapper.emitted('retry')).toEqual([['key']])
+		expect(wrapper.emitted('dismiss')).toEqual([['bpm']])
+	})
+
+	it('offers a single Refresh and no per-field actions while a refresh is needed', async () => {
+		const wrapper = await mountPanel({
+			needsRefresh: true,
+			issues: [
+				{
+					field: 'bpm',
+					kind: 'conflict-unrefreshed',
+					message: 'Could not be loaded',
+					canRetry: false,
+					canDismiss: false
+				}
+			]
+		})
+		expect(
+			wrapper.findAll('[data-testid="quick-set-issue-refresh"]')
+		).toHaveLength(1)
+		expect(wrapper.find('[data-testid="quick-set-issue-retry"]').exists()).toBe(
+			false
+		)
+		expect(
+			wrapper.find('[data-testid="quick-set-issue-dismiss"]').exists()
+		).toBe(false)
+		await wrapper
+			.get('[data-testid="quick-set-issue-refresh"]')
+			.trigger('click')
+		expect(wrapper.emitted('refresh')).toHaveLength(1)
+	})
+
+	it('keeps Tap focusable while a BPM save is pending and says it is saving', async () => {
+		mockClock(0, 500, 1000)
+		const wrapper = await mountPanel({ bpm: 133.7 })
+		await tapTimes(wrapper, 3)
+		await wrapper.get('[data-testid="tap-tempo-use"]').trigger('click')
+		expect(document.activeElement).toBe(
+			wrapper.get('[data-testid="tap-tempo-tap"]').element
+		)
+
+		await wrapper.setProps({ pendingBpm: true, bpm: 120 })
+		const tap = wrapper.get('[data-testid="tap-tempo-tap"]')
+		expect(tap.attributes('disabled')).toBeUndefined()
+		expect(tap.attributes('aria-disabled')).toBe('true')
+		expect(wrapper.get('[data-testid="tap-tempo-current"]').text()).toBe(
+			'Saving…'
+		)
+		await tap.trigger('click')
+		expect(wrapper.get('[data-testid="tap-tempo-readout"]').text()).toContain(
+			'3 taps'
+		)
 	})
 })
 
@@ -591,6 +675,9 @@ describe('PanelTrackQuickSetLive', () => {
 		const issue = wrapper.get('[data-testid="quick-set-issue"]')
 		expect(issue.attributes('data-issue-kind')).toBe('conflict-unrefreshed')
 		expect(issue.text()).toContain('could not be loaded')
+		expect(wrapper.text()).toContain(
+			'Refresh this track before changing it again.'
+		)
 		expect(issue.text()).not.toContain('latest saved values are shown')
 		expect(wrapper.find('[data-testid="quick-set-issue-retry"]').exists()).toBe(
 			false
@@ -706,6 +793,99 @@ describe('PanelTrackQuickSetLive', () => {
 			expect.objectContaining({ expectedUpdatedAt: VERSION_1 })
 		)
 		expect(wrapper.find('[data-testid="quick-set-issue"]').exists()).toBe(false)
+	})
+
+	it('holds back a queued write after an unloadable conflict and recovers both fields', async () => {
+		const track = createLiveTrack({ key: 7, mode: 1 })
+		const bpmWrite = createDeferred<undefined>()
+		const fetchAllTracks = vi
+			.fn()
+			.mockResolvedValueOnce(false)
+			.mockResolvedValueOnce(true)
+		const tracks = useTracksMock(async (_id, updates, options) => {
+			if ('bpm' in updates) await bpmWrite.promise
+			options.onConflict?.(null)
+			return null
+		}, fetchAllTracks)
+		mockClock(0, 500, 1000, 1500, 2000)
+		const wrapper = await mountLive(track)
+
+		await tapTimes(wrapper, 5)
+		await wrapper.get('[data-testid="tap-tempo-use"]').trigger('click')
+		await settle()
+		await radio(wrapper, EIGHT_B).trigger('click')
+		await settle()
+		bpmWrite.resolve(undefined)
+		await settle()
+
+		// Only the BPM write reached the server; the key was held back.
+		expect(tracks.updateTrack).toHaveBeenCalledTimes(1)
+		const kinds = () =>
+			Object.fromEntries(
+				wrapper
+					.findAll('[data-testid="quick-set-issue"]')
+					.map((issue) => [
+						issue.attributes('data-issue-field'),
+						issue.attributes('data-issue-kind')
+					])
+			)
+		expect(kinds()).toEqual({ bpm: 'conflict-unrefreshed', key: 'not-sent' })
+		expect(wrapper.text()).toContain('BPM 120.0 was not saved')
+		expect(wrapper.text()).toContain('key 8B was not sent')
+		expect(
+			wrapper.findAll('[data-testid="quick-set-issue-refresh"]')
+		).toHaveLength(1)
+		expect(wrapper.find('[data-testid="quick-set-issue-retry"]').exists()).toBe(
+			false
+		)
+		expect(
+			wrapper.find('[data-testid="quick-set-issue-dismiss"]').exists()
+		).toBe(false)
+
+		await wrapper
+			.get('[data-testid="quick-set-issue-refresh"]')
+			.trigger('click')
+		await settle()
+		expect(kinds()).toEqual({ bpm: 'conflict-unrefreshed', key: 'not-sent' })
+
+		await wrapper
+			.get('[data-testid="quick-set-issue-refresh"]')
+			.trigger('click')
+		await settle()
+		expect(kinds()).toEqual({ bpm: 'conflict', key: 'conflict' })
+		expect(
+			wrapper.findAll('[data-testid="quick-set-issue-retry"]')
+		).toHaveLength(2)
+		expect(
+			wrapper.find('[data-testid="quick-set-issue-refresh"]').exists()
+		).toBe(false)
+	})
+
+	it('keeps a rejected key while a later BPM save succeeds', async () => {
+		const track = createLiveTrack({ key: 7, mode: 1 })
+		const latest = { ...track, key: 5, updated_at: VERSION_1 }
+		const tracks = useTracksMock(async (_id, updates, options) => {
+			if ('key' in updates) {
+				options.onConflict?.(latest)
+				return null
+			}
+			return { ...latest, bpm: 120, updated_at: VERSION_2 }
+		})
+		mockClock(0, 500, 1000, 1500, 2000)
+		const wrapper = await mountLive(track)
+
+		await radio(wrapper, EIGHT_B).trigger('click')
+		await settle()
+		await wrapper.setProps({ track: latest })
+		await tapTimes(wrapper, 5)
+		await wrapper.get('[data-testid="tap-tempo-use"]').trigger('click')
+		await settle()
+
+		expect(tracks.updateTrack).toHaveBeenCalledTimes(2)
+		const issues = wrapper.findAll('[data-testid="quick-set-issue"]')
+		expect(issues).toHaveLength(1)
+		expect(issues[0]!.attributes('data-issue-field')).toBe('key')
+		expect(issues[0]!.text()).toContain('your key 8B was not saved')
 	})
 
 	it('disables only the field with a write in flight', async () => {
