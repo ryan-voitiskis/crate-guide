@@ -315,7 +315,7 @@ describe('FormTrackEditorFields', () => {
 		await settle()
 		expect(state.form.values.keyComposite).toBe('100')
 		expect(quickSet.get('[data-testid="quick-set-saved-key"]').text()).toBe(
-			'Saved 8B'
+			'In this form: 8B'
 		)
 
 		await quickSet
@@ -332,9 +332,9 @@ describe('FormTrackEditorFields', () => {
 		await settle()
 
 		const quickSet = wrapper.get('[data-testid="track-editor-quick-set"]')
-		expect(quickSet.text()).toContain('Saved 127.5')
+		expect(quickSet.text()).toContain('In this form: 127.5')
 		expect(quickSet.get('[data-testid="quick-set-saved-key"]').text()).toBe(
-			'Saved 8A'
+			'In this form: 8A'
 		)
 		expect(
 			quickSet.get('[data-composite="009"]').attributes('aria-checked')

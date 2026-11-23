@@ -131,6 +131,7 @@ function applyQuickSetKey(composite: string) {
 			:bpm="quickSetBpm"
 			:key-composite="quickSetKeyComposite"
 			:key-format="keyFormat"
+			value-source="form"
 			@update:bpm="applyQuickSetBpm"
 			@update:key-composite="applyQuickSetKey"
 		/>

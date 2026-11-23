@@ -1,8 +1,10 @@
 import type { KeyFormat } from '~~/shared/types/supabase'
 import {
 	createKeyComposite,
+	getCamelotString,
 	getFormattedKeyString,
 	getKeyColour,
+	getKeyString,
 	parseKeyComposite,
 	pitchClassMap
 } from './keyFunctions'
@@ -80,6 +82,37 @@ export function getWheelSegmentLabel(
 		keyFormat,
 		'short'
 	)
+}
+
+/**
+ * The short text drawn inside a wheel segment. Standard notation uses a
+ * compact form (C♯m, F♯) so adjacent labels fit at the smallest wheel size;
+ * the full name is exposed through `getWheelSegmentAccessibleLabel`.
+ */
+export function getWheelSegmentVisualLabel(
+	segment: WheelSegment,
+	keyFormat: KeyFormat
+): string {
+	if (keyFormat === 'camelot')
+		return getCamelotString(segment.pitchClass, segment.mode)
+	const tone =
+		pitchClassMap
+			.find((entry) => entry.pitchClass === segment.pitchClass)
+			?.tone.slice(0, 2)
+			.trim() ?? ''
+	return segment.mode === 0 ? `${tone}m` : tone
+}
+
+/** Full accessible name, leading with the user's preferred notation. */
+export function getWheelSegmentAccessibleLabel(
+	segment: WheelSegment,
+	keyFormat: KeyFormat
+): string {
+	const camelot = getCamelotString(segment.pitchClass, segment.mode)
+	const standard = getKeyString(segment.pitchClass, segment.mode)
+	return keyFormat === 'camelot'
+		? `${camelot}, ${standard}`
+		: `${standard}, ${camelot}`
 }
 
 function wrapCamelot(number: number): number {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Gauge, KeyRound } from '@lucide/vue'
+import type { QuickSetIssueView } from '~/composables/useTrackQuickSet'
 import { getWheelSegment, getWheelSegmentLabel } from '~/utils/camelotWheel'
 import type { LibraryKeyFormat } from '~~/shared/types/library'
 
@@ -13,17 +14,30 @@ const props = withDefaults(
 		bpm: number | null
 		keyComposite: string
 		keyFormat: LibraryKeyFormat
+		/** Whether the shown values are saved on the track or held by a form. */
+		valueSource?: 'saved' | 'form'
 		readOnly?: boolean
 		pendingBpm?: boolean
 		pendingKey?: boolean
-		conflict?: string | null
+		issue?: QuickSetIssueView | null
+		refreshing?: boolean
 	}>(),
-	{ readOnly: false, pendingBpm: false, pendingKey: false, conflict: null }
+	{
+		valueSource: 'saved',
+		readOnly: false,
+		pendingBpm: false,
+		pendingKey: false,
+		issue: null,
+		refreshing: false
+	}
 )
 
 const emit = defineEmits<{
 	'update:bpm': [bpm: number]
 	'update:keyComposite': [composite: string]
+	retry: []
+	refresh: []
+	dismiss: []
 }>()
 
 const wheelSelection = ref(props.keyComposite)
@@ -34,9 +48,13 @@ watch(
 	}
 )
 
-const savedKeyLabel = computed(() => {
+const keyCaption = computed(() => {
+	if (props.valueSource === 'saved' && props.pendingKey) return 'Saving…'
 	const segment = getWheelSegment(props.keyComposite)
-	return segment ? getWheelSegmentLabel(segment, props.keyFormat) : 'No key'
+	const label = segment ? getWheelSegmentLabel(segment, props.keyFormat) : null
+	if (props.valueSource === 'form')
+		return label ? `In this form: ${label}` : 'No key in this form'
+	return label ? `Saved ${label}` : 'No key saved'
 })
 
 function handleKeyConfirm(composite: string) {
@@ -53,14 +71,49 @@ function handleBpmUse(bpm: number) {
 
 <template>
 	<div class="space-y-4" data-testid="panel-track-quick-set">
-		<p
-			v-if="conflict"
+		<div
+			v-if="issue"
 			role="alert"
-			class="rounded-md border border-amber-600/30 bg-amber-600/10 p-2 text-xs"
-			data-testid="quick-set-conflict"
+			class="space-y-2 rounded-md border border-amber-600/30 bg-amber-600/10 p-2 text-xs"
+			:data-issue-kind="issue.kind"
+			data-testid="quick-set-issue"
 		>
-			{{ conflict }}
-		</p>
+			<p data-testid="quick-set-issue-message">{{ issue.message }}</p>
+			<div class="flex flex-wrap gap-1.5">
+				<ButtonLoading
+					v-if="issue.canRefresh"
+					type="button"
+					size="sm"
+					variant="outline"
+					:loading="refreshing"
+					data-testid="quick-set-issue-refresh"
+					@click="emit('refresh')"
+				>
+					Refresh
+				</ButtonLoading>
+				<Button
+					v-if="issue.canRetry"
+					type="button"
+					size="sm"
+					variant="outline"
+					:disabled="readOnly"
+					data-testid="quick-set-issue-retry"
+					@click="emit('retry')"
+				>
+					Try again
+				</Button>
+				<Button
+					v-if="issue.canDismiss"
+					type="button"
+					size="sm"
+					variant="ghost"
+					data-testid="quick-set-issue-dismiss"
+					@click="emit('dismiss')"
+				>
+					Dismiss
+				</Button>
+			</div>
+		</div>
 
 		<section class="space-y-2" aria-label="Tap tempo">
 			<div class="flex items-center gap-2">
@@ -73,6 +126,7 @@ function handleBpmUse(bpm: number) {
 			</div>
 			<ControlTapTempo
 				:current-bpm="bpm"
+				:value-source="valueSource"
 				:disabled="readOnly"
 				:pending="pendingBpm"
 				@use="handleBpmUse"
@@ -93,7 +147,7 @@ function handleBpmUse(bpm: number) {
 					class="text-muted-foreground font-mono text-[10px]"
 					data-testid="quick-set-saved-key"
 				>
-					{{ pendingKey ? 'Saving…' : `Saved ${savedKeyLabel}` }}
+					{{ keyCaption }}
 				</span>
 			</div>
 			<PickerKeyWheel

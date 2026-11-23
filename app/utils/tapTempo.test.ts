@@ -41,6 +41,29 @@ describe('estimateBpmFromIntervals', () => {
 		expect(estimate.bpm).toBeCloseTo(roundBpm(60000 / 469), 1)
 	})
 
+	it('returns no estimate when every interval is rejected as an outlier', () => {
+		// Two taps 500 ms apart, then a skipped beat: the median is 750 ms and
+		// neither interval lies within 25 % of it.
+		expect(estimateBpmFromIntervals([500, 1000])).toEqual({
+			bpm: null,
+			rawBpm: null,
+			intervalCount: 0,
+			stable: false
+		})
+	})
+
+	it('ignores non-finite intervals', () => {
+		expect(
+			estimateBpmFromIntervals([Number.NaN, Number.POSITIVE_INFINITY, 500]).bpm
+		).toBe(120)
+	})
+
+	it('never reports a value outside the valid BPM range', () => {
+		const loose = { ...DEFAULT_TAP_TEMPO_OPTIONS, outlierTolerance: 10 }
+		expect(estimateBpmFromIntervals([100], loose).bpm).toBeNull()
+		expect(estimateBpmFromIntervals([5000], loose).bpm).toBeNull()
+	})
+
 	it('ignores non-positive intervals', () => {
 		const estimate = estimateBpmFromIntervals([0, -5, 600])
 		expect(estimate.bpm).toBe(100)
@@ -78,6 +101,20 @@ describe('createTapTempo', () => {
 		const { state } = tapSequence(469, 5)
 		expect(state.bpm).toBe(127.9)
 		expect(state.rawBpm).toBeCloseTo(60000 / 469)
+	})
+
+	it('gives no estimate after a skipped beat until the taps even out', () => {
+		const tempo = createTapTempo()
+		tempo.tap(0)
+		expect(tempo.tap(500).bpm).toBe(120)
+		const skipped = tempo.tap(1500)
+		expect(skipped.tapCount).toBe(3)
+		expect(skipped.bpm).toBeNull()
+		expect(skipped.rawBpm).toBeNull()
+		expect(skipped.stable).toBe(false)
+		// Steady taps outvote the skipped beat again.
+		const resumed = tempo.tap(2000)
+		expect(resumed.bpm).toBe(120)
 	})
 
 	it('ignores bounces shorter than the minimum interval', () => {

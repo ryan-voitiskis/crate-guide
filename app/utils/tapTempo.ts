@@ -70,21 +70,28 @@ export function estimateBpmFromIntervals(
 		'outlierTolerance' | 'stableAfterIntervals' | 'stableSpread'
 	> = DEFAULT_TAP_TEMPO_OPTIONS
 ): Pick<TapTempoState, 'bpm' | 'rawBpm' | 'intervalCount' | 'stable'> {
-	const positive = intervals.filter((value) => value > 0)
-	if (positive.length === 0) {
-		return { bpm: null, rawBpm: null, intervalCount: 0, stable: false }
-	}
+	const empty = { bpm: null, rawBpm: null, intervalCount: 0, stable: false }
+	const positive = intervals.filter(
+		(value) => Number.isFinite(value) && value > 0
+	)
+	if (positive.length === 0) return empty
 
 	const centre = median(positive)
 	const accepted = positive.filter(
 		(value) => Math.abs(value - centre) / centre <= options.outlierTolerance
 	)
+	// Uneven taps, such as one skipped beat among two intervals, can leave no
+	// interval near the median. There is no estimate rather than a NaN one.
+	if (accepted.length === 0) return empty
+
 	const mean = accepted.reduce((sum, value) => sum + value, 0) / accepted.length
 	const rawBpm = 60000 / mean
+	const bpm = roundBpm(rawBpm)
+	if (!Number.isFinite(rawBpm) || !isBpmInRange(bpm)) return empty
 	const spread = (Math.max(...accepted) - Math.min(...accepted)) / mean
 
 	return {
-		bpm: roundBpm(rawBpm),
+		bpm,
 		rawBpm,
 		intervalCount: accepted.length,
 		stable:
