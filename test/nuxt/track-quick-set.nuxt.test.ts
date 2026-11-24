@@ -106,9 +106,10 @@ function createLiveTrack(overrides: Partial<LibraryTrack> = {}): LibraryTrack {
 	}) as LibraryTrack
 }
 
-async function mountLive(track: LibraryTrack) {
+async function mountLive(track: LibraryTrack, { attach = false } = {}) {
 	const wrapper = await mountSuspended(PanelTrackQuickSetLive, {
 		props: { track, keyFormat: 'camelot' },
+		...(attach ? { attachTo: document.body } : {}),
 		global: { provide: clockProvide }
 	})
 	wrappers.add(wrapper)
@@ -859,6 +860,120 @@ describe('PanelTrackQuickSetLive', () => {
 		expect(
 			wrapper.find('[data-testid="quick-set-issue-refresh"]').exists()
 		).toBe(false)
+	})
+
+	it('shows the saved key on the wheel once a held-back key is dismissed', async () => {
+		const track = createLiveTrack()
+		const bpmWrite = createDeferred<undefined>()
+		useTracksMock(async (_id, _updates, options) => {
+			await bpmWrite.promise
+			options.onConflict?.(null)
+			return null
+		}, vi.fn().mockResolvedValue(true))
+		mockClock(0, 500, 1000, 1500, 2000)
+		const wrapper = await mountLive(track)
+
+		await tapTimes(wrapper, 5)
+		await wrapper.get('[data-testid="tap-tempo-use"]').trigger('click')
+		await settle()
+		await radio(wrapper, EIGHT_B).trigger('click')
+		await settle()
+		bpmWrite.resolve(undefined)
+		await settle()
+
+		// Held back: the saved key is still none, and the wheel says so.
+		expect(radio(wrapper, EIGHT_B).attributes('aria-checked')).toBe('false')
+
+		await wrapper
+			.get('[data-testid="quick-set-issue-refresh"]')
+			.trigger('click')
+		await settle()
+		const keyIssue = wrapper
+			.findAll('[data-testid="quick-set-issue"]')
+			.find((issue) => issue.attributes('data-issue-field') === 'key')!
+		await keyIssue
+			.get('[data-testid="quick-set-issue-dismiss"]')
+			.trigger('click')
+		await settle()
+
+		expect(radio(wrapper, EIGHT_B).attributes('aria-checked')).toBe('false')
+		expect(wrapper.get('[data-testid="quick-set-saved-key"]').text()).toBe(
+			'No key saved'
+		)
+	})
+
+	it('stops claiming the latest values are shown once a later refresh fails', async () => {
+		const track = createLiveTrack({ key: 5, mode: 1 })
+		const latest = { ...track, key: 7, updated_at: VERSION_1 }
+		const fetchAllTracks = vi.fn().mockResolvedValue(true)
+		useTracksMock(async (_id, updates, options) => {
+			options.onConflict?.('key' in updates ? latest : null)
+			return null
+		}, fetchAllTracks)
+		mockClock(0, 500, 1000, 1500, 2000)
+		const wrapper = await mountLive(track)
+
+		await radio(wrapper, EIGHT_B).trigger('click')
+		await settle()
+		await wrapper.setProps({ track: latest })
+		await tapTimes(wrapper, 5)
+		await wrapper.get('[data-testid="tap-tempo-use"]').trigger('click')
+		await settle()
+
+		const issues = () =>
+			Object.fromEntries(
+				wrapper
+					.findAll('[data-testid="quick-set-issue"]')
+					.map((issue) => [issue.attributes('data-issue-field'), issue])
+			)
+		expect(issues().key!.attributes('data-issue-kind')).toBe(
+			'conflict-unrefreshed'
+		)
+		expect(wrapper.text()).not.toContain('latest saved values are shown')
+
+		await wrapper
+			.get('[data-testid="quick-set-issue-refresh"]')
+			.trigger('click')
+		await settle()
+		expect(issues().key!.attributes('data-issue-kind')).toBe('conflict')
+		expect(issues().bpm!.attributes('data-issue-kind')).toBe('conflict')
+	})
+
+	it('keeps focus inside the panel while it locks for a refresh and unlocks again', async () => {
+		const track = createLiveTrack()
+		const refresh = createDeferred<boolean>()
+		useTracksMock(
+			async (_id, _updates, options) => {
+				options.onConflict?.(null)
+				return null
+			},
+			vi.fn(() => refresh.promise)
+		)
+		mockClock(0, 500, 1000, 1500, 2000)
+		const wrapper = await mountLive(track, { attach: true })
+		const panel = () => wrapper.get('[data-testid="panel-track-quick-set"]')
+
+		await tapTimes(wrapper, 5)
+		await wrapper.get('[data-testid="tap-tempo-use"]').trigger('click')
+		await settle()
+
+		// Tap is now natively disabled; focus moves to the only way out.
+		expect(document.activeElement).toBe(
+			wrapper.get('[data-testid="quick-set-issue-refresh"]').element
+		)
+
+		await wrapper
+			.get('[data-testid="quick-set-issue-refresh"]')
+			.trigger('click')
+		await settle()
+		// Refresh is disabled while it loads; the panel holds focus meanwhile.
+		expect(document.activeElement).toBe(panel().element)
+
+		refresh.resolve(true)
+		await settle()
+		expect(document.activeElement).toBe(
+			wrapper.get('[data-testid="quick-set-issue-retry"]').element
+		)
 	})
 
 	it('keeps a rejected key while a later BPM save succeeds', async () => {
