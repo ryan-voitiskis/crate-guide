@@ -22,11 +22,18 @@ export function mmssToMs(input: string): number | null {
 	return seconds === seconds ? seconds * 1000 : null
 }
 
+export const MIN_BPM = 30
+export const MAX_BPM = 300
+
+export function isBpmInRange(bpm: number): boolean {
+	return Number.isFinite(bpm) && bpm >= MIN_BPM && bpm <= MAX_BPM
+}
+
 export function parseBPM(input: string): number | null {
 	const normalized = input.trim()
 	if (!normalized) return null
 	if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) return null
 
 	const bpm = Number(normalized)
-	return Number.isFinite(bpm) && bpm >= 30 && bpm <= 300 ? bpm : null
+	return isBpmInRange(bpm) ? bpm : null
 }

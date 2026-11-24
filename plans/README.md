@@ -33,13 +33,14 @@ evidence that a STOP or dependency was resolved.
 
 ## Remaining plans
 
-|   # | Plan                                                                                  | Priority | Effort | Risk | Status   |
-| --: | ------------------------------------------------------------------------------------- | :------: | :----: | :--: | -------- |
-| 070 | [Add portable library archives](070-add-portable-library-archives.md)                 |    P1    |   XL   | HIGH | DEFERRED |
-| 071 | [Launch signed-out Local libraries](071-launch-signed-out-local-library.md)           |    P1    |   XL   | HIGH | DEFERRED |
-| 072 | [Copy a Local library to cloud](072-copy-local-library-to-cloud.md)                   |    P2    |   XL   | HIGH | DEFERRED |
-| 073 | [Enable accountless Discogs connection](073-enable-accountless-discogs-connection.md) |    P2    |   XL   | HIGH | DEFERRED |
-| 076 | [Enable the offline Local app shell](076-enable-offline-local-app-shell.md)           |    P3    |   L    | MED  | DEFERRED |
+|   # | Plan                                                                                          | Priority | Effort | Risk | Status      |
+| --: | --------------------------------------------------------------------------------------------- | :------: | :----: | :--: | ----------- |
+| 070 | [Add portable library archives](070-add-portable-library-archives.md)                         |    P1    |   XL   | HIGH | DEFERRED    |
+| 071 | [Launch signed-out Local libraries](071-launch-signed-out-local-library.md)                   |    P1    |   XL   | HIGH | DEFERRED    |
+| 072 | [Copy a Local library to cloud](072-copy-local-library-to-cloud.md)                           |    P2    |   XL   | HIGH | DEFERRED    |
+| 073 | [Enable accountless Discogs connection](073-enable-accountless-discogs-connection.md)         |    P2    |   XL   | HIGH | DEFERRED    |
+| 076 | [Enable the offline Local app shell](076-enable-offline-local-app-shell.md)                   |    P3    |   L    | MED  | DEFERRED    |
+| 079 | [Add tap tempo, a key picker and record annotation mode](079-add-tap-tempo-and-key-picker.md) |    P1    |   M    | LOW  | IN PROGRESS |
 
 [077](077-stabilisation-foundation.md) and
 [078](078-recovery-and-draft-ownership.md) record the stabilisation and recovery
