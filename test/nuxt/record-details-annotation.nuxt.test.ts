@@ -82,6 +82,7 @@ async function mountSection(options: {
 	tracks?: LibraryTrack[]
 	canMutateLibrary?: boolean
 	updateTrack?: ReturnType<typeof vi.fn>
+	fetchAllTracks?: ReturnType<typeof vi.fn>
 	keyFormat?: 'camelot' | 'key'
 	/** Mount inside an element with role="dialog", like Record Details. */
 	inDialog?: boolean
@@ -96,7 +97,7 @@ async function mountSection(options: {
 	})
 	factories.tracks.mockReturnValue({
 		updateTrack,
-		fetchAllTracks: vi.fn().mockResolvedValue(true)
+		fetchAllTracks: options.fetchAllTracks ?? vi.fn().mockResolvedValue(true)
 	})
 
 	const pinia = createTestingPinia({
@@ -580,6 +581,46 @@ describe('SectionRecordTracks annotation mode', () => {
 		expect(document.activeElement).toBe(
 			wrapper.get('[data-testid="record-tracks-annotate"]').element
 		)
+	})
+
+	it('keeps keyboard focus in the dialog when a save locks the track', async () => {
+		const updateTrack = vi.fn(
+			async (
+				_id: string,
+				_updates: unknown,
+				options: { onConflict?: (latest: LibraryTrack | null) => void }
+			) => {
+				options.onConflict?.(null)
+				return null
+			}
+		)
+		const { wrapper } = await mountSection({
+			updateTrack,
+			fetchAllTracks: vi.fn().mockResolvedValue(false),
+			inDialog: true
+		})
+		await enterAnnotation(wrapper)
+		const tap = tapButton(wrapper) as HTMLButtonElement
+
+		clockQueue.push(0, 500)
+		tap.click()
+		tap.click()
+		await settle()
+		await pressKey('Enter', tap)
+
+		// The stale track's refresh failed, so Tap is disabled. Focus moves to
+		// Refresh instead of dropping to the body, and shortcuts keep working.
+		expect(tap.disabled).toBe(true)
+		expect(document.activeElement).toBe(
+			wrapper.get('[data-testid="quick-set-issue-refresh"]').element
+		)
+
+		await pressKey('j', document.activeElement!)
+		expect(focusedId(wrapper)).toBe('track-a2')
+
+		const escape = await pressKey('Escape', document.activeElement!)
+		expect(escape.defaultPrevented).toBe(true)
+		expect(wrapper.findAll('[data-focused="true"]')).toHaveLength(0)
 	})
 
 	it('counts both rejected fields on one track', async () => {

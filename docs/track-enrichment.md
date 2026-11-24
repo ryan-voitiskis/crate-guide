@@ -66,7 +66,10 @@ never retried automatically; the user can **Try again** against the latest
 version. If the latest version could not be loaded after a conflict, writes for
 that track are blocked and a single **Refresh** is offered; a write already
 queued behind it is held back as not sent rather than sent with a stale
-version. On the Tracks page, a track with a pending or rejected value stays
+version, and an earlier conflict on the other field stops claiming that the
+latest values are shown. When the panel locks or unlocks, focus moves to the
+next useful control (Refresh, then Try again, then Tap) rather than dropping
+out of the record dialog. On the Tracks page, a track with a pending or rejected value stays
 selected even if its optimistic value briefly leaves the active filter.
 
 Manual entry does **not** create Evidence or touch
