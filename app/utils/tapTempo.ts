@@ -1,3 +1,4 @@
+import type { InjectionKey } from 'vue'
 import { isBpmInRange } from './formatting'
 
 export type TapTempoOptions = {
@@ -35,6 +36,15 @@ export const DEFAULT_TAP_TEMPO_OPTIONS: TapTempoOptions = {
 	stableAfterIntervals: 4,
 	stableSpread: 0.02
 }
+
+/** Millisecond clock used for tap timestamps; tests provide a deterministic one. */
+export type TapTempoClock = () => number
+
+export const TAP_TEMPO_CLOCK: InjectionKey<TapTempoClock> =
+	Symbol('tapTempoClock')
+
+export const defaultTapTempoClock: TapTempoClock = () =>
+	typeof performance !== 'undefined' ? performance.now() : Date.now()
 
 export function roundBpm(bpm: number): number {
 	return Math.round(bpm * 10) / 10

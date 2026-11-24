@@ -5,10 +5,12 @@ import { createMockRecord } from 'test/mocks/fixtures/records'
 import { createMockTrack } from 'test/mocks/fixtures/tracks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import TracksPage from '~/pages/tracks.vue'
+import { useTrackQuickSetStore } from '~/stores/trackQuickSetStore'
 import type { TrackEvidenceLensRow } from '~/utils/trackEvidenceLens'
 
 const pageMocks = vi.hoisted(() => ({
 	isCompact: false,
+	isActive: false,
 	records: {
 		records: [] as DatabaseRecord[],
 		isLoadingRecords: false,
@@ -58,7 +60,7 @@ mockNuxtImport(
 				: false
 		)
 )
-mockNuxtImport('usePageActive', () => () => computed(() => false))
+mockNuxtImport('usePageActive', () => () => computed(() => pageMocks.isActive))
 mockNuxtImport('useNavigation', () => () => ({
 	getHref: (path: string) => path
 }))
@@ -259,6 +261,115 @@ describe('tracks page render work', () => {
 		for (const inspector of inspectors) {
 			expect(inspector.props('showEditAction')).toBe(false)
 			expect(inspector.props('readOnly')).toBe(true)
+		}
+	})
+
+	it('keeps the selected track inspector mounted through a background refresh', async () => {
+		const originalTracks = pageMocks.tracks
+		const originalRecords = pageMocks.records
+		// A rejected quick-set write refreshes the collection while tracks exist.
+		const trackState = shallowReactive({ ...originalTracks })
+		const recordState = shallowReactive({ ...originalRecords })
+		pageMocks.tracks = trackState
+		pageMocks.records = recordState
+		try {
+			await mountTracksPage()
+			await wrapper?.get('[data-track-id="track-middle"]').trigger('click')
+			await flushPromises()
+			const inspector = wrapper?.findComponent({ name: 'InspectorTrack' })
+			expect(inspector?.exists()).toBe(true)
+			expect(inspector?.props('track')).toMatchObject({ id: 'track-middle' })
+
+			trackState.isLoadingTracks = true
+			recordState.isLoadingRecords = true
+			await nextTick()
+
+			expect(wrapper?.findComponent({ name: 'StateLoading' }).exists()).toBe(
+				false
+			)
+			expect(
+				wrapper?.find('[data-testid="tracks-background-refresh"]').text()
+			).toContain('Refreshing tracks')
+			expect(wrapper?.find('section[aria-busy="true"]').exists()).toBe(true)
+			const during = wrapper?.findComponent({ name: 'InspectorTrack' })
+			expect(during?.exists()).toBe(true)
+			// The same instance survives, so its tap sequence and feedback do too.
+			expect(during?.vm).toBe(inspector?.vm)
+
+			trackState.isLoadingTracks = false
+			recordState.isLoadingRecords = false
+			await nextTick()
+			expect(wrapper?.findComponent({ name: 'InspectorTrack' }).vm).toBe(
+				inspector?.vm
+			)
+		} finally {
+			pageMocks.tracks = originalTracks
+			pageMocks.records = originalRecords
+		}
+	})
+
+	it('keeps a filtered-out track selected while its quick-set write is pending or rejected', async () => {
+		const originalFilters = pageMocks.trackFilters
+		const filterState = shallowReactive({
+			...originalFilters,
+			filteredTracks: [...pageMocks.tracks.tracks]
+		})
+		pageMocks.trackFilters = filterState
+		// The selection watcher only runs while the page is active.
+		pageMocks.isActive = true
+		try {
+			await mountTracksPage()
+			const quickSet = useTrackQuickSetStore()
+			await wrapper?.get('[data-track-id="track-middle"]').trigger('click')
+			await flushPromises()
+
+			// The optimistic BPM moves the track outside a BPM filter.
+			quickSet.beginWrite('track-middle', 'bpm')
+			filterState.filteredTracks = pageMocks.tracks.tracks.filter(
+				(track) => track.id !== 'track-middle'
+			)
+			await nextTick()
+			expect(
+				wrapper?.findComponent({ name: 'InspectorTrack' }).props('track')
+			).toMatchObject({ id: 'track-middle' })
+
+			// The write is rejected: the selection and its notice stay.
+			quickSet.finishWrite('track-middle', 'bpm', {
+				kind: 'conflict',
+				proposal: { field: 'bpm', bpm: 118.9 }
+			})
+			await nextTick()
+			expect(wrapper?.findComponent({ name: 'InspectorTrack' }).exists()).toBe(
+				true
+			)
+
+			// Once dismissed with the track still filtered out, it is deselected.
+			quickSet.dismissIssue('track-middle', 'bpm')
+			await nextTick()
+			expect(wrapper?.findComponent({ name: 'InspectorTrack' }).exists()).toBe(
+				false
+			)
+		} finally {
+			pageMocks.trackFilters = originalFilters
+			pageMocks.isActive = false
+		}
+	})
+
+	it('still shows the loading state for the first load', async () => {
+		const originalTracks = pageMocks.tracks
+		pageMocks.tracks = {
+			...originalTracks,
+			tracks: [],
+			hasTracks: false,
+			isLoadingTracks: true
+		}
+		try {
+			await mountTracksPage()
+			expect(wrapper?.findComponent({ name: 'StateLoading' }).exists()).toBe(
+				true
+			)
+		} finally {
+			pageMocks.tracks = originalTracks
 		}
 	})
 

@@ -6,7 +6,9 @@ import {
 	describeWheelSegmentPath,
 	getWheelNeighbours,
 	getWheelSegment,
+	getWheelSegmentAccessibleLabel,
 	getWheelSegmentLabel,
+	getWheelSegmentVisualLabel,
 	isWheelComposite,
 	moveSelection
 } from './camelotWheel'
@@ -94,6 +96,29 @@ describe('getWheelSegment and labels', () => {
 		const segment = getWheelSegment(compositeForCamelot('8B'))!
 		expect(getWheelSegmentLabel(segment, 'camelot')).toBe('8B')
 		expect(getWheelSegmentLabel(segment, 'key')).toBe('C Maj')
+	})
+
+	it('draws compact visual labels in both notations', () => {
+		const cSharpMinor = getWheelSegment(compositeForCamelot('12A'))!
+		expect(getWheelSegmentVisualLabel(cSharpMinor, 'key')).toBe('C♯m')
+		expect(getWheelSegmentVisualLabel(cSharpMinor, 'camelot')).toBe('12A')
+		const cMajor = getWheelSegment(compositeForCamelot('8B'))!
+		expect(getWheelSegmentVisualLabel(cMajor, 'key')).toBe('C')
+		const aMinor = getWheelSegment(compositeForCamelot('8A'))!
+		expect(getWheelSegmentVisualLabel(aMinor, 'key')).toBe('Am')
+		for (const segment of CAMELOT_WHEEL_SEGMENTS) {
+			expect(
+				getWheelSegmentVisualLabel(segment, 'key').length
+			).toBeLessThanOrEqual(3)
+		}
+	})
+
+	it('gives every segment a full accessible name', () => {
+		const aMinor = getWheelSegment(compositeForCamelot('8A'))!
+		expect(getWheelSegmentAccessibleLabel(aMinor, 'camelot')).toBe(
+			'8A, A Minor'
+		)
+		expect(getWheelSegmentAccessibleLabel(aMinor, 'key')).toBe('A Minor, 8A')
 	})
 
 	it('validates composites', () => {
