@@ -52,6 +52,63 @@ watch(
 		wheelSelection.value = value
 	}
 )
+// A save can end without changing the saved key (rejected, or held back
+// until a refresh). The wheel then shows the saved key again; the rejected
+// value lives in the notice above it.
+watch(
+	() => props.pendingKey,
+	(pending) => {
+		if (!pending) wheelSelection.value = props.keyComposite
+	}
+)
+
+/**
+ * Locking or unlocking the panel natively disables whichever control has
+ * focus (Tap, or Refresh while it loads). Inside a modal that drops focus to
+ * the document body, where shortcuts and Escape no longer reach the dialog,
+ * so focus moves to the most useful control that is still enabled.
+ */
+const root = ref<HTMLElement | null>(null)
+const lockState = () =>
+	[props.readOnly, props.needsRefresh, props.refreshing] as const
+let focusWasInside = false
+
+watch(
+	lockState,
+	() => {
+		const active = document.activeElement
+		focusWasInside = !!active && !!root.value?.contains(active)
+	},
+	{ flush: 'pre' }
+)
+
+watch(
+	lockState,
+	() => {
+		const panel = root.value
+		if (!focusWasInside || !panel) return
+		focusWasInside = false
+		const active = document.activeElement
+		const lost =
+			!active ||
+			active === document.body ||
+			// The panel itself only holds focus while every control was disabled.
+			active === panel ||
+			(panel.contains(active) && active.matches(':disabled'))
+		if (!lost) return
+		const target = [
+			'[data-testid="quick-set-issue-refresh"]',
+			'[data-testid="quick-set-issue-retry"]',
+			'[data-testid="tap-tempo-tap"]'
+		]
+			.map((selector) =>
+				panel.querySelector<HTMLElement>(`${selector}:not(:disabled)`)
+			)
+			.find(Boolean)
+		;(target ?? panel).focus()
+	},
+	{ flush: 'post' }
+)
 
 const keyCaption = computed(() => {
 	if (props.valueSource === 'saved' && props.pendingKey) return 'Saving…'
@@ -75,7 +132,12 @@ function handleBpmUse(bpm: number) {
 </script>
 
 <template>
-	<div class="space-y-4" data-testid="panel-track-quick-set">
+	<div
+		ref="root"
+		tabindex="-1"
+		class="space-y-4 outline-none"
+		data-testid="panel-track-quick-set"
+	>
 		<div
 			v-if="issues.length || needsRefresh"
 			role="alert"

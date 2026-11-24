@@ -69,7 +69,16 @@ export const useTrackQuickSetStore = defineStore('trackQuickSet', () => {
 		entry.pending[field] = false
 		if (!issue) return
 		entry.issues[field] = issue
-		if (issue.kind === 'conflict-unrefreshed') entry.needsRefresh = true
+		if (issue.kind !== 'conflict-unrefreshed') return
+		entry.needsRefresh = true
+		// The track has moved on again and could not be reloaded, so an earlier
+		// conflict on the other field no longer shows the latest values either.
+		for (const other of QUICK_SET_FIELDS) {
+			const previous = entry.issues[other]
+			if (other !== field && previous?.kind === 'conflict') {
+				entry.issues[other] = { ...previous, kind: 'conflict-unrefreshed' }
+			}
+		}
 	}
 
 	function dismissIssue(trackId: string, field: QuickSetField) {
