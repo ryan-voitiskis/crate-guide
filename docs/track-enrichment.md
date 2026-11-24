@@ -32,6 +32,51 @@ domain naming remain source-agnostic for future analyzers.
 The product has no runtime dependency on Rekordbox itself or on tools that can
 generate compatible XML.
 
+## Manual BPM and Key
+
+Most vinyl DJs have no audio files for their records, so the file-based
+workflow above cannot reach them. Crate Guide therefore also accepts BPM and
+key by hand while the record plays:
+
+- **Tap tempo** (`app/utils/tapTempo.ts`, `ControlTapTempo.vue`) estimates a
+  tempo from the last eight accepted tap intervals, ignores bounces under
+  200 ms, restarts after a 2 s pause, drops intervals more than 25 % from the
+  median, and reports a one-decimal value with a steady/settling signal. The
+  value is written only when the user presses **Use**; taps never write.
+- **Key wheel** (`app/utils/camelotWheel.ts`, `PickerKeyWheel.vue`) lays the
+  24 keys out as a Camelot wheel, labelled in the user's key notation, with
+  keyboard navigation and harmonic neighbours highlighted.
+- Both are composed in `PanelTrackQuickSet.vue`. The track inspector and the
+  record dialog's **Annotate** mode write each confirmed value immediately
+  through `PanelTrackQuickSetLive.vue` and `useTrackQuickSet`; the track editor
+  dialogs bind the same panel to their form fields instead.
+
+Manual values write `bpm`, `key` and `mode` directly through the single-track
+update path with the track's `updated_at` as a version precondition. Key and
+mode are always written together. Writes for one track are queued, so a key
+chosen while a BPM save is pending builds on the version that save produced;
+the server still rejects it if anyone else changed the track.
+
+Pending and rejected writes are held per track in `trackQuickSetStore`, not in
+the panel, so a rejection that arrives after the user has moved to another
+track still shows: the record dialog marks the row **Not saved** and the panel
+shows the rejected value when that track is opened again. Rejections are kept
+per field, so saving the BPM never discards a rejected key. A rejected value is
+never retried automatically; the user can **Try again** against the latest
+version. If the latest version could not be loaded after a conflict, writes for
+that track are blocked and a single **Refresh** is offered; a write already
+queued behind it is held back as not sent rather than sent with a stale
+version, and an earlier conflict on the other field stops claiming that the
+latest values are shown. When the panel locks or unlocks, focus moves to the
+next useful control (Refresh, then Try again, then Tap) rather than dropping
+out of the record dialog. On the Tracks page, a track with a pending or rejected value stays
+selected even if its optimistic value briefly leaves the active filter.
+
+Manual entry does **not** create Evidence or touch
+`audio_features`; it is user data, not analyzer or provider data. Because the
+enrichment path below is fill-only, a value entered by hand is never
+overwritten by a later Rekordbox XML or local-audio review.
+
 ## Data Invariants
 
 - Existing BPM, key, and mode values are never overwritten.
