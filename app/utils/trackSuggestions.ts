@@ -1,5 +1,12 @@
 import { adjustKey, scoreHarmony } from '~/utils/keyFunctions'
-import type { ScoredTrack } from '../../shared/types/session'
+import {
+	type TransitionHistoryIndex,
+	getTransitionHistoryBonus
+} from '~/utils/transitionHistory'
+import type {
+	ScoredTrack,
+	TransitionPairStats
+} from '../../shared/types/session'
 
 /**
  * Filters tracks to those reachable within the pitch range from a target BPM.
@@ -60,13 +67,16 @@ export function calculatePitchAdjustment(
 /**
  * Scores a track for compatibility with the currently playing track.
  * Considers both harmonic compatibility (70% weight) and tempo closeness (30% weight).
+ * Transition history (source track, then this track) only sets `historyBonus`,
+ * a bounded ranking adjustment; it never changes `score`.
  */
 export function scoreTrack(
 	track: Track,
 	targetBpm: number | null,
 	targetKey: number | null,
 	sourceMode: number | null,
-	pitchRange: number
+	pitchRange: number,
+	transitionHistory: TransitionPairStats | null = null
 ): ScoredTrack {
 	let tempoScore: number | null = null
 	let harmonyScore: number | null = null
@@ -124,8 +134,22 @@ export function scoreTrack(
 		tempoScore,
 		harmonyScore,
 		pitchAdjustment,
-		keyCombination
+		keyCombination,
+		transitionHistory,
+		historyBonus: getTransitionHistoryBonus(transitionHistory)
 	}
+}
+
+/**
+ * Sort key for suggestions. Compatibility comes first: the history bonus is
+ * bounded by HISTORY_BONUS_MAX, and unscored candidates rank from -1 so they
+ * stay below every scored candidate (whose rank is at least -HISTORY_BONUS_MAX)
+ * while history still orders them among themselves.
+ */
+export function getSuggestionRank(
+	track: Pick<ScoredTrack, 'score' | 'historyBonus'>
+): number {
+	return (track.score ?? -1) + track.historyBonus
 }
 
 /**
@@ -143,6 +167,8 @@ export function getTrackSuggestions(
 		playedIds: Set<string>
 		pitchRange: number
 		limit?: number
+		/** Saved-set pair history; omit or pass null to rank by compatibility only. */
+		transitionHistory?: TransitionHistoryIndex | null
 	}
 ): ScoredTrack[] {
 	const {
@@ -153,7 +179,8 @@ export function getTrackSuggestions(
 		sourceTrackId,
 		playedIds,
 		pitchRange,
-		limit = 50
+		limit = 50,
+		transitionHistory = null
 	} = options
 
 	let filtered = candidates
@@ -172,13 +199,22 @@ export function getTrackSuggestions(
 	// Filter: Not the currently loaded track
 	filtered = filtered.filter((track) => track.id !== sourceTrackId)
 
-	// Score and sort
+	// Score and sort. Look up the source track's history once per call.
+	const historyFromSource =
+		transitionHistory?.outgoing.get(sourceTrackId) ?? null
 	const scored = filtered.map((track) =>
-		scoreTrack(track, targetBpm, targetKey, sourceMode, pitchRange)
+		scoreTrack(
+			track,
+			targetBpm,
+			targetKey,
+			sourceMode,
+			pitchRange,
+			historyFromSource?.get(track.id) ?? null
+		)
 	)
 
-	// Sort by score descending, limit results
+	// Sort by compatibility plus the bounded history bonus, then limit results
 	return scored
-		.sort((a, b) => (b.score ?? -1) - (a.score ?? -1))
+		.sort((a, b) => getSuggestionRank(b) - getSuggestionRank(a))
 		.slice(0, limit)
 }

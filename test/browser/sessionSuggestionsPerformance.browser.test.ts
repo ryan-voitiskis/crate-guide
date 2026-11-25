@@ -1,9 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cdp } from 'vitest/browser'
 import { getTrackSuggestions } from '../../app/utils/trackSuggestions'
+import {
+	type TransitionHistoryIndex,
+	buildTransitionHistoryIndex
+} from '../../app/utils/transitionHistory'
+import type { LibrarySavedSet } from '../../shared/types/library'
 import type { Track } from '../../shared/types/supabase'
 
 const CORPUS_SIZE = 10_000
+const SAVED_SET_COUNT = 400
+const SAVED_SET_LENGTH = 30
 const CPU_THROTTLE_RATE = 4
 const WARM_UP_GESTURES = 10
 const MEASURED_GESTURES = 40
@@ -61,6 +68,34 @@ function createDeterministicCorpus(): Track[] {
 	}))
 }
 
+// A heavy saved-set history: 12,000 entries, and the source track is followed
+// by a different candidate in every set, so many candidates carry history.
+function createDeterministicHistory(
+	candidates: Track[],
+	sourceTrackId: string
+): TransitionHistoryIndex {
+	const savedSets: Pick<LibrarySavedSet, 'played_tracks'>[] = Array.from(
+		{ length: SAVED_SET_COUNT },
+		(_, setIndex) => ({
+			played_tracks: Array.from(
+				{ length: SAVED_SET_LENGTH },
+				(_, position) => ({
+					track_id:
+						position === 0
+							? sourceTrackId
+							: candidates[(setIndex * 7 + position * 131) % candidates.length]!
+									.id,
+					time_added: setIndex * 1_000 + position,
+					adjusted_bpm: null,
+					transition_rating:
+						position === 0 ? null : (setIndex + position) % 6 || null
+				})
+			)
+		})
+	)
+	return buildTransitionHistoryIndex(savedSets)
+}
+
 function percentile95(samples: number[]): number {
 	if (samples.length === 0) throw new Error('Cannot measure an empty sample')
 	const sorted = [...samples].sort((a, b) => a - b)
@@ -111,6 +146,13 @@ describe('session suggestion interaction budget', () => {
 			candidates.filter((_, index) => index % 97 === 0).map((track) => track.id)
 		)
 		const sourceTrack = candidates[0]!
+		const transitionHistory = createDeterministicHistory(
+			candidates,
+			sourceTrack.id
+		)
+		expect(
+			transitionHistory.outgoing.get(sourceTrack.id)?.size
+		).toBeGreaterThan(100)
 		const measuredRecomputations: TimingInterval[] = []
 		const longTasks: TimingInterval[] = []
 		const longTaskObserver = new PerformanceObserver((entries) => {
@@ -141,7 +183,8 @@ describe('session suggestion interaction budget', () => {
 				sourceRecordId: sourceTrack.record_id,
 				sourceTrackId: sourceTrack.id,
 				playedIds,
-				pitchRange: 8
+				pitchRange: 8,
+				transitionHistory
 			})
 			const finishedAt = performance.now()
 			if (!activeResult) return
