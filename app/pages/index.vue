@@ -6,10 +6,22 @@ const capabilities = useWorkbenchCapabilities()
 
 const isActive = usePageActive(true)
 
+// Saved sets drive the checklist's "Plan a set" step, so the checklist waits
+// for the first fetch to settle instead of flashing that step as incomplete.
+const savedSetsReady = ref(!capabilities.canPersistSessions)
+const {
+	checklist: firstRunChecklist,
+	isVisible: isFirstRunChecklistVisible,
+	dismiss: dismissFirstRunChecklist
+} = useFirstRunChecklist(savedSetsReady)
+
 watchEffect(() => session.setTrackSource(tracks.tracks))
 
 onMounted(() => {
-	if (capabilities.canPersistSessions) session.fetchSavedSets()
+	if (!capabilities.canPersistSessions) return
+	void session.fetchSavedSets().finally(() => {
+		savedSetsReady.value = true
+	})
 })
 </script>
 
@@ -27,6 +39,13 @@ onMounted(() => {
 
 		<Separator class="opacity-70" />
 
+		<LazyChecklistFirstRun
+			v-if="isFirstRunChecklistVisible"
+			:checklist="firstRunChecklist"
+			class="shrink-0"
+			@dismiss="dismissFirstRunChecklist"
+		/>
+
 		<div class="relative min-h-0 flex-1">
 			<StateLoading
 				v-if="records.isLoadingRecords || tracks.isLoadingTracks"
@@ -34,12 +53,15 @@ onMounted(() => {
 				class="h-full"
 			/>
 
-			<StateEmptyCollection
-				v-else-if="!records.hasRecords"
-				icon="session"
-				title="Add records to start a session"
-				description="Sessions are built from the tracks in your record library."
-			/>
+			<!-- The checklist above can leave less height than the empty state's
+			minimum, so this state scrolls instead of overflowing the page. -->
+			<div v-else-if="!records.hasRecords" class="h-full overflow-y-auto">
+				<StateEmptyCollection
+					icon="session"
+					title="Add records to start a session"
+					description="Sessions are built from the tracks in your record library."
+				/>
+			</div>
 
 			<div
 				v-else-if="!tracks.hasTracks"
