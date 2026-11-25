@@ -8,6 +8,10 @@ Plans 044-069, 074 and 075 were completed and removed on 2026-11-18. Their
 handoffs, finding coverage and delivery sequencing remain available at the git
 tag `archive/local-library-2026-11`, and their evidence ledger is
 [implementation-evidence-2026-07-22.md](implementation-evidence-2026-07-22.md).
+Plan 079 (tap tempo, the Camelot key picker and record annotation mode) was
+completed and removed on 2026-11-25. It shipped in PRs #42-#44 (`7b7e3f6`,
+`537dc41`, `5acb301`); manual BPM and key entry is documented in
+[track-enrichment.md](../docs/track-enrichment.md).
 The [November audit](../docs/codebase-audit-2026-11-18.md) records the current
 quality and performance programme.
 
@@ -33,14 +37,13 @@ evidence that a STOP or dependency was resolved.
 
 ## Remaining plans
 
-|   # | Plan                                                                                          | Priority | Effort | Risk | Status   |
-| --: | --------------------------------------------------------------------------------------------- | :------: | :----: | :--: | -------- |
-| 070 | [Add portable library archives](070-add-portable-library-archives.md)                         |    P1    |   XL   | HIGH | DEFERRED |
-| 071 | [Launch signed-out Local libraries](071-launch-signed-out-local-library.md)                   |    P1    |   XL   | HIGH | DEFERRED |
-| 072 | [Copy a Local library to cloud](072-copy-local-library-to-cloud.md)                           |    P2    |   XL   | HIGH | DEFERRED |
-| 073 | [Enable accountless Discogs connection](073-enable-accountless-discogs-connection.md)         |    P2    |   XL   | HIGH | DEFERRED |
-| 076 | [Enable the offline Local app shell](076-enable-offline-local-app-shell.md)                   |    P3    |   L    | MED  | DEFERRED |
-| 079 | [Add tap tempo, a key picker and record annotation mode](079-add-tap-tempo-and-key-picker.md) |    P1    |   M    | LOW  | DONE     |
+|   # | Plan                                                                                  | Priority | Effort | Risk | Status   |
+| --: | ------------------------------------------------------------------------------------- | :------: | :----: | :--: | -------- |
+| 070 | [Add portable library archives](070-add-portable-library-archives.md)                 |    P1    |   XL   | HIGH | DEFERRED |
+| 071 | [Launch signed-out Local libraries](071-launch-signed-out-local-library.md)           |    P1    |   XL   | HIGH | DEFERRED |
+| 072 | [Copy a Local library to cloud](072-copy-local-library-to-cloud.md)                   |    P2    |   XL   | HIGH | DEFERRED |
+| 073 | [Enable accountless Discogs connection](073-enable-accountless-discogs-connection.md) |    P2    |   XL   | HIGH | DEFERRED |
+| 076 | [Enable the offline Local app shell](076-enable-offline-local-app-shell.md)           |    P3    |   L    | MED  | DEFERRED |
 
 [077](077-stabilisation-foundation.md) and
 [078](078-recovery-and-draft-ownership.md) record the stabilisation and recovery
