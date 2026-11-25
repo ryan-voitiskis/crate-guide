@@ -6,6 +6,7 @@ import {
 	UNRATED_PLAY_WEIGHT,
 	buildTransitionHistoryIndex,
 	describeTransitionHistory,
+	describeTransitionHistorySpoken,
 	formatAverageRating,
 	getTransitionHistoryBonus,
 	rankTrackTransitions
@@ -112,6 +113,22 @@ describe('buildTransitionHistoryIndex', () => {
 })
 
 describe('getTransitionHistoryBonus', () => {
+	it('pins the documented product bound independently of the code', () => {
+		// The plan promises ±0.08. Changing it is a product decision: update
+		// plans/080-ratings-feed-suggestions.md and this literal together.
+		expect(HISTORY_BONUS_MAX).toBe(0.08)
+		expect(
+			getTransitionHistoryBonus(
+				stats({ plays: 99, ratedCount: 99, ratingSum: 495, averageRating: 5 })
+			)
+		).toBeLessThanOrEqual(0.08)
+		expect(
+			getTransitionHistoryBonus(
+				stats({ plays: 99, ratedCount: 99, ratingSum: 99, averageRating: 1 })
+			)
+		).toBeGreaterThanOrEqual(-0.08)
+	})
+
 	it('is zero without history and neutral at three stars', () => {
 		expect(getTransitionHistoryBonus(null)).toBe(0)
 		expect(getTransitionHistoryBonus(undefined)).toBe(0)
@@ -227,5 +244,22 @@ describe('transition history labels', () => {
 		expect(
 			describeTransitionHistory(stats({ plays: 2 }), 'Played before this')
 		).toBe('Played before this 2×, unrated')
+	})
+
+	it('describes pairs for screen readers without symbols', () => {
+		expect(
+			describeTransitionHistorySpoken(
+				stats({ plays: 3, ratedCount: 2, ratingSum: 9, averageRating: 4.5 })
+			)
+		).toBe('Played after this 3 times, average 4.5 stars')
+		expect(
+			describeTransitionHistorySpoken(
+				stats({ plays: 1, ratedCount: 1, ratingSum: 1, averageRating: 1 }),
+				'Played before this'
+			)
+		).toBe('Played before this once, average 1 star')
+		expect(describeTransitionHistorySpoken(stats({ plays: 2 }))).toBe(
+			'Played after this 2 times, not rated'
+		)
 	})
 })

@@ -43,7 +43,7 @@ describe('session suggestion presentation', () => {
 				labels: []
 			}))
 		})
-		factories.session.mockReturnValue({ handleSuggestionClick })
+		factories.session.mockReturnValue({ deckCount: 2, handleSuggestionClick })
 		factories.preferences.mockReturnValue({ currentKeyFormat: 'key' })
 		factories.runtime.mockReturnValue({
 			capture: () => ({
@@ -128,7 +128,7 @@ describe('session suggestion presentation', () => {
 		expect(history.text().replace(/\s+/g, ' ')).toBe('3× · 4.5★')
 		expect(history.attributes('title')).toBe('Played after this 3×, avg 4.5★')
 		expect(wrapper.get('button').attributes('aria-label')).toBe(
-			'Load Loved Pair to deck 1. Tempo match 90 out of 100; harmony data unavailable. Played after this 3×, avg 4.5★.'
+			'Load Loved Pair to deck 2. Tempo match 90 out of 100; harmony data unavailable. Played after this 3 times, average 4.5 stars.'
 		)
 		// The badge keeps reporting compatibility only.
 		expect(
@@ -167,6 +167,56 @@ describe('session suggestion presentation', () => {
 		).toBe(false)
 		expect(none.get('button').attributes('aria-label')).not.toContain(
 			'Played after'
+		)
+	})
+
+	it('names the deck that a click actually loads', async () => {
+		const track = createScoredTrack({ title: 'Target' })
+		const labelFor = async (deckCount: number, deckIndex: number) => {
+			factories.session.mockReturnValue({ deckCount, handleSuggestionClick })
+			const wrapper = await mountSuspended(CardTrackSuggestion, {
+				props: { track, deckIndex }
+			})
+			wrappers.add(wrapper)
+			return wrapper.get('button').attributes('aria-label')
+		}
+
+		expect(await labelFor(1, 0)).toMatch(/^Load Target to deck 1\./)
+		expect(await labelFor(2, 0)).toMatch(/^Load Target to deck 2\./)
+		expect(await labelFor(2, 1)).toMatch(/^Load Target to deck 1\./)
+		expect(await labelFor(4, 2)).toMatch(/^Choose a deck for Target\./)
+	})
+
+	it('keeps the metadata row on one line so the card height holds', async () => {
+		const wrapper = await mountSuspended(CardTrackSuggestion, {
+			props: {
+				track: createScoredTrack({
+					bpm: 124,
+					key: 0,
+					mode: 0,
+					keyCombination: 3,
+					pitchAdjustment: 0.02,
+					transitionHistory: {
+						plays: 3,
+						ratedCount: 2,
+						ratingSum: 9,
+						averageRating: 4.5,
+						lastPlayedAt: 1
+					}
+				}),
+				deckIndex: 0
+			}
+		})
+		wrappers.add(wrapper)
+
+		const history = wrapper.get('[data-testid="suggestion-transition-history"]')
+		const row = history.element.parentElement!
+		expect(row.classList).not.toContain('flex-wrap')
+		expect(row.classList).toContain('whitespace-nowrap')
+		expect(history.classes()).toContain('shrink-0')
+		const combination = wrapper.get('[title="Minor to Major"]')
+		expect(combination.classes()).toEqual(
+			expect.arrayContaining(['min-w-0', 'truncate'])
 		)
 	})
 

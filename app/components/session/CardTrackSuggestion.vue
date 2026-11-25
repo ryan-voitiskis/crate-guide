@@ -86,16 +86,30 @@ const transitionHistoryLabel = computed(() =>
 		? describeTransitionHistory(transitionHistory.value)
 		: null
 )
+const transitionHistorySpoken = computed(() =>
+	transitionHistory.value
+		? describeTransitionHistorySpoken(transitionHistory.value)
+		: null
+)
 const transitionHistoryRating = computed(() => {
 	const average = transitionHistory.value?.averageRating
 	return average === null || average === undefined
 		? null
 		: formatAverageRating(average)
 })
+// Mirrors handleSuggestionClick: one deck reloads it, two decks load the
+// other deck, three or more open the deck chooser.
+const loadActionLabel = computed(() => {
+	if (session.deckCount === 1) return `Load ${props.track.title} to deck 1.`
+	if (session.deckCount === 2) {
+		return `Load ${props.track.title} to deck ${props.deckIndex === 0 ? 2 : 1}.`
+	}
+	return `Choose a deck for ${props.track.title}.`
+})
 const accessibleLabel = computed(() => {
-	const label = `Load ${props.track.title} to deck ${props.deckIndex + 1}. ${scoreLabel.value}`
-	return transitionHistoryLabel.value
-		? `${label} ${transitionHistoryLabel.value}.`
+	const label = `${loadActionLabel.value} ${scoreLabel.value}`
+	return transitionHistorySpoken.value
+		? `${label} ${transitionHistorySpoken.value}.`
 		: label
 })
 
@@ -154,31 +168,35 @@ function handleClick() {
 				<!-- Metadata row -->
 				<div
 					v-if="hasMetadataRow"
-					class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs"
+					class="mt-0.5 flex min-w-0 items-center gap-x-2 overflow-hidden text-xs whitespace-nowrap"
 				>
-					<span v-if="track.bpm" class="text-muted-foreground">
+					<span v-if="track.bpm" class="text-muted-foreground shrink-0">
 						{{ track.bpm.toFixed(0) }}
 					</span>
 					<span
 						v-if="keyDisplay"
-						class="font-medium"
+						class="shrink-0 font-medium"
 						:style="{ color: keyColor ?? undefined }"
 					>
 						{{ keyDisplay }}
 					</span>
-					<span v-if="keyCombinationLabel" class="text-muted-foreground">
+					<span
+						v-if="keyCombinationLabel"
+						class="text-muted-foreground min-w-0 truncate"
+						:title="keyCombinationLabel"
+					>
 						{{ keyCombinationLabel }}
 					</span>
 					<span
 						v-if="pitchAdjustmentDisplay !== null"
-						class="font-medium tabular-nums"
+						class="shrink-0 font-medium tabular-nums"
 						:style="{ color: pitchAdjustmentColour }"
 					>
 						{{ pitchAdjustmentDisplay }}
 					</span>
 					<span
 						v-if="transitionHistory"
-						class="text-muted-foreground inline-flex items-center gap-0.5 tabular-nums"
+						class="text-muted-foreground inline-flex shrink-0 items-center gap-0.5 tabular-nums"
 						:title="transitionHistoryLabel ?? undefined"
 						data-testid="suggestion-transition-history"
 					>
@@ -186,7 +204,7 @@ function handleClick() {
 						{{ transitionHistory.plays }}×
 						<template v-if="transitionHistoryRating !== null">
 							·
-							<span class="text-yellow-500">
+							<span class="text-amber-700 dark:text-yellow-500">
 								{{ transitionHistoryRating }}★
 							</span>
 						</template>

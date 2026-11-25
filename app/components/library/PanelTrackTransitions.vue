@@ -20,6 +20,7 @@ type TransitionRow = {
 	plays: number
 	rating: string | null
 	label: string
+	spoken: string
 }
 
 function rowsFor(direction: TransitionDirection): TransitionRow[] {
@@ -48,7 +49,8 @@ function rowsFor(direction: TransitionDirection): TransitionRow[] {
 					stats.averageRating === null
 						? null
 						: formatAverageRating(stats.averageRating),
-				label: describeTransitionHistory(stats, relation)
+				label: describeTransitionHistory(stats, relation),
+				spoken: describeTransitionHistorySpoken(stats, relation)
 			}
 		]
 	})
@@ -113,13 +115,16 @@ const sections = computed(() =>
 						class="text-muted-foreground shrink-0 font-mono text-[10px] tabular-nums"
 						aria-hidden="true"
 					>
-						<span v-if="row.rating !== null" class="text-yellow-500">
+						<span
+							v-if="row.rating !== null"
+							class="text-amber-700 dark:text-yellow-500"
+						>
 							{{ row.rating }}★
 						</span>
 						<span v-else>unrated</span>
 						· {{ row.plays }}×
 					</p>
-					<span class="sr-only">{{ row.label }}</span>
+					<span class="sr-only">{{ row.spoken }}</span>
 				</li>
 			</ol>
 		</div>

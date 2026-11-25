@@ -1,9 +1,11 @@
 import { type ComputedRef, computed, onMounted, toRaw } from 'vue'
+import type { WorkspaceOperationContext } from '~/repositories/library/contracts'
 import {
 	EMPTY_TRANSITION_HISTORY,
 	type TransitionHistoryIndex,
 	buildTransitionHistoryIndex
 } from '~/utils/transitionHistory'
+import type { WorkbenchRuntime } from '~/utils/workbenchPinia'
 import type { LibrarySavedSet } from '~~/shared/types/library'
 
 // The session store replaces its `savedSets` array on every change (save,
@@ -37,21 +39,45 @@ export function useTransitionHistory(): ComputedRef<TransitionHistoryIndex> {
 	return computed(() => getTransitionHistoryForSavedSets(session.savedSets))
 }
 
+// Last workspace activation whose saved sets a page outside the session page
+// loaded successfully, per runtime. Keyed by activation rather than by
+// `savedSets.length` so an empty library is not refetched on every mount and
+// sets left over from another account (whose reset ran while no workbench was
+// mounted) are replaced on first use.
+const loadedActivationByRuntime = new WeakMap<WorkbenchRuntime, string>()
+
+function activationKey(context: WorkspaceOperationContext): string {
+	return `${context.workspaceId}\u0000${context.repositoryId}\u0000${context.activationGeneration}`
+}
+
 /**
  * Pages other than the session page do not load saved sets. On mount, ask the
- * session store for them once when the workspace keeps sessions and none are
- * loaded. `fetchSavedSets` already shares an in-flight request.
+ * session store for them once per workspace activation when the workspace
+ * keeps sessions. `fetchSavedSets` shares an in-flight request for the same
+ * workspace. A successful fetch always publishes a new `savedSets` array and a
+ * failed one leaves it untouched, so an unchanged array means "retry on the
+ * next mount".
  */
 export function useSavedSetsOnMount() {
 	const session = useWorkbenchSessionStore()
-	const capabilities = useWorkbenchCapabilities()
-	onMounted(() => {
+	const runtime = useWorkbenchRuntime()
+	onMounted(async () => {
+		const captured = runtime.capture()
 		if (
-			capabilities.canPersistSessions &&
-			session.savedSets.length === 0 &&
-			!session.isLoadingSets
+			!captured.descriptor.capabilities.canPersistSessions ||
+			captured.descriptor.readOnly
+		)
+			return
+		const key = activationKey(captured.context)
+		if (loadedActivationByRuntime.get(runtime) === key) return
+
+		const before = toRaw(session.savedSets)
+		await session.fetchSavedSets()
+		if (
+			toRaw(session.savedSets) !== before &&
+			runtime.isCurrent(captured.context)
 		) {
-			void session.fetchSavedSets()
+			loadedActivationByRuntime.set(runtime, key)
 		}
 	})
 }

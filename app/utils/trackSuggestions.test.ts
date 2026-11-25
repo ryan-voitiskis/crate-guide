@@ -585,14 +585,11 @@ describe('getTrackSuggestions with transition history', () => {
 			for (let later = earlier + 1; later < result.length; later += 1) {
 				const earlierScore = result[earlier]!.score!
 				const laterScore = result[later]!.score!
-				expect(laterScore - earlierScore).toBeLessThanOrEqual(
-					2 * HISTORY_BONUS_MAX + 1e-9
-				)
+				// Pinned to the documented 0.16 gap, not derived from the constant.
+				expect(laterScore - earlierScore).toBeLessThanOrEqual(0.16 + 1e-9)
 				if (laterScore > earlierScore) swaps += 1
 			}
-			expect(Math.abs(result[earlier]!.historyBonus)).toBeLessThanOrEqual(
-				HISTORY_BONUS_MAX
-			)
+			expect(Math.abs(result[earlier]!.historyBonus)).toBeLessThanOrEqual(0.08)
 		}
 		// History did reorder close candidates, so the bound is what held.
 		expect(swaps).toBeGreaterThan(0)

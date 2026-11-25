@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import type { VueWrapper } from '@vue/test-utils'
 import { createMockTrack } from 'test/mocks/fixtures/tracks'
@@ -8,13 +8,13 @@ import PanelTrackTransitions from '~/components/library/PanelTrackTransitions.vu
 import type { LibrarySavedSet, LibraryTrack } from '~~/shared/types/library'
 
 const factories = vi.hoisted(() => ({
-	capabilities: vi.fn(),
 	preferences: vi.fn(),
+	runtime: vi.fn(),
 	session: vi.fn(),
 	tracks: vi.fn()
 }))
 
-mockNuxtImport('useWorkbenchCapabilities', () => factories.capabilities)
+mockNuxtImport('useWorkbenchRuntime', () => factories.runtime)
 mockNuxtImport('useWorkbenchPreferencesStore', () => factories.preferences)
 mockNuxtImport('useWorkbenchSessionStore', () => factories.session)
 mockNuxtImport('useWorkbenchTracksStore', () => factories.tracks)
@@ -23,8 +23,47 @@ const libraryTracks = new Map<string, LibraryTrack>()
 const session = reactive({
 	savedSets: [] as LibrarySavedSet[],
 	isLoadingSets: false,
-	fetchSavedSets: vi.fn(() => Promise.resolve())
+	fetchSavedSets: vi.fn()
 })
+
+// A successful fetch publishes a new array (even when empty); a failed one
+// leaves the array untouched, as in sessionSavedSets.
+function fetchSucceeds(sets?: LibrarySavedSet[]) {
+	session.fetchSavedSets.mockImplementation(() => {
+		session.savedSets = sets ? [...sets] : [...session.savedSets]
+		return Promise.resolve()
+	})
+}
+
+function fetchFails() {
+	session.fetchSavedSets.mockImplementation(() => Promise.resolve())
+}
+
+function createRuntime(
+	options: {
+		workspaceId?: string
+		canPersistSessions?: boolean
+		readOnly?: boolean
+	} = {}
+) {
+	const descriptor = ref({
+		id: options.workspaceId ?? 'cloud:user-a',
+		repositoryId: 'cloud-supabase',
+		readOnly: options.readOnly ?? false,
+		capabilities: { canPersistSessions: options.canPersistSessions ?? true }
+	})
+	const context = () => ({
+		workspaceId: descriptor.value.id,
+		repositoryId: descriptor.value.repositoryId,
+		activationGeneration: 1
+	})
+	return {
+		descriptor,
+		capture: () => ({ descriptor: descriptor.value, context: context() }),
+		isCurrent: (candidate: { workspaceId: string }) =>
+			candidate.workspaceId === descriptor.value.id
+	}
+}
 const wrappers = new Set<VueWrapper>()
 
 function addTrack(id: string, title: string, artist = `${title} Artist`) {
@@ -76,7 +115,8 @@ describe('PanelTrackTransitions', () => {
 		libraryTracks.clear()
 		session.savedSets = []
 		session.isLoadingSets = false
-		factories.capabilities.mockReturnValue({ canPersistSessions: true })
+		factories.runtime.mockReturnValue(createRuntime())
+		fetchSucceeds()
 		factories.preferences.mockReturnValue({ currentKeyFormat: 'key' })
 		factories.session.mockReturnValue(session)
 		factories.tracks.mockReturnValue({
@@ -126,7 +166,9 @@ describe('PanelTrackTransitions', () => {
 		const peak = wrapper.get('[data-testid="track-transitions-incoming"] li')
 		expect(peak.attributes('title')).toBe('Played before this 2×, avg 4.5★')
 		expect(peak.text().replace(/\s+/g, ' ')).toContain('4.5★ · 2×')
-		expect(peak.get('.sr-only').text()).toBe('Played before this 2×, avg 4.5★')
+		expect(peak.get('.sr-only').text()).toBe(
+			'Played before this 2 times, average 4.5 stars'
+		)
 	})
 
 	it('marks unrated pairs and skips tracks no longer in the library', async () => {
@@ -144,16 +186,16 @@ describe('PanelTrackTransitions', () => {
 		).toBe(false)
 	})
 
-	it('renders nothing without history and fetches saved sets once', async () => {
+	it('renders nothing without history', async () => {
 		const wrapper = await mountPanel()
 
 		expect(wrapper.find('[data-testid="track-transitions"]').exists()).toBe(
 			false
 		)
-		expect(session.fetchSavedSets).toHaveBeenCalledTimes(1)
 	})
 
 	it('updates when saved sets arrive after mount', async () => {
+		fetchFails()
 		const wrapper = await mountPanel()
 		session.savedSets = [savedSet(['hub', 'next-1'], [null, 5])]
 		await wrapper.vm.$nextTick()
@@ -161,14 +203,51 @@ describe('PanelTrackTransitions', () => {
 		expect(rowTitles(wrapper, 'outgoing')).toEqual(['Next Best'])
 	})
 
-	it('does not fetch when sets are loaded, loading or not persisted', async () => {
-		session.savedSets = [savedSet(['hub', 'next-1'])]
+	it('fetches once per workspace activation, even for an empty library', async () => {
+		await mountPanel('hub')
+		await mountPanel('warm')
+		await mountPanel('peak')
+
+		expect(session.fetchSavedSets).toHaveBeenCalledTimes(1)
+	})
+
+	it('retries on the next mount after a failed fetch', async () => {
+		fetchFails()
 		await mountPanel()
-		session.savedSets = []
-		session.isLoadingSets = true
 		await mountPanel()
-		session.isLoadingSets = false
-		factories.capabilities.mockReturnValue({ canPersistSessions: false })
+
+		expect(session.fetchSavedSets).toHaveBeenCalledTimes(2)
+	})
+
+	it('replaces sets left over from another workspace', async () => {
+		// Sets from account A are still in the store when account B's workbench
+		// mounts (the reset ran while no workbench was mounted).
+		session.savedSets = [savedSet(['warm', 'hub'], [null, 5])]
+		const runtime = createRuntime({ workspaceId: 'cloud:user-a' })
+		factories.runtime.mockReturnValue(runtime)
+		await mountPanel()
+		expect(session.fetchSavedSets).toHaveBeenCalledTimes(1)
+
+		runtime.descriptor.value = {
+			...runtime.descriptor.value,
+			id: 'cloud:user-b'
+		}
+		fetchSucceeds([])
+		const wrapper = await mountPanel()
+
+		expect(session.fetchSavedSets).toHaveBeenCalledTimes(2)
+		await wrapper.vm.$nextTick()
+		expect(wrapper.find('[data-testid="track-transitions"]').exists()).toBe(
+			false
+		)
+	})
+
+	it('does not fetch in workspaces that do not keep sessions', async () => {
+		factories.runtime.mockReturnValue(
+			createRuntime({ canPersistSessions: false })
+		)
+		await mountPanel()
+		factories.runtime.mockReturnValue(createRuntime({ readOnly: true }))
 		await mountPanel()
 
 		expect(session.fetchSavedSets).not.toHaveBeenCalled()

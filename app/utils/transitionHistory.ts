@@ -196,3 +196,17 @@ export function describeTransitionHistory(
 			: `avg ${formatAverageRating(stats.averageRating)}★`
 	return `${relation} ${stats.plays}×, ${rating}`
 }
+
+/**
+ * Screen-reader wording without symbols: "Played after this 3 times,
+ * average 4.5 stars" or "Played after this once, not rated".
+ */
+export function describeTransitionHistorySpoken(
+	stats: TransitionPairStats,
+	relation = 'Played after this'
+): string {
+	const plays = stats.plays === 1 ? 'once' : `${stats.plays} times`
+	if (stats.averageRating === null) return `${relation} ${plays}, not rated`
+	const rating = formatAverageRating(stats.averageRating)
+	return `${relation} ${plays}, average ${rating} ${rating === '1' ? 'star' : 'stars'}`
+}

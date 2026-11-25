@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { reactive, toRaw } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { EMPTY_TRANSITION_HISTORY } from '~/utils/transitionHistory'
 import type { LibrarySavedSet } from '~~/shared/types/library'
@@ -51,8 +51,11 @@ describe('useTransitionHistory', () => {
 	it('keys the memo by the raw array behind a reactive proxy', () => {
 		session.savedSets = [savedSet('one', ['a', 'b'])]
 		const proxied = session.savedSets
-		expect(getTransitionHistoryForSavedSets(proxied)).toBe(
-			useTransitionHistory().value
-		)
+		const raw = toRaw(proxied)
+		expect(raw).not.toBe(proxied)
+
+		const fromRaw = getTransitionHistoryForSavedSets(raw)
+		expect(getTransitionHistoryForSavedSets(proxied)).toBe(fromRaw)
+		expect(useTransitionHistory().value).toBe(fromRaw)
 	})
 })
