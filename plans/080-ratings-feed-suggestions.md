@@ -23,8 +23,11 @@
 - **Product context**: Phase 2c ("Close the feedback loop") of
   [docs/product-direction-2026-11.md](../docs/product-direction-2026-11.md).
   Built unattended overnight in parallel with Phase 2b (planner reorder and
-  export) and part of Phase 0; it shares no edited files with either except
-  this index table.
+  export) and part of Phase 0. Besides this index table, it shares one file
+  with Phase 2b: `app/stores/sessionPlayback.ts`, where this plan only adds an
+  optional argument to `getSuggestionsForDeck` and Phase 2b owns the history
+  mutation functions (`loadTrack`, `rateTransition` and reordering). Expect a
+  small, mechanical merge there.
 
 ## Why this matters
 
@@ -81,15 +84,23 @@ inspector, turns ratings from a chore into a tool and costs no new data.
    and source filters are unchanged, and the result limit applies after the
    history-aware sort.
 5. **Card**: when the pair (deck track → candidate) has history, the
-   metadata row shows `↺ 3× · 4.5★` (or `↺ 2×` when unrated), with the full
-   sentence "Played after this 3×, avg 4.5★" as its title and appended to the
-   card's accessible label. The fixed 64 px card height is unchanged.
+   metadata row shows `↺ 3× · 4.5★` (or `↺ 2×` when unrated) with
+   "Played after this 3×, avg 4.5★" as its title. The button's accessible
+   label uses words instead of symbols ("played after this 3 times, average
+   4.5 stars") and names the deck a click actually loads (the other deck with
+   two decks, the chooser with three or four). The metadata row no longer
+   wraps; the key-relation label truncates first, so the 64 px card height
+   holds.
 6. **Inspector**: a "Transition history" section, shown only when the track
    has history, lists up to three transitions into and three out of the track,
    best first (rated before unrated, then average rating, rated count and
    plays). Tracks no longer in the library are skipped. The Tracks page does
-   not fetch saved sets, so the section asks the session store to fetch them
-   once when the workspace can persist sessions and none are loaded.
+   not fetch saved sets, so the panel asks the session store for them once per
+   workspace activation when the workspace keeps sessions. Success is
+   recorded per activation, so an empty library is not refetched on every
+   track selection and a failed fetch is retried on the next mount.
+7. **Rating colour**: amber-700 in the light theme and yellow-500 in the dark
+   theme, for readable contrast at 10–12 px.
 
 ## Commands you will need
 
@@ -183,6 +194,29 @@ order, skipped deleted tracks, empty state and one-time fetch.
   16.7 ms recompute p95.
 - `npm run format`, `npm run check:conventions`, `npm run verify` and
   `npm run audit:prod` pass on the branch.
+
+## Review outcomes and follow-ups
+
+An independent review (Astra) found no critical issues. Fixed in this plan:
+the per-activation saved-set fetch (empty libraries were refetched on every
+selection, and sets left in the store from another account suppressed the
+fetch), metadata-row wrapping, the deck named in the accessible label, spoken
+wording, light-theme contrast, tests that pin the 0.08 and 0.16 bounds as
+literals, and a memo test that now distinguishes raw and proxied arrays.
+
+Left as follow-ups, outside this plan's files:
+
+- **Session reset after an account switch on a public route.** The session
+  store resets saved sets only through `useUserData`'s watcher, which is not
+  mounted on public routes. A switch there leaves the previous account's sets
+  in the store until the next fetch. This plan's index cannot show them
+  (track ids never match the new account's library), and the inspector now
+  refetches per workspace, but `DialogSetManager` still shows them. Fix in the
+  session store or `useUserData`, not here.
+- **Decoder gaps.** `decodeSavedSetRow` drops a malformed played-track entry
+  and keeps its neighbours adjacent, so `A → (bad B) → C` reads as `A → C`.
+  The app never writes such entries; fixing it needs the shared decoder to
+  keep a gap marker, which changes the saved-set contract.
 
 ## STOP conditions
 
