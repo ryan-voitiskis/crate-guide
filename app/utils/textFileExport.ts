@@ -25,22 +25,28 @@ export function downloadTextFile(
 	if (typeof document === 'undefined' || !globalThis.URL?.createObjectURL) {
 		return false
 	}
-	const blob = new Blob([options.withBom ? UTF8_BOM + text : text], {
-		type: `${mimeType};charset=utf-8`
-	})
-	const url = URL.createObjectURL(blob)
+	let url: string | null = null
+	let link: HTMLAnchorElement | null = null
 	try {
-		const link = document.createElement('a')
+		const blob = new Blob([options.withBom ? UTF8_BOM + text : text], {
+			type: `${mimeType};charset=utf-8`
+		})
+		url = URL.createObjectURL(blob)
+		link = document.createElement('a')
 		link.href = url
 		link.download = filename
 		link.rel = 'noopener'
 		document.body.append(link)
 		link.click()
-		link.remove()
 		return true
+	} catch (error) {
+		console.error('Failed to download file:', error)
+		return false
 	} finally {
+		link?.remove()
+		const createdUrl = url
 		// Some browsers start the download asynchronously after the click, so
 		// keep the object URL alive briefly before releasing the blob.
-		setTimeout(() => URL.revokeObjectURL(url), 1000)
+		if (createdUrl) setTimeout(() => URL.revokeObjectURL(createdUrl), 1000)
 	}
 }

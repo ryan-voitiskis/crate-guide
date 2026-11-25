@@ -35,9 +35,18 @@ export function usePackSet() {
 		if (!canPack.value || isPacking.value) return null
 		const recordIds = [...setRecords.value.recordIds]
 		if (recordIds.length === 0) return null
+		const { context } = runtime.capture()
+		const isCurrent = () => runtime.isCurrent(context)
 		isPacking.value = true
 		try {
-			const result = await packRecordsIntoCrate(crates, recordIds, target)
+			const result = await packRecordsIntoCrate(
+				crates,
+				recordIds,
+				target,
+				isCurrent
+			)
+			// A run from a workspace that is no longer active reports nothing.
+			if (!isCurrent()) return null
 			if (!result) {
 				// createCrate reports its own failures; a vanished target does not.
 				if (target.kind === 'existing') toast.error('Crate not found.')

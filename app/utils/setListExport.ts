@@ -94,12 +94,17 @@ function singleLine(value: string): string {
 }
 
 /**
- * Escape characters that Markdown treats as inline formatting, so artist and
- * title text renders literally. Every line starts with the list marker, so
- * block-level markers such as `#` or `-` cannot trigger mid-line.
+ * Escape Markdown so artist and title text renders literally: inline
+ * formatting characters, `&` (which would start an entity such as `&copy;`)
+ * and a block marker at the start of the text (`#`, `>`, `-`, `+`, `=` or
+ * `1.`), which would otherwise turn the list item into a heading, quote or
+ * nested list.
  */
 export function escapeMarkdownText(value: string): string {
-	return singleLine(value).replace(/[\\`*_[\]<>|~]/g, '\\$&')
+	return singleLine(value)
+		.replace(/[\\`*_[\]<>|~&]/g, '\\$&')
+		.replace(/^([#>+=-])/, '\\$1')
+		.replace(/^(\d+)([.)])/, '$1\\$2')
 }
 
 /** A numbered Markdown list, which renders well in posts and READMEs. */
@@ -108,7 +113,8 @@ export function formatSetListMarkdown(rows: readonly SetListRow[]): string {
 		.map((row) => {
 			const details = describeRow(row)
 			const line = `${row.position}. ${escapeMarkdownText(row.artist)} – ${escapeMarkdownText(row.title)}`
-			return details ? `${line} (${escapeMarkdownText(details)})` : line
+			// Details are generated (BPM digits and a key name), never user text.
+			return details ? `${line} (${details})` : line
 		})
 		.join('\n')
 }
@@ -162,7 +168,7 @@ export function createSetListFilename(
 	const slug =
 		(setName ?? '')
 			.normalize('NFKD')
-			.replace(/[̀-ͯ]/g, '')
+			.replace(/[\u0300-\u036f]/g, '')
 			.toLowerCase()
 			.replace(/[^a-z0-9]+/g, '-')
 			.replace(/^-+|-+$/g, '')

@@ -91,6 +91,27 @@ describe('moveSetEntry', () => {
 		expect(edit!.entries[3]!.time_added).toBe(99)
 	})
 
+	it('clears a rating when its predecessor becomes another play of the same track', () => {
+		const entries = [
+			entry('A', null),
+			entry('B', 4),
+			entry('A', 5, { time_added: 99 }),
+			entry('C', 3)
+		]
+
+		// Move the second A before B: A A B C. B's predecessor changes from the
+		// first A to the second, a transition the user never rated.
+		const edit = moveSetEntry(entries, 2, 1)
+
+		expect(summary(edit!.entries)).toEqual([
+			'A:null',
+			'A:null',
+			'B:null',
+			'C:null'
+		])
+		expect(edit!.entries[1]!.time_added).toBe(99)
+	})
+
 	it('does not count already-empty ratings as cleared', () => {
 		const entries = [entry('A', null), entry('B', null), entry('C', null)]
 

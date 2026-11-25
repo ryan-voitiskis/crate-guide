@@ -1,6 +1,9 @@
 import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
-import { resetTrackIdCounter } from 'test/mocks/fixtures/tracks'
+import {
+	createMockTrack,
+	resetTrackIdCounter
+} from 'test/mocks/fixtures/tracks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LibraryPlayedTrackEntry } from '~~/shared/types/library'
 import { useSessionStore } from '../sessionStore'
@@ -70,7 +73,11 @@ describe('sessionStore history editing', () => {
 
 		const result = store.moveHistoryEntry(3, 1)
 
-		expect(result).toEqual({ clearedRatings: 2, removedEntry: null })
+		expect(result).toEqual({
+			editId: expect.any(Number),
+			clearedRatings: 2,
+			removedEntry: null
+		})
 		expect(ratings(store)).toEqual(['A:null', 'D:null', 'B:null', 'C:5'])
 	})
 
@@ -122,33 +129,68 @@ describe('sessionStore history editing', () => {
 	it('undoes the last edit and restores the cleared ratings', () => {
 		const store = useSessionStore()
 		seed(store)
-		store.moveHistoryEntry(3, 1)
+		const edit = store.moveHistoryEntry(3, 1)!
 
-		expect(store.undoHistoryEdit()).toBe(true)
+		expect(store.undoHistoryEdit(edit.editId)).toBe(true)
 		expect(ratings(store)).toEqual(['A:null', 'B:4', 'C:5', 'D:3'])
 		// One level only.
-		expect(store.undoHistoryEdit()).toBe(false)
+		expect(store.undoHistoryEdit(edit.editId)).toBe(false)
 	})
 
 	it('refuses to undo once the history changed after the edit', () => {
 		const store = useSessionStore()
 		seed(store)
-		store.removeHistoryEntry(0)
+		const edit = store.removeHistoryEntry(0)!
 		store.rateTransition(1, 1)
 
-		expect(store.undoHistoryEdit()).toBe(false)
+		expect(store.undoHistoryEdit(edit.editId)).toBe(false)
 		expect(store.currentSession).toHaveLength(3)
 		expect(store.currentSession[1]!.transition_rating).toBe(1)
 	})
 
+	it('never lets an older undo reverse a newer edit', () => {
+		const store = useSessionStore()
+		store.currentSession = [
+			entry('A', null),
+			entry('B', null),
+			entry('C', null)
+		]
+		const removal = store.removeHistoryEntry(0)!
+		// This move clears no rating, so the panel shows no toast for it.
+		const move = store.moveHistoryEntry(0, 1)!
+		expect(move.clearedRatings).toBe(0)
+
+		expect(store.undoHistoryEdit(removal.editId)).toBe(false)
+		expect(ratings(store)).toEqual(['C:null', 'B:null'])
+	})
+
 	it('drops the undo snapshot when the session is cleared', () => {
 		const store = useSessionStore()
-		seed(store)
-		store.moveHistoryEntry(0, 3)
+		store.currentSession = [entry('A', null)]
+		// Removing the sole entry leaves an empty history, which matches the
+		// empty history after clearing; only invalidation stops the undo.
+		const edit = store.removeHistoryEntry(0)!
 		store.clearSession()
 
-		expect(store.undoHistoryEdit()).toBe(false)
+		expect(store.undoHistoryEdit(edit.editId)).toBe(false)
 		expect(store.currentSession).toEqual([])
+	})
+
+	it('gives two plays of one track in the same millisecond distinct identities', () => {
+		vi.useFakeTimers()
+		vi.setSystemTime(new Date('2026-11-25T22:00:00Z'))
+		const track = createMockTrack({ id: 'same' })
+		harness.tracksStore.getTrackById.mockReturnValue(track)
+		const store = useSessionStore()
+
+		store.loadTrack('same', 0)
+		store.loadTrack('same', 1)
+		store.loadTrack('same', 0)
+
+		const times = store.currentSession.map((item) => item.time_added)
+		expect(new Set(times).size).toBe(3)
+		expect(times).toEqual([...times].sort((left, right) => left - right))
+		expect(times[0]).toBe(Date.now())
 	})
 
 	it('autosaves the reordered set with its adjusted ratings', async () => {
@@ -173,5 +215,87 @@ describe('sessionStore history editing', () => {
 				]
 			})
 		)
+	})
+	it('saves the emptied set when its last track is removed, and the undo', async () => {
+		vi.useFakeTimers()
+		const store = useSessionStore()
+		store.currentSession = [entry('A', null)]
+		await nextTick()
+		await vi.advanceTimersByTimeAsync(2000)
+		expect(mockQueryBuilder.insert).toHaveBeenCalledOnce()
+
+		const edit = store.removeHistoryEntry(0)!
+		await nextTick()
+		await vi.advanceTimersByTimeAsync(2000)
+
+		expect(mockQueryBuilder.update).toHaveBeenLastCalledWith(
+			expect.objectContaining({ played_tracks: [] })
+		)
+
+		store.undoHistoryEdit(edit.editId)
+		await nextTick()
+		await vi.advanceTimersByTimeAsync(2000)
+
+		expect(mockQueryBuilder.update).toHaveBeenLastCalledWith(
+			expect.objectContaining({ played_tracks: [entry('A', null)] })
+		)
+		expect(mockQueryBuilder.insert).toHaveBeenCalledOnce()
+	})
+
+	it('saves the emptied set when the first save was still in flight', async () => {
+		vi.useFakeTimers()
+		let resolveInsert!: () => void
+		const insertGate = new Promise<void>((resolve) => {
+			resolveInsert = resolve
+		})
+		const single = mockQueryBuilder.single.getMockImplementation()!
+		mockQueryBuilder.single.mockImplementationOnce(async () => {
+			await insertGate
+			return single()
+		})
+		const store = useSessionStore()
+		store.currentSession = [entry('A', null)]
+		await nextTick()
+		await vi.advanceTimersByTimeAsync(2000)
+		expect(mockQueryBuilder.insert).toHaveBeenCalledOnce()
+
+		store.removeHistoryEntry(0)
+		await nextTick()
+		await vi.advanceTimersByTimeAsync(2000)
+		resolveInsert()
+		await vi.advanceTimersByTimeAsync(0)
+
+		expect(mockQueryBuilder.update).toHaveBeenLastCalledWith(
+			expect.objectContaining({ played_tracks: [] })
+		)
+		expect(mockQueryBuilder.insert).toHaveBeenCalledOnce()
+	})
+
+	it('never creates a saved set for a history that was emptied before saving', async () => {
+		vi.useFakeTimers()
+		const store = useSessionStore()
+		store.currentSession = [entry('A', null)]
+		await nextTick()
+		store.removeHistoryEntry(0)
+		await nextTick()
+		await vi.advanceTimersByTimeAsync(4000)
+
+		expect(mockQueryBuilder.insert).not.toHaveBeenCalled()
+		expect(mockQueryBuilder.update).not.toHaveBeenCalled()
+	})
+
+	it('clearing the session still does not overwrite the saved set', async () => {
+		vi.useFakeTimers()
+		const store = useSessionStore()
+		store.currentSession = [entry('A', null)]
+		await nextTick()
+		await vi.advanceTimersByTimeAsync(2000)
+
+		store.clearSession()
+		await nextTick()
+		await vi.advanceTimersByTimeAsync(4000)
+
+		expect(mockQueryBuilder.insert).toHaveBeenCalledOnce()
+		expect(mockQueryBuilder.update).not.toHaveBeenCalled()
 	})
 })

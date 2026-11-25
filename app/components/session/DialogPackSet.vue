@@ -42,6 +42,12 @@ function handleModeChange(value: unknown) {
 	if (value === 'new' || value === 'existing') mode.value = value
 }
 
+/** The dialog cannot be dismissed while a pack is running. */
+function handleOpenChange(value: boolean) {
+	if (!value && isPacking.value) return
+	open.value = value
+}
+
 async function submit() {
 	if (!canSubmit.value) return
 	const result = await pack(
@@ -54,7 +60,10 @@ async function submit() {
 </script>
 
 <template>
-	<Dialog v-model:open="open">
+	<Dialog :open="open" @update:open="handleOpenChange">
+		<DialogTrigger as-child>
+			<slot />
+		</DialogTrigger>
 		<DialogContent class="sm:max-w-md">
 			<DialogHeader>
 				<DialogTitle>Pack this set</DialogTitle>
@@ -126,7 +135,12 @@ async function submit() {
 				</div>
 
 				<DialogFooter>
-					<Button type="button" variant="ghost" @click="open = false">
+					<Button
+						type="button"
+						variant="ghost"
+						:disabled="isPacking"
+						@click="handleOpenChange(false)"
+					>
 						Cancel
 					</Button>
 					<ButtonLoading

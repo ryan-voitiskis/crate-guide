@@ -87,11 +87,17 @@ link planning to the coming Bag view (Phase 2a).
    An entry moved to the top loses its rating because it has no predecessor.
    This never shows a rating for a transition the user did not rate.
 2. **Undo.** When a move or removal clears at least one rating, or removes an
-   entry, a toast offers **Undo** for that one edit. Undo applies only if the
-   history has not changed since; otherwise it reports that it cannot undo.
+   entry, a toast offers **Undo** for that one edit. Each Undo is bound to its
+   edit: it applies only if that edit is still the latest and the history has
+   not changed since; otherwise it reports that it cannot undo.
 3. **Remove.** "Remove from set" is included because a planner without it
    forces clearing the whole session to fix one mis-load. It follows the same
-   rating rule.
+   rating rule. Removing the last entry autosaves the now-empty set to the
+   saved set it belongs to (also when that set's first save is still in
+   flight), but never creates an empty saved set. "Clear session" keeps its
+   existing meaning: start a new session and leave the saved set untouched.
+   Plays get strictly increasing `time_added` values within a session so two
+   plays of one track never share an identity.
 4. **Keyboard.** Each entry has labelled "Move up" and "Move down" buttons
    (disabled at the ends) and `Alt+ArrowUp` / `Alt+ArrowDown` on the focused
    entry. Focus follows the moved entry and a polite live region announces the
@@ -110,11 +116,14 @@ link planning to the coming Bag view (Phase 2a).
 8. **Pack this set.** Collects the distinct record ids of the set's tracks in
    set order, skipping tracks no longer in the library. "New crate" creates a
    crate (default name: the saved set name, else `Set YYYY-MM-DD`) and adds the
-   records. "Existing crate" adds only the missing records and never removes
-   any. Writes are sequential through the store; the result toast reports
-   added, already present and failed counts. Hidden behind a disabled button
-   with an explanation when `canManageCrates` is false or the workbench is
-   read-only.
+   records. "Existing crate" never removes records. Every record goes through
+   the store's idempotent `addRecordToCrate`, even one the cached crate lists,
+   so a record removed in another tab is restored rather than reported as
+   present. Writes are sequential; the result toast reports added, already
+   present and failed counts. A run stops silently if the workspace changes
+   (sign-out, account switch), and the dialog cannot be dismissed while it
+   runs. The button is disabled with a visible explanation when
+   `canManageCrates` is false or the workbench is read-only.
 
 ## Steps
 
@@ -182,7 +191,10 @@ and `npx vitest run --project unit app/utils/packSet.test.ts`
   menu, packing into a new crate and the demo/read-only gates.
 - Mutation checks: making `rebuildFromOrder` keep every rating fails 10 tests
   across unit, stores and nuxt; removing the CSV formula prefix fails 5.
-- Gates and Astra's review are recorded in the PR.
+- Astra's review (3 high, 3 medium, 5 low) was addressed in a follow-up
+  commit; each fix has a regression test that fails when the fix is reverted.
+  The mapping is in the PR's final comment.
+- Gates are recorded in the PR.
 
 ## STOP conditions
 

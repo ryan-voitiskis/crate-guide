@@ -144,6 +144,33 @@ describe('formatSetListMarkdown', () => {
 		).toBe('1. \\*NSYNC\\_ – Track \\[Edit\\] \\<b\\>\\|\\~\\` (124.0 BPM, 8A)')
 	})
 
+	it.each([
+		['# Artist', '\\# Artist'],
+		['> Quote', '\\> Quote'],
+		['- Dash', '\\- Dash'],
+		['+ Plus', '\\+ Plus'],
+		['= Equals', '\\= Equals'],
+		['1. Intro', '1\\. Intro'],
+		['2) Outro', '2\\) Outro'],
+		['Fish &copy; Chips', 'Fish \\&copy; Chips']
+	])('escapes the block marker or entity in %j', (value, expected) => {
+		expect(escapeMarkdownText(value)).toBe(expected)
+	})
+
+	it('keeps a leading block marker from changing the list item', () => {
+		expect(
+			formatSetListMarkdown([
+				{
+					position: 1,
+					artist: '# Artist',
+					title: 'Title',
+					bpm: null,
+					key: null
+				}
+			])
+		).toBe('1. \\# Artist – Title')
+	})
+
 	it('leaves ordinary punctuation alone', () => {
 		expect(escapeMarkdownText("Mr. G - U Can't Hide (Remix)!")).toBe(
 			"Mr. G - U Can't Hide (Remix)!"

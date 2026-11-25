@@ -10,6 +10,8 @@ import type { ScoredTrack } from '~~/shared/types/session'
 import type { SessionDeck as Deck } from './sessionTypes'
 
 export interface HistoryEditResult {
+	/** Identifies this edit; `undoHistoryEdit` restores only the latest one. */
+	editId: number
 	/** Transition ratings cleared because their pair no longer exists. */
 	clearedRatings: number
 	/** The removed entry, for removals. */
@@ -17,6 +19,7 @@ export interface HistoryEditResult {
 }
 
 interface HistoryUndoSnapshot {
+	editId: number
 	before: LibraryPlayedTrackEntry[]
 	afterSignature: string
 }
@@ -58,6 +61,7 @@ export function createSessionPlayback({
 	})
 	const faderAnimationGenerations = new Map<number, number>()
 	let historyUndo: HistoryUndoSnapshot | null = null
+	let historyEditCounter = 0
 
 	function beginFaderAnimation(deckIndex: number): number {
 		const generation = (faderAnimationGenerations.get(deckIndex) ?? 0) + 1
@@ -183,9 +187,15 @@ export function createSessionPlayback({
 			}
 		}
 
+		// Strictly increasing within a session, so two plays of one track in the
+		// same millisecond still have distinct identities (list keys, undo).
+		const lastTimeAdded = currentSession.value.reduce(
+			(latest, entry) => Math.max(latest, entry.time_added),
+			Number.NEGATIVE_INFINITY
+		)
 		currentSession.value.push({
 			track_id: trackId,
-			time_added: Date.now(),
+			time_added: Math.max(Date.now(), lastTimeAdded + 1),
 			adjusted_bpm: finalAdjustedBpm,
 			transition_rating: null,
 			track_title: track.title,
@@ -286,12 +296,15 @@ export function createSessionPlayback({
 		if (entry) entry.transition_rating = rating
 	}
 
-	function commitHistoryEdit(next: LibraryPlayedTrackEntry[]): void {
+	function commitHistoryEdit(next: LibraryPlayedTrackEntry[]): number {
+		historyEditCounter += 1
 		historyUndo = {
+			editId: historyEditCounter,
 			before: currentSession.value.map((entry) => ({ ...entry })),
 			afterSignature: historySignature(next)
 		}
 		currentSession.value = next
+		return historyEditCounter
 	}
 
 	/**
@@ -304,30 +317,32 @@ export function createSessionPlayback({
 	): HistoryEditResult | null {
 		const edit = moveSetEntry(currentSession.value, fromIndex, toIndex)
 		if (!edit) return null
-		commitHistoryEdit(edit.entries)
-		return { clearedRatings: edit.clearedRatings, removedEntry: null }
+		const editId = commitHistoryEdit(edit.entries)
+		return { editId, clearedRatings: edit.clearedRatings, removedEntry: null }
 	}
 
 	function removeHistoryEntry(index: number): HistoryEditResult | null {
 		const removedEntry = currentSession.value[index]
 		const edit = removeSetEntry(currentSession.value, index)
 		if (!edit || !removedEntry) return null
-		commitHistoryEdit(edit.entries)
+		const editId = commitHistoryEdit(edit.entries)
 		return {
+			editId,
 			clearedRatings: edit.clearedRatings,
 			removedEntry: { ...removedEntry }
 		}
 	}
 
 	/**
-	 * Restore the history from before the last move or removal. Refuses when
-	 * anything changed since (a new track, a rating, another edit), so undo
-	 * never discards work done after the edit.
+	 * Restore the history from before edit `editId`. Refuses unless that edit
+	 * is the latest one and nothing changed since (a new track, a rating), so
+	 * an older Undo can never reverse a newer edit or discard later work.
 	 */
-	function undoHistoryEdit(): boolean {
+	function undoHistoryEdit(editId: number): boolean {
 		const snapshot = historyUndo
 		if (
 			!snapshot ||
+			snapshot.editId !== editId ||
 			historySignature(currentSession.value) !== snapshot.afterSignature
 		) {
 			return false

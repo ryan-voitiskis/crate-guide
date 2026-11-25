@@ -67,12 +67,13 @@ async function restoreFocus(index: number, source: HistoryMoveSource) {
 	item.focus()
 }
 
-function offerUndo(message: string) {
+/** The toast's Undo is bound to this edit; a later edit makes it refuse. */
+function offerUndo(message: string, editId: number) {
 	toast(message, {
 		action: {
 			label: 'Undo',
 			onClick: () => {
-				if (session.undoHistoryEdit()) {
+				if (session.undoHistoryEdit(editId)) {
 					announce('Undone.')
 				} else {
 					toast.info('The set changed since, so that edit cannot be undone.')
@@ -100,7 +101,10 @@ function handleMove(
 	let message = `${entryTitle(entry)} moved to position ${toIndex + 1} of ${total}.`
 	if (result.clearedRatings > 0) {
 		message += ` ${ratingsClearedText(result.clearedRatings)}.`
-		offerUndo(`Moved. ${ratingsClearedText(result.clearedRatings)}.`)
+		offerUndo(
+			`Moved. ${ratingsClearedText(result.clearedRatings)}.`,
+			result.editId
+		)
 	}
 	announce(message)
 	void restoreFocus(toIndex, source)
@@ -115,7 +119,7 @@ async function handleRemove(index: number) {
 		message += ` ${ratingsClearedText(result.clearedRatings)}.`
 	}
 	announce(message)
-	offerUndo(message)
+	offerUndo(message, result.editId)
 
 	await nextTick()
 	const nextIndex = Math.min(index, session.currentSession.length - 1)
@@ -205,22 +209,37 @@ function handleDragEnd() {
 			<MetricSessionBpmArc />
 			<div class="flex items-center justify-end gap-1.5">
 				<ControlsSessionExport />
+				<!-- As the dialog's trigger, the button gets focus back on close. -->
+				<DialogPackSet v-if="canPack" v-model:open="showPackDialog">
+					<Button
+						variant="outline"
+						size="sm"
+						class="h-7 gap-1.5 px-2 text-xs"
+						title="Put every record from this set in a crate"
+					>
+						<PackagePlus class="size-3.5" />
+						Pack this set
+					</Button>
+				</DialogPackSet>
 				<Button
+					v-else
 					variant="outline"
 					size="sm"
 					class="h-7 gap-1.5 px-2 text-xs"
-					:disabled="!canPack"
-					:title="
-						canPack
-							? 'Put every record from this set in a crate'
-							: 'Crates cannot be changed in this workspace'
-					"
-					@click="showPackDialog = true"
+					disabled
+					aria-describedby="pack-set-unavailable"
 				>
 					<PackagePlus class="size-3.5" />
 					Pack this set
 				</Button>
 			</div>
+			<p
+				v-if="!canPack"
+				id="pack-set-unavailable"
+				class="text-muted-foreground text-right text-[11px]"
+			>
+				Crates can't be changed in this workspace, so packing is off.
+			</p>
 		</div>
 
 		<Separator />
@@ -271,7 +290,5 @@ function handleDragEnd() {
 				No tracks played yet
 			</div>
 		</ScrollArea>
-
-		<DialogPackSet v-if="canPack" v-model:open="showPackDialog" />
 	</div>
 </template>

@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
 	crates: null as unknown,
 	capabilities: { canManageCrates: true } as { canManageCrates: boolean },
 	readOnly: false,
+	workspaceCurrent: true,
 	toast: Object.assign(vi.fn(), {
 		success: vi.fn(),
 		error: vi.fn(),
@@ -35,7 +36,9 @@ mockNuxtImport('useWorkbenchPreferencesStore', () => () => ({
 }))
 mockNuxtImport('useWorkbenchCapabilities', () => () => mocks.capabilities)
 mockNuxtImport('useWorkbenchRuntime', () => () => ({
-	descriptor: computed(() => ({ readOnly: mocks.readOnly }))
+	descriptor: computed(() => ({ readOnly: mocks.readOnly })),
+	capture: () => ({ context: { workspaceId: 'workspace-1' } }),
+	isCurrent: () => mocks.workspaceCurrent
 }))
 
 const wrappers = new Set<VueWrapper>()
@@ -158,6 +161,7 @@ describe('session history planner', () => {
 	beforeEach(() => {
 		mocks.capabilities.canManageCrates = true
 		mocks.readOnly = false
+		mocks.workspaceCurrent = true
 	})
 
 	afterEach(() => {
@@ -298,8 +302,18 @@ describe('session history planner', () => {
 		const wrapper = await mountPanel()
 		const items = wrapper.findAll('li')
 
+		expect(items.map((item) => item.attributes('draggable'))).toEqual([
+			'true',
+			'true',
+			'true',
+			'true'
+		])
+
 		await items[0]!.trigger('dragstart')
-		await items[2]!.trigger('dragover')
+		// The browser only allows a drop where dragover was cancelled.
+		const dragover = new Event('dragover', { cancelable: true })
+		items[2]!.element.dispatchEvent(dragover)
+		expect(dragover.defaultPrevented).toBe(true)
 		await items[2]!.trigger('drop')
 		await flushPromises()
 
@@ -358,6 +372,12 @@ describe('session history planner', () => {
 			.findAll('button')
 			.find((button) => button.text().includes('Pack this set'))!
 		expect(packButton.attributes('disabled')).toBeDefined()
+		expect(packButton.attributes('aria-describedby')).toBe(
+			'pack-set-unavailable'
+		)
+		expect(wrapper.find('#pack-set-unavailable').text()).toBe(
+			"Crates can't be changed in this workspace, so packing is off."
+		)
 		expect(document.querySelector('#pack-set-crate-name')).toBeNull()
 	})
 
@@ -372,15 +392,110 @@ describe('session history planner', () => {
 		expect(packButton.attributes('disabled')).toBeDefined()
 	})
 
-	it('hides the planner tools for an empty history', async () => {
+	it('hides the planner tools once the last entry is removed', async () => {
 		const { playback } = setUpStores(createTracks())
-		playback.currentSession.value = []
+		playback.currentSession.value = playback.currentSession.value.slice(0, 1)
+		const wrapper = await mountPanel()
+		const tools = () => wrapper.find('[data-testid="session-planner-tools"]')
+		expect(tools().exists()).toBe(true)
+
+		await wrapper.find('[data-history-action="remove"]').trigger('click')
+		await flushPromises()
+
+		expect(tools().exists()).toBe(false)
+		expect(wrapper.text()).toContain('No tracks played yet')
+	})
+
+	it('refuses an older undo toast after a newer edit', async () => {
+		const { playback } = setUpStores(createTracks())
+		playback.currentSession.value = playback.currentSession.value.map(
+			(item) => ({ ...item, transition_rating: null })
+		)
 		const wrapper = await mountPanel()
 
-		expect(wrapper.find('[data-testid="session-planner-tools"]').exists()).toBe(
-			false
+		await wrapper.findAll('[data-history-action="remove"]')[0]!.trigger('click')
+		// Unrated, so this move shows no toast of its own.
+		await wrapper
+			.findAll('[data-history-action="move-down"]')[0]!
+			.trigger('click')
+		await flushPromises()
+		expect(mocks.toast).toHaveBeenCalledOnce()
+
+		const options = mocks.toast.mock.calls[0]![1] as {
+			action: { onClick: () => void }
+		}
+		options.action.onClick()
+		await flushPromises()
+
+		expect(titles(wrapper)).toEqual(['Charlie', 'Bravo', 'Delta'])
+		expect(mocks.toast.info).toHaveBeenCalledWith(
+			'The set changed since, so that edit cannot be undone.'
 		)
-		expect(wrapper.text()).toContain('No tracks played yet')
+	})
+
+	it('keeps the pack dialog open and cancel disabled while packing, then returns focus', async () => {
+		const { crates } = setUpStores(createTracks())
+		let release!: () => void
+		const gate = new Promise<void>((resolve) => {
+			release = resolve
+		})
+		const add = crates.addRecordToCrate.getMockImplementation()!
+		crates.addRecordToCrate.mockImplementationOnce(async (...args) => {
+			await gate
+			return add(...args)
+		})
+		const wrapper = await mountPanel()
+		const packButton = wrapper
+			.findAll('button')
+			.find((button) => button.text().includes('Pack this set'))!
+		;(packButton.element as HTMLButtonElement).focus()
+		await packButton.trigger('click')
+		await flushPromises()
+
+		document.querySelector('form')!.dispatchEvent(new Event('submit'))
+		await flushPromises()
+		const cancel = [...document.querySelectorAll('button')].find(
+			(button) => button.textContent?.trim() === 'Cancel'
+		)!
+		expect(cancel.disabled).toBe(true)
+		document
+			.querySelector('[role="dialog"]')!
+			.dispatchEvent(
+				new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+			)
+		await flushPromises()
+		expect(document.querySelector('#pack-set-crate-name')).not.toBeNull()
+
+		release()
+		await flushPromises()
+		await vi.waitFor(() =>
+			expect(document.querySelector('#pack-set-crate-name')).toBeNull()
+		)
+		await vi.waitFor(() =>
+			expect(document.activeElement).toBe(packButton.element)
+		)
+	})
+
+	it('reports nothing when the workspace changed during packing', async () => {
+		const { crates } = setUpStores(createTracks())
+		crates.addRecordToCrate.mockImplementationOnce(async () => {
+			mocks.workspaceCurrent = false
+			return false
+		})
+		const wrapper = await mountPanel()
+		await wrapper
+			.findAll('button')
+			.find((button) => button.text().includes('Pack this set'))!
+			.trigger('click')
+		await flushPromises()
+
+		document.querySelector('form')!.dispatchEvent(new Event('submit'))
+		await flushPromises()
+
+		expect(crates.addRecordToCrate).toHaveBeenCalledOnce()
+		expect(mocks.toast.success).not.toHaveBeenCalled()
+		expect(mocks.toast.warning).not.toHaveBeenCalled()
+		expect(mocks.toast.error).not.toHaveBeenCalled()
 	})
 })
 

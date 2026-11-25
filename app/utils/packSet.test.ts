@@ -34,10 +34,13 @@ function createWriter(initial: LibraryCrate[] = []) {
 		addRecordToCrate: vi.fn(async (crateId: string, recordId: string) => {
 			const current = crates.get(crateId)
 			if (!current || failRecords.has(recordId)) return false
-			crates.set(crateId, {
-				...current,
-				records: [...current.records, recordId]
-			})
+			// Idempotent, like the add_record_to_crate RPC.
+			if (!current.records.includes(recordId)) {
+				crates.set(crateId, {
+					...current,
+					records: [...current.records, recordId]
+				})
+			}
 			return true
 		}),
 		getCrateById: vi.fn((id: string) => crates.get(id))
@@ -71,7 +74,7 @@ describe('packRecordsIntoCrate', () => {
 		})
 	})
 
-	it('updates an existing crate with only the missing records', async () => {
+	it('adds to an existing crate and counts records it already listed', async () => {
 		const { writer } = createWriter([crate('c1', ['r2', 'keep'])])
 
 		const result = await packRecordsIntoCrate(writer, ['r1', 'r2', 'r3'], {
@@ -80,12 +83,68 @@ describe('packRecordsIntoCrate', () => {
 		})
 
 		expect(writer.createCrate).not.toHaveBeenCalled()
-		expect(writer.addRecordToCrate.mock.calls.map((call) => call[1])).toEqual([
-			'r1',
-			'r3'
-		])
 		expect(result).toMatchObject({ added: 2, alreadyPresent: 1, failed: 0 })
 		expect(result!.crate.records).toEqual(['r2', 'keep', 'r1', 'r3'])
+	})
+
+	it('reconciles through the store even when the cached crate lists the record', async () => {
+		// Another tab removed r1; this tab's cached crate still lists it. Only
+		// the store's idempotent add can restore the persisted membership.
+		const persisted = new Set<string>()
+		const { writer } = createWriter([crate('c1', ['r1'])])
+		writer.addRecordToCrate.mockImplementation(async (_crateId, recordId) => {
+			persisted.add(recordId)
+			return true
+		})
+
+		const result = await packRecordsIntoCrate(writer, ['r1'], {
+			kind: 'existing',
+			crateId: 'c1'
+		})
+
+		expect(writer.addRecordToCrate).toHaveBeenCalledWith('c1', 'r1', {
+			silent: true
+		})
+		expect(persisted.has('r1')).toBe(true)
+		expect(result).toMatchObject({ added: 0, alreadyPresent: 1, failed: 0 })
+	})
+
+	it('stops and reports nothing once the workspace changes', async () => {
+		const { writer } = createWriter([crate('c1')])
+		let current = true
+		writer.addRecordToCrate.mockImplementationOnce(async () => {
+			current = false
+			return false
+		})
+
+		const result = await packRecordsIntoCrate(
+			writer,
+			['r1', 'r2', 'r3'],
+			{ kind: 'existing', crateId: 'c1' },
+			() => current
+		)
+
+		expect(result).toBeNull()
+		expect(writer.addRecordToCrate).toHaveBeenCalledOnce()
+	})
+
+	it('does not start writing into a crate created in a workspace that is gone', async () => {
+		const { writer } = createWriter()
+		let current = true
+		writer.createCrate.mockImplementationOnce(async (input) => {
+			current = false
+			return { ...crate('new-crate'), ...input }
+		})
+
+		const result = await packRecordsIntoCrate(
+			writer,
+			['r1'],
+			{ kind: 'new', name: 'Friday' },
+			() => current
+		)
+
+		expect(result).toBeNull()
+		expect(writer.addRecordToCrate).not.toHaveBeenCalled()
 	})
 
 	it('counts failed writes and keeps going', async () => {
