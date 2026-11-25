@@ -71,6 +71,7 @@ describe('deriveFirstRunChecklist', () => {
 			'settings'
 		]
 		for (const step of deriveFirstRunChecklist(emptyInput).steps) {
+			if (step.path !== null) expect(step.actionLabel?.trim()).toBeTruthy()
 			const name = step.actionLabel?.toLowerCase() ?? ''
 			for (const label of navigationLabels) expect(name).not.toContain(label)
 		}

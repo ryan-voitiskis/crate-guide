@@ -2,27 +2,47 @@
 const records = useWorkbenchRecordsStore()
 const session = useWorkbenchSessionStore()
 const tracks = useWorkbenchTracksStore()
-const capabilities = useWorkbenchCapabilities()
+const runtime = useWorkbenchRuntime()
 
 const isActive = usePageActive(true)
+const sessionContent = useTemplateRef<HTMLElement>('sessionContent')
 
 // Saved sets drive the checklist's "Plan a set" step, so the checklist waits
-// for the first fetch to settle instead of flashing that step as incomplete.
-const savedSetsReady = ref(!capabilities.canPersistSessions)
+// for a fetch to settle instead of flashing that step as incomplete. A new
+// workspace (sign-in finishing, an account switch) fetches again, and only the
+// latest fetch marks the list as known.
+const savedSetsReady = ref(false)
+let savedSetsFetchGeneration = 0
 const {
 	checklist: firstRunChecklist,
 	isVisible: isFirstRunChecklistVisible,
 	dismiss: dismissFirstRunChecklist
 } = useFirstRunChecklist(savedSetsReady)
 
+function loadSavedSets() {
+	const generation = ++savedSetsFetchGeneration
+	if (!runtime.descriptor.value.capabilities.canPersistSessions) {
+		savedSetsReady.value = true
+		return
+	}
+	savedSetsReady.value = false
+	void session.fetchSavedSets().finally(() => {
+		if (generation === savedSetsFetchGeneration) savedSetsReady.value = true
+	})
+}
+
+// Dismissing removes the focused button, so move focus to the page content
+// rather than dropping it to the document body.
+async function handleFirstRunChecklistDismiss() {
+	dismissFirstRunChecklist()
+	await nextTick()
+	sessionContent.value?.focus()
+}
+
 watchEffect(() => session.setTrackSource(tracks.tracks))
 
-onMounted(() => {
-	if (!capabilities.canPersistSessions) return
-	void session.fetchSavedSets().finally(() => {
-		savedSetsReady.value = true
-	})
-})
+onMounted(loadSavedSets)
+watch(() => runtime.descriptor.value.id, loadSavedSets)
 </script>
 
 <template>
@@ -43,10 +63,15 @@ onMounted(() => {
 			v-if="isFirstRunChecklistVisible"
 			:checklist="firstRunChecklist"
 			class="shrink-0"
-			@dismiss="dismissFirstRunChecklist"
+			@dismiss="handleFirstRunChecklistDismiss"
 		/>
 
-		<div class="relative min-h-0 flex-1">
+		<div
+			ref="sessionContent"
+			tabindex="-1"
+			class="relative min-h-0 flex-1 outline-none"
+			data-testid="session-content"
+		>
 			<StateLoading
 				v-if="records.isLoadingRecords || tracks.isLoadingTracks"
 				message="Loading tracks..."

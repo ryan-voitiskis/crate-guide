@@ -45,6 +45,7 @@ export function summarizeTrackAnalysisCoverage(
 		missingKey: total - withKey,
 		missingAnalysis: total - withBpmAndKey,
 		percentWithBpmAndKey:
-			total === 0 ? 0 : Math.floor((withBpmAndKey / total) * 100)
+			// Integer maths first: (29 / 100) * 100 is 28.999… in floating point.
+			total === 0 ? 0 : Math.floor((withBpmAndKey * 100) / total)
 	}
 }

@@ -92,9 +92,12 @@ const coverageDetail = computed(() => {
 					<span class="truncate">{{ step.label }}</span>
 					<span class="sr-only">{{ step.done ? '(done)' : '(to do)' }}</span>
 				</div>
+				<!-- Phones hide descriptions to save deck space, except for a step
+				with no link, where the description is the only instruction. -->
 				<p
 					v-if="!step.done"
-					class="text-muted-foreground hidden text-[11px] leading-snug sm:block"
+					class="text-muted-foreground text-[11px] leading-snug sm:block"
+					:class="step.path === null ? 'block' : 'hidden'"
 				>
 					<template v-if="step.id === 'add-bpm-key'">
 						Aim for {{ FIRST_RUN_BPM_KEY_TARGET_PERCENT }}% or more.

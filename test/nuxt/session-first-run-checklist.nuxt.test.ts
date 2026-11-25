@@ -10,6 +10,8 @@ type MockTrack = { bpm: number | null; key: number | null; mode: number | null }
 const pageMocks = await vi.hoisted(async () => {
 	const { reactive } = await import('vue')
 	return reactive({
+		workspace: { id: 'cloud:account-a', readOnly: false },
+		user: { profile: { id: 'account-a' } as { id: string } | null },
 		capabilities: {
 			location: 'cloud',
 			canPersistSessions: true,
@@ -54,8 +56,13 @@ mockNuxtImport(
 	() => () => pageMocks.discogsAuth
 )
 mockNuxtImport('useWorkbenchCapabilities', () => () => pageMocks.capabilities)
+mockNuxtImport('useWorkbenchUserStore', () => () => pageMocks.user)
 mockNuxtImport('useWorkbenchRuntime', () => () => ({
-	descriptor: computed(() => ({ capabilities: pageMocks.capabilities }))
+	descriptor: computed(() => ({
+		id: pageMocks.workspace.id,
+		readOnly: pageMocks.workspace.readOnly,
+		capabilities: pageMocks.capabilities
+	}))
 }))
 mockNuxtImport('usePageActive', () => () => computed(() => true))
 
@@ -67,6 +74,7 @@ let wrapper: VueWrapper | null = null
 async function mountSessionPage() {
 	document.body.innerHTML = '<div id="header-left"></div>'
 	wrapper = await mountSuspended(SessionPage, {
+		attachTo: document.body,
 		global: {
 			stubs: {
 				DeckColumn: true,
@@ -104,6 +112,9 @@ function stepDone(stepId: string): string | undefined {
 describe('Session home first-run checklist', () => {
 	beforeEach(() => {
 		window.localStorage.clear()
+		pageMocks.workspace.id = 'cloud:account-a'
+		pageMocks.workspace.readOnly = false
+		pageMocks.user.profile = { id: 'account-a' }
 		pageMocks.capabilities.canMutateLibrary = true
 		pageMocks.capabilities.canPersistSessions = true
 		pageMocks.records.records = []
@@ -225,6 +236,62 @@ describe('Session home first-run checklist', () => {
 		await waitForChecklist()
 	})
 
+	it('also respects a read-only workspace flag set independently of capabilities', async () => {
+		pageMocks.workspace.readOnly = true
+		await mountSessionPage()
+		expect(findChecklist()?.exists()).toBe(false)
+
+		pageMocks.workspace.readOnly = false
+		await waitForChecklist()
+	})
+
+	it('waits for the account profile so a connected DJ never sees "Connect Discogs" flash', async () => {
+		pageMocks.user.profile = null
+		pageMocks.records.records = [{ id: 'r1', discogs_id: null }]
+		await mountSessionPage()
+		expect(findChecklist()?.exists()).toBe(false)
+
+		pageMocks.user.profile = { id: 'account-a' }
+		await waitForChecklist()
+	})
+
+	it('refetches saved sets for a new workspace before deciding again', async () => {
+		const resolvers: (() => void)[] = []
+		const fetchSavedSets = vi.fn(
+			() => new Promise<void>((resolve) => void resolvers.push(resolve))
+		)
+		pageMocks.session.fetchSavedSets = fetchSavedSets
+		await mountSessionPage()
+		resolvers[0]?.()
+		await waitForChecklist()
+
+		// Another account signs in while the Session page stays mounted.
+		pageMocks.workspace.id = 'cloud:account-b'
+		await nextTick()
+		expect(fetchSavedSets).toHaveBeenCalledTimes(2)
+		expect(findChecklist()?.exists()).toBe(false)
+
+		// A late answer for the previous workspace does not mark the new one ready.
+		resolvers[0]?.()
+		await flushPromises()
+		expect(findChecklist()?.exists()).toBe(false)
+
+		resolvers[1]?.()
+		await waitForChecklist()
+	})
+
+	it('keeps the plan-a-set hint visible on phones because that step has no link', async () => {
+		await mountSessionPage()
+		const checklist = await waitForChecklist()
+
+		const planHint = checklist.get('[data-step-id="plan-set"] p')
+		expect(planHint.classes()).not.toContain('hidden')
+		expect(planHint.text()).toContain('save the set')
+		expect(checklist.get('[data-step-id="build-crate"] p').classes()).toContain(
+			'hidden'
+		)
+	})
+
 	it('remembers a dismissal in this browser across visits', async () => {
 		await mountSessionPage()
 		const checklist = await waitForChecklist()
@@ -238,6 +305,11 @@ describe('Session home first-run checklist', () => {
 		expect(
 			window.localStorage.getItem(FIRST_RUN_CHECKLIST_DISMISSED_STORAGE_KEY)
 		).toBe('1')
+		await vi.waitFor(() => {
+			expect(document.activeElement).toBe(
+				wrapper?.get('[data-testid="session-content"]').element
+			)
+		})
 
 		wrapper?.unmount()
 		await mountSessionPage()

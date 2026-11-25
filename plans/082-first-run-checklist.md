@@ -164,6 +164,24 @@ for the lazy boundary.
   measured 740,792 raw / 234,801 gzip bytes, inside the 760,826 / 240,905
   limit.
 
+## Review follow-ups (Astra, 2026-11-25)
+
+- The saved-set fetch reruns whenever the workspace identity changes (sign-in
+  finishing, an account switch while the page is kept alive), and only the
+  latest fetch marks the list as known.
+- The checklist also waits for the current owner's profile, so "Connect
+  Discogs" cannot flash for a connected account, and treats
+  `descriptor.readOnly` as read-only independently of capabilities.
+- The plan-a-set hint stays visible on phones because that step has no link.
+- Dismissing moves focus to the Session content instead of the document body.
+- The coverage percentage uses integer maths (29 of 100 now reads 29%, not
+  28%).
+- Declined: hiding the checklist after a failed records or saved-set read.
+  The page already shows its own empty state and an error toast on those
+  failures, so the checklist agrees with what the page shows. Telling
+  "loaded" from "failed" for saved sets needs a return-value change in
+  `sessionSavedSets.ts`, which belongs in a separate change.
+
 ## STOP conditions
 
 Stop and hand off if a step can only be derived with a new query or table, if

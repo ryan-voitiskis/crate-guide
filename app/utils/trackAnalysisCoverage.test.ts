@@ -55,4 +55,11 @@ describe('summarizeTrackAnalysisCoverage', () => {
 				.percentWithBpmAndKey
 		).toBe(100)
 	})
+
+	it('agrees with the count beside it where floating point would round down', () => {
+		const tracks = Array.from({ length: 100 }, (_, index) =>
+			index < 29 ? track(120, 1, 1) : track(null, null, null)
+		)
+		expect(summarizeTrackAnalysisCoverage(tracks).percentWithBpmAndKey).toBe(29)
+	})
 })

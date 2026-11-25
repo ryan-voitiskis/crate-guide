@@ -16,6 +16,7 @@ export function useFirstRunChecklist(savedSetsReady: Readonly<Ref<boolean>>) {
 	const crates = useWorkbenchCratesStore()
 	const session = useWorkbenchSessionStore()
 	const discogsAuth = useWorkbenchDiscogsAuthStore()
+	const user = useWorkbenchUserStore()
 	const runtime = useWorkbenchRuntime()
 
 	// Per-browser convenience state; storage failures keep the dismissal for
@@ -39,12 +40,22 @@ export function useFirstRunChecklist(savedSetsReady: Readonly<Ref<boolean>>) {
 			crates.isLoadingCrates
 	)
 
+	// "Connect Discogs" reads the profile, which is null until the current
+	// owner's profile has loaded.
+	const isProfileLoaded = computed(() => user.profile !== null)
+
 	// Demo and other read-only workspaces cannot act on any step.
+	const isWritable = computed(() => {
+		const descriptor = runtime.descriptor.value
+		return !descriptor.readOnly && descriptor.capabilities.canMutateLibrary
+	})
+
 	const isVisible = computed(
 		() =>
-			runtime.descriptor.value.capabilities.canMutateLibrary &&
+			isWritable.value &&
 			!isDismissed.value &&
 			!isLibraryLoading.value &&
+			isProfileLoaded.value &&
 			savedSetsReady.value &&
 			!checklist.value.isComplete
 	)
