@@ -30,10 +30,13 @@ function handleMouseLeave() {
 </script>
 
 <template>
-	<div class="flex gap-0.5">
+	<div class="flex gap-0.5" role="group" aria-label="Transition rating">
 		<button
 			v-for="value in 5"
 			:key="value"
+			type="button"
+			:aria-label="`${value} of 5 stars`"
+			:aria-pressed="rating === value"
 			class="p-0.5 transition-colors"
 			@click="handleClick(value)"
 			@mouseenter="handleMouseEnter(value)"

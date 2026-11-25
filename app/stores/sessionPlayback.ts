@@ -1,5 +1,6 @@
 import { type Ref, computed, ref } from 'vue'
 import { adjustKey } from '~/utils/keyFunctions'
+import { moveSetEntry, removeSetEntry } from '~/utils/setPlanner'
 import { getTrackSuggestions } from '~/utils/trackSuggestions'
 import type {
 	LibraryPlayedTrackEntry,
@@ -7,6 +8,22 @@ import type {
 } from '~~/shared/types/library'
 import type { ScoredTrack } from '~~/shared/types/session'
 import type { SessionDeck as Deck } from './sessionTypes'
+
+export interface HistoryEditResult {
+	/** Transition ratings cleared because their pair no longer exists. */
+	clearedRatings: number
+	/** The removed entry, for removals. */
+	removedEntry: LibraryPlayedTrackEntry | null
+}
+
+interface HistoryUndoSnapshot {
+	before: LibraryPlayedTrackEntry[]
+	afterSignature: string
+}
+
+function historySignature(entries: readonly LibraryPlayedTrackEntry[]) {
+	return JSON.stringify(entries)
+}
 
 interface SessionPlaybackDependencies {
 	pitchRange: Readonly<Ref<number>>
@@ -40,6 +57,7 @@ export function createSessionPlayback({
 		sourceDeck: -1
 	})
 	const faderAnimationGenerations = new Map<number, number>()
+	let historyUndo: HistoryUndoSnapshot | null = null
 
 	function beginFaderAnimation(deckIndex: number): number {
 		const generation = (faderAnimationGenerations.get(deckIndex) ?? 0) + 1
@@ -268,12 +286,65 @@ export function createSessionPlayback({
 		if (entry) entry.transition_rating = rating
 	}
 
+	function commitHistoryEdit(next: LibraryPlayedTrackEntry[]): void {
+		historyUndo = {
+			before: currentSession.value.map((entry) => ({ ...entry })),
+			afterSignature: historySignature(next)
+		}
+		currentSession.value = next
+	}
+
+	/**
+	 * Move a history entry. Ratings whose adjacent pair is broken are cleared
+	 * (see `moveSetEntry`). Returns null when the move is out of range.
+	 */
+	function moveHistoryEntry(
+		fromIndex: number,
+		toIndex: number
+	): HistoryEditResult | null {
+		const edit = moveSetEntry(currentSession.value, fromIndex, toIndex)
+		if (!edit) return null
+		commitHistoryEdit(edit.entries)
+		return { clearedRatings: edit.clearedRatings, removedEntry: null }
+	}
+
+	function removeHistoryEntry(index: number): HistoryEditResult | null {
+		const removedEntry = currentSession.value[index]
+		const edit = removeSetEntry(currentSession.value, index)
+		if (!edit || !removedEntry) return null
+		commitHistoryEdit(edit.entries)
+		return {
+			clearedRatings: edit.clearedRatings,
+			removedEntry: { ...removedEntry }
+		}
+	}
+
+	/**
+	 * Restore the history from before the last move or removal. Refuses when
+	 * anything changed since (a new track, a rating, another edit), so undo
+	 * never discards work done after the edit.
+	 */
+	function undoHistoryEdit(): boolean {
+		const snapshot = historyUndo
+		if (
+			!snapshot ||
+			historySignature(currentSession.value) !== snapshot.afterSignature
+		) {
+			return false
+		}
+		historyUndo = null
+		currentSession.value = snapshot.before
+		return true
+	}
+
 	function clearPlaybackSession() {
+		historyUndo = null
 		currentSession.value = []
 		decks.value.forEach(resetDeck)
 	}
 
 	function resetAccountPlayback() {
+		historyUndo = null
 		currentSession.value = []
 		decks.value.forEach((_, deckIndex) => cancelFaderAnimation(deckIndex))
 		decks.value = Array.from({ length: deckCount.value }, createEmptyDeck)
@@ -308,6 +379,9 @@ export function createSessionPlayback({
 		loadToSelectedDeck,
 		closeDeckSelectDialog,
 		rateTransition,
+		moveHistoryEntry,
+		removeHistoryEntry,
+		undoHistoryEdit,
 		clearPlaybackSession,
 		resetAccountPlayback
 	}

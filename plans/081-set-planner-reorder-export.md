@@ -22,7 +22,8 @@
 - **Depends on**: none
 - **Category**: product / session planning
 - **Planned at**: commit `f90fa44`, 2026-11-25
-- **Status**: IN PROGRESS
+- **Status**: DONE (delivered in one PR; remove after the maintainer confirms
+  the evidence and the product decisions below)
 - **Product context**: Phase 2b of
   [docs/product-direction-2026-11.md](../docs/product-direction-2026-11.md).
   Built overnight in parallel with Phase 2c (ratings in suggestions) and part
@@ -125,8 +126,12 @@ link planning to the coming Bag view (Phase 2a).
   returning `{ entries, clearedRatings }` with new arrays and shallow-copied
   entries whose rating changed. Out-of-range or no-op inputs return `null`.
 - `getSetEntryBpm(entry, track)` (played BPM, then track BPM).
-- `getSetArcPoints(values)` for the sparkline geometry.
+- `getSetArc(values, width, height)` for the sparkline geometry.
 - `collectSetRecordIds(entries, getTrack)`.
+
+`app/utils/packSet.ts`: `packRecordsIntoCrate(crates, recordIds, target)`
+over a narrow `PackSetCrateWriter` interface (the store satisfies it),
+`describePackSetResult` and `defaultPackSetCrateName`.
 
 `app/utils/setListExport.ts`:
 
@@ -153,10 +158,13 @@ account invalidates the undo snapshot.
   shortcuts, drag handle.
 - `PanelSessionHistory.vue`: focus management, live region, undo toast,
   `MetricSessionBpmArc`, `ControlsSessionExport`, `DialogPackSet`.
-- `usePackSet.ts`: the crate orchestration, tested in the stores project.
+- `RatingSessionHistory.vue`: labelled star buttons (`aria-label`,
+  `aria-pressed`, `type="button"`) so the moved ratings are operable by
+  keyboard and screen reader.
+- `usePackSet.ts`: session-page wiring over `packSet.ts`.
 
 **Verify**: `npx vitest run --project nuxt test/nuxt/session-history-planner.nuxt.test.ts`
-and `npx vitest run --project stores app/composables/__tests__/usePackSet.test.ts`
+and `npx vitest run --project unit app/utils/packSet.test.ts`
 
 ### Step 4: Gates
 
@@ -165,7 +173,16 @@ and `npx vitest run --project stores app/composables/__tests__/usePackSet.test.t
 
 ## Evidence
 
-Recorded in the PR description and its final comment.
+- Unit: `setPlanner.test.ts`, `setListExport.test.ts`, `packSet.test.ts`.
+- Stores: `sessionStore.history.test.ts`, including autosave of a reordered
+  set with its adjusted ratings.
+- Nuxt: `session-history-planner.nuxt.test.ts` mounts the panel over the real
+  `createSessionPlayback` and covers buttons, `Alt+Arrow`, drag and drop,
+  focus after move and removal, undo, the BPM arc, CSV copy through the export
+  menu, packing into a new crate and the demo/read-only gates.
+- Mutation checks: making `rebuildFromOrder` keep every rating fails 10 tests
+  across unit, stores and nuxt; removing the CSV formula prefix fails 5.
+- Gates and Astra's review are recorded in the PR.
 
 ## STOP conditions
 
