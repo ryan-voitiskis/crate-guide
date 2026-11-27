@@ -19,7 +19,7 @@
 - **Depends on**: none
 - **Category**: product / session suggestions
 - **Planned at**: commit `f90fa44`, 2026-11-25
-- **Status**: DONE (pending maintainer confirmation)
+- **Status**: DONE
 - **Product context**: Phase 2c ("Close the feedback loop") of
   [docs/product-direction-2026-11.md](../docs/product-direction-2026-11.md).
   Built unattended overnight in parallel with Phase 2b (planner reorder and

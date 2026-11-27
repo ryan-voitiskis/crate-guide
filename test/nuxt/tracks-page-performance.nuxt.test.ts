@@ -224,6 +224,32 @@ describe('tracks page render work', () => {
 		expect(pageMocks.records.getRecordById).toHaveBeenCalledTimes(3)
 	})
 
+	it('counts BPM and key coverage for the analysis banner from the shared summary', async () => {
+		pageMocks.tracks.tracks = [
+			...pageMocks.tracks.tracks.slice(0, 2),
+			createMockTrack({ id: 'track-unkeyed', bpm: 0, key: 4, mode: null })
+		]
+		await mountTracksPage()
+
+		expect(
+			wrapper?.find('[aria-label="BPM available for 3 of 3 tracks"]').exists()
+		).toBe(true)
+		expect(
+			wrapper?.find('[aria-label="Key available for 2 of 3 tracks"]').exists()
+		).toBe(true)
+	})
+
+	it('labels the Evidence lens toggle in DJ wording while keeping its internal hook', async () => {
+		await mountTracksPage()
+
+		const toggle = wrapper?.get('[data-testid="track-view-evidence"]')
+		expect(toggle?.text()).toBe('Sources')
+		expect(toggle?.attributes('aria-label')).toBe('Show BPM and key sources')
+		expect(
+			wrapper?.get('[aria-label="Track collection view"]').text()
+		).not.toContain('Evidence')
+	})
+
 	it('switches to a read-only virtualized Evidence lens without losing the complete filtered set', async () => {
 		await mountTracksPage()
 

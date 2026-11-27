@@ -325,11 +325,11 @@ snapshot, observation, matcher target, target revision, and current-Evidence
 digest remain unchanged. Older readers treat the unfamiliar intent as safely
 unstaged.
 
-The Tracks Evidence lens and selected-track inspector are read-only comparison
-surfaces. They distinguish identity-match confidence, analyzer confidence,
-cross-source agreement, and changed-after-application state. They do not
-automatically replace populated values. Missing Evidence does not prove that
-analysis never occurred.
+The Tracks page **Sources** view (internally the Evidence lens) and the
+selected-track inspector are read-only comparison surfaces. They distinguish
+identity-match confidence, analyzer confidence, cross-source agreement, and
+changed-after-application state. They do not automatically replace populated
+values. Missing Evidence does not prove that analysis never occurred.
 
 Portable archives, browser-library writing, accountless mode, and offline mode
 are outside this signed-in cloud release. Evidence is not currently represented

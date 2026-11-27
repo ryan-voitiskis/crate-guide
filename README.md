@@ -5,8 +5,33 @@
 
 A DJ-focused vinyl record collection manager with real-time session mixing, harmonic track discovery, and turntable simulation. Import from Discogs, organize crates, and mix with BPM and key-aware suggestions.
 
+## Who it is for
+
+> **Crate Guide knows your records the way Rekordbox knows your files.**
+
+Crate Guide is for house, techno and disco DJs who play records. Rekordbox
+gives a digital DJ BPM, key, history and smart playlists for free; a vinyl DJ
+has a sticker on the sleeve and their memory. Crate Guide is the metadata,
+planning and memory layer for a physical record collection, not another
+collection manager (Discogs owns that) and not a turntable simulator.
+
+| Segment                                                        | Size   | Core pain                                                                                     |
+| -------------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------- |
+| Hobbyist vinyl DJ, 100–1,000 records, plays at home or parties | Large  | Does not know the BPM/key of most records; packs by memory; forgets what is in the collection |
+| Gigging vinyl DJ, 500–5,000 records                            | Small  | Packing the bag for a gig; finding the next record in the booth; remembering what worked      |
+| Hybrid DJ (vinyl + Rekordbox/USB)                              | Medium | Has BPM/key for digital files but not for vinyl; wants one view of both                       |
+| Collector who occasionally DJs                                 | Large  | Cataloguing is solved by Discogs; wants rediscovery and "what goes with what"                 |
+
+The core loop is own records → know their BPM and key → plan a set → pack the
+bag → play → log what worked. The share of tracks with both BPM and key is the
+activation measure, shown on the Session home for new accounts. See
+[the November product direction](docs/product-direction-2026-11.md) for the
+full assessment and roadmap.
+
 ## Features
 
+- **Getting Started Checklist** — New accounts see their next steps on the
+  Session home, with a live share of tracks that have BPM and key
 - **Session Mixing** — Two-deck mixing interface with pitch faders, track suggestions, and transition history
 - **Turntable Simulation** — SL-1200 style deck with animated platter, tonearm, and RPM controls
 - **Collection Management** — Catalog records and tracks with detailed metadata

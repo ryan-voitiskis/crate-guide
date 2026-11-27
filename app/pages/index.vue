@@ -2,15 +2,47 @@
 const records = useWorkbenchRecordsStore()
 const session = useWorkbenchSessionStore()
 const tracks = useWorkbenchTracksStore()
-const capabilities = useWorkbenchCapabilities()
+const runtime = useWorkbenchRuntime()
 
 const isActive = usePageActive(true)
+const sessionContent = useTemplateRef<HTMLElement>('sessionContent')
+
+// Saved sets drive the checklist's "Plan a set" step, so the checklist waits
+// for a fetch to settle instead of flashing that step as incomplete. A new
+// workspace (sign-in finishing, an account switch) fetches again, and only the
+// latest fetch marks the list as known.
+const savedSetsReady = ref(false)
+let savedSetsFetchGeneration = 0
+const {
+	checklist: firstRunChecklist,
+	isVisible: isFirstRunChecklistVisible,
+	dismiss: dismissFirstRunChecklist
+} = useFirstRunChecklist(savedSetsReady)
+
+function loadSavedSets() {
+	const generation = ++savedSetsFetchGeneration
+	if (!runtime.descriptor.value.capabilities.canPersistSessions) {
+		savedSetsReady.value = true
+		return
+	}
+	savedSetsReady.value = false
+	void session.fetchSavedSets().finally(() => {
+		if (generation === savedSetsFetchGeneration) savedSetsReady.value = true
+	})
+}
+
+// Dismissing removes the focused button, so move focus to the page content
+// rather than dropping it to the document body.
+async function handleFirstRunChecklistDismiss() {
+	dismissFirstRunChecklist()
+	await nextTick()
+	sessionContent.value?.focus()
+}
 
 watchEffect(() => session.setTrackSource(tracks.tracks))
 
-onMounted(() => {
-	if (capabilities.canPersistSessions) session.fetchSavedSets()
-})
+onMounted(loadSavedSets)
+watch(() => runtime.descriptor.value.id, loadSavedSets)
 </script>
 
 <template>
@@ -27,19 +59,34 @@ onMounted(() => {
 
 		<Separator class="opacity-70" />
 
-		<div class="relative min-h-0 flex-1">
+		<LazyChecklistFirstRun
+			v-if="isFirstRunChecklistVisible"
+			:checklist="firstRunChecklist"
+			class="shrink-0"
+			@dismiss="handleFirstRunChecklistDismiss"
+		/>
+
+		<div
+			ref="sessionContent"
+			tabindex="-1"
+			class="relative min-h-0 flex-1 outline-none"
+			data-testid="session-content"
+		>
 			<StateLoading
 				v-if="records.isLoadingRecords || tracks.isLoadingTracks"
 				message="Loading tracks..."
 				class="h-full"
 			/>
 
-			<StateEmptyCollection
-				v-else-if="!records.hasRecords"
-				icon="session"
-				title="Add records to start a session"
-				description="Sessions are built from the tracks in your record library."
-			/>
+			<!-- The checklist above can leave less height than the empty state's
+			minimum, so this state scrolls instead of overflowing the page. -->
+			<div v-else-if="!records.hasRecords" class="h-full overflow-y-auto">
+				<StateEmptyCollection
+					icon="session"
+					title="Add records to start a session"
+					description="Sessions are built from the tracks in your record library."
+				/>
+			</div>
 
 			<div
 				v-else-if="!tracks.hasTracks"

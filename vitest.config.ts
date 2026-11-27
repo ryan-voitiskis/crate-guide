@@ -26,6 +26,24 @@ if (
 }
 const requireRekordboxTimingBudgets = rekordboxTimingSetting !== '0'
 
+const sessionSuggestionsLongTaskSetting =
+	process.env.SESSION_SUGGESTIONS_REQUIRE_ZERO_LONG_TASKS
+if (
+	sessionSuggestionsLongTaskSetting !== undefined &&
+	sessionSuggestionsLongTaskSetting !== '0' &&
+	sessionSuggestionsLongTaskSetting !== '1'
+) {
+	throw new Error(
+		'SESSION_SUGGESTIONS_REQUIRE_ZERO_LONG_TASKS must be exactly 0 or 1'
+	)
+}
+// Unset means strict on developer machines and tolerant on CI, which sets
+// CI=true; an explicit 0 or 1 wins everywhere.
+const requireZeroSessionSuggestionsLongTasks =
+	sessionSuggestionsLongTaskSetting === undefined
+		? process.env.CI !== 'true'
+		: sessionSuggestionsLongTaskSetting === '1'
+
 const nuxtProject = await defineVitestProject({
 	test: {
 		name: 'nuxt',
@@ -97,7 +115,9 @@ export default defineConfig({
 						JSON.stringify(requireLocalAudioCacheTimingBudgets),
 					'import.meta.env.REKORDBOX_REQUIRE_TIMING_BUDGETS': JSON.stringify(
 						requireRekordboxTimingBudgets
-					)
+					),
+					'import.meta.env.SESSION_SUGGESTIONS_REQUIRE_ZERO_LONG_TASKS':
+						JSON.stringify(requireZeroSessionSuggestionsLongTasks)
 				}
 			},
 			// Unit tests - pure functions, no Nuxt runtime needed
