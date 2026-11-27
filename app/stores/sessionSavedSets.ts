@@ -195,8 +195,10 @@ export function createSessionSavedSets({
 	}
 
 	async function executeAutoSave(request: AutoSaveRequest) {
-		if (!isCurrentSessionWrite(request) || request.playedTracks.length === 0)
-			return
+		if (!isCurrentSessionWrite(request)) return
+		// An emptied history (its last entry removed) updates the set it was
+		// already saved to, but never creates a new empty set.
+		if (request.playedTracks.length === 0 && activeSetId.value === null) return
 
 		const playedTracks = cloneSnapshotForWrite(request.playedTracks)
 		try {
@@ -322,9 +324,25 @@ export function createSessionSavedSets({
 		})
 	}
 
+	/**
+	 * An empty history is worth saving only when it replaces a saved set: one
+	 * that exists already or whose first write is queued or in flight. Clearing
+	 * the session invalidates those writes first, so it never saves.
+	 */
+	function hasSessionToSave(): boolean {
+		if (currentSession.value.length > 0 || activeSetId.value !== null) {
+			return true
+		}
+		return (
+			(activeSessionWrite !== null &&
+				isCurrentSessionWrite(activeSessionWrite)) ||
+			pendingSessionWrites.some(isCurrentSessionWrite)
+		)
+	}
+
 	function scheduleAutoSave() {
 		const context = captureWorkspaceContext()
-		if (!context || currentSession.value.length === 0) return
+		if (!context || !hasSessionToSave()) return
 		const generation = sessionWriteGeneration
 
 		if (autoSaveTimeout.value) clearTimeout(autoSaveTimeout.value)
@@ -333,7 +351,7 @@ export function createSessionSavedSets({
 			if (
 				generation !== sessionWriteGeneration ||
 				!isCurrentWorkspaceContext(context) ||
-				currentSession.value.length === 0
+				!hasSessionToSave()
 			)
 				return
 

@@ -1,5 +1,6 @@
 import { type Ref, computed, ref } from 'vue'
 import { adjustKey } from '~/utils/keyFunctions'
+import { moveSetEntry, removeSetEntry } from '~/utils/setPlanner'
 import { getTrackSuggestions } from '~/utils/trackSuggestions'
 import type { TransitionHistoryIndex } from '~/utils/transitionHistory'
 import type {
@@ -8,6 +9,25 @@ import type {
 } from '~~/shared/types/library'
 import type { ScoredTrack } from '~~/shared/types/session'
 import type { SessionDeck as Deck } from './sessionTypes'
+
+export interface HistoryEditResult {
+	/** Identifies this edit; `undoHistoryEdit` restores only the latest one. */
+	editId: number
+	/** Transition ratings cleared because their pair no longer exists. */
+	clearedRatings: number
+	/** The removed entry, for removals. */
+	removedEntry: LibraryPlayedTrackEntry | null
+}
+
+interface HistoryUndoSnapshot {
+	editId: number
+	before: LibraryPlayedTrackEntry[]
+	afterSignature: string
+}
+
+function historySignature(entries: readonly LibraryPlayedTrackEntry[]) {
+	return JSON.stringify(entries)
+}
 
 interface SessionPlaybackDependencies {
 	pitchRange: Readonly<Ref<number>>
@@ -41,6 +61,8 @@ export function createSessionPlayback({
 		sourceDeck: -1
 	})
 	const faderAnimationGenerations = new Map<number, number>()
+	let historyUndo: HistoryUndoSnapshot | null = null
+	let historyEditCounter = 0
 
 	function beginFaderAnimation(deckIndex: number): number {
 		const generation = (faderAnimationGenerations.get(deckIndex) ?? 0) + 1
@@ -170,9 +192,15 @@ export function createSessionPlayback({
 			}
 		}
 
+		// Strictly increasing within a session, so two plays of one track in the
+		// same millisecond still have distinct identities (list keys, undo).
+		const lastTimeAdded = currentSession.value.reduce(
+			(latest, entry) => Math.max(latest, entry.time_added),
+			Number.NEGATIVE_INFINITY
+		)
 		currentSession.value.push({
 			track_id: trackId,
-			time_added: Date.now(),
+			time_added: Math.max(Date.now(), lastTimeAdded + 1),
 			adjusted_bpm: finalAdjustedBpm,
 			transition_rating: null,
 			track_title: track.title,
@@ -273,12 +301,70 @@ export function createSessionPlayback({
 		if (entry) entry.transition_rating = rating
 	}
 
+	function commitHistoryEdit(next: LibraryPlayedTrackEntry[]): number {
+		historyEditCounter += 1
+		historyUndo = {
+			editId: historyEditCounter,
+			before: currentSession.value.map((entry) => ({ ...entry })),
+			afterSignature: historySignature(next)
+		}
+		currentSession.value = next
+		return historyEditCounter
+	}
+
+	/**
+	 * Move a history entry. Ratings whose adjacent pair is broken are cleared
+	 * (see `moveSetEntry`). Returns null when the move is out of range.
+	 */
+	function moveHistoryEntry(
+		fromIndex: number,
+		toIndex: number
+	): HistoryEditResult | null {
+		const edit = moveSetEntry(currentSession.value, fromIndex, toIndex)
+		if (!edit) return null
+		const editId = commitHistoryEdit(edit.entries)
+		return { editId, clearedRatings: edit.clearedRatings, removedEntry: null }
+	}
+
+	function removeHistoryEntry(index: number): HistoryEditResult | null {
+		const removedEntry = currentSession.value[index]
+		const edit = removeSetEntry(currentSession.value, index)
+		if (!edit || !removedEntry) return null
+		const editId = commitHistoryEdit(edit.entries)
+		return {
+			editId,
+			clearedRatings: edit.clearedRatings,
+			removedEntry: { ...removedEntry }
+		}
+	}
+
+	/**
+	 * Restore the history from before edit `editId`. Refuses unless that edit
+	 * is the latest one and nothing changed since (a new track, a rating), so
+	 * an older Undo can never reverse a newer edit or discard later work.
+	 */
+	function undoHistoryEdit(editId: number): boolean {
+		const snapshot = historyUndo
+		if (
+			!snapshot ||
+			snapshot.editId !== editId ||
+			historySignature(currentSession.value) !== snapshot.afterSignature
+		) {
+			return false
+		}
+		historyUndo = null
+		currentSession.value = snapshot.before
+		return true
+	}
+
 	function clearPlaybackSession() {
+		historyUndo = null
 		currentSession.value = []
 		decks.value.forEach(resetDeck)
 	}
 
 	function resetAccountPlayback() {
+		historyUndo = null
 		currentSession.value = []
 		decks.value.forEach((_, deckIndex) => cancelFaderAnimation(deckIndex))
 		decks.value = Array.from({ length: deckCount.value }, createEmptyDeck)
@@ -313,6 +399,9 @@ export function createSessionPlayback({
 		loadToSelectedDeck,
 		closeDeckSelectDialog,
 		rateTransition,
+		moveHistoryEntry,
+		removeHistoryEntry,
+		undoHistoryEdit,
 		clearPlaybackSession,
 		resetAccountPlayback
 	}

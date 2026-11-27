@@ -45,6 +45,7 @@ evidence that a STOP or dependency was resolved.
 | 073 | [Enable accountless Discogs connection](073-enable-accountless-discogs-connection.md) |    P2    |   XL   | HIGH | DEFERRED |
 | 076 | [Enable the offline Local app shell](076-enable-offline-local-app-shell.md)           |    P3    |   L    | MED  | DEFERRED |
 | 080 | [Let transition ratings feed suggestions](080-ratings-feed-suggestions.md)            |    P1    |   S    | LOW  | DONE     |
+| 081 | [Set planner reorder, BPM arc and export](081-set-planner-reorder-export.md)          |    P1    |   M    | LOW  | DONE     |
 | 082 | [First-run checklist and Phase 0 positioning](082-first-run-checklist.md)             |    P1    |   S    | LOW  | DONE     |
 
 [077](077-stabilisation-foundation.md) and
