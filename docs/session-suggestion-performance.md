@@ -36,6 +36,16 @@ measured gestures:
 - there are zero long tasks over `50 ms` attributable to suggestion
   recomputation.
 
+The long-task rule is controlled by `SESSION_SUGGESTIONS_REQUIRE_ZERO_LONG_TASKS`
+(`0` or `1`). When it is unset, developer machines enforce the rule and CI
+(`CI=true`, as GitHub Actions sets it) relaxes it (owner decision,
+25 November 2026): shared runners failed the rule twice in a row with
+1 and then 3 attributable long tasks out of 680 recomputations, while both p95
+budgets passed with margin. With the rule relaxed, CI allows attributable long
+tasks up to 1% of recomputations (6 of 680). Both p95 budgets and the
+deterministic checksum are enforced everywhere, and every run logs the
+long-task count, its budget and the longest attributable task.
+
 If the baseline passes, Plan 055 retains the simpler suggestion algorithm and
 lands the characterization gate. If it fails, the implementation must coalesce
 pointer-driven recomputation to animation frames and use a stable bounded top-50

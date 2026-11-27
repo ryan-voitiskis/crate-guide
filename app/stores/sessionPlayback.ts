@@ -2,6 +2,7 @@ import { type Ref, computed, ref } from 'vue'
 import { adjustKey } from '~/utils/keyFunctions'
 import { moveSetEntry, removeSetEntry } from '~/utils/setPlanner'
 import { getTrackSuggestions } from '~/utils/trackSuggestions'
+import type { TransitionHistoryIndex } from '~/utils/transitionHistory'
 import type {
 	LibraryPlayedTrackEntry,
 	LibraryTrack
@@ -101,7 +102,10 @@ export function createSessionPlayback({
 		return adjustKey(deck.loadedTrack.key, factor)
 	}
 
-	function getSuggestionsForDeck(deckIndex: number): ScoredTrack[] {
+	function getSuggestionsForDeck(
+		deckIndex: number,
+		transitionHistory: TransitionHistoryIndex | null = null
+	): ScoredTrack[] {
 		const deck = decks.value[deckIndex]
 		if (!deck?.loadedTrack) return []
 
@@ -120,7 +124,8 @@ export function createSessionPlayback({
 			sourceRecordId: sourceTrack.record_id,
 			sourceTrackId: sourceTrack.id,
 			playedIds,
-			pitchRange: pitchRange.value
+			pitchRange: pitchRange.value,
+			transitionHistory
 		})
 	}
 

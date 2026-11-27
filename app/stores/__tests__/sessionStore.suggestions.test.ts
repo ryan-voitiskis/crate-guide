@@ -4,6 +4,7 @@ import {
 	resetTrackIdCounter
 } from 'test/mocks/fixtures/tracks'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { getTransitionHistoryForSavedSets } from '~/composables/useTransitionHistory'
 import { useSessionStore } from '../sessionStore'
 import { createSessionStoreHarness } from './harness/sessionStoreHarness'
 
@@ -147,6 +148,71 @@ describe('sessionStore suggestions and history', () => {
 
 			expect(result.map((t) => t.id)).toContain('different-record')
 			expect(result.map((t) => t.id)).not.toContain('same-record')
+		})
+
+		it('ranks candidates with saved-set transition history', () => {
+			mockTracksStore.playableTracks = [
+				createMockTrack({
+					id: 'never-played',
+					bpm: 128,
+					record_id: 'other-record'
+				}),
+				createMockTrack({
+					id: 'loved-pair',
+					bpm: 128,
+					record_id: 'other-record-2'
+				})
+			]
+
+			const store = useSessionStore()
+			store.decks[0]!.loadedTrack = createMockTrack({
+				id: 'source',
+				bpm: 128,
+				record_id: 'source-record'
+			})
+			store.savedSets = [1, 2].map((setNumber) => ({
+				id: `set-${setNumber}`,
+				name: null,
+				created_at: null,
+				updated_at: null,
+				played_tracks: [
+					{
+						track_id: 'source',
+						time_added: setNumber,
+						adjusted_bpm: null,
+						transition_rating: null
+					},
+					{
+						track_id: 'loved-pair',
+						time_added: setNumber + 1,
+						adjusted_bpm: null,
+						transition_rating: 5
+					}
+				]
+			}))
+
+			const withoutHistory = store.getSuggestionsForDeck(0)
+			const history = getTransitionHistoryForSavedSets(store.savedSets)
+			const withHistory = store.getSuggestionsForDeck(0, history)
+
+			expect(withoutHistory.map((t) => t.id)).toEqual([
+				'never-played',
+				'loved-pair'
+			])
+			expect(withHistory.map((t) => t.id)).toEqual([
+				'loved-pair',
+				'never-played'
+			])
+			expect(withHistory[0]!.transitionHistory).toMatchObject({
+				plays: 2,
+				averageRating: 5
+			})
+			// One build per saved-set array, shared by every caller.
+			expect(getTransitionHistoryForSavedSets(store.savedSets)).toBe(history)
+			store.savedSets = [...store.savedSets]
+			expect(getTransitionHistoryForSavedSets(store.savedSets)).not.toBe(
+				history
+			)
 		})
 
 		it('excludes the currently loaded track', () => {
