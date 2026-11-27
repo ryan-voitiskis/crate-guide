@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest'
+import type { LibraryPlayedTrackEntry } from '../../shared/types/library'
 import {
 	calculatePitchAdjustment,
 	calculateTempoScore,
 	filterAlreadyPlayed,
 	filterByBpmReach,
+	getSuggestionRank,
 	getTrackSuggestions,
 	scoreTrack
 } from './trackSuggestions'
+import {
+	HISTORY_BONUS_MAX,
+	buildTransitionHistoryIndex
+} from './transitionHistory'
 
 // Helper to create a minimal Track object for testing
 function createTestTrack(overrides: Partial<Track> = {}): Track {
@@ -420,6 +426,248 @@ describe('getTrackSuggestions', () => {
 		]
 
 		const result = getTrackSuggestions(candidates, defaultOptions)
+
+		expect(result).toEqual([])
+	})
+})
+
+describe('getTrackSuggestions with transition history', () => {
+	const options = {
+		targetBpm: 120,
+		targetKey: 0,
+		sourceMode: 0,
+		sourceRecordId: 'source-record',
+		sourceTrackId: 'source-track',
+		playedIds: new Set<string>(),
+		pitchRange: 8
+	}
+
+	function historyEntry(
+		trackId: string,
+		rating: number | null
+	): LibraryPlayedTrackEntry {
+		return {
+			track_id: trackId,
+			time_added: 1,
+			adjusted_bpm: null,
+			transition_rating: rating
+		}
+	}
+
+	/** `times` saved sets that each play the source track, then `trackId`. */
+	function playedAfterSource(
+		trackId: string,
+		rating: number | null,
+		times = 3,
+		sourceTrackId = 'source-track'
+	) {
+		return Array.from({ length: times }, () => ({
+			played_tracks: [
+				historyEntry(sourceTrackId, null),
+				historyEntry(trackId, rating)
+			]
+		}))
+	}
+
+	it('ranks a well-rated pair above an equally compatible candidate', () => {
+		const candidates = [
+			createTestTrack({ id: 'never-played', record_id: 'r1' }),
+			createTestTrack({ id: 'loved-pair', record_id: 'r2' })
+		]
+
+		const result = getTrackSuggestions(candidates, {
+			...options,
+			transitionHistory: buildTransitionHistoryIndex(
+				playedAfterSource('loved-pair', 5)
+			)
+		})
+
+		expect(result.map((track) => track.id)).toEqual([
+			'loved-pair',
+			'never-played'
+		])
+		expect(result[0]!.score).toBe(result[1]!.score)
+		expect(result[0]!.historyBonus).toBeCloseTo(HISTORY_BONUS_MAX)
+		expect(result[0]!.transitionHistory).toMatchObject({
+			plays: 3,
+			averageRating: 5
+		})
+		expect(result[1]!.transitionHistory).toBeNull()
+		expect(result[1]!.historyBonus).toBe(0)
+	})
+
+	it('ranks a badly rated pair below an equally compatible candidate', () => {
+		const candidates = [
+			createTestTrack({ id: 'bad-pair', record_id: 'r1' }),
+			createTestTrack({ id: 'never-played', record_id: 'r2' })
+		]
+
+		const result = getTrackSuggestions(candidates, {
+			...options,
+			transitionHistory: buildTransitionHistoryIndex(
+				playedAfterSource('bad-pair', 1)
+			)
+		})
+
+		expect(result.map((track) => track.id)).toEqual([
+			'never-played',
+			'bad-pair'
+		])
+		expect(result[1]!.historyBonus).toBeCloseTo(-HISTORY_BONUS_MAX)
+	})
+
+	it('leaves the compatibility score itself unchanged', () => {
+		const candidate = createTestTrack({ id: 'loved-pair', bpm: 123, key: 7 })
+		const [withHistory] = getTrackSuggestions([candidate], {
+			...options,
+			transitionHistory: buildTransitionHistoryIndex(
+				playedAfterSource('loved-pair', 5)
+			)
+		})
+		const [withoutHistory] = getTrackSuggestions([candidate], options)
+
+		expect(withHistory!.score).toBe(withoutHistory!.score)
+		expect(withHistory!.tempoScore).toBe(withoutHistory!.tempoScore)
+		expect(withHistory!.harmonyScore).toBe(withoutHistory!.harmonyScore)
+		expect(withHistory!.historyBonus).toBeGreaterThan(0)
+	})
+
+	it('only uses pairs that start from the source track', () => {
+		const candidates = [
+			createTestTrack({ id: 'first', record_id: 'r1' }),
+			createTestTrack({ id: 'second', record_id: 'r2' })
+		]
+
+		const result = getTrackSuggestions(candidates, {
+			...options,
+			transitionHistory: buildTransitionHistoryIndex([
+				...playedAfterSource('second', 5, 3, 'another-track'),
+				{
+					played_tracks: [
+						historyEntry('second', null),
+						historyEntry('source-track', 5)
+					]
+				}
+			])
+		})
+
+		expect(result.map((track) => track.id)).toEqual(['first', 'second'])
+		expect(result.every((track) => track.historyBonus === 0)).toBe(true)
+	})
+
+	it('never lets history overturn a compatibility gap above twice the bound', () => {
+		// Tempo-only scores spread from 1 down to about 0.5 in small steps.
+		const candidates = Array.from({ length: 19 }, (_, index) =>
+			createTestTrack({
+				id: `candidate-${index}`,
+				record_id: `record-${index}`,
+				bpm: 120 + index * 0.25,
+				key: null,
+				mode: null
+			})
+		)
+		// Worst case: every better-scored candidate was hated and every
+		// worse-scored one loved, alternating so neighbours pull apart.
+		const transitionHistory = buildTransitionHistoryIndex(
+			candidates.flatMap((track, index) =>
+				playedAfterSource(track.id, index % 2 === 0 ? 1 : 5)
+			)
+		)
+
+		const result = getTrackSuggestions(candidates, {
+			...options,
+			targetKey: null,
+			transitionHistory
+		})
+
+		let swaps = 0
+		for (let earlier = 0; earlier < result.length; earlier += 1) {
+			for (let later = earlier + 1; later < result.length; later += 1) {
+				const earlierScore = result[earlier]!.score!
+				const laterScore = result[later]!.score!
+				// Pinned to the documented 0.16 gap, not derived from the constant.
+				expect(laterScore - earlierScore).toBeLessThanOrEqual(0.16 + 1e-9)
+				if (laterScore > earlierScore) swaps += 1
+			}
+			expect(Math.abs(result[earlier]!.historyBonus)).toBeLessThanOrEqual(0.08)
+		}
+		// History did reorder close candidates, so the bound is what held.
+		expect(swaps).toBeGreaterThan(0)
+	})
+
+	it('keeps unscored candidates below every scored candidate', () => {
+		const candidates = [
+			createTestTrack({ id: 'unscored-loved', key: null, mode: null }),
+			createTestTrack({ id: 'scored-hated', key: 6, mode: 0 })
+		]
+
+		const result = getTrackSuggestions(candidates, {
+			...options,
+			targetBpm: null,
+			transitionHistory: buildTransitionHistoryIndex([
+				...playedAfterSource('unscored-loved', 5),
+				...playedAfterSource('scored-hated', 1)
+			])
+		})
+
+		expect(result.map((track) => track.id)).toEqual([
+			'scored-hated',
+			'unscored-loved'
+		])
+		expect(result[1]!.score).toBeNull()
+		expect(getSuggestionRank(result[1]!)).toBeLessThan(
+			getSuggestionRank(result[0]!)
+		)
+	})
+
+	it('orders unscored candidates by history among themselves', () => {
+		const candidates = [
+			createTestTrack({ id: 'unscored-plain', key: null, mode: null }),
+			createTestTrack({ id: 'unscored-loved', key: null, mode: null })
+		]
+
+		const result = getTrackSuggestions(candidates, {
+			...options,
+			targetBpm: null,
+			transitionHistory: buildTransitionHistoryIndex(
+				playedAfterSource('unscored-loved', 5)
+			)
+		})
+
+		expect(result.map((track) => track.id)).toEqual([
+			'unscored-loved',
+			'unscored-plain'
+		])
+	})
+
+	it('applies the limit after the history-aware sort', () => {
+		const candidates = ['a', 'b', 'c'].map((id) =>
+			createTestTrack({ id, record_id: `record-${id}` })
+		)
+
+		const result = getTrackSuggestions(candidates, {
+			...options,
+			limit: 2,
+			transitionHistory: buildTransitionHistoryIndex(playedAfterSource('c', 4))
+		})
+
+		expect(result.map((track) => track.id)).toEqual(['c', 'a'])
+	})
+
+	it('never adds candidates that the filters remove', () => {
+		const candidates = [
+			createTestTrack({ id: 'out-of-reach', bpm: 200 }),
+			createTestTrack({ id: 'already-played' }),
+			createTestTrack({ id: 'same-record', record_id: 'source-record' })
+		]
+
+		const result = getTrackSuggestions(candidates, {
+			...options,
+			playedIds: new Set(['already-played']),
+			transitionHistory: buildTransitionHistoryIndex(
+				candidates.flatMap((track) => playedAfterSource(track.id, 5))
+			)
+		})
 
 		expect(result).toEqual([])
 	})

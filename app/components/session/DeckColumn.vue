@@ -9,8 +9,10 @@ const props = defineProps<{
 const session = useWorkbenchSessionStore()
 const preferences = useWorkbenchPreferencesStore()
 
+const transitionHistory = useTransitionHistory()
+
 const suggestions = computed(() =>
-	session.getSuggestionsForDeck(props.deckIndex)
+	session.getSuggestionsForDeck(props.deckIndex, transitionHistory.value)
 )
 
 const showLoadDialog = ref(false)
