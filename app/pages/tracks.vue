@@ -71,19 +71,10 @@ const selectedRecord = computed(() =>
 		: null
 )
 
-const missingBpmCount = computed(
-	() => tracks.tracks.filter((track) => track.bpm === null).length
-)
-const missingKeyCount = computed(
-	() =>
-		tracks.tracks.filter((track) => track.key === null || track.mode === null)
-			.length
-)
-const missingAnalysisCount = computed(
-	() =>
-		tracks.tracks.filter(
-			(track) => track.bpm === null || track.key === null || track.mode === null
-		).length
+// The Session home first-run checklist reads the same summary, so the two
+// pages always agree on how much of the library has BPM and key.
+const analysisCoverage = computed(() =>
+	summarizeTrackAnalysisCoverage(tracks.tracks)
 )
 
 function formatArtists(track: LibraryTrack) {
@@ -308,7 +299,7 @@ watch(
 					Refreshing tracks…
 				</div>
 				<div
-					v-if="viewMode === 'tracks' && missingAnalysisCount > 0"
+					v-if="viewMode === 'tracks' && analysisCoverage.missingAnalysis > 0"
 					class="border-border bg-muted/25 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2"
 				>
 					<div class="flex min-w-0 items-center gap-2.5">
@@ -330,32 +321,28 @@ watch(
 							class="h-6 gap-1 rounded-sm font-mono text-[9px]"
 							:aria-label="
 								'BPM available for ' +
-								(tracks.tracksCount - missingBpmCount) +
+								analysisCoverage.withBpm +
 								' of ' +
-								tracks.tracksCount +
+								analysisCoverage.total +
 								' tracks'
 							"
 						>
 							<Gauge class="size-3" />
-							BPM {{ tracks.tracksCount - missingBpmCount }}/{{
-								tracks.tracksCount
-							}}
+							BPM {{ analysisCoverage.withBpm }}/{{ analysisCoverage.total }}
 						</Badge>
 						<Badge
 							variant="outline"
 							class="h-6 gap-1 rounded-sm font-mono text-[9px]"
 							:aria-label="
 								'Key available for ' +
-								(tracks.tracksCount - missingKeyCount) +
+								analysisCoverage.withKey +
 								' of ' +
-								tracks.tracksCount +
+								analysisCoverage.total +
 								' tracks'
 							"
 						>
 							<KeyRound class="size-3" />
-							KEY {{ tracks.tracksCount - missingKeyCount }}/{{
-								tracks.tracksCount
-							}}
+							KEY {{ analysisCoverage.withKey }}/{{ analysisCoverage.total }}
 						</Badge>
 						<Button
 							size="sm"
@@ -400,11 +387,11 @@ watch(
 										: 'text-muted-foreground hover:text-foreground'
 								"
 								:aria-pressed="viewMode === 'evidence'"
-								aria-label="Show Evidence lens"
+								aria-label="Show BPM and key sources"
 								data-testid="track-view-evidence"
 								@click="viewMode = 'evidence'"
 							>
-								Evidence
+								Sources
 							</button>
 						</div>
 						<span class="text-muted-foreground">
@@ -688,7 +675,7 @@ watch(
 					<p class="text-muted-foreground mt-2 text-xs">
 						{{
 							viewMode === 'evidence'
-								? 'Select a track to inspect current values and retained Evidence.'
+								? 'Select a track to see where its BPM and key came from.'
 								: 'Select a track to inspect tempo, key, condition and release context.'
 						}}
 					</p>
@@ -712,7 +699,7 @@ watch(
 				<SheetHeader class="sr-only">
 					<SheetTitle>Track inspector</SheetTitle>
 					<SheetDescription>
-						Selected track details and retained Evidence.
+						Selected track details and where its BPM and key came from.
 					</SheetDescription>
 				</SheetHeader>
 				<InspectorTrack
